@@ -10,10 +10,25 @@
   ];
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
-
   environment = {
     systemPackages = with pkgs; [
-      vim
+      ((vim_configurable.override {}).customize {
+        vimrcConfig.customRC = ''
+          set hlsearch
+          set ignorecase
+          set incsearch
+          set number
+          set noswapfile
+
+          set autoread
+          set lazyredraw
+          set relativenumber
+
+          filetype plugin on
+          filetype indent on
+          syntax on
+        '';
+      })
     ];
     variables.EDITOR = "vim";
   };
