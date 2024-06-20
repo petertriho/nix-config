@@ -5,6 +5,7 @@
 }: {
   imports = [
     ./packages/neovim
+    ./packages/tmux
   ];
 
   home = {
@@ -19,8 +20,8 @@
       glow
       iperf3
       jq
+      nurl
       ripgrep
-      tmux
       unzip
       yq-go
       zip
