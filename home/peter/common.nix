@@ -4,6 +4,7 @@
   ...
 }: {
   imports = [
+    ./packages/bat
     ./packages/neovim
     ./packages/tmux
   ];
