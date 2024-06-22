@@ -3,8 +3,5 @@
     "$HOME/.local/bin"
   ];
 
-  home.file.".local/bin" = {
-    source = config.lib.file.mkOutOfStoreSymlink ./bin;
-    recursive = true;
-  };
+  home.file.".local/bin".source = config.lib.meta.mkSymlink ./bin;
 }

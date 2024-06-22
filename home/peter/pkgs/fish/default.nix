@@ -187,5 +187,5 @@ in {
     interactiveShellInit = builtins.readFile ./config/config.fish;
   };
 
-  xdg.configFile."fish/functions".source = config.lib.file.mkOutOfStoreSymlink ./config/functions;
+  xdg.configFile."fish/functions".source = config.lib.meta.mkSymlink ./config/functions;
 }

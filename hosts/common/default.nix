@@ -3,6 +3,7 @@
   outputs,
   config,
   pkgs,
+  lib,
   ...
 }: {
   imports = [
@@ -48,5 +49,8 @@
     useGlobalPkgs = true;
     useUserPackages = true;
     users.peter = import ../../home/peter/${config.networking.hostName}.nix;
+    extraSpecialArgs = {
+      inherit inputs outputs;
+    };
   };
 }

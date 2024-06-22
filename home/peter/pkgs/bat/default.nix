@@ -1,7 +1,11 @@
-{pkgs, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
   home.packages = with pkgs; [
     bat
   ];
 
-  xdg.configFile."bat/config".source = ./config;
+  xdg.configFile."bat/config".source = config.lib.meta.mkSymlink ./config;
 }

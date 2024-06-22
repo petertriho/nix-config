@@ -1,10 +1,12 @@
 {
+  outputs,
   config,
   pkgs,
   lib,
   ...
 }: {
   imports = [
+    outputs.homeManagerModules.helpers
     ./pkgs/bat
     ./pkgs/fish
     ./pkgs/gh

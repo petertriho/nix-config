@@ -21,14 +21,14 @@
   }: let
     inherit (self) outputs;
   in {
+    homeManagerModules = import ./modules/home-manager;
+
     nixosConfigurations = {
       wsl = nixpkgs.lib.nixosSystem rec {
         system = "x86_64-linux";
-
         specialArgs = {
           inherit inputs outputs;
         };
-
         modules = [./hosts/wsl];
       };
     };
