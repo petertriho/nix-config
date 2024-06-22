@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repository=$1
+
+if [[ $# -ge 2 ]] && [[ -n $2 ]]; then
+    directory=$2
+else
+    directory=$(git_repo_name "$repository")
+fi
+
+mkdir -p "${directory}/.git"
+
+git clone --bare "$repository" "${directory}/.git"
+
+(
+    cd "$directory" \
+        && git config remote.origin.url "$repository" \
+        && git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*" \
+        && git fetch
+)
+
+branch=$(cd "$directory" && git branch --show-current)
+
+(
+    cd "$directory" \
+        && git branch --set-upstream-to="origin/${branch}" "$branch" \
+        && git worktree add "$branch"
+)

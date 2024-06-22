@@ -9,6 +9,7 @@
     ./pkgs/fish
     ./pkgs/gh
     ./pkgs/neovim
+    ./pkgs/scripts
     ./pkgs/tmux
     ./pkgs/vivid
   ];
