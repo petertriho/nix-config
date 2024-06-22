@@ -4,10 +4,10 @@
   ...
 }: {
   imports = [
-    ./packages/bat
-    ./packages/gh
-    ./packages/neovim
-    ./packages/tmux
+    ./pkgs/bat
+    ./pkgs/gh
+    ./pkgs/neovim
+    ./pkgs/tmux
   ];
 
   home = {
