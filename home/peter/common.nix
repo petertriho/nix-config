@@ -33,7 +33,7 @@
       zip
     ];
     activation = {
-      set_theme = lib.hm.dag.entryAfter [ "installPackages" ] ''
+      set_theme = lib.hm.dag.entryAfter ["installPackages"] ''
         PATH="${pkgs.fish}/bin:${pkgs.vivid}/bin:$PATH" run fish -c "set_theme"
       '';
     };
