@@ -5,6 +5,7 @@
 }: {
   imports = [
     ./packages/bat
+    ./packages/gh
     ./packages/neovim
     ./packages/tmux
   ];
@@ -16,7 +17,6 @@
       alejandra
       eza
       fzf
-      gh
       git
       glow
       iperf3
