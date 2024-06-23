@@ -27,7 +27,7 @@ if type --query fzf_configure_bindings
         --variable=\e\ce
 end
 
-# delta_side_by_side
+delta_side_by_side
 
 set -g sponge_delay 10
 set -g sponge_purge_only_on_exit true
