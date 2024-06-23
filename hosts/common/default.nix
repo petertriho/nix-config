@@ -45,6 +45,10 @@
     '';
   };
 
+  nixpkgs.overlays = [
+    inputs.neovim-nightly-overlay.overlays.default
+  ];
+
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
