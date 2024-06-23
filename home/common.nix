@@ -19,6 +19,7 @@
   home = {
     username = "peter";
     homeDirectory = "/home/peter";
+    stateVersion = lib.mkDefault "24.05";
     packages = with pkgs; [
       alejandra
       eza

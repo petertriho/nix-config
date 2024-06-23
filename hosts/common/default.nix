@@ -48,7 +48,7 @@
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    users.peter = import ../../home/peter/${config.networking.hostName}.nix;
+    users.peter = import ../../home/${config.networking.hostName}.nix;
     extraSpecialArgs = {
       inherit inputs outputs;
     };
