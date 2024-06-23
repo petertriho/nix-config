@@ -125,7 +125,7 @@ in {
               ('/run/current-system/sw/bin/(.+) --.*', '\\g<1>'), \
               ('/home/${config.home.username}/.nix-profile/bin/(.+) --.*', '\\g<1>'), \
               ('/etc/profiles/per-user/${config.home.username}/bin/(.+) --.*', '\\g<1>') \
-            ]" 
+            ]"
           set -g @tmux_window_name_dir_programs \
             "[ \
               'nvim', 'vim', 'vi', 'git', \
