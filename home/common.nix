@@ -7,13 +7,13 @@
 }: {
   imports = [
     outputs.homeManagerModules.helpers
-    ./pkgs/bat
-    ./pkgs/fish
-    ./pkgs/gh
-    ./pkgs/neovim
-    ./pkgs/scripts
-    ./pkgs/tmux
-    ./pkgs/vivid
+    ./pkgs/bat.nix
+    ./pkgs/fish.nix
+    ./pkgs/gh.nix
+    ./pkgs/neovim.nix
+    ./pkgs/scripts.nix
+    ./pkgs/tmux.nix
+    ./pkgs/vivid.nix
   ];
 
   home = {

@@ -184,8 +184,8 @@ in {
         starship init fish | source
       end
     '';
-    interactiveShellInit = builtins.readFile ./config/config.fish;
+    interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
-  xdg.configFile."fish/functions".source = config.lib.meta.mkSymlink ./config/functions;
+  xdg.configFile."fish/functions".source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/functions";
 }

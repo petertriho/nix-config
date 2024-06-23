@@ -65,8 +65,8 @@ in {
     gitmux
   ];
 
-  home.file.".tmux/tokyonight.tmux".source = ./.tmux/tokyonight.tmux;
-  home.file.".gitmux.conf".source = ./.gitmux.conf;
+  home.file.".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
+  home.file.".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
 
   programs.tmux = {
     enable = true;
