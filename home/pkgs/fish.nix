@@ -39,28 +39,6 @@ in {
     zoxide
   ];
 
-  programs.starship = {
-    enable = true;
-    settings = {
-      right_format = ''''${custom.arch}''${time}'';
-      custom.arch = {
-        command = "uname -m";
-        when = true;
-        shell = "sh";
-      };
-      battery = {
-        disabled = true;
-      };
-      directory = {
-        fish_style_pwd_dir_length = 1;
-        truncate_to_repo = false;
-      };
-      time = {
-        disabled = false;
-      };
-    };
-  };
-
   programs.fish = {
     enable = true;
     plugins = with pkgs; [

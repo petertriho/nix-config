@@ -12,6 +12,7 @@
     ./pkgs/gh.nix
     ./pkgs/neovim.nix
     ./pkgs/scripts.nix
+    ./pkgs/starship.nix
     ./pkgs/tmux.nix
     ./pkgs/vivid.nix
   ];

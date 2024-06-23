@@ -1,0 +1,16 @@
+right_format = "${custom.arch}${time}"
+
+[battery]
+disabled = true
+
+[custom.arch]
+command = "uname -m"
+shell = "sh"
+when = true
+
+[directory]
+fish_style_pwd_dir_length = 1
+truncate_to_repo = false
+
+[time]
+disabled = false
