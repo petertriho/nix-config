@@ -70,8 +70,15 @@ in {
 
   programs.tmux = {
     enable = true;
+    sensibleOnTop = false;
     plugins = with pkgs; [
-      tmuxPlugins.sensible
+      {
+        plugin = tmuxPlugins.sensible;
+        extraConfig = ''
+          # TODO: remove when https://github.com/nix-community/home-manager/pull/4670 is added
+          set -g prefix C-a
+        '';
+      }
       tmuxPlugins.pain-control
       tmux-sessionist
       tmuxPlugins.yank
