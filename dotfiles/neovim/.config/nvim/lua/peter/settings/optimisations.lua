@@ -2,7 +2,7 @@ vim.loader.enable()
 
 local g = vim.g
 
--- disable built in plugins
+-- Disable built in plugins
 local disabled_built_ins = {
     "2html_plugin",
     "bugreport",
@@ -33,7 +33,7 @@ for _, plugin in pairs(disabled_built_ins) do
     g["loaded_" .. plugin] = 1
 end
 
--- disable providers
+-- Disable providers
 local disabled_providers = {
     "node",
     "perl",

@@ -18,7 +18,7 @@ vim.filetype.add({
     },
 })
 
--- options
+-- Options
 local o = vim.o
 local opt = vim.opt
 -- opt.cmdheight = 0
@@ -84,7 +84,7 @@ opt.wildignore = {
     "*/tmp/*",
 }
 
--- clipboard
+-- Clipboard
 opt.clipboard = "unnamedplus"
 if vim.fn.executable("win32yank.exe") == 1 then
     vim.g.clipboard = {
@@ -101,13 +101,13 @@ if vim.fn.executable("win32yank.exe") == 1 then
     }
 end
 
--- vimgrep
+-- Vimgrep
 if vim.fn.executable("rg") == 1 then
     opt.grepprg = "rg --vimgrep --color=never --no-heading --smart-case --hidden"
     opt.grepformat = "%f:%l:%c:%m,%f:%l:%m"
 end
 
--- undo
+-- Undo
 local undodir = vim.fn.expand("~/.undodir")
 
 if vim.fn.isdirectory(undodir) ~= 1 then
