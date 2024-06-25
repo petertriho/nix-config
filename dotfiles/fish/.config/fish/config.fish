@@ -24,7 +24,8 @@ if type --query fzf_configure_bindings
         --git_log=\e\cl \
         --git_status=\e\cs \
         --history=\e\cr \
-        --variable=\e\ce
+        --processes=\e\cp \
+        --variables=\e\ce
 end
 
 delta_side_by_side
