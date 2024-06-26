@@ -8,5 +8,5 @@
     starship
   ];
 
-  xdg.configFile."starship/starship.toml".source = config.lib.meta.mkDotfilesSymlink "starship/.config/starship.toml";
+  xdg.configFile."starship.toml".source = config.lib.meta.mkDotfilesSymlink "starship/starship.toml";
 }
