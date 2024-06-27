@@ -157,13 +157,9 @@ in {
     shellAliases = {
       v = "nvim";
     };
-    shellInit = ''
-      if command -v starship &>/dev/null
-        starship init fish | source
-      end
-    '';
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
   xdg.configFile."fish/functions".source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/functions";
+  xdg.configFile."fish/conf.d/00_prompt.fish".source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/00_prompt.fish";
 }

@@ -33,7 +33,7 @@ delta_side_by_side
 set -g sponge_delay 10
 set -g sponge_purge_only_on_exit true
 
-if command -v zoxide &>/dev/null
+if type --query zoxide
     zoxide init fish | source
     set -gx _ZO_FZF_OPTS "$FZF_DEFAULT_OPTS --keep-right --exit-0 --select-1 --preview='command eza {2..}' --preview-window=bottom"
 end
