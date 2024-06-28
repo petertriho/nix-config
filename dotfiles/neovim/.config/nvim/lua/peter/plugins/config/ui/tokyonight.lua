@@ -57,16 +57,28 @@ return {
 
         vim.fn.sign_define("LightBulbSign", { text = "󰌶", texthl = "DiagnosticSignWarn" })
 
-        local diagnostic_signs = {
-            [vim.diagnostic.severity.ERROR] = { "Error", "󰅚 " },
-            [vim.diagnostic.severity.WARN] = { "Warn", "󰀪 " },
-            [vim.diagnostic.severity.INFO] = { "Info", " " },
-            [vim.diagnostic.severity.HINT] = { "Hint", "󰌶 " },
-        }
+        vim.diagnostic.config({
+            signs = {
+                text = {
+                    [vim.diagnostic.severity.ERROR] = "󰅚 ",
+                    [vim.diagnostic.severity.WARN] = "󰀪 ",
+                    [vim.diagnostic.severity.INFO] = " ",
+                    [vim.diagnostic.severity.HINT] = "󰌶 ",
+                },
+                linehl = {
+                    [vim.diagnostic.severity.ERROR] = "DiagnosticSignError",
+                    [vim.diagnostic.severity.WARN] = "DiagnosticSignWarn",
+                    [vim.diagnostic.severity.INFO] = "DiagnosticSignInfo",
+                    [vim.diagnostic.severity.HINT] = "DiagnosticSignHint",
+                },
+                numhl = {
 
-        for _, properties in pairs(diagnostic_signs) do
-            local hl = "DiagnosticSign" .. properties[1]
-            vim.fn.sign_define(hl, { text = properties[2], texthl = hl, numhl = "" })
-        end
+                    [vim.diagnostic.severity.ERROR] = "",
+                    [vim.diagnostic.severity.WARN] = "",
+                    [vim.diagnostic.severity.INFO] = "",
+                    [vim.diagnostic.severity.HINT] = "",
+                },
+            },
+        })
     end,
 }

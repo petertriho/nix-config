@@ -1,8 +1,6 @@
 local g = vim.g
 
 -- filetypes.lua
-g.did_load_filetypes = 0
-g.do_filetype_lua = 1
 vim.filetype.add({
     extension = {
         prisma = "prisma",
