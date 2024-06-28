@@ -1,0 +1,62 @@
+[commit]
+    verbose = true
+    template = ~/.gittemplates/commit
+
+[core]
+    # Remove delta_side_by_side function when fixed
+    # https://github.com/dandavison/delta/issues/359
+    # https://github.com/wfxr/forgit/issues/121
+    pager = delta --width ${FZF_PREVIEW_COLUMNS-$COLUMNS}
+
+[delta]
+    navigate = true
+    syntax-theme = base16
+    true-color = always
+
+[diff]
+    colorMoved = zebra
+    # external = difft
+    tool = difftastic
+
+[difftool]
+    prompt = false
+
+[difftool "difftastic"]
+    cmd = difft "$LOCAL" "$REMOTE"
+
+[init]
+    defaultBranch = main
+
+[interactive]
+    diffFilter = delta --color-only
+
+[fetch]
+    prune = true
+
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+
+[merge]
+    conflictStyle = diff3
+    tool = mergetool
+
+[mergetool "fugitive"]
+    cmd = nvim -f -c "Gvdiffsplit!" "$MERGED"
+    trustExitCode = false
+
+[mergetool "mergetool"]
+    cmd = nvim -f -c "MergetoolStart" "$MERGED" "$BASE" "$LOCAL" "$REMOTE"
+    trustExitCode = true
+
+[pager]
+    difftool = true
+
+[pull]
+    rebase = true
+
+[user]
+    name = Peter Tri Ho
+    email = mail@petertriho.com

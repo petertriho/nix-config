@@ -10,6 +10,7 @@
     ./pkgs/bat.nix
     ./pkgs/fish.nix
     ./pkgs/gh.nix
+    ./pkgs/git.nix
     ./pkgs/neovim.nix
     ./pkgs/scripts.nix
     ./pkgs/starship.nix
@@ -22,18 +23,10 @@
     homeDirectory = "/home/peter";
     stateVersion = lib.mkDefault "24.05";
     packages = with pkgs; [
-      alejandra
-      eza
-      fd
-      fzf
-      git
       glow
       iperf3
-      jq
       nurl
-      ripgrep
       unzip
-      yq-go
       zip
     ];
     activation = {
