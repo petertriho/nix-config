@@ -62,7 +62,11 @@
   };
 in {
   home.packages = with pkgs; [
+    # dependencies
+    fd
+    fzf
     gitmux
+    ripgrep
   ];
 
   home.file.".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
