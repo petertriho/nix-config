@@ -1,7 +1,10 @@
 return {
     "nvim-telescope/telescope.nvim",
     cmd = "Telescope",
-    dependencies = "princejoogie/dir-telescope.nvim",
+    dependencies = {
+        "princejoogie/dir-telescope.nvim",
+        "debugloop/telescope-undo.nvim",
+    },
     config = function()
         local telescope = require("telescope")
         local actions = require("telescope.actions")
@@ -46,6 +49,10 @@ return {
                     override_file_sorter = true,
                     case_mode = "smart_case",
                 },
+                undo = {
+                    use_delta = true,
+                    side_by_side = true,
+                },
             },
             pickers = {
                 file_browser = {
@@ -75,5 +82,6 @@ return {
         })
 
         telescope.load_extension("dir")
+        telescope.load_extension("undo")
     end,
 }
