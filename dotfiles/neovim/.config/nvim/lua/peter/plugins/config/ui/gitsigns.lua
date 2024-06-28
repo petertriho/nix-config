@@ -56,10 +56,10 @@ return {
                     return "<Ignore>"
                 end, { expr = true, desc = "Previous change" })
 
-                -- require("which-key").register({
-                --     ["[c"] = "Previous change",
-                --     ["]c"] = "Next change",
-                -- }, {})
+                require("which-key").register({
+                    ["[c"] = "Previous change",
+                    ["]c"] = "Next change",
+                }, {})
 
                 -- Actions
                 map("n", "<Leader>hb", function()
