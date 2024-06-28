@@ -35,17 +35,22 @@
   };
 in {
   home.packages = with pkgs; [
+    delta
+    # dependencies
+    eza
     grc
+    fd
+    fzf
     zoxide
   ];
 
   programs.fish = {
     enable = true;
     plugins = with pkgs; [
-      {
-        name = "async-prompt";
-        src = fishPlugins.async-prompt.src;
-      }
+      # {
+      #   name = "async-prompt";
+      #   src = fishPlugins.async-prompt.src;
+      # }
       {
         name = "autopair";
         src = fishPlugins.autopair.src;
