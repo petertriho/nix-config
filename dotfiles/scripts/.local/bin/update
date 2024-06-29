@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+function tool:config {
+    if [ -d "$HOME/nix-config" ]; then
+        echo "Updating config ..."
+        (
+            cd "$HOME/nix-config" \
+                                  && (git stash || true) \
+                                    && git pull \
+                         && (git stash pop || true)
+        )
+    fi
+}
+
+function tool:nvim {
+    if command -v nvim &> /dev/null; then
+        echo "Updating neovim plugins ..."
+        nvim --headless "+TSUpdateSync" +qa
+        nvim --headless "+Lazy! sync" +qa
+    fi
+}
+
+function tool:nix-rebuild {
+    echo "Rebuilding new nixos config ..."
+    (cd $HOME/nix-config && sudo nixos-rebuild switch --flake .)
+}
+
+function tool:nix {
+    echo "Updating flake.lock ..."
+    (cd $HOME/nix-config && nix flake update)
+    tool:nix-rebuild
+}
+
+function tool:all {
+    tool:config
+    tool:nix
+    tool:nvim
+}
+
+function tool:list {
+    compgen -A function | sed -rn 's/tool:(.*)/\1/p' | cat
+}
+
+function tool:help {
+    printf "Usage: %s [TOOL] [ARGS]\n\nTools:\n" "$0"
+
+    compgen -A function | sed -rn 's/tool:(.*)/\1/p' | cat -n
+}
+
+"tool:${@:-all}"
