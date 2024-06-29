@@ -35,3 +35,12 @@ keymap("o", "il", ":norm vil<CR>", opts)
 keymap("x", "gv", [[<Esc>/\%V]], {})
 
 vim.g.mapleader = " "
+
+keymap("n", "<leader><leader>", ":w<CR>", { desc = "write" })
+keymap("n", "<leader>-", "<C-w>s", { desc = "split-below" })
+keymap("n", "<leader>\\", "<C-w>v", { desc = "split-right" })
+keymap("n", "<leader>n", ":nohl<CR>", { desc = "no-highlight" })
+
+keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "executable" })
+keymap("n", "<leader>ap", 'ggVG"+p', { desc = "paste-file" })
+keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "yank-file" })

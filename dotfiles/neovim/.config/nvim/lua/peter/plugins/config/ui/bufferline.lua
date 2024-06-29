@@ -7,16 +7,16 @@ return {
 
         keymap("n", "<C-n>", "<CMD>BufferLineCycleNext<CR>", opts)
         keymap("n", "<C-p>", "<CMD>BufferLineCyclePrev<CR>", opts)
-        keymap("n", "<Leader>1", "<CMD>lua require('bufferline').go_to_buffer(1)<CR>", {})
-        keymap("n", "<Leader>2", "<CMD>lua require('bufferline').go_to_buffer(2)<CR>", {})
-        keymap("n", "<Leader>3", "<CMD>lua require('bufferline').go_to_buffer(3)<CR>", {})
-        keymap("n", "<Leader>4", "<CMD>lua require('bufferline').go_to_buffer(4)<CR>", {})
-        keymap("n", "<Leader>5", "<CMD>lua require('bufferline').go_to_buffer(5)<CR>", {})
-        keymap("n", "<Leader>6", "<CMD>lua require('bufferline').go_to_buffer(6)<CR>", {})
-        keymap("n", "<Leader>7", "<CMD>lua require('bufferline').go_to_buffer(7)<CR>", {})
-        keymap("n", "<Leader>8", "<CMD>lua require('bufferline').go_to_buffer(8)<CR>", {})
-        keymap("n", "<Leader>9", "<CMD>lua require('bufferline').go_to_buffer(9)<CR>", {})
-        keymap("n", "<Leader>0", "<CMD>lua require('bufferline').go_to_buffer(10)<CR>", {})
+        keymap("n", "<leader>1", "<CMD>lua require('bufferline').go_to_buffer(1)<CR>", {})
+        keymap("n", "<leader>2", "<CMD>lua require('bufferline').go_to_buffer(2)<CR>", {})
+        keymap("n", "<leader>3", "<CMD>lua require('bufferline').go_to_buffer(3)<CR>", {})
+        keymap("n", "<leader>4", "<CMD>lua require('bufferline').go_to_buffer(4)<CR>", {})
+        keymap("n", "<leader>5", "<CMD>lua require('bufferline').go_to_buffer(5)<CR>", {})
+        keymap("n", "<leader>6", "<CMD>lua require('bufferline').go_to_buffer(6)<CR>", {})
+        keymap("n", "<leader>7", "<CMD>lua require('bufferline').go_to_buffer(7)<CR>", {})
+        keymap("n", "<leader>8", "<CMD>lua require('bufferline').go_to_buffer(8)<CR>", {})
+        keymap("n", "<leader>9", "<CMD>lua require('bufferline').go_to_buffer(9)<CR>", {})
+        keymap("n", "<leader>0", "<CMD>lua require('bufferline').go_to_buffer(10)<CR>", {})
     end,
     opts = {
         options = {

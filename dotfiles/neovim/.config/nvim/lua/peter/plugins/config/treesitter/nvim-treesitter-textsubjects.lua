@@ -15,7 +15,5 @@ return {
                 keymaps = textobjects,
             },
         })
-
-        require("which-key").register(textobjects, { mode = "o", prefix = "" })
     end,
 }

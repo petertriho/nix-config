@@ -9,6 +9,9 @@ return {
         "NvimTreeFindFileToggle",
         "NvimTreeClipboard",
     },
+    keys = {
+        { "<leader>e", "<CMD>NvimTreeFindFileToggle<CR>", desc = "explorer" },
+    },
     config = function()
         require("nvim-tree").setup({
             auto_reload_on_write = false,

@@ -23,6 +23,9 @@ return {
                     typescript = { "javascript" },
                     typescriptreact = { "javascript" },
                 }
+                local keymap = vim.keymap.set
+                keymap("x", "<leader>x", "<Plug>(vsnip-select-text)", { desc = "snippet-select" })
+                keymap("x", "<leader>X", "<Plug>(vsnip-cut-text)", { desc = "snippet-cut" })
             end,
         },
     },

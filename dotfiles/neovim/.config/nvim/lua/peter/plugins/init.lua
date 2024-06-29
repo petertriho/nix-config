@@ -18,4 +18,8 @@ require("lazy").setup({
         { import = "peter.plugins.config.tools" },
         { import = "peter.plugins.config.misc" },
     },
+    change_detection = {
+        enabled = true,
+        notify = false,
+    },
 })

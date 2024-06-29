@@ -1,6 +1,10 @@
 return {
     "numToStr/Comment.nvim",
     event = "VeryLazy",
+    keys = {
+        { "<leader>/", "<Plug>(comment_toggle_linewise_current)", desc = "comment" },
+        { "<leader>/", "gc", mode = "v", desc = "comment", remap = true },
+    },
     config = function()
         require("Comment").setup({
             ignore = "^$",
@@ -24,10 +28,5 @@ return {
                 end
             end,
         })
-
-        local keymap = vim.keymap.set
-
-        keymap("n", "<Leader>/", "<Plug>(comment_toggle_linewise_current)")
-        keymap("v", "<Leader>/", "gc", { remap = true })
     end,
 }

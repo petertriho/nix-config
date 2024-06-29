@@ -1,6 +1,13 @@
 return {
     "nvim-treesitter/nvim-treesitter",
+    cmd = {
+        "TSUpdate",
+        "TSUpdateSync",
+    },
     event = "VeryLazy",
+    keys = {
+        { "<leader>H", "<CMD>TSBufToggle highlight<CR>", desc = "highlight-toggle" },
+    },
     build = ":TSUpdateSync",
     config = function()
         require("nvim-treesitter.configs").setup({

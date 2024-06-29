@@ -9,6 +9,10 @@ return {
         "Reject",
     },
     ft = "qf",
+    keys = {
+        { "\\l", "<CMD>LLToggle<CR>", desc = "loc-list-toggle" },
+        { "\\q", "<CMD>QFToggle<CR>", desc = "qf-list-toggle" },
+    },
     init = function()
         local keymap = vim.keymap.set
         local opts = { noremap = true, silent = true }

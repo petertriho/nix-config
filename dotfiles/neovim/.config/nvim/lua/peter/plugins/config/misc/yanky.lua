@@ -1,10 +1,6 @@
 return {
     "gbprod/yanky.nvim",
-    keys = "<Plug>(YankyYank)",
-    init = function()
-        local keymap = vim.keymap.set
-        keymap({ "n", "x" }, "y", "<Plug>(YankyYank)")
-    end,
+    keys = { "<Plug>(YankyYank)", { "y", "<Plug>(YankyYank)", modes = { "n", "x" }, desc = "Yank" } },
     config = function()
         require("yanky").setup({
             ring = {

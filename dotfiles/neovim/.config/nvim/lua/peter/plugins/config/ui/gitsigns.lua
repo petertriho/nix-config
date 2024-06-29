@@ -1,6 +1,9 @@
 return {
     "lewis6991/gitsigns.nvim",
     event = "VeryLazy",
+    keys = {
+        { "<leader>gt", "<CMD>Gitsigns toggle_current_line_blame<CR>", "toggle-blame" },
+    },
     config = function()
         require("gitsigns").setup({
             signs = {
@@ -29,14 +32,14 @@ return {
             on_attach = function(bufnr)
                 local gs = package.loaded.gitsigns
 
-                local function map(mode, l, r, opts)
+                local function keymap(mode, l, r, opts)
                     opts = opts or {}
                     opts.buffer = bufnr
                     vim.keymap.set(mode, l, r, opts)
                 end
 
                 -- Navigation
-                map("n", "]c", function()
+                keymap("n", "]c", function()
                     if vim.wo.diff then
                         return "]c"
                     end
@@ -46,7 +49,7 @@ return {
                     return "<Ignore>"
                 end, { expr = true, desc = "Next change" })
 
-                map("n", "[c", function()
+                keymap("n", "[c", function()
                     if vim.wo.diff then
                         return "[c"
                     end
@@ -56,28 +59,23 @@ return {
                     return "<Ignore>"
                 end, { expr = true, desc = "Previous change" })
 
-                require("which-key").register({
-                    ["[c"] = "Previous change",
-                    ["]c"] = "Next change",
-                }, {})
-
                 -- Actions
-                map("n", "<Leader>hb", function()
+                keymap("n", "<leader>hb", function()
                     gs.blame_line({ full = true })
-                end)
-                map("n", "<Leader>hD", function()
+                end, { desc = "blame-line" })
+                keymap("n", "<leader>hD", function()
                     gs.diffthis("~")
-                end)
-                map("n", "<Leader>hd", gs.diffthis, { desc = "Diff this" })
-                map("n", "<Leader>hp", gs.preview_hunk, { desc = "Preview hunk" })
-                map("n", "<Leader>hR", gs.reset_buffer, { desc = "Reset buffer" })
-                map({ "n", "v" }, "<Leader>hr", ":Gitsigns reset_hunk<CR>", { desc = "Reset hunk" })
-                map("n", "<Leader>hS", gs.stage_buffer, { desc = "Stage buffer" })
-                map({ "n", "v" }, "<Leader>hs", ":Gitsigns stage_hunk<CR>", { desc = "Stage hunk" })
-                map("n", "<Leader>hu", gs.undo_stage_hunk, { desc = "Undo stage hunk" })
+                end, { desc = "diff-file" })
+                keymap("n", "<leader>hd", gs.diffthis, { desc = "diff-this" })
+                keymap("n", "<leader>hp", gs.preview_hunk, { desc = "preview-hunk" })
+                keymap("n", "<leader>hR", gs.reset_buffer, { desc = "reset-buffer" })
+                keymap({ "n", "v" }, "<leader>hr", ":Gitsigns reset_hunk<CR>", { desc = "reset-hunk" })
+                keymap("n", "<leader>hS", gs.stage_buffer, { desc = "stage-buffer" })
+                keymap({ "n", "v" }, "<leader>hs", ":Gitsigns stage_hunk<CR>", { desc = "stage-hunk" })
+                keymap("n", "<leader>hu", gs.undo_stage_hunk, { desc = "undo-stage-hunk" })
 
                 -- Text object
-                map({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", { desc = "Inner hunk" })
+                keymap({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", { desc = "Inner hunk" })
             end,
         })
 

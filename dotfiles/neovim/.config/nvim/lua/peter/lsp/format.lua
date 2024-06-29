@@ -27,21 +27,21 @@ M.on_attach = function(client, bufnr)
     end
 
     if client.server_capabilities.documentFormattingProvider then
-        vim.keymap.set("n", "<Leader>f", function()
+        vim.keymap.set("n", "<leader>f", function()
             format()
-        end, { buffer = bufnr, desc = "LSP format" })
+        end, { buffer = bufnr, desc = "format" })
 
-        vim.keymap.set("n", "<Leader>F", function()
+        vim.keymap.set("n", "<leader>F", function()
             slow_format()
-        end, { buffer = bufnr, desc = "Slow LSP format" })
+        end, { buffer = bufnr, desc = "slow format" })
     end
 
     if client.server_capabilities.documentRangeFormattingProvider then
-        vim.keymap.set("v", "<Leader>f", function()
+        vim.keymap.set("v", "<leader>f", function()
             format()
         end, { buffer = bufnr, desc = "LSP range format" })
 
-        vim.keymap.set("v", "<Leader>F", function()
+        vim.keymap.set("v", "<leader>F", function()
             slow_format()
         end, { buffer = bufnr, desc = "Slow LSP range format" })
     end
