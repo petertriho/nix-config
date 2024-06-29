@@ -25,20 +25,20 @@ return {
             g = {
                 name = "+git",
             },
-            l = {
-                name = "+lsp",
+            m = {
+                name = "+marks",
+            },
+            p = {
+                name = "+project",
+            },
+            t = {
+                name = "+telescope",
                 e = {
                     name = "+errors",
                 },
                 s = {
                     name = "+symbols",
                 },
-            },
-            m = {
-                name = "+marks",
-            },
-            w = {
-                name = "+workspace",
             },
         }
 

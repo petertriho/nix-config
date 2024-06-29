@@ -1,6 +1,6 @@
 return {
     "gbprod/yanky.nvim",
-    keys = { "<Plug>(YankyYank)", { "y", "<Plug>(YankyYank)", modes = { "n", "x" }, desc = "Yank" } },
+    keys = { "<Plug>(YankyYank)", { "y", "<Plug>(YankyYank)", mode = { "n", "x" }, desc = "Yank" } },
     config = function()
         require("yanky").setup({
             ring = {
