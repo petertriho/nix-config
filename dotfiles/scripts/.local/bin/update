@@ -22,15 +22,32 @@ function tool:nvim {
     fi
 }
 
-function tool:nix-rebuild {
-    echo "Rebuilding new nixos config ..."
-    (cd $HOME/nix-config && sudo nixos-rebuild switch --flake .)
+function tool:nvim:clean {
+    if command -v nvim &> /dev/null; then
+        echo "Cleaning neovim plugins ..."
+        nvim --headless "+Lazy! clean" +qa
+    fi
 }
 
 function tool:nix {
     echo "Updating flake.lock ..."
-    (cd $HOME/nix-config && nix flake update)
-    tool:nix-rebuild
+    (cd "$HOME/nix-config" && nix flake update)
+    tool:nix:rebuild
+}
+
+function tool:nix:clean {
+    echo "Cleaning nix store ..."
+    nix-collect-garbage --delete-older-than 7d
+}
+
+function tool:nix:rebuild {
+    echo "Rebuilding new nixos config ..."
+    (cd "$HOME/nix-config" && sudo nixos-rebuild switch --flake .)
+}
+
+function tool:clean {
+    tool:nvim:clean
+    tool:nix:clean
 }
 
 function tool:all {
