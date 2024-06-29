@@ -63,6 +63,12 @@ return {
             noremap = true,
         })
 
+        register({
+            ["."] = "textsubjects-smart",
+            ["<CR>"] = "textsubjects-container-outer",
+            ["i<CR>"] = "textsubjects-container-inner",
+        }, { mode = "o", prefix = "" })
+
         -- vim-abolish
         register({
             name = "coerce",
