@@ -22,7 +22,7 @@ return {
             "<CMD>lua require('telescope.builtin').lsp_implementations({ jump_type = 'never' })<CR>",
             desc = "implementations",
         },
-        { "<leader>r", "<CMD>lua require('telescope.builtin').lsp_references()<CR>", desc = "references" },
+        { "<leader>lr", "<CMD>lua require('telescope.builtin').lsp_references()<CR>", desc = "references" },
         { "<leader>lsd", "<CMD>lua require('telescope.builtin').lsp_document_symbols()<CR>", desc = "documents" },
         { "<leader>lsw", "<CMD>lua require('telescope.builtin').lsp_workspace_symbols()<CR>", desc = "workspace" },
         {
