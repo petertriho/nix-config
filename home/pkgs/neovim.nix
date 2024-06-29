@@ -46,6 +46,7 @@ in {
     markdownlint-cli
     nodePackages.cspell
     refurb
+    shellcheck
     selene
     valeWithStyles
 
