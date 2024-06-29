@@ -26,6 +26,7 @@ return {
         "jsonc",
         "lua",
         "markdown",
+        "nix",
         "python",
         "rust",
         "scss",
