@@ -1,19 +1,16 @@
 return {
     "dnlhc/glance.nvim",
     cmd = "Glance",
-    init = function()
-        local keymap = vim.keymap.set
-
-        keymap("n", "gpd", "<CMD>Glance definitions<CR>")
-        keymap("n", "gpr", "<CMD>Glance references<CR>")
-        keymap("n", "gpy", "<CMD>Glance type_definitions<CR>")
-        keymap("n", "gpm", "<CMD>Glance implementations<CR>")
-
-        keymap("n", "gD", "<CMD>Glance definitions<CR>")
-        keymap("n", "gR", "<CMD>Glance references<CR>")
-        keymap("n", "gY", "<CMD>Glance type_definitions<CR>")
-        keymap("n", "gM", "<CMD>Glance implementations<CR>")
-    end,
+    keys = {
+        { "gpd", "<CMD>Glance definitions<CR>", desc = "definitions" },
+        { "gpr", "<CMD>Glance references<CR>", desc = "references" },
+        { "gpy", "<CMD>Glance type_definitions<CR>", desc = "type_definitions" },
+        { "gpm", "<CMD>Glance implementations<CR>", desc = "implementations" },
+        { "gD", "<CMD>Glance definitions<CR>", desc = "definitions" },
+        { "gR", "<CMD>Glance references<CR>", desc = "references" },
+        { "gY", "<CMD>Glance type_definitions<CR>", desc = "type_definitions" },
+        { "gM", "<CMD>Glance implementations<CR>", desc = "implementations" },
+    },
     config = function()
         local glance = require("glance")
         local actions = glance.actions

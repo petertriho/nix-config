@@ -63,6 +63,7 @@ return {
             noremap = true,
         })
 
+        -- nvim-treesitter-textsubjects
         register({
             ["."] = "textsubjects-smart",
             ["<CR>"] = "textsubjects-container-outer",
