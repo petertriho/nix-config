@@ -100,7 +100,6 @@ in {
     gnumake
     ripgrep
     # formatters
-    # TODO: add nginxbeautifier https://github.com/vasilevich/nginxbeautifier
     alejandra
     autoflake
     black

@@ -332,8 +332,6 @@ M.setup = function(overrides)
                     return extra_args
                 end,
             }),
-            -- nginx
-            b.formatting.nginx_beautifier,
             -- nix
             b.formatting.alejandra,
             -- python
