@@ -33,7 +33,7 @@ local function on_attach(client, bufnr)
     )
     buf_set_keymap("n", "[d", "<CMD>lua vim.diagnostic.goto_prev()<CR>", { desc = "diagnostic-next" })
     buf_set_keymap("n", "]d", "<CMD>lua vim.diagnostic.goto_next()<CR>", { desc = "diagnostic-prev" })
-    buf_set_keymap("n", "<leader>lq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "qflist-diagnostics" })
+    buf_set_keymap("n", "<leader>tq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "qflist-diagnostics" })
 
     if client.server_capabilities.codeActionProvider then
         vim.api.nvim_create_augroup("lsp_code_action", {})
