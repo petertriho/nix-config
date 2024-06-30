@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }: let
   valeWithStyles = pkgs.vale.withStyles (s:
@@ -12,6 +13,83 @@
       readability
       write-good
     ]);
+
+  removePythonLicense = ''
+    rm $out/lib/python*/site-packages/LICENSE
+  '';
+
+  autoflake =
+    pkgs.python3Packages.autoflake.overridePythonAttrs
+    (old: rec {
+      postInstall = removePythonLicense;
+    });
+
+  docformatter =
+    pkgs.python3Packages.docformatter.overridePythonAttrs
+    (old: rec {
+      postInstall = removePythonLicense;
+    });
+
+  pyemojify = with pkgs.python3Packages;
+    buildPythonPackage rec {
+      pname = "pyemojify";
+      version = "0.2.0";
+      src = pkgs.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-a7w8jVLj3z5AObwMrTYW0+tXm0xuFaEb1eDvDVeVlqk=";
+      };
+      propagatedBuildInputs = [
+        click
+      ];
+      doCheck = false;
+    };
+
+  pybetter = with pkgs.python3Packages;
+    buildPythonApplication rec {
+      pname = "pybetter";
+      version = "0.4.1";
+      format = "pyproject";
+      src = pkgs.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-tDHPGBSTVIWrHGnj0k8ezN5KTRDx2ty5yhFEkCtvnHk=";
+      };
+      postPatch = ''
+        substituteInPlace pyproject.toml \
+        --replace poetry.masonry.api poetry.core.masonry.api \
+        --replace "poetry>=" "poetry-core>="
+      '';
+      postInstall = removePythonLicense;
+
+      doCheck = false;
+      dontCheckRuntimeDeps = true;
+      nativeBuildInputs = [
+        poetry-core
+      ];
+      propagatedBuildInputs = [
+        click
+        libcst
+        pyemojify
+        pygments
+      ];
+    };
+
+  ssort = with pkgs.python3Packages;
+    buildPythonApplication rec {
+      pname = "ssort";
+      version = "0.13.0";
+      format = "pyproject";
+      src = pkgs.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-p7NedyX6k7xr2Cg563AIPPMb1YVFNXU0KI2Yikr47E0=";
+      };
+      doCheck = false;
+      nativeBuildInputs = [
+        setuptools
+      ];
+      propagatedBuildInputs = [
+        pathspec
+      ];
+    };
 in {
   home.packages = with pkgs; [
     neovim
@@ -23,17 +101,17 @@ in {
     ripgrep
     # formatters
     # TODO: add nginxbeautifier https://github.com/vasilevich/nginxbeautifier
-    # TODO: add pybetter https://github.com/lensvol/pybetter
-    # TODO: add ssort https://github.com/bwhmather/ssort
     alejandra
     autoflake
     black
+    docformatter
     isort
     nodePackages.prettier
     nodePackages.svgo
-    python312Packages.docformatter
-    python312Packages.reorder-python-imports
+    pybetter
+    python3Packages.reorder-python-imports
     shfmt
+    ssort
     stylua
 
     # linters
