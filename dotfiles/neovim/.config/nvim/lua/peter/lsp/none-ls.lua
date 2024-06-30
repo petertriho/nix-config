@@ -168,6 +168,21 @@ local sources_formatting = {
         },
         factory = h.formatter_factory,
     }),
+    sort_package_json = h.make_builtin({
+        method = FORMATTING,
+        filetypes = { "json" },
+        generator_opts = {
+            command = "sort-package-json",
+            args = {
+                "$FILENAME",
+            },
+            to_temp_file = true,
+            runtime_condition = function(params)
+                return params.bufname:lower():match("[/\\]package.json$")
+            end,
+        },
+        factory = h.formatter_factory,
+    }),
     ssort = h.make_builtin({
         method = FORMATTING,
         filetypes = { "python" },
@@ -311,6 +326,7 @@ M.setup = function(overrides)
             b.formatting.google_java_format,
             -- json
             sources_diagnostics.jq,
+            sources_formatting.sort_package_json,
             require("none-ls.formatting.jq"),
             -- lua
             b.diagnostics.selene.with({

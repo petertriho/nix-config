@@ -30,6 +30,19 @@
       postInstall = removePythonLicense;
     });
 
+  sort-package-json = pkgs.buildNpmPackage rec {
+    pname = "sort-package-json";
+    version = "2.10.0";
+    src = pkgs.fetchFromGitHub {
+      owner = "keithamus";
+      repo = pname;
+      rev = "v${version}";
+      hash = "sha256-JiOQI3oUH4TaCWd8rx8796vXNhwior380PlQfjQXMzA=";
+    };
+    npmDepsHash = "sha256-wKs7x1OGX89xT698i3WAz5iNsv71nbmYe8F9DjXO3tI=";
+    dontNpmBuild = true;
+  };
+
   pyemojify = with pkgs.python3Packages;
     buildPythonPackage rec {
       pname = "pyemojify";
@@ -110,6 +123,7 @@ in {
     pybetter
     python3Packages.reorder-python-imports
     shfmt
+    sort-package-json
     ssort
     stylua
 
