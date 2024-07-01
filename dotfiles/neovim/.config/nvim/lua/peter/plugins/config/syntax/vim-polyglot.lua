@@ -1,5 +1,6 @@
 return {
-    "sheerun/vim-polyglot",
+    "00dani/vim-polyglot",
+    branch = "feature/fix-build",
     event = "VeryLazy",
     init = function()
         local filetypes = require("peter.plugins.filetypes")
