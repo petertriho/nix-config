@@ -6,6 +6,7 @@ return {
         { "<leader>ay", "<CMD>Telescope yaml_schema<CR>", desc = "yaml-schema" },
         { "<leader>l", "<CMD>Telescope live_grep<CR>", desc = "search-text" },
         { "<leader>u", "<CMD>Telescope undo<CR>", desc = "undotree" },
+        { "<leader>y", "<CMD>Telescope yank_history<CR>", desc = "yank-history" },
         { "<leader>gb", "<CMD>lua require('telescope.builtin').git_branches()<CR>", desc = "branches" },
         { "<leader>gc", "<CMD>lua require('telescope.builtin').git_commits()<CR>", desc = "commits" },
         { "<leader>gs", "<CMD>lua require('telescope.builtin').git_stashes()<CR>", desc = "stashes" },
@@ -124,5 +125,6 @@ return {
 
         telescope.load_extension("dir")
         telescope.load_extension("undo")
+        telescope.load_extension("yank_history")
     end,
 }
