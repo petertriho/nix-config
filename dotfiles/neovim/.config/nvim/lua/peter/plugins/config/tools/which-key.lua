@@ -32,7 +32,7 @@ return {
                 name = "+project",
             },
             t = {
-                name = "+telescope",
+                name = "+ts-lsp",
                 e = {
                     name = "+errors",
                 },
