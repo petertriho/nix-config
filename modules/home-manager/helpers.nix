@@ -9,9 +9,9 @@ with lib; {
   config = {
     lib.meta = {
       configPath = "${config.home.homeDirectory}/.nix-config";
-      mkDotfilesSymlink = path:
+      mkDotfilesSymlink = pathString:
         config.lib.file.mkOutOfStoreSymlink
-        (config.lib.meta.configPath + "/dotfiles/" + path);
+        (config.lib.meta.configPath + "/dotfiles/" + pathString);
       mkSymlink = path:
         config.lib.file.mkOutOfStoreSymlink
         (config.lib.meta.configPath + removePrefix (toString inputs.self) (toString path));
