@@ -1,6 +1,24 @@
 return {
     "gbprod/yanky.nvim",
-    keys = { "<Plug>(YankyYank)", { "y", "<Plug>(YankyYank)", mode = { "n", "x" }, desc = "Yank" } },
+    keys = {
+        "<Plug>(YankyYank)",
+        { "y", "<Plug>(YankyYank)", mode = { "n", "x" }, desc = "Yank" },
+        { "]p", "<Plug>(YankyGPutAfter)", mode = { "n", "x" }, desc = "GPut After" },
+        { "[p", "<Plug>(YankyGPutBefore)", mode = { "n", "x" }, desc = "GPut Before" },
+        { "p", "<Plug>(YankyPutAfter)", mode = { "n", "x" }, desc = "Put Before" },
+        { "P", "<Plug>(YankyPutBefore)", mode = { "n", "x" }, desc = "Put After" },
+        { "]P", "<Plug>(YankyPutIndentAfterLinewise)", desc = "Put After Line" },
+        { "[P", "<Plug>(YankyPutIndentBeforeLinewise)", desc = "Put Before Line" },
+        { ">p", "<Plug>(YankyPutIndentAfterShiftRight)", desc = "Put After Right" },
+        { "<p", "<Plug>(YankyPutIndentAfterShiftLeft)", desc = "Put After Left" },
+        { ">P", "<Plug>(YankyPutIndentBeforeShiftRight)", desc = "Put Before Right" },
+        { "<P", "<Plug>(YankyPutIndentBeforeShiftLeft)", desc = "Put Before Left" },
+        { "=p", "<Plug>(YankyPutAfterFilter)", desc = "Put After Filter" },
+        { "=P", "<Plug>(YankyPutBeforeFilter)", desc = "Put Before Filter" },
+        { "<M-f>", "<Plug>(YankyCycleForward)", desc = "Yank Cycle Forward" },
+        { "<M-b>", "<Plug>(YankyCycleBackward)", desc = "Yank Cycle Backward" },
+        { "Y", "y$", desc = "Yank EOL" },
+    },
     config = function()
         require("yanky").setup({
             ring = {
@@ -12,26 +30,5 @@ return {
                 timer = 200,
             },
         })
-
-        local keymap = vim.keymap.set
-
-        keymap({ "n", "x" }, "[p", "<Plug>(YankyGPutBefore)")
-        keymap({ "n", "x" }, "]p", "<Plug>(YankyGPutAfter)")
-        keymap({ "n", "x" }, "p", "<Plug>(YankyPutAfter)")
-        keymap({ "n", "x" }, "P", "<Plug>(YankyPutBefore)")
-
-        keymap("n", "]P", "<Plug>(YankyPutIndentAfterLinewise)")
-        keymap("n", "[P", "<Plug>(YankyPutIndentBeforeLinewise)")
-        keymap("n", ">p", "<Plug>(YankyPutIndentAfterShiftRight)")
-        keymap("n", "<p", "<Plug>(YankyPutIndentAfterShiftLeft)")
-        keymap("n", ">P", "<Plug>(YankyPutIndentBeforeShiftRight)")
-        keymap("n", "<P", "<Plug>(YankyPutIndentBeforeShiftLeft)")
-        keymap("n", "=p", "<Plug>(YankyPutAfterFilter)")
-        keymap("n", "=P", "<Plug>(YankyPutBeforeFilter)")
-
-        keymap("n", "<M-f>", "<Plug>(YankyCycleForward)")
-        keymap("n", "<M-b>", "<Plug>(YankyCycleBackward)")
-
-        keymap("n", "Y", "y$")
     end,
 }
