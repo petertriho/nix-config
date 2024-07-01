@@ -39,8 +39,8 @@ vim.g.mapleader = " "
 keymap("n", "<leader><leader>", ":w<CR>", { desc = "write" })
 keymap("n", "<leader>-", "<C-w>s", { desc = "split-below" })
 keymap("n", "<leader>\\", "<C-w>v", { desc = "split-right" })
-keymap("n", "<leader>n", ":nohl<CR>", { desc = "no-highlight" })
+keymap("n", "<leader>n", ":nohl<CR>", { desc = "no-hl" })
 
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "executable" })
+keymap("n", "<leader>ac", "<CMD>%y+<CR>", { desc = "copy-file" })
 keymap("n", "<leader>ap", 'ggVG"+p', { desc = "paste-file" })
-keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "yank-file" })

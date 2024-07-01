@@ -6,7 +6,7 @@ return {
     },
     event = "VeryLazy",
     keys = {
-        { "<leader>H", "<CMD>TSBufToggle highlight<CR>", desc = "highlight-toggle" },
+        { "<leader>b", "<CMD>TSBufToggle highlight<CR>", desc = "ts-buf-toggle" },
     },
     build = ":TSUpdateSync",
     config = function()
