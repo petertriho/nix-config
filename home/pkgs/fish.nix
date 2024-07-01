@@ -146,6 +146,10 @@ in {
       k = "kubectl";
       ll = "ls -la";
       mk = "minikube";
+      n = "nix";
+      ncg = "nix-collect-garbage --delete-older-than";
+      nrs = "sudo nixos-rebuild switch --flake ~/.nix-config";
+      ns = "nix search nixpkgs";
       pv = "python -m venv .venv";
       rmf = "rm -rf";
       rv = "rm -rf .venv";
