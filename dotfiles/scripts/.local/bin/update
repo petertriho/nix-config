@@ -2,20 +2,20 @@
 
 set -euo pipefail
 
+NIX_CONFIG_PATH="${HOME}/.nix-config"
+
 function tool:config {
-    if [ -d "$HOME/nix-config" ]; then
-        echo "Updating config ..."
-        (
-            cd "$HOME/.nix-config" \
-                                  && (git stash || true) \
-                                    && git pull \
-                         && (git stash pop || true)
-        )
-    fi
+    echo "Updating config ..."
+    (
+        cd "$NIX_CONFIG_PATH" &&
+            (git stash || true) &&
+            git pull &&
+            (git stash pop || true)
+    )
 }
 
 function tool:nvim {
-    if command -v nvim &> /dev/null; then
+    if command -v nvim &>/dev/null; then
         echo "Updating neovim plugins ..."
         nvim --headless "+TSUpdateSync" +qa
         nvim --headless "+Lazy! sync" +qa
@@ -23,7 +23,7 @@ function tool:nvim {
 }
 
 function tool:nvim:clean {
-    if command -v nvim &> /dev/null; then
+    if command -v nvim &>/dev/null; then
         echo "Cleaning neovim plugins ..."
         nvim --headless "+Lazy! clean" +qa
     fi
@@ -31,7 +31,7 @@ function tool:nvim:clean {
 
 function tool:nix {
     echo "Updating flake.lock ..."
-    (cd "$HOME/nix-config" && nix flake update)
+    (cd "$NIX_CONFIG_PATH" && nix flake update)
     tool:nix:rebuild
 }
 
@@ -42,7 +42,7 @@ function tool:nix:clean {
 
 function tool:nix:rebuild {
     echo "Rebuilding new nixos config ..."
-    (cd "$HOME/nix-config" && sudo nixos-rebuild switch --flake .)
+    (cd "$NIX_CONFIG_PATH" && sudo nixos-rebuild switch --flake .)
 }
 
 function tool:clean {
