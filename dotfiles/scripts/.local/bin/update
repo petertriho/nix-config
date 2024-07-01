@@ -41,8 +41,8 @@ function tool:nix:clean {
 }
 
 function tool:nix:rebuild {
-    echo "Rebuilding new nixos config ..."
-    (cd "$NIX_CONFIG_PATH" && sudo nixos-rebuild switch --flake .)
+    echo "Rebuilding new nix config ..."
+    nixos-rebuild switch --flake "$NIX_CONFIG_PATH"
 }
 
 function tool:clean {
