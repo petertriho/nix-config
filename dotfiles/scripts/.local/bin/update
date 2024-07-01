@@ -6,7 +6,7 @@ function tool:config {
     if [ -d "$HOME/nix-config" ]; then
         echo "Updating config ..."
         (
-            cd "$HOME/nix-config" \
+            cd "$HOME/.nix-config" \
                                   && (git stash || true) \
                                     && git pull \
                          && (git stash pop || true)
