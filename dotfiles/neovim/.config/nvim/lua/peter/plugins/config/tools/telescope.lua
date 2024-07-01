@@ -4,7 +4,7 @@ return {
     keys = {
         { "<leader>;", "<CMD>Telescope find_files hidden=true<CR>", desc = "find-files" },
         { "<leader>ay", "<CMD>Telescope yaml_schema<CR>", desc = "yaml-schema" },
-        { "<leader>l", "<CMD>Telescope live_grep<CR>", desc = "search-text" },
+        { "<leader>l", "<CMD>Telescope live_grep<CR>", desc = "live-grep" },
         { "<leader>u", "<CMD>Telescope undo<CR>", desc = "undotree" },
         { "<leader>y", "<CMD>Telescope yank_history<CR>", desc = "yank-history" },
         { "<leader>gb", "<CMD>lua require('telescope.builtin').git_branches()<CR>", desc = "branches" },
@@ -14,8 +14,8 @@ return {
         { "<leader>pb", "<CMD>Telescope scope buffers<CR>", desc = "buffers" },
         { "<leader>pd", "<CMD>Telescope dir find_files<CR>", desc = "dir-find-files" },
         { "<leader>pf", "<CMD>Telescope find_files hidden=true<CR>", desc = "find-files" },
-        { "<leader>pl", "<CMD>Telescope dir live_grep<CR>", desc = "dir-search-text" },
-        { "<leader>ps", "<CMD>Telescope live_grep<CR>", desc = "search-text" },
+        { "<leader>pl", "<CMD>Telescope live_grep<CR>", desc = "live-grep" },
+        { "<leader>ps", "<CMD>Telescope dir live_grep<CR>", desc = "dir-search-text" },
         {
             "<leader>td",
             "<CMD>lua require('telescope.builtin').lsp_definitions({ jump_type = 'never' })<CR>",
