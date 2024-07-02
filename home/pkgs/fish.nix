@@ -38,7 +38,6 @@ in {
     delta
     # dependencies
     eza
-    grc
     fd
     fzf
     zoxide
@@ -67,11 +66,6 @@ in {
         name = "fzf-fish";
         src = fishPlugins.fzf-fish.src;
       }
-      # TODO: investigate slow startup
-      # {
-      #   name = "grc";
-      #   src = fishPlugins.grc.src;
-      # }
       {
         name = "puffer";
         src = fishPlugins.puffer.src;
