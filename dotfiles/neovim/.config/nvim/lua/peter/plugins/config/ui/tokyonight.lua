@@ -18,38 +18,38 @@ return {
                 hl.ConflictMarkerTheirs = { bg = colors.diff.change }
                 hl.ConflictMarkerEnd = { bg = colors.diff.change }
 
-                hl.EyelinerPrimary = { fg = colors.blue, style = "underline" }
-                hl.EyelinerSecondary = { fg = colors.red, style = "underline" }
+                hl.EyelinerPrimary = { fg = colors.blue, underline = true }
+                hl.EyelinerSecondary = { fg = colors.red, underline = true }
 
                 hl.Folded = { fg = colors.comment, bg = nil }
 
-                hl.TelescopeNormal = {
-                    bg = colors.bg_dark,
-                    fg = colors.fg_dark,
-                }
-                hl.TelescopeBorder = {
-                    bg = colors.bg_dark,
-                    fg = colors.bg_dark,
-                }
-                hl.TelescopePromptNormal = {
-                    bg = colors.border_highlight,
-                }
-                hl.TelescopePromptBorder = {
-                    bg = colors.border_highlight,
-                    fg = colors.border_highlight,
-                }
-                hl.TelescopePromptTitle = {
-                    bg = colors.border_highlight,
-                    fg = colors.fg_dark,
-                }
-                hl.TelescopePreviewTitle = {
-                    bg = colors.border_highlight,
-                    fg = colors.fg_dark,
-                }
-                hl.TelescopeResultsTitle = {
-                    bg = colors.border_highlight,
-                    fg = colors.fg_dark,
-                }
+                -- hl.TelescopeNormal = {
+                --     bg = colors.bg_dark,
+                --     fg = colors.fg_dark,
+                -- }
+                -- hl.TelescopeBorder = {
+                --     bg = colors.bg_dark,
+                --     fg = colors.bg_dark,
+                -- }
+                -- hl.TelescopePromptNormal = {
+                --     bg = colors.border_highlight,
+                -- }
+                -- hl.TelescopePromptBorder = {
+                --     bg = colors.border_highlight,
+                --     fg = colors.border_highlight,
+                -- }
+                -- hl.TelescopePromptTitle = {
+                --     bg = colors.border_highlight,
+                --     fg = colors.fg_dark,
+                -- }
+                -- hl.TelescopePreviewTitle = {
+                --     bg = colors.border_highlight,
+                --     fg = colors.fg_dark,
+                -- }
+                -- hl.TelescopeResultsTitle = {
+                --     bg = colors.border_highlight,
+                --     fg = colors.fg_dark,
+                -- }
             end,
         })
 

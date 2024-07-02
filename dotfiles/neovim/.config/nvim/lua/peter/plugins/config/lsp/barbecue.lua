@@ -3,6 +3,7 @@ return {
     event = "VeryLazy",
     config = function()
         require("barbecue").setup({
+            theme = "tokyonight",
             attach_navic = false,
             create_autocmd = false,
             exclude_filetypes = require("peter.plugins.filetypes").excludes,
