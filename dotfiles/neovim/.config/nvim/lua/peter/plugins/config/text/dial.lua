@@ -3,13 +3,9 @@ return {
     keys = {
         "<Plug>(dial-increment)",
         "<Plug>(dial-decrement)",
+        { "<C-a>", "<Plug>(dial-increment)", mode = { "n", "v" } },
+        { "<C-x>", "<Plug>(dial-decrement)", mode = { "n", "v" } },
+        { "g<C-a>", "g<Plug>(dial-increment)", mode = "v" },
+        { "g<C-x>", "g<Plug>(dial-decrement)", mode = "v" },
     },
-    init = function()
-        local keymap = vim.keymap.set
-
-        keymap("", "<C-a>", "<Plug>(dial-increment)", {})
-        keymap("", "<C-x>", "<Plug>(dial-decrement)", {})
-        keymap("v", "g<C-a>", "g<Plug>(dial-increment)", {})
-        keymap("v", "g<C-x>", "g<Plug>(dial-decrement)", {})
-    end,
 }

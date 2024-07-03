@@ -17,15 +17,16 @@ return {
         { "tzachar/cmp-fuzzy-path", dependencies = "tzachar/fuzzy.nvim" },
         {
             "hrsh7th/vim-vsnip",
+            keys = {
+                { "<leader>x", "<Plug>(vsnip-select-text)", mode = "x", desc = "snippet-select" },
+                { "<leader>X", "<Plug>(vsnip-cut-text)", mode = "x", desc = "snippet-cut" },
+            },
             init = function()
                 vim.g.vsnip_filetypes = {
                     javascriptreact = { "javascript" },
                     typescript = { "javascript" },
                     typescriptreact = { "javascript" },
                 }
-                local keymap = vim.keymap.set
-                keymap("x", "<leader>x", "<Plug>(vsnip-select-text)", { desc = "snippet-select" })
-                keymap("x", "<leader>X", "<Plug>(vsnip-cut-text)", { desc = "snippet-cut" })
             end,
         },
     },

@@ -12,14 +12,9 @@ return {
     keys = {
         { "\\l", "<CMD>LLToggle<CR>", desc = "loc-list-toggle" },
         { "\\q", "<CMD>QFToggle<CR>", desc = "qf-list-toggle" },
+        { "<M-n>", "<CMD>QNext<CR>" },
+        { "<M-p>", "<CMD>QPrev<CR>" },
     },
-    init = function()
-        local keymap = vim.keymap.set
-        local opts = { noremap = true, silent = true }
-
-        keymap("n", "<M-n>", "<CMD>QNext<CR>", opts)
-        keymap("n", "<M-p>", "<CMD>QPrev<CR>", opts)
-    end,
     opts = {
         quickfix = {
             default_bindings = false,

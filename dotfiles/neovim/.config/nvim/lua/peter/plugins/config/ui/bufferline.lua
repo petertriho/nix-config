@@ -1,23 +1,20 @@
 return {
     "akinsho/bufferline.nvim",
     event = "VeryLazy",
-    init = function()
-        local keymap = vim.keymap.set
-        local opts = { noremap = true, silent = true }
-
-        keymap("n", "<C-n>", "<CMD>BufferLineCycleNext<CR>", opts)
-        keymap("n", "<C-p>", "<CMD>BufferLineCyclePrev<CR>", opts)
-        keymap("n", "<leader>1", "<CMD>lua require('bufferline').go_to_buffer(1)<CR>", {})
-        keymap("n", "<leader>2", "<CMD>lua require('bufferline').go_to_buffer(2)<CR>", {})
-        keymap("n", "<leader>3", "<CMD>lua require('bufferline').go_to_buffer(3)<CR>", {})
-        keymap("n", "<leader>4", "<CMD>lua require('bufferline').go_to_buffer(4)<CR>", {})
-        keymap("n", "<leader>5", "<CMD>lua require('bufferline').go_to_buffer(5)<CR>", {})
-        keymap("n", "<leader>6", "<CMD>lua require('bufferline').go_to_buffer(6)<CR>", {})
-        keymap("n", "<leader>7", "<CMD>lua require('bufferline').go_to_buffer(7)<CR>", {})
-        keymap("n", "<leader>8", "<CMD>lua require('bufferline').go_to_buffer(8)<CR>", {})
-        keymap("n", "<leader>9", "<CMD>lua require('bufferline').go_to_buffer(9)<CR>", {})
-        keymap("n", "<leader>0", "<CMD>lua require('bufferline').go_to_buffer(10)<CR>", {})
-    end,
+    keys = {
+        { "<C-n>", "<CMD>BufferLineCycleNext<CR>" },
+        { "<C-p>", "<CMD>BufferLineCyclePrev<CR>" },
+        { "<leader>1", "<CMD>lua require('bufferline').go_to_buffer(1)<CR>" },
+        { "<leader>2", "<CMD>lua require('bufferline').go_to_buffer(2)<CR>" },
+        { "<leader>3", "<CMD>lua require('bufferline').go_to_buffer(3)<CR>" },
+        { "<leader>4", "<CMD>lua require('bufferline').go_to_buffer(4)<CR>" },
+        { "<leader>5", "<CMD>lua require('bufferline').go_to_buffer(5)<CR>" },
+        { "<leader>6", "<CMD>lua require('bufferline').go_to_buffer(6)<CR>" },
+        { "<leader>7", "<CMD>lua require('bufferline').go_to_buffer(7)<CR>" },
+        { "<leader>8", "<CMD>lua require('bufferline').go_to_buffer(8)<CR>" },
+        { "<leader>9", "<CMD>lua require('bufferline').go_to_buffer(9)<CR>" },
+        { "<leader>0", "<CMD>lua require('bufferline').go_to_buffer(10)<CR>" },
+    },
     opts = {
         options = {
             numbers = "ordinal",
