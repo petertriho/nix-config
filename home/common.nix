@@ -8,6 +8,7 @@
   imports = [
     outputs.homeManagerModules.helpers
     ./pkgs/bat.nix
+    ./pkgs/direnv.nix
     ./pkgs/fish.nix
     ./pkgs/gh.nix
     ./pkgs/git.nix

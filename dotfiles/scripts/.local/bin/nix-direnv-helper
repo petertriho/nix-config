@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+function base_flake_nix {
+    local packages=$1
+
+    echo '{
+  description = "Development Environment";
+
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+  outputs = {
+    self,
+    nixpkgs,
+  }: let
+    supportedSystems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
+    forEachSupportedSystem = f:
+      nixpkgs.lib.genAttrs supportedSystems (system:
+        f {
+          pkgs = import nixpkgs {inherit system;};
+        });
+  in {
+    devShells = forEachSupportedSystem ({pkgs}: {
+      default = pkgs.mkShell {
+        venvDir = ".venv";
+        packages = with pkgs;
+'"$packages"'
+      };
+    });
+  };
+}' >flake.nix
+
+    alejandra flake.nix
+}
+
+function packages_node {
+    echo '         [
+           nodejs
+           yarn
+         ];'
+}
+
+function packages_python {
+    echo '         [
+           python3
+           poetry
+         ]
+         ++ (with pkgs.python3Packages; [
+           pip
+           venvShellHook
+         ]);'
+}
+
+function mk_flake_envrc {
+    echo "use flake" >.envrc
+}
+
+function mk_flake_nix {
+    language=$1
+    packages=$(eval "packages_${language}")
+    base_flake_nix "$packages"
+}
+
+function tool:main {
+    language="$1"
+    mk_flake_envrc
+    mk_flake_nix "$language"
+    direnv allow
+}
+
+function tool:node {
+    tool:main node
+}
+
+function tool:python {
+    tool:main python
+}
+
+function tool:clean {
+    echo "TODO: Remove direnv for current dir in ~/.cache/direnv/layouts"
+}
+
+function tool:clean-all {
+    rm -rf ~/.cache/direnv/layouts
+}
+
+function tool:list {
+    compgen -A function | sed -rn 's/tool:(.*)/\1/p' | cat
+}
+
+function tool:help {
+    printf "Usage: %s [TOOL] [ARGS]\n\nTools:\n" "$0"
+
+    compgen -A function | sed -rn 's/tool:(.*)/\1/p' | cat -n
+}
+
+"tool:${@:-main}"

@@ -92,6 +92,8 @@ in {
       dcpr = "docker compose -p (git_repo_name) restart";
       dcpu = "docker compose -p (git_repo_name) up -d";
       dcu = "docker compose up -d";
+      dia = "direnv allow";
+      dib = "direnv block";
       e = "eza --classify";
       el = "eza --classify --long --header --all --git";
       et = "eza --classify --tree --level=3";
@@ -141,6 +143,8 @@ in {
       ll = "ls -la";
       mk = "minikube";
       n = "nix";
+      ndr = "nix-direnv-reload";
+      ndh = "nix-direnv-helper";
       ncg = "nix-collect-garbage --delete-older-than";
       nfu = "nix flake up";
       nrs = "sudo nixos-rebuild switch --flake ~/.nix-config";
