@@ -146,7 +146,7 @@ in {
       ndr = "nix-direnv-reload";
       ndh = "nix-direnv-helper";
       ncg = "nix-collect-garbage --delete-older-than";
-      nfu = "nix flake up";
+      nfu = "nix flake update";
       nrs = "sudo nixos-rebuild switch --flake ~/.nix-config";
       ns = "nix search nixpkgs";
       pv = "python -m venv .venv";
