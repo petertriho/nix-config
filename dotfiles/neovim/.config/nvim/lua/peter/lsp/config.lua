@@ -56,6 +56,7 @@ return {
     },
     lua_ls = {},
     marksman = {},
+    nil_ls = {},
     quick_lint_js = {
         filetypes = { "javascript", "javascriptreact", "jsx" },
     },
