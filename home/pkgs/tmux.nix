@@ -27,7 +27,7 @@
   };
 
   # https://github.com/NixOS/nixpkgs/pull/296174
-  pythonInputs = pkgs.python311.withPackages (p:
+  pythonInputs = pkgs.python3.withPackages (p:
     with p; [
       libtmux
       pip
