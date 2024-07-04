@@ -142,6 +142,7 @@ in {
       mk = "minikube";
       n = "nix";
       ncg = "nix-collect-garbage --delete-older-than";
+      nfu = "nix flake up";
       nrs = "sudo nixos-rebuild switch --flake ~/.nix-config";
       ns = "nix search nixpkgs";
       pv = "python -m venv .venv";
