@@ -16,6 +16,7 @@
     ./pkgs/scripts.nix
     ./pkgs/starship.nix
     ./pkgs/tmux.nix
+    ./pkgs/tools.nix
     ./pkgs/vivid.nix
   ];
 
@@ -23,13 +24,6 @@
     username = "peter";
     homeDirectory = "/home/peter";
     stateVersion = lib.mkDefault "24.05";
-    packages = with pkgs; [
-      glow
-      iperf3
-      nurl
-      unzip
-      zip
-    ];
     activation = {
       set_theme = lib.hm.dag.entryAfter ["installPackages"] ''
         PATH="${pkgs.fish}/bin:${pkgs.vivid}/bin:$PATH" run fish -c "set_theme"
