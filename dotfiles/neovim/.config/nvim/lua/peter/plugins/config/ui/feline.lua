@@ -152,6 +152,12 @@ return {
             },
             {
                 provider = "lsp_client_count",
+                hl = function()
+                    if not vim.g.completion_enabled then
+                        return "error"
+                    end
+                    return "fg"
+                end,
                 left_sep = " ",
                 truncate_hide = true,
                 priority = 2,

@@ -30,6 +30,24 @@ return {
             end,
         },
     },
+    keys = {
+        { "<leader>c", "<CMD>ToggleNvimCmp<CR>", desc = "completion-toggle" },
+    },
+    init = function()
+        vim.g.completion_enabled = true
+
+        local function toggle_completion()
+            local cmp = require("cmp")
+            if vim.g.completion_enabled then
+                cmp.setup({ completion = { autocomplete = false } })
+            else
+                cmp.setup({ completion = { autocomplete = { cmp.TriggerEvent.TextChanged } } })
+            end
+            vim.g.completion_enabled = not vim.g.completion_enabled
+        end
+
+        vim.api.nvim_create_user_command("ToggleNvimCmp", toggle_completion, {})
+    end,
     config = function()
         -- local has_words_before = function()
         --     if vim.api.nvim_buf_get_option(0, "buftype") == "prompt" then
