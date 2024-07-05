@@ -14,7 +14,6 @@
   wsl = {
     enable = true;
     defaultUser = "peter";
-    wslConf.interop.appendWindowsPath = false;
   };
   networking.hostName = "wsl";
 
