@@ -52,8 +52,8 @@ function tool:clean {
 
 function tool:all {
     tool:config
-    tool:nix
     tool:nvim
+    tool:nix
 }
 
 function tool:list {
