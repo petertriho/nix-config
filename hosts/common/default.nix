@@ -10,7 +10,21 @@
     inputs.home-manager.nixosModules.home-manager
   ];
 
-  nix.settings.experimental-features = ["nix-command" "flakes"];
+  nix = {
+    gc = {
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 30d";
+    };
+    settings = {
+      experimental-features = ["nix-command" "flakes"];
+      trusted-users = [
+        "root"
+        "@wheel"
+      ];
+    };
+  };
+
   environment = {
     systemPackages = with pkgs; [
       ((vim_configurable.override {}).customize {
@@ -48,6 +62,13 @@
   nixpkgs.overlays = [
     inputs.neovim-nightly-overlay.overlays.default
   ];
+
+  users.users.peter = {
+    isNormalUser = true;
+    extraGroups = [
+      "wheel"
+    ];
+  };
 
   home-manager = {
     useGlobalPkgs = true;
