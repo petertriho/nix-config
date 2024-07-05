@@ -23,6 +23,9 @@ return {
 
                 hl.Folded = { fg = colors.comment, bg = nil }
 
+                hl.LeapLabel = { fg = colors.red, underline = true }
+                hl.LeapMatch = { fg = colors.blue, underline = true }
+
                 -- hl.TelescopeNormal = {
                 --     bg = colors.bg_dark,
                 --     fg = colors.fg_dark,
