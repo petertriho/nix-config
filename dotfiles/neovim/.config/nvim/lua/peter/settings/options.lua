@@ -19,6 +19,7 @@ vim.filetype.add({
 -- Options
 local o = vim.o
 local opt = vim.opt
+-- opt.clipboard = "unnamedplus"
 -- opt.cmdheight = 0
 opt.colorcolumn = "80"
 opt.cursorline = true
@@ -82,8 +83,6 @@ opt.wildignore = {
     "*/tmp/*",
 }
 
--- Clipboard
-opt.clipboard = "unnamedplus"
 
 -- Vimgrep
 if vim.fn.executable("rg") == 1 then
