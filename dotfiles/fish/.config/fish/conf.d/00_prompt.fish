@@ -6,5 +6,5 @@ if type --query starship
         printf 'in %s %s' (starship module directory) (starship module time)
     end
     starship init fish | source
-    enable_transience
+    # enable_transience
 end

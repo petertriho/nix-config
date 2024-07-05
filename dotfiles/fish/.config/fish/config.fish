@@ -1,3 +1,5 @@
+set -gx EDITOR nvim
+
 set -gx DIRENV_LOG_FORMAT ""
 
 set -gx FZF_DEFAULT_OPTS \
@@ -36,4 +38,9 @@ set -g sponge_purge_only_on_exit true
 if type --query zoxide
     zoxide init fish | source
     set -gx _ZO_FZF_OPTS "$FZF_DEFAULT_OPTS --keep-right --exit-0 --select-1 --preview='command eza {2..}' --preview-window=bottom"
+end
+
+# TODO: investigate why this doesn't work when enabled through 00_prompt.fish
+if type --query enable_transience
+    enable_transience
 end
