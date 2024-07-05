@@ -3,7 +3,7 @@ return {
     cmd = "Telescope",
     keys = {
         { "<leader>;", "<CMD>Telescope find_files hidden=true<CR>", desc = "find-files" },
-        { "<leader>ay", "<CMD>Telescope yaml_schema<CR>", desc = "yaml-schema" },
+        { "<leader>a;", "<CMD>Telescope yaml_schema<CR>", desc = "yaml-schema" },
         { "<leader>l", "<CMD>Telescope live_grep<CR>", desc = "live-grep" },
         { "<leader>u", "<CMD>Telescope undo<CR>", desc = "undotree" },
         { "<leader>y", "<CMD>Telescope yank_history<CR>", desc = "yank-history" },
