@@ -34,6 +34,7 @@ keymap("o", "il", ":norm vil<CR>", opts)
 -- Search: In Visual Selection
 keymap("x", "gv", [[<Esc>/\%V]], {})
 
+-- Leader
 vim.g.mapleader = " "
 
 keymap("n", "<leader><leader>", ":w<CR>", { desc = "write" })
@@ -44,3 +45,9 @@ keymap("n", "<leader>n", ":nohl<CR>", { desc = "no-hl" })
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "executable" })
 keymap("n", "<leader>ap", 'ggVG"+p', { desc = "paste-file" })
 keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "yank-file" })
+
+-- Better Delete/Paste/Yank
+keymap({ "n", "v" }, "\\d", [["_d]], { desc = "delete-black-hole" })
+keymap("x", "\\p", [["_dP]], { desc = "delete-paste" })
+keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "yank-system-clipboard" })
+keymap("n", "\\Y", [["+y"]], { desc = "yank-eol-system-clipboard" })
