@@ -18,6 +18,7 @@ in {
   home.packages = with pkgs; [
     cht-sh
     coreutils-full
+    dive
     fx
     glow
     howdoi
