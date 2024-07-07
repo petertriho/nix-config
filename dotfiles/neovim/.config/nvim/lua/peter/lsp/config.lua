@@ -4,6 +4,7 @@ return {
             analysis = {
                 diagnosticMode = "workspace",
                 useLibraryCodeForTypes = true,
+                typeCheckingMode = "standard",
                 diagnosticSeverityOverrides = {
                     reportGeneralTypeIssues = "information",
                 },
