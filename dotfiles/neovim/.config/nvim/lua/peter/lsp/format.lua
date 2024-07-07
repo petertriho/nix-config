@@ -12,6 +12,9 @@ end
 local null_ls = require("null-ls")
 
 M.on_attach = function(client, bufnr)
+    -- restore default vim gq formatting
+    vim.bo[bufnr].formatexpr = nil
+
     local format = function()
         vim.lsp.buf.format({
             bufnr = bufnr,
@@ -26,7 +29,7 @@ M.on_attach = function(client, bufnr)
         null_ls.disable({ name = "slow_formatters" })
     end
 
-    if client.server_capabilities.documentFormattingProvider then
+    if client.supports_method("textDocument/formatting") then
         vim.keymap.set("n", "<leader>f", function()
             format()
         end, { buffer = bufnr, desc = "format" })
@@ -36,7 +39,8 @@ M.on_attach = function(client, bufnr)
         end, { buffer = bufnr, desc = "slow format" })
     end
 
-    if client.server_capabilities.documentRangeFormattingProvider then
+    if client.supports_method("textDocument/rangeFormatting") then
+        -- TODO: add "textDocument/rangesFormatting"
         vim.keymap.set("v", "<leader>f", function()
             format()
         end, { buffer = bufnr, desc = "LSP range format" })

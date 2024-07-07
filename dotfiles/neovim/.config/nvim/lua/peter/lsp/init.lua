@@ -1,6 +1,9 @@
 local M = {}
 
-local function on_attach(client, bufnr)
+local function lsp_attach_callback(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    local bufnr = args.buf
+
     require("peter.lsp.format").on_attach(client, bufnr)
 
     local function buf_set_keymap(mode, lhs, rhs, opts)
@@ -11,23 +14,39 @@ local function on_attach(client, bufnr)
         vim.keymap.set(mode, lhs, rhs, opts)
     end
 
-    if client.name == "basedpyright" then
-        buf_set_keymap("n", "<leader>o", "<CMD>PyrightOrganizeImports<CR>", { desc = "organize-imports" })
-    elseif client.name == "ruff" then
-        buf_set_keymap("n", "<leader>o", "<CMD>RuffOrganizeImports<CR>", { desc = "organize-imports" })
-    elseif client.name == "tsserver" then
-        buf_set_keymap("n", "<leader>o", "<CMD>TSServerOrganizeImports<CR>", { desc = "organize-imports" })
-    end
-
     buf_set_keymap(
         "n",
         "gh",
         "<CMD>lua vim.diagnostic.open_float(0, { scope = 'line', source = 'always', border = 'rounded' })<CR>",
-        { desc = "diagnostic" }
+        { desc = "Diagnostic" }
     )
     buf_set_keymap("n", "<leader>tq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "qflist-diagnostics" })
 
-    if client.server_capabilities.codeActionProvider then
+    if client.supports_method("textDocument/declaration") then
+        buf_set_keymap("n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", { desc = "Declaration" })
+    end
+
+    if client.supports_method("textDocument/implementation") then
+        buf_set_keymap("n", "gri", "<CMD>lua vim.lsp.buf.implementation()<CR>", { desc = "Implementation" })
+    end
+
+    if client.supports_method("textDocument/signatureHelp") then
+        buf_set_keymap("n", "grs", "<CMD>lua vim.lsp.buf.signature_help()<CR>", { desc = "Signature help" })
+    end
+
+    if client.supports_method("textDocument/typeDefinition") then
+        buf_set_keymap("n", "gry", "<CMD>lua vim.lsp.buf.type_definition()<CR>", { desc = "Type Definition" })
+    end
+
+    if client.name == "basedpyright" then
+        buf_set_keymap("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { desc = "Organize Imports" })
+    elseif client.name == "ruff" then
+        buf_set_keymap("n", "gro", "<CMD>RuffOrganizeImports<CR>", { desc = "Organize Imports" })
+    elseif client.name == "tsserver" then
+        buf_set_keymap("n", "gro", "<CMD>TSServerOrganizeImports<CR>", { desc = "Organize Imports" })
+    end
+
+    if client.supports_method("textDocument/codeAction") then
         vim.api.nvim_create_augroup("lsp_code_action", {})
         vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
             group = "lsp_code_action",
@@ -37,26 +56,12 @@ local function on_attach(client, bufnr)
             buffer = bufnr,
             desc = "LSP code action lightbulb",
         })
+        buf_set_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "code-actions" })
+        buf_set_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "code-actions" })
     end
 
-    if client.server_capabilities.declarationProvider then
-        buf_set_keymap("n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", { desc = "Declaration" })
-    end
-
-    if client.server_capabilities.documentSymbolProvider then
+    if client.supports_method("textDocument/documentSymbol") then
         require("nvim-navic").attach(client, bufnr)
-    end
-
-    if client.server_capabilities.implementationProvider then
-        buf_set_keymap("n", "gri", "<CMD>lua vim.lsp.buf.implementation()<CR>", { desc = "Go to implementation" })
-    end
-
-    if client.server_capabilities.signatureHelpProvider then
-        buf_set_keymap("n", "grs", "<CMD>lua vim.lsp.buf.signature_help()<CR>", { desc = "Signature help" })
-    end
-
-    if client.server_capabilities.typeDefinitionProvider then
-        buf_set_keymap("n", "gy", "<CMD>lua vim.lsp.buf.type_definition()<CR>", { desc = "type-definition" })
     end
 end
 
@@ -113,7 +118,6 @@ local function make_base_config()
     capabilities.textDocument.colorProvider = { dynamicRegistration = false }
     return {
         capabilities = capabilities,
-        on_attach = on_attach,
         flags = { allow_incremental_sync = true, debounce_text_changes = 300 },
     }
 end
@@ -128,9 +132,7 @@ M.setup = function()
         vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded" })
 
     vim.api.nvim_create_autocmd("LspAttach", {
-        callback = function(args)
-            vim.bo[args.buf].formatexpr = nil
-        end,
+        callback = lsp_attach_callback,
     })
 
     local lspconfig = require("lspconfig")
