@@ -177,6 +177,7 @@ in {
     # lsp
     basedpyright
     bash-language-server
+    biome
     emmet-language-server
     fish-lsp
     gopls

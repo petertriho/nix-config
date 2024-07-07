@@ -11,6 +11,7 @@ return {
         },
     },
     bashls = {},
+    biome = {},
     cssls = {},
     dockerls = {},
     emmet_language_server = {
