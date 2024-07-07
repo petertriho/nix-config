@@ -43,11 +43,12 @@
       yarnLock = src + "/yarn.lock";
       hash = "sha256-hmaLWO1Sj+2VujrGD2A+COfVE2D+tCnxyojjq1512K4=";
     };
-    nativeBuildInputs = [
-      pkgs.fish
-      pkgs.fixup-yarn-lock
-      pkgs.nodejs
-      pkgs.yarn
+    nativeBuildInputs = with pkgs; [
+      makeWrapper
+      fish
+      fixup-yarn-lock
+      nodejs
+      yarn
     ];
     buildPhase = ''
       runHook preBuild
@@ -60,6 +61,10 @@
       # yarn run sh:build-completions
 
       runHook postBuild
+    '';
+    postInstall = ''
+      wrapProgram "$out/bin/fish-lsp" \
+        --set-default fish_lsp_logfile "/tmp/fish_lsp_logs.txt"
     '';
   };
 

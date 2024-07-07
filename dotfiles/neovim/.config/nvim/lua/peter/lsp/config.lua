@@ -24,12 +24,7 @@ return {
         },
     },
     eslint = {},
-    fish_lsp = {
-        cmd_env = {
-            fish_lsp_show_client_popups = false,
-            fish_lsp_logfile = "/tmp/fish_lsp_logs.txt",
-        },
-    },
+    fish_lsp = {},
     gopls = {},
     graphql = {
         filetypes = { "graphql" },
