@@ -1,12 +1,17 @@
 return {
     basedpyright = {
-        python = {
-            analysis = {
-                diagnosticMode = "workspace",
-                useLibraryCodeForTypes = true,
-                typeCheckingMode = "standard",
-                diagnosticSeverityOverrides = {
-                    reportGeneralTypeIssues = "information",
+        settings = {
+            basedpyright = {
+                analysis = {
+                    autoSearchPaths = true,
+                    diagnosticMode = "workspace",
+                    useLibraryCodeForTypes = true,
+                    typeCheckingMode = "standard",
+                    diagnosticSeverityOverrides = {
+                        reportGeneralTypeIssues = "information",
+                        -- NOTE: bug with str, int, etc being reported as undefined
+                        reportUndefinedVariable = "none",
+                    },
                 },
             },
         },
