@@ -75,7 +75,7 @@ local function on_attach(client, bufnr)
     end
 
     if client.server_capabilities.referencesProvider then
-        buf_set_keymap("n", "gr", "<CMD>lua vim.lsp.buf.references()<CR>", { desc = "references" })
+        buf_set_keymap("n", "grr", "<CMD>lua vim.lsp.buf.references()<CR>", { desc = "references" })
     end
 
     if client.server_capabilities.signatureHelpProvider then
@@ -89,21 +89,54 @@ end
 
 local function make_base_config()
     local capabilities = vim.lsp.protocol.make_client_capabilities()
-    local completionItem = capabilities.textDocument.completion.completionItem
+
+    local completion = capabilities.textDocument.completion
+
+    local completionItem = completion.completionItem
     completionItem.snippetSupport = true
-    completionItem.preselectSupport = true
-    completionItem.insertReplaceSupport = true
-    completionItem.labelDetailsSupport = true
-    completionItem.deprecatedSupport = true
     completionItem.commitCharactersSupport = true
-    completionItem.tagSupport = { valueSet = { 1 } }
+    completionItem.deprecatedSupport = true
+    completionItem.preselectSupport = true
+    completionItem.tagSupport = {
+        valueSet = {
+            1, -- Deprecated
+        },
+    }
+    completionItem.insertReplaceSupport = true
     completionItem.resolveSupport = {
         properties = {
             "documentation",
             "detail",
             "additionalTextEdits",
+            "sortText",
+            "filterText",
+            "insertText",
+            "textEdit",
+            "insertTextFormat",
+            "insertTextMode",
         },
     }
+    completionItem.insertTextModeSupport = {
+        valueSet = {
+            1, -- asIs
+            2, -- adjustIndentation
+        },
+    }
+    completionItem.labelDetailsSupport = true
+
+    completion.dynamicRegistration = false
+    completion.contextSupport = true
+    completion.insertTextMode = 1
+    completion.completionList = {
+        itemDefaults = {
+            "commitCharacters",
+            "editRange",
+            "insertTextFormat",
+            "insertTextMode",
+            "data",
+        },
+    }
+
     capabilities.textDocument.colorProvider = { dynamicRegistration = false }
     return {
         capabilities = capabilities,
