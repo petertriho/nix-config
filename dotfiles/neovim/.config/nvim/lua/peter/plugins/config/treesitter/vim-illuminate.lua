@@ -1,6 +1,6 @@
 return {
     "RRethy/vim-illuminate",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     config = function()
         require("illuminate").configure({
             providers = {

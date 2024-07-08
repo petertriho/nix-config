@@ -1,6 +1,6 @@
 return {
     "akinsho/git-conflict.nvim",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     keys = {
         { "<leader>x", "<CMD>GitConflictListQf<CR>", desc = "conflict-qf" },
     },
