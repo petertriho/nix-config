@@ -1,6 +1,6 @@
 return {
     "utilyre/barbecue.nvim",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     config = function()
         require("barbecue").setup({
             theme = "tokyonight",

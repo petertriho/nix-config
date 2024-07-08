@@ -1,6 +1,6 @@
 return {
     "petertriho/nvim-scrollbar",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     config = function()
         local colors = require("peter.plugins.colors")
 

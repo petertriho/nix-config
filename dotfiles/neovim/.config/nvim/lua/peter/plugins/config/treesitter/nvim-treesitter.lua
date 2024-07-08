@@ -4,7 +4,7 @@ return {
         "TSUpdate",
         "TSUpdateSync",
     },
-    event = "VeryLazy",
+    event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
         { "<leader>b", "<CMD>TSBufToggle highlight<CR>", desc = "ts-buf-toggle" },
     },

@@ -14,6 +14,25 @@ local function set_python3_host_prog()
     end
 end
 
+local function exec_lazy_load_file(event)
+    -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/plugin.lua#L72
+    -- Skip if we already entered vim
+    if vim.v.vim_did_enter == 1 then
+        return
+    end
+
+    local ft = vim.filetype.match({ buf = event.buf })
+    if ft then
+        local lang = vim.treesitter.language.get_lang(ft)
+        if not (lang and pcall(vim.treesitter.start, event.buf, lang)) then
+            vim.bo[event.buf].syntax = ft
+        end
+
+        vim.cmd([[redraw]])
+    end
+    vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
+end
+
 local function set_augroups(groups)
     for name, commands in pairs(groups) do
         vim.api.nvim_create_augroup(name, {})
@@ -70,6 +89,14 @@ set_augroups({
                     end
                 end,
                 desc = "Make directory for file if it does not exist",
+            },
+        },
+        {
+            { "BufReadPost", "BufNewFile", "BufWritePre" },
+            {
+                pattern = "*",
+                callback = exec_lazy_load_file,
+                desc = "Lazy load file",
             },
         },
         {

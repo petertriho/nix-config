@@ -1,6 +1,6 @@
 return {
     "jinh0/eyeliner.nvim",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     opts = {
         highlight_on_key = false,
         match = "[a-z]",

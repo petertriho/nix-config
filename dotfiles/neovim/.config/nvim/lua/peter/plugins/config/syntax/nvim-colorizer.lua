@@ -2,7 +2,7 @@ return {
     -- NOTE: vim.lsp.get_active_clients is deprecated, using fork until PR is merged
     "calebdw/nvim-colorizer.lua",
     branch = "lsp_clients",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     opts = {
         filetypes = {
             "*",

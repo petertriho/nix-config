@@ -1,7 +1,7 @@
 return {
     "00dani/vim-polyglot",
     branch = "feature/fix-build",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     init = function()
         local filetypes = require("peter.plugins.filetypes")
         vim.g.polyglot_disabled = {
