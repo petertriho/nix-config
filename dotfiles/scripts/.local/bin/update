@@ -4,14 +4,21 @@ set -euo pipefail
 
 NIX_CONFIG_PATH="${HOME}/.nix-config"
 
+function pushd() {
+    command pushd "$@" >/dev/null
+}
+
+function popd() {
+    command popd "$@" >/dev/null
+}
+
 function tool:config {
     echo "Updating config ..."
-    (
-        cd "$NIX_CONFIG_PATH" &&
-            (git stash || true) &&
-            git pull &&
-            (git stash pop || true)
-    )
+    pushd "$NIX_CONFIG_PATH"
+    git stash || true
+    git pull
+    git stash pop || true
+    popd
 }
 
 function tool:nvim {
@@ -30,9 +37,17 @@ function tool:nvim:clean {
 }
 
 function tool:nix {
-    echo "Updating flake.lock ..."
-    (cd "$NIX_CONFIG_PATH" && nix flake update)
+    echo "Updating nix ..."
+    tool:nix:flake
+    tool:nix:fetchers
     tool:nix:rebuild
+}
+
+function tool:nix:flake {
+    echo "Updating flake.lock ..."
+    pushd "$NIX_CONFIG_PATH"
+    nix flake update
+    popd
 }
 
 function tool:nix:clean {
@@ -43,6 +58,14 @@ function tool:nix:clean {
 function tool:nix:rebuild {
     echo "Rebuilding new nix config ..."
     sudo nixos-rebuild switch --flake "$NIX_CONFIG_PATH"
+}
+
+function tool:nix:fetchers {
+    echo "Updating nix fetchers ..."
+    pushd "$NIX_CONFIG_PATH"
+    find home -type f -print0 -name "*.nix" | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+    find hosts -type f -print0 -name "*.nix" | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+    popd
 }
 
 function tool:clean {

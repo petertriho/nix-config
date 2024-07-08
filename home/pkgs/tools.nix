@@ -28,6 +28,7 @@ in {
     tabiew
     tldr
     unzip
+    update-nix-fetchgit
     watchexec
     zip
   ];
