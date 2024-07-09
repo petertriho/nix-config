@@ -5,17 +5,14 @@ return {
         { "<leader>;", "<CMD>Telescope find_files hidden=true<CR>", desc = "find-files" },
         { "<leader>a;", "<CMD>Telescope yaml_schema<CR>", desc = "yaml-schema" },
         { "<leader>l", "<CMD>Telescope live_grep<CR>", desc = "live-grep" },
-        { "<leader>u", "<CMD>Telescope undo<CR>", desc = "undotree" },
         { "<leader>y", "<CMD>Telescope yank_history<CR>", desc = "yank-history" },
         { "<leader>gb", "<CMD>lua require('telescope.builtin').git_branches()<CR>", desc = "branches" },
         { "<leader>gc", "<CMD>lua require('telescope.builtin').git_commits()<CR>", desc = "commits" },
         { "<leader>gs", "<CMD>lua require('telescope.builtin').git_stashes()<CR>", desc = "stashes" },
         { "<leader>pa", "<CMD>Telescope find_files find_command=fd,-HIL<CR>", desc = "find-files-all" },
         { "<leader>pb", "<CMD>Telescope scope buffers<CR>", desc = "buffers" },
-        { "<leader>pd", "<CMD>Telescope dir find_files<CR>", desc = "dir-find-files" },
         { "<leader>pf", "<CMD>Telescope find_files hidden=true<CR>", desc = "find-files" },
         { "<leader>pl", "<CMD>Telescope live_grep<CR>", desc = "live-grep" },
-        { "<leader>ps", "<CMD>Telescope dir live_grep<CR>", desc = "dir-search-text" },
         {
             "<leader>td",
             "<CMD>lua require('telescope.builtin').lsp_definitions({ jump_type = 'never' })<CR>",
@@ -42,17 +39,6 @@ return {
             "<CMD>lua require('telescope.builtin').lsp_type_definitions({ jump_type = 'never' })<CR>",
             desc = "type-definitions",
         },
-    },
-    dependencies = {
-        {
-            "princejoogie/dir-telescope.nvim",
-            opts = {
-                hidden = true,
-                no_ignore = false,
-                show_preview = true,
-            },
-        },
-        "debugloop/telescope-undo.nvim",
     },
     config = function()
         local telescope = require("telescope")
