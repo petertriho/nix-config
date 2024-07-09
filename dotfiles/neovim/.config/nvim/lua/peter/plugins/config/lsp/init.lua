@@ -5,5 +5,5 @@ return {
     -- NOTE: vim.lsp.get_active_clients is deprecated, using fork until PR is merged
     -- { "kosayoda/nvim-lightbulb", lazy = true },
     { "gh-liu/nvim-lightbulb", lazy = true },
-    { "someone-stole-my-name/yaml-companion.nvim", lazy = true },
+    { "agorgl/yaml-companion.nvim", branch = "patch-1", lazy = true },
 }
