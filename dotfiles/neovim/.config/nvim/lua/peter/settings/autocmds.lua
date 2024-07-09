@@ -16,6 +16,8 @@ end
 
 local function exec_lazy_load_file(event)
     -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/plugin.lua#L72
+    vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
+
     -- Skip if we already entered vim
     if vim.v.vim_did_enter == 1 then
         return
@@ -30,7 +32,6 @@ local function exec_lazy_load_file(event)
 
         vim.cmd([[redraw]])
     end
-    vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
 end
 
 local function set_augroups(groups)
