@@ -2,7 +2,7 @@ return {
     "lewis6991/gitsigns.nvim",
     event = "User LazyLoadFile",
     keys = {
-        { "<leader>gt", "<CMD>Gitsigns toggle_current_line_blame<CR>", "toggle-blame" },
+        { "<leader>gt", "<CMD>Gitsigns toggle_current_line_blame<CR>", desc = "toggle-blame" },
     },
     config = function()
         require("gitsigns").setup({
