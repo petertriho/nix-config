@@ -28,17 +28,17 @@ return {
             m = {
                 name = "+marks",
             },
-            p = {
-                name = "+project",
-            },
-            t = {
-                name = "+ts-lsp",
+            l = {
+                name = "+lsp",
                 e = {
                     name = "+errors",
                 },
                 s = {
                     name = "+symbols",
                 },
+            },
+            t = {
+                name = "+telescope",
             },
         }
 

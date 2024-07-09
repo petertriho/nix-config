@@ -1,8 +1,8 @@
 return {
     "princejoogie/dir-telescope.nvim",
     keys = {
-        { "<leader>pd", "<CMD>Telescope dir find_files<CR>", desc = "dir-find-files" },
-        { "<leader>ps", "<CMD>Telescope dir live_grep<CR>", desc = "dir-search-text" },
+        { "<leader>td", "<CMD>Telescope dir find_files<CR>", desc = "dir-find-files" },
+        { "<leader>ts", "<CMD>Telescope dir live_grep<CR>", desc = "dir-search-text" },
     },
     opts = {
         hidden = true,
