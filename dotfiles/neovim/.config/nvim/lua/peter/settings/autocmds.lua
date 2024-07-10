@@ -15,10 +15,9 @@ local function set_python3_host_prog()
 end
 
 local function exec_lazy_load_file(event)
-    -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/plugin.lua#L72
     vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
 
-    -- Skip if we already entered vim
+    -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/plugin.lua#L72
     if vim.v.vim_did_enter == 1 then
         return
     end
