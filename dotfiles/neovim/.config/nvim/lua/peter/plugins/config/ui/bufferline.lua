@@ -28,7 +28,7 @@ return {
                     text_align = "center",
                 },
                 {
-                    filetype = "Mundo",
+                    filetype = "undotree",
                     text = "UNDOTREE",
                     highlight = "Directory",
                     text_align = "center",

@@ -1,10 +1,9 @@
 local sidebars = {
     "dbui",
     "DiffViewFiles",
-    "Mundo",
-    "MundoDiff",
     "NvimTree",
     "Outline",
+    "undotree",
 }
 
 return {
