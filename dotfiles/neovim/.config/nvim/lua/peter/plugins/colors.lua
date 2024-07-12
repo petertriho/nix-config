@@ -1,8 +1,70 @@
-local colors = require("tokyonight.colors").setup(require("tokyonight.config"))
+-- local colors = require("tokyonight.colors").setup(require("tokyonight.config"))
 
-colors = vim.tbl_extend("force", colors, {
-    fg = colors.fg_sidebar,
-    bg = colors.bg_statusline,
-})
+-- colors = vim.tbl_extend("force", colors, {
+--     fg = colors.fg_sidebar,
+--     bg = colors.bg_statusline,
+-- })
+
+local colors = {
+    bg = "#16161e",
+    bg_dark = "#16161e",
+    bg_float = "#16161e",
+    bg_highlight = "#292e42",
+    bg_popup = "#16161e",
+    bg_search = "#3d59a1",
+    bg_sidebar = "#16161e",
+    bg_statusline = "#16161e",
+    bg_visual = "#283457",
+    black = "#15161e",
+    blue = "#7aa2f7",
+    blue0 = "#3d59a1",
+    blue1 = "#2ac3de",
+    blue2 = "#0db9d7",
+    blue5 = "#89ddff",
+    blue6 = "#b4f9f8",
+    blue7 = "#394b70",
+    border = "#15161e",
+    border_highlight = "#2d3149",
+    comment = "#565f89",
+    cyan = "#7dcfff",
+    dark3 = "#545c7e",
+    dark5 = "#737aa2",
+    diff = {
+        add = "#20303b",
+        change = "#1f2231",
+        delete = "#37222c",
+        text = "#394b70",
+    },
+    error = "#db4b4b",
+    fg = "#a9b1d6",
+    fg_dark = "#a9b1d6",
+    fg_float = "#c0caf5",
+    fg_gutter = "#3b4261",
+    fg_sidebar = "#a9b1d6",
+    git = {
+        add = "#449dab",
+        change = "#6183bb",
+        delete = "#914c54",
+        ignore = "#545c7e",
+    },
+    green = "#9ece6a",
+    green1 = "#73daca",
+    green2 = "#41a6b5",
+    hint = "#1abc9c",
+    info = "#0db9d7",
+    magenta = "#bb9af7",
+    magenta2 = "#ff007c",
+    none = "NONE",
+    orange = "#ff9e64",
+    purple = "#9d7cd8",
+    rainbow = { "#7aa2f7", "#e0af68", "#9ece6a", "#1abc9c", "#bb9af7", "#9d7cd8" },
+    red = "#f7768e",
+    red1 = "#db4b4b",
+    teal = "#1abc9c",
+    terminal_black = "#414868",
+    todo = "#7aa2f7",
+    warning = "#e0af68",
+    yellow = "#e0af68",
+}
 
 return colors

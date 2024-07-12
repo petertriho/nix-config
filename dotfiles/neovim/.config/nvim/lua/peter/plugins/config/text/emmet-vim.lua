@@ -1,4 +1,4 @@
 return {
     "mattn/emmet-vim",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
 }

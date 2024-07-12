@@ -1,5 +1,11 @@
 return {
     "j-hui/fidget.nvim",
     event = "VeryLazy",
-    config = true,
+    opt = {
+        integration = {
+            ["nvim-tree"] = {
+                enable = false,
+            },
+        },
+    },
 }

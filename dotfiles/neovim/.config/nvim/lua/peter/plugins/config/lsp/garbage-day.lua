@@ -1,5 +1,5 @@
 return {
     "zeioth/garbage-day.nvim",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
     dependencies = "neovim/nvim-lspconfig",
 }
