@@ -1,4 +1,5 @@
 {
+  inputs,
   config,
   pkgs,
   lib,
@@ -143,7 +144,7 @@
     };
 in {
   home.packages = with pkgs; [
-    neovim
+    # neovim
     # dependencies
     fd
     fzf
@@ -211,6 +212,14 @@ in {
     stylelint
     yq-go
   ];
+
+  programs.neovim = {
+    enable = true;
+    package = inputs.neovim-nightly-overlay.packages.${pkgs.system}.default;
+    withRuby = false;
+    withPython3 = false;
+    withNodeJs = false;
+  };
 
   xdg.configFile."nvim".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim";
   xdg.configFile."code".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/code";

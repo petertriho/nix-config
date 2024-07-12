@@ -59,10 +59,6 @@
     '';
   };
 
-  nixpkgs.overlays = [
-    inputs.neovim-nightly-overlay.overlays.default
-  ];
-
   users.users.peter = {
     isNormalUser = true;
     extraGroups = [

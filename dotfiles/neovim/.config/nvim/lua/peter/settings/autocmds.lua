@@ -99,14 +99,14 @@ set_augroups({
                 desc = "Lazy load file",
             },
         },
-        {
-            "User",
-            {
-                pattern = "PythonHostProg",
-                callback = set_python3_host_prog,
-                desc = "Load python host prog when required",
-            },
-        },
+        -- {
+        --     "User",
+        --     {
+        --         pattern = "PythonHostProg",
+        --         callback = set_python3_host_prog,
+        --         desc = "Load python host prog when required",
+        --     },
+        -- },
     },
     _targets = {
         {

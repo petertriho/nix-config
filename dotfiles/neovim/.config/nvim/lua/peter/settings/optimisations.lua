@@ -37,7 +37,7 @@ end
 local disabled_providers = {
     "node",
     "perl",
-    -- "python3",
+    "python3",
     "ruby",
 }
 for _, provider in pairs(disabled_providers) do
