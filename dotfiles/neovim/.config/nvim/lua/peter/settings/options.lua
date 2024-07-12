@@ -83,6 +83,21 @@ opt.wildignore = {
     "*/tmp/*",
 }
 
+-- Clipboard
+if vim.fn.exists("$TMUX") == 0 and vim.fn.has("wsl") == 1 then
+    g.clipboard = {
+        name = "WslClipboard",
+        copy = {
+            ["+"] = "clip.exe",
+            ["*"] = "clip.exe",
+        },
+        paste = {
+            ["+"] = 'powershell.exe -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
+            ["*"] = 'powershell.exe -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
+        },
+        cache_enabled = 0,
+    }
+end
 
 -- Vimgrep
 if vim.fn.executable("rg") == 1 then
