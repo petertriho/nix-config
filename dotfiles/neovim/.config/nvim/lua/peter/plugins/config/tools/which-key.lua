@@ -2,7 +2,7 @@ return {
     "folke/which-key.nvim",
     event = "VeryLazy",
     opts = {
-        preset = "classic",
+        preset = "helix",
         layout = {
             align = "center",
         },
@@ -22,6 +22,7 @@ return {
                 { "<leader>0", hidden = true },
                 { "<leader>a", group = "actions" },
                 { "<leader>g", group = "git" },
+                { "<leader>h", group = "hunks" },
                 { "<leader>m", group = "marks" },
                 { "<leader>l", group = "lsp" },
                 { "<leader>le", group = "errors" },
