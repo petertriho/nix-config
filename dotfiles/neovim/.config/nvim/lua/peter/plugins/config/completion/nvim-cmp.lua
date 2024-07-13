@@ -11,7 +11,7 @@ return {
         "hrsh7th/cmp-path",
         "hrsh7th/cmp-vsnip",
         "onsails/lspkind.nvim",
-        "petertriho/cmp-git",
+        { "petertriho/cmp-git", config = true },
         "rafamadriz/friendly-snippets",
         { "tzachar/cmp-fuzzy-buffer", dependencies = "tzachar/fuzzy.nvim" },
         { "tzachar/cmp-fuzzy-path", dependencies = "tzachar/fuzzy.nvim" },
