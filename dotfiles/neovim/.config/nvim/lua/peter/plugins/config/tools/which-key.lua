@@ -1,113 +1,81 @@
 return {
     "folke/which-key.nvim",
     event = "VeryLazy",
-    config = function()
-        require("which-key").setup({
-            layout = {
-                align = "center",
+    opts = {
+        preset = "classic",
+        layout = {
+            align = "center",
+        },
+        spec = {
+            -- leader
+            {
+                mode = "n",
+                { "<leader>1", hidden = true },
+                { "<leader>2", hidden = true },
+                { "<leader>3", hidden = true },
+                { "<leader>4", hidden = true },
+                { "<leader>5", hidden = true },
+                { "<leader>6", hidden = true },
+                { "<leader>7", hidden = true },
+                { "<leader>8", hidden = true },
+                { "<leader>9", hidden = true },
+                { "<leader>0", hidden = true },
+                { "<leader>a", group = "actions" },
+                { "<leader>g", group = "git" },
+                { "<leader>m", group = "marks" },
+                { "<leader>l", group = "lsp" },
+                { "<leader>le", group = "errors" },
+                { "<leader>ls", group = "symbols" },
+                { "<leader>t", group = "telescope" },
             },
-        })
-
-        local leader_keymaps = {
-            ["1"] = "which_key_ignore",
-            ["2"] = "which_key_ignore",
-            ["3"] = "which_key_ignore",
-            ["4"] = "which_key_ignore",
-            ["5"] = "which_key_ignore",
-            ["6"] = "which_key_ignore",
-            ["7"] = "which_key_ignore",
-            ["8"] = "which_key_ignore",
-            ["9"] = "which_key_ignore",
-            ["0"] = "which_key_ignore",
-            a = {
-                name = "+actions",
-            },
-            g = {
-                name = "+git",
-            },
-            m = {
-                name = "+marks",
-            },
-            l = {
-                name = "+lsp",
-                e = {
-                    name = "+errors",
+            { mode = "x", { "<leader>a", "actions" } },
+            -- nvim-treesitter-textsubjects
+            {
+                mode = "o",
+                {
+                    { ".", desc = "textsubjects-smart" },
+                    { "<CR>", desc = "textsubjects-container-outer" },
+                    { "i<CR>", desc = "textsubjects-container-inner" },
                 },
-                s = {
-                    name = "+symbols",
+            },
+            -- vim-abolish
+            {
+                mode = "n",
+                {
+                    { "cr", group = "coerce" },
+                    { "cr ", desc = "space case" },
+                    { "cr-", desc = "dash-case" },
+                    { "cr.", desc = "dot.case" },
+                    { "cr_", desc = "snake_case" },
+                    { "crc", desc = "camelCase" },
+                    { "crk", desc = "kebab-case" },
+                    { "crm", desc = "MixedCase" },
+                    { "crs", desc = "snake_case" },
+                    { "crt", desc = "Title Case" },
+                    { "cru", desc = "SNAKE_UPPERCASE" },
+                    { "crU", desc = "SNAKE_UPPERCASE" },
                 },
             },
-            t = {
-                name = "+telescope",
+            -- vim-caser
+            {
+                mode = "n",
+                {
+                    { "cC", group = "caser" },
+                    { "cC ", desc = "space case" },
+                    { "cC-", desc = "dash-case" },
+                    { "cC.", desc = "dot.case" },
+                    { "cC_", desc = "snake_case" },
+                    { "cCc", desc = "camelCase" },
+                    { "cCk", desc = "kebab-case" },
+                    { "cCK", desc = "Title-Kebab-Case" },
+                    { "cCm", desc = "MixedCase" },
+                    { "cCp", desc = "PascalCase" },
+                    { "cCs", desc = "Sentence case" },
+                    { "cCt", desc = "Title Case" },
+                    { "cCu", desc = "SNAKE_UPPERCASE" },
+                    { "cCU", desc = "SNAKE_UPPERCASE" },
+                },
             },
-        }
-
-        local leader_visual_keymaps = {
-            a = {
-                name = "+actions",
-            },
-        }
-
-        local register = require("which-key").register
-        register(leader_keymaps, {
-            prefix = "<leader>",
-            mode = "n",
-            silent = true,
-            noremap = true,
-        })
-
-        register(leader_visual_keymaps, {
-            prefix = "<leader>",
-            mode = "x",
-            silent = true,
-            noremap = true,
-        })
-
-        -- nvim-treesitter-textsubjects
-        register({
-            ["."] = "textsubjects-smart",
-            ["<CR>"] = "textsubjects-container-outer",
-            ["i<CR>"] = "textsubjects-container-inner",
-        }, { mode = "o", prefix = "" })
-
-        -- vim-abolish
-        register({
-            name = "coerce",
-            [" "] = "space case",
-            ["-"] = "dash-case",
-            ["."] = "dot.case",
-            ["_"] = "snake_case",
-            c = "camelCase",
-            k = "kebab-case",
-            m = "MixedCase",
-            s = "snake_case",
-            t = "Title Case",
-            u = "SNAKE_UPPERCASE",
-            U = "SNAKE_UPPERCASE",
-        }, {
-            prefix = "cr",
-            mode = "n",
-        })
-
-        -- vim-caser
-        register({
-            name = "caser",
-            [" "] = "space case",
-            ["-"] = "dash-case",
-            ["."] = "dot.case",
-            ["_"] = "snake_case",
-            c = "camelCase",
-            k = "kebab-case",
-            K = "Title-Kebab-Case",
-            m = "MixedCase",
-            p = "PascalCase",
-            s = "Sentence case",
-            t = "Title Case",
-            u = "SNAKE_UPPERCASE",
-            U = "SNAKE_UPPERCASE",
-        }, {
-            prefix = "cC",
-            mode = "n",
-        })
-    end,
+        },
+    },
 }
