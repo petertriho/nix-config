@@ -20,10 +20,14 @@ local function lsp_attach_callback(args)
         "<CMD>lua vim.diagnostic.open_float(0, { scope = 'line', source = 'always', border = 'rounded' })<CR>",
         { desc = "Diagnostic" }
     )
-    buf_set_keymap("n", "<leader>tq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "qflist-diagnostics" })
+    buf_set_keymap("n", "<leader>lq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "qflist-diagnostics" })
 
     if client.supports_method("textDocument/declaration") then
         buf_set_keymap("n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", { desc = "Declaration" })
+    end
+
+    if client.supports_method("textDocument/hover") then
+        buf_set_keymap("n", "K", "<CMD>lua vim.lsp.buf.hover()<CR>", { desc = "Hover" })
     end
 
     if client.supports_method("textDocument/implementation") then
