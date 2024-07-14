@@ -170,6 +170,7 @@ in {
       tk = "tmux kill-session -t";
       tl = "tmux list-sessions";
       tn = "tmux new-session -s";
+      tnz = "tmux-new-zoxide";
       xf = "xfish";
     };
     shellAliases = {

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+tmux new-session -s "$1" "cd $(zoxide query "$1"); exec $SHELL"
