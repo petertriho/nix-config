@@ -25,34 +25,6 @@ return {
 
                 hl.LeapLabel = { fg = colors.red, underline = true }
                 hl.LeapMatch = { fg = colors.blue, underline = true }
-
-                -- hl.TelescopeNormal = {
-                --     bg = colors.bg_dark,
-                --     fg = colors.fg_dark,
-                -- }
-                -- hl.TelescopeBorder = {
-                --     bg = colors.bg_dark,
-                --     fg = colors.bg_dark,
-                -- }
-                -- hl.TelescopePromptNormal = {
-                --     bg = colors.border_highlight,
-                -- }
-                -- hl.TelescopePromptBorder = {
-                --     bg = colors.border_highlight,
-                --     fg = colors.border_highlight,
-                -- }
-                -- hl.TelescopePromptTitle = {
-                --     bg = colors.border_highlight,
-                --     fg = colors.fg_dark,
-                -- }
-                -- hl.TelescopePreviewTitle = {
-                --     bg = colors.border_highlight,
-                --     fg = colors.fg_dark,
-                -- }
-                -- hl.TelescopeResultsTitle = {
-                --     bg = colors.border_highlight,
-                --     fg = colors.fg_dark,
-                -- }
             end,
         })
 
@@ -60,15 +32,5 @@ return {
 
         vim.fn.sign_define("LightBulbSign", { text = "󰌶", texthl = "DiagnosticSignWarn" })
 
-        vim.diagnostic.config({
-            signs = {
-                text = {
-                    [vim.diagnostic.severity.ERROR] = "󰅚 ",
-                    [vim.diagnostic.severity.WARN] = "󰀪 ",
-                    [vim.diagnostic.severity.HINT] = "󰌶 ",
-                    [vim.diagnostic.severity.INFO] = " ",
-                },
-            },
-        })
     end,
 }
