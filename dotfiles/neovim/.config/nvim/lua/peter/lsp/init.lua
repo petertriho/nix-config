@@ -148,7 +148,7 @@ M.setup = function()
     })
 
     local lspconfig = require("lspconfig")
-    local overrides = require("peter.lsp.config")
+    local overrides = require("peter.lsp.overrides")
 
     local base_config = make_base_config()
 
