@@ -58,7 +58,17 @@ return {
     },
     lua_ls = {},
     marksman = {},
-    nil_ls = {},
+    nil_ls = {
+        settings = {
+            ["nil"] = {
+                nix = {
+                    flake = {
+                        autoArchive = false,
+                    },
+                },
+            },
+        },
+    },
     quick_lint_js = {
         filetypes = { "javascript", "javascriptreact", "jsx" },
     },
