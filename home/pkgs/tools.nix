@@ -23,6 +23,7 @@ in {
     glow
     howdoi
     iperf3
+    openssl
     navi
     nurl
     tabiew
