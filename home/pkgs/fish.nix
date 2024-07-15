@@ -46,10 +46,10 @@ in {
   programs.fish = {
     enable = true;
     plugins = with pkgs; [
-      # {
-      #   name = "async-prompt";
-      #   src = fishPlugins.async-prompt.src;
-      # }
+      {
+        name = "async-prompt";
+        src = fishPlugins.async-prompt.src;
+      }
       {
         name = "autopair";
         src = fishPlugins.autopair.src;
