@@ -3,8 +3,12 @@ return {
     event = "VeryLazy",
     opts = {
         preset = "helix",
+        win = {
+            title_pos = "center",
+        },
         layout = {
             align = "center",
+            width = { min = 20, max = 25 },
         },
         spec = {
             -- leader
