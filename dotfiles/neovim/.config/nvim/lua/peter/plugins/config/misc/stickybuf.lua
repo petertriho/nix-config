@@ -6,7 +6,7 @@ return {
                 local filetype = vim.bo[bufnr].filetype
 
                 for _, v in ipairs(require("peter.plugins.filetypes").sidebars) do
-                    if v ~= "NvimTree" and v == filetype then
+                    if v == filetype then
                         return "filetype"
                     end
                 end
