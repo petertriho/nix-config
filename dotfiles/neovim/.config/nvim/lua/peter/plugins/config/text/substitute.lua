@@ -2,7 +2,7 @@ return {
     "gbprod/substitute.nvim",
     keys = {
         { "<leader>s", "<CMD>lua require('substitute').operator()<CR>", desc = "substitute" },
-        { "<leader>ss", "<CMD>lua require('substitute').line()<CR>", desc = "Line" },
+        { "<leader>ss", "<CMD>lua require('substitute').line()<CR>", desc = "line" },
         { "<leader>S", "<CMD>lua require('substitute').eol()<CR>", desc = "substitute-eol" },
         { "<leader>s", "<CMD>lua require('substitute').visual()<CR>", mode = "x", desc = "substitute" },
         { "\\s", "<CMD>lua require('substitute.range').operator()<CR>", desc = "substitute" },
@@ -10,7 +10,7 @@ return {
         { "\\ss", "<CMD>lua require('substitute.range').word()<CR>", desc = "Word" },
         { "\\S", "<CMD>lua require('substitute.range').operator({ prefix = 'S' })<CR>", desc = "subvert" },
         { "\\S", "<CMD>lua require('substitute.range').visual({ prefix = 'S' })<CR>", mode = "x", desc = "subvert" },
-        { "\\SS", "<CMD>lua require('substitute.range').word({ prefix = 'S' })<CR>", desc = "Word" },
+        { "\\SS", "<CMD>lua require('substitute.range').word({ prefix = 'S' })<CR>", desc = "word" },
         { "cx", "<CMD>lua require('substitute.exchange').operator()<CR>", desc = "Exchange" },
         { "cxx", "<CMD>lua require('substitute.exchange').line()<CR>", desc = "Line" },
         { "X", "<CMD>lua require('substitute.exchange').visual()<CR>", mode = "x", desc = "Exchange" },

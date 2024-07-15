@@ -36,18 +36,18 @@ M.on_attach = function(client, bufnr)
 
         vim.keymap.set("n", "<leader>F", function()
             slow_format()
-        end, { buffer = bufnr, desc = "slow format" })
+        end, { buffer = bufnr, desc = "slow-format" })
     end
 
     if client.supports_method("textDocument/rangeFormatting") then
         -- TODO: add "textDocument/rangesFormatting"
         vim.keymap.set("v", "<leader>f", function()
             format()
-        end, { buffer = bufnr, desc = "LSP range format" })
+        end, { buffer = bufnr, desc = "format" })
 
         vim.keymap.set("v", "<leader>F", function()
             slow_format()
-        end, { buffer = bufnr, desc = "Slow LSP range format" })
+        end, { buffer = bufnr, desc = "slow-format" })
     end
 end
 
