@@ -16,9 +16,5 @@ return {
         { "X", "<CMD>lua require('substitute.exchange').visual()<CR>", mode = "x", desc = "Exchange" },
         { "cxc", "<CMD>lua require('substitute.exchange').cancel()<CR>", desc = "Cancel" },
     },
-    config = function()
-        require("substitute").setup({
-            on_substitute = require("yanky.integration").substitute(),
-        })
-    end,
+    config = true,
 }

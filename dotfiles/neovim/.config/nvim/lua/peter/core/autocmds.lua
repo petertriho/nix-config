@@ -45,16 +45,16 @@ end
 
 set_augroups({
     _general = {
-        -- {
-        --     "TextYankPost",
-        --     {
-        --         pattern = "*",
-        --         callback = function()
-        --             vim.highlight.on_yank({ higroup = "Search", timeout = 200 })
-        --         end,
-        --         desc = "Highlight on yank",
-        --     },
-        -- },
+        {
+            "TextYankPost",
+            {
+                pattern = "*",
+                callback = function()
+                    vim.highlight.on_yank({ higroup = "IncSearch", timeout = 200 })
+                end,
+                desc = "Highlight on yank",
+            },
+        },
         {
             { "FocusLost", "InsertEnter", "WinLeave" },
             {
