@@ -84,7 +84,7 @@ opt.wildignore = {
 }
 
 -- Clipboard
-if vim.fn.exists("$TMUX") == 0 and vim.fn.has("wsl") == 1 and vim.fn.executable("win32yank") == 0 then
+if vim.fn.exists("$TMUX") == 0 and vim.fn.has("wsl") == 1 and vim.fn.executable("win32yank.exe") == 0 then
     -- Use native clip.exe if win32yank does not exist
     g.clipboard = {
         name = "WslClipboard",
