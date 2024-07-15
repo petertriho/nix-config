@@ -51,15 +51,6 @@ local function lsp_attach_callback(args)
     end
 
     if client.supports_method("textDocument/codeAction") then
-        vim.api.nvim_create_augroup("lsp_code_action", {})
-        vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
-            group = "lsp_code_action",
-            callback = function()
-                require("nvim-lightbulb").update_lightbulb()
-            end,
-            buffer = bufnr,
-            desc = "LSP code action lightbulb",
-        })
         buf_set_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "code-actions" })
         buf_set_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "code-actions" })
     end
