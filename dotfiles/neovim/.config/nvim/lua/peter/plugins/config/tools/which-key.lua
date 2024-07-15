@@ -2,13 +2,12 @@ return {
     "folke/which-key.nvim",
     event = "VeryLazy",
     opts = {
-        preset = "helix",
+        preset = "modern",
         win = {
             title_pos = "center",
         },
         layout = {
             align = "center",
-            width = { min = 20, max = 25 },
         },
         spec = {
             -- leader
