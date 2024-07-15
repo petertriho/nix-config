@@ -41,6 +41,6 @@ if type --query zoxide
 end
 
 # TODO: investigate why this doesn't work when enabled through 00_prompt.fish
-if type --query enable_transience
-    enable_transience
-end
+# if type --query enable_transience
+#     enable_transience
+# end
