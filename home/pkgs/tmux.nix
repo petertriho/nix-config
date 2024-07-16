@@ -15,6 +15,12 @@
     };
   };
 
+  pythonInputs = pkgs.python3.withPackages (p:
+    with p; [
+      libtmux
+      pip
+    ]);
+
   easy-motion = pkgs.tmuxPlugins.mkTmuxPlugin {
     pluginName = "easy-motion";
     version = "unstable-2024-04-05";
@@ -24,14 +30,17 @@
       rev = "3e2edbd0a3d9924cc1df3bd3529edc507bdf5934";
       hash = "sha256-wOIPq12OqqxLERKfvVp4JgLkDXnM0KKtTqRWMqj4rfs=";
     };
+    nativeBuildInputs = [pkgs.makeWrapper];
+    rtpFilePath = "easy_motion.tmux";
+    postInstall = ''
+      for f in easy_motion.tmux scripts/easy_motion.py; do
+        wrapProgram $target/$f \
+          --prefix PATH : ${lib.makeBinPath [pythonInputs]}
+      done
+    '';
   };
 
   # https://github.com/NixOS/nixpkgs/pull/296174
-  pythonInputs = pkgs.python3.withPackages (p:
-    with p; [
-      libtmux
-      pip
-    ]);
   tmux-window-name = pkgs.tmuxPlugins.mkTmuxPlugin {
     pluginName = "tmux-window-name";
     version = "unstable-2024-05-28";
