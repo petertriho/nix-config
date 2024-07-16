@@ -1,21 +1,21 @@
 return {
     "arthurxavierx/vim-caser",
     keys = {
-        "cC ",
-        "cC-",
-        "cC.",
-        "cC_",
-        "cCc",
-        "cCk",
-        "cCK",
-        "cCm",
-        "cCp",
-        "cCs",
-        "cCt",
-        "cCu",
-        "cCU",
+        "<leader>C ",
+        "<leader>C-",
+        "<leader>C.",
+        "<leader>C_",
+        "<leader>Cc",
+        "<leader>Ck",
+        "<leader>CK",
+        "<leader>Cm",
+        "<leader>Cp",
+        "<leader>Cs",
+        "<leader>Ct",
+        "<leader>Cu",
+        "<leader>CU",
     },
     init = function()
-        vim.g.caser_prefix = "cC"
+        vim.g.caser_prefix = "<leader>C"
     end,
 }

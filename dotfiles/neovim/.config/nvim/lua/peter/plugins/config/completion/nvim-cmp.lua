@@ -31,7 +31,7 @@ return {
         },
     },
     keys = {
-        { "<leader>c", "<CMD>ToggleNvimCmp<CR>", desc = "completion-toggle" },
+        { "<leader>lc", "<CMD>ToggleNvimCmp<CR>", desc = "completion-toggle" },
     },
     init = function()
         vim.g.completion_enabled = true
