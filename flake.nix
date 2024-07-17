@@ -30,7 +30,7 @@
         specialArgs = {
           inherit inputs outputs;
         };
-        modules = [./hosts/wsl];
+        modules = [./systems/wsl.nix];
       };
     };
   };

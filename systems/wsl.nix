@@ -7,7 +7,7 @@
   ...
 }: {
   imports = [
-    ../common
+    ./base.nix
     inputs.nixos-wsl.nixosModules.wsl
   ];
 
