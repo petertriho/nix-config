@@ -57,6 +57,9 @@
 [pull]
     rebase = true
 
+[push]
+    autoSetupRemote = true
+
 [user]
     name = Peter Tri Ho
     email = mail@petertriho.com
