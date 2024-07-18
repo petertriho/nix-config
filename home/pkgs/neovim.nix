@@ -146,11 +146,8 @@ in {
   home.packages = with pkgs; [
     # neovim
     # dependencies
-    fd
-    fzf
     gcc
     gnumake
-    ripgrep
     # formatters
     alejandra
     autoflake
@@ -225,4 +222,6 @@ in {
   xdg.configFile."code".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/code";
   xdg.configFile."vale".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/vale";
   home.file.".vsnip".source = config.lib.meta.mkDotfilesSymlink "neovim/.vsnip";
+
+  home.sessionVariables.EDITOR = "nvim";
 }

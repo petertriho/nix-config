@@ -1,6 +1,5 @@
 {
   pkgs,
-  lib,
   config,
   ...
 }: let
@@ -44,15 +43,6 @@
     };
   };
 in {
-  home.packages = with pkgs; [
-    delta
-    # dependencies
-    eza
-    fd
-    fzf
-    zoxide
-  ];
-
   programs.fish = {
     enable = true;
     plugins = with pkgs; [

@@ -1,21 +1,3 @@
-set -gx EDITOR nvim
-
-set -gx DIRENV_LOG_FORMAT ""
-
-set -gx FZF_DEFAULT_OPTS \
-    --ansi \
-    --exact \
-    --border \
-    --cycle \
-    --reverse \
-    "--height '80%'" \
-    "--bind 'ctrl-space:toggle-preview'" \
-    "--bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up'" \
-    "--bind 'alt-a:select-all,alt-d:deselect-all'" \
-    "--color=dark" \
-    "--color=border:7,fg:-1,bg:-1,hl:5,fg+:7,bg+:8,hl+:5" \
-    "--color=info:6,prompt:2,pointer:2,marker:3,spinner:1,header:4"
-
 set -gx FORGIT_FZF_DEFAULT_OPTS "$FZF_DEFAULT_OPTS"
 set -gx FORGIT_LOG_GRAPH_ENABLE true
 
@@ -37,10 +19,4 @@ set -g sponge_purge_only_on_exit true
 
 if type --query zoxide
     zoxide init fish | source
-    set -gx _ZO_FZF_OPTS "$FZF_DEFAULT_OPTS --keep-right --exit-0 --select-1 --preview='command eza {2..}' --preview-window=bottom"
 end
-
-# TODO: investigate why this doesn't work when enabled through 00_prompt.fish
-# if type --query enable_transience
-#     enable_transience
-# end

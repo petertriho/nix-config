@@ -10,4 +10,6 @@
   };
 
   xdg.configFile."direnv/direnvrc".source = config.lib.meta.mkDotfilesSymlink "direnv/.config/direnv/direnvrc";
+
+  home.sessionVariables.DIRENV_LOG_FORMAT = "";
 }
