@@ -17,7 +17,6 @@ vim.filetype.add({
 })
 
 -- Options
-local o = vim.o
 local opt = vim.opt
 -- opt.clipboard = "unnamedplus"
 -- opt.cmdheight = 0
