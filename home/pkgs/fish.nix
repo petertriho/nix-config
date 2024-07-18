@@ -23,6 +23,16 @@
     };
   };
 
+  colored-man-pages-fork = {
+    name = "colored-man-pages";
+    src = pkgs.fetchFromGitHub {
+      owner = "petertriho";
+      repo = "colored_man_pages.fish";
+      rev = "d6352e9b88bb9941e12c839bc8e07ddfa751dab1";
+      sha256 = "0ybg88s6ig6cnwnih2m1dbisj9xhydsl6f659bc6rc28xg9idri3";
+    };
+  };
+
   replay = {
     name = "replay";
     src = pkgs.fetchFromGitHub {
@@ -54,10 +64,10 @@ in {
         name = "autopair";
         src = fishPlugins.autopair.src;
       }
-      {
-        name = "colored-man-pages";
-        src = fishPlugins.colored-man-pages.src;
-      }
+      # {
+      #   name = "colored-man-pages";
+      #   src = fishPlugins.colored-man-pages.src;
+      # }
       {
         name = "forgit";
         src = fishPlugins.forgit.src;
@@ -76,6 +86,7 @@ in {
       }
       abbreviation-tips
       async-prompt-fork
+      colored-man-pages-fork
       replay
       upto
     ];
