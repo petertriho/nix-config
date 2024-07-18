@@ -8,8 +8,8 @@
     src = pkgs.fetchFromGitHub {
       owner = "gazorby";
       repo = "fish-abbreviation-tips";
-      rev = "v0.7.0";
-      hash = "sha256-F1t81VliD+v6WEWqj1c1ehFBXzqLyumx5vV46s/FZRU=";
+      rev = "8ed76a62bb044ba4ad8e3e6832640178880df485";
+      sha256 = "05b5qp7yly7mwsqykjlb79gl24bs6mbqzaj5b3xfn3v2b7apqnqp";
     };
   };
 
@@ -18,8 +18,8 @@
     src = pkgs.fetchFromGitHub {
       owner = "petertriho";
       repo = "fish-async-prompt";
-      rev = "8cd5a9122fdb629665dba11f13a33556ae072f96";
-      hash = "sha256-h3l2yYELH9KhYQ17VbR5BNmVyHAvqGfPSXi0sz5XN2g=";
+      rev = "3a9bf1a32cf3811015840da1362dce71e606a656";
+      sha256 = "1mxn4i78bb6avy4brqjxf2wsh8bxcps4yz953b0add5m691yk1vx";
     };
   };
 
@@ -28,8 +28,8 @@
     src = pkgs.fetchFromGitHub {
       owner = "jorgebucaran";
       repo = "replay.fish";
-      rev = "1.2.1";
-      hash = "sha256-bM6+oAd/HXaVgpJMut8bwqO54Le33hwO9qet9paK1kY=";
+      rev = "d2ecacd3fe7126e822ce8918389f3ad93b14c86c";
+      sha256 = "1n2xji4w5k1iyjsvnwb272wx0qh5jfklihqfz0h1a1bd3zp3sd2g";
     };
   };
 
@@ -39,7 +39,7 @@
       owner = "Markcial";
       repo = "upto";
       rev = "2d1f35453fb55747d50da8c1cb1809840f99a646";
-      hash = "sha256-Lv2XtP2x9dkIkUUjMBWVpAs/l55Ztu7gIjKYH6ZzK4s=";
+      sha256 = "12rbffk1z61j4bhfxdjrksbky2x4jlak08s5j44dkxdizns9gz9f";
     };
   };
 in {

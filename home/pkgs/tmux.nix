@@ -11,7 +11,7 @@
       owner = "petertriho";
       repo = "tmux-sessionist";
       rev = "71267aa8cd625f97772af8ffd8d98efd5aa01736";
-      hash = "sha256-Bnou+kIyx+oHhRnyyxNaTgPQPcfXzXfwpNCn27k8A38=";
+      sha256 = "0zq37jwxp9yhlkq7gkfpqwyx00sfb89wpwhrhl3ymirj8bx2wyh6";
     };
   };
 
@@ -28,7 +28,7 @@
       owner = "IngoMeyer441";
       repo = "tmux-easy-motion";
       rev = "3e2edbd0a3d9924cc1df3bd3529edc507bdf5934";
-      hash = "sha256-wOIPq12OqqxLERKfvVp4JgLkDXnM0KKtTqRWMqj4rfs=";
+      sha256 = "1yxdz2l34mm49sns5l6cg46y80i6g1dbv7qj255sralfbnmhzqn0";
     };
     nativeBuildInputs = [pkgs.makeWrapper];
     rtpFilePath = "easy_motion.tmux";
@@ -48,7 +48,7 @@
       owner = "ofirgall";
       repo = "tmux-window-name";
       rev = "28a2d277c8be8656b3c6dd45f79364583ae7c82c";
-      hash = "sha256-hc+xhmpdMG/QWqodndAwqg74TP6HbCotrTalQ9LC3aE=";
+      sha256 = "18fxqb94799nmlnjlv47zr6gh3ma6389s7dabb86yc2xda3b3kw5";
     };
     nativeBuildInputs = [pkgs.makeWrapper];
     rtpFilePath = "tmux_window_name.tmux";
