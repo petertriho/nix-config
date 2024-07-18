@@ -5,4 +5,5 @@ return {
         "Flogsplit",
         "Floggit",
     },
+    dependencies = { "tpope/vim-fugitive" },
 }
