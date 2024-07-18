@@ -5,5 +5,8 @@ return {
         "Flogsplit",
         "Floggit",
     },
+    keys = {
+        { "<leader>gf", "<CMD>Flog<CR>", desc = "flog" },
+    },
     dependencies = { "tpope/vim-fugitive" },
 }
