@@ -40,7 +40,7 @@ vim.g.mapleader = " "
 keymap("n", "<leader><leader>", ":w<CR>", { desc = "write" })
 keymap("n", "<leader>-", "<C-w>s", { desc = "split-below" })
 keymap("n", "<leader>\\", "<C-w>v", { desc = "split-right" })
-keymap("n", "<leader>n", ":nohl<CR>", { desc = "no-hl" })
+keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "no-hl" })
 
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "executable" })
 keymap("n", "<leader>ap", 'ggVG"+p', { desc = "paste-file" })
