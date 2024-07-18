@@ -64,7 +64,7 @@ function tool:nix:fetchers {
     echo "Updating nix fetchers ..."
     pushd "$NIX_CONFIG_PATH"
     find home -type f -print0 -name "*.nix" | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
-    find hosts -type f -print0 -name "*.nix" | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+    find systems -type f -print0 -name "*.nix" | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
     popd
 }
 
