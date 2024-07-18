@@ -33,16 +33,16 @@
 
   fish-lsp = pkgs.mkYarnPackage rec {
     pname = "fish-lsp";
-    version = "unstable-2024-07-08";
+    version = "unstable-2024-07-17";
     src = pkgs.fetchFromGitHub {
       owner = "ndonfris";
       repo = "fish-lsp";
-      rev = "7bba6bc5064a5f07a3e11e7ca1d20366ea74a13a";
-      sha256 = "13x08r4zd9sskv5ibv405sg6xqg6amhgmaqgmf2w9hl8c7v307wf";
+      rev = "1cbeb37b9fa7e66bfcdcf4a84dbd62781a5063f8";
+      sha256 = "0picqp92qmgrblyxky72byjjmkyl68xds3paph9wv7gs3zwj5y8f";
     };
     offlineCache = pkgs.fetchYarnDeps {
       yarnLock = src + "/yarn.lock";
-      hash = "sha256-hmaLWO1Sj+2VujrGD2A+COfVE2D+tCnxyojjq1512K4=";
+      hash = "sha256-hHw7DbeqaCapqx4dK5Y3sPut94ist9JOU8g9dd6gBdo=";
     };
     nativeBuildInputs = with pkgs; [
       makeWrapper
