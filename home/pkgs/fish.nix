@@ -14,6 +14,16 @@
     };
   };
 
+  async-prompt-fork = {
+    name = "async-prompt";
+    src = pkgs.fetchFromGitHub {
+      owner = "petertriho";
+      repo = "fish-async-prompt";
+      rev = "8cd5a9122fdb629665dba11f13a33556ae072f96";
+      hash = "sha256-h3l2yYELH9KhYQ17VbR5BNmVyHAvqGfPSXi0sz5XN2g=";
+    };
+  };
+
   replay = {
     name = "replay";
     src = pkgs.fetchFromGitHub {
@@ -46,10 +56,10 @@ in {
   programs.fish = {
     enable = true;
     plugins = with pkgs; [
-      {
-        name = "async-prompt";
-        src = fishPlugins.async-prompt.src;
-      }
+      # {
+      #   name = "async-prompt";
+      #   src = fishPlugins.async-prompt.src;
+      # }
       {
         name = "autopair";
         src = fishPlugins.autopair.src;
@@ -75,6 +85,7 @@ in {
         src = fishPlugins.sponge.src;
       }
       abbreviation-tips
+      async-prompt-fork
       replay
       upto
     ];
