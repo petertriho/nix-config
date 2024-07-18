@@ -5,8 +5,8 @@ return {
         "<M-o>",
     },
     opts = {
-        forward = "<M-i>",
-        backward = "<M-o>",
+        forward_key = "<M-i>",
+        backward_key = "<M-o>",
         on_success = function()
             vim.cmd([[execute "normal! g`\"zz"]])
         end,
