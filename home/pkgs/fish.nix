@@ -18,8 +18,8 @@
     src = pkgs.fetchFromGitHub {
       owner = "petertriho";
       repo = "fish-async-prompt";
-      rev = "f8dadd567f63517d066a58762154cc3a9791ed38";
-      sha256 = "0gky4x3fr1xmgahafrb469l6mkrci77p0w3a6s8jk3wxrv18y94m";
+      rev = "9ea45bc236c9e549ab8781195f6b7fd81d9f78a4";
+      sha256 = "0hwji3h6cx93agq199f4rjdnp97nzsvasnij7nrx3ljrisd8bfav";
     };
   };
 
