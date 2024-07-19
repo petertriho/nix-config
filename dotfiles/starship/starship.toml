@@ -1,8 +1,5 @@
 right_format = "${custom.arch}${time}"
 
-[character]
-vimcmd_symbol = "[❯](bold green)"
-
 [battery]
 disabled = true
 
