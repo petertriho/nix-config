@@ -4,6 +4,6 @@ return {
         "<leader>C",
     },
     init = function()
-        vim.g.caserPrefix = "<leader>C"
+        vim.g.caser_prefix = "<leader>C"
     end,
 }
