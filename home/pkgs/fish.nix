@@ -171,6 +171,16 @@ in {
       nfu = "nix flake update";
       nrs = "sudo nixos-rebuild switch --flake ~/.nix-config";
       ns = "nix search nixpkgs";
+      p = "podman";
+      pc = "podman compose";
+      pcd = "podman compose down --remove-orphans";
+      pcl = "podman compose logs -f -t --tail=100";
+      pcp = "podman compose -p (git_repo_name)";
+      pcpd = "podman compose -p (git_repo_name) down --remove-orphans";
+      pcpl = "podman compose -p (git_repo_name) logs -f -t --tail=100";
+      pcpr = "podman compose -p (git_repo_name) restart";
+      pcpu = "podman compose -p (git_repo_name) up -d";
+      pcu = "podman compose up -d";
       pv = "python -m venv .venv";
       rmf = "rm -rf";
       rv = "rm -rf .venv";
