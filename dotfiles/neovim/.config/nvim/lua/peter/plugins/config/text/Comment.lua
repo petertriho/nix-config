@@ -1,7 +1,7 @@
 return {
     "numToStr/Comment.nvim",
-    event = "VeryLazy",
     keys = {
+        "gc",
         { "<leader>/", "<Plug>(comment_toggle_linewise_current)", desc = "comment" },
         { "<leader>/", "gc", mode = "v", desc = "comment", remap = true },
     },

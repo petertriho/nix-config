@@ -1,4 +1,4 @@
 return {
     "wellle/targets.vim",
-    event = "VeryLazy",
+    event = "User LazyLoadFile",
 }
