@@ -22,9 +22,6 @@ return {
                 hl.EyelinerSecondary = { fg = colors.red, underline = true }
 
                 hl.Folded = { fg = colors.comment, bg = nil }
-
-                hl.LeapLabel = { fg = colors.red, underline = true }
-                hl.LeapMatch = { fg = colors.blue, underline = true }
             end,
         })
 
