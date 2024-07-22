@@ -14,17 +14,14 @@ mkdir -p "${directory}/.git"
 
 git clone --bare "$repository" "${directory}/.git"
 
-(
-    cd "$directory" \
-        && git config remote.origin.url "$repository" \
-        && git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*" \
-        && git fetch
-)
+pushd "$directory" >/dev/null
 
-branch=$(cd "$directory" && git branch --show-current)
+git config remote.origin.url "$repository"
+git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+git fetch
 
-(
-    cd "$directory" \
-        && git branch --set-upstream-to="origin/${branch}" "$branch" \
-        && git worktree add "$branch"
-)
+branch=$(git branch --show-current)
+git branch --set-upstream-to="origin/${branch}" "$branch"
+git worktree add "$branch"
+
+popd >/dev/null
