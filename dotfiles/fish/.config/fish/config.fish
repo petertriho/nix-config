@@ -20,3 +20,8 @@ set -g sponge_purge_only_on_exit true
 if type --query zoxide
     zoxide init fish | source
 end
+
+function ls_on_cd --on-variable PWD
+    # ls
+    eza --classify
+end
