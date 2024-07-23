@@ -84,7 +84,7 @@ set_augroups({
                 callback = function()
                     local dir = vim.fn.expand("<afile>:p:h")
 
-                    if vim.fn.isdirectory(dir) == 1 then
+                    if vim.fn.isdirectory(dir) == 0 then
                         vim.fn.mkdir(dir, "p")
                     end
                 end,
