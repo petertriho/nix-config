@@ -22,6 +22,8 @@
         "root"
         "@wheel"
       ];
+      warn-dirty = false;
+      auto-optimise-store = true;
     };
   };
 
