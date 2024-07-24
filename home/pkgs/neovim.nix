@@ -33,12 +33,12 @@
 
   fish-lsp = pkgs.mkYarnPackage rec {
     pname = "fish-lsp";
-    version = "unstable-2024-07-17";
+    version = "unstable-2024-07-22";
     src = pkgs.fetchFromGitHub {
       owner = "ndonfris";
       repo = "fish-lsp";
-      rev = "1cbeb37b9fa7e66bfcdcf4a84dbd62781a5063f8";
-      sha256 = "0picqp92qmgrblyxky72byjjmkyl68xds3paph9wv7gs3zwj5y8f";
+      rev = "f9fff27b82cf9f4d0b2a6154e57e04ed438d6ba4";
+      sha256 = "0kk9pznk1g51cs94a2nv3pp4d8kgdks740jinalqmiyq2azsknmz";
     };
     offlineCache = pkgs.fetchYarnDeps {
       yarnLock = src + "/yarn.lock";
