@@ -45,18 +45,24 @@
       hash = "sha256-hHw7DbeqaCapqx4dK5Y3sPut94ist9JOU8g9dd6gBdo=";
     };
     nativeBuildInputs = with pkgs; [
-      makeWrapper
       fish
       fixup-yarn-lock
+      installShellFiles
+      makeWrapper
       nodejs
+      which
       yarn
     ];
     buildPhase = ''
       runHook preBuild
 
+      yarn run sh:build-time
+      yarn run sh:build-logs
+
+      # yarn run sh:build-wasm
       wasm_file=$(find node_modules -type f -a -name tree-sitter-fish.wasm)
       cp -f $wasm_file ./deps/fish-lsp
-      yarn run sh:build-time
+
       yarn --offline compile
       yarn run sh:relink
       # yarn run sh:build-completions
@@ -64,6 +70,9 @@
       runHook postBuild
     '';
     postInstall = ''
+      node $out/libexec/fish-lsp/deps/fish-lsp/out/cli.js complete >fish-lsp.fish
+      installShellCompletion fish-lsp.fish
+
       wrapProgram "$out/bin/fish-lsp" \
         --set-default fish_lsp_logfile "/tmp/fish_lsp_logs.txt"
     '';
