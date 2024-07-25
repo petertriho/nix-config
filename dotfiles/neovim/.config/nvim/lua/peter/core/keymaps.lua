@@ -36,6 +36,7 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 
 -- Leader
 vim.g.mapleader = " "
+vim.g.localleader = " "
 
 keymap("n", "<leader><leader>", ":w<CR>", { desc = "write" })
 keymap("n", "<leader>-", "<C-w>s", { desc = "split-below" })
