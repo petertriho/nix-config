@@ -112,7 +112,7 @@ in {
         plugin = easy-motion;
         extraConfig = ''
           set -g @easy-motion-verbose "true"
-          set -g @easy-motion-default-motion "bd-f2"
+          set -g @easy-motion-default-motion "bd-f"
         '';
       }
       {
