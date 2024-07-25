@@ -47,7 +47,7 @@ keymap("n", "<leader>ap", 'ggVG"+p', { desc = "paste-file" })
 keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "yank-file" })
 
 -- Better Delete/Paste/Yank
-keymap({ "n", "v" }, "\\d", [["_d]], { desc = "delete-black-hole" })
-keymap("x", "\\p", [["_dP]], { desc = "delete-paste" })
+keymap({ "n", "v" }, "\\d", [["_d]], { desc = "delete" })
+keymap("x", "\\p", [["_dP]], { desc = "paste" })
 keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "yank-system-clipboard" })
 keymap("n", "\\Y", [["+y"]], { desc = "yank-eol-system-clipboard" })
