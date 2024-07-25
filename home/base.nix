@@ -19,6 +19,7 @@
     ./pkgs/tmux.nix
     ./pkgs/tools.nix
     ./pkgs/vivid.nix
+    ./pkgs/yazi.nix
   ];
 
   home = {

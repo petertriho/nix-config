@@ -18,6 +18,7 @@ in {
     glow
     howdoi
     iperf3
+    jq
     navi
     nurl
     openssl
@@ -27,6 +28,7 @@ in {
     unzip
     update-nix-fetchgit
     watchexec
+    yq-go
     zip
     zoxide
   ];

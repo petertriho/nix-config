@@ -204,10 +204,8 @@ in {
 
     # everything everywhere all at once
     html-tidy
-    jq
     ruff
     stylelint
-    yq-go
   ];
 
   programs.neovim = {
