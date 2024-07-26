@@ -22,7 +22,7 @@
   autoflake =
     pkgs.python3Packages.autoflake.overridePythonAttrs
     (old: rec {
-      postInstall = removePythonLicense;
+      postFixup = removePythonLicense;
     });
 
   docformatter =
