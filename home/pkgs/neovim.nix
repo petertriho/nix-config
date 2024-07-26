@@ -33,12 +33,12 @@
 
   fish-lsp = pkgs.mkYarnPackage rec {
     pname = "fish-lsp";
-    version = "unstable-2024-07-22";
+    version = "unstable-2024-07-25";
     src = pkgs.fetchFromGitHub {
-      owner = "ndonfris";
+      owner = "petertriho";
       repo = "fish-lsp";
-      rev = "f9fff27b82cf9f4d0b2a6154e57e04ed438d6ba4";
-      sha256 = "0kk9pznk1g51cs94a2nv3pp4d8kgdks740jinalqmiyq2azsknmz";
+      rev = "1028af3a1e4199c66a3dae65859e0f1ae0172a48";
+      sha256 = "0gzg7y6rfpbw4l6g6gzh3l62x2n31r34g249rxxjhnw8mq87rm7f";
     };
     offlineCache = pkgs.fetchYarnDeps {
       yarnLock = src + "/yarn.lock";
@@ -56,22 +56,20 @@
     buildPhase = ''
       runHook preBuild
 
-      yarn run sh:build-time
-      yarn run sh:build-logs
-
-      # yarn run sh:build-wasm
-      wasm_file=$(find node_modules -type f -a -name tree-sitter-fish.wasm)
-      cp -f $wasm_file ./deps/fish-lsp
+      export fish_wasm_file=$(find node_modules -type f -a -name tree-sitter-fish.wasm | xargs realpath)
+      yarn setup
 
       yarn --offline compile
       yarn run sh:relink
-      # yarn run sh:build-completions
 
       runHook postBuild
     '';
     postInstall = ''
-      node $out/libexec/fish-lsp/deps/fish-lsp/out/cli.js complete >fish-lsp.fish
-      installShellCompletion fish-lsp.fish
+      makeWrapper ${pkgs.nodejs}/bin/node "$out/bin/fish-lsp" \
+        --add-flags "$out/libexec/fish-lsp/deps/fish-lsp/out/cli.js"
+
+      installShellCompletion --cmd fish-lsp \
+        --fish <($out/bin/fish-lsp complete --fish)
 
       wrapProgram "$out/bin/fish-lsp" \
         --set-default fish_lsp_logfile "/tmp/fish_lsp_logs.txt"
