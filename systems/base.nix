@@ -5,10 +5,9 @@
   pkgs,
   lib,
   ...
-}: {
-  imports = [
-    inputs.home-manager.nixosModules.home-manager
-  ];
+}:
+{
+  imports = [ inputs.home-manager.nixosModules.home-manager ];
 
   nix = {
     gc = {
@@ -17,7 +16,10 @@
       options = "--delete-older-than 30d";
     };
     settings = {
-      experimental-features = ["nix-command" "flakes"];
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
       trusted-users = [
         "root"
         "@wheel"
@@ -29,7 +31,7 @@
 
   environment = {
     systemPackages = with pkgs; [
-      ((vim_configurable.override {}).customize {
+      ((vim_configurable.override { }).customize {
         vimrcConfig.customRC = ''
           set hlsearch
           set ignorecase
@@ -63,9 +65,7 @@
 
   users.users.peter = {
     isNormalUser = true;
-    extraGroups = [
-      "wheel"
-    ];
+    extraGroups = [ "wheel" ];
   };
 
   home-manager = {

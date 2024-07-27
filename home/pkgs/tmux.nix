@@ -3,7 +3,8 @@
   config,
   lib,
   ...
-}: let
+}:
+let
   tmux-sessionist = pkgs.tmuxPlugins.mkTmuxPlugin {
     pluginName = "sessionist";
     version = "unstable-2023-06-14";
@@ -15,11 +16,12 @@
     };
   };
 
-  pythonInputs = pkgs.python3.withPackages (p:
-    with p; [
+  pythonInputs = pkgs.python3.withPackages (
+    p: with p; [
       libtmux
       pip
-    ]);
+    ]
+  );
 
   easy-motion = pkgs.tmuxPlugins.mkTmuxPlugin {
     pluginName = "easy-motion";
@@ -30,12 +32,12 @@
       rev = "3e2edbd0a3d9924cc1df3bd3529edc507bdf5934";
       sha256 = "1yxdz2l34mm49sns5l6cg46y80i6g1dbv7qj255sralfbnmhzqn0";
     };
-    nativeBuildInputs = [pkgs.makeWrapper];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
     rtpFilePath = "easy_motion.tmux";
     postInstall = ''
       for f in easy_motion.tmux scripts/easy_motion.py; do
         wrapProgram $target/$f \
-          --prefix PATH : ${lib.makeBinPath [pythonInputs]}
+          --prefix PATH : ${lib.makeBinPath [ pythonInputs ]}
       done
     '';
   };
@@ -50,7 +52,7 @@
       rev = "28a2d277c8be8656b3c6dd45f79364583ae7c82c";
       sha256 = "18fxqb94799nmlnjlv47zr6gh3ma6389s7dabb86yc2xda3b3kw5";
     };
-    nativeBuildInputs = [pkgs.makeWrapper];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
     rtpFilePath = "tmux_window_name.tmux";
     postInstall = ''
       NIX_BIN_PATH="${builtins.getEnv "HOME"}/.nix-profile/bin"
@@ -65,14 +67,13 @@
 
       for f in tmux_window_name.tmux scripts/rename_session_windows.py; do
         wrapProgram $target/$f \
-          --prefix PATH : ${lib.makeBinPath [pythonInputs]}
+          --prefix PATH : ${lib.makeBinPath [ pythonInputs ]}
       done
     '';
   };
-in {
-  home.packages = with pkgs; [
-    gitmux
-  ];
+in
+{
+  home.packages = with pkgs; [ gitmux ];
 
   home.file.".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
   home.file.".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";

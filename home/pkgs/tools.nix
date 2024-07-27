@@ -1,12 +1,10 @@
-{
-  pkgs,
-  lib,
-  ...
-}: let
+{ pkgs, lib, ... }:
+let
   howdoi = pkgs.python3Packages.howdoi.overridePythonAttrs (old: {
     doCheck = false;
   });
-in {
+in
+{
   home.packages = with pkgs; [
     cht-sh
     coreutils

@@ -4,7 +4,8 @@
   pkgs,
   lib,
   ...
-}: {
+}:
+{
   imports = [
     outputs.homeManagerModules.helpers
     ./pkgs/bat.nix
@@ -27,7 +28,7 @@
     homeDirectory = "/home/peter";
     stateVersion = lib.mkDefault "24.05";
     activation = {
-      set_theme = lib.hm.dag.entryAfter ["installPackages"] ''
+      set_theme = lib.hm.dag.entryAfter [ "installPackages" ] ''
         PATH="${pkgs.fish}/bin:${pkgs.vivid}/bin:$PATH" run fish -c "set_theme"
       '';
     };

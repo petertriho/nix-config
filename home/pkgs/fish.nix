@@ -1,8 +1,5 @@
-{
-  pkgs,
-  config,
-  ...
-}: let
+{ pkgs, config, ... }:
+let
   abbreviation-tips = {
     name = "abbreviation-tips";
     src = pkgs.fetchFromGitHub {
@@ -52,7 +49,8 @@
       sha256 = "12rbffk1z61j4bhfxdjrksbky2x4jlak08s5j44dkxdizns9gz9f";
     };
   };
-in {
+in
+{
   programs.fish = {
     enable = true;
     plugins = with pkgs; [

@@ -12,26 +12,29 @@
     neovim-nightly-overlay.url = "github:nix-community/neovim-nightly-overlay";
   };
 
-  outputs = inputs @ {
-    self,
-    nixpkgs,
-    nixpkgs-stable,
-    nixos-wsl,
-    home-manager,
-    ...
-  }: let
-    inherit (self) outputs;
-  in {
-    homeManagerModules = import ./modules/home-manager;
+  outputs =
+    inputs@{
+      self,
+      nixpkgs,
+      nixpkgs-stable,
+      nixos-wsl,
+      home-manager,
+      ...
+    }:
+    let
+      inherit (self) outputs;
+    in
+    {
+      homeManagerModules = import ./modules/home-manager;
 
-    nixosConfigurations = {
-      wsl = nixpkgs.lib.nixosSystem rec {
-        system = "x86_64-linux";
-        specialArgs = {
-          inherit inputs outputs;
+      nixosConfigurations = {
+        wsl = nixpkgs.lib.nixosSystem rec {
+          system = "x86_64-linux";
+          specialArgs = {
+            inherit inputs outputs;
+          };
+          modules = [ ./systems/wsl.nix ];
         };
-        modules = [./systems/wsl.nix];
       };
     };
-  };
 }

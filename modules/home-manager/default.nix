@@ -1,3 +1,1 @@
-{
-  helpers = import ./helpers.nix;
-}
+{ helpers = import ./helpers.nix; }
