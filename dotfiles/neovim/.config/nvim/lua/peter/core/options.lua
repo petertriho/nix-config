@@ -19,7 +19,7 @@ vim.filetype.add({
 -- Options
 local opt = vim.opt
 -- opt.clipboard = "unnamedplus"
-opt.cmdheight = 0
+-- opt.cmdheight = 0
 opt.colorcolumn = "80"
 opt.cursorline = true
 -- opt.diffopt:append("algorithm:histogram,hiddenoff,linematch:60")
