@@ -21,13 +21,11 @@ let
     rm $out/lib/python*/site-packages/LICENSE
   '';
 
-  autoflake = pkgs.python3Packages.autoflake.overridePythonAttrs (old: rec {
-    postFixup = removePythonLicense;
-  });
+  autoflake = pkgs.python3Packages.autoflake.overridePythonAttrs { postFixup = removePythonLicense; };
 
-  docformatter = pkgs.python3Packages.docformatter.overridePythonAttrs (old: rec {
+  docformatter = pkgs.python3Packages.docformatter.overridePythonAttrs {
     postFixup = removePythonLicense;
-  });
+  };
 
   fish-lsp =
     with pkgs;
