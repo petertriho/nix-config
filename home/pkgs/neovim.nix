@@ -26,7 +26,7 @@ let
   });
 
   docformatter = pkgs.python3Packages.docformatter.overridePythonAttrs (old: rec {
-    postInstall = removePythonLicense;
+    postFixup = removePythonLicense;
   });
 
   fish-lsp = pkgs.mkYarnPackage rec {
@@ -97,7 +97,7 @@ let
         --replace poetry.masonry.api poetry.core.masonry.api \
         --replace "poetry>=" "poetry-core>="
       '';
-      postInstall = removePythonLicense;
+      postFixup = removePythonLicense;
 
       doCheck = false;
       dontCheckRuntimeDeps = true;
