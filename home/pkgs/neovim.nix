@@ -29,45 +29,57 @@ let
     postFixup = removePythonLicense;
   });
 
-  fish-lsp = pkgs.mkYarnPackage rec {
-    pname = "fish-lsp";
-    version = "unstable-2024-07-26";
-    src = pkgs.fetchFromGitHub {
-      owner = "ndonfris";
-      repo = "fish-lsp";
-      rev = "782e14a2d8875aeeddc0096bf85ca1bc0d7acc77";
-      sha256 = "0yijna59aijbidfw1iybjjs1w8w5lcncrvh207h9l6ss5ghfpbs9";
+  fish-lsp =
+    with pkgs;
+    stdenv.mkDerivation rec {
+      pname = "fish-lsp";
+      version = "unstable-2024-07-26";
+
+      src = fetchFromGitHub {
+        owner = "ndonfris";
+        repo = "fish-lsp";
+        rev = "782e14a2d8875aeeddc0096bf85ca1bc0d7acc77";
+        hash = "sha256-Sa/r4CtaG5rgAQLuzCyjhSMetJTLx8Bdi0tGlYqyMno=";
+      };
+
+      yarnOfflineCache = fetchYarnDeps {
+        yarnLock = src + "/yarn.lock";
+        hash = "sha256-hHw7DbeqaCapqx4dK5Y3sPut94ist9JOU8g9dd6gBdo=";
+      };
+
+      nativeBuildInputs = [
+        yarnBuildHook
+        yarnConfigHook
+        npmHooks.npmInstallHook
+        nodejs
+        installShellFiles
+        makeWrapper
+        # fish-lsp dependencies
+        fish
+        which
+      ];
+
+      yarnBuildScript = "setup";
+
+      postBuild = ''
+        yarn --offline compile
+      '';
+
+      installPhase = ''
+        runHook preInstall
+
+        mkdir -p "$out/fish-lsp"
+        cp -r . "$out/fish-lsp"
+
+        makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
+          --add-flags "$out/fish-lsp/out/cli.js"
+
+        installShellCompletion --cmd fish-lsp \
+          --fish <($out/bin/fish-lsp complete --fish)
+
+        runHook postInstall
+      '';
     };
-    offlineCache = pkgs.fetchYarnDeps {
-      yarnLock = src + "/yarn.lock";
-      hash = "sha256-hHw7DbeqaCapqx4dK5Y3sPut94ist9JOU8g9dd6gBdo=";
-    };
-    nativeBuildInputs = with pkgs; [
-      fish
-      fixup-yarn-lock
-      installShellFiles
-      makeWrapper
-      nodejs
-      which
-      yarn
-    ];
-    buildPhase = ''
-      runHook preBuild
-
-      export fish_wasm_file=$(find node_modules -type f -a -name tree-sitter-fish.wasm | xargs realpath)
-      yarn setup
-      yarn --offline compile
-
-      runHook postBuild
-    '';
-    postInstall = ''
-      makeWrapper ${lib.getExe pkgs.nodejs} "$out/bin/fish-lsp" \
-        --add-flags "$out/libexec/fish-lsp/deps/fish-lsp/out/cli.js"
-
-      installShellCompletion --cmd fish-lsp \
-        --fish <($out/bin/fish-lsp complete --fish)
-    '';
-  };
 
   pyemojify =
     with pkgs.python3Packages;
