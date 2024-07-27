@@ -156,6 +156,7 @@ in {
     black
     docformatter
     isort
+    nixfmt-rfc-style
     nodePackages.prettier
     nodePackages.svgo
     pybetter

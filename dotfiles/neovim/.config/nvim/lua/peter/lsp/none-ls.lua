@@ -350,6 +350,7 @@ M.setup = function(overrides)
             }),
             -- nix
             b.formatting.alejandra,
+            b.formatting.nixfmt,
             -- python
             sources_diagnostics.bandit,
             sources_diagnostics.refurb,
