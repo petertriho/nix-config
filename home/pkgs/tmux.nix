@@ -73,10 +73,13 @@ let
   };
 in
 {
-  home.packages = with pkgs; [ gitmux ];
-
-  home.file.".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
-  home.file.".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
+  home = {
+    packages = with pkgs; [ gitmux ];
+    file = {
+      ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
+      ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
+    };
+  };
 
   programs.tmux = {
     enable = true;

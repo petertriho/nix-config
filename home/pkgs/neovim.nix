@@ -120,7 +120,7 @@ let
       ];
     };
 
-  sort-package-json = pkgs.buildNpmPackage rec {
+  sort-package-json = pkgs.buildNpmPackage {
     pname = "sort-package-json";
     version = "unstable-2024-06-18";
     src = pkgs.fetchFromGitHub {

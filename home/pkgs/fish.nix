@@ -60,7 +60,7 @@ in
       # }
       {
         name = "autopair";
-        src = fishPlugins.autopair.src;
+        inherit (fishPlugins.autopair) src;
       }
       # {
       #   name = "colored-man-pages";
@@ -68,19 +68,19 @@ in
       # }
       {
         name = "forgit";
-        src = fishPlugins.forgit.src;
+        inherit (fishPlugins.autopair) src;
       }
       {
         name = "fzf-fish";
-        src = fishPlugins.fzf-fish.src;
+        inherit (fishPlugins.fzf-fish) src;
       }
       {
         name = "puffer";
-        src = fishPlugins.puffer.src;
+        inherit (fishPlugins.puffer) src;
       }
       {
         name = "sponge";
-        src = fishPlugins.sponge.src;
+        inherit (fishPlugins.sponge) src;
       }
       abbreviation-tips
       async-prompt-fork
