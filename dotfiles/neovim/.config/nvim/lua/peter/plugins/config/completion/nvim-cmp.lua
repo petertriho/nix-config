@@ -9,26 +9,23 @@ return {
         "hrsh7th/cmp-nvim-lsp",
         "hrsh7th/cmp-nvim-lsp-signature-help",
         "hrsh7th/cmp-path",
-        "hrsh7th/cmp-vsnip",
-        "onsails/lspkind.nvim",
-        { "petertriho/cmp-git", config = true },
-        "rafamadriz/friendly-snippets",
-        { "tzachar/cmp-fuzzy-buffer", dependencies = "tzachar/fuzzy.nvim" },
-        { "tzachar/cmp-fuzzy-path", dependencies = "tzachar/fuzzy.nvim" },
         {
-            "hrsh7th/vim-vsnip",
-            keys = {
-                { "<leader>x", "<Plug>(vsnip-select-text)", mode = "x", desc = "snippet-select" },
-                { "<leader>X", "<Plug>(vsnip-cut-text)", mode = "x", desc = "snippet-cut" },
+            "L3MON4D3/LuaSnip",
+            dependencies = {
+                "rafamadriz/friendly-snippets",
             },
-            init = function()
-                vim.g.vsnip_filetypes = {
-                    javascriptreact = { "javascript" },
-                    typescript = { "javascript" },
-                    typescriptreact = { "javascript" },
-                }
+            build = "make install_jsregexp",
+            config = function()
+                require("luasnip.loaders.from_vscode").lazy_load()
+                require("peter.plugins.snippets").setup()
+                vim.keymap.set("x", "<leader>x", require("luasnip").select_keys, { desc = "snippet" })
             end,
         },
+        "onsails/lspkind.nvim",
+        { "petertriho/cmp-git", config = true },
+        "saadparwaiz1/cmp_luasnip",
+        { "tzachar/cmp-fuzzy-buffer", dependencies = "tzachar/fuzzy.nvim" },
+        { "tzachar/cmp-fuzzy-path", dependencies = "tzachar/fuzzy.nvim" },
     },
     keys = {
         { "<leader>lc", "<CMD>ToggleNvimCmp<CR>", desc = "completion-toggle" },
@@ -49,19 +46,28 @@ return {
         vim.api.nvim_create_user_command("ToggleNvimCmp", toggle_completion, {})
     end,
     config = function()
-        -- local has_words_before = function()
-        --     if vim.api.nvim_buf_get_option(0, "buftype") == "prompt" then
-        --         return false
-        --     end
-        --     local line, col = unpack(vim.api.nvim_win_get_cursor(0))
-        --     return col ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match("%s") == nil
-        -- end
-
         local function feedkeys(key)
             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(key, true, true, true), "m", true)
         end
 
         local cmp = require("cmp")
+        local luasnip = require("luasnip")
+
+        local prev_snippet_fallback = function(fallback)
+            if luasnip.locally_jumpable(-1) then
+                luasnip.jump(-1)
+            else
+                fallback()
+            end
+        end
+
+        local next_snippet_fallback = function(fallback)
+            if luasnip.locally_jumpable(1) then
+                luasnip.jump(1)
+            else
+                fallback()
+            end
+        end
 
         local select_prev_snippet = cmp.mapping({
             c = function()
@@ -71,22 +77,8 @@ return {
                     cmp.complete()
                 end
             end,
-            i = function(fallback)
-                if vim.fn["vsnip#jumpable"](-1) == 1 then
-                    feedkeys("<Plug>(vsnip-jump-prev)")
-                --[[ elseif has_words_before() then
-                    cmp.complete() ]]
-                else
-                    fallback()
-                end
-            end,
-            s = function(fallback)
-                if vim.fn["vsnip#jumpable"](-1) == 1 then
-                    feedkeys("<Plug>(vsnip-jump-prev)")
-                else
-                    fallback()
-                end
-            end,
+            i = prev_snippet_fallback,
+            s = prev_snippet_fallback,
         })
 
         local select_next_snippet = cmp.mapping({
@@ -97,22 +89,8 @@ return {
                     cmp.complete()
                 end
             end,
-            i = function(fallback)
-                if vim.fn["vsnip#available"](1) == 1 then
-                    feedkeys("<Plug>(vsnip-expand-or-jump)")
-                -- elseif has_words_before() then
-                --     cmp.complete()
-                else
-                    fallback()
-                end
-            end,
-            s = function(fallback)
-                if vim.fn["vsnip#available"](1) == 1 then
-                    feedkeys("<Plug>(vsnip-expand-or-jump)")
-                else
-                    fallback()
-                end
-            end,
+            i = next_snippet_fallback,
+            s = next_snippet_fallback,
         })
 
         local select_prev_item = cmp.mapping({
@@ -126,21 +104,13 @@ return {
             i = function(fallback)
                 if cmp.visible() then
                     cmp.select_prev_item()
-                elseif vim.fn["vsnip#jumpable"](-1) == 1 then
-                    feedkeys("<Plug>(vsnip-jump-prev)")
-                -- elseif has_words_before() then
-                --     cmp.complete()
+                elseif luasnip.locally_jumpable(-1) then
+                    luasnip.jump(-1)
                 else
                     fallback()
                 end
             end,
-            s = function(fallback)
-                if vim.fn["vsnip#jumpable"](-1) == 1 then
-                    feedkeys("<Plug>(vsnip-jump-prev)")
-                else
-                    fallback()
-                end
-            end,
+            s = prev_snippet_fallback,
         })
 
         local select_next_item = cmp.mapping({
@@ -154,17 +124,15 @@ return {
             i = function(fallback)
                 if cmp.visible() then
                     cmp.select_next_item()
-                elseif vim.fn["vsnip#available"](1) == 1 then
-                    feedkeys("<Plug>(vsnip-expand-or-jump)")
-                -- elseif has_words_before() then
-                --     cmp.complete()
+                elseif luasnip.expand_or_jumpable() then
+                    luasnip.expand_or_jump()
                 else
                     fallback()
                 end
             end,
             s = function(fallback)
-                if vim.fn["vsnip#available"](1) == 1 then
-                    feedkeys("<Plug>(vsnip-expand-or-jump)")
+                if luasnip.expand_or_jumpable() then
+                    luasnip.expand_or_jump()
                 else
                     fallback()
                 end
@@ -207,18 +175,17 @@ return {
                             buffer = "[BUFFER]",
                             cmdline = "[CMD]",
                             cmdline_history = "[CMD_HISTORY]",
-                            git = "[GIT]",
-                            fuzzy_path = "[FZ-PATH]",
                             fuzzy_buffer = "[FZ-BUFFER]",
+                            fuzzy_path = "[FZ-PATH]",
+                            git = "[GIT]",
+                            luasnip = "[SNIPPET]",
                             nvim_lsp = "[LSP]",
                             path = "[PATH]",
                             tmux = "[TMUX]",
-                            vsnip = "[SNIPPET]",
                         },
                     })
 
                     return cmp_format(entry, vim_item)
-                    -- end
                 end,
             },
             mapping = {
@@ -239,7 +206,7 @@ return {
             },
             snippet = {
                 expand = function(args)
-                    vim.fn["vsnip#anonymous"](args.body)
+                    luasnip.lsp_expand(args.body)
                 end,
             },
             sources = {
@@ -267,7 +234,7 @@ return {
                         trigger_characters = {},
                     },
                 },
-                { name = "vsnip" },
+                { name = "luasnip" },
             },
         })
 

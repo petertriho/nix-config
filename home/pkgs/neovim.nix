@@ -230,5 +230,4 @@ in
     "code".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/code";
     "vale".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/vale";
   };
-  home.file.".vsnip".source = config.lib.meta.mkDotfilesSymlink "neovim/.vsnip";
 }
