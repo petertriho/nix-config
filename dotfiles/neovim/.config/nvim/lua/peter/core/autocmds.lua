@@ -14,6 +14,8 @@ local function set_python3_host_prog()
     end
 end
 
+local utils = require("peter.core.utils")
+
 local function exec_lazy_load_file(event)
     vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
 
@@ -22,14 +24,16 @@ local function exec_lazy_load_file(event)
         return
     end
 
-    local ft = vim.filetype.match({ buf = event.buf })
-    if ft then
-        local lang = vim.treesitter.language.get_lang(ft)
-        if not (lang and pcall(vim.treesitter.start, event.buf, lang)) then
-            vim.bo[event.buf].syntax = ft
-        end
+    if not utils.file_is_big(event.buf) then
+        local ft = vim.filetype.match({ buf = event.buf })
+        if ft then
+            local lang = vim.treesitter.language.get_lang(ft)
+            if not (lang and pcall(vim.treesitter.start, event.buf, lang)) then
+                vim.bo[event.buf].syntax = ft
+            end
 
-        vim.cmd([[redraw]])
+            vim.cmd([[redraw]])
+        end
     end
 end
 

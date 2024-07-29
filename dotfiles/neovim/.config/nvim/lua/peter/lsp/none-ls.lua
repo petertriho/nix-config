@@ -238,6 +238,10 @@ local get_python_version = function()
     return PYTHON_VERSION
 end
 
+local disable_if_file_is_big = function(params)
+    return not require("peter.core.utils").file_is_big(params.bufnr)
+end
+
 local custom_user_data = {
     user_data = function(entries, _)
         if not entries then
@@ -267,6 +271,8 @@ M.setup = function(overrides)
             -- *
             b.diagnostics.codespell.with({
                 disabled_filetypes = spell_disabled_filestypes,
+                runtime_condition = disable_if_file_is_big,
+                method = null_ls.methods.DIAGNOSTICS_ON_SAVE,
             }),
             cspell.diagnostics.with({
                 extra_args = {
@@ -274,6 +280,8 @@ M.setup = function(overrides)
                     cspell_file,
                 },
                 disabled_filetypes = spell_disabled_filestypes,
+                runtime_condition = disable_if_file_is_big,
+                method = null_ls.methods.DIAGNOSTICS_ON_SAVE,
                 on_output = h.diagnostics.from_patterns({
                     {
                         pattern = ".*:(%d+):(%d+)%s*(-)%s*(.*%((.*)%))%s*Suggestions:%s*%[(.*)%]",

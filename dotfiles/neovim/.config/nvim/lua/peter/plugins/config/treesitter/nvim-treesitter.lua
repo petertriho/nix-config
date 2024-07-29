@@ -5,9 +5,6 @@ return {
         "TSUpdateSync",
     },
     event = { "User LazyLoadFile", "VeryLazy" },
-    keys = {
-        { "<leader>b", "<CMD>TSBufToggle highlight<CR>", desc = "ts-buf-toggle" },
-    },
     build = ":TSUpdateSync",
     config = function()
         require("nvim-treesitter.configs").setup({
@@ -25,19 +22,13 @@ return {
             sync_install = true,
             highlight = {
                 enable = true,
-                use_languagetree = true,
+                use_languagetree = false,
                 disable = function(lang, bufnr)
-                    if vim.api.nvim_buf_line_count(bufnr) > 5000 then
+                    file_is_big = require("peter.core.utils").file_is_big(bufnr)
+                    if file_is_big then
                         pcall(require("illuminate").pause_buf)
-                        return true
                     end
-
-                    local max_filesize = 100 * 1024 -- 100 KB
-                    local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(bufnr))
-                    if ok and stats and stats.size > max_filesize then
-                        pcall(require("illuminate").pause_buf)
-                        return true
-                    end
+                    return file_is_big
                 end,
             },
             incremental_selection = {
