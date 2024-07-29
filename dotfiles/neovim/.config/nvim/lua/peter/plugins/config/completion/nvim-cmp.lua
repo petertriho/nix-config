@@ -2,7 +2,7 @@ return {
     "hrsh7th/nvim-cmp",
     event = { "CmdlineEnter", "InsertEnter" },
     dependencies = {
-        -- "andersevenrud/cmp-tmux",
+        "andersevenrud/cmp-tmux",
         "dmitmel/cmp-cmdline-history",
         "hrsh7th/cmp-buffer",
         "hrsh7th/cmp-cmdline",
@@ -260,13 +260,13 @@ return {
                         end,
                     },
                 },
-                -- {
-                --     name = "tmux",
-                --     option = {
-                --         all_panes = true,
-                --         trigger_characters = {},
-                --     },
-                -- },
+                {
+                    name = "tmux",
+                    option = {
+                        all_panes = true,
+                        trigger_characters = {},
+                    },
+                },
                 { name = "vsnip" },
             },
         })
