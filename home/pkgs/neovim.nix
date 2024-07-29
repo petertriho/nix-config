@@ -182,6 +182,7 @@ in
     refurb
     shellcheck
     selene
+    statix
     valeWithStyles
 
     # lsp
@@ -218,15 +219,16 @@ in
   programs.neovim = {
     enable = true;
     package = inputs.neovim-nightly-overlay.packages.${pkgs.system}.default;
+    defaultEditor = true;
     withRuby = false;
     withPython3 = false;
     withNodeJs = false;
   };
 
-  xdg.configFile."nvim".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim";
-  xdg.configFile."code".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/code";
-  xdg.configFile."vale".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/vale";
+  xdg.configFile = {
+    "nvim".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim";
+    "code".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/code";
+    "vale".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/vale";
+  };
   home.file.".vsnip".source = config.lib.meta.mkDotfilesSymlink "neovim/.vsnip";
-
-  home.sessionVariables.EDITOR = "nvim";
 }

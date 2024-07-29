@@ -349,6 +349,7 @@ M.setup = function(overrides)
                 end,
             }),
             -- nix
+            b.diagnostics.statix,
             b.formatting.alejandra,
             b.formatting.nixfmt,
             -- python
