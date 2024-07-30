@@ -36,8 +36,8 @@ let
       src = fetchFromGitHub {
         owner = "ndonfris";
         repo = "fish-lsp";
-        rev = "782e14a2d8875aeeddc0096bf85ca1bc0d7acc77";
-        hash = "sha256-Sa/r4CtaG5rgAQLuzCyjhSMetJTLx8Bdi0tGlYqyMno=";
+        rev = "v1.0.8-1";
+        hash = "sha256-u125EZXQEouVbmJuoW3KNDNqLB5cS/TzblXraClcw6Q=";
       };
 
       yarnOfflineCache = fetchYarnDeps {
@@ -66,11 +66,10 @@ let
       installPhase = ''
         runHook preInstall
 
-        mkdir -p "$out/fish-lsp"
-        cp -r . "$out/fish-lsp"
+        cp -r . $out
 
         makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
-          --add-flags "$out/fish-lsp/out/cli.js"
+          --add-flags "$out/out/cli.js"
 
         installShellCompletion --cmd fish-lsp \
           --fish <($out/bin/fish-lsp complete --fish)
