@@ -3,7 +3,7 @@ return {
     event = "User LazyLoadFile",
     opts = {
         keymaps = {
-            visual = "gs",
+            visual = "s",
         },
     },
 }
