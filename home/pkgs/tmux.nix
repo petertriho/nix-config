@@ -163,34 +163,6 @@ in
         '';
       }
     ];
-    extraConfig = ''
-      # General
-      set -g default-terminal "screen-256color"
-      set -as terminal-overrides ",xterm*:RGB"
-      set -as terminal-overrides ",*:Smulx=\E[4::%p1%dm"
-      set -as terminal-overrides ",*:Setulc=\E[58::2::%p1%{65536}%/%d::%p1%{256}%/%{255}%&%d::%p1%{255}%&%d%;m"
-      set -g prefix C-a
-
-      set -g base-index 1
-      set -g pane-base-index 1
-
-      set -g focus-events on
-      set -g mode-keys vi
-      set -g mouse on
-      set -g renumber-windows on
-
-      set -g set-titles on
-      set -g set-titles-string "[#S/#W] #T"
-
-      # Key Mappings
-      bind-key -N "Popup" T popup -x "#{popup_pane_right}" -y "#{popup_pane_bottom}" -w "40%" -h "40%" -d "#{pane_current_path}"
-
-      bind-key -N "Next layout" v next-layout
-      bind-key -T copy-mode-vi v send-keys -X begin-selection
-
-      # Remove confirm-before
-      bind-key -N "Kill window" & kill-window
-      bind-key -N "Kill pane" x kill-pane
-    '';
+    extraConfig = builtins.readFile ../../dotfiles/tmux/.tmux.conf;
   };
 }
