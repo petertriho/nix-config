@@ -68,7 +68,7 @@ in
       # }
       {
         name = "forgit";
-        inherit (fishPlugins.autopair) src;
+        inherit (fishPlugins.forgit) src;
       }
       {
         name = "fzf-fish";
