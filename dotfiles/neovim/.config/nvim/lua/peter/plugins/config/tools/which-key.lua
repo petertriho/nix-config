@@ -23,7 +23,6 @@ return {
                 { "<leader>8", hidden = true },
                 { "<leader>9", hidden = true },
                 { "<leader>0", hidden = true },
-                { "<leader>a", group = "actions" },
                 { "<leader>g", group = "git" },
                 { "<leader>h", group = "hunks" },
                 { "<leader>m", group = "marks" },
@@ -32,16 +31,7 @@ return {
                 { "<leader>ls", group = "symbols" },
                 { "<leader>t", group = "telescope" },
             },
-            { mode = "x", { "<leader>a", "actions" } },
-            -- nvim-treesitter-textsubjects
-            {
-                mode = "o",
-                {
-                    { ".", desc = "textsubjects-smart" },
-                    { "<CR>", desc = "textsubjects-container-outer" },
-                    { "i<CR>", desc = "textsubjects-container-inner" },
-                },
-            },
+            { mode = { "n", "x" }, { "<leader>a", "actions" } },
             -- vim-abolish
             {
                 mode = "n",
