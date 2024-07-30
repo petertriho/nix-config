@@ -43,6 +43,9 @@ keymap("n", "<leader>-", "<C-w>s", { desc = "split-below" })
 keymap("n", "<leader>\\", "<C-w>v", { desc = "split-right" })
 keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "no-hl" })
 
+keymap("n", "<leader>/", "gcc", { desc = "comment", remap = true })
+keymap("v", "<leader>/", "gc", { desc = "comment", remap = true })
+
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "executable" })
 keymap("n", "<leader>ap", 'ggVG"+p', { desc = "paste-file" })
 keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "yank-file" })
