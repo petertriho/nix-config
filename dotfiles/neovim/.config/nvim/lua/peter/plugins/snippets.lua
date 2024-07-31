@@ -33,13 +33,6 @@ M.setup = function()
                 )
             end, {}),
         }),
-        s("log", {
-            t("console.log("),
-            f(function(_, snip)
-                return snip.env.TM_SELECTED_TEXT[1] or {}
-            end, {}),
-            t(")"),
-        }),
     }, { key = "all" })
 
     ls.add_snippets("javascript", {
