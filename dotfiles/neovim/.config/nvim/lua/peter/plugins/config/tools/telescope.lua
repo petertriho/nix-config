@@ -42,6 +42,7 @@ return {
     config = function()
         local telescope = require("telescope")
         local actions = require("telescope.actions")
+        local actions_layout = require("telescope.actions.layout")
 
         local function flash(prompt_bufnr)
             require("flash").jump({
@@ -81,11 +82,13 @@ return {
                     i = {
                         ["<C-j>"] = actions.move_selection_next,
                         ["<C-k>"] = actions.move_selection_previous,
+                        ["<C-l>"] = actions_layout.toggle_preview,
                         ["<c-s>"] = flash,
                     },
                     n = {
                         ["<C-j>"] = actions.move_selection_next,
                         ["<C-k>"] = actions.move_selection_previous,
+                        ["<C-l>"] = actions_layout.toggle_preview,
                         s = flash,
                     },
                 },
