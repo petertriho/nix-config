@@ -1,8 +1,6 @@
 local sidebars = {
-    "dbui",
     "DiffViewFiles",
     "NvimTree",
-    "Outline",
     "undotree",
 }
 
@@ -43,7 +41,6 @@ return {
         "typescriptreact",
     },
     excludes = {
-        "dirbuf",
         "cmp_docs",
         "cmp_menu",
         "fugitive",
@@ -51,9 +48,8 @@ return {
         "gitcommit",
         "help",
         "lspinfo",
-        "NeogitStatus",
         "notify",
-        "packer",
+        "oil",
         "prompt",
         "qf",
         "TelescopePrompt",
