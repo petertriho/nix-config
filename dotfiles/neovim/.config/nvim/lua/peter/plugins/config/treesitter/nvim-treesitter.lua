@@ -7,6 +7,8 @@ return {
     event = { "User LazyLoadFile", "VeryLazy" },
     build = ":TSUpdateSync",
     config = function()
+        local utils = require("peter.core.utils")
+
         require("nvim-treesitter.configs").setup({
             ensure_installed = {
                 "bash",
@@ -24,9 +26,10 @@ return {
                 enable = true,
                 use_languagetree = false,
                 disable = function(lang, bufnr)
-                    file_is_big = require("peter.core.utils").file_is_big(bufnr)
+                    local file_is_big = utils.file_is_big(bufnr)
                     if file_is_big then
-                        pcall(require("illuminate").pause_buf)
+                        -- NOTE: need to call this again because ts re-enables syntax
+                        utils.disable_features(bufnr)
                     end
                     return file_is_big
                 end,

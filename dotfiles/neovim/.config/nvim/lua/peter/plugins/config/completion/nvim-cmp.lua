@@ -36,9 +36,9 @@ return {
         local function toggle_completion()
             local cmp = require("cmp")
             if vim.g.completion_enabled then
-                cmp.setup({ completion = { autocomplete = false } })
+                pcall(cmp.setup, { completion = { autocomplete = false } })
             else
-                cmp.setup({ completion = { autocomplete = { cmp.TriggerEvent.TextChanged } } })
+                pcall(cmp.setup, { completion = { autocomplete = { cmp.TriggerEvent.TextChanged } } })
             end
             vim.g.completion_enabled = not vim.g.completion_enabled
         end
