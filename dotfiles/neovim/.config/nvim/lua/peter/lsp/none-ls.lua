@@ -242,28 +242,7 @@ local disable_if_file_is_big = function(params)
     return not require("peter.core.utils").file_is_big(params.bufnr)
 end
 
-local custom_user_data = {
-    user_data = function(entries, _)
-        if not entries then
-            return
-        end
-
-        local suggestions = {}
-        for suggestion in string.gmatch(entries["_suggestions"], "[^, ]+") do
-            table.insert(suggestions, suggestion)
-        end
-
-        return {
-            suggestions = suggestions,
-            misspelled = entries["_quote"],
-        }
-    end,
-}
-
 M.setup = function(overrides)
-    local cspell = require("cspell")
-    local cspell_file = vim.fn.expand("$HOME/.config/code/.cspell.json")
-
     local spell_disabled_filestypes = { "markdown", "vimwiki", unpack(require("peter.plugins.filetypes").excludes) }
 
     local config = vim.tbl_deep_extend("force", {
@@ -274,50 +253,6 @@ M.setup = function(overrides)
                 runtime_condition = disable_if_file_is_big,
                 method = null_ls.methods.DIAGNOSTICS_ON_SAVE,
             }),
-            cspell.diagnostics.with({
-                extra_args = {
-                    "--config",
-                    cspell_file,
-                },
-                disabled_filetypes = spell_disabled_filestypes,
-                runtime_condition = disable_if_file_is_big,
-                method = null_ls.methods.DIAGNOSTICS_ON_SAVE,
-                on_output = h.diagnostics.from_patterns({
-                    {
-                        pattern = ".*:(%d+):(%d+)%s*(-)%s*(.*%((.*)%))%s*Suggestions:%s*%[(.*)%]",
-                        groups = { "row", "col", "severity", "message", "_quote", "_suggestions" },
-                        overrides = {
-                            severities = {
-                                ["-"] = h.diagnostics.severities.information,
-                            },
-                            adapters = {
-                                h.diagnostics.adapters.end_col.from_quote,
-                                custom_user_data,
-                            },
-                        },
-                    },
-                    {
-                        pattern = [[.*:(%d+):(%d+)%s*(-)%s*(.*%((.*)%))]],
-                        groups = { "row", "col", "severity", "message", "_quote" },
-                        overrides = {
-                            severities = {
-                                ["-"] = h.diagnostics.severities.information,
-                            },
-                            adapters = {
-                                h.diagnostics.adapters.end_col.from_quote,
-                            },
-                        },
-                    },
-                }),
-            }),
-            cspell.code_actions.with({
-                extra_args = {
-                    "--config",
-                    cspell_file,
-                },
-                disabled_filetypes = spell_disabled_filestypes,
-            }),
-            b.hover.dictionary,
             -- conf
             b.diagnostics.dotenv_linter.with({
                 filetypes = { "sh", "conf" },

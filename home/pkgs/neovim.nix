@@ -177,7 +177,6 @@ in
     google-java-format
     hadolint
     markdownlint-cli
-    nodePackages.cspell
     refurb
     shellcheck
     selene
