@@ -3,7 +3,6 @@ local g = vim.g
 -- filetypes.lua
 vim.filetype.add({
     extension = {
-        prisma = "prisma",
         sh = "sh",
     },
     filename = {

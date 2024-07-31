@@ -14,7 +14,6 @@ return {
                 "bash",
                 -- "comment",
                 "markdown_inline",
-                "prisma",
                 "regex",
                 "todotxt",
                 "tsx",
