@@ -2,8 +2,19 @@ return {
     "hrsh7th/nvim-cmp",
     event = { "CmdlineEnter", "InsertEnter" },
     dependencies = {
+        { "Bilal2453/luvit-meta", lazy = true },
         "andersevenrud/cmp-tmux",
         "dmitmel/cmp-cmdline-history",
+        {
+            "folke/lazydev.nvim",
+            ft = "lua",
+            opts = {
+                library = {
+                    -- Load luvit types when the `vim.uv` word is found
+                    { path = "luvit-meta/library", words = { "vim%.uv" } },
+                },
+            },
+        },
         "hrsh7th/cmp-buffer",
         "hrsh7th/cmp-cmdline",
         "hrsh7th/cmp-nvim-lsp",
@@ -210,6 +221,10 @@ return {
                 end,
             },
             sources = {
+                {
+                    name = "lazydev",
+                    group_index = 0, -- set group index to 0 to skip loading LuaLS completions
+                },
                 { name = "nvim_lsp_signature_help" },
                 { name = "nvim_lsp" },
                 { name = "git" },
@@ -221,12 +236,12 @@ return {
                             -- visible buffers
                             local bufs = {}
                             for _, win in ipairs(vim.api.nvim_list_wins()) do
-                                buf = vim.api.nvim_win_get_buf(win)
-                                if not require("peter.core.utils").file_is_big(buf) then
-                                    bufs[buf] = true
+                                bufnr = vim.api.nvim_win_get_buf(win)
+                                if not require("peter.core.utils").file_is_big(bufnr) then
+                                    table.insert(bufs, bufnr)
                                 end
                             end
-                            return vim.tbl_keys(bufs)
+                            return bufs
                         end,
                     },
                 },
