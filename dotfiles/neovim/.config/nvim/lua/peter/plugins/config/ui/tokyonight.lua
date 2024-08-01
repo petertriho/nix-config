@@ -26,7 +26,5 @@ return {
         })
 
         vim.cmd("colorscheme tokyonight")
-
-        vim.fn.sign_define("LightBulbSign", { text = "󰌶", texthl = "DiagnosticSignWarn" })
     end,
 }

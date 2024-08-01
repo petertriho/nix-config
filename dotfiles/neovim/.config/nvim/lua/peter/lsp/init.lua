@@ -60,6 +60,8 @@ local function lsp_attach_callback(args)
     if client.supports_method("textDocument/codeAction") then
         buf_set_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "code-actions" })
         buf_set_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "code-actions" })
+
+        vim.api.nvim_create_augroup("lsp_code_action", {})
     end
 
     if client.supports_method("textDocument/documentSymbol") then
