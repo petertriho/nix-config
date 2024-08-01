@@ -10,6 +10,11 @@ return {
             align = "center",
         },
         spec = {
+            -- overrides
+            {
+                "gx",
+                desc = "Open",
+            },
             -- leader
             {
                 mode = "n",
