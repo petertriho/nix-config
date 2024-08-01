@@ -3,7 +3,7 @@ return {
     init = function()
         vim.keymap.set("n", "-", function()
             require("oil").open()
-        end, { desc = "Open parent directory" })
+        end, { desc = "Open Parent Directory" })
     end,
     opts = {
         keymaps = {

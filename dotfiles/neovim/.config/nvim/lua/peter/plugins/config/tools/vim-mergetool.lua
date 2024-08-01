@@ -10,6 +10,6 @@ return {
         "MergetoolToggleLayout",
     },
     keys = {
-        { "<leader>gm", "<CMD>MergetoolToggle<CR>", desc = "merge-tool" },
+        { "<leader>gm", "<CMD>MergetoolToggle<CR>", desc = "Merge Tool" },
     },
 }

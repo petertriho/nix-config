@@ -27,7 +27,7 @@ local function lsp_attach_callback(args)
         "<CMD>lua vim.diagnostic.open_float(0, { scope = 'line', source = 'always', border = 'rounded' })<CR>",
         { desc = "Diagnostic" }
     )
-    buf_set_keymap("n", "<leader>lq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "qflist-diagnostics" })
+    buf_set_keymap("n", "<leader>lq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "Qflist Diagnostics" })
 
     if client.supports_method("textDocument/declaration") then
         buf_set_keymap("n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", { desc = "Declaration" })
@@ -58,8 +58,8 @@ local function lsp_attach_callback(args)
     end
 
     if client.supports_method("textDocument/codeAction") then
-        buf_set_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "code-actions" })
-        buf_set_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "code-actions" })
+        buf_set_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "Code Actions" })
+        buf_set_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "Code Actions" })
 
         vim.api.nvim_create_augroup("lsp_code_action", {})
     end

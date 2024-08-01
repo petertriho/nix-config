@@ -10,8 +10,8 @@ return {
     },
     ft = "qf",
     keys = {
-        { "\\l", "<CMD>LLToggle<CR>", desc = "loc-list-toggle" },
-        { "\\q", "<CMD>QFToggle<CR>", desc = "qf-list-toggle" },
+        { "\\l", "<CMD>LLToggle<CR>", desc = "Loc List Toggle" },
+        { "\\q", "<CMD>QFToggle<CR>", desc = "Qf List Toggle" },
         { "<M-n>", "<CMD>QNext<CR>" },
         { "<M-p>", "<CMD>QPrev<CR>" },
     },

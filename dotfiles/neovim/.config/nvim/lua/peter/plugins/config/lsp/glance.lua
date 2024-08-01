@@ -2,14 +2,14 @@ return {
     "dnlhc/glance.nvim",
     cmd = "Glance",
     keys = {
-        { "gpd", "<CMD>Glance definitions<CR>", desc = "definitions" },
-        { "gpr", "<CMD>Glance references<CR>", desc = "references" },
-        { "gpy", "<CMD>Glance type_definitions<CR>", desc = "type_definitions" },
-        { "gpm", "<CMD>Glance implementations<CR>", desc = "implementations" },
-        { "gD", "<CMD>Glance definitions<CR>", desc = "definitions" },
-        { "gR", "<CMD>Glance references<CR>", desc = "references" },
-        { "gY", "<CMD>Glance type_definitions<CR>", desc = "type_definitions" },
-        { "gM", "<CMD>Glance implementations<CR>", desc = "implementations" },
+        { "gpd", "<CMD>Glance definitions<CR>", desc = "Definitions" },
+        { "gpr", "<CMD>Glance references<CR>", desc = "References" },
+        { "gpy", "<CMD>Glance type_definitions<CR>", desc = "Type Definitions" },
+        { "gpm", "<CMD>Glance implementations<CR>", desc = "Implementations" },
+        { "gD", "<CMD>Glance definitions<CR>", desc = "Definitions" },
+        { "gR", "<CMD>Glance references<CR>", desc = "References" },
+        { "gY", "<CMD>Glance type_definitions<CR>", desc = "Type Definitions" },
+        { "gM", "<CMD>Glance implementations<CR>", desc = "Implementations" },
     },
     config = function()
         local glance = require("glance")

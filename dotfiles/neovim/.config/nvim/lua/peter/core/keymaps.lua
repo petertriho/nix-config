@@ -38,20 +38,20 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 vim.g.mapleader = " "
 vim.g.localleader = " "
 
-keymap("n", "<leader><leader>", ":w<CR>", { desc = "write" })
-keymap("n", "<leader>-", "<C-w>s", { desc = "split-below" })
-keymap("n", "<leader>\\", "<C-w>v", { desc = "split-right" })
-keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "no-hl" })
+keymap("n", "<leader><leader>", ":w<CR>", { desc = "Write" })
+keymap("n", "<leader>-", "<C-w>s", { desc = "Split Below" })
+keymap("n", "<leader>\\", "<C-w>v", { desc = "Split Right" })
+keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 
-keymap("n", "<leader>/", "gcc", { desc = "comment", remap = true })
-keymap("v", "<leader>/", "gc", { desc = "comment", remap = true })
+keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
+keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
 
-keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "executable" })
-keymap("n", "<leader>ap", 'ggVG"+p', { desc = "paste-file" })
-keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "yank-file" })
+keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
+keymap("n", "<Leader>ap", 'ggVG"+p', { desc = "Paste File" })
+keymap("n", "<Leader>ay", "<CMD>%y+<CR>", { desc = "Yank File" })
 
 -- Better Delete/Paste/Yank
-keymap({ "n", "v" }, "\\d", [["_d]], { desc = "delete" })
-keymap("x", "\\p", [["_dP]], { desc = "paste" })
-keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "yank-system-clipboard" })
-keymap("n", "\\Y", [["+y"]], { desc = "yank-eol-system-clipboard" })
+keymap({ "n", "v" }, "\\d", [["_d]], { desc = "Delete" })
+keymap("x", "\\p", [["_dP]], { desc = "Paste" })
+keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "Yank System Clipboard" })
+keymap("n", "\\Y", [["+y"]], { desc = "Yank Eol System Clipboard" })

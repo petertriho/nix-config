@@ -7,7 +7,7 @@ return {
                 require("actions-preview").code_actions()
             end,
             mode = { "v", "n" },
-            desc = "quickfix",
+            desc = "Quickfix",
         },
     },
     config = true,

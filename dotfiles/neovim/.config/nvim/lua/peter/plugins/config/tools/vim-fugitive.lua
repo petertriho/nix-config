@@ -7,7 +7,7 @@ return {
         "Gvdiffsplit",
     },
     keys = {
-        { "<leader>j", "<CMD>ToggleGitStatus<CR>", desc = "git-status" },
+        { "<leader>j", "<CMD>ToggleGitStatus<CR>", desc = "Git Status" },
     },
     init = function()
         vim.api.nvim_set_keymap("n", "g[", "<CMD>diffget //2<CR>", { silent = true, noremap = true })

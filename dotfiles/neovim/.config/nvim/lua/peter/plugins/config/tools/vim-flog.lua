@@ -6,7 +6,7 @@ return {
         "Floggit",
     },
     keys = {
-        { "<leader>gf", "<CMD>Flog<CR>", desc = "flog" },
+        { "<leader>gf", "<CMD>Flog<CR>", desc = "Flog" },
     },
     dependencies = { "tpope/vim-fugitive" },
 }

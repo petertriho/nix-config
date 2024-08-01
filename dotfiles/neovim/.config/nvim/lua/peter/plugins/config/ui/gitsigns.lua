@@ -2,7 +2,7 @@ return {
     "lewis6991/gitsigns.nvim",
     event = "User LazyLoadFile",
     keys = {
-        { "<leader>gt", "<CMD>Gitsigns toggle_current_line_blame<CR>", desc = "toggle-blame" },
+        { "<leader>gt", "<CMD>Gitsigns toggle_current_line_blame<CR>", desc = "Toggle Blame" },
     },
     config = function()
         require("gitsigns").setup({
@@ -62,17 +62,17 @@ return {
                 -- Actions
                 keymap("n", "<leader>hb", function()
                     gs.blame_line({ full = true })
-                end, { desc = "blame-line" })
+                end, { desc = "Blame Line" })
                 keymap("n", "<leader>hD", function()
                     gs.diffthis("~")
-                end, { desc = "diff-file" })
-                keymap("n", "<leader>hd", gs.diffthis, { desc = "diff-this" })
-                keymap("n", "<leader>hp", gs.preview_hunk, { desc = "preview-hunk" })
-                keymap("n", "<leader>hR", gs.reset_buffer, { desc = "reset-buffer" })
-                keymap({ "n", "v" }, "<leader>hr", ":Gitsigns reset_hunk<CR>", { desc = "reset-hunk" })
-                keymap("n", "<leader>hS", gs.stage_buffer, { desc = "stage-buffer" })
-                keymap({ "n", "v" }, "<leader>hs", ":Gitsigns stage_hunk<CR>", { desc = "stage-hunk" })
-                keymap("n", "<leader>hu", gs.undo_stage_hunk, { desc = "undo-stage-hunk" })
+                end, { desc = "Diff File" })
+                keymap("n", "<leader>hd", gs.diffthis, { desc = "Diff This" })
+                keymap("n", "<leader>hp", gs.preview_hunk, { desc = "Preview Hunk" })
+                keymap("n", "<leader>hR", gs.reset_buffer, { desc = "Reset Buffer" })
+                keymap({ "n", "v" }, "<leader>hr", ":Gitsigns reset_hunk<CR>", { desc = "Reset Hunk" })
+                keymap("n", "<leader>hS", gs.stage_buffer, { desc = "Stage Buffer" })
+                keymap({ "n", "v" }, "<leader>hs", ":Gitsigns stage_hunk<CR>", { desc = "Stage Hunk" })
+                keymap("n", "<leader>hu", gs.undo_stage_hunk, { desc = "Undo Stage Hunk" })
 
                 -- Text object
                 keymap({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", { desc = "Inner hunk" })

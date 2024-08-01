@@ -29,7 +29,7 @@ return {
             config = function()
                 require("luasnip.loaders.from_vscode").lazy_load()
                 require("peter.plugins.snippets").setup()
-                vim.keymap.set("x", "<leader>x", require("luasnip").select_keys, { desc = "snippet" })
+                vim.keymap.set("x", "<leader>x", require("luasnip").select_keys, { desc = "Snippet" })
             end,
         },
         "onsails/lspkind.nvim",
@@ -39,7 +39,7 @@ return {
         { "tzachar/cmp-fuzzy-path", dependencies = "tzachar/fuzzy.nvim" },
     },
     keys = {
-        { "<leader>lc", "<CMD>ToggleNvimCmp<CR>", desc = "completion-toggle" },
+        { "<leader>lc", "<CMD>ToggleNvimCmp<CR>", desc = "Completion Toggle" },
     },
     init = function()
         vim.g.completion_enabled = true

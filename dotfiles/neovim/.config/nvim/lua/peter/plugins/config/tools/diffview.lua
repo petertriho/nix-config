@@ -9,8 +9,8 @@ return {
         "DiffviewFileHistory",
     },
     keys = {
-        { "<leader>gd", "<CMD>DiffviewOpen<CR>", desc = "diffview" },
-        { "<leader>gh", "<CMD>DiffviewFileHistory %<CR>", desc = "history-file" },
+        { "<leader>gd", "<CMD>DiffviewOpen<CR>", desc = "Diffview" },
+        { "<leader>gh", "<CMD>DiffviewFileHistory %<CR>", desc = "History File" },
     },
     config = true,
 }
