@@ -96,6 +96,26 @@ set_augroups({
             },
         },
         {
+            "BufWritePre",
+            {
+                pattern = "*",
+                callback = function()
+                    local view = vim.fn.winsaveview()
+
+                    local patterns = {
+                        [[%s/\s\+$//e]],
+                        [[%s/\($\n\s*\)\+\%$//]],
+                    }
+                    for _, pattern in ipairs(patterns) do
+                        vim.cmd("keepjumps keeppatterns silent! " .. pattern)
+                    end
+
+                    vim.fn.winrestview(view)
+                end,
+                desc = "Trim whitespace",
+            },
+        },
+        {
             { "BufReadPost", "BufNewFile", "BufWritePre" },
             {
                 pattern = "*",
