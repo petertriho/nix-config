@@ -1,6 +1,5 @@
 return {
     "petertriho/vim-polyglot",
-    branch = "feature/fix-build",
     event = "User LazyLoadFile",
     init = function()
         local filetypes = require("peter.plugins.filetypes")
