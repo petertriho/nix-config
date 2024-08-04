@@ -1,5 +1,5 @@
 return {
-    "00dani/vim-polyglot",
+    "petertriho/vim-polyglot",
     branch = "feature/fix-build",
     event = "User LazyLoadFile",
     init = function()
