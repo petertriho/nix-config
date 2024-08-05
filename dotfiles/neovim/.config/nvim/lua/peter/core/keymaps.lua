@@ -34,6 +34,15 @@ keymap("o", "il", ":norm vil<CR>", opts)
 -- Search: In Visual Selection
 keymap("x", "gv", [[<Esc>/\%V]], {})
 
+-- ESC to turn off hlsearch
+keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
+
+-- Better Delete/Paste/Yank
+keymap({ "n", "v" }, "\\d", [["_d]], { desc = "Delete" })
+keymap("x", "\\p", [["_dP]], { desc = "Paste" })
+keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "Yank System Clipboard" })
+keymap("n", "\\Y", [["+y"]], { desc = "Yank Eol System Clipboard" })
+
 -- Leader
 vim.g.mapleader = " "
 vim.g.localleader = " "
@@ -41,7 +50,6 @@ vim.g.localleader = " "
 keymap("n", "<leader><leader>", ":w<CR>", { desc = "Write" })
 keymap("n", "<leader>-", "<C-w>s", { desc = "Split Below" })
 keymap("n", "<leader>\\", "<C-w>v", { desc = "Split Right" })
-keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 
 keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
 keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
@@ -49,9 +57,3 @@ keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
 keymap("n", "<Leader>ap", 'ggVG"+p', { desc = "Paste File" })
 keymap("n", "<Leader>ay", "<CMD>%y+<CR>", { desc = "Yank File" })
-
--- Better Delete/Paste/Yank
-keymap({ "n", "v" }, "\\d", [["_d]], { desc = "Delete" })
-keymap("x", "\\p", [["_dP]], { desc = "Paste" })
-keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "Yank System Clipboard" })
-keymap("n", "\\Y", [["+y"]], { desc = "Yank Eol System Clipboard" })
