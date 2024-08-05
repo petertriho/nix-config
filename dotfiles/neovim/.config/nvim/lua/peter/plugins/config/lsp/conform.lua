@@ -39,7 +39,7 @@ return {
     config = function()
         local conform = require("conform")
 
-        local disabled_lsp = {
+        local disabled_lsp_formatters = {
             lua_ls = true,
             tsserver = true,
         }
@@ -98,7 +98,7 @@ return {
                 async = true,
                 lsp_format = "fallback",
                 filter = function(client)
-                    return not disabled_lsp[client.name]
+                    return not disabled_lsp_formatters[client.name]
                 end,
             },
             formatters = {
