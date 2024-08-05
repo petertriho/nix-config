@@ -40,8 +40,8 @@ keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 -- Better Delete/Paste/Yank
 keymap({ "n", "v" }, "\\d", [["_d]], { desc = "Delete" })
 keymap("x", "\\p", [["_dP]], { desc = "Paste" })
-keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "Yank System Clipboard" })
-keymap("n", "\\Y", [["+y"]], { desc = "Yank Eol System Clipboard" })
+keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "Yank+" })
+keymap("n", "\\Y", [["+y"]], { desc = "Yank+ EOL" })
 
 -- Leader
 vim.g.mapleader = " "
