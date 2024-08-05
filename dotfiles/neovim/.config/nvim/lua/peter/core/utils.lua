@@ -38,4 +38,26 @@ M.disable_features = function(bufnr)
     vim.b.matchup_matchparen_fallback = 0
 end
 
+M.new_timer = function()
+    return (vim.uv or vim.loop).new_timer()
+end
+
+M.debounce = function(func, timer, debounce_ms)
+    return function()
+        local bufnr = vim.api.nvim_get_current_buf()
+        timer:stop()
+        timer:start(
+            debounce_ms,
+            0,
+            vim.schedule_wrap(function()
+                if vim.api.nvim_buf_is_valid(bufnr) then
+                    vim.api.nvim_buf_call(bufnr, function()
+                        func(bufnr)
+                    end)
+                end
+            end)
+        )
+    end
+end
+
 return M

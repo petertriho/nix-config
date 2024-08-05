@@ -18,8 +18,6 @@ local function lsp_attach_callback(args)
 
     local client = vim.lsp.get_client_by_id(args.data.client_id)
 
-    require("peter.lsp.format").on_attach(client, bufnr)
-
     local function lsp_keymap(lsp_method, mode, lhs, rhs, desc)
         if client.supports_method(lsp_method) then
             buf_keymap(mode, lhs, rhs, { desc = desc })
@@ -157,8 +155,6 @@ M.setup = function()
 
         lspconfig[server].setup(config)
     end
-
-    require("peter.lsp.none-ls").setup(base_config)
 end
 
 return M

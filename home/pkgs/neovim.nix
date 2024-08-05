@@ -153,35 +153,41 @@ in
     # dependencies
     gcc
     gnumake
+
     # formatters
     alejandra
     autoflake
     black
     docformatter
+    eslint_d
     isort
     nixfmt-rfc-style
     nodePackages.prettier
     nodePackages.svgo
+    prettierd
     pybetter
     python3Packages.reorder-python-imports
     shfmt
     sort-package-json
     ssort
     stylua
+    yamlfix
+    yamlfmt
 
     # linters
     bandit
     codespell
     dotenv-linter
-    eslint_d
     google-java-format
     hadolint
+    luajitPackages.luacheck
     markdownlint-cli
     refurb
     shellcheck
     selene
     statix
     valeWithStyles
+    yamllint
 
     # lsp
     basedpyright
