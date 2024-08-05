@@ -1,7 +1,6 @@
 local M = {}
 
 local function lsp_attach_callback(args)
-    local client = vim.lsp.get_client_by_id(args.data.client_id)
     local bufnr = args.buf
 
     if require("peter.core.utils").file_is_big(bufnr) then
@@ -11,57 +10,54 @@ local function lsp_attach_callback(args)
         return
     end
 
-    require("peter.lsp.format").on_attach(client, bufnr)
-
-    local function buf_set_keymap(mode, lhs, rhs, opts)
+    local function buf_keymap(mode, lhs, rhs, opts)
         opts = opts or {}
         opts.buffer = bufnr
-        noremap = true
-        silent = true
         vim.keymap.set(mode, lhs, rhs, opts)
     end
 
-    buf_set_keymap(
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+
+    require("peter.lsp.format").on_attach(client, bufnr)
+
+    local function lsp_keymap(lsp_method, mode, lhs, rhs, desc)
+        if client.supports_method(lsp_method) then
+            buf_keymap(mode, lhs, rhs, { desc = desc })
+        end
+    end
+
+    buf_keymap(
         "n",
         "gh",
         "<CMD>lua vim.diagnostic.open_float(0, { scope = 'line', source = 'always', border = 'rounded' })<CR>",
         { desc = "Diagnostic" }
     )
-    buf_set_keymap("n", "<leader>lq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "Qflist Diagnostics" })
+    buf_keymap("n", "grq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "QDiagnostics" })
+    buf_keymap("n", "grl", "<CMD>lua vim.diagnostic.setloclist()<CR>", { desc = "LDiagnostics" })
 
-    if client.supports_method("textDocument/declaration") then
-        buf_set_keymap("n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", { desc = "Declaration" })
-    end
-
-    if client.supports_method("textDocument/hover") then
-        buf_set_keymap("n", "K", "<CMD>lua vim.lsp.buf.hover()<CR>", { desc = "Hover" })
-    end
-
-    if client.supports_method("textDocument/implementation") then
-        buf_set_keymap("n", "gri", "<CMD>lua vim.lsp.buf.implementation()<CR>", { desc = "Implementation" })
-    end
-
-    if client.supports_method("textDocument/signatureHelp") then
-        buf_set_keymap("n", "grs", "<CMD>lua vim.lsp.buf.signature_help()<CR>", { desc = "Signature help" })
-    end
-
-    if client.supports_method("textDocument/typeDefinition") then
-        buf_set_keymap("n", "gry", "<CMD>lua vim.lsp.buf.type_definition()<CR>", { desc = "Type Definition" })
-    end
+    lsp_keymap("textDocument/definition", "n", "gd", "<CMD>lua vim.lsp.buf.definition()<CR>", "Declaration")
+    lsp_keymap("textDocument/declaration", "n", "gD", "<CMD>lua vim.lsp.buf.declaration()<CR>", "Declaration")
+    lsp_keymap("textDocument/hover", "n", "K", "<CMD>lua vim.lsp.buf.hover()<CR>", "Hover")
+    lsp_keymap("textDocument/implementation", "n", "gri", "<CMD>lua vim.lsp.buf.implementation()<CR>", "Implementation")
+    lsp_keymap(
+        "textDocument/typeDefinition",
+        "n",
+        "gy",
+        "<CMD>lua vim.lsp.buf.type_definition()<CR>",
+        "Type Definition"
+    )
 
     if client.name == "basedpyright" then
-        buf_set_keymap("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { desc = "Organize Imports" })
+        buf_keymap("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { desc = "Organize Imports" })
     elseif client.name == "ruff" then
-        buf_set_keymap("n", "gro", "<CMD>RuffOrganizeImports<CR>", { desc = "Organize Imports" })
+        buf_keymap("n", "gro", "<CMD>RuffOrganizeImports<CR>", { desc = "Organize Imports" })
     elseif client.name == "tsserver" then
-        buf_set_keymap("n", "gro", "<CMD>TSServerOrganizeImports<CR>", { desc = "Organize Imports" })
+        buf_keymap("n", "gro", "<CMD>TSServerOrganizeImports<CR>", { desc = "Organize Imports" })
     end
 
     if client.supports_method("textDocument/codeAction") then
-        buf_set_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "Code Actions" })
-        buf_set_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "Code Actions" })
-
-        vim.api.nvim_create_augroup("lsp_code_action", {})
+        buf_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "Code Actions" })
+        buf_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "Code Actions" })
     end
 
     if client.supports_method("textDocument/documentSymbol") then

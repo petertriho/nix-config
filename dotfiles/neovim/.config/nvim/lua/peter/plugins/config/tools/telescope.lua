@@ -19,7 +19,6 @@ return {
         },
         { "<leader>led", "<CMD>lua require('telescope.builtin').lsp_document_diagnostics()<CR>", desc = "Document" },
         { "<leader>lew", "<CMD>lua require('telescope.builtin').lsp_workspace_diagnostics()<CR>", desc = "Workspace" },
-        { "<leader>ll", "<CMD>lua vim.diagnostic.setloclist()<CR>", desc = "Loclist Diagnostics" },
         {
             "<leader>lm",
             "<CMD>lua require('telescope.builtin').lsp_implementations({ jump_type = 'never' })<CR>",

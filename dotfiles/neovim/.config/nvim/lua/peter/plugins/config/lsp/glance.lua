@@ -5,11 +5,7 @@ return {
         { "gpd", "<CMD>Glance definitions<CR>", desc = "Definitions" },
         { "gpr", "<CMD>Glance references<CR>", desc = "References" },
         { "gpy", "<CMD>Glance type_definitions<CR>", desc = "Type Definitions" },
-        { "gpm", "<CMD>Glance implementations<CR>", desc = "Implementations" },
-        { "gD", "<CMD>Glance definitions<CR>", desc = "Definitions" },
-        { "gR", "<CMD>Glance references<CR>", desc = "References" },
-        { "gY", "<CMD>Glance type_definitions<CR>", desc = "Type Definitions" },
-        { "gM", "<CMD>Glance implementations<CR>", desc = "Implementations" },
+        { "gpi", "<CMD>Glance implementations<CR>", desc = "Implementations" },
     },
     config = function()
         local glance = require("glance")
