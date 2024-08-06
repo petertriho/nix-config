@@ -15,6 +15,7 @@ in
     fzf
     glow
     howdoi
+    hyperfine
     iperf3
     jq
     navi
