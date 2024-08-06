@@ -16,7 +16,7 @@ mkdir -p "${directory}/${GIT_DIR}"
 
 git clone --bare "$repository" "${directory}/${GIT_DIR}"
 
-pushd "$directory" >/dev/null
+pushd "$directory" > /dev/null
 
 git remote remove origin
 git remote add origin "$repository"
@@ -26,4 +26,4 @@ branch=$(git branch --show-current)
 git branch --set-upstream-to="origin/${branch}" "$branch"
 git worktree add "$branch"
 
-popd >/dev/null
+popd > /dev/null

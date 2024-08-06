@@ -5,11 +5,11 @@ set -euo pipefail
 NIX_CONFIG_PATH="${HOME}/.nix-config"
 
 function pushd() {
-    command pushd "$@" >/dev/null
+    command pushd "$@" > /dev/null
 }
 
 function popd() {
-    command popd "$@" >/dev/null
+    command popd "$@" > /dev/null
 }
 
 function tool:config {
@@ -22,7 +22,7 @@ function tool:config {
 }
 
 function tool:nvim {
-    if command -v nvim &>/dev/null; then
+    if command -v nvim &> /dev/null; then
         echo "Updating neovim plugins ..."
         nvim --headless "+TSUpdateSync" +qa
         nvim --headless "+Lazy! sync" +qa
@@ -30,7 +30,7 @@ function tool:nvim {
 }
 
 function tool:nvim:clean {
-    if command -v nvim &>/dev/null; then
+    if command -v nvim &> /dev/null; then
         echo "Cleaning neovim plugins ..."
         nvim --headless "+Lazy! clean" +qa
     fi
