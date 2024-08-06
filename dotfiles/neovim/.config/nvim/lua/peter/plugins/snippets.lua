@@ -23,17 +23,7 @@ local conds = require("luasnip.extras.conditions")
 local conds_expand = require("luasnip.extras.conditions.expand")
 
 M.setup = function()
-    ls.add_snippets("all", {
-        s("refs", {
-            f(function()
-                return string.format(
-                    "Refs: https://%s.atlassian.net/browse/%s-",
-                    os.getenv("ATLASSIAN_COMPANY_NAME") or "COMPANY_NAME",
-                    os.getenv("ATLASSIAN_PROJECT_KEY") or "PROJECT_KEY"
-                )
-            end, {}),
-        }),
-    }, { key = "all" })
+    -- ls.add_snippets("all", {}, { key = "all" })
 
     ls.add_snippets("javascript", {
         s("log", {
@@ -42,6 +32,24 @@ M.setup = function()
                 return snip.env.TM_SELECTED_TEXT[1] or {}
             end, {}),
             t(")"),
+        }),
+    })
+
+    ls.add_snippets("gitcommit", {
+        s("flake", {
+            t("chore(nix): update `flake.lock`"),
+        }),
+        s("lazy", {
+            t("chore(nvim): update `lazy-lock.json`"),
+        }),
+        s("refs", {
+            f(function()
+                return string.format(
+                    "Refs: https://%s.atlassian.net/browse/%s-",
+                    os.getenv("ATLASSIAN_COMPANY_NAME") or "COMPANY_NAME",
+                    os.getenv("ATLASSIAN_PROJECT_KEY") or "PROJECT_KEY"
+                )
+            end, {}),
         }),
     })
 
