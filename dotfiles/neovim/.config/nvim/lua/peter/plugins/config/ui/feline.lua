@@ -267,7 +267,7 @@ return {
 
                     local icon = { str = icon_str }
 
-                    local fg = vim.api.nvim_get_hl_by_name(icon_hlname, true).foreground
+                    local fg = vim.api.nvim_get_hl(0, { name = icon_hlname }).fg
 
                     if fg then
                         icon.hl = { fg = string.format("#%06x", fg) }
@@ -290,8 +290,9 @@ return {
                         local file_enc = (vim.bo[bufnr].fenc ~= "" and vim.bo[bufnr].fenc) or vim.o.enc
                         local file_format = vim.bo[bufnr].fileformat
 
-                        local tab_style = vim.api.nvim_buf_get_option(bufnr, "expandtab") and "●" or "󰌒"
-                        local tab = vim.api.nvim_buf_get_option(bufnr, "shiftwidth")
+                        local tab_style = vim.api.nvim_get_option_value("expandtab", { buf = bufnr }) and "●"
+                            or "󰌒"
+                        local tab = vim.api.nvim_get_option_value("shiftwidth", { buf = bufnr })
 
                         return string.format(
                             "%s  %s  %s %d   %d",
