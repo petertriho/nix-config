@@ -4,62 +4,78 @@ set -euo pipefail
 
 function base_flake_nix {
     local packages=$1
+    local extras=$2
 
-    echo '{
+    printf '{
   description = "Development Environment";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-  outputs = {
-    self,
-    nixpkgs,
-  }: let
-    supportedSystems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
-    forEachSupportedSystem = f:
-      nixpkgs.lib.genAttrs supportedSystems (system:
-        f {
-          pkgs = import nixpkgs {inherit system;};
-        });
-  in {
-    devShells = forEachSupportedSystem ({pkgs}: {
-      default = pkgs.mkShell {
-        venvDir = ".venv";
-        packages = with pkgs;
-'"$packages"'
-      };
-    });
-  };
-}' >flake.nix
+  outputs =
+    { self, nixpkgs }:
+    let
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
+      forEachSupportedSystem =
+        f: nixpkgs.lib.genAttrs supportedSystems (system: f { pkgs = import nixpkgs { inherit system; }; });
+    in
+    {
+      devShells = forEachSupportedSystem (
+        { pkgs }:
+        {
+          default = pkgs.mkShell {
+            packages =
+              with pkgs;
+              %s%s
+          };
+        }
+      );
+    };
+}' "$packages" "$extras" > flake.nix
 
-    alejandra flake.nix
+    nixfmt flake.nix
 }
 
 function packages_node {
-    echo '         [
-           nodejs
-           yarn
-         ];'
+    echo '[
+                nodejs
+                yarn
+              ];'
+}
+
+function extras_node {
+    echo ""
 }
 
 function packages_python {
-    echo '         [
-           python3
-           poetry
-         ]
-         ++ (with pkgs.python3Packages; [
-           pip
-           venvShellHook
-         ]);'
+    echo '[
+                python3
+                poetry
+              ]
+              ++ (with pkgs.python3Packages; [
+                pip
+                venvShellHook
+              ]);'
+}
+
+function extras_python {
+    echo '
+            venvDir = ".venv";'
 }
 
 function mk_flake_envrc {
-    echo "use flake" >.envrc
+    echo "use flake" > .envrc
 }
 
 function mk_flake_nix {
     language=$1
     packages=$(eval "packages_${language}")
-    base_flake_nix "$packages"
+    extras=$(eval "extras_${language}")
+    base_flake_nix "$packages" "$extras"
 }
 
 function tool:main {
