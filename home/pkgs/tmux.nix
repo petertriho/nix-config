@@ -84,19 +84,19 @@ in
   programs.tmux = {
     enable = true;
     sensibleOnTop = false;
-    plugins = with pkgs; [
+    plugins = with pkgs.tmuxPlugins; [
       {
-        plugin = tmuxPlugins.sensible;
+        plugin = sensible;
         extraConfig = ''
           # TODO: remove when https://github.com/nix-community/home-manager/pull/4670 is added
           set -g prefix C-a
         '';
       }
-      tmuxPlugins.pain-control
+      pain-control
       tmux-sessionist
-      tmuxPlugins.yank
+      yank
       {
-        plugin = tmuxPlugins.prefix-highlight;
+        plugin = prefix-highlight;
         extraConfig = ''
           # Theme
           if-shell "test -f ~/.tmux/tokyonight.tmux" "source ~/.tmux/tokyonight.tmux"
@@ -120,11 +120,11 @@ in
         '';
       }
       {
-        plugin = tmuxPlugins.tmux-thumbs;
+        plugin = tmux-thumbs;
         extraConfig = "set -g @thumbs-key F";
       }
       {
-        plugin = tmuxPlugins.extrakto;
+        plugin = extrakto;
         extraConfig = ''
           set -g @extrakto_copy_key "tab"
           set -g @extrakto_insert_key "enter"
@@ -155,7 +155,7 @@ in
         '';
       }
       {
-        plugin = tmuxPlugins.fuzzback;
+        plugin = fuzzback;
         extraConfig = ''
           set -g @fuzzback-bind "/"
           set -g @fuzzback-popup 1
