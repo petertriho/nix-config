@@ -78,7 +78,7 @@ return {
                 json = { "jq", "sort_package_json" },
                 lua = { "stylua" },
                 markdown = with_prettier_formatter({}, { "injected" }),
-                nix = { "alejandra", "nixfmt" },
+                nix = { "alejandra", "nixfmt", "injected" },
                 python = function(bufnr)
                     local formatters = { "autoflake", "docformatter", "ssort", "reorder-python-imports" }
                     if conform.get_formatter_info("ruff_format", bufnr).available then
