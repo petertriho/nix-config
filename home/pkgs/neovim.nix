@@ -17,9 +17,11 @@ let
     ]
   );
 
-  removePythonLicense = ''
-    rm $out/lib/python*/site-packages/LICENSE
-  '';
+  removePythonLicense =
+    # sh
+    ''
+      rm $out/lib/python*/site-packages/LICENSE
+    '';
 
   autoflake = pkgs.python3Packages.autoflake.overridePythonAttrs { postFixup = removePythonLicense; };
 
@@ -59,23 +61,27 @@ let
 
       yarnBuildScript = "setup";
 
-      postBuild = ''
-        yarn --offline compile
-      '';
+      postBuild =
+        # sh
+        ''
+          yarn --offline compile
+        '';
 
-      installPhase = ''
-        runHook preInstall
+      installPhase =
+        # sh
+        ''
+          runHook preInstall
 
-        cp -r . $out
+          cp -r . $out
 
-        makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
-          --add-flags "$out/out/cli.js"
+          makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
+            --add-flags "$out/out/cli.js"
 
-        installShellCompletion --cmd fish-lsp \
-          --fish <($out/bin/fish-lsp complete --fish)
+          installShellCompletion --cmd fish-lsp \
+            --fish <($out/bin/fish-lsp complete --fish)
 
-        runHook postInstall
-      '';
+          runHook postInstall
+        '';
     };
 
   pyemojify =
