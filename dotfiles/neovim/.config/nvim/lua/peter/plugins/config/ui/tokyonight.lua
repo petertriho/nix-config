@@ -23,6 +23,7 @@ return {
 
                 hl.Folded = { fg = colors.comment, bg = nil }
             end,
+            plugins = { markdown = true },
         })
 
         vim.cmd("colorscheme tokyonight")
