@@ -47,7 +47,7 @@ keymap("n", "\\Y", [["+y"]], { desc = "Yank+ EOL" })
 vim.g.mapleader = " "
 vim.g.localleader = " "
 
-keymap("n", "<leader><leader>", ":w<CR>", { desc = "Write" })
+keymap("n", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
 keymap("n", "<leader>-", "<C-w>s", { desc = "Split Below" })
 keymap("n", "<leader>\\", "<C-w>v", { desc = "Split Right" })
 
