@@ -12,5 +12,3 @@ nnoremap <buffer> <silent> } <CMD>lua require('qf_helper').navigate(1, {by_file 
 
 noremap <buffer> <silent> K :Keep<CR>
 noremap <buffer> <silent> R :Reject<CR>
-
-noremap <buffer> <silent> <M-r> <CMD>lua require('replacer').run()<CR>
