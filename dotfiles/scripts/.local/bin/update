@@ -77,6 +77,7 @@ function tool:all {
     tool:config
     tool:nvim
     tool:nix
+    tool:clean
 }
 
 function tool:list {
