@@ -204,7 +204,6 @@ in
     gopls
     htmx-lsp
     jdt-language-server
-    ltex-ls
     lua-language-server
     marksman
     nil

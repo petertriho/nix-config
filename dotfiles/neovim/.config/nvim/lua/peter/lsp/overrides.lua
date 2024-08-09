@@ -57,9 +57,6 @@ return {
             },
         },
     },
-    ltex = {
-        filetypes = { "bib", "markdown", "org", "plaintex", "rst", "rnoweb", "tex" },
-    },
     lua_ls = {},
     marksman = {},
     nil_ls = {
