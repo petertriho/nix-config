@@ -140,6 +140,7 @@ return {
 
         lint.linters_by_ft = {
             ["*"] = { "codespell" },
+            conf = { "dotenv_linter" },
             css = { "stylelint" },
             dockerfile = { "hadolint" },
             html = { "tidy" },
@@ -149,7 +150,7 @@ return {
             markdown = { "markdownlint", "vale" },
             nix = { "statix" },
             python = { "bandit", "refurb" },
-            sh = { "dotenv-linter", "shellcheck" },
+            sh = { "shellcheck" },
             xml = { "tidy" },
             yaml = { "yamllint" },
         }
