@@ -90,7 +90,7 @@ in
       {
         plugin = sensible;
         extraConfig =
-          # sh
+          # tmux
           ''
             # TODO: remove when https://github.com/nix-community/home-manager/pull/4670 is added
             set -g prefix C-a
@@ -102,7 +102,7 @@ in
       {
         plugin = prefix-highlight;
         extraConfig =
-          # sh
+          # tmux
           ''
             # Theme
             if-shell "test -f ~/.tmux/tokyonight.tmux" "source ~/.tmux/tokyonight.tmux"
@@ -121,7 +121,7 @@ in
       {
         plugin = easy-motion;
         extraConfig =
-          # sh
+          # tmux
           ''
             set -g @easy-motion-verbose "true"
             set -g @easy-motion-default-motion "bd-f"
@@ -130,13 +130,13 @@ in
       {
         plugin = tmux-thumbs;
         extraConfig =
-          # sh
+          # tmux
           "set -g @thumbs-key F";
       }
       {
         plugin = extrakto;
         extraConfig =
-          # sh
+          # tmux
           ''
             set -g @extrakto_copy_key "tab"
             set -g @extrakto_insert_key "enter"
@@ -149,7 +149,7 @@ in
       {
         plugin = tmux-window-name;
         extraConfig =
-          # sh
+          # tmux
           ''
             set -g @tmux_window_name_substitute_sets \
               "[ \
@@ -171,7 +171,7 @@ in
       {
         plugin = fuzzback;
         extraConfig =
-          # sh
+          # tmux
           ''
             set -g @fuzzback-bind "/"
             set -g @fuzzback-popup 1
