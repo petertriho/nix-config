@@ -37,12 +37,6 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- ESC to turn off hlsearch
 keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 
--- Better Delete/Paste/Yank
-keymap({ "n", "v" }, "\\d", [["_d]], { desc = "Delete" })
-keymap("x", "\\p", [["_dP]], { desc = "Paste" })
-keymap({ "n", "v" }, "\\y", [["+y"]], { desc = "Yank+" })
-keymap("n", "\\Y", [["+y"]], { desc = "Yank+ EOL" })
-
 -- Leader
 vim.g.mapleader = " "
 vim.g.localleader = " "
@@ -54,6 +48,12 @@ keymap("n", "<leader>\\", "<C-w>v", { desc = "Split Right" })
 keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
 keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
 
+keymap({ "n", "v" }, "<leader>x", [["_d]], { desc = "Delete_" })
+keymap("n", "<leader>p", [["+p]], { desc = "Paste+" })
+keymap("x", "<leader>p", [["_dP]], { desc = "Paste_" })
+keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
+keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL" })
+
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
-keymap("n", "<Leader>ap", 'ggVG"+p', { desc = "Paste File" })
-keymap("n", "<Leader>ay", "<CMD>%y+<CR>", { desc = "Yank File" })
+keymap("n", "<leader>ap", 'ggVG"+p', { desc = "Paste File" })
+keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "Yank File" })
