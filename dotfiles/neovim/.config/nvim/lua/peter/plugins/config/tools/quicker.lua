@@ -1,6 +1,6 @@
 return {
     "stevearc/quicker.nvim",
-    event = "User LazyLoadFile",
+    ft = "qf",
     opts = {
         keys = {
             {
