@@ -1,5 +1,6 @@
 return {
     "stevearc/stickybuf.nvim",
+    event = { "User LazyLoadFile", "VeryLazy" },
     opts = {
         get_auto_pin = function(bufnr)
             local filetype = vim.bo[bufnr].filetype
