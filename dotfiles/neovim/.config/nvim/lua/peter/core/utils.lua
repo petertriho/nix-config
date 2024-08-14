@@ -60,4 +60,16 @@ M.debounce = function(func, timer, debounce_ms)
     end
 end
 
+M.toggle_buffer = function(buf, open_cmd)
+    return function()
+        local bufname = vim.fn.bufname(buf)
+
+        if vim.fn.bufexists(bufname) == 1 then
+            vim.cmd("bw " .. bufname)
+        else
+            vim.cmd(open_cmd)
+        end
+    end
+end
+
 return M
