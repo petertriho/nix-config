@@ -14,7 +14,6 @@ return {
         )
     end,
     config = {
-        kind = "split",
         integrations = {
             diffview = true,
         },
