@@ -52,6 +52,7 @@ M.setup = function()
             end, {}),
         }),
     })
+    ls.filetype_extend("NeogitCommitMessage", { "gitcommit" })
 
     ls.add_snippets("yaml", {
         s("amd", {
