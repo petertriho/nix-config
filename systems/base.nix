@@ -4,6 +4,7 @@
   config,
   pkgs,
   lib,
+  pkgs-stable,
   ...
 }:
 {
@@ -80,7 +81,7 @@
     useUserPackages = true;
     users.peter = import ../home/${config.networking.hostName}.nix;
     extraSpecialArgs = {
-      inherit inputs outputs;
+      inherit inputs outputs pkgs-stable;
     };
   };
 

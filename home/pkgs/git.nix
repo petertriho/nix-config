@@ -1,10 +1,16 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  pkgs-stable,
+  ...
+}:
 {
   home = {
     packages = with pkgs; [
       git
       # dependencies
-      delta
+      # TODO: remove when rust build is fixed in unstable
+      pkgs-stable.delta
       difftastic
     ];
 

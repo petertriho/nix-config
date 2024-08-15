@@ -31,9 +31,10 @@
       homeManagerModules = import ./modules/home-manager;
 
       nixosConfigurations = {
-        wsl = nixpkgs.lib.nixosSystem {
+        wsl = nixpkgs.lib.nixosSystem rec {
           system = "x86_64-linux";
           specialArgs = {
+            pkgs-stable = import nixpkgs-stable { inherit system; };
             inherit inputs outputs;
           };
           modules = [ ./systems/wsl.nix ];
