@@ -13,9 +13,5 @@ return {
             {}
         )
     end,
-    config = {
-        integrations = {
-            diffview = true,
-        },
-    },
+    config = true,
 }
