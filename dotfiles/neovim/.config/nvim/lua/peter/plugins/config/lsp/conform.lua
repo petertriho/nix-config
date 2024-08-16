@@ -64,7 +64,9 @@ return {
         end
 
         local prettier = { "prettierd", "prettier", stop_after_first = true }
-        local javascript_formatters = with_prettier_formatter({ "eslint_d" })
+        -- TODO: find solution to not run `eslint_d` if not available in project
+        -- local javascript_formatters = with_prettier_formatter({ "eslint_d" })
+        local javascript_formatters = prettier
 
         conform.setup({
             formatters_by_ft = {
