@@ -30,15 +30,25 @@
     {
       homeManagerModules = import ./modules/home-manager;
 
-      nixosConfigurations = {
-        wsl = nixpkgs.lib.nixosSystem rec {
+      nixosConfigurations =
+        let
           system = "x86_64-linux";
-          specialArgs = {
-            pkgs-stable = import nixpkgs-stable { inherit system; };
-            inherit inputs outputs;
+          pkgs = import nixpkgs {
+            inherit system;
+            config = {
+              allowUnfree = true;
+            };
           };
-          modules = [ ./systems/wsl.nix ];
+        in
+        {
+          wsl = nixpkgs.lib.nixosSystem {
+            inherit system;
+            specialArgs = {
+              pkgs-stable = import nixpkgs-stable { inherit system; };
+              inherit inputs outputs pkgs;
+            };
+            modules = [ ./systems/wsl.nix ];
+          };
         };
-      };
     };
 }
