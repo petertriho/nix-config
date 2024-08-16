@@ -39,13 +39,18 @@
               allowUnfree = true;
             };
           };
+          pkgs-stable = import nixpkgs-stable { inherit system; };
         in
         {
           wsl = nixpkgs.lib.nixosSystem {
             inherit system;
             specialArgs = {
-              pkgs-stable = import nixpkgs-stable { inherit system; };
-              inherit inputs outputs pkgs;
+              inherit
+                inputs
+                outputs
+                pkgs
+                pkgs-stable
+                ;
             };
             modules = [ ./systems/wsl.nix ];
           };
