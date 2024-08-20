@@ -2,6 +2,7 @@
   inputs,
   config,
   pkgs,
+  pkgs-stable,
   lib,
   ...
 }:
@@ -216,7 +217,7 @@ in
     taplo
     terraform-ls
     tflint
-    vscode-langservers-extracted # html, css, json, eslint
+    pkgs-stable.vscode-langservers-extracted # html, css, json, eslint
     yaml-language-server
 
     # everything everywhere all at once
