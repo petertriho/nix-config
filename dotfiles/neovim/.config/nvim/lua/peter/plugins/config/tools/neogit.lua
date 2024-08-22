@@ -13,5 +13,16 @@ return {
             {}
         )
     end,
-    config = true,
+    config = {
+        kind = "auto",
+        commit_editor = {
+            kind = "auto",
+        },
+        log_view = {
+            kind = "auto",
+        },
+        reflog_view = {
+            kind = "auto",
+        },
+    },
 }
