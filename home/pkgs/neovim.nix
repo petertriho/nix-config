@@ -2,7 +2,6 @@
   inputs,
   config,
   pkgs,
-  pkgs-stable,
   lib,
   ...
 }:
@@ -128,12 +127,12 @@ let
 
   sort-package-json = pkgs.buildNpmPackage {
     pname = "sort-package-json";
-    version = "unstable-2024-08-21";
+    version = "unstable-2024-08-22";
     src = pkgs.fetchFromGitHub {
       owner = "keithamus";
       repo = "sort-package-json";
-      rev = "7e1dd1fff32f07cd8374fc4676ceda0d032e60ac";
-      sha256 = "0cx1bjyvbyamaj2jj6hdcigkv4kmch9a7991r13x92a5m0c6hzg9";
+      rev = "92de3ef894435e402d76ae1e8444c4683a46ea2c";
+      sha256 = "0bg19synkc6szlr4lkhg9v8zz41zp7ji56fscfbfma0kc61qpdvb";
     };
     npmDepsHash = "sha256-wKs7x1OGX89xT698i3WAz5iNsv71nbmYe8F9DjXO3tI=";
     dontNpmBuild = true;
@@ -217,7 +216,7 @@ in
     taplo
     terraform-ls
     tflint
-    pkgs-stable.vscode-langservers-extracted # html, css, json, eslint
+    vscode-langservers-extracted # html, css, json, eslint
     yaml-language-server
 
     # everything everywhere all at once
