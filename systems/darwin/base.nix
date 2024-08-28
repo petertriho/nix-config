@@ -11,6 +11,12 @@
     ../base.nix
   ];
 
+  nix.gc.interval = [
+    {
+      Weekday = 1;
+    }
+  ];
+
   services.nix-daemon.enable = true;
 
   programs.zsh = {
@@ -34,7 +40,6 @@
   };
 
   users.users.peter = {
-    name = "peter";
     home = "/Users/peter";
   };
 

@@ -10,6 +10,7 @@
     ../base.nix
   ];
 
+  nix.gc.dates = "weekly";
   nix.settings.trusted-users = [
     "root"
     "@wheel"
