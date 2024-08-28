@@ -15,7 +15,7 @@
     enable = true;
     defaultUser = "peter";
   };
-  networking.hostName = "wsl";
+  networking.hostName = "WSL";
 
   # NOTE: Docker Desktop https://github.com/nix-community/NixOS-WSL/issues/235#issuecomment-1937424376
   wsl = {

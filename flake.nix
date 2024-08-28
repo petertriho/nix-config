@@ -31,7 +31,7 @@
       homeManagerModules = import ./modules/home-manager;
 
       nixosConfigurations = {
-        wsl =
+        WSL =
           let
             system = "x86_64-linux";
             pkgs = import nixpkgs {
@@ -52,7 +52,7 @@
                 pkgs-stable
                 ;
             };
-            modules = [ ./systems/wsl.nix ];
+            modules = [ ./systems/WSL.nix ];
           };
       };
     };
