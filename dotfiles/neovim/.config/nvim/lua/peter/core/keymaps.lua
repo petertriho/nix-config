@@ -52,7 +52,7 @@ keymap({ "n", "v" }, "<leader>x", [["_d]], { desc = "Delete_" })
 keymap("n", "<leader>p", [["+p]], { desc = "Paste+" })
 keymap("x", "<leader>p", [["_dP]], { desc = "Paste_" })
 keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
-keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL" })
+keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
 
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
 keymap("n", "<leader>ap", 'ggVG"+p', { desc = "Paste File" })
