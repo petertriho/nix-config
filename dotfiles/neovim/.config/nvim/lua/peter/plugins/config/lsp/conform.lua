@@ -139,16 +139,15 @@ return {
                 shfmt = {
                     args = function(_, ctx)
                         local args = {
-                            "-s",
-                            "-bn",
-                            "-ci",
-                            "-sr",
-                            "-kp",
-                            "-filename",
+                            "--filename",
                             "$FILENAME",
+                            "--simplify",
+                            "--binary-next-line",
+                            "--case-indent",
+                            "--space-redirects",
                         }
                         if vim.bo[ctx.buf].expandtab then
-                            vim.list_extend(args, { "-i", ctx.shiftwidth })
+                            vim.list_extend(args, { "--indent", ctx.shiftwidth })
                         end
                         return args
                     end,
