@@ -27,11 +27,11 @@
     username = "peter";
     homeDirectory = lib.mkDefault "/home/peter";
     stateVersion = lib.mkDefault "24.05";
-    activation = {
-      set_theme = lib.hm.dag.entryAfter [ "installPackages" ] ''
-        PATH="${pkgs.fish}/bin:${pkgs.vivid}/bin:$PATH" run fish -c "set_theme"
-      '';
-    };
+    # activation = {
+    #   set_theme = lib.hm.dag.entryAfter [ "installPackages" ] ''
+    #     PATH="${pkgs.fish}/bin:${pkgs.vivid}/bin:$PATH" run fish -c "set_theme"
+    #   '';
+    # };
   };
 
   programs.home-manager.enable = true;
