@@ -58,7 +58,6 @@
     variables.EDITOR = "vim";
   };
 
-  programs.fish.enable = true;
   programs.bash = {
     interactiveShellInit =
       # sh
