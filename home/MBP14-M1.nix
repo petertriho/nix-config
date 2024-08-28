@@ -5,7 +5,5 @@
     ./pkgs/wezterm.nix
   ];
 
-  home = {
-    homeDirectory = "/Users/peter";
-  };
+  home.homeDirectory = "/Users/peter";
 }

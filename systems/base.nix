@@ -1,15 +1,12 @@
 {
   inputs,
   outputs,
-  config,
   pkgs,
-  lib,
   pkgs-stable,
+  config,
   ...
 }:
 {
-  imports = [ inputs.home-manager.nixosModules.home-manager ];
-
   nix = {
     gc = {
       automatic = true;
@@ -20,10 +17,6 @@
       experimental-features = [
         "nix-command"
         "flakes"
-      ];
-      trusted-users = [
-        "root"
-        "@wheel"
       ];
       warn-dirty = false;
       auto-optimise-store = true;
@@ -58,23 +51,6 @@
     variables.EDITOR = "vim";
   };
 
-  programs.bash = {
-    interactiveShellInit =
-      # sh
-      ''
-        if [[ $(${pkgs.procps}/bin/ps --no-header --pid=$PPID --format=comm) != "fish" && -z ''${BASH_EXECUTION_STRING} ]]
-         then
-           shopt -q login_shell && LOGIN_OPTION='--login' || LOGIN_OPTION=""
-           exec ${pkgs.fish}/bin/fish $LOGIN_OPTION
-        fi
-      '';
-  };
-
-  users.users.peter = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" ];
-  };
-
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
@@ -83,6 +59,4 @@
       inherit inputs outputs pkgs-stable;
     };
   };
-
-  system.stateVersion = lib.mkDefault "24.05";
 }

@@ -57,7 +57,7 @@
                 pkgs-stable
                 ;
             };
-            modules = [ ./systems/WSL.nix ];
+            modules = [ ./systems/nixos/WSL.nix ];
           };
       };
 
@@ -84,7 +84,7 @@
                 pkgs-stable
                 ;
             };
-            modules = [ ./systems/MBP14-M1.nix ];
+            modules = [ ./systems/darwin/MBP14-M1.nix ];
           };
       };
     };

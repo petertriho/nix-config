@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  lib,
   ...
 }:
 let
@@ -171,7 +172,10 @@ in
       ndh = "nix-direnv-helper";
       ndr = "nix-direnv-reload";
       nfu = "nix flake update";
-      nrs = "sudo nixos-rebuild switch --flake ~/.nix-config";
+      nrs = lib.strings.concatStringsSep " " [
+        (if pkgs.stdenv.isDarwin then "darwin-rebuild" else "sudo nixos-rebuild")
+        "switch --flake ~/.nix-config"
+      ];
       ns = "nix search nixpkgs";
       p = "podman";
       pc = "podman compose";
