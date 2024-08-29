@@ -25,7 +25,7 @@
     interactiveShellInit =
       # sh
       ''
-        if [[ $(${pkgs.procps}/bin/ps -p $PPID -o "comm=") != "fish" && -z ''${BASH_EXECUTION_STRING} ]]
+        if [[ $(${pkgs.procps}/bin/ps -p $PPID -o "comm=") != "fish" && -z ''${BASH_EXECUTION_STRING} && -z ''${ZSH_EXECUTION_STRING} ]]
          then
            case $- in
              *l*)
