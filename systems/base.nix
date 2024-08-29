@@ -7,6 +7,10 @@
   ...
 }:
 {
+  imports = [
+    outputs.systemModules.helpers
+  ];
+
   nix = {
     gc = {
       automatic = true;

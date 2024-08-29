@@ -33,6 +33,7 @@
       inherit (self) outputs;
     in
     {
+      systemModules = import ./modules/system;
       homeManagerModules = import ./modules/home-manager;
 
       nixosConfigurations = {
@@ -70,7 +71,6 @@
               config = {
                 allowUnfree = true;
               };
-
             };
             pkgs-stable = import nixpkgs-stable { inherit system; };
           in
