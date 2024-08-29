@@ -55,7 +55,7 @@
       "font-jetbrains-mono-nerd-font"
       "google-chrome"
       # "istat-menus"
-      # "karabiner-elements"
+      "karabiner-elements"
       "keepingyouawake"
       "keka"
       "keyboardcleantool"
