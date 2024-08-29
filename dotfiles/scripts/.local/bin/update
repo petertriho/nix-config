@@ -3,6 +3,8 @@
 set -euo pipefail
 
 NIX_CONFIG_PATH="${HOME}/.nix-config"
+OS=$(uname -s | tr "[:upper:]" "[:lower:]")
+ARCH=$(uname -m)
 
 function pushd() {
     command pushd "$@" > /dev/null
@@ -57,7 +59,13 @@ function tool:nix:clean {
 
 function tool:nix:rebuild {
     echo "Rebuilding new nix config ..."
-    sudo nixos-rebuild switch --flake "$NIX_CONFIG_PATH"
+
+    nix_rebuild_cmd="sudo nixos-rebuild"
+    if [[ $OS == "darwin" ]]; then
+        nix_rebuild_cmd="darwin-rebuild"
+    fi
+
+    $nix_rebuild_cmd switch --flake "$NIX_CONFIG_PATH"
 }
 
 function tool:nix:fetchers {
