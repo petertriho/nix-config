@@ -51,10 +51,16 @@ return {
         },
     },
     opts = {
+        jump = {
+            autojump = true,
+        },
         search = {
             multi_window = false,
         },
         modes = {
+            search = {
+                enabled = true,
+            },
             char = {
                 enabled = false,
             },
