@@ -2,6 +2,7 @@
   pkgs,
   config,
   lib,
+  osConfig,
   ...
 }:
 let
@@ -204,6 +205,21 @@ in
     shellAliases = {
       v = "nvim";
     };
+    # https://github.com/LnL7/nix-darwin/issues/122#issuecomment-1659465635
+    loginShellInit =
+      let
+        dquote = str: "\"" + str + "\"";
+        makeBinPathList = map (path: path + "/bin");
+      in
+      if pkgs.stdenv.isDarwin then
+        ''
+          fish_add_path --move --prepend --path ${
+            lib.concatMapStringsSep " " dquote (makeBinPathList osConfig.environment.profiles)
+          }
+          set fish_user_paths $fish_user_paths
+        ''
+      else
+        "";
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
