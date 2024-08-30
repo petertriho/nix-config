@@ -76,6 +76,12 @@ function tool:nix:fetchers {
     popd
 }
 
+function tool:brew {
+    echo "Updating homebrew packages ..."
+    brew update
+    brew upgrade
+}
+
 function tool:clean {
     tool:nvim:clean
     tool:nix:clean
@@ -85,6 +91,9 @@ function tool:all {
     tool:config
     tool:nvim
     tool:nix
+    if [[ $OS == "darwin" ]]; then
+        tool:brew
+    fi
     tool:clean
 }
 
