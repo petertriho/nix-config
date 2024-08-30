@@ -69,6 +69,23 @@
     ];
   };
 
+  environment =
+    let
+      HOMEBREW_PREFIX = if pkgs.stdenv.isAarch64 then "/opt/homebrew" else "/usr/local";
+    in
+    {
+      variables = {
+        inherit HOMEBREW_PREFIX;
+        HOMEBREW_CELLAR = "${HOMEBREW_PREFIX}/Cellar";
+        HOMEBREW_REPOSITORY = HOMEBREW_PREFIX;
+        HOMEBREW_NO_ANALYTICS = "1";
+      };
+      systemPath = [
+        "${HOMEBREW_PREFIX}/bin"
+        "${HOMEBREW_PREFIX}/homebrew/sbin"
+      ];
+    };
+
   system = {
     defaults = {
       LaunchServices = {
