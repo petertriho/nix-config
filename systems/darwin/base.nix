@@ -106,6 +106,10 @@
         QuitMenuItem = true;
       };
     };
+    keyboard = {
+      enableKeyMapping = true;
+      remapCapsLockToControl = true;
+    };
     configurationRevision = outputs.rev or outputs.dirtyRev or null;
     stateVersion = lib.mkDefault 4;
   };
