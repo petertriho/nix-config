@@ -31,61 +31,50 @@
     }:
     let
       inherit (self) outputs;
+
+      getSystemConfiguration =
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config = {
+              allowUnfree = true;
+            };
+          };
+          pkgs-stable = import nixpkgs-stable { inherit system; };
+        in
+        {
+          inherit system;
+          specialArgs = {
+            inherit
+              inputs
+              outputs
+              pkgs
+              pkgs-stable
+              ;
+          };
+        };
     in
     {
       systemModules = import ./modules/system;
       homeManagerModules = import ./modules/home-manager;
 
       nixosConfigurations = {
-        WSL =
-          let
-            system = "x86_64-linux";
-            pkgs = import nixpkgs {
-              inherit system;
-              config = {
-                allowUnfree = true;
-              };
-            };
-            pkgs-stable = import nixpkgs-stable { inherit system; };
-          in
-          nixpkgs.lib.nixosSystem {
-            inherit system;
-            specialArgs = {
-              inherit
-                inputs
-                outputs
-                pkgs
-                pkgs-stable
-                ;
-            };
+        WSL = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
             modules = [ ./systems/nixos/WSL.nix ];
-          };
+          }
+        );
       };
 
       darwinConfigurations = {
-        MBP14-M1 =
-          let
-            system = "aarch64-darwin";
-            pkgs = import nixpkgs {
-              inherit system;
-              config = {
-                allowUnfree = true;
-              };
-            };
-            pkgs-stable = import nixpkgs-stable { inherit system; };
-          in
-          nix-darwin.lib.darwinSystem {
-            inherit system;
-            specialArgs = {
-              inherit
-                inputs
-                outputs
-                pkgs
-                pkgs-stable
-                ;
-            };
+        MBP14-M1 = nix-darwin.lib.darwinSystem (
+          getSystemConfiguration "aarch64-darwin"
+          // {
             modules = [ ./systems/darwin/MBP14-M1.nix ];
-          };
+          }
+        );
       };
     };
 }
