@@ -14,15 +14,15 @@ return {
         )
     end,
     config = {
-        kind = "auto",
+        kind = "split",
         commit_editor = {
-            kind = "auto",
+            kind = "split",
         },
         log_view = {
-            kind = "auto",
+            kind = "split",
         },
         reflog_view = {
-            kind = "auto",
+            kind = "split",
         },
     },
 }
