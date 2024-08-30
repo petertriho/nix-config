@@ -93,6 +93,7 @@
       };
       dock = {
         autohide = true;
+        autohide-time-modifier = 0.1;
         mineffect = "scale";
         mru-spaces = false;
         show-recents = false;
