@@ -2,9 +2,10 @@ return {
     "pechorin/any-jump.vim",
     cmd = {
         "AnyJump",
-        "AnyJumpVisual",
+        "AnyJumpArg",
         "AnyJumpBack",
         "AnyJumpLastResults",
+        "AnyJumpVisual",
     },
     keys = {
         { "gj", "<CMD>AnyJump<CR>", desc = "AnyJump" },
