@@ -45,12 +45,12 @@ let
   # https://github.com/NixOS/nixpkgs/pull/296174
   tmux-window-name = pkgs.tmuxPlugins.mkTmuxPlugin {
     pluginName = "tmux-window-name";
-    version = "unstable-2024-05-28";
+    version = "unstable-2024-08-30";
     src = pkgs.fetchFromGitHub {
       owner = "ofirgall";
       repo = "tmux-window-name";
-      rev = "28a2d277c8be8656b3c6dd45f79364583ae7c82c";
-      sha256 = "18fxqb94799nmlnjlv47zr6gh3ma6389s7dabb86yc2xda3b3kw5";
+      rev = "dc97a79ac35a9db67af558bb66b3a7ad41c924e7";
+      sha256 = "048j942jgplqvqx65ljfc278fn7qrhqx4bzmgzcvmg9kgjap7dm3";
     };
     nativeBuildInputs = [ pkgs.makeWrapper ];
     rtpFilePath = "tmux_window_name.tmux";
