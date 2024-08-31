@@ -8,6 +8,12 @@
 }:
 {
   imports = [
+    (
+      if pkgs.stdenv.isLinux then
+        inputs.home-manager.nixosModules.home-manager
+      else
+        inputs.home-manager.darwinModules.home-manager
+    )
     outputs.systemModules.helpers
   ];
 
