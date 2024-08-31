@@ -23,26 +23,14 @@
     ./pkgs/yazi.nix
   ];
 
-  home =
-    let
-      defaultUsername = "peter";
-      defaultHomeDirectory =
-        "/"
-        + lib.strings.concatStringsSep "/" [
-          (if pkgs.stdenv.isLinux then "home" else "Users")
-          defaultUsername
-        ];
-    in
-    {
-      username = lib.mkDefault defaultUsername;
-      homeDirectory = lib.mkDefault defaultHomeDirectory;
-      stateVersion = lib.mkDefault "24.05";
-      # activation = {
-      #   set_theme = lib.hm.dag.entryAfter [ "installPackages" ] ''
-      #     PATH="${pkgs.fish}/bin:${pkgs.vivid}/bin:$PATH" run fish -c "set_theme"
-      #   '';
-      # };
-    };
+  home = {
+    username = outputs.options.user;
+    homeDirectory = lib.strings.concatStrings [
+      (if pkgs.stdenv.isLinux then "/home/" else "/Users/")
+      outputs.options.user
+    ];
+    stateVersion = lib.mkDefault "24.05";
+  };
 
   programs.home-manager.enable = true;
 }

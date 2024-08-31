@@ -59,6 +59,10 @@
       systemModules = import ./modules/system;
       homeManagerModules = import ./modules/home-manager;
 
+      options = {
+        user = "peter";
+      };
+
       nixosConfigurations = {
         WSL = nixpkgs.lib.nixosSystem (
           getSystemConfiguration "x86_64-linux"

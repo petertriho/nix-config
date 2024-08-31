@@ -24,8 +24,8 @@
     interactiveShellInit = config.lib.meta.interactiveShellInit pkgs;
   };
 
-  users.users.peter = {
-    home = "/Users/peter";
+  users.users.${config.user} = {
+    home = config.homePath;
   };
 
   homebrew = {

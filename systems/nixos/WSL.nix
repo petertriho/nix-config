@@ -13,7 +13,7 @@
 
   wsl = {
     enable = true;
-    defaultUser = "peter";
+    defaultUser = config.user;
   };
   networking.hostName = "WSL";
 

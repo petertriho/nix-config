@@ -19,7 +19,7 @@
     interactiveShellInit = config.lib.meta.interactiveShellInit pkgs;
   };
 
-  users.users.peter = {
+  users.users.${config.user} = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
   };
