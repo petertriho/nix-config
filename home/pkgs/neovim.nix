@@ -6,7 +6,7 @@
   ...
 }:
 let
-  valeWithStyles = pkgs.vale.withStyles (
+  vale-with-styles = pkgs.vale.withStyles (
     s: with s; [
       alex
       google
@@ -192,7 +192,7 @@ in
     shellcheck
     selene
     statix
-    valeWithStyles
+    vale-with-styles
     yamllint
 
     # lsp
