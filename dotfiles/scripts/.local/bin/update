@@ -38,6 +38,13 @@ function tool:nvim:clean {
     fi
 }
 
+function tool:nvim:restore {
+    if command -v nvim &> /dev/null; then
+        echo "Restoring neovim plugins ..."
+        nvim --headless "+Lazy! restore" +qa
+    fi
+}
+
 function tool:nix {
     echo "Updating nix ..."
     tool:nix:flake
@@ -77,14 +84,23 @@ function tool:nix:fetchers {
 }
 
 function tool:brew {
-    echo "Updating homebrew packages ..."
-    brew update
-    brew upgrade
+    if command -v brew &> /dev/null; then
+        echo "Updating homebrew packages ..."
+        brew update
+        brew upgrade
+    fi
 }
 
 function tool:clean {
     tool:nvim:clean
     tool:nix:clean
+}
+
+function tool:restore {
+    tool:config
+    tool:nvim:restore
+    tool:nix:rebuild
+    tool:clean
 }
 
 function tool:all {
