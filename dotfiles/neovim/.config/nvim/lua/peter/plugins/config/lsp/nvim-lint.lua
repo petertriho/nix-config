@@ -115,7 +115,7 @@ return {
         }
         lint.linters.markdownlint.args = {
             "--config",
-            vim.fn.expand("$HOME/.config/code/.markdownlint.jsonc"),
+            vim.fn.expand("$HOME/.config/nvim/code/.markdownlint.jsonc"),
             "--stdin",
         }
         lint.linters.selene.condition = function(ctx)
@@ -123,7 +123,7 @@ return {
         end
         lint.linters.stylelint.args = {
             "--config",
-            vim.fn.expand("$HOME/.config/code/.stylelintrc.json"),
+            vim.fn.expand("$HOME/.config/nvim/code/.stylelintrc.json"),
         }
         lint.linters.vale.args = {
             "--config",

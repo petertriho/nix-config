@@ -236,7 +236,6 @@ in
 
   xdg.configFile = {
     "nvim".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim";
-    "code".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/code";
     "vale".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/vale";
   };
 }

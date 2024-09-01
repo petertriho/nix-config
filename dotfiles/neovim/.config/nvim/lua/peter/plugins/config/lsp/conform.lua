@@ -168,7 +168,7 @@ return {
                 stylelint = {
                     args = {
                         "--config",
-                        vim.fn.expand("$HOME/.config/code/.stylelintrc.json"),
+                        vim.fn.expand("$HOME/.config/nvim/code/.stylelintrc.json"),
                     },
                 },
                 stylua = {
@@ -177,7 +177,7 @@ return {
                         if not require("conform.util").root_file({ "stylua.toml", ".stylua.toml" })(self, ctx) then
                             extra_args = {
                                 "--config-path",
-                                vim.fn.expand("$HOME/.config/code/.stylua.toml"),
+                                vim.fn.expand("$HOME/.config/nvim/code/.stylua.toml"),
                             }
                         end
                         return extra_args

@@ -76,7 +76,7 @@ return {
     ruff = {
         settings = {
             "configuration",
-            vim.fn.expand("$HOME/.config/code/.ruff.toml"),
+            vim.fn.expand("$HOME/.config/nvim/code/.ruff.toml"),
         },
         commands = {
             RuffOrganizeImports = {
