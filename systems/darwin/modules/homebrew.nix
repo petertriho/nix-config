@@ -42,7 +42,6 @@ in
       "keyboardcleantool"
       "meetingbar"
       "nextcloud"
-      "rectangle"
       "vlc"
       "wezterm"
       # "airbuddy"
@@ -50,6 +49,7 @@ in
       # "betterdisplay"
       # "cursorsense"
       # "istat-menus"
+      # "rectangle"
       # "steermouse"
       # "swish"
     ];
