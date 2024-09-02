@@ -8,6 +8,8 @@
 {
   imports = [
     ../base.nix
+    ./modules/homebrew.nix
+    ./modules/system.nix
   ];
 
   nix.gc.interval = [
@@ -19,113 +21,15 @@
   services.nix-daemon.enable = true;
   nix.package = pkgs.nix;
 
-  programs.zsh = {
-    enable = true;
-  };
-
   users.users.${config.user} = {
     home = config.homePath;
   };
 
-  homebrew = {
+  programs.zsh = {
     enable = true;
-    onActivation = {
-      cleanup = "zap";
-    };
-    taps = [
-      "homebrew/bundle"
-      "nikitabobko/tap"
-    ];
-    brews = [
-      "mas"
-    ];
-    casks = [
-      "aerospace"
-      "aldente"
-      "appcleaner"
-      "cyberduck"
-      "docker"
-      "easy-move+resize"
-      "firefox"
-      "font-jetbrains-mono-nerd-font"
-      "google-chrome"
-      "karabiner-elements"
-      "keepingyouawake"
-      "keka"
-      "keyboardcleantool"
-      "meetingbar"
-      "nextcloud"
-      "rectangle"
-      "vlc"
-      "wezterm"
-      # "airbuddy"
-      # "bartender"
-      # "betterdisplay"
-      # "cursorsense"
-      # "istat-menus"
-      # "steermouse"
-      # "swish"
-    ];
   };
 
-  environment =
-    let
-      HOMEBREW_PREFIX = if pkgs.stdenv.isAarch64 then "/opt/homebrew" else "/usr/local";
-    in
-    {
-      variables = {
-        inherit HOMEBREW_PREFIX;
-        HOMEBREW_CELLAR = "${HOMEBREW_PREFIX}/Cellar";
-        HOMEBREW_REPOSITORY = HOMEBREW_PREFIX;
-        HOMEBREW_NO_ANALYTICS = "1";
-      };
-      systemPath = [
-        "${HOMEBREW_PREFIX}/bin"
-        "${HOMEBREW_PREFIX}/homebrew/sbin"
-      ];
-    };
-
   system = {
-    defaults = {
-      LaunchServices = {
-        LSQuarantine = false;
-      };
-      NSGlobalDomain = {
-        "com.apple.mouse.tapBehavior" = 1;
-        "com.apple.sound.beep.feedback" = 0;
-        "com.apple.sound.beep.volume" = 0.0;
-        ApplePressAndHoldEnabled = false;
-        AppleShowAllExtensions = true;
-        AppleShowAllFiles = true;
-        InitialKeyRepeat = 15;
-        KeyRepeat = 2;
-        NSAutomaticCapitalizationEnabled = false;
-        NSAutomaticDashSubstitutionEnabled = false;
-        NSAutomaticPeriodSubstitutionEnabled = false;
-        NSAutomaticQuoteSubstitutionEnabled = false;
-        NSAutomaticSpellingCorrectionEnabled = false;
-        NSDocumentSaveNewDocumentsToCloud = false;
-        NSWindowShouldDragOnGesture = true;
-      };
-      dock = {
-        autohide = true;
-        autohide-time-modifier = 0.1;
-        mineffect = "scale";
-        mru-spaces = false;
-        show-recents = false;
-        tilesize = 48;
-        # persistent-apps = [];
-        # persistent-others = [];
-      };
-      finder = {
-        _FXShowPosixPathInTitle = false;
-        QuitMenuItem = true;
-      };
-    };
-    keyboard = {
-      enableKeyMapping = true;
-      remapCapsLockToControl = true;
-    };
     configurationRevision = outputs.rev or outputs.dirtyRev or null;
     stateVersion = lib.mkDefault 4;
   };
