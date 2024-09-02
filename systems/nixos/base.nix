@@ -1,6 +1,5 @@
 {
   config,
-  pkgs,
   lib,
   ...
 }:
@@ -14,10 +13,6 @@
     "root"
     "@wheel"
   ];
-
-  programs.bash = {
-    interactiveShellInit = config.lib.meta.interactiveShellInit pkgs;
-  };
 
   users.users.${config.user} = {
     isNormalUser = true;

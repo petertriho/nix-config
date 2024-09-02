@@ -21,7 +21,6 @@
 
   programs.zsh = {
     enable = true;
-    interactiveShellInit = config.lib.meta.interactiveShellInit pkgs;
   };
 
   users.users.${config.user} = {
