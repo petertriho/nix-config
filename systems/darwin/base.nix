@@ -34,24 +34,21 @@
     };
     taps = [
       "homebrew/bundle"
+      "nikitabobko/tap"
     ];
     brews = [
       "mas"
     ];
     casks = [
-      # "airbuddy"
+      "aerospace"
       "aldente"
       "appcleaner"
-      # "bartender"
-      # "betterdisplay"
-      # "cursorsense"
       "cyberduck"
       "docker"
       "easy-move+resize"
       "firefox"
       "font-jetbrains-mono-nerd-font"
       "google-chrome"
-      # "istat-menus"
       "karabiner-elements"
       "keepingyouawake"
       "keka"
@@ -59,10 +56,15 @@
       "meetingbar"
       "nextcloud"
       "rectangle"
-      # "steermouse"
-      # "swish"
       "vlc"
       "wezterm"
+      # "airbuddy"
+      # "bartender"
+      # "betterdisplay"
+      # "cursorsense"
+      # "istat-menus"
+      # "steermouse"
+      # "swish"
     ];
   };
 

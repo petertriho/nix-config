@@ -10,6 +10,7 @@ local config = {
     hide_tab_bar_if_only_one_tab = true,
     leader = { key = leader_key, mods = "CTRL" },
     keys = {
+        { mods = "ALT", key = "Enter", action = wezterm.action.DisableDefaultAssignment },
         { mods = "LEADER|CTRL", key = leader_key, action = { SendKey = { mods = "CTRL", key = leader_key } } },
         { mods = "LEADER", key = leader_key, action = "ActivateLastTab" },
         {
