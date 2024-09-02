@@ -22,8 +22,6 @@ let
     '';
 in
 {
-  config = {
-    programs.bash.interactiveShellInit = lib.mkIf pkgs.stdenv.isLinux interactiveShellInit;
-    programs.zsh.interactiveShellInit = lib.mkIf pkgs.stdenv.isDarwin interactiveShellInit;
-  };
+  programs.bash.interactiveShellInit = lib.mkIf pkgs.stdenv.isLinux interactiveShellInit;
+  programs.zsh.interactiveShellInit = lib.mkIf pkgs.stdenv.isDarwin interactiveShellInit;
 }
