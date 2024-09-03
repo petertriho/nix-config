@@ -27,36 +27,45 @@ in
       "mas"
       "podman"
     ];
-    casks = [
-      "aerospace"
-      "appcleaner"
-      "battery"
-      "cyberduck"
-      "docker"
-      "easy-move+resize"
-      "firefox"
-      "font-jetbrains-mono-nerd-font"
-      "google-chrome"
-      "karabiner-elements"
-      "keepingyouawake"
-      "keka"
-      "keyboardcleantool"
-      "meetingbar"
-      "nextcloud"
-      "orbstack"
-      "podman-desktop"
-      "vlc"
-      "wezterm"
-      # "airbuddy"
-      # "aldente"
-      # "bartender"
-      # "betterdisplay"
-      # "cursorsense"
-      # "istat-menus"
-      # "rectangle"
-      # "steermouse"
-      # "swish"
-    ];
+    casks =
+      [
+        "aerospace"
+        "appcleaner"
+        "cyberduck"
+        "docker"
+        "easy-move+resize"
+        "firefox"
+        "font-jetbrains-mono-nerd-font"
+        "google-chrome"
+        "karabiner-elements"
+        "keepingyouawake"
+        "keka"
+        "keyboardcleantool"
+        "meetingbar"
+        "nextcloud"
+        "orbstack"
+        "podman-desktop"
+        "vlc"
+        "wezterm"
+        # "airbuddy"
+        # "bartender"
+        # "betterdisplay"
+        # "cursorsense"
+        # "istat-menus"
+        # "rectangle"
+        # "steermouse"
+        # "swish"
+      ]
+      ++ (
+        if pkgs.stdenv.isAarch64 then
+          [
+            "battery"
+          ]
+        else
+          [
+            "aldente"
+          ]
+      );
   };
 
   environment = {
