@@ -211,15 +211,12 @@ in
         dquote = str: "\"" + str + "\"";
         makeBinPathList = map (path: path + "/bin");
       in
-      if pkgs.stdenv.isDarwin then
-        ''
-          fish_add_path --move --prepend --path ${
-            lib.concatMapStringsSep " " dquote (makeBinPathList osConfig.environment.profiles)
-          }
-          set fish_user_paths $fish_user_paths
-        ''
-      else
-        "";
+      lib.mkIf pkgs.stdenv.isDarwin ''
+        fish_add_path --move --prepend --path ${
+          lib.concatMapStringsSep " " dquote (makeBinPathList osConfig.environment.profiles)
+        }
+        set fish_user_paths $fish_user_paths
+      '';
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
