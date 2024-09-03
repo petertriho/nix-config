@@ -29,8 +29,8 @@ in
     ];
     casks = [
       "aerospace"
-      "aldente"
       "appcleaner"
+      "battery"
       "cyberduck"
       "docker"
       "easy-move+resize"
@@ -48,6 +48,7 @@ in
       "vlc"
       "wezterm"
       # "airbuddy"
+      # "aldente"
       # "bartender"
       # "betterdisplay"
       # "cursorsense"
