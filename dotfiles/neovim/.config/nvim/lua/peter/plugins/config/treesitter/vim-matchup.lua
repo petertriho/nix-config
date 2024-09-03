@@ -1,5 +1,6 @@
 return {
     "andymass/vim-matchup",
+    enabled = false,
     event = "User LoadedNvimTreesitter",
     config = function()
         require("nvim-treesitter.configs").setup({
