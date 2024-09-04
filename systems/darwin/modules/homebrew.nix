@@ -22,6 +22,11 @@ in
     taps = [
       "homebrew/bundle"
       "nikitabobko/tap"
+      {
+        name = "zen-browser/browser";
+        clone_target = "https://github.com/zen-browser/desktop.git";
+        force_auto_update = true;
+      }
     ];
     brews = [
       "colima"
@@ -36,7 +41,6 @@ in
         "docker"
         "easy-move+resize"
         "firefox"
-        "floorp"
         "font-jetbrains-mono-nerd-font"
         "google-chrome"
         "karabiner-elements"
@@ -48,6 +52,7 @@ in
         "orbstack"
         "vlc"
         "wezterm"
+        "zen-browser"
         # "airbuddy"
         # "bartender"
         # "betterdisplay"
