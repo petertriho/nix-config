@@ -16,7 +16,20 @@
 
   users.users.${config.user} = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [
+      "docker"
+      "wheel"
+    ];
+  };
+
+  virtualisation = {
+    docker = {
+      enable = true;
+      autoPrune = {
+        enable = true;
+        dates = "weekly";
+      };
+    };
   };
 
   system.stateVersion = lib.mkDefault "24.05";

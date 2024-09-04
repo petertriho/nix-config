@@ -120,6 +120,8 @@ in
       di = "direnv";
       dia = "direnv allow";
       dib = "direnv block";
+      dsp = "docker system prune";
+      dspa = "docker system prune --all --volumes";
       e = "eza --classify";
       el = "eza --classify --long --header --all --git";
       et = "eza --classify --tree --level=3";
@@ -178,16 +180,6 @@ in
         "switch --flake ~/.nix-config"
       ];
       ns = "nix search nixpkgs";
-      p = "podman";
-      pc = "podman compose";
-      pcd = "podman compose down --remove-orphans";
-      pcl = "podman compose logs -f -t --tail=100";
-      pcp = "podman compose -p (git_repo_name)";
-      pcpd = "podman compose -p (git_repo_name) down --remove-orphans";
-      pcpl = "podman compose -p (git_repo_name) logs -f -t --tail=100";
-      pcpr = "podman compose -p (git_repo_name) restart";
-      pcpu = "podman compose -p (git_repo_name) up -d";
-      pcu = "podman compose up -d";
       pv = "python -m venv .venv";
       rmf = "rm -rf";
       rv = "rm -rf .venv";
