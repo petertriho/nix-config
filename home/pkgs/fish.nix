@@ -199,17 +199,25 @@ in
       v = "nvim";
     };
     # https://github.com/LnL7/nix-darwin/issues/122#issuecomment-1659465635
-    loginShellInit =
+    loginShellInit = lib.mkIf pkgs.stdenv.isDarwin (
       let
         dquote = str: "\"" + str + "\"";
         makeBinPathList = map (path: path + "/bin");
+        brewBinPathList = lib.concatMapStringsSep " " dquote (
+          with osConfig.environment.variables;
+          [
+            "${HOMEBREW_PREFIX}/bin"
+            "${HOMEBREW_PREFIX}/sbin"
+          ]
+        );
+        binPathList = lib.concatMapStringsSep " " dquote (makeBinPathList osConfig.environment.profiles);
       in
-      lib.mkIf pkgs.stdenv.isDarwin ''
-        fish_add_path --move --prepend --path ${
-          lib.concatMapStringsSep " " dquote (makeBinPathList osConfig.environment.profiles)
-        }
+      ''
+        fish_add_path --move --prepend --path ${brewBinPathList}
+        fish_add_path --move --prepend --path ${binPathList}
         set fish_user_paths $fish_user_paths
-      '';
+      ''
+    );
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 

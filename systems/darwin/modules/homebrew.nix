@@ -77,7 +77,7 @@ in
     };
     systemPath = [
       "${HOMEBREW_PREFIX}/bin"
-      "${HOMEBREW_PREFIX}/homebrew/sbin"
+      "${HOMEBREW_PREFIX}/sbin"
     ];
   };
 }
