@@ -24,6 +24,8 @@ in
       "nikitabobko/tap"
     ];
     brews = [
+      "colima"
+      "docker"
       "mas"
     ];
     casks =

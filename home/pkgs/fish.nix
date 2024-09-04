@@ -98,6 +98,7 @@ in
       aa = "arch -arm64";
       af = "afish";
       ax = "arch -x86_64";
+      c = lib.mkIf pkgs.stdenv.isDarwin "colima";
       d = "docker";
       dc = "docker compose";
       dcd = "docker compose down --remove-orphans";
