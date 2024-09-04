@@ -1,4 +1,4 @@
-{ ... }:
+{ config, ... }:
 {
   system = {
     defaults = {
@@ -29,8 +29,17 @@
         mru-spaces = false;
         show-recents = false;
         tilesize = 48;
-        # persistent-apps = [];
-        # persistent-others = [];
+        persistent-apps = [
+          "/System/Applications/Launchpad.app"
+          "/System/Cryptexes/App/System/Applications/Safari.app"
+          "/System/Applications/Mail.app"
+          "/System/Applications/Calendar.app"
+          "/Applications/Floorp.app"
+          "/Applications/WezTerm.app"
+        ];
+        persistent-others = [
+          "${config.homePath}/Downloads"
+        ];
       };
       finder = {
         _FXShowPosixPathInTitle = false;
