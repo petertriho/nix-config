@@ -9,12 +9,7 @@
 }:
 {
   imports = [
-    (
-      if pkgs.stdenv.isLinux then
-        inputs.home-manager.nixosModules.home-manager
-      else
-        inputs.home-manager.darwinModules.home-manager
-    )
+    (with inputs.home-manager; if pkgs.stdenv.isLinux then nixosModules else darwinModules).home-manager
     outputs.systemModules.helpers
     outputs.options
   ];
