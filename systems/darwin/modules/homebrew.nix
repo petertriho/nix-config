@@ -36,6 +36,7 @@ in
         "docker"
         "easy-move+resize"
         "firefox"
+        "floorp"
         "font-jetbrains-mono-nerd-font"
         "google-chrome"
         "karabiner-elements"
