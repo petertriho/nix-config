@@ -25,7 +25,6 @@ in
     ];
     brews = [
       "mas"
-      "podman"
     ];
     casks =
       [
@@ -44,7 +43,6 @@ in
         "meetingbar"
         "nextcloud"
         "orbstack"
-        "podman-desktop"
         "vlc"
         "wezterm"
         # "airbuddy"
