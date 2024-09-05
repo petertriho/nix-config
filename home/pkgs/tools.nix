@@ -1,4 +1,8 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  ...
+}:
 let
   howdoi = pkgs.python3Packages.howdoi.overridePythonAttrs (old: {
     doCheck = false;
