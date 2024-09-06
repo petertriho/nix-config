@@ -60,7 +60,7 @@ return {
                 open_file = {
                     window_picker = {
                         exclude = {
-                            filetype = require("peter.plugins.filetypes").excludes,
+                            filetype = require("peter.core.filetypes").excludes,
                             buftype = { "nofile", "terminal", "help" },
                         },
                     },

@@ -19,7 +19,7 @@ return {
             separately = {},
         }
 
-        local filetypes = require("peter.plugins.filetypes")
+        local filetypes = require("peter.core.filetypes")
 
         for _, filetype_type in pairs(filetypes) do
             if filetype_type ~= "sidebars" then

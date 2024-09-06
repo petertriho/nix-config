@@ -85,8 +85,14 @@ set_augroups({
             "BufWritePre",
             {
                 pattern = "*",
-                callback = function()
+                callback = function(event)
                     local dir = vim.fn.expand("<afile>:p:h")
+
+                    for _, filetype in ipairs(require("peter.core.filetypes").excludes) do
+                        if filetype == vim.bo[event.buf].filetype then
+                            return
+                        end
+                    end
 
                     if vim.fn.isdirectory(dir) == 0 then
                         vim.fn.mkdir(dir, "p")

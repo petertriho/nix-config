@@ -5,7 +5,7 @@ return {
     config = function()
         require("tokyonight").setup({
             style = "night",
-            sidebars = require("peter.plugins.filetypes").sidebars,
+            sidebars = require("peter.core.filetypes").sidebars,
             on_colors = function(colors)
                 colors.border_highlight = "#2d3149"
             end,

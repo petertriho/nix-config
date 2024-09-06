@@ -239,7 +239,7 @@ return {
             vi_mode_colors = vi_mode_colors,
             components = components,
             force_inactive = {
-                filetypes = require("peter.plugins.filetypes").excludes,
+                filetypes = require("peter.core.filetypes").excludes,
                 buftypes = {},
                 bufnames = {},
             },

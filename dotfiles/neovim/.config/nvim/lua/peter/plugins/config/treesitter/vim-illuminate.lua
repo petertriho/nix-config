@@ -9,7 +9,7 @@ return {
                 "regex",
             },
             delay = 100,
-            filetypes_denylist = require("peter.plugins.filetypes").excludes,
+            filetypes_denylist = require("peter.core.filetypes").excludes,
             filetypes_allowlist = {},
             modes_denylist = {},
             modes_allowlist = {},

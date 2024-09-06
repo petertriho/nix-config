@@ -15,7 +15,7 @@ return {
                 GitChange = { text = "│" },
                 GitDelete = { text = "│" },
             },
-            excluded_filetypes = require("peter.plugins.filetypes").excludes,
+            excluded_filetypes = require("peter.core.filetypes").excludes,
         })
     end,
 }

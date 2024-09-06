@@ -18,7 +18,7 @@ return {
                     filter_rules = {
                         cur_win = true,
                         floats = true,
-                        filetype = require("peter.plugins.filetypes").excludes,
+                        filetype = require("peter.core.filetypes").excludes,
                     },
                 })
             end,
