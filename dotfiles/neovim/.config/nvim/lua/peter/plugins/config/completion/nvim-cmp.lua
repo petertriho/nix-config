@@ -136,6 +136,7 @@ return {
         local default_comparators = require("cmp.config.default")().sorting.comparators
 
         cmp.setup({
+            preselect = cmp.PreselectMode.None,
             sorting = {
                 priority_weight = 2,
                 comparators = {
