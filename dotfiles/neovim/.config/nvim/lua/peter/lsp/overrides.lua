@@ -108,7 +108,7 @@ return {
     taplo = {},
     terraformls = {},
     tflint = {},
-    tsserver = {
+    ts_ls = {
         commands = {
             TSServerOrganizeImports = {
                 function()
