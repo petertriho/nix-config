@@ -9,10 +9,6 @@
   ];
 
   nix.gc.dates = "weekly";
-  nix.settings.trusted-users = [
-    "root"
-    "@wheel"
-  ];
 
   users.users.${config.user} = {
     isNormalUser = true;
