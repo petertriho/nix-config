@@ -54,6 +54,7 @@ keymap("x", "<leader>p", [["_dP]], { desc = "Paste_" })
 keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
 keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
 
+keymap("n", "<leader>ac", ":!!<CR>", { desc = "Last Command" })
 keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
 keymap("n", "<leader>ap", 'ggVG"+p', { desc = "Paste File" })
 keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "Yank File" })
