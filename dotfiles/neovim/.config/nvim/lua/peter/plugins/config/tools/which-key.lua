@@ -33,7 +33,7 @@ return {
                 { "<leader>l", group = "lsp" },
                 { "<leader>t", group = "telescope" },
             },
-            { mode = { "n", "x" }, { "<leader>a", "actions" } },
+            { mode = { "n", "x" }, { "<leader>a", group = "actions" } },
             -- vim-abolish
             {
                 mode = "n",
