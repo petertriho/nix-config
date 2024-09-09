@@ -294,6 +294,10 @@ return {
                             or "󰌒"
                         local tab = vim.api.nvim_get_option_value("shiftwidth", { buf = bufnr })
 
+                        if tab == 0 then
+                            tab = vim.api.nvim_get_option_value("tabstop", { buf = bufnr })
+                        end
+
                         return string.format(
                             "%s  %s  %s %d   %d",
                             file_enc:upper(),
