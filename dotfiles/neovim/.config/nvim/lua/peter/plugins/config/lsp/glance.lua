@@ -2,10 +2,10 @@ return {
     "dnlhc/glance.nvim",
     cmd = "Glance",
     keys = {
-        { "gpd", "<CMD>Glance definitions<CR>", desc = "Definitions" },
-        { "gpr", "<CMD>Glance references<CR>", desc = "References" },
-        { "gpy", "<CMD>Glance type_definitions<CR>", desc = "Type Definitions" },
-        { "gpi", "<CMD>Glance implementations<CR>", desc = "Implementations" },
+        { "gD", "<CMD>Glance definitions<CR>", desc = "Definitions" },
+        { "gR", "<CMD>Glance references<CR>", desc = "References" },
+        { "gY", "<CMD>Glance type_definitions<CR>", desc = "Type Definitions" },
+        { "gM", "<CMD>Glance implementations<CR>", desc = "Implementations" },
     },
     config = function()
         local glance = require("glance")
@@ -13,6 +13,9 @@ return {
 
         glance.setup({
             height = 36,
+            theme = {
+                mode = "darken",
+            },
             mappings = {
                 list = {
                     ["\\"] = actions.jump_vsplit,

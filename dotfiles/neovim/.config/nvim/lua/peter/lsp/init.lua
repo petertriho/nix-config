@@ -34,7 +34,7 @@ local function lsp_attach_callback(args)
     buf_keymap("n", "grl", "<CMD>lua vim.diagnostic.setloclist()<CR>", { desc = "LDiagnostics" })
 
     lsp_keymap("textDocument/definition", "n", "gd", "<CMD>lua vim.lsp.buf.definition()<CR>", "Declaration")
-    lsp_keymap("textDocument/declaration", "n", "gD", "<CMD>lua vim.lsp.buf.declaration()<CR>", "Declaration")
+    lsp_keymap("textDocument/declaration", "n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", "Declaration")
     lsp_keymap("textDocument/hover", "n", "K", "<CMD>lua vim.lsp.buf.hover()<CR>", "Hover")
     lsp_keymap("textDocument/implementation", "n", "gri", "<CMD>lua vim.lsp.buf.implementation()<CR>", "Implementation")
     lsp_keymap(
