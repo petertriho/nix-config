@@ -22,11 +22,6 @@ in
     taps = [
       "homebrew/bundle"
       "nikitabobko/tap"
-      {
-        name = "zen-browser/browser";
-        clone_target = "https://github.com/zen-browser/desktop.git";
-        force_auto_update = true;
-      }
     ];
     brews = [
       "colima"
