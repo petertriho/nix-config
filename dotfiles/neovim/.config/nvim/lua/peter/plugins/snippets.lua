@@ -54,6 +54,34 @@ M.setup = function()
     })
     ls.filetype_extend("NeogitCommitMessage", { "gitcommit" })
 
+    ls.add_snippets("go", {
+        s(
+            "testfunc",
+            fmt(
+                [[
+            func Test{1}(t *testing.T) {{
+                var tests = []struct {{
+                    input  string
+                    output string
+                }}{{
+                }}
+
+                for _, tt := range tests {{
+                    testname := fmt.Sprintf("%v,%v", tt.input, tt.output)
+                    t.Run(testname, func(t *testing.T) {{
+                        output := {2}(tt.input)
+                        if output != tt.output {{
+                            t.Errorf("got %v, expected %v", output, tt.output)
+                        }}
+                    }})
+                }}
+            }}
+        ]],
+                { i(1, "Foo"), i(2, "Bar") }
+            )
+        ),
+    })
+
     ls.add_snippets("yaml", {
         s("amd", {
             t("platform: linux/amd64"),
