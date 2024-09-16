@@ -41,7 +41,6 @@
           "flakes"
         ];
         warn-dirty = false;
-        auto-optimise-store = true;
         trusted-users = [
           "root"
           (if pkgs.stdenv.isLinux then "@wheel" else "@admin")

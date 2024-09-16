@@ -9,6 +9,7 @@
   ];
 
   nix.gc.dates = "weekly";
+  nix.settings.auto-optimise-store = true;
 
   users.users.${config.user} = {
     isNormalUser = true;

@@ -20,6 +20,7 @@
 
   services.nix-daemon.enable = true;
   nix.package = pkgs.nix;
+  nix.settings.auto-optimise-store = false;
 
   users.users.${config.user} = {
     home = config.homePath;
