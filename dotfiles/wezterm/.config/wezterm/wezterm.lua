@@ -5,7 +5,17 @@ local leader_key = "b"
 local config = {
     color_scheme = "tokyonight",
     bold_brightens_ansi_colors = true,
-    -- harfbuzz_features = { "calt=0", "clig=0", "liga=0" },
+    harfbuzz_features = {
+        -- https://github.com/JetBrains/JetBrainsMono/wiki/OpenType-features#list-of-features
+        "calt=0", -- ligatures off
+        "clig=0",
+        "liga=0",
+        "zero=1", -- slashed zero
+        "cv06=1", -- 'm' smaller middle apex
+        "cv07=1", -- 'w' smaller middle apex
+        "cv12=1", -- 'u spur
+        "cv14=1", -- '¢$' broken strikes
+    },
     window_close_confirmation = "NeverPrompt",
     hide_tab_bar_if_only_one_tab = true,
     leader = { key = leader_key, mods = "CTRL" },
