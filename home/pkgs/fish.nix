@@ -141,6 +141,7 @@ in
       gdi = "git diff";
       gdt = "git difftool";
       gf = "git fetch";
+      gg = "git-gone";
       gl = "begin; set -lx GIT_EXTERNAL_DIFF difft; git log -p --ext-diff; end";
       gm = "git merge";
       gma = "git merge --abort";
