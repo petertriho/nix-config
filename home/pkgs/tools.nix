@@ -18,6 +18,7 @@ in
     fd
     fx
     fzf
+    git-gone
     glow
     howdoi
     hyperfine
