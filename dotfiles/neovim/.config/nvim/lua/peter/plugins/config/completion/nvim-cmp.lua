@@ -169,17 +169,15 @@ return {
                 }),
             },
             mapping = {
-                ["<C-j>"] = select_next_item,
-                ["<C-k>"] = select_prev_item,
-                ["<Tab>"] = select_next_item,
-                ["<S-Tab>"] = select_prev_item,
-                ["<C-n>"] = select_next_snippet,
-                ["<C-p>"] = select_prev_snippet,
+                ["<Tab>"] = select_next_snippet,
+                ["<S-Tab>"] = select_prev_snippet,
+                ["<C-n>"] = select_next_item,
+                ["<C-p>"] = select_prev_item,
                 ["<C-d>"] = cmp.mapping(cmp.mapping.scroll_docs(4), { "c", "i" }),
                 ["<C-u>"] = cmp.mapping(cmp.mapping.scroll_docs(-4), { "c", "i" }),
                 ["<C-Space>"] = cmp.mapping(cmp.mapping.complete(), { "c", "i" }),
                 ["<C-c>"] = cmp.mapping(cmp.mapping.close(), { "c", "i" }),
-                ["<CR>"] = cmp.mapping.confirm({
+                ["<C-y>"] = cmp.mapping.confirm({
                     behavior = cmp.ConfirmBehavior.Replace,
                     select = false,
                 }),

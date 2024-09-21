@@ -91,14 +91,10 @@ return {
                 selection_caret = "  ",
                 mappings = {
                     i = {
-                        ["<C-j>"] = actions.move_selection_next,
-                        ["<C-k>"] = actions.move_selection_previous,
                         ["<C-l>"] = actions_layout.toggle_preview,
                         ["<c-s>"] = flash,
                     },
                     n = {
-                        ["<C-j>"] = actions.move_selection_next,
-                        ["<C-k>"] = actions.move_selection_previous,
                         ["<C-l>"] = actions_layout.toggle_preview,
                         s = flash,
                     },
