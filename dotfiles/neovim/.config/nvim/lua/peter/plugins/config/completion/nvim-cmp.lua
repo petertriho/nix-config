@@ -224,6 +224,7 @@ return {
         })
 
         cmp.setup.cmdline("/", {
+            mapping = cmp.mapping.preset.cmdline(),
             sources = {
                 { name = "fuzzy_buffer" },
                 { name = "buffer" },
@@ -231,6 +232,7 @@ return {
         })
 
         cmp.setup.cmdline(":", {
+            mapping = cmp.mapping.preset.cmdline(),
             sources = {
                 { name = "cmdline" },
                 { name = "cmdline_history" },
