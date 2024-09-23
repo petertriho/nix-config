@@ -179,7 +179,7 @@ return {
                 ["<C-c>"] = cmp.mapping(cmp.mapping.close(), { "c", "i" }),
                 ["<C-y>"] = cmp.mapping.confirm({
                     behavior = cmp.ConfirmBehavior.Replace,
-                    select = false,
+                    select = true,
                 }),
             },
             snippet = {
