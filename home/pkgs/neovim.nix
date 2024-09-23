@@ -296,7 +296,7 @@ in
     nodePackages.typescript-language-server
     quick-lint-js
     rust-analyzer
-    superhtml # TODO: investigate error: unable to connect to server: TemporaryNameServerFailure
+    superhtml
     svelte-language-server
     tailwindcss-language-server
     taplo
