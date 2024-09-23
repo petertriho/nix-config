@@ -213,7 +213,7 @@ let
   superhtml =
     with pkgs;
     stdenv.mkDerivation {
-      name = "superhtml";
+      pname = "superhtml";
       version = "unstable-2024-09-17";
 
       src = fetchFromGitHub {
