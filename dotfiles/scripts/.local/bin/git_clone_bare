@@ -26,4 +26,6 @@ branch=$(git branch --show-current)
 git branch --set-upstream-to="origin/${branch}" "$branch"
 git worktree add "$branch"
 
+echo "export GIT_DIR=bare.git" > .envrc
+
 popd > /dev/null
