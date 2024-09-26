@@ -4,7 +4,7 @@ set -euo pipefail
 
 repository=$1
 
-export GIT_DIR=bare.git
+export GIT_DIR=.git
 
 if [[ $# -ge 2 ]] && [[ -n $2 ]]; then
     directory=$2
@@ -25,7 +25,5 @@ git fetch
 branch=$(git branch --show-current)
 git branch --set-upstream-to="origin/${branch}" "$branch"
 git worktree add "$branch"
-
-echo "export GIT_DIR=bare.git" > .envrc
 
 popd > /dev/null
