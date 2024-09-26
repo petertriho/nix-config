@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repository=$1
+default_branch=${2:-main}
+
+if [[ $# -ge 2 ]] && [[ -n $2 ]]; then
+    directory=$2
+else
+    directory=$(git_repo_name "$repository")
+fi
+
+mkdir -p "${directory}/${default_branch}"
+
+git clone "$repository" "${directory}/${default_branch}"
+
+pushd "${directory}/${default_branch}" > /dev/null
+
+git config set worktree.guessRemote true
+
+popd > /dev/null

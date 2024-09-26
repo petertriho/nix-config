@@ -136,6 +136,7 @@ in
       gcam = "git commit -am";
       gcl = "git clone";
       gclb = "git_clone_bare";
+      gcls = "git_clone_special";
       gco = "git checkout";
       gcob = "git checkout -b";
       gdi = "git diff";
