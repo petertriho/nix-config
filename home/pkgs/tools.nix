@@ -46,7 +46,7 @@ in
       "--cycle"
       "--reverse"
       "--height='80%'"
-      "--bind='ctrl-space:toggle-preview'"
+      "--bind='ctrl-l:toggle-preview'"
       "--bind='ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up'"
       "--bind='alt-a:select-all,alt-d:deselect-all'"
       "--color='dark'"
