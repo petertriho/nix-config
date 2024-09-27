@@ -3,13 +3,14 @@
 set -euo pipefail
 
 repository=$1
-default_branch=${2:-main}
 
 if [[ $# -ge 2 ]] && [[ -n $2 ]]; then
     directory=$2
 else
     directory=$(git_repo_name "$repository")
 fi
+
+default_branch=${3:-main}
 
 mkdir -p "${directory}/${default_branch}"
 
