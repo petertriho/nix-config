@@ -83,9 +83,16 @@ return {
                 function()
                     local params = {
                         command = "ruff.applyOrganizeImports",
-                        arguments = { vim.api.nvim_buf_get_name(0) },
+                        arguments = { vim.uri_from_bufnr(0) },
                     }
-                    vim.lsp.buf.execute_command(params)
+
+                    local clients = require("lspconfig.util").get_lsp_clients({
+                        bufnr = vim.api.nvim_get_current_buf(),
+                        name = "ruff",
+                    })
+                    for _, client in ipairs(clients) do
+                        client.request("workspace/executeCommand", params, nil, 0)
+                    end
                 end,
                 description = "Organize Imports",
             },
