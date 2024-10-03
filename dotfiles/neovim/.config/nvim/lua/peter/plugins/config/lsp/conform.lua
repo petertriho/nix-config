@@ -75,6 +75,7 @@ return {
                 go = { "goimports", "gofmt" },
                 graphql = prettier,
                 html = with_prettier_formatter({ "tidy" }),
+                htmldjango = with_prettier_formatter({ "tidy" }),
                 java = { "google_java_format" },
                 javascript = javascript_formatters,
                 javascriptreact = javascript_formatters,
