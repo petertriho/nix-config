@@ -28,6 +28,8 @@ in
     nurl
     openssl
     ripgrep
+    sqlite
+    sqlite-web
     tabiew
     tldr
     unzip
