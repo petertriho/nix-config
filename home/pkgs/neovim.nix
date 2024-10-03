@@ -244,6 +244,10 @@ in
     # dependencies
     gcc
     gnumake
+    # nvim-markdown-preview
+    pandoc
+    nodePackages.live-server
+
 
     # formatters
     alejandra
