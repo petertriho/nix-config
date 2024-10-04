@@ -144,6 +144,8 @@ return {
             css = { "stylelint" },
             dockerfile = { "hadolint" },
             html = { "tidy" },
+            htmlangular = { "tidy" },
+            htmldjango = { "tidy" },
             json = { "jq" },
             jsonc = { "jq" },
             lua = { "luacheck", "selene" },
