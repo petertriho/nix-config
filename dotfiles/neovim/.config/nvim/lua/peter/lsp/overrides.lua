@@ -1,3 +1,13 @@
+local execute_command = function(client_name, params)
+    local clients = require("lspconfig.util").get_lsp_clients({
+        bufnr = vim.api.nvim_get_current_buf(),
+        name = client_name,
+    })
+    for _, client in ipairs(clients) do
+        client.request("workspace/executeCommand", params, nil, 0)
+    end
+end
+
 return {
     basedpyright = {
         settings = {
@@ -79,20 +89,23 @@ return {
             vim.fn.expand("$HOME/.config/nvim/code/.ruff.toml"),
         },
         commands = {
+            RuffAutoFix = {
+                function()
+                    execute_command("ruff", {
+                        command = "ruff.applyAutofix",
+                        arguments = {
+                            { uri = vim.uri_from_bufnr(bufnr) },
+                        },
+                    })
+                end,
+                description = "Auto-fix",
+            },
             RuffOrganizeImports = {
                 function()
-                    local params = {
+                    execute_command("ruff", {
                         command = "ruff.applyOrganizeImports",
                         arguments = { { uri = vim.uri_from_bufnr(0), version = 123 } },
-                    }
-
-                    local clients = require("lspconfig.util").get_lsp_clients({
-                        bufnr = vim.api.nvim_get_current_buf(),
-                        name = "ruff",
                     })
-                    for _, client in ipairs(clients) do
-                        client.request("workspace/executeCommand", params, nil, 0)
-                    end
                 end,
                 description = "Organize Imports",
             },
@@ -120,11 +133,10 @@ return {
         commands = {
             TSServerOrganizeImports = {
                 function()
-                    local params = {
+                    execute_command("ts_ls", {
                         command = "_typescript.organizeImports",
                         arguments = { vim.api.nvim_buf_get_name(0) },
-                    }
-                    vim.lsp.buf.execute_command(params)
+                    })
                 end,
                 description = "Organize Imports",
             },
