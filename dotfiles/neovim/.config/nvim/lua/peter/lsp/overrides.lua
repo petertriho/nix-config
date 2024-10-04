@@ -83,7 +83,7 @@ return {
                 function()
                     local params = {
                         command = "ruff.applyOrganizeImports",
-                        arguments = { vim.uri_from_bufnr(0) },
+                        arguments = { { uri = vim.uri_from_bufnr(0), version = 123 } },
                     }
 
                     local clients = require("lspconfig.util").get_lsp_clients({
