@@ -6,22 +6,65 @@
   ...
 }:
 let
-  vale-with-styles = pkgs.vale.withStyles (
-    s: with s; [
-      alex
-      google
-      microsoft
-      proselint
-      readability
-      write-good
-    ]
-  );
-
   removePythonLicense =
     # sh
     ''
       rm $out/lib/python*/site-packages/LICENSE
     '';
+
+  # angular-language-server =
+  #   with pkgs;
+  #   stdenv.mkDerivation rec {
+  #     pname = "angular-language-server";
+  #     version = "18.2.0";
+  #
+  #     src = fetchFromGitHub {
+  #       owner = "angular";
+  #       repo = "vscode-ng-language-service";
+  #       rev = "v${version}";
+  #       hash = "sha256-9+WWKvy/Vu4k0BzJwPEme+9+eDPI1QP0+Ds1CbErCN8=";
+  #     };
+  #
+  #     offlineCache = fetchYarnDeps {
+  #       yarnLock = src + "/yarn.lock";
+  #       hash = "sha256-N0N0XbNQRN7SHkilzo/xNlmn9U/T/WL5x8ttTqUmXl0=";
+  #     };
+  #
+  #     nativeBuildInputs = [
+  #       yarnConfigHook
+  #       yarnBuildHook
+  #       yarnInstallHook
+  #     ];
+  #
+  #     buildInputs = [
+  #       nodejs
+  #     ];
+  #
+  #     postPatch = ''
+  #       substituteInPlace package.json \
+  #       --replace "yarn bazel build :npm" "yarn --offline bazel build :npm"
+  #     '';
+  #
+  #     yarnBuildScript = "compile";
+  #
+  #     installPhase =
+  #       # sh
+  #       ''
+  #         runHook preInstall
+  #
+  #         mkdir -p $out/$pname
+  #
+  #         cp -r . $out/$pname
+  #
+  #         ls -la $out/$pname/server
+  #         exit 1
+  #
+  #         makeWrapper ${lib.getExe nodejs} "$out/bin/ngserver" \
+  #           --add-flags "$out/$pname/server/index.js"
+  #
+  #         runHook postInstall
+  #       '';
+  #   };
 
   autoflake = pkgs.python3Packages.autoflake.overridePythonAttrs { postFixup = removePythonLicense; };
 
@@ -72,10 +115,12 @@ let
         ''
           runHook preInstall
 
-          cp -r . $out
+          mkdir -p $out/$pname
+
+          cp -r . $out/$pname
 
           makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
-            --add-flags "$out/out/cli.js"
+            --add-flags "$out/$pname/out/cli.js"
 
           installShellCompletion --cmd fish-lsp \
             --fish <($out/bin/fish-lsp complete --fish)
@@ -152,6 +197,17 @@ let
       nativeBuildInputs = [ setuptools ];
       propagatedBuildInputs = [ pathspec ];
     };
+
+  vale-with-styles = pkgs.vale.withStyles (
+    s: with s; [
+      alex
+      google
+      microsoft
+      proselint
+      readability
+      write-good
+    ]
+  );
 in
 {
   home.packages = with pkgs; [
@@ -199,6 +255,7 @@ in
     yamllint
 
     # lsp
+    # angular-language-server
     basedpyright
     bash-language-server
     biome
