@@ -134,7 +134,7 @@ let
       rev = "ae5ba5f6ec3de7bf3869800cf95b021994708936";
       sha256 = "0jybpka8d5az6v0k5az1nx4nb4ncmlk01cxp84fhy5vkmz1np7dw";
     };
-    npmDepsHash = "sha256-wKs7x1OGX89xT698i3WAz5iNsv71nbmYe8F9DjXO3tI=";
+    npmDepsHash = "sha256-SLRsgtAyPPHwrzAUZ9LQi+cV2Gyu0+XmZAhdq8/F3s8=";
     dontNpmBuild = true;
   };
 
