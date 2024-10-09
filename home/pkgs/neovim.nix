@@ -127,12 +127,12 @@ let
 
   sort-package-json = pkgs.buildNpmPackage {
     pname = "sort-package-json";
-    version = "unstable-2024-08-22";
+    version = "unstable-2024-10-08";
     src = pkgs.fetchFromGitHub {
       owner = "keithamus";
       repo = "sort-package-json";
-      rev = "92de3ef894435e402d76ae1e8444c4683a46ea2c";
-      sha256 = "0bg19synkc6szlr4lkhg9v8zz41zp7ji56fscfbfma0kc61qpdvb";
+      rev = "ae5ba5f6ec3de7bf3869800cf95b021994708936";
+      sha256 = "0jybpka8d5az6v0k5az1nx4nb4ncmlk01cxp84fhy5vkmz1np7dw";
     };
     npmDepsHash = "sha256-wKs7x1OGX89xT698i3WAz5iNsv71nbmYe8F9DjXO3tI=";
     dontNpmBuild = true;
