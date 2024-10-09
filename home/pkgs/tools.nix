@@ -21,6 +21,7 @@ in
     git-gone
     glow
     howdoi
+    httpie
     hyperfine
     iperf3
     jq
