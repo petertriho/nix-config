@@ -13,6 +13,7 @@ in
     final: prev:
     import ../pkgs { pkgs = final; }
     // {
+      fishPlugins = (prev.fishPlugins or { }) // import ../pkgs/fish-plugins { pkgs = final; };
       tmuxPlugins = (prev.tmuxPlugins or { }) // import ../pkgs/tmux-plugins { pkgs = final; };
     };
 

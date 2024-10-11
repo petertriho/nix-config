@@ -5,95 +5,28 @@
   osConfig,
   ...
 }:
-let
-  abbreviation-tips = {
-    name = "abbreviation-tips";
-    src = pkgs.fetchFromGitHub {
-      owner = "gazorby";
-      repo = "fish-abbreviation-tips";
-      rev = "8ed76a62bb044ba4ad8e3e6832640178880df485";
-      sha256 = "05b5qp7yly7mwsqykjlb79gl24bs6mbqzaj5b3xfn3v2b7apqnqp";
-    };
-  };
-
-  async-prompt-fork = {
-    name = "async-prompt";
-    src = pkgs.fetchFromGitHub {
-      owner = "petertriho";
-      repo = "fish-async-prompt";
-      rev = "9ea45bc236c9e549ab8781195f6b7fd81d9f78a4";
-      sha256 = "0hwji3h6cx93agq199f4rjdnp97nzsvasnij7nrx3ljrisd8bfav";
-    };
-  };
-
-  colored-man-pages-fork = {
-    name = "colored-man-pages";
-    src = pkgs.fetchFromGitHub {
-      owner = "petertriho";
-      repo = "colored_man_pages.fish";
-      rev = "d6352e9b88bb9941e12c839bc8e07ddfa751dab1";
-      sha256 = "0ybg88s6ig6cnwnih2m1dbisj9xhydsl6f659bc6rc28xg9idri3";
-    };
-  };
-
-  replay = {
-    name = "replay";
-    src = pkgs.fetchFromGitHub {
-      owner = "jorgebucaran";
-      repo = "replay.fish";
-      rev = "d2ecacd3fe7126e822ce8918389f3ad93b14c86c";
-      sha256 = "1n2xji4w5k1iyjsvnwb272wx0qh5jfklihqfz0h1a1bd3zp3sd2g";
-    };
-  };
-
-  upto = {
-    name = "upto";
-    src = pkgs.fetchFromGitHub {
-      owner = "Markcial";
-      repo = "upto";
-      rev = "2d1f35453fb55747d50da8c1cb1809840f99a646";
-      sha256 = "12rbffk1z61j4bhfxdjrksbky2x4jlak08s5j44dkxdizns9gz9f";
-    };
-  };
-in
 {
   programs.fish = {
     enable = true;
-    plugins = with pkgs; [
-      # {
-      #   name = "async-prompt";
-      #   src = fishPlugins.async-prompt.src;
-      # }
-      {
-        name = "autopair";
-        inherit (fishPlugins.autopair) src;
-      }
-      # {
-      #   name = "colored-man-pages";
-      #   src = fishPlugins.colored-man-pages.src;
-      # }
-      {
-        name = "forgit";
-        inherit (fishPlugins.forgit) src;
-      }
-      {
-        name = "fzf-fish";
-        inherit (fishPlugins.fzf-fish) src;
-      }
-      {
-        name = "puffer";
-        inherit (fishPlugins.puffer) src;
-      }
-      {
-        name = "sponge";
-        inherit (fishPlugins.sponge) src;
-      }
-      abbreviation-tips
-      async-prompt-fork
-      colored-man-pages-fork
-      replay
-      upto
-    ];
+    plugins =
+      with pkgs.fishPlugins;
+      lib.lists.forEach
+        [
+          abbreviation-tips
+          async-prompt-fork
+          autopair
+          colored-man-pages-fork
+          forgit
+          fzf-fish
+          puffer
+          replay
+          sponge
+          upto
+        ]
+        (x: {
+          name = x.pname;
+          inherit (x) src;
+        });
     shellAbbrs = {
       aa = "arch -arm64";
       af = "afish";
