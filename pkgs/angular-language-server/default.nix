@@ -18,9 +18,9 @@ buildNpmPackage rec {
     makeWrapper
   ];
 
+  patches = [ ./package-json.diff ];
+
   postPatch = ''
-    rm ./package.json
-    ln -s ${./package.json} package.json
     ln -s ${./package-lock.json} package-lock.json
   '';
 
