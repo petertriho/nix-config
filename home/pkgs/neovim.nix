@@ -6,197 +6,20 @@
   ...
 }:
 let
-  removePythonLicense =
-    # sh
-    ''
-      rm $out/lib/python*/site-packages/LICENSE
-    '';
-
   # angular-language-server =
   #   with pkgs;
-  #   stdenv.mkDerivation rec {
-  #     pname = "angular-language-server";
+  #   buildNpmPackage rec {
+  #     name = "angular-language-server";
   #     version = "18.2.0";
   #
-  #     src = fetchFromGitHub {
-  #       owner = "angular";
-  #       repo = "vscode-ng-language-service";
-  #       rev = "v${version}";
-  #       hash = "sha256-9+WWKvy/Vu4k0BzJwPEme+9+eDPI1QP0+Ds1CbErCN8=";
+  #     src = fetchurl {
+  #       url = "https://registry.npmjs.org/@angular/language-server/-/language-server-${version}.tgz";
+  #       hash = "sha256-UvYOxs59jOO9Yf0tvX96P4R/36qPeEne+NQAFkg9Eis=";
   #     };
   #
-  #     offlineCache = fetchYarnDeps {
-  #       yarnLock = src + "/yarn.lock";
-  #       hash = "sha256-N0N0XbNQRN7SHkilzo/xNlmn9U/T/WL5x8ttTqUmXl0=";
-  #     };
-  #
-  #     nativeBuildInputs = [
-  #       yarnConfigHook
-  #       yarnBuildHook
-  #       yarnInstallHook
-  #     ];
-  #
-  #     buildInputs = [
-  #       nodejs
-  #     ];
-  #
-  #     postPatch = ''
-  #       substituteInPlace package.json \
-  #       --replace "yarn bazel build :npm" "yarn --offline bazel build :npm"
-  #     '';
-  #
-  #     yarnBuildScript = "compile";
-  #
-  #     installPhase =
-  #       # sh
-  #       ''
-  #         runHook preInstall
-  #
-  #         mkdir -p $out/$pname
-  #
-  #         cp -r . $out/$pname
-  #
-  #         ls -la $out/$pname/server
-  #         exit 1
-  #
-  #         makeWrapper ${lib.getExe nodejs} "$out/bin/ngserver" \
-  #           --add-flags "$out/$pname/server/index.js"
-  #
-  #         runHook postInstall
-  #       '';
+  #     npmDepsHash = "sha256-UvYOxs59jOO9Yf0tvX96P4R/36qPeEne+NQAFkg9Eis=";
+  #     dontNpmBuild = true;
   #   };
-
-  autoflake = pkgs.python3Packages.autoflake.overridePythonAttrs { postFixup = removePythonLicense; };
-
-  docformatter = pkgs.python3Packages.docformatter.overridePythonAttrs {
-    postFixup = removePythonLicense;
-  };
-
-  fish-lsp =
-    with pkgs;
-    stdenv.mkDerivation rec {
-      pname = "fish-lsp";
-      version = "unstable-2024-07-26";
-
-      src = fetchFromGitHub {
-        owner = "ndonfris";
-        repo = "fish-lsp";
-        rev = "v1.0.8-1";
-        hash = "sha256-u125EZXQEouVbmJuoW3KNDNqLB5cS/TzblXraClcw6Q=";
-      };
-
-      yarnOfflineCache = fetchYarnDeps {
-        yarnLock = src + "/yarn.lock";
-        hash = "sha256-hHw7DbeqaCapqx4dK5Y3sPut94ist9JOU8g9dd6gBdo=";
-      };
-
-      nativeBuildInputs = [
-        yarnBuildHook
-        yarnConfigHook
-        npmHooks.npmInstallHook
-        nodejs
-        installShellFiles
-        makeWrapper
-        # fish-lsp dependencies
-        fish
-        which
-      ];
-
-      yarnBuildScript = "setup";
-
-      postBuild =
-        # sh
-        ''
-          yarn --offline compile
-        '';
-
-      installPhase =
-        # sh
-        ''
-          runHook preInstall
-
-          mkdir -p $out/$pname
-
-          cp -r . $out/$pname
-
-          makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
-            --add-flags "$out/$pname/out/cli.js"
-
-          installShellCompletion --cmd fish-lsp \
-            --fish <($out/bin/fish-lsp complete --fish)
-
-          runHook postInstall
-        '';
-    };
-
-  pyemojify =
-    with pkgs.python3Packages;
-    buildPythonPackage rec {
-      pname = "pyemojify";
-      version = "0.2.0";
-      src = pkgs.fetchPypi {
-        inherit pname version;
-        sha256 = "sha256-a7w8jVLj3z5AObwMrTYW0+tXm0xuFaEb1eDvDVeVlqk=";
-      };
-      propagatedBuildInputs = [ click ];
-      doCheck = false;
-    };
-
-  pybetter =
-    with pkgs.python3Packages;
-    buildPythonApplication rec {
-      pname = "pybetter";
-      version = "0.4.1";
-      format = "pyproject";
-      src = pkgs.fetchPypi {
-        inherit pname version;
-        sha256 = "sha256-tDHPGBSTVIWrHGnj0k8ezN5KTRDx2ty5yhFEkCtvnHk=";
-      };
-      postPatch = ''
-        substituteInPlace pyproject.toml \
-        --replace poetry.masonry.api poetry.core.masonry.api \
-        --replace "poetry>=" "poetry-core>="
-      '';
-      postFixup = removePythonLicense;
-
-      doCheck = false;
-      dontCheckRuntimeDeps = true;
-      nativeBuildInputs = [ poetry-core ];
-      propagatedBuildInputs = [
-        click
-        libcst
-        pyemojify
-        pygments
-      ];
-    };
-
-  sort-package-json = pkgs.buildNpmPackage {
-    pname = "sort-package-json";
-    version = "unstable-2024-10-08";
-    src = pkgs.fetchFromGitHub {
-      owner = "keithamus";
-      repo = "sort-package-json";
-      rev = "ae5ba5f6ec3de7bf3869800cf95b021994708936";
-      sha256 = "0jybpka8d5az6v0k5az1nx4nb4ncmlk01cxp84fhy5vkmz1np7dw";
-    };
-    npmDepsHash = "sha256-SLRsgtAyPPHwrzAUZ9LQi+cV2Gyu0+XmZAhdq8/F3s8=";
-    dontNpmBuild = true;
-  };
-
-  ssort =
-    with pkgs.python3Packages;
-    buildPythonApplication rec {
-      pname = "ssort";
-      version = "0.13.0";
-      format = "pyproject";
-      src = pkgs.fetchPypi {
-        inherit pname version;
-        sha256 = "sha256-p7NedyX6k7xr2Cg563AIPPMb1YVFNXU0KI2Yikr47E0=";
-      };
-      doCheck = false;
-      nativeBuildInputs = [ setuptools ];
-      propagatedBuildInputs = [ pathspec ];
-    };
 
   vale-with-styles = pkgs.vale.withStyles (
     s: with s; [

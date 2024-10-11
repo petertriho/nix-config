@@ -3,12 +3,6 @@
   lib,
   ...
 }:
-let
-  howdoi = pkgs.python3Packages.howdoi.overridePythonAttrs (old: {
-    doCheck = false;
-    meta.broken = false;
-  });
-in
 {
   home.packages = with pkgs; [
     cht-sh

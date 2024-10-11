@@ -32,11 +32,17 @@
     let
       inherit (self) outputs;
 
+      overlays = import ./overlays { inherit inputs; };
+
       getSystemConfiguration =
         system:
         let
           pkgs = import nixpkgs {
             inherit system;
+            overlays = [
+              overlays.additions
+              overlays.modifications
+            ];
             config = {
               allowUnfree = true;
             };
