@@ -9,6 +9,7 @@ local execute_command = function(client_name, params)
 end
 
 return {
+    angularls = {},
     basedpyright = {
         settings = {
             basedpyright = {
