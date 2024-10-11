@@ -1,79 +1,8 @@
 {
   pkgs,
   config,
-  lib,
   ...
 }:
-let
-  tmux-sessionist = pkgs.tmuxPlugins.mkTmuxPlugin {
-    pluginName = "sessionist";
-    version = "unstable-2023-06-14";
-    src = pkgs.fetchFromGitHub {
-      owner = "petertriho";
-      repo = "tmux-sessionist";
-      rev = "71267aa8cd625f97772af8ffd8d98efd5aa01736";
-      sha256 = "0zq37jwxp9yhlkq7gkfpqwyx00sfb89wpwhrhl3ymirj8bx2wyh6";
-    };
-  };
-
-  pythonInputs = pkgs.python3.withPackages (
-    p: with p; [
-      libtmux
-      pip
-    ]
-  );
-
-  easy-motion = pkgs.tmuxPlugins.mkTmuxPlugin {
-    pluginName = "easy-motion";
-    version = "unstable-2024-04-05";
-    src = pkgs.fetchFromGitHub {
-      owner = "IngoMeyer441";
-      repo = "tmux-easy-motion";
-      rev = "3e2edbd0a3d9924cc1df3bd3529edc507bdf5934";
-      sha256 = "1yxdz2l34mm49sns5l6cg46y80i6g1dbv7qj255sralfbnmhzqn0";
-    };
-    nativeBuildInputs = [ pkgs.makeWrapper ];
-    rtpFilePath = "easy_motion.tmux";
-    postInstall = ''
-      for f in easy_motion.tmux scripts/easy_motion.py; do
-        wrapProgram $target/$f \
-          --prefix PATH : ${lib.makeBinPath [ pythonInputs ]}
-      done
-    '';
-  };
-
-  # https://github.com/NixOS/nixpkgs/pull/296174
-  tmux-window-name = pkgs.tmuxPlugins.mkTmuxPlugin {
-    pluginName = "tmux-window-name";
-    version = "unstable-2024-08-30";
-    src = pkgs.fetchFromGitHub {
-      owner = "ofirgall";
-      repo = "tmux-window-name";
-      rev = "dc97a79ac35a9db67af558bb66b3a7ad41c924e7";
-      sha256 = "048j942jgplqvqx65ljfc278fn7qrhqx4bzmgzcvmg9kgjap7dm3";
-    };
-    nativeBuildInputs = [ pkgs.makeWrapper ];
-    rtpFilePath = "tmux_window_name.tmux";
-    postInstall =
-      # sh
-      ''
-        NIX_BIN_PATH="${builtins.getEnv "HOME"}/.nix-profile/bin"
-        # Update USR_BIN_REMOVER with .nix-profile PATH
-        sed -i "s|^USR_BIN_REMOVER.*|USR_BIN_REMOVER = (r\'^$NIX_BIN_PATH/(.+)( --.*)?\', r\'\\\g<1>\')|" $target/scripts/rename_session_windows.py
-
-        # Update substitute_sets with .nix-profile PATHs
-        sed -i "s|^\ssubstitute_sets: List.*|    substitute_sets: List[Tuple] = field(default_factory=lambda: [(\'/$NIX_BIN_PATH/(.+) --.*\', \'\\\g<1>\'), (r\'.+ipython([32])\', r\'ipython\\\g<1>\'), USR_BIN_REMOVER, (r\'(bash) (.+)/(.+[ $])(.+)\', \'\\\g<3>\\\g<4>\')])|" $target/scripts/rename_session_windows.py
-
-        # Update dir_programs with .nix-profile PATH for applications
-        sed -i "s|^\sdir_programs: List.*|    dir_programs: List[str] = field(default_factory=lambda: [["$NIX_BIN_PATH/vim", "$NIX_BIN_PATH/vi", "$NIX_BIN_PATH/git", "$NIX_BIN_PATH/nvim"]])|" $target/scripts/rename_session_windows.py
-
-        for f in tmux_window_name.tmux scripts/rename_session_windows.py; do
-          wrapProgram $target/$f \
-            --prefix PATH : ${lib.makeBinPath [ pythonInputs ]}
-        done
-      '';
-  };
-in
 {
   home = {
     packages = with pkgs; [ gitmux ];
