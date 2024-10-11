@@ -1,6 +1,8 @@
 {
-  pkgs,
+  python3Packages,
+  fetchPypi,
   pyemojify,
+  ...
 }:
 let
   removePythonLicense =
@@ -9,12 +11,12 @@ let
       rm $out/lib/python*/site-packages/LICENSE
     '';
 in
-with pkgs.python3Packages;
+with python3Packages;
 buildPythonApplication rec {
   pname = "pybetter";
   version = "0.4.1";
   format = "pyproject";
-  src = pkgs.fetchPypi {
+  src = fetchPypi {
     inherit pname version;
     sha256 = "sha256-tDHPGBSTVIWrHGnj0k8ezN5KTRDx2ty5yhFEkCtvnHk=";
   };
