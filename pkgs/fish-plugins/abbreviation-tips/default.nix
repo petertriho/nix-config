@@ -5,7 +5,7 @@
 }:
 fishPlugins.buildFishPlugin {
   pname = "abbreviation-tips";
-  version = "unstable-2023-01-24";
+  version = "unstable-2023-01-23";
 
   src = fetchFromGitHub {
     owner = "gazorby";

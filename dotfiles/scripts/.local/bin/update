@@ -78,8 +78,7 @@ function tool:nix:rebuild {
 function tool:nix:fetchers {
     echo "Updating nix fetchers ..."
     pushd "$NIX_CONFIG_PATH"
-    find home -type f -print0 -name "*.nix" | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
-    find systems -type f -print0 -name "*.nix" | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+    find pkgs -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
     popd
 }
 
