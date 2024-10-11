@@ -26,7 +26,7 @@
           '';
       }
       pain-control
-      tmux-sessionist
+      tmux-sessionist-fork
       yank
       {
         plugin = prefix-highlight;
