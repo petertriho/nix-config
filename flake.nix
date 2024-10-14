@@ -42,12 +42,12 @@
             overlays = [
               overlays.additions
               overlays.modifications
+              overlays.stable
             ];
             config = {
               allowUnfree = true;
             };
           };
-          pkgs-stable = import nixpkgs-stable { inherit system; };
         in
         {
           inherit system;
@@ -56,7 +56,6 @@
               inputs
               outputs
               pkgs
-              pkgs-stable
               ;
           };
         };

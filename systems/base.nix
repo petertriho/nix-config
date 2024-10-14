@@ -2,7 +2,6 @@
   inputs,
   outputs,
   pkgs,
-  pkgs-stable,
   config,
   lib,
   ...
@@ -105,7 +104,7 @@
       useUserPackages = true;
       users.${config.user} = import ../home/${config.networking.hostName}.nix;
       extraSpecialArgs = {
-        inherit inputs outputs pkgs-stable;
+        inherit inputs outputs;
       };
     };
   };

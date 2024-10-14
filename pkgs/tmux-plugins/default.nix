@@ -1,6 +1,7 @@
 { pkgs, ... }:
+with pkgs;
 let
-  pythonInputs = pkgs.python3.withPackages (
+  pythonInputs = python3.withPackages (
     p: with p; [
       libtmux
       pip
@@ -8,8 +9,7 @@ let
   );
 in
 {
-  easy-motion = pkgs.callPackage ./easy-motion { inherit pkgs pythonInputs; };
-  tmux-sessionist-fork = pkgs.callPackage ./tmux-sessionist-fork { };
-
-  tmux-window-name = pkgs.callPackage ./tmux-window-name { inherit pkgs pythonInputs; };
+  easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
+  tmux-sessionist-fork = callPackage ./tmux-sessionist-fork { };
+  tmux-window-name = callPackage ./tmux-window-name { inherit pkgs pythonInputs; };
 }
