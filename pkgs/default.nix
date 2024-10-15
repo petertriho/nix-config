@@ -10,4 +10,5 @@ rec {
   pyemojify = callPackage ./pyemojify { };
   sort-package-json = callPackage ./sort-package-json { };
   ssort = callPackage ./ssort { };
+  vim-custom = callPackage ./vim-custom { };
 }
