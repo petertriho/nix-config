@@ -5,7 +5,7 @@
 }:
 {
   imports = [
-    ../base.nix
+    ../base
   ];
 
   nix.gc.dates = "weekly";

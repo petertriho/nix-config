@@ -7,7 +7,7 @@
 }:
 {
   imports = [
-    ../base.nix
+    ../base
     ./modules/homebrew.nix
     ./modules/system.nix
   ];
