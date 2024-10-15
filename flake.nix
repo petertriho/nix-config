@@ -32,17 +32,15 @@
     let
       inherit (self) outputs;
 
-      overlays = import ./overlays { inherit inputs; };
-
       getSystemConfiguration =
         system:
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [
-              overlays.additions
-              overlays.modifications
-              overlays.stable
+            overlays = with self.overlays; [
+              additions
+              modifications
+              stable
             ];
             config = {
               allowUnfree = true;
@@ -61,6 +59,7 @@
         };
     in
     {
+      overlays = import ./overlays { inherit inputs; };
       systemModules = import ./modules/system;
       homeManagerModules = import ./modules/home-manager;
 
