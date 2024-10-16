@@ -22,6 +22,6 @@
     )
   )).customize
   {
-    vimrcConfig.customRC = builtins.readFile ./.vimrc;
+    vimrcConfig.customRC = builtins.readFile ../../dotfiles/vim/.vimrc;
   }
 )
