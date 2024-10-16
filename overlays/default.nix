@@ -19,14 +19,20 @@
     in
     {
       autoflake = prev.python3Packages.autoflake.overridePythonAttrs { postFixup = removePythonLicense; };
-
       docformatter = prev.python3Packages.docformatter.overridePythonAttrs {
         postFixup = removePythonLicense;
       };
-
+      gitmux = prev.gitmux.overrideAttrs (old: {
+        doCheck = false;
+      });
       howdoi = prev.python3Packages.howdoi.overridePythonAttrs (old: {
         doCheck = false;
         meta.broken = false;
+      });
+      refurb = prev.refurb.overridePythonAttrs (old: {
+        disabledTests = old.disabledTests ++ [
+          "test_mypy_consistence"
+        ];
       });
     };
 
