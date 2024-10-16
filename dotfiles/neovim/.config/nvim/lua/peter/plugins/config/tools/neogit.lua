@@ -13,7 +13,7 @@ return {
             {}
         )
     end,
-    config = {
+    opts = {
         kind = "split",
         commit_editor = {
             kind = "split",
