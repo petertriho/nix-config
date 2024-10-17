@@ -41,5 +41,5 @@ local disabled_providers = {
     "ruby",
 }
 for _, provider in pairs(disabled_providers) do
-    g["loaded_" .. provider .. "provider"] = 0
+    g["loaded_" .. provider .. "_provider"] = 0
 end
