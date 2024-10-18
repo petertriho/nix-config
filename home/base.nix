@@ -1,7 +1,8 @@
 {
   outputs,
-  pkgs,
   lib,
+  user,
+  homePath,
   ...
 }:
 {
@@ -25,11 +26,8 @@
   ];
 
   home = {
-    username = outputs.options.user;
-    homeDirectory = lib.strings.concatStrings [
-      (if pkgs.stdenv.isLinux then "/home/" else "/Users/")
-      outputs.options.user
-    ];
+    username = user;
+    homeDirectory = homePath;
     stateVersion = lib.mkDefault "24.05";
   };
 
