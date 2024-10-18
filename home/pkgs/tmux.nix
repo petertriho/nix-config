@@ -10,6 +10,10 @@
       ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
       ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
+    sessionVariables = {
+      # TINTED_TMUX_OPTION_ACTIVE = 1;
+      # TINTED_TMUX_OPTION_STATUSBAR = 1;
+    };
   };
 
   programs.tmux = {
@@ -28,6 +32,14 @@
       pain-control
       tmux-sessionist-fork
       yank
+      # {
+      #   plugin = tinted-tmux;
+      #   extraConfig =
+      #     # tmux
+      #     ''
+      #       # set -g @tinted-color "base16-tokyo-night-dark"
+      #     '';
+      # }
       {
         plugin = prefix-highlight;
         extraConfig =
@@ -40,7 +52,7 @@
             hl_bg="#16161e"
             set -g @prefix_highlight_fg $hl_fg
             set -g @prefix_highlight_bg $hl_bg
-            set -g @prefix_highlight_prefix_prompt 'Wait'
+            set -g @prefix_highlight_prefix_prompt "Wait"
             set -g @prefix_highlight_show_copy_mode "on"
             set -g @prefix_highlight_copy_mode_attr "fg=$hl_fg,bg=$hl_bg"
             set -g @prefix_highlight_show_sync_mode "on"
@@ -60,7 +72,9 @@
         plugin = tmux-thumbs;
         extraConfig =
           # tmux
-          "set -g @thumbs-key F";
+          ''
+            set -g @thumbs-key "F"
+          '';
       }
       {
         plugin = extrakto;
