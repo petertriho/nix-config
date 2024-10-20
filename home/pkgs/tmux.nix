@@ -30,10 +30,10 @@
           '';
       }
       pain-control
-      tmux-sessionist-fork
+      sessionist-fork
       yank
       # {
-      #   plugin = tinted-tmux;
+      #   plugin = tinted;
       #   extraConfig =
       #     # tmux
       #     ''
@@ -90,7 +90,7 @@
           '';
       }
       {
-        plugin = tmux-window-name;
+        plugin = window-name;
         extraConfig =
           # tmux
           ''

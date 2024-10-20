@@ -10,7 +10,7 @@ let
 in
 {
   easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
-  tinted-tmux = callPackage ./tinted-tmux { };
-  tmux-sessionist-fork = callPackage ./tmux-sessionist-fork { };
-  tmux-window-name = callPackage ./tmux-window-name { inherit pkgs pythonInputs; };
+  tinted = callPackage ./tinted { };
+  sessionist-fork = callPackage ./sessionist-fork { };
+  window-name = callPackage ./window-name { inherit pkgs pythonInputs; };
 }
