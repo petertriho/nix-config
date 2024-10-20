@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+port=${1:-8080}
+
+kill -9 "$(lsof -i "tcp:${port}" -t)"

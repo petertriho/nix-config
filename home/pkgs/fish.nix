@@ -59,6 +59,7 @@
       e = "eza --classify";
       el = "eza --classify --long --header --all --git";
       et = "eza --classify --tree --level=3";
+      fp = "free-port";
       g = "git";
       gaa = "git add --all";
       gb = "git branch";

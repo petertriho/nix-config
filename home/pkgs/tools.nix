@@ -19,6 +19,7 @@
     hyperfine
     iperf3
     jq
+    lsof
     navi
     nurl
     openssl
