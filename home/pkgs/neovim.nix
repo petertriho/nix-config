@@ -41,7 +41,7 @@ in
     python3Packages.reorder-python-imports
     shfmt
     sort-package-json
-    ssort
+    python3Packages.ssort
     stylua
     yamlfix
     yamlfmt
