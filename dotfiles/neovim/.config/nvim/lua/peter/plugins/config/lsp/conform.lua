@@ -64,9 +64,7 @@ return {
         end
 
         local prettier = { "prettierd", "prettier", stop_after_first = true }
-        -- TODO: find solution to not run `eslint_d` if not available in project
-        -- local javascript_formatters = with_prettier_formatter({ "eslint_d" })
-        local javascript_formatters = prettier
+        local javascript_formatters = with_prettier_formatter({ "eslint_d" })
 
         conform.setup({
             formatters_by_ft = {
@@ -107,6 +105,14 @@ return {
                 end,
             },
             formatters = {
+                eslint_d = {
+                    condition = function(ctx)
+                        -- TODO: parse package.json to check if eslint config/package exists
+                        return vim.fs.find(function(name, path)
+                            return name:match(".*eslint.config.*")
+                        end, { path = ctx.filename, upward = true })[1]
+                    end,
+                },
                 google_java_format = {
                     command = "google-java-format",
                     args = { "-" },
