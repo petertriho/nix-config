@@ -22,9 +22,6 @@
       docformatter = prev.python3Packages.docformatter.overridePythonAttrs {
         postFixup = removePythonLicense;
       };
-      gitmux = prev.gitmux.overrideAttrs (old: {
-        doCheck = false;
-      });
       refurb = prev.refurb.overridePythonAttrs (old: {
         disabledTests = old.disabledTests ++ [
           "test_mypy_consistence"

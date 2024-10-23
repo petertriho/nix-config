@@ -5,10 +5,8 @@
 }:
 {
   home = {
-    packages = with pkgs; [ gitmux ];
     file = {
       ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
-      ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
     sessionVariables = {
       # TINTED_TMUX_OPTION_ACTIVE = 1;
