@@ -2,7 +2,7 @@ return {
     "akinsho/git-conflict.nvim",
     event = "User LazyLoadFile",
     keys = {
-        { "\\x", "<CMD>GitConflictListQf<CR>", desc = "Qf Conflict" },
+        { "\\gc", "<CMD>GitConflictListQf<CR>", desc = "Qf Conflict" },
     },
     opts = {
         highlights = {
