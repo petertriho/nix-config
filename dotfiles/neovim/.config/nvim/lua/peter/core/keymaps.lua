@@ -39,7 +39,7 @@ keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 
 -- Leader
 vim.g.mapleader = " "
-vim.g.localleader = " "
+vim.g.localleader = "\\"
 
 keymap("n", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
 keymap("n", "<leader>-", "<C-w>s", { desc = "Split Below" })
