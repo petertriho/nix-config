@@ -53,12 +53,11 @@ stdenv.mkDerivation rec {
     ''
       runHook preInstall
 
-      mkdir -p $out/$pname
-
-      cp -r . $out/$pname
+      mkdir -p $out/share/fish-lsp
+      cp -r . $out/share/fish-lsp
 
       makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
-        --add-flags "$out/$pname/out/cli.js"
+        --add-flags "$out/share/fish-lsp/out/cli.js"
 
       installShellCompletion --cmd fish-lsp \
         --fish <($out/bin/fish-lsp complete --fish)
