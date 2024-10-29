@@ -20,8 +20,6 @@ return {
                     typeCheckingMode = "standard",
                     diagnosticSeverityOverrides = {
                         reportGeneralTypeIssues = "information",
-                        -- NOTE: bug with str, int, etc being reported as undefined
-                        reportUndefinedVariable = "none",
                     },
                 },
             },
