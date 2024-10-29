@@ -113,7 +113,7 @@ return {
         },
     },
     rust_analyzer = {},
-    -- pylyzer = {}, -- NOTE: disabled until virtualenv imports is supported
+    -- pylyzer = {},
     superhtml = {},
     svelte = {},
     tailwindcss = {
