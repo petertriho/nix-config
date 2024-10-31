@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  lib,
   ...
 }:
 {
@@ -17,6 +18,7 @@
   programs.tmux = {
     enable = true;
     sensibleOnTop = false;
+    terminal = lib.mkDefault "tmux-256color";
     plugins = with pkgs.tmuxPlugins; [
       {
         plugin = sensible;
