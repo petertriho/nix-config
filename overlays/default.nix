@@ -22,11 +22,6 @@
       docformatter = prev.python3Packages.docformatter.overridePythonAttrs {
         postFixup = removePythonLicense;
       };
-      refurb = prev.refurb.overridePythonAttrs (old: {
-        disabledTests = old.disabledTests ++ [
-          "test_mypy_consistence"
-        ];
-      });
     };
 
   stable = final: prev: {
