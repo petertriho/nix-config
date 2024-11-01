@@ -35,9 +35,7 @@ stdenv.mkDerivation rec {
     nodejs
     installShellFiles
     makeWrapper
-    # fish-lsp dependencies
     fish
-    which
   ];
 
   yarnBuildScript = "setup";
@@ -57,10 +55,18 @@ stdenv.mkDerivation rec {
       cp -r . $out/share/fish-lsp
 
       makeWrapper ${lib.getExe nodejs} "$out/bin/fish-lsp" \
-        --add-flags "$out/share/fish-lsp/out/cli.js"
+        --add-flags "$out/share/fish-lsp/out/cli.js" \
+        --prefix PATH : "${
+          lib.makeBinPath [
+            fish
+            which
+          ]
+        }"
 
-      installShellCompletion --cmd fish-lsp \
-        --fish <($out/bin/fish-lsp complete --fish)
+      ${lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+        installShellCompletion --cmd fish-lsp \
+          --fish <($out/bin/fish-lsp complete --fish)
+      ''}
 
       runHook postInstall
     '';
