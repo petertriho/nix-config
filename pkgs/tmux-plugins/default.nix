@@ -12,5 +12,6 @@ in
   easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
   tinted = callPackage ./tinted { };
   sessionist-fork = callPackage ./sessionist-fork { };
+  tokyo-night = callPackage ./tokyo-night { };
   window-name = callPackage ./window-name { inherit pkgs pythonInputs; };
 }
