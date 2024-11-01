@@ -109,6 +109,7 @@
         ndh = "nix-direnv-helper";
         ndr = "nix-direnv-reload";
         nfu = "nix flake update";
+        nr = "nix run nixpkgs#";
         nrs = lib.strings.concatStringsSep " " [
           (if pkgs.stdenv.isDarwin then "darwin-rebuild" else "sudo nixos-rebuild")
           "switch --flake ~/.nix-config"
