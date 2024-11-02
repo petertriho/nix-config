@@ -104,19 +104,22 @@
       {
         plugin = window-name;
         extraConfig =
+          let
+            surround = srd: str: srd + str + srd;
+            mkStringList = srd: lst: "[" + (lib.concatMapStringsSep ", " (surround srd) lst) + "]";
+            substitute_sets = mkStringList "" [
+              "('^(/usr)?/bin/(.+)', '\\\\g<2>')"
+              "('/nix/store/\\\\S+/bin/(n?vim?).*', '\\\\g<1>')"
+              "('/nix/store/\\\\S+/bin/(.+)', '\\\\g<1>')"
+            ];
+            dir_programs = mkStringList "'" [
+              "git"
+            ];
+          in
           # tmux
           ''
-            set -g @tmux_window_name_substitute_sets \
-              "[ \
-                ('^(/usr)?/bin/(.+)', '\\g<2>'), \
-                ('/nix/store/\\S+/bin/(n?vim?).*', '\\g<1>'), \
-                ('/nix/store/\\S+/bin/(.+)', '\\g<1>'), \
-              ]"
-            set -g @tmux_window_name_dir_programs \
-              "[ \
-                'nvim', 'vim', 'vi', 'git', \
-                '${inputs.neovim-nightly-overlay.packages.${pkgs.system}.default}/bin/nvim', \
-              ]"
+            set -g @tmux_window_name_substitute_sets "${substitute_sets}"
+            set -g @tmux_window_name_dir_programs "${dir_programs}"
           '';
       }
       {
