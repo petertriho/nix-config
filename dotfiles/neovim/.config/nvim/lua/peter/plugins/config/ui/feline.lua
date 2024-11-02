@@ -74,7 +74,7 @@ return {
                     {
                         str = "❭",
                         hl = {
-                            fg = "fg",
+                            fg = "fg_sidebar",
                             bg = "bg",
                         },
                     },
@@ -156,7 +156,7 @@ return {
                     if not vim.g.completion_enabled then
                         return "error"
                     end
-                    return "fg"
+                    return "fg_sidebar"
                 end,
                 left_sep = " ",
                 truncate_hide = true,
@@ -172,7 +172,7 @@ return {
                     {
                         str = "❬",
                         hl = {
-                            fg = "fg",
+                            fg = "fg_sidebar",
                             bg = "bg",
                         },
                     },
@@ -184,7 +184,7 @@ return {
                 short_provider = { name = "file_stats", opts = { short = true } },
                 hl = function()
                     return {
-                        fg = "fg",
+                        fg = "fg_sidebar",
                         bg = "bg_highlight",
                         style = "bold",
                     }
@@ -200,7 +200,7 @@ return {
                 provider = { name = "file_info", opts = { type = "relative", file_readonly_icon = " " } },
                 short_provider = { name = "file_info", opts = { type = "base-only", file_readonly_icon = " " } },
                 icon = "",
-                hl = { fg = "fg", bg = "bg_highlight" },
+                hl = { fg = "fg_sidebar", bg = "bg_highlight" },
                 left_sep = "block",
                 right_sep = "block",
             },
