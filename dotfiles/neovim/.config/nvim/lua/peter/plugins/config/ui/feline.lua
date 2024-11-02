@@ -31,7 +31,9 @@ return {
 
         components.active[1] = {
             {
-                provider = vi_mode_utils.get_vim_mode,
+                provider = { name = "vi_mode", opts = { show_mode_name = true } },
+                short_provider = "vi_mode_short",
+                icon = "",
                 hl = function()
                     return {
                         fg = "black",
@@ -243,6 +245,10 @@ return {
                 bufnames = {},
             },
             custom_providers = {
+                vi_mode_short = function(component, opts)
+                    local str, o = vi_mode_utils.get_vim_mode(component, opts)
+                    return string.sub(str, 1, 1), o
+                end,
                 file_type_2 = function()
                     local bufnr = vim.api.nvim_get_current_buf()
                     local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
