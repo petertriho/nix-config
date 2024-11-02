@@ -45,7 +45,7 @@ return {
             {
                 provider = " ",
                 hl = function()
-                    return { fg = vi_mode_utils.get_mode_color(), bg = "fg_gutter" }
+                    return { fg = vi_mode_utils.get_mode_color(), bg = "bg_highlight" }
                 end,
             },
             {
@@ -55,7 +55,7 @@ return {
                 hl = function()
                     return {
                         fg = vi_mode_utils.get_mode_color(),
-                        bg = "fg_gutter",
+                        bg = "bg_highlight",
                         style = "bold",
                     }
                 end,
@@ -185,7 +185,7 @@ return {
                 hl = function()
                     return {
                         fg = vi_mode_utils.get_mode_color(),
-                        bg = "fg_gutter",
+                        bg = "bg_highlight",
                         style = "bold",
                     }
                 end,
