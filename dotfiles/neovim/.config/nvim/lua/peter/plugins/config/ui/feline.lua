@@ -43,7 +43,7 @@ return {
                 right_sep = "block",
             },
             {
-                provider = "",
+                provider = " ",
                 hl = function()
                     return { fg = vi_mode_utils.get_mode_color(), bg = "fg_gutter" }
                 end,
@@ -59,8 +59,7 @@ return {
                         style = "bold",
                     }
                 end,
-                left_sep = "block",
-                right_sep = { "block", "right_filled" },
+                right_sep = "block",
                 priority = 0,
             },
             {
@@ -73,13 +72,14 @@ return {
                 right_sep = {
                     " ",
                     {
-                        str = "right",
+                        str = "❭",
                         hl = {
                             fg = "fg",
                             bg = "bg",
                         },
                     },
                 },
+                truncate_hide = true,
             },
             {
                 provider = "git_diff_added",
@@ -170,7 +170,7 @@ return {
                 left_sep = {
                     " ",
                     {
-                        str = "left",
+                        str = "❬",
                         hl = {
                             fg = "fg",
                             bg = "bg",
@@ -189,27 +189,9 @@ return {
                         style = "bold",
                     }
                 end,
-                left_sep = { " ", "left_filled", "block" },
+                left_sep = { " ", "block" },
                 right_sep = "block",
                 priority = 1,
-            },
-            {
-                provider = "",
-                hl = function()
-                    return { fg = vi_mode_utils.get_mode_color(), bg = "fg_gutter" }
-                end,
-            },
-            {
-                provider = "line_percentage",
-                hl = function()
-                    return {
-                        fg = "black",
-                        bg = vi_mode_utils.get_mode_color(),
-                        style = "bold",
-                    }
-                end,
-                left_sep = "block",
-                right_sep = "block",
             },
         }
 
@@ -220,7 +202,7 @@ return {
                 icon = "",
                 hl = { fg = "bg_statusline", bg = "fg_sidebar" },
                 left_sep = "block",
-                right_sep = { "block", "right_filled" },
+                right_sep = "block",
             },
         }
 
@@ -299,7 +281,7 @@ return {
                         end
 
                         return string.format(
-                            "%s  %s  %s %d   %d",
+                            "%s ❬ %s ❬ %s %d ❬  %d",
                             file_enc:upper(),
                             file_format:upper(),
                             tab_style,
