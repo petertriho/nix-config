@@ -200,7 +200,7 @@ return {
                 provider = { name = "file_info", opts = { type = "relative", file_readonly_icon = " " } },
                 short_provider = { name = "file_info", opts = { type = "base-only", file_readonly_icon = " " } },
                 icon = "",
-                hl = { fg = "bg_statusline", bg = "fg_sidebar" },
+                hl = { fg = "fg", bg = "bg_highlight" },
                 left_sep = "block",
                 right_sep = "block",
             },
