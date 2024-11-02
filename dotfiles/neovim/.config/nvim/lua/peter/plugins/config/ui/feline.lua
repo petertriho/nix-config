@@ -184,7 +184,7 @@ return {
                 short_provider = { name = "file_stats", opts = { short = true } },
                 hl = function()
                     return {
-                        fg = vi_mode_utils.get_mode_color(),
+                        fg = "fg",
                         bg = "bg_highlight",
                         style = "bold",
                     }
