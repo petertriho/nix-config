@@ -193,6 +193,18 @@ return {
                 right_sep = "block",
                 priority = 1,
             },
+            {
+                provider = "line_percentage",
+                hl = function()
+                    return {
+                        fg = "black",
+                        bg = vi_mode_utils.get_mode_color(),
+                        style = "bold",
+                    }
+                end,
+                left_sep = "block",
+                right_sep = "block",
+            },
         }
 
         components.inactive[1] = {
