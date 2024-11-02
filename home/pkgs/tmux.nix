@@ -2,6 +2,7 @@
   pkgs,
   config,
   lib,
+  inputs,
   ...
 }:
 {
@@ -107,18 +108,14 @@
           ''
             set -g @tmux_window_name_substitute_sets \
               "[ \
-                ('^(/usr)?/bin/(.+)', '\g<2>'), \
-                ('/nix/store/[a-z0-9\\.-]+/bin/(.+) -u .*', '\\g<1>'), \
-                ('/nix/store/[a-z0-9\\.-]+/bin/(.+) .*', '\\g<1>'), \
-                ('/run/current-system/sw/bin/(.+) --.*', '\\g<1>'), \
-                ('/home/${config.home.username}/.nix-profile/bin/(.+) --.*', '\\g<1>'), \
-                ('/etc/profiles/per-user/${config.home.username}/bin/(.+) --.*', '\\g<1>') \
+                ('^(/usr)?/bin/(.+)', '\\g<2>'), \
+                ('/nix/store/\\S+/bin/(n?vim?).*', '\\g<1>'), \
+                ('/nix/store/\\S+/bin/(.+)', '\\g<1>'), \
               ]"
             set -g @tmux_window_name_dir_programs \
               "[ \
                 'nvim', 'vim', 'vi', 'git', \
-                '/home/${config.home.username}/.nix-profile/bin/nvim', \
-                '/etc/profiles/per-user/${config.home.username}/bin/nvim' \
+                '${inputs.neovim-nightly-overlay.packages.${pkgs.system}.default}/bin/nvim', \
               ]"
           '';
       }
