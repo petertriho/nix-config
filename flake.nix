@@ -14,7 +14,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     neovim-nightly-overlay = {
-      url = "github:nix-community/neovim-nightly-overlay";
+      # TODO: revert back to master branch when merged
+      url = "github:nix-community/neovim-nightly-overlay/flake-update";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
