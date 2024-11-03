@@ -14,7 +14,7 @@
     fzf
     git-gone
     glow
-    python3Packages.howdoi
+    # python3Packages.howdoi
     httpie
     hyperfine
     iperf3
