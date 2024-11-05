@@ -79,7 +79,7 @@ in
     # pylyzer
     quick-lint-js
     rust-analyzer
-    superhtml
+    # superhtml
     svelte-language-server
     tailwindcss-language-server
     taplo

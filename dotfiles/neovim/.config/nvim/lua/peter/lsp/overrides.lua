@@ -112,7 +112,7 @@ return {
     },
     rust_analyzer = {},
     -- pylyzer = {},
-    superhtml = {},
+    -- superhtml = {},
     svelte = {},
     tailwindcss = {
         settings = {
