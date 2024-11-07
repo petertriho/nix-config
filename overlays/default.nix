@@ -22,8 +22,6 @@
       docformatter = prev.python3Packages.docformatter.overridePythonAttrs {
         postFixup = removePythonLicense;
       };
-      # TODO: revert when https://github.com/NixOS/nixpkgs/issues/353119 is available
-      _7zz = prev._7zz.override { useUasm = true; };
     };
 
   stable = final: prev: {
