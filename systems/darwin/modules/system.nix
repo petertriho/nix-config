@@ -35,7 +35,7 @@
           "/System/Cryptexes/App/System/Applications/Safari.app"
           "/System/Applications/Mail.app"
           "/System/Applications/Calendar.app"
-          "/Applications/Zen Browser.app"
+          "/Applications/Floorp.app"
           "/Applications/WezTerm.app"
         ];
         persistent-others = [

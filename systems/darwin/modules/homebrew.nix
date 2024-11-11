@@ -25,7 +25,6 @@ in
     ];
     brews = [
       "colima"
-      "docker"
       "mas"
     ];
     casks =
@@ -36,6 +35,7 @@ in
         "docker"
         "easy-move+resize"
         "firefox"
+        "floorp"
         "font-jetbrains-mono-nerd-font"
         "google-chrome"
         "karabiner-elements"
@@ -47,7 +47,6 @@ in
         "orbstack"
         "vlc"
         "wezterm"
-        "zen-browser"
         # "airbuddy"
         # "bartender"
         # "betterdisplay"
