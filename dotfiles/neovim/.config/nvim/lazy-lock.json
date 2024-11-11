@@ -43,6 +43,7 @@
   "lspactions": { "branch": "master", "commit": "0ea962f11ef4d6e212bb0472ccf075aebd2d9e59" },
   "lspkind.nvim": { "branch": "master", "commit": "a700f1436d4a938b1a1a93c9962dc796afbaef4d" },
   "luvit-meta": { "branch": "main", "commit": "ce76f6f6cdc9201523a5875a4471dcfe0186eb60" },
+  "markdown-toc": { "branch": "main", "commit": "1454bf3b4bcb855f7df41c59dfae08cc824141a0" },
   "marks.nvim": { "branch": "master", "commit": "bb25ae3f65f504379e3d08c8a02560b76eaf91e8" },
   "neogit": { "branch": "master", "commit": "8e1e301c2e33c60375850bcf22ba1fb77b684b97" },
   "nvim-autopairs": { "branch": "master", "commit": "ee297f215e95a60b01fde33275cc3c820eddeebe" },
