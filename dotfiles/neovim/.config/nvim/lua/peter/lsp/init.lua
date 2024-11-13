@@ -47,6 +47,8 @@ local function lsp_attach_callback(args)
 
     if client.name == "basedpyright" then
         buf_keymap("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { desc = "Organize Imports" })
+    elseif client.name == "htmx" then
+        client.server_capabilities.hoverProvider = false
     elseif client.name == "ruff" then
         buf_keymap("n", "gro", "<CMD>RuffOrganizeImports<CR>", { desc = "Organize Imports" })
     elseif client.name == "ts_ls" then
