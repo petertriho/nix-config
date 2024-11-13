@@ -1,3 +1,16 @@
+local disabled_lsp_formatters = {
+    lua_ls = true,
+    ts_ls = true,
+}
+
+local default_format_opts = {
+    async = true,
+    lsp_format = "fallback",
+    filter = function(client)
+        return not disabled_lsp_formatters[client.name]
+    end,
+}
+
 return {
     "stevearc/conform.nvim",
     cmd = { "ConformInfo" },
@@ -16,7 +29,10 @@ return {
                     ["end"] = { args.line2, end_line:len() },
                 }
             end
-            require("conform").format({ async = true, lsp_format = "fallback", range = range })
+            require("conform").format({
+                unpack(default_format_opts),
+                range = range,
+            })
         end, { range = true })
 
         vim.api.nvim_create_user_command("SlowFormat", function(args)
@@ -38,11 +54,6 @@ return {
     end,
     config = function()
         local conform = require("conform")
-
-        local disabled_lsp_formatters = {
-            lua_ls = true,
-            tsserver = true,
-        }
 
         local function first(bufnr, ...)
             for i = 1, select("#", ...) do
@@ -97,13 +108,7 @@ return {
                 xml = { "tidy" },
                 yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
             },
-            default_format_opts = {
-                async = true,
-                lsp_format = "fallback",
-                filter = function(client)
-                    return not disabled_lsp_formatters[client.name]
-                end,
-            },
+            default_format_opts = default_format_opts,
             formatters = {
                 eslint_d = {
                     condition = function(ctx)
