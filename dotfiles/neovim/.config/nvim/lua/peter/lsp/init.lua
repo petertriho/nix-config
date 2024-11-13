@@ -49,7 +49,7 @@ local function lsp_attach_callback(args)
         buf_keymap("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { desc = "Organize Imports" })
     elseif client.name == "ruff" then
         buf_keymap("n", "gro", "<CMD>RuffOrganizeImports<CR>", { desc = "Organize Imports" })
-    elseif client.name == "tsserver" then
+    elseif client.name == "ts_ls" then
         buf_keymap("n", "gro", "<CMD>TSServerOrganizeImports<CR>", { desc = "Organize Imports" })
     end
 
