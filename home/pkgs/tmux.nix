@@ -28,6 +28,9 @@
           ''
             # TODO: remove when https://github.com/nix-community/home-manager/pull/4670 is added
             set -g prefix C-a
+
+            # Theme
+            if-shell "test -f ~/.tmux/tokyonight.tmux" "source ~/.tmux/tokyonight.tmux"
           '';
       }
       pain-control
@@ -51,25 +54,6 @@
       #       # set -g @tinted-color "base16-tokyo-night-dark"
       #     '';
       # }
-      {
-        plugin = prefix-highlight;
-        extraConfig =
-          # tmux
-          ''
-            # Theme
-            if-shell "test -f ~/.tmux/tokyonight.tmux" "source ~/.tmux/tokyonight.tmux"
-
-            hl_fg="#7aa2f7"
-            hl_bg="#16161e"
-            set -g @prefix_highlight_fg $hl_fg
-            set -g @prefix_highlight_bg $hl_bg
-            set -g @prefix_highlight_prefix_prompt "Wait"
-            set -g @prefix_highlight_show_copy_mode "on"
-            set -g @prefix_highlight_copy_mode_attr "fg=$hl_fg,bg=$hl_bg"
-            set -g @prefix_highlight_show_sync_mode "on"
-            set -g @prefix_highlight_sync_mode_attr "fg=$hl_fg,bg=$hl_bg"
-          '';
-      }
       {
         plugin = easy-motion;
         extraConfig =
