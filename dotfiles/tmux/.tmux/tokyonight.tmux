@@ -3,7 +3,6 @@
 none="NONE"
 black="#15161e"
 blue="#7aa2f7"
-green="#9ece6a"
 yellow="#e0af68"
 bg_statusline="#16161e"
 bg_highlight="#292e42"
@@ -35,4 +34,4 @@ setw -g window-status-activity-style "underscore,fg=${fg_sidebar},bg=${bg_status
 setw -g window-status-separator ""
 setw -g window-status-style "${none},fg=${fg_sidebar},bg=${bg_statusline}"
 setw -g window-status-format "#[default] #I: #W #[fg=${yellow}]#{?window_last_flag,○,} "
-setw -g window-status-current-format "#[fg=${blue},bg=${bg_highlight},bold] #I: #W #[fg=${green}]#{?window_last_flag,,●} "
+setw -g window-status-current-format "#[fg=${blue},bg=${bg_highlight},bold] #I: #W #{?window_last_flag,,●} "
