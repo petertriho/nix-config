@@ -3,6 +3,8 @@
 none="NONE"
 black="#15161e"
 blue="#7aa2f7"
+green="#9ece6a"
+yellow="#e0af68"
 bg_statusline="#16161e"
 bg_highlight="#292e42"
 fg_sidebar="#a9b1d6"
@@ -26,11 +28,11 @@ set -g status-right-length "100"
 set -g status-left-style ${none}
 set -g status-right-style ${none}
 
-set -g status-left "#[fg=${black},bg=${blue},bold] #S "
+set -g status-left "#[fg=${black},bg=${blue},bold] #{?client_prefix,●,○} #S "
 set -g status-right "#[fg=${blue},bg=${bg_statusline}] #{prefix_highlight} #[fg=${fg_sidebar},bg=${bg_highlight}] %Y-%m-%d ❬ %I:%M %p #[fg=${black},bg=${blue},bold] #h "
 
 setw -g window-status-activity-style "underscore,fg=${fg_sidebar},bg=${bg_statusline}"
 setw -g window-status-separator ""
 setw -g window-status-style "${none},fg=${fg_sidebar},bg=${bg_statusline}"
-setw -g window-status-format "#[default] #I: #W #F "
-setw -g window-status-current-format "#[fg=${blue},bg=${bg_highlight},bold] #I: #W #F "
+setw -g window-status-format "#[default] #I: #W #[fg=${yellow}]#{?window_last_flag,○,} "
+setw -g window-status-current-format "#[fg=${blue},bg=${bg_highlight},bold] #I: #W #[fg=${green}]#{?window_last_flag,,●} "
