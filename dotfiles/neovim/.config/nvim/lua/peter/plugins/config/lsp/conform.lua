@@ -45,6 +45,7 @@ return {
                 }
             end
             require("conform").format({
+                unpack(default_format_opts),
                 formatters = {
                     python = { "pybetter" },
                 },
