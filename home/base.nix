@@ -15,6 +15,7 @@
     ./pkgs/fish.nix
     ./pkgs/gh.nix
     ./pkgs/git.nix
+    ./pkgs/k8s.nix
     ./pkgs/neovim.nix
     ./pkgs/ripgrep-all.nix
     ./pkgs/scripts.nix
