@@ -33,5 +33,5 @@ set -g status-right "#[fg=${blue},bg=${bg_statusline}] #{prefix_highlight} #[fg=
 setw -g window-status-activity-style "underscore,fg=${fg_sidebar},bg=${bg_statusline}"
 setw -g window-status-separator ""
 setw -g window-status-style "${none},fg=${fg_sidebar},bg=${bg_statusline}"
-setw -g window-status-format "#[default] #I: #W #[fg=${yellow}]#{?window_last_flag,○,} "
-setw -g window-status-current-format "#[fg=${blue},bg=${bg_highlight},bold] #I: #W #{?window_last_flag,,●} "
+setw -g window-status-format "#[default] #I: #W #[fg=${yellow}]#F "
+setw -g window-status-current-format "#[fg=${blue},bg=${bg_highlight},bold] #I: #W #F "
