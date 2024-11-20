@@ -17,6 +17,7 @@ return {
         "NeogitStatus",
         "notify",
         "oil",
+        "oil_preview",
         "prompt",
         "qf",
         "TelescopePrompt",
