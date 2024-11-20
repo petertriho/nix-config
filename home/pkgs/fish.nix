@@ -79,6 +79,7 @@
         gmt = "git mergetool";
         gpl = "git pull";
         gplo = "git pull origin";
+        gpls = "git stash && git pull && git stash pop";
         gps = "git push";
         gpsf = "git push --force-with-lease";
         gr = "git rebase";
