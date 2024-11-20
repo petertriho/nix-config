@@ -83,6 +83,11 @@ return {
         filetypes = { "javascript", "javascriptreact", "jsx" },
     },
     ruff = {
+        capabilities = {
+            general = {
+                positionEncodings = { "utf-16" },
+            },
+        },
         settings = {
             "configuration",
             vim.fn.expand("$HOME/.config/nvim/code/.ruff.toml"),
