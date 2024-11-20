@@ -94,10 +94,10 @@ set_augroups({
 
                     if not ok then
                         filetype_excludes = {}
-                        vim.api.nvim_set_var("filetype_excludes", filetype_excludes)
                         for _, filetype in ipairs(require("peter.core.filetypes").excludes) do
                             filetype_excludes[filetype] = true
                         end
+                        vim.api.nvim_set_var("filetype_excludes", filetype_excludes)
                     end
 
                     if filetype_excludes[vim.bo[event.buf].filetype] then
