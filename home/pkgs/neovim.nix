@@ -66,6 +66,8 @@ in
     basedpyright
     bash-language-server
     biome
+    docker-compose-language-service
+    dockerfile-language-server-nodejs
     emmet-language-server
     fish-lsp
     gopls

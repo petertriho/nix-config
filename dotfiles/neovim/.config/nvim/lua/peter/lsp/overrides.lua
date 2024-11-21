@@ -29,6 +29,7 @@ return {
     biome = {},
     cssls = {},
     dockerls = {},
+    docker_compose_language_service = {},
     emmet_language_server = {
         filetypes = {
             "css",
