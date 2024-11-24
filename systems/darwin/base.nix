@@ -12,15 +12,19 @@
     ./modules/system.nix
   ];
 
-  nix.gc.interval = [
-    {
-      Weekday = 1;
-    }
-  ];
+  nix = {
+    package = pkgs.nix;
+    gc.interval = [
+      {
+        Weekday = 1;
+      }
+    ];
+    settings.auto-optimise-store = false;
+  };
 
   services.nix-daemon.enable = true;
-  nix.package = pkgs.nix;
-  nix.settings.auto-optimise-store = false;
+
+  security.pam.enableSudoTouchIdAuth = true;
 
   users.users.${config.user} = {
     home = config.homePath;
