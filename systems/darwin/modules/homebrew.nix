@@ -24,7 +24,6 @@ in
       "nikitabobko/tap"
     ];
     brews = [
-      "colima"
       "mas"
     ];
     casks =
@@ -32,7 +31,6 @@ in
         "aerospace"
         "appcleaner"
         "cyberduck"
-        "docker"
         "easy-move+resize"
         "firefox"
         "floorp"
