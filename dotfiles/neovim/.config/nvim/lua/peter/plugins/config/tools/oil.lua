@@ -13,6 +13,30 @@ return {
             ["<C-p>"] = "actions.preview",
             ["<C-c>"] = "actions.close",
             ["<C-r>"] = "actions.refresh",
+            ["<C-f>"] = {
+                function()
+                    local basedir = require("oil").get_current_dir()
+                    require("telescope.builtin").find_files({
+                        cwd = basedir,
+                        search_dirs = { basedir },
+                    })
+                end,
+                mode = "n",
+                nowait = true,
+                desc = "Find files in the current directory",
+            },
+            ["<C-s>"] = {
+                function()
+                    local basedir = require("oil").get_current_dir()
+                    require("telescope.builtin").live_grep({
+                        cwd = basedir,
+                        search_dirs = { basedir },
+                    })
+                end,
+                mode = "n",
+                nowait = true,
+                desc = "Live grep in the current directory",
+            },
             ["g?"] = "actions.show_help",
             ["<CR>"] = "actions.select",
             ["-"] = "actions.parent",
