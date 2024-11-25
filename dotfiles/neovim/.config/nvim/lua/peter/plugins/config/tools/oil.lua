@@ -1,3 +1,18 @@
+local launch_telescope = function(func_name, desc)
+    return {
+        function()
+            local basedir = require("oil").get_current_dir()
+            require("telescope.builtin")[func_name]({
+                cwd = basedir,
+                search_dirs = { basedir },
+            })
+        end,
+        mode = "n",
+        nowait = true,
+        desc = desc,
+    }
+end
+
 return {
     "stevearc/oil.nvim",
     init = function()
@@ -13,30 +28,8 @@ return {
             ["<C-p>"] = "actions.preview",
             ["<C-c>"] = "actions.close",
             ["<C-r>"] = "actions.refresh",
-            ["<C-f>"] = {
-                function()
-                    local basedir = require("oil").get_current_dir()
-                    require("telescope.builtin").find_files({
-                        cwd = basedir,
-                        search_dirs = { basedir },
-                    })
-                end,
-                mode = "n",
-                nowait = true,
-                desc = "Find files in the current directory",
-            },
-            ["<C-s>"] = {
-                function()
-                    local basedir = require("oil").get_current_dir()
-                    require("telescope.builtin").live_grep({
-                        cwd = basedir,
-                        search_dirs = { basedir },
-                    })
-                end,
-                mode = "n",
-                nowait = true,
-                desc = "Live grep in the current directory",
-            },
+            ["<C-f>"] = launch_telescope("find_files", "Find files in the current directory"),
+            ["<C-s>"] = launch_telescope("live_grep", "Live grep in the current directory"),
             ["g?"] = "actions.show_help",
             ["<CR>"] = "actions.select",
             ["-"] = "actions.parent",
