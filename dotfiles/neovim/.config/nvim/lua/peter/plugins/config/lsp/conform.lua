@@ -3,13 +3,17 @@ local disabled_lsp_formatters = {
     ts_ls = true,
 }
 
-local default_format_opts = {
-    async = true,
-    lsp_format = "fallback",
-    filter = function(client)
+local get_format_opts = function(opts)
+    opts = opts or {}
+
+    opts.async = true
+    opts.lsp_format = "fallback"
+    opts.filter = function(client)
         return not disabled_lsp_formatters[client.name]
-    end,
-}
+    end
+
+    return opts
+end
 
 return {
     "stevearc/conform.nvim",
@@ -29,10 +33,10 @@ return {
                     ["end"] = { args.line2, end_line:len() },
                 }
             end
-            require("conform").format({
-                unpack(default_format_opts),
+
+            require("conform").format(get_format_opts({
                 range = range,
-            })
+            }))
         end, { range = true })
 
         vim.api.nvim_create_user_command("SlowFormat", function(args)
@@ -44,13 +48,12 @@ return {
                     ["end"] = { args.line2, end_line:len() },
                 }
             end
-            require("conform").format({
-                unpack(default_format_opts),
+            require("conform").format(get_format_opts({
                 formatters = {
                     python = { "pybetter" },
                 },
                 range = range,
-            })
+            }))
         end, { range = true })
     end,
     config = function()
@@ -109,7 +112,7 @@ return {
                 xml = { "tidy" },
                 yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
             },
-            default_format_opts = default_format_opts,
+            default_format_opts = get_format_opts(),
             formatters = {
                 eslint_d = {
                     condition = function(ctx)
