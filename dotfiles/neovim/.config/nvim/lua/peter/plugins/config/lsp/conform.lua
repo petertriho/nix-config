@@ -85,6 +85,7 @@ return {
             formatters_by_ft = {
                 css = with_prettier_formatter({ "stylelint" }),
                 fish = { "fish_indent" },
+                gitcommit = { "commitmsgfmt" },
                 go = { "goimports", "gofmt" },
                 graphql = prettier,
                 html = with_prettier_formatter({ "tidy" }),

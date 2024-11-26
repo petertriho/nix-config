@@ -30,6 +30,7 @@ in
     alejandra
     autoflake
     black
+    commitmsgfmt
     docformatter
     eslint_d
     isort
