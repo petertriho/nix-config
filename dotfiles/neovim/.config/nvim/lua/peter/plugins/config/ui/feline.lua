@@ -309,7 +309,7 @@ return {
                     end
                 end,
                 lsp_client_count = function()
-                    return string.format(" %d", #vim.lsp.get_clients({ bufnr = vim.api.nvim_get_current_buf() }))
+                    return string.format(" %d", #vim.lsp.get_clients({ bufnr = vim.api.nvim_get_current_buf() }))
                 end,
             },
         })
