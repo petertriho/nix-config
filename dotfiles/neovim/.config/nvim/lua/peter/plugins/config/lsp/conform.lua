@@ -88,6 +88,7 @@ return {
                 gitcommit = { "commitmsgfmt" },
                 go = { "goimports", "gofmt" },
                 graphql = prettier,
+                hcl = { "hcl" },
                 html = with_prettier_formatter({ "tidy", "djlint" }),
                 htmlangular = with_prettier_formatter({ "tidy", "djlint" }),
                 htmldjango = with_prettier_formatter({ "tidy", "djlint" }),

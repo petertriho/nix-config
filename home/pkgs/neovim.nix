@@ -33,6 +33,7 @@ in
     commitmsgfmt
     docformatter
     eslint_d
+    hclfmt
     isort
     nixfmt-rfc-style
     nodePackages.prettier
