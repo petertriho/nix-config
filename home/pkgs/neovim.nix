@@ -92,6 +92,7 @@ in
     yaml-language-server
 
     # everything everywhere all at once
+    djlint
     html-tidy
     ruff
     stylelint
