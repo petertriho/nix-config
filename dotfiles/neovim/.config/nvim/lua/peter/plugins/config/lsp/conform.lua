@@ -102,7 +102,7 @@ return {
                 python = function(bufnr)
                     local formatters = { "autoflake", "docformatter", "ssort", "reorder-python-imports" }
                     if conform.get_formatter_info("ruff_format", bufnr).available then
-                        vim.list_extend(formatters, { "ruff_format" })
+                        vim.list_extend(formatters, { "ruff_fix", "ruff_organize_imports", "ruff_format" })
                     else
                         vim.list_extend(formatters, { "isort", "black" })
                     end
