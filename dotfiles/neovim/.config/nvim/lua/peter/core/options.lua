@@ -3,6 +3,7 @@ local g = vim.g
 -- filetypes.lua
 vim.filetype.add({
     extension = {
+        j2 = "jinja",
         sh = "sh",
     },
     filename = {
