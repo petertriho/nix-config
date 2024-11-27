@@ -24,6 +24,7 @@ return {
                 "gitignore",
                 "go",
                 "graphql",
+                "hcl",
                 "html",
                 "java",
                 "javascript",
