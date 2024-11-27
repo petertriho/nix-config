@@ -109,6 +109,7 @@ return {
                     return formatters
                 end,
                 sh = { "shfmt" },
+                terraform = { "hcl" },
                 typescript = javascript_formatters,
                 typescriptreact = javascript_formatters,
                 xml = { "tidy" },
