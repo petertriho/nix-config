@@ -4,7 +4,6 @@ local g = vim.g
 vim.filetype.add({
     extension = {
         sh = "sh",
-        hcl = "terraform",
     },
     filename = {
         [".prettierrc"] = "jsonc",
