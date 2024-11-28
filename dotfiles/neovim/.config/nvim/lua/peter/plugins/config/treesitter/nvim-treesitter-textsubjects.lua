@@ -7,9 +7,9 @@ return {
                 enable = true,
                 prev_selection = "<BS>",
                 keymaps = {
-                    ["."] = "textsubjects-smart",
-                    ["<CR>"] = "textsubjects-container-outer",
-                    ["i<CR>"] = "textsubjects-container-inner",
+                    ["."] = { "textsubjects-smart", desc = "TS Smart" },
+                    ["<CR>"] = { "textsubjects-container-outer", desc = "TS Outer" },
+                    ["i<CR>"] = { "textsubjects-container-inner", desc = "TS Inner" },
                 },
             },
         })
