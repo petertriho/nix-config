@@ -5,6 +5,8 @@
   networking.hostName = "MBP14-M1";
 
   homebrew.casks = [
+    "bartender"
+    "betterdisplay"
     "microsoft-auto-update"
     "microsoft-teams"
     "zoom"
