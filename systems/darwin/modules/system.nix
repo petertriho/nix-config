@@ -26,9 +26,6 @@
       dock = {
         autohide = true;
         autohide-time-modifier = 0.1;
-        # https://github.com/LnL7/nix-darwin/pull/1189
-        # renamed to exposed-group-by-apps
-        # expose-group-apps = true;
         mineffect = "scale";
         mru-spaces = false;
         show-recents = false;
