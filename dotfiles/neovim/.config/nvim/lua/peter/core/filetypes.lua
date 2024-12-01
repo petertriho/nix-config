@@ -1,6 +1,7 @@
 local sidebars = {
-    "NeogitStatus",
+    "dbui",
     "DiffViewFiles",
+    "NeogitStatus",
     "NvimTree",
     "undotree",
 }
@@ -14,7 +15,6 @@ return {
         "gitcommit",
         "help",
         "lspinfo",
-        "NeogitStatus",
         "notify",
         "oil",
         "oil_preview",

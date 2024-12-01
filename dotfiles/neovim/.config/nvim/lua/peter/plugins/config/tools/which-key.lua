@@ -31,7 +31,7 @@ return {
                 { "<leader>g", group = "git" },
                 { "<leader>h", group = "hunks" },
                 { "<leader>l", group = "lsp" },
-                { "<leader>t", group = "telescope" },
+                { "<leader>t", group = "tools" },
             },
             { mode = { "n", "x" }, { "<leader>a", group = "actions" } },
             -- vim-abolish

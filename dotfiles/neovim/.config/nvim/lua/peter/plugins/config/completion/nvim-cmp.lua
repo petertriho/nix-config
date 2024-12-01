@@ -165,6 +165,7 @@ return {
                         nvim_lsp = "[LSP]",
                         path = "[PATH]",
                         tmux = "[TMUX]",
+                        ["vim-dadbod-completion"] = "[DB]",
                     },
                 }),
             },
