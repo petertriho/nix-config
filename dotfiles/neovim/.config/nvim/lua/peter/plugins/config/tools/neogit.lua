@@ -4,7 +4,7 @@ return {
         "Neogit",
     },
     keys = {
-        { "<leader>J", "<CMD>ToggleNeogitStatus<CR>", desc = "Neogit Status" },
+        { "<leader>j", "<CMD>ToggleNeogitStatus<CR>", desc = "Neogit Status" },
     },
     init = function()
         vim.api.nvim_create_user_command(
@@ -14,15 +14,15 @@ return {
         )
     end,
     opts = {
-        kind = "split",
+        kind = "split_below_all",
         commit_editor = {
-            kind = "split",
+            kind = "split_below_all",
         },
         log_view = {
-            kind = "split",
+            kind = "split_below_all",
         },
         reflog_view = {
-            kind = "split",
+            kind = "split_below_all",
         },
     },
 }
