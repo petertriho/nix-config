@@ -2,6 +2,7 @@ local sidebars = {
     "DiffViewFiles",
     "NeogitStatus",
     "NvimTree",
+    "fugitive",
     "undotree",
 }
 
@@ -9,7 +10,6 @@ return {
     excludes = {
         "cmp_docs",
         "cmp_menu",
-        "fugitive",
         "fugitiveblame",
         "gitcommit",
         "help",
