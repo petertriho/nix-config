@@ -35,6 +35,9 @@ M.setup = function()
         }),
     })
 
+    local atlassian_company_name = os.getenv("ATLASSIAN_COMPANY_NAME") or "COMPANY_NAME"
+    local atlassian_project_key = os.getenv("ATLASSIAN_PROJECT_KEY") or "PROJECT_KEY"
+
     ls.add_snippets("gitcommit", {
         s("flake", {
             t("chore(nix): update `flake.lock`"),
@@ -46,11 +49,27 @@ M.setup = function()
             f(function()
                 return string.format(
                     "Refs: https://%s.atlassian.net/browse/%s-",
-                    os.getenv("ATLASSIAN_COMPANY_NAME") or "COMPANY_NAME",
-                    os.getenv("ATLASSIAN_PROJECT_KEY") or "PROJECT_KEY"
+                    atlassian_company_name,
+                    atlassian_project_key
                 )
             end, {}),
         }),
+        s(
+            "refsx",
+            fmt(
+                string.format(
+                    [[
+           %s-{1}: {3}
+
+           Refs: https://%s.atlassian.net/browse/%s-{2}
+           ]],
+                    atlassian_project_key,
+                    atlassian_company_name,
+                    atlassian_project_key
+                ),
+                { i(1, "1234"), rep(1), i(2, "commit message") }
+            )
+        ),
     })
     ls.filetype_extend("NeogitCommitMessage", { "gitcommit" })
 
