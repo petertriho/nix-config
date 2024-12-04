@@ -21,6 +21,7 @@ return {
         { "<leader>tj", "<CMD>Telescope jumplist<CR>", desc = "Command History" },
         { "<leader>tm", "<CMD>Telescope man_pages<CR>", desc = "Man Pages" },
         { "<leader>to", "<CMD>Telescope oldfiles<CR>", desc = "Old Files" },
+        { "<leader>ty", "<CMD>Telescope yank_history<CR>", desc = "Yank History" },
         {
             "<leader>ld",
             "<CMD>lua require('telescope.builtin').lsp_definitions({ jump_type = 'never' })<CR>",

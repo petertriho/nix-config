@@ -1,10 +1,6 @@
 local keymap = vim.keymap.set
 local opts = { noremap = true, silent = true }
 
--- Tabs: Navigation
-keymap("", "<C-M-n>", ":tabnext<CR>", {})
-keymap("", "<C-M-p>", ":tabprevious<CR>", {})
-
 -- Windows: Navigation
 keymap("", "<C-j>", "<C-w>j", {})
 keymap("", "<C-k>", "<C-w>k", {})

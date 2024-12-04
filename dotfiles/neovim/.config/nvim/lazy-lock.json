@@ -104,5 +104,6 @@
   "which-key.nvim": { "branch": "main", "commit": "9b365a6428a9633e3eeb34dbef1b791511c54f70" },
   "winshift.nvim": { "branch": "main", "commit": "37468ed6f385dfb50402368669766504c0e15583" },
   "yaml-companion.nvim": { "branch": "chore/remove-deprecated-apis", "commit": "7db9bf1bb183563234acef4413a8da4e1bac5321" },
+  "yanky.nvim": { "branch": "main", "commit": "f9b905994cccf3c55f41af3a0a1f4c76c844e411" },
   "zen-mode.nvim": { "branch": "main", "commit": "29b292bdc58b76a6c8f294c961a8bf92c5a6ebd6" }
 }
