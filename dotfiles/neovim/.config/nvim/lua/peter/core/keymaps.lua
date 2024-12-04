@@ -12,18 +12,11 @@ keymap("", "<C-h>", "<C-w>h", {})
 keymap("", "<C-l>", "<C-w>l", {})
 keymap("", "<C-\\>", "<C-w>p", {})
 
--- Windows: Resize
-keymap("n", "<M-j>", ":resize +2<CR>", opts)
-keymap("n", "<M-k>", ":resize -2<CR>", opts)
-keymap("n", "<M-h>", ":vertical resize -2<CR>", opts)
-keymap("n", "<M-l>", ":vertical resize +2<CR>", opts)
-keymap("", "<M-=>", "<C-w>=", {})
-
--- Move lines
-keymap("n", "<M-d>", ":m .+1<CR>==", opts)
-keymap("n", "<M-u>", ":m .-2<CR>==", opts)
-keymap("v", "<M-d>", ":m '>+1<CR>gv=gv", opts)
-keymap("v", "<M-u>", ":m '<-2<CR>gv=gv", opts)
+-- Exchange lines
+keymap("n", "]e", ":m .+1<CR>==", { unpack(opts), desc = "Exchange Below" })
+keymap("n", "[e", ":m .-2<CR>==", { unpack(opts), desc = "Exchange Above" })
+keymap("v", "]e", ":m '>+1<CR>gv=gv", { unpack(opts), desc = "Exchange Below" })
+keymap("v", "[e", ":m '<-2<CR>gv=gv", { unpack(opts), desc = "Exchange Above" })
 
 -- Line Text Objects
 keymap("v", "al", ":<C-u>norm!0v$h<CR>", opts)
