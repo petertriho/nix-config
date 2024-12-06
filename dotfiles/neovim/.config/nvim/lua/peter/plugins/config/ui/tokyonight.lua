@@ -6,9 +6,6 @@ return {
         require("tokyonight").setup({
             style = "night",
             sidebars = require("peter.core.filetypes").sidebars,
-            on_colors = function(colors)
-                colors.border_highlight = "#2d3149"
-            end,
             on_highlights = function(hl, colors)
                 hl.ConflictMarkerBegin = { bg = colors.diff.add }
                 hl.ConflictMarkerOurs = { bg = colors.diff.add }
