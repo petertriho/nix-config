@@ -8,7 +8,7 @@ function set_theme --description "Set ansi theme"
     set -U fish_cursor_replace_one      underscore
     set -U fish_cursor_visual           block
 
-    set -U fish_color_autosuggestion    white
+    set -U fish_color_autosuggestion    brblack
     set -U fish_color_cancel            brblack
     set -U fish_color_command           blue
     set -U fish_color_comment           brblack
