@@ -15,6 +15,8 @@ return {
                 hl.ConflictMarkerTheirs = { bg = colors.diff.change }
                 hl.ConflictMarkerEnd = { bg = colors.diff.change }
 
+                hl.DiagnosticUnnecessary = { fg = colors.hint }
+
                 hl.EyelinerPrimary = { fg = colors.blue, underline = true }
                 hl.EyelinerSecondary = { fg = colors.red, underline = true }
 
