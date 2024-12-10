@@ -40,6 +40,14 @@ function base_flake_nix {
     nixfmt flake.nix
 }
 
+function packages_empty {
+    echo '[];'
+}
+
+function extras_empty {
+    echo ""
+}
+
 function packages_node {
     echo '[
                 nodejs
@@ -79,7 +87,7 @@ function mk_flake_nix {
 }
 
 function tool:main {
-    language="$1"
+    language="${1:-empty}"
     mk_flake_envrc
     mk_flake_nix "$language"
     direnv allow
