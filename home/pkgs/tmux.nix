@@ -16,6 +16,10 @@
     };
   };
 
+  home.packages = with pkgs; [
+    pkgs.tmuxPlugins.session-wizard
+  ];
+
   programs.tmux = {
     enable = true;
     sensibleOnTop = false;
@@ -54,6 +58,7 @@
       #       # set -g @tinted-color "base16-tokyo-night-dark"
       #     '';
       # }
+      session-wizard
       {
         plugin = easy-motion;
         extraConfig =
