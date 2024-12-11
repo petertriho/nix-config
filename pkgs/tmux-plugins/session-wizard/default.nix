@@ -12,7 +12,7 @@ tmuxPlugins.mkTmuxPlugin rec {
     owner = "27medkamal";
     repo = "tmux-session-wizard";
     rev = "5f574960dfe6dd889ee5dc136473f3a0507682bf";
-    sha256 = "sha256-2oGp6Fy4/2ZzPGjTcw32tHlDPHMmvZl1wp/hrZWFj5M=";
+    sha256 = "14wghnasvqczq9srkg96fcy46ydlyq6p7lv87irndzxqbklak0fs";
   };
   rtpFilePath = "${pluginName}.tmux";
   nativeBuildInputs = [ makeWrapper ];
