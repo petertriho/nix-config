@@ -7,7 +7,7 @@ local get_format_opts = function(opts)
     opts = opts or {}
 
     opts.async = true
-    opts.lsp_format = "fallback"
+    -- opts.lsp_format = "fallback"
     opts.filter = function(client)
         return not disabled_lsp_formatters[client.name]
     end
@@ -147,7 +147,9 @@ return {
                 xml = { "tidy" },
                 yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
             },
-            default_format_opts = get_format_opts(),
+            default_format_opts = get_format_opts({
+                lsp_format = "fallback",
+            }),
             formatters = {
                 eslint_d = {
                     condition = function(ctx)
