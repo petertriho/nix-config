@@ -33,19 +33,21 @@ end
 
 local format = function(opts)
     local conform = require("conform")
-    local formatters = conform.list_formatters()
-    local format_opts = get_format_opts(opts)
-    local fmt_names = {}
+    local formatters, will_use_lsp = conform.list_formatters_to_run()
 
     if not vim.tbl_isempty(formatters) then
         fmt_names = vim.tbl_map(function(f)
             return f.name
         end, formatters)
-    elseif conform.will_fallback_lsp(format_opts) then
+    elseif will_use_lsp then
         fmt_names = { "lsp" }
     else
         return
     end
+
+    local fmt_names = vim.tbl_map(function(f)
+        return f.name
+    end, formatters)
 
     local msg_handle = require("fidget.progress").handle.create({
         title = "fmt: " .. table.concat(fmt_names, " ❭ "),
@@ -54,6 +56,7 @@ local format = function(opts)
         percentage = nil,
     })
 
+    local format_opts = get_format_opts(opts)
     require("conform").format(format_opts, function(err)
         msg_handle:finish()
         if err then
