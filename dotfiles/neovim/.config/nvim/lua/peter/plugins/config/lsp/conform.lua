@@ -15,6 +15,51 @@ local get_format_opts = function(opts)
     return opts
 end
 
+local get_range = function(args)
+    local range = nil
+    if args.count ~= -1 then
+        local end_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, true)[1]
+        range = {
+            start = { args.line1, 0 },
+            ["end"] = { args.line2, end_line:len() },
+        }
+    end
+    return range
+end
+
+local format = function(opts)
+    local conform = require("conform")
+    local formatters = conform.list_formatters()
+    local format_opts = get_format_opts(opts)
+    local fmt_names = {}
+
+    if not vim.tbl_isempty(formatters) then
+        fmt_names = vim.tbl_map(function(f)
+            return f.name
+        end, formatters)
+    elseif conform.will_fallback_lsp(format_opts) then
+        fmt_names = { "lsp" }
+    else
+        return
+    end
+
+    local title = "fmt: " .. table.concat(fmt_names, "/")
+
+    local msg_handle = require("fidget.progress").handle.create({
+        title = title,
+        -- message = message,
+        lsp_client = { name = "conform" },
+        percentage = nil,
+    })
+
+    require("conform").format(format_opts, function(err)
+        msg_handle:finish()
+        if err then
+            vim.notify(err, vim.log.levels.WARN, { title = title })
+        end
+    end)
+end
+
 return {
     "stevearc/conform.nvim",
     cmd = { "ConformInfo" },
@@ -25,35 +70,18 @@ return {
     },
     init = function()
         vim.api.nvim_create_user_command("Format", function(args)
-            local range = nil
-            if args.count ~= -1 then
-                local end_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, true)[1]
-                range = {
-                    start = { args.line1, 0 },
-                    ["end"] = { args.line2, end_line:len() },
-                }
-            end
-
-            require("conform").format(get_format_opts({
-                range = range,
-            }))
+            format({
+                range = get_range(args),
+            })
         end, { range = true })
 
         vim.api.nvim_create_user_command("SlowFormat", function(args)
-            local range = nil
-            if args.count ~= -1 then
-                local end_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, true)[1]
-                range = {
-                    start = { args.line1, 0 },
-                    ["end"] = { args.line2, end_line:len() },
-                }
-            end
-            require("conform").format(get_format_opts({
+            format({
                 formatters = {
                     python = { "pybetter" },
                 },
-                range = range,
-            }))
+                range = get_range(args),
+            })
         end, { range = true })
     end,
     config = function()
