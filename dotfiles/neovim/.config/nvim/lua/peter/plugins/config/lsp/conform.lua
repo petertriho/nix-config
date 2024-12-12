@@ -27,6 +27,10 @@ local get_range = function(args)
     return range
 end
 
+local format_msg = function(msg)
+    return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
+end
+
 local format = function(opts)
     local conform = require("conform")
     local formatters = conform.list_formatters()
@@ -43,11 +47,9 @@ local format = function(opts)
         return
     end
 
-    local title = "fmt: " .. table.concat(fmt_names, "/")
-
     local msg_handle = require("fidget.progress").handle.create({
-        title = title,
-        -- message = message,
+        title = "fmt: " .. table.concat(fmt_names, " ❭ "),
+        message = nil,
         lsp_client = { name = "conform" },
         percentage = nil,
     })
@@ -55,7 +57,7 @@ local format = function(opts)
     require("conform").format(format_opts, function(err)
         msg_handle:finish()
         if err then
-            vim.notify(err, vim.log.levels.WARN, { title = title })
+            require("fidget").notify(format_msg(err), vim.log.levels.ERROR)
         end
     end)
 end
