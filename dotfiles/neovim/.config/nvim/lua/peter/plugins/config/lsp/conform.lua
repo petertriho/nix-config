@@ -124,7 +124,7 @@ return {
                 html = with_prettier_formatter({ "tidy", "djlint" }),
                 htmlangular = with_prettier_formatter({ "tidy", "djlint" }),
                 htmldjango = with_prettier_formatter({ "tidy", "djlint" }),
-                java = { "google_java_format" },
+                java = { "google_java_format", lsp_format = "prefer" },
                 javascript = javascript_formatters,
                 javascriptreact = javascript_formatters,
                 json = { "jq", "sort_package_json" },
