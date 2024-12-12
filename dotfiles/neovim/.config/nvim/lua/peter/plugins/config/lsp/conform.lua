@@ -43,6 +43,7 @@ local format = function(opts)
     elseif will_use_lsp then
         fmt_names = { "lsp ❬" }
     else
+        require("fidget").notify(format_msg("No lsp/formatters configured"), vim.log.levels.WARN)
         return
     end
 
