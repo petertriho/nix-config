@@ -3,16 +3,46 @@ local M = {}
 local LSP_METHODS = {
     ["textDocument/codeAction"] = {
         keymaps = {
-            { "n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "Code Actions" } },
-            { "v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "Code Actions" } },
+            {
+                "n",
+                "<leader>k",
+                function()
+                    vim.lsp.buf.code_action()
+                end,
+                { desc = "Code Actions" },
+            },
+            {
+                "v",
+                "<leader>k",
+                function()
+                    vim.lsp.buf.range_code_action()
+                end,
+                { desc = "Code Actions" },
+            },
         },
     },
     ["textDocument/declaration"] = {
-        keymaps = { { "n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", { desc = "Declaration" } } },
+        keymaps = {
+            {
+                "n",
+                "grd",
+                function()
+                    vim.lsp.buf.declaration()
+                end,
+                { desc = "Declaration" },
+            },
+        },
     },
     ["textDocument/definition"] = {
         keymaps = {
-            { "n", "gd", "<CMD>lua vim.lsp.buf.definition()<CR>", { desc = "Definition" } },
+            {
+                "n",
+                "gd",
+                function()
+                    vim.lsp.buf.definition()
+                end,
+                { desc = "Definition" },
+            },
         },
     },
     ["textDocument/documentSymbol"] = {
@@ -21,14 +51,25 @@ local LSP_METHODS = {
         end,
     },
     ["textDocument/hover"] = {
-        keymaps = { { "n", "K", "<CMD>lua vim.lsp.buf.hover({ border = 'rounded' })<CR>", { desc = "Hover" } } },
+        keymaps = {
+            {
+                "n",
+                "K",
+                function()
+                    vim.lsp.buf.hover({ border = "rounded" })
+                end,
+                { desc = "Hover" },
+            },
+        },
     },
     ["textDocument/implementation"] = {
         keymaps = {
             {
                 "n",
                 "gri",
-                "<CMD>lua vim.lsp.buf.implementation()<CR>",
+                function()
+                    vim.lsp.buf.implementation()
+                end,
                 { desc = "Implementation" },
             },
         },
@@ -38,7 +79,9 @@ local LSP_METHODS = {
             {
                 "",
                 "<C-s>",
-                "<CMD>lua vim.lsp.buf.signature_help({ border = 'rounded' })<CR>",
+                function()
+                    vim.lsp.buf.signature_help({ border = "rounded" })
+                end,
                 { desc = "Signature Help" },
             },
         },
@@ -48,7 +91,9 @@ local LSP_METHODS = {
             {
                 "n",
                 "gy",
-                "<CMD>lua vim.lsp.buf.type_definition()<CR>",
+                function()
+                    vim.lsp.buf.type_definition()
+                end,
                 { desc = "Type Definition" },
             },
         },
@@ -121,7 +166,7 @@ local function lsp_attach_callback(args)
     end
 
     for method, _ in pairs(LSP_METHODS) do
-        if client.supports_method(method, { bufnr = bufnr }) then
+        if client.supports_method(method, bufnr) then
             lsp_setup_method(client, bufnr, method)
         end
     end

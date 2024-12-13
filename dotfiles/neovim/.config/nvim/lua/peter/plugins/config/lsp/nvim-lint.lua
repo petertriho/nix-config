@@ -121,6 +121,15 @@ return {
         lint.linters.selene.condition = function(ctx)
             return vim.fs.find({ "selene.toml" }, { path = ctx.filename, upward = true })[1]
         end
+        lint.linters.luacheck.args = {
+            "--globals",
+            "vim",
+            "--formatter",
+            "plain",
+            "--codes",
+            "--ranges",
+            "-",
+        }
         lint.linters.stylelint.args = {
             "--config",
             vim.fn.expand("$HOME/.config/nvim/code/.stylelintrc.json"),
