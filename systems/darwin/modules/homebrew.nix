@@ -9,7 +9,7 @@ in
       if ! xcode-select --version 2>/dev/null; then
         $DRY_RUN_CMD xcode-select --install
       fi
-      if [-f "${HOMEBREW_PREFIX}/bin/brew" ]; then
+      if [ -f "${HOMEBREW_PREFIX}/bin/brew" ]; then
         $DRY_RUN_CMD /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       fi
     '';
@@ -42,6 +42,7 @@ in
         "keyboardcleantool"
         "meetingbar"
         "nextcloud"
+        "notunes"
         "orbstack"
         "vlc"
         "wezterm"
