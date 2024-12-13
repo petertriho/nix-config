@@ -1,5 +1,88 @@
 local M = {}
 
+local LSP_METHODS = {
+    ["textDocument/codeAction"] = {
+        keymaps = {
+            { "n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "Code Actions" } },
+            { "v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "Code Actions" } },
+        },
+    },
+    ["textDocument/declaration"] = {
+        keymaps = { { "n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", { desc = "Declaration" } } },
+    },
+    ["textDocument/definition"] = {
+        keymaps = {
+            { "n", "gd", "<CMD>lua vim.lsp.buf.definition()<CR>", { desc = "Definition" } },
+        },
+    },
+    ["textDocument/documentSymbol"] = {
+        callback = function(client, bufnr)
+            require("nvim-navic").attach(client, bufnr)
+        end,
+    },
+    ["textDocument/hover"] = {
+        keymaps = { { "n", "K", "<CMD>lua vim.lsp.buf.hover({ border = 'rounded' })<CR>", { desc = "Hover" } } },
+    },
+    ["textDocument/implementation"] = {
+        keymaps = {
+            {
+                "n",
+                "gri",
+                "<CMD>lua vim.lsp.buf.implementation()<CR>",
+                { desc = "Implementation" },
+            },
+        },
+    },
+    ["textDocument/signatureHelp"] = {
+        keymaps = {
+            {
+                "",
+                "<C-s>",
+                "<CMD>lua vim.lsp.buf.signature_help({ border = 'rounded' })<CR>",
+                { desc = "Signature Help" },
+            },
+        },
+    },
+    ["textDocument/typeDefinition"] = {
+        keymaps = {
+            {
+                "n",
+                "gy",
+                "<CMD>lua vim.lsp.buf.type_definition()<CR>",
+                { desc = "Type Definition" },
+            },
+        },
+    },
+}
+
+local function create_buf_keymap(bufnr)
+    local function buf_keymap(mode, lhs, rhs, opts)
+        opts = opts or {}
+        opts.buffer = bufnr
+        vim.keymap.set(mode, lhs, rhs, opts)
+    end
+    return buf_keymap
+end
+
+local function lsp_setup_method(client, bufnr, method)
+    local config = LSP_METHODS[method]
+
+    if config == nil then
+        return
+    end
+
+    local buf_keymap = create_buf_keymap(bufnr)
+    if config.keymaps then
+        for _, keymap in ipairs(config.keymaps) do
+            buf_keymap(unpack(keymap))
+        end
+    end
+
+    if config.callback then
+        config.callback(client, bufnr)
+    end
+end
+
 local function lsp_attach_callback(args)
     local bufnr = args.buf
 
@@ -10,19 +93,13 @@ local function lsp_attach_callback(args)
         return
     end
 
-    local function buf_keymap(mode, lhs, rhs, opts)
-        opts = opts or {}
-        opts.buffer = bufnr
-        vim.keymap.set(mode, lhs, rhs, opts)
-    end
-
     local client = vim.lsp.get_client_by_id(args.data.client_id)
 
-    local function lsp_keymap(lsp_method, mode, lhs, rhs, desc)
-        if client.supports_method(lsp_method) then
-            buf_keymap(mode, lhs, rhs, { desc = desc })
-        end
+    if client == nil then
+        return
     end
+
+    local buf_keymap = create_buf_keymap(bufnr)
 
     buf_keymap(
         "n",
@@ -32,18 +109,6 @@ local function lsp_attach_callback(args)
     )
     buf_keymap("n", "grq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "QDiagnostics" })
     buf_keymap("n", "grl", "<CMD>lua vim.diagnostic.setloclist()<CR>", { desc = "LDiagnostics" })
-
-    lsp_keymap("textDocument/definition", "n", "gd", "<CMD>lua vim.lsp.buf.definition()<CR>", "Declaration")
-    lsp_keymap("textDocument/declaration", "n", "grd", "<CMD>lua vim.lsp.buf.declaration()<CR>", "Declaration")
-    lsp_keymap("textDocument/hover", "n", "K", "<CMD>lua vim.lsp.buf.hover()<CR>", "Hover")
-    lsp_keymap("textDocument/implementation", "n", "gri", "<CMD>lua vim.lsp.buf.implementation()<CR>", "Implementation")
-    lsp_keymap(
-        "textDocument/typeDefinition",
-        "n",
-        "gy",
-        "<CMD>lua vim.lsp.buf.type_definition()<CR>",
-        "Type Definition"
-    )
 
     if client.name == "basedpyright" then
         buf_keymap("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { desc = "Organize Imports" })
@@ -55,20 +120,17 @@ local function lsp_attach_callback(args)
         buf_keymap("n", "gro", "<CMD>TSServerOrganizeImports<CR>", { desc = "Organize Imports" })
     end
 
-    if client.supports_method("textDocument/codeAction") then
-        buf_keymap("n", "<leader>k", "<CMD>lua vim.lsp.buf.code_action()<CR>", { desc = "Code Actions" })
-        buf_keymap("v", "<leader>k", "<CMD>lua vim.lsp.buf.range_code_action()<CR>", { desc = "Code Actions" })
-    end
-
-    if client.supports_method("textDocument/documentSymbol") then
-        require("nvim-navic").attach(client, bufnr)
+    for method, _ in pairs(LSP_METHODS) do
+        if client.supports_method(method, { bufnr = bufnr }) then
+            lsp_setup_method(client, bufnr, method)
+        end
     end
 end
 
 local function make_base_config()
     local capabilities = vim.lsp.protocol.make_client_capabilities()
 
-    local completion = capabilities.textDocument.completion
+    local completion = capabilities.textDocument.completion or {}
 
     local completionItem = completion.completionItem
     completionItem.snippetSupport = true
@@ -135,9 +197,21 @@ M.setup = function()
         },
     })
 
-    vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "rounded" })
-    vim.lsp.handlers["textDocument/signatureHelp"] =
-        vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded" })
+    local register_capability_handler = vim.lsp.handlers["client/registerCapability"]
+    vim.lsp.handlers["client/registerCapability"] = function(err, result, ctx)
+        local client = vim.lsp.get_client_by_id(ctx.client_id)
+        if client then
+            for _, registration in pairs(result.registrations) do
+                local method = registration.method
+                if LSP_METHODS[method] then
+                    for buffer in pairs(client.attached_buffers) do
+                        lsp_setup_method(client, buffer, method)
+                    end
+                end
+            end
+        end
+        return register_capability_handler(err, result, ctx)
+    end
 
     vim.api.nvim_create_autocmd("LspAttach", {
         callback = lsp_attach_callback,
