@@ -112,6 +112,7 @@ alt-shift-equal = 'resize smart +50'
 alt-equal = 'balance-sizes'
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#workspace
+alt-0 = 'workspace 10'
 alt-1 = 'workspace 1'
 alt-2 = 'workspace 2'
 alt-3 = 'workspace 3'
@@ -121,8 +122,10 @@ alt-6 = 'workspace 6'
 alt-7 = 'workspace 7'
 alt-8 = 'workspace 8'
 alt-9 = 'workspace 9'
-# alt-a = 'workspace A' # In your config, you can drop workspace bindings that you don't need
-# alt-b = 'workspace B'
+alt-a = 'workspace A'
+alt-b = 'workspace B'
+alt-n = 'focus-monitor --wrap-around next'
+alt-p = 'focus-monitor --wrap-around prev'
 # alt-c = 'workspace C'
 # alt-d = 'workspace D'
 # alt-e = 'workspace E'
@@ -145,17 +148,20 @@ alt-9 = 'workspace 9'
 # alt-z = 'workspace Z'
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-workspace
-alt-shift-1 = 'move-node-to-workspace 1'
-alt-shift-2 = 'move-node-to-workspace 2'
-alt-shift-3 = 'move-node-to-workspace 3'
-alt-shift-4 = 'move-node-to-workspace 4'
-alt-shift-5 = 'move-node-to-workspace 5'
-alt-shift-6 = 'move-node-to-workspace 6'
-alt-shift-7 = 'move-node-to-workspace 7'
-alt-shift-8 = 'move-node-to-workspace 8'
-alt-shift-9 = 'move-node-to-workspace 9'
-# alt-shift-a = 'move-node-to-workspace A'
-# alt-shift-b = 'move-node-to-workspace B'
+alt-shift-0 = 'move-node-to-workspace --focus-follows-window 10'
+alt-shift-1 = 'move-node-to-workspace --focus-follows-window 1'
+alt-shift-2 = 'move-node-to-workspace --focus-follows-window 2'
+alt-shift-3 = 'move-node-to-workspace --focus-follows-window 3'
+alt-shift-4 = 'move-node-to-workspace --focus-follows-window 4'
+alt-shift-5 = 'move-node-to-workspace --focus-follows-window 5'
+alt-shift-6 = 'move-node-to-workspace --focus-follows-window 6'
+alt-shift-7 = 'move-node-to-workspace --focus-follows-window 7'
+alt-shift-8 = 'move-node-to-workspace --focus-follows-window 8'
+alt-shift-9 = 'move-node-to-workspace --focus-follows-window 9'
+alt-shift-a = 'move-node-to-workspace --focus-follows-window A'
+alt-shift-b = 'move-node-to-workspace --focus-follows-window B'
+alt-shift-n = 'move-node-to-monitor --focus-follows-window --wrap-around next'
+alt-shift-p = 'move-node-to-monitor --focus-follows-window --wrap-around prev'
 # alt-shift-c = 'move-node-to-workspace C'
 # alt-shift-d = 'move-node-to-workspace D'
 # alt-shift-e = 'move-node-to-workspace E'
@@ -201,3 +207,8 @@ alt-shift-h = ['join-with left', 'mode main']
 alt-shift-j = ['join-with down', 'mode main']
 alt-shift-k = ['join-with up', 'mode main']
 alt-shift-l = ['join-with right', 'mode main']
+
+[workspace-to-monitor-force-assignment]
+1 = '^built-in retina display$'
+A = ['^dell u2312hm \(1\)$', '^lg tv sscr2$', 'secondary']
+B = ['^dell u2312hm \(2\)$', '^dell u2723qe$', 'secondary']
