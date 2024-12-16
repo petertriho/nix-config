@@ -40,7 +40,6 @@ function tool:nvim:clean {
 
 function tool:nvim:restore {
     if command -v nvim &> /dev/null; then
-        tool:nvim
         echo "Restoring neovim plugins ..."
         nvim --headless "+Lazy! restore" +qa
     fi
