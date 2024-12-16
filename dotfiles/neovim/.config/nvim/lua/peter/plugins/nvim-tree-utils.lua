@@ -9,7 +9,7 @@ local view_selection = function(prompt_bufnr, map)
         actions.close(prompt_bufnr)
         local selection = action_state.get_selected_entry()
         local filename = selection.filename
-        if filename == nil then
+        if not filename then
             filename = selection[1]
         end
         openfile.fn("preview", filename)

@@ -112,7 +112,7 @@ end
 local function lsp_setup_method(client, bufnr, method)
     local config = LSP_METHODS[method]
 
-    if config == nil then
+    if not config then
         return
     end
 
@@ -140,7 +140,7 @@ local function lsp_attach_callback(args)
 
     local client = vim.lsp.get_client_by_id(args.data.client_id)
 
-    if client == nil then
+    if not client then
         return
     end
 
