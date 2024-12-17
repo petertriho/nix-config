@@ -71,14 +71,15 @@ opt.ttimeoutlen = 0
 opt.updatetime = 100
 opt.wrap = false
 opt.wildignore = {
-    "*.o",
-    "*.pyc",
-    "*/.git/*",
-    "*/.venv/*",
-    "*/__pycache__/*",
-    "*/cache/*",
-    "*/node_modules/*",
-    "*/tmp/*",
+    "*%.o",
+    "*%.pyc",
+    "%.git/*",
+    "%.venv/*",
+    "__pycache__/*",
+    "cache/*",
+    "node_modules/*",
+    "tmp/*",
+    "%.yarn/*"
 }
 
 -- Clipboard

@@ -101,7 +101,7 @@ return {
                     },
                 },
                 history = false,
-                file_ignore_patterns = { "%.git/*" },
+                file_ignore_patterns = vim.opt.wildignore:get(),
                 sorting_strategy = "ascending",
                 layout_strategy = "flex",
                 layout_config = {
