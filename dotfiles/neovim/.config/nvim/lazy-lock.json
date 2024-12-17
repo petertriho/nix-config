@@ -45,7 +45,7 @@
   "luvit-meta": { "branch": "main", "commit": "57d464c4acb5c2e66bd4145060f5dc9e96a7bbb7" },
   "markdown-toc": { "branch": "main", "commit": "1454bf3b4bcb855f7df41c59dfae08cc824141a0" },
   "marks.nvim": { "branch": "master", "commit": "bb25ae3f65f504379e3d08c8a02560b76eaf91e8" },
-  "neogit": { "branch": "master", "commit": "6691c4efcd8dad313e344c49057f05db7d91fd25" },
+  "neogit": { "branch": "master", "commit": "9dc580789aaf978ba94403874e23a0896a92dbbc" },
   "nvim-autopairs": { "branch": "master", "commit": "b464658e9b880f463b9f7e6ccddd93fb0013f559" },
   "nvim-cmp": { "branch": "main", "commit": "3403e2e9391ed0a28c3afddd8612701b647c8e26" },
   "nvim-fundo": { "branch": "main", "commit": "ac9c9372c4bf677721e24f144ef29d3a05c2b589" },
