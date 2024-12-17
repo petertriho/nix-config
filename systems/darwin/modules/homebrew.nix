@@ -38,6 +38,7 @@ in
         "aerospace"
         "appcleaner"
         "cyberduck"
+        "displaylink"
         "easy-move+resize"
         "firefox"
         "floorp"
