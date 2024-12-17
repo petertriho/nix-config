@@ -27,7 +27,7 @@ local disabled_built_ins = {
     "vimball",
     "vimballPlugin",
     "zip",
-    "zipPlugin",
+    -- "zipPlugin",
 }
 for _, plugin in pairs(disabled_built_ins) do
     g["loaded_" .. plugin] = 1
