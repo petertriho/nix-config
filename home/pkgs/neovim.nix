@@ -64,7 +64,7 @@ in
     yamllint
 
     # lsp
-    angular-language-server
+    # angular-language-server
     basedpyright
     bash-language-server
     biome
@@ -85,7 +85,7 @@ in
     rust-analyzer
     superhtml
     svelte-language-server
-    tailwindcss-language-server
+    # tailwindcss-language-server
     taplo
     terraform-ls
     tflint
