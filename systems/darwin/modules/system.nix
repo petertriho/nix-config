@@ -26,6 +26,7 @@
       dock = {
         autohide = true;
         autohide-time-modifier = 0.1;
+        expose-group-apps = true;
         mineffect = "scale";
         mru-spaces = false;
         show-recents = false;
@@ -47,7 +48,7 @@
         QuitMenuItem = true;
       };
       spaces = {
-        spans-displays = true;
+        spans-displays = false;
       };
     };
     keyboard = {
