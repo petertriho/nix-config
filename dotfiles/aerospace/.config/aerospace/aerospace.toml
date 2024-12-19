@@ -210,6 +210,6 @@ alt-shift-l = ['join-with right', 'mode main']
 
 [workspace-to-monitor-force-assignment]
 1 = '^built-in retina display$'
-A = ['^dell u2312hm \(1\)$', '^lg tv sscr2$', '^dell u3419w$', 'secondary']
-B = ['^dell u2312hm \(2\)$', '^dell u2723qe$', '^eb321hqu$']
+A = ['^dell u2312hm \(1\)$', '^lg tv sscr2$', 'dell u3419w', 'secondary']
+B = ['^dell u2312hm \(2\)$', '^dell u2723qe$', 'eb321hqu']
 C = ['^led monitor$']
