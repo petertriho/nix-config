@@ -2,7 +2,7 @@ return {
     "aznhe21/actions-preview.nvim",
     keys = {
         {
-            "<leader>q",
+            "<leader>K",
             function()
                 require("actions-preview").code_actions()
             end,

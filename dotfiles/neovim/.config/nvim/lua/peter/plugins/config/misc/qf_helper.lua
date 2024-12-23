@@ -11,9 +11,9 @@ return {
     ft = "qf",
     keys = {
         { "\\l", "<CMD>LLToggle<CR>", desc = "Loc List Toggle" },
-        { "\\q", "<CMD>QFToggle<CR>", desc = "Qf List Toggle" },
-        { "<M-n>", "<CMD>QNext<CR>" },
-        { "<M-p>", "<CMD>QPrev<CR>" },
+        { "<leader>q", "<CMD>QFToggle<CR>", desc = "Qf List Toggle" },
+        { "<leader>n", "<CMD>QNext<CR>" },
+        { "<leader>p", "<CMD>QPrev<CR>" },
     },
     opts = {
         quickfix = {
