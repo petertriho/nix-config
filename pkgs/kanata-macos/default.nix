@@ -9,7 +9,7 @@ stdenv.mkDerivation {
 
   src = fetchurl {
     url = "https://github.com/jtroo/kanata/releases/download/v1.8.0-prerelease-1/kanata_macos_arm64";
-    sha256 = "sha256-wMS4jrAm+XZ6xia1lQwNTEI+UtN9BdVNDTKOTB4wu7o=";
+    sha256 = "1fmv60g4r3ij1m6xa1bxsd93whjc1l69bd96qrx7dy96n27bii60";
   };
 
   dontUnpack = true;
