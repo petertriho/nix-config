@@ -7,19 +7,16 @@ let
   HOMEBREW_PREFIX = if pkgs.stdenv.isAarch64 then "/opt/homebrew" else "/usr/local";
 in
 {
-  system.activationScripts.preActivation = {
-    enable = true;
-    text =
-      # sh
-      ''
-        if ! xcode-select --version 2>/dev/null; then
-          $DRY_RUN_CMD xcode-select --install
-        fi
-        if ! [ -f "${HOMEBREW_PREFIX}/bin/brew" ]; then
-          $DRY_RUN_CMD su ${config.user} -c "NONINTERACTIVE=1 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-        fi
-      '';
-  };
+  system.activationScripts.preActivation.text =
+    # sh
+    ''
+      if ! xcode-select --version 2>/dev/null; then
+        $DRY_RUN_CMD xcode-select --install
+      fi
+      if ! [ -f "${HOMEBREW_PREFIX}/bin/brew" ]; then
+        $DRY_RUN_CMD su ${config.user} -c "NONINTERACTIVE=1 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+      fi
+    '';
 
   homebrew = {
     enable = true;

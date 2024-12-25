@@ -9,7 +9,7 @@ let
   KDK_DAEMON = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon";
 in
 {
-  system.activationScripts.postUserActivation.text =
+  system.activationScripts.postActivation.text =
     #sh
     ''
       if [ ! -f ${KDK_MANAGER} ]; then
