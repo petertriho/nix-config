@@ -10,6 +10,7 @@
     ../base
     ./modules/homebrew.nix
     ./modules/system.nix
+    ./modules/kanata
   ];
 
   nix = {
@@ -44,6 +45,6 @@
 
   system = {
     configurationRevision = outputs.rev or outputs.dirtyRev or null;
-    stateVersion = lib.mkDefault 4;
+    stateVersion = lib.mkDefault 5;
   };
 }

@@ -44,7 +44,6 @@ in
         "floorp"
         "font-jetbrains-mono-nerd-font"
         "google-chrome"
-        "karabiner-elements"
         "keepingyouawake"
         "keka"
         "keyboardcleantool"
