@@ -7,8 +7,5 @@
   homebrew.casks = [
     "bartender"
     "betterdisplay"
-    "microsoft-auto-update"
-    "microsoft-teams"
-    "zoom"
   ];
 }
