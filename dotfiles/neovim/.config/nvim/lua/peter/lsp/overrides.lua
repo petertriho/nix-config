@@ -40,6 +40,8 @@ return {
             "tsx",
             "javascript",
             "typescript",
+            "javascriptreact",
+            "typescriptreact",
         },
     },
     eslint = {},
