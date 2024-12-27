@@ -64,18 +64,6 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/implementation"] = {
-        keymaps = {
-            {
-                "n",
-                "gri",
-                function()
-                    vim.lsp.buf.implementation()
-                end,
-                { desc = "Implementation" },
-            },
-        },
-    },
     ["textDocument/signatureHelp"] = {
         keymaps = {
             {
