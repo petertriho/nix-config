@@ -193,6 +193,16 @@ local function make_base_config()
     }
 
     capabilities.textDocument.colorProvider = { dynamicRegistration = false }
+
+    capabilities.workspace.fileOperations = {
+        willRename = true,
+        didRename = true,
+        willCreate = true,
+        didCreate = true,
+        willDelete = true,
+        didDelete = true,
+    }
+
     return {
         capabilities = capabilities,
         flags = { allow_incremental_sync = true, debounce_text_changes = 300 },

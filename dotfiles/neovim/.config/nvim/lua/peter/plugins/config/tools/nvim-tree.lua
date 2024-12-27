@@ -70,5 +70,7 @@ return {
                 highlight_git = true,
             },
         })
+
+        pcall(require("lsp-file-operations").setup, {})
     end,
 }
