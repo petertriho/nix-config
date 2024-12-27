@@ -95,6 +95,7 @@ in
     html-tidy
     ruff
     stylelint
+    typescript
   ];
 
   programs.neovim = {

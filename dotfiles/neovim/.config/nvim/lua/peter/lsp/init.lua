@@ -276,6 +276,8 @@ M.setup = function()
 
         lspconfig[server].setup(config)
     end
+
+    require("typescript-tools").setup({})
 end
 
 return M

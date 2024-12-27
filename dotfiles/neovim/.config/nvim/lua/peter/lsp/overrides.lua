@@ -133,18 +133,18 @@ return {
     taplo = {},
     terraformls = {},
     tflint = {},
-    ts_ls = {
-        commands = {
-            TSServerOrganizeImports = {
-                function()
-                    execute_command("ts_ls", {
-                        command = "_typescript.organizeImports",
-                        arguments = { vim.api.nvim_buf_get_name(0) },
-                    })
-                end,
-                description = "Organize Imports",
-            },
-        },
-    },
+    -- ts_ls = {
+    --     commands = {
+    --         TSServerOrganizeImports = {
+    --             function()
+    --                 execute_command("ts_ls", {
+    --                     command = "_typescript.organizeImports",
+    --                     arguments = { vim.api.nvim_buf_get_name(0) },
+    --                 })
+    --             end,
+    --             description = "Organize Imports",
+    --         },
+    --     },
+    -- },
     yamlls = {},
 }
