@@ -27,7 +27,7 @@ local LSP_METHODS = {
     },
     ["textDocument/documentSymbol"] = {
         callback = function(client, bufnr)
-            if client.name ~= "eslint" then
+            if client.name ~= "eslint" and client.name ~= "emmet_language_server" then
                 require("nvim-navic").attach(client, bufnr)
             end
         end,
@@ -252,6 +252,14 @@ M.setup = function()
 
         if server == "yamlls" then
             config = require("yaml-companion").setup({ lspconfig = config })
+        elseif server == "vtsls" then
+            -- NOTE: workaround for https://yarnpkg.com/getting-started/editor-sdks
+            local yarn_sdks = vim.fs.find({ ".yarn/sdks" }, { type = "directory" })
+            if yarn_sdks then
+                config.settings.vtsls.typescript = {
+                    globalTsdk = "./.yarn/sdks/typescript/lib",
+                }
+            end
         end
 
         lspconfig[server].setup(config)

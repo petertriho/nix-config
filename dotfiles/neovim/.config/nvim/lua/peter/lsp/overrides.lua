@@ -147,10 +147,10 @@ return {
     --     },
     -- },
     vtsls = {
+        init_options = {
+            hostInfo = "neovim",
+        },
         settings = {
-            typescript = {
-                tsdk = "./.yarn/sdks/typescript/lib",
-            },
             vtsls = {
                 autoUserWorkspaceTsdk = true,
                 experimental = {
