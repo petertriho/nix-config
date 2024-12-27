@@ -303,7 +303,7 @@ M.setup = function()
         elseif server == "vtsls" then
             -- NOTE: workaround for https://yarnpkg.com/getting-started/editor-sdks
             local yarn_sdks = vim.fs.find({ ".yarn/sdks" }, { type = "directory" })
-            if yarn_sdks then
+            if #yarn_sdks > 0 then
                 config.settings.vtsls.typescript = {
                     globalTsdk = "./.yarn/sdks/typescript/lib",
                 }
