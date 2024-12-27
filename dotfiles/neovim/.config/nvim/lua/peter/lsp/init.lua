@@ -1,6 +1,18 @@
 local M = {}
 
 local LSP_METHODS = {
+    ["textDocument/codeAction"] = {
+        keymaps = {
+            {
+                { "n", "x" },
+                "gra",
+                function()
+                    vim.lsp.buf.code_action()
+                end,
+                { desc = "Code Actions" },
+            },
+        },
+    },
     ["textDocument/declaration"] = {
         keymaps = {
             {
@@ -41,6 +53,42 @@ local LSP_METHODS = {
                     vim.lsp.buf.hover({ border = "rounded" })
                 end,
                 { desc = "Hover" },
+            },
+        },
+    },
+    ["textDocument/implementation"] = {
+        keymaps = {
+            {
+                "n",
+                "gri",
+                function()
+                    vim.lsp.buf.implementation()
+                end,
+                { desc = "Implementation" },
+            },
+        },
+    },
+    ["textDocument/rename"] = {
+        keymaps = {
+            {
+                "n",
+                "grn",
+                function()
+                    vim.lsp.buf.rename()
+                end,
+                { desc = "Rename" },
+            },
+        },
+    },
+    ["textDocument/references"] = {
+        keymaps = {
+            {
+                "n",
+                "grr",
+                function()
+                    vim.lsp.buf.references()
+                end,
+                { desc = "References" },
             },
         },
     },
