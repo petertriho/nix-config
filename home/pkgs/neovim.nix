@@ -67,13 +67,11 @@ in
     # angular-language-server
     basedpyright
     bash-language-server
-    biome
     docker-compose-language-service
     dockerfile-language-server-nodejs
     emmet-language-server
     fish-lsp
     gopls
-    htmx-lsp
     jdt-language-server
     lua-language-server
     marksman
@@ -90,7 +88,6 @@ in
     terraform-ls
     tflint
     vscode-langservers-extracted # html, css, json, eslint
-    vtsls
     yaml-language-server
 
     # everything everywhere all at once

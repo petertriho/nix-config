@@ -26,7 +26,6 @@ return {
         },
     },
     bashls = {},
-    biome = {},
     cssls = {},
     dockerls = {},
     docker_compose_language_service = {},
@@ -54,7 +53,6 @@ return {
             provideFormatter = false,
         },
     },
-    htmx = {},
     jdtls = {},
     jsonls = {
         init_options = {
@@ -135,19 +133,18 @@ return {
     taplo = {},
     terraformls = {},
     tflint = {},
-    -- ts_ls = {
-    --     commands = {
-    --         TSServerOrganizeImports = {
-    --             function()
-    --                 execute_command("ts_ls", {
-    --                     command = "_typescript.organizeImports",
-    --                     arguments = { vim.api.nvim_buf_get_name(0) },
-    --                 })
-    --             end,
-    --             description = "Organize Imports",
-    --         },
-    --     },
-    -- },
-    vtsls = {},
+    ts_ls = {
+        commands = {
+            TSServerOrganizeImports = {
+                function()
+                    execute_command("ts_ls", {
+                        command = "_typescript.organizeImports",
+                        arguments = { vim.api.nvim_buf_get_name(0) },
+                    })
+                end,
+                description = "Organize Imports",
+            },
+        },
+    },
     yamlls = {},
 }
