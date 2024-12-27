@@ -1,6 +1,7 @@
 local disabled_lsp_formatters = {
     lua_ls = true,
     ts_ls = true,
+    vtsls = true,
 }
 
 local get_format_opts = function(opts)
