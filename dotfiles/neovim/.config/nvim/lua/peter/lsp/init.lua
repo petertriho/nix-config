@@ -277,7 +277,11 @@ M.setup = function()
         lspconfig[server].setup(config)
     end
 
-    require("typescript-tools").setup({})
+    require("typescript-tools").setup({
+        settings = {
+            expose_as_code_action = "all",
+        },
+    })
 end
 
 return M

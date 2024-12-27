@@ -1,6 +1,7 @@
 local disabled_lsp_formatters = {
     lua_ls = true,
     ts_ls = true,
+    ["typescript-tools"] = true,
     vtsls = true,
 }
 
