@@ -134,8 +134,8 @@ local function lsp_setup_method(client, bufnr, method)
         return
     end
 
-    local buf_keymap = create_buf_keymap(bufnr)
     if config.keymaps then
+        local buf_keymap = create_buf_keymap(bufnr)
         for _, keymap in ipairs(config.keymaps) do
             buf_keymap(unpack(keymap))
         end
