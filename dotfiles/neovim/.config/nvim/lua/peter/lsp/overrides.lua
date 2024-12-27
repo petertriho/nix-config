@@ -146,5 +146,18 @@ return {
     --         },
     --     },
     -- },
+    vtsls = {
+        settings = {
+            typescript = {
+                tsdk = "./.yarn/sdks/typescript/lib",
+            },
+            vtsls = {
+                autoUserWorkspaceTsdk = true,
+                experimental = {
+                    completion = { enableServerSideFuzzyMatch = true },
+                },
+            },
+        },
+    },
     yamlls = {},
 }

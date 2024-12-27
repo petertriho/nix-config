@@ -88,6 +88,7 @@ in
     terraform-ls
     tflint
     vscode-langservers-extracted # html, css, json, eslint
+    vtsls
     yaml-language-server
 
     # everything everywhere all at once
