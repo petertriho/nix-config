@@ -2,11 +2,11 @@ return {
     "aznhe21/actions-preview.nvim",
     keys = {
         {
-            "<leader>K",
+            "<leader>k",
             function()
                 require("actions-preview").code_actions()
             end,
-            mode = { "v", "n" },
+            mode = { "n", "v" },
             desc = "Quickfix",
         },
     },

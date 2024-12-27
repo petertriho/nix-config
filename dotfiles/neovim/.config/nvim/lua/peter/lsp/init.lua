@@ -1,26 +1,6 @@
 local M = {}
 
 local LSP_METHODS = {
-    ["textDocument/codeAction"] = {
-        keymaps = {
-            {
-                "n",
-                "<leader>k",
-                function()
-                    vim.lsp.buf.code_action()
-                end,
-                { desc = "Code Actions" },
-            },
-            {
-                "v",
-                "<leader>k",
-                function()
-                    vim.lsp.buf.range_code_action()
-                end,
-                { desc = "Code Actions" },
-            },
-        },
-    },
     ["textDocument/declaration"] = {
         keymaps = {
             {
