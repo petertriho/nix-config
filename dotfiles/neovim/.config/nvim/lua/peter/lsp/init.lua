@@ -295,7 +295,7 @@ M.setup = function()
     local base_config = make_base_config()
 
     for server, override in pairs(overrides) do
-        local config = vim.tbl_extend("force", base_config, override or {})
+        local config = vim.tbl_deep_extend("force", base_config, override or {})
 
         if server == "yamlls" then
             config = require("yaml-companion").setup({ lspconfig = config })
