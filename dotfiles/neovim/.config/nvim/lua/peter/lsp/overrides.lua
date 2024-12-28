@@ -121,17 +121,7 @@ return {
     -- pylyzer = {},
     superhtml = {},
     svelte = {},
-    -- tailwindcss = {
-    --     settings = {
-    --         tailwindCSS = {
-    --             experimental = {
-    --                 classRegex = {
-    --                     "[\\w]*[cC]lass[\\w]*\\s*[:=]\\s*[{\"'`]+(.*)[\"'`}]+",
-    --                 },
-    --             },
-    --         },
-    --     },
-    -- },
+    tailwindcss = {},
     taplo = {},
     terraformls = {},
     tflint = {},
