@@ -79,7 +79,7 @@ opt.wildignore = {
     "cache/*",
     "node_modules/*",
     "tmp/*",
-    "%.yarn/*"
+    "%.yarn/*",
 }
 
 -- Clipboard

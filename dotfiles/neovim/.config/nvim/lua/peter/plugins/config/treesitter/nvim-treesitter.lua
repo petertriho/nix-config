@@ -54,14 +54,6 @@ return {
             highlight = {
                 enable = true,
                 use_languagetree = false,
-                disable = function(lang, bufnr)
-                    local file_is_big = utils.file_is_big(bufnr)
-                    if file_is_big then
-                        -- NOTE: need to call this again because ts re-enables syntax
-                        utils.disable_features(bufnr)
-                    end
-                    return file_is_big
-                end,
             },
             incremental_selection = {
                 enable = true,

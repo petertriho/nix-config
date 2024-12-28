@@ -3,26 +3,52 @@ local M = {
     BIG_FILE_SIZE_BYTES = 100 * 1024,
 }
 
-M.file_is_big = function(bufnr)
-    if vim.b.file_is_big ~= nil then
-        return vim.b.file_is_big
+-- by https://github.com/folke/snacks.nvim/blob/main/lua/snacks/bigfile.lua
+M.bigfile_setup = function()
+    vim.filetype.add({
+        pattern = {
+            [".*"] = {
+                function(path, buf)
+                    if M.file_is_big(buf, path) then
+                        return "bigfile"
+                    end
+                end,
+            },
+        },
+    })
+
+    vim.api.nvim_create_autocmd({ "FileType" }, {
+        group = vim.api.nvim_create_augroup("_bigfile", { clear = true }),
+        pattern = "bigfile",
+        callback = function(ev)
+            M.disable_features(ev.buf)
+        end,
+    })
+end
+
+M.file_is_big = function(bufnr, path)
+    if vim.b[bufnr].file_is_big ~= nil then
+        return vim.b[bufnr].file_is_big
+    end
+
+    if vim.bo[bufnr].filetype == "bigfile" then
+        vim.b[bufnr].file_is_big = true
+        return vim.b[bufnr].file_is_big
     end
 
     if vim.api.nvim_buf_line_count(bufnr) > M.BIG_FILE_LINE_COUNT then
-        vim.b.file_is_big = true
-        M.disable_features(bufnr)
-        return vim.b.file_is_big
+        vim.b[bufnr].file_is_big = true
+        return vim.b[bufnr].file_is_big
     end
 
-    local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(bufnr))
+    local ok, stats = pcall(vim.loop.fs_stat, path or vim.api.nvim_buf_get_name(bufnr))
     if ok and stats and stats.size > M.BIG_FILE_SIZE_BYTES then
-        vim.b.file_is_big = true
-        M.disable_features(bufnr)
-        return vim.b.file_is_big
+        vim.b[bufnr].file_is_big = true
+        return vim.b[bufnr].file_is_big
     end
 
-    vim.b.file_is_big = false
-    return vim.b.file_is_big
+    vim.b[bufnr].file_is_big = false
+    return vim.b[bufnr].file_is_big
 end
 
 M.disable_features = function(bufnr)

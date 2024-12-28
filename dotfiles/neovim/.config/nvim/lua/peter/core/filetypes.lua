@@ -10,6 +10,7 @@ return {
     excludes = {
         "TelescopePrompt",
         "TelescopeResults",
+        "bigfile",
         "blink-cmp-documentation",
         "blink-cmp-menu",
         "blink-cmp-signature",

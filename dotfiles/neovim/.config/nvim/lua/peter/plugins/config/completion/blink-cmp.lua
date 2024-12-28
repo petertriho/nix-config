@@ -46,7 +46,7 @@ return {
     end,
     opts = {
         enabled = function()
-            return vim.g.completion_enabled and vim.bo.buftype ~= "prompt"
+            return vim.g.completion_enabled and vim.bo.buftype ~= "prompt" and vim.bo.filetype ~= "bigfile"
         end,
         keymap = { preset = "default" },
         appearance = {

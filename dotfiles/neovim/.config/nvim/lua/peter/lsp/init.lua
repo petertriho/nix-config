@@ -149,13 +149,6 @@ end
 local function lsp_attach_callback(args)
     local bufnr = args.buf
 
-    if require("peter.core.utils").file_is_big(bufnr) then
-        vim.schedule(function()
-            vim.lsp.buf_detach_client(bufnr, args.data.client_id)
-        end)
-        return
-    end
-
     local client = vim.lsp.get_client_by_id(args.data.client_id)
 
     if not client then

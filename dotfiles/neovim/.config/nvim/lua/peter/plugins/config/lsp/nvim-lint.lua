@@ -6,10 +6,6 @@ return {
 
         local function run_linters(filter)
             return function(bufnr)
-                if utils.file_is_big(bufnr) then
-                    return
-                end
-
                 local lint = require("lint")
                 -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/plugins/linting.lua
                 local linters = lint._resolve_linter_by_ft(vim.bo.filetype)
