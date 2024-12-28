@@ -8,6 +8,11 @@ local sidebars = {
 
 return {
     excludes = {
+        "TelescopePrompt",
+        "TelescopeResults",
+        "blink-cmp-documentation",
+        "blink-cmp-menu",
+        "blink-cmp-signature",
         "cmp_docs",
         "cmp_menu",
         "fugitiveblame",
@@ -19,8 +24,6 @@ return {
         "oil_preview",
         "prompt",
         "qf",
-        "TelescopePrompt",
-        "TelescopeResults",
         unpack(sidebars),
     },
     sidebars = sidebars,
