@@ -1,5 +1,6 @@
 return {
     "hrsh7th/nvim-cmp",
+    enabled = false,
     event = { "CmdlineEnter", "InsertEnter" },
     dependencies = {
         "andersevenrud/cmp-tmux",
@@ -176,7 +177,7 @@ return {
                 ["<C-d>"] = cmp.mapping(cmp.mapping.scroll_docs(4), { "c", "i" }),
                 ["<C-u>"] = cmp.mapping(cmp.mapping.scroll_docs(-4), { "c", "i" }),
                 ["<C-Space>"] = cmp.mapping(cmp.mapping.complete(), { "c", "i" }),
-                ["<C-c>"] = cmp.mapping(cmp.mapping.close(), { "c", "i" }),
+                ["<C-e>"] = cmp.mapping(cmp.mapping.close(), { "c", "i" }),
                 ["<C-y>"] = cmp.mapping.confirm({
                     behavior = cmp.ConfirmBehavior.Replace,
                     select = true,
