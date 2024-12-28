@@ -191,65 +191,64 @@ local function lsp_attach_callback(args)
 end
 
 local function make_base_config()
-    local capabilities = vim.lsp.protocol.make_client_capabilities()
+    local capabilities = vim.tbl_deep_extend("force", vim.lsp.protocol.make_client_capabilities(), {
+        -- https://github.com/Saghen/blink.cmp/blob/main/lua/blink/cmp/sources/lib/init.lua
+        textDocument = {
+            completion = {
+                completionItem = {
+                    snippetSupport = true,
+                    commitCharactersSupport = false, -- todo:
+                    documentationFormat = { "markdown", "plaintext" },
+                    deprecatedSupport = true,
+                    preselectSupport = false, -- todo:
+                    tagSupport = { valueSet = { 1 } }, -- deprecated
+                    insertReplaceSupport = true, -- todo:
+                    resolveSupport = {
+                        properties = {
+                            "documentation",
+                            "detail",
+                            "additionalTextEdits",
+                            -- todo: support more properties? should test if it improves latency
+                        },
+                    },
+                    insertTextModeSupport = {
+                        -- todo: support adjustIndentation
+                        valueSet = { 1 }, -- asIs
+                    },
+                    labelDetailsSupport = true,
+                },
+                completionList = {
+                    itemDefaults = {
+                        "commitCharacters",
+                        "editRange",
+                        "insertTextFormat",
+                        "insertTextMode",
+                        "data",
+                    },
+                },
 
-    local completion = capabilities.textDocument.completion or {}
-
-    local completionItem = completion.completionItem
-    completionItem.snippetSupport = true
-    completionItem.commitCharactersSupport = true
-    completionItem.deprecatedSupport = true
-    completionItem.preselectSupport = true
-    completionItem.tagSupport = {
-        valueSet = {
-            1, -- Deprecated
+                contextSupport = true,
+                insertTextMode = 1, -- asIs
+            },
         },
-    }
-    completionItem.insertReplaceSupport = true
-    completionItem.resolveSupport = {
-        properties = {
-            "documentation",
-            "detail",
-            "additionalTextEdits",
-            "sortText",
-            "filterText",
-            "insertText",
-            "textEdit",
-            "insertTextFormat",
-            "insertTextMode",
+    }, {
+        textDocument = {
+            colorProvider = {
+                dynamicRegistration = false,
+            },
         },
-    }
-    completionItem.insertTextModeSupport = {
-        valueSet = {
-            1, -- asIs
-            2, -- adjustIndentation
+    }, {
+        workspace = {
+            fileOperations = {
+                willRename = true,
+                didRename = true,
+                willCreate = true,
+                didCreate = true,
+                willDelete = true,
+                didDelete = true,
+            },
         },
-    }
-    completionItem.labelDetailsSupport = true
-
-    completion.dynamicRegistration = false
-    completion.contextSupport = true
-    completion.insertTextMode = 1
-    completion.completionList = {
-        itemDefaults = {
-            "commitCharacters",
-            "editRange",
-            "insertTextFormat",
-            "insertTextMode",
-            "data",
-        },
-    }
-
-    capabilities.textDocument.colorProvider = { dynamicRegistration = false }
-
-    capabilities.workspace.fileOperations = {
-        willRename = true,
-        didRename = true,
-        willCreate = true,
-        didCreate = true,
-        willDelete = true,
-        didDelete = true,
-    }
+    })
 
     return {
         capabilities = capabilities,
