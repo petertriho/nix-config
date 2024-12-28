@@ -30,9 +30,9 @@ keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 vim.g.mapleader = " "
 vim.g.localleader = "\\"
 
-keymap("n", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
-keymap("n", "<leader>-", "<C-w>s", { desc = "Split Below" })
-keymap("n", "<leader>\\", "<C-w>v", { desc = "Split Right" })
+keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
+keymap("", "<leader>-", "<C-w>s", { desc = "Split Below" })
+keymap("", "<leader>\\", "<C-w>v", { desc = "Split Right" })
 
 keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
 keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
@@ -45,8 +45,8 @@ keymap({ "n", "v" }, "<leader>x", [["_d]], { desc = "Delete_" })
 keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
 keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
 
-keymap("n", "<leader>ac", ":!<Up><CR>", { desc = "Last Command" })
-keymap("n", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
+keymap("", "<leader>ac", ":!<Up><CR>", { desc = "Last Command" })
+keymap("", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
 keymap("n", "<leader>ap", 'ggVG"+p', { desc = "Put File" })
 keymap("n", "<leader>ay", "<CMD>%y+<CR>", { desc = "Yank File" })
 keymap("x", "<leader>ap", [["_dP]], { desc = "Put_" })
