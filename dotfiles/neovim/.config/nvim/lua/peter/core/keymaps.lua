@@ -26,6 +26,10 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- ESC to turn off hlsearch
 keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 
+-- Quickfix
+keymap("", "<C-M-n>", "<CMD>cnext<CR>", { desc = "QF Next"})
+keymap("", "<C-M-p>", "<CMD>cprev<CR>", { desc = "QF Prev"})
+
 -- Leader
 vim.g.mapleader = " "
 vim.g.localleader = "\\"
@@ -44,6 +48,17 @@ keymap({ "n", "v" }, "<leader>P", [["+P]], { desc = "Put+" })
 keymap({ "n", "v" }, "<leader>x", [["_d]], { desc = "Delete_" })
 keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
 keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
+keymap("", "<leader>Q", function()
+    vim.fn.setqflist({}, "a", {
+        items = {
+            {
+                bufnr = vim.api.nvim_get_current_buf(),
+                lnum = vim.api.nvim_win_get_cursor(0)[1],
+                text = vim.api.nvim_get_current_line(),
+            },
+        },
+    })
+end, { desc = "QF Add" })
 
 keymap("", "<leader>ac", ":!<Up><CR>", { desc = "Last Command" })
 keymap("", "<leader>ae", ":!chmod +x %<CR>", { desc = "Executable" })
