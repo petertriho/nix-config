@@ -25,7 +25,6 @@ return {
                 return vim.bo[buf].buftype == "" and vim.bo[buf].filetype ~= "bigfile"
             end,
         },
-        statuscolumn = { enabled = true },
     },
     keys = {
         {
