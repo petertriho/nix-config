@@ -12,6 +12,12 @@ return {
                     and vim.bo[buf].buftype == ""
                 ) or vim.bo[buf].filetype ~= "bigfile"
             end,
+            scope = {
+                underline = true,
+            },
+            chunk = {
+                enabled = true,
+            },
         },
         scope = {
             enabled = true,
