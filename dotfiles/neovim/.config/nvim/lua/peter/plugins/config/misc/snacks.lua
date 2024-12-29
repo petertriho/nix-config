@@ -72,14 +72,14 @@ return {
         {
             "<leader>z",
             function()
-                Snacks.zen()
+                require("snacks").zen()
             end,
             desc = "Toggle Zen Mode",
         },
         {
             "<leader>Z",
             function()
-                Snacks.zen.zoom()
+                require("snacks").zen.zoom()
             end,
             desc = "Toggle Zoom",
         },
