@@ -8,8 +8,8 @@ return {
         { "P", "<Plug>(YankyPutBefore)", mode = { "n", "x" }, desc = "Put After" },
         { "]p", "<Plug>(YankyGPutAfter)", mode = { "n", "x" }, desc = "GPut After" },
         { "[p", "<Plug>(YankyGPutBefore)", mode = { "n", "x" }, desc = "GPut Before" },
-        { "<C-M-u>", "<Plug>(YankyPreviousEntry)", desc = "Yank Previous Entry" },
-        { "<C-M-d>", "<Plug>(YankyNextEntry)", desc = "Yank Next Entry" },
+        { "]y", "<Plug>(YankyNextEntry)", desc = "Yank Next Entry" },
+        { "[y", "<Plug>(YankyPreviousEntry)", desc = "Yank Previous Entry" },
         { "]P", "<Plug>(YankyPutIndentAfterLinewise)", desc = "Put After Line" },
         { "[P", "<Plug>(YankyPutIndentBeforeLinewise)", desc = "Put Before Line" },
         { ">p", "<Plug>(YankyPutIndentAfterShiftRight)", desc = "Put After Right" },
@@ -31,9 +31,6 @@ return {
                 on_put = true,
                 on_yank = true,
                 timer = 200,
-            },
-            system_clipboard = {
-                sync_with_right = false,
             },
             picker = {
                 telescope = {
