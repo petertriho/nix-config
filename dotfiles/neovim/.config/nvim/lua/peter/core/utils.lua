@@ -56,7 +56,6 @@ M.disable_features = function(bufnr)
     vim.opt_local.syntax = "off"
 
     pcall(require("illuminate").pause_buf)
-    pcall(require("ibl").setup_buffer, bufnr, { enabled = false })
 
     vim.b.matchup_matchparen_enabled = 0
     vim.b.matchup_motion_enabled = 0
