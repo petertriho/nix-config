@@ -39,9 +39,7 @@ local LSP_METHODS = {
     },
     ["textDocument/documentSymbol"] = {
         callback = function(client, bufnr)
-            if client.name ~= "eslint" and client.name ~= "emmet_language_server" then
-                require("nvim-navic").attach(client, bufnr)
-            end
+            require("nvim-navic").attach(client, bufnr)
         end,
     },
     ["textDocument/hover"] = {
@@ -177,7 +175,7 @@ local function lsp_attach_callback(args)
     end
 
     for method, _ in pairs(LSP_METHODS) do
-        if client:supports_method(method, { bufnr = bufnr }) then
+        if client.supports_method(method, { bufnr = bufnr }) then
             lsp_setup_method(client, bufnr, method)
         end
     end
