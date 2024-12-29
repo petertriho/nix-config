@@ -6,9 +6,24 @@ return {
 
             "<leader>q",
             function()
-                require("quicker").toggle({ open_cmd_mods = { split = "botright" } })
+                require("quicker").toggle({
+                    focus = true,
+                    open_cmd_mods = { split = "botright" },
+                })
             end,
             desc = "QF Toggle",
+        },
+        {
+
+            "<leader>Q",
+            function()
+                require("quicker").toggle({
+                    loclist = true,
+                    focus = true,
+                    open_cmd_mods = { split = "botright" },
+                })
+            end,
+            desc = "LOC Toggle",
         },
     },
     opts = {
