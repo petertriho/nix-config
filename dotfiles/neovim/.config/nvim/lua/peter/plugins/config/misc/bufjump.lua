@@ -1,12 +1,12 @@
 return {
     "kwkarlwang/bufjump.nvim",
     keys = {
-        "<M-i>",
-        "<M-o>",
+        "<C-M-i>",
+        "<C-M-o>",
     },
     opts = {
-        forward_key = "<M-i>",
-        backward_key = "<M-o>",
+        forward_key = "<C-M-i>",
+        backward_key = "<C-M-o>",
         on_success = function()
             vim.cmd([[execute "normal! g`\"zz"]])
         end,
