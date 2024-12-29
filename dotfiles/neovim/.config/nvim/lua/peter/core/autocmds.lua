@@ -134,6 +134,7 @@ set_augroups({
         {
             { "BufReadPost", "BufNewFile", "BufWritePre" },
             {
+                once = true,
                 pattern = "*",
                 callback = exec_lazy_load_file,
                 desc = "Lazy load file",
