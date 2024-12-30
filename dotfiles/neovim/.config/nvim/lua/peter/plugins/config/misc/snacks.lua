@@ -1,3 +1,16 @@
+local filter = function(buf)
+    if vim.g.snacks_indent == false or vim.b[buf].snacks_indent == false then
+        return false
+    end
+
+    if vim.bo[buf].buftype ~= "" then
+        return false
+    end
+
+    local filetype = vim.bo[buf].filetype
+    return not require("peter.core.utils").is_ft("excludes", filetype)
+end
+
 return {
     "folke/snacks.nvim",
     priority = 1000,
@@ -5,13 +18,7 @@ return {
     opts = {
         indent = {
             enabled = true,
-            filter = function(buf)
-                return (
-                    vim.g.snacks_indent ~= false
-                    and vim.b[buf].snacks_indent ~= false
-                    and vim.bo[buf].buftype == ""
-                ) or vim.bo[buf].filetype ~= "bigfile"
-            end,
+            filter = filter,
             scope = {
                 underline = true,
             },
@@ -21,9 +28,7 @@ return {
         },
         scope = {
             enabled = true,
-            filter = function(buf)
-                return vim.bo[buf].buftype == "" and vim.bo[buf].filetype ~= "bigfile"
-            end,
+            filter = filter,
         },
     },
     keys = {

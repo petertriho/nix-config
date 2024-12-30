@@ -4,11 +4,8 @@ return {
     opts = {
         get_auto_pin = function(bufnr)
             local filetype = vim.bo[bufnr].filetype
-
-            for _, v in ipairs(require("peter.core.filetypes").sidebars) do
-                if v == filetype then
-                    return "filetype"
-                end
+            if require("peter.core.utils").is_ft("excludes", filetype) then
+                return "filetype"
             end
 
             return require("stickybuf").should_auto_pin(bufnr)

@@ -86,24 +86,12 @@ set_augroups({
             {
                 pattern = "*",
                 callback = function(event)
-                    local dir = vim.fn.expand("<afile>:p:h")
-
-                    local ok, filetype_excludes = pcall(function()
-                        return vim.api.nvim_get_var("filetype_excludes")
-                    end)
-
-                    if not ok then
-                        filetype_excludes = {}
-                        for _, filetype in ipairs(require("peter.core.filetypes").excludes) do
-                            filetype_excludes[filetype] = true
-                        end
-                        vim.api.nvim_set_var("filetype_excludes", filetype_excludes)
-                    end
-
-                    if filetype_excludes[vim.bo[event.buf].filetype] then
+                    local filetype = vim.bo[event.buf].filetype
+                    if require("peter.core.utils").is_ft("excludes", filetype) then
                         return
                     end
 
+                    local dir = vim.fn.expand("<afile>:p:h")
                     if vim.fn.isdirectory(dir) == 0 then
                         vim.fn.mkdir(dir, "p")
                     end

@@ -97,4 +97,26 @@ M.toggle_buffer = function(buf, open_cmd)
     end
 end
 
+M.get_ft_map = function(type)
+    local var = "ft_map_cache" .. type
+    local ok, ft_map = pcall(function()
+        return vim.api.nvim_get_var(var)
+    end)
+
+    if not ok then
+        ft_map = {}
+        for _, filetype in ipairs(require("peter.core.filetypes")[type]) do
+            ft_map[filetype] = true
+        end
+        vim.api.nvim_set_var(var, ft_map)
+    end
+
+    return ft_map
+end
+
+M.is_ft = function(type, filetype)
+    local filetype_map = M.get_ft_map(type)
+    return filetype_map[filetype] == true
+end
+
 return M
