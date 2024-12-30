@@ -24,9 +24,9 @@ return {
                     ["<C-k>"] = actions.previous,
                     ["<C-h>"] = actions.enter_win("preview"),
                     ["<C-l>"] = actions.enter_win("list"),
-                    ["<leader>l"] = "<leader>l",
-                    ["s"] = "s",
-                    ["v"] = "v",
+                    ["<leader>l"] = false,
+                    ["s"] = false,
+                    ["v"] = false,
                 },
                 preview = {
                     ["<leader>-"] = actions.jump_split,
@@ -35,7 +35,7 @@ return {
                     ["<C-k>"] = actions.previous,
                     ["<C-h>"] = actions.enter_win("preview"),
                     ["<C-l>"] = actions.enter_win("list"),
-                    ["<leader>l"] = "<leader>l",
+                    ["<leader>l"] = false,
                 },
             },
             folds = {
