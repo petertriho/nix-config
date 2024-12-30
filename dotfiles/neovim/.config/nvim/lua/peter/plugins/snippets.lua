@@ -76,6 +76,7 @@ M.setup = function()
         refsx_snippet(atlassian_project_key),
     })
     ls.filetype_extend("NeogitCommitMessage", { "gitcommit" })
+    ls.filetype_extend("markdown", { "gitcommit" })
 
     ls.add_snippets("go", {
         s(
