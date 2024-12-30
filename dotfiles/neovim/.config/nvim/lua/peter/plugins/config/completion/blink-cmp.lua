@@ -49,7 +49,14 @@ return {
         enabled = function()
             return vim.g.completion_enabled and vim.bo.buftype ~= "prompt" and vim.bo.filetype ~= "bigfile"
         end,
-        keymap = { preset = "default" },
+        keymap = {
+            preset = "default",
+            cmdline = {
+                preset = "default",
+                ["<Tab>"] = { "select_next", "fallback" },
+                ["<S-Tab>"] = { "select_prev", "fallback" },
+            },
+        },
         appearance = {
             use_nvim_cmp_as_default = true,
             nerd_font_variant = "mono",
