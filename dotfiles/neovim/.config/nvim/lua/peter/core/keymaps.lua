@@ -27,8 +27,8 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 
 -- Quickfix
-keymap("", "qn", "<CMD>cnext<CR>", { desc = "QF Next" })
-keymap("", "qp", "<CMD>cprev<CR>", { desc = "QF Prev" })
+keymap("", "qn", "<CMD>cnext<CR>", { unpack(opts), desc = "QF Next" })
+keymap("", "qp", "<CMD>cprev<CR>", { unpack(opts), desc = "QF Prev" })
 keymap("", "Q", function()
     vim.fn.setqflist({}, "a", {
         items = {
@@ -39,7 +39,7 @@ keymap("", "Q", function()
             },
         },
     })
-end, { desc = "QF Add" })
+end, { unpack(opts), desc = "QF Add" })
 
 -- Leader
 vim.g.mapleader = " "
