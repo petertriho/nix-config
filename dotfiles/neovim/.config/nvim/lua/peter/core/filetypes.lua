@@ -6,7 +6,43 @@ local sidebars = {
     "undotree",
 }
 
-return {
+local M = {
+    treesitter = {
+        "bash",
+        "css",
+        "diff",
+        "dockerfile",
+        "fish",
+        "git_config",
+        "git_rebase",
+        "gitattributes",
+        "gitcommit",
+        "gitignore",
+        "go",
+        "graphql",
+        "hcl",
+        "html",
+        "java",
+        "javascript",
+        "json",
+        "jsonc",
+        "lua",
+        "markdown",
+        "nix",
+        "python",
+        "rust",
+        "scss",
+        "sql",
+        "svelte",
+        "terraform",
+        "tmux",
+        "todotxt",
+        "toml",
+        "tsx",
+        "typescript",
+        "vim",
+        "yaml",
+    },
     excludes = {
         "TelescopePrompt",
         "TelescopeResults",
@@ -29,3 +65,5 @@ return {
     },
     sidebars = sidebars,
 }
+
+return M
