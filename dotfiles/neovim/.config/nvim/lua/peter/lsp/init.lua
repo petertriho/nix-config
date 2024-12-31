@@ -292,7 +292,7 @@ M.setup = function()
             config = require("yaml-companion").setup({ lspconfig = config })
         elseif server == "vtsls" then
             -- NOTE: workaround for https://yarnpkg.com/getting-started/editor-sdks
-            local yarn_sdks = vim.fs.find({ ".yarn/sdks" }, { type = "directory" })
+            local yarn_sdks = vim.fs.find({ "sdks" }, { type = "directory", path = ".yarn" })
             if #yarn_sdks > 0 then
                 config.settings.vtsls.typescript = {
                     globalTsdk = "./.yarn/sdks/typescript/lib",
