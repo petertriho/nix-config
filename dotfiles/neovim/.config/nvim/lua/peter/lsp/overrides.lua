@@ -8,6 +8,18 @@ local execute_command = function(client_name, params)
     end
 end
 
+local vtsls_setup = function(config)
+    -- NOTE: workaround for https://yarnpkg.com/getting-started/editor-sdks
+    local yarn_sdks = vim.fs.find({ "sdks" }, { type = "directory", path = ".yarn" })
+    if #yarn_sdks > 0 then
+        config.settings.vtsls.typescript = {
+            globalTsdk = "./.yarn/sdks/typescript/lib",
+        }
+    end
+
+    return config
+end
+
 return {
     -- angularls = {},
     basedpyright = {
@@ -138,7 +150,7 @@ return {
     --         },
     --     },
     -- },
-    vtsls = {
+    vtsls = vtsls_setup({
         init_options = {
             hostInfo = "neovim",
         },
@@ -150,6 +162,6 @@ return {
                 },
             },
         },
-    },
-    yamlls = {},
+    }),
+    yamlls = require("yaml-companion").setup({ lspconfig = {} }),
 }
