@@ -101,11 +101,12 @@ in
 
   programs.neovim = {
     enable = true;
-    package =
-      if pkgs.stdenv.isLinux then
-        inputs.neovim-nightly-overlay.packages.${pkgs.system}.default
-      else
-        pkgs.neovim-unwrapped;
+    # package =
+    #   if pkgs.stdenv.isLinux then
+    #     inputs.neovim-nightly-overlay.packages.${pkgs.system}.default
+    #   else
+    #     pkgs.neovim-unwrapped;
+    package = inputs.neovim-nightly-overlay.packages.${pkgs.system}.default;
     defaultEditor = true;
     withRuby = false;
     withPython3 = false;
