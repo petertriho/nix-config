@@ -5,11 +5,11 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "tmuxcolors";
-  version = "unstable-2024-12-15";
+  version = "unstable-2025-01-01";
   src = fetchFromGitHub {
     owner = "tinted-theming";
     repo = "tinted-tmux";
-    rev = "20396f130e477512632c37f72590b71f59dbef88";
-    sha256 = "1hl86fb7c8vg87y33ffs39x8070q2jzpxa09ray2lqcp6bvxlbyp";
+    rev = "aead506a9930c717ebf81cc83a2126e9ca08fa64";
+    sha256 = "00a7zplllbf1y207343m1p3b57gzvhiirkdc8r43kchr352a3v8l";
   };
 }
