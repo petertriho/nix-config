@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05";
     nixos-wsl.url = "github:nix-community/nixos-wsl";
+    nixos-hardware.url = "github:NixOS/nixos-hardware";
     nix-darwin = {
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -13,6 +14,7 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    hyprland.url = "github:hyprwm/Hyprland";
     neovim-nightly-overlay.url = "github:nix-community/neovim-nightly-overlay";
   };
 
@@ -53,6 +55,12 @@
           getSystemConfiguration "x86_64-linux"
           // {
             modules = [ ./systems/nixos/WSL.nix ];
+          }
+        );
+        X1-NANO = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
+            modules = [ ./systems/nixos/X1-NANO ];
           }
         );
       };
