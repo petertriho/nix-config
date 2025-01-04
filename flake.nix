@@ -17,6 +17,10 @@
       url = "github:nix-community/neovim-nightly-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    wezterm = {
+      url = "github:wez/wezterm?dir=nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -68,6 +72,12 @@
       };
 
       nixosConfigurations = {
+        T480 = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
+            modules = [ ./systems/nixos/T480 ];
+          }
+        );
         WSL = nixpkgs.lib.nixosSystem (
           getSystemConfiguration "x86_64-linux"
           // {
