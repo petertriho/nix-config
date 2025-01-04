@@ -26,3 +26,7 @@ require("lazy").setup({
         enabled = false,
     },
 })
+
+-- TODO: investigate why this needs to need to be here to fix the issue with
+-- empty buffer being modified on startup for slower machines
+vim.cmd("colorscheme tokyonight")
