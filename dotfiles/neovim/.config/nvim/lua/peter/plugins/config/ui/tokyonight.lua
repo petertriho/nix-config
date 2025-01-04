@@ -7,6 +7,11 @@ return {
             style = "night",
             sidebars = require("peter.core.filetypes").sidebars,
             on_highlights = function(hl, colors)
+                hl.BlinkCmpMenu = { fg = colors.fg, bg = colors.bg_float }
+                hl.BlinkCmpMenuBorder = { fg = colors.border_highlight, bg = colors.bg_float }
+                hl.BlinkCmpSignatureHelp = { fg = colors.fg, bg = colors.bg_float }
+                hl.BlinkCmpSignatureHelpBorder = { fg = colors.border_highlight, bg = colors.bg_float }
+
                 hl.ConflictMarkerBegin = { bg = colors.diff.add }
                 hl.ConflictMarkerOurs = { bg = colors.diff.add }
                 hl.ConflictMarkerCommonAncestors = { bg = colors.diff.delete }
