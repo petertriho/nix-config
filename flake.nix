@@ -87,6 +87,12 @@
       };
 
       nixosConfigurations = {
+        T480 = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
+            modules = [ ./systems/nixos/T480 ];
+          }
+        );
         WSL = nixpkgs.lib.nixosSystem (
           getSystemConfiguration "x86_64-linux"
           // {
