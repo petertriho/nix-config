@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+selection=$(hyprctl clients -j | jq -r '.[] | "\(.class) - \(.title) [\(.address)]"' | tofi --prompt-text 'Switch to:')
+
+if [[ -n $selection ]]; then
+    address=$(echo "$selection" | sed 's/.*\[\(.*\)\]/\1/')
+    hyprctl dispatch focuswindow address:"$address"
+fi
