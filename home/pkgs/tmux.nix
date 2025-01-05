@@ -2,7 +2,6 @@
   pkgs,
   config,
   lib,
-  inputs,
   ...
 }:
 {
@@ -17,13 +16,13 @@
   };
 
   home.packages = with pkgs; [
-    pkgs.tmuxPlugins.session-wizard
+    tmuxPlugins.session-wizard
   ];
 
   programs.tmux = {
     enable = true;
     sensibleOnTop = false;
-    terminal = lib.mkDefault "tmux-256color";
+    terminal = if pkgs.stdenv.isLinux then "screen-256color" else "tmux-256color";
     plugins = with pkgs.tmuxPlugins; [
       {
         plugin = sensible;
