@@ -116,7 +116,7 @@ if wezterm.target_triple == "x86_64-pc-windows-msvc" then
 elseif wezterm.target_triple == "x86_64-unknown-linux-gnu" then
     config.font = wezterm.font("JetBrains Mono")
     config.font_size = 12
-elseif wezterm.target_triple == "x86_64-apple-darwin" or wezterm.target_triple == "aarach64-apple-darwin" then
+elseif wezterm.target_triple == "x86_64-apple-darwin" or wezterm.target_triple == "aarch64-apple-darwin" then
     config.font = wezterm.font("JetBrainsMono Nerd Font Mono")
     config.font_size = 14
 end
