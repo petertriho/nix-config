@@ -30,6 +30,6 @@ return {
             plugins = { markdown = true },
         })
 
-        -- vim.cmd("colorscheme tokyonight")
+        vim.cmd("colorscheme tokyonight")
     end,
 }
