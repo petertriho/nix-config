@@ -106,7 +106,8 @@ in
     #     inputs.neovim-nightly-overlay.packages.${pkgs.system}.default
     #   else
     #     pkgs.neovim-unwrapped;
-    package = inputs.neovim-nightly-overlay.packages.${pkgs.system}.default;
+    # package = inputs.neovim-nightly-overlay.packages.${pkgs.system}.default;
+    package = pkgs.neovim-unwrapped;
     defaultEditor = true;
     withRuby = false;
     withPython3 = false;
