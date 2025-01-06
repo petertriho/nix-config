@@ -34,4 +34,15 @@
       ];
     };
   };
+
+  nixpkgs = {
+    overlays = with outputs.overlays; [
+      additions
+      modifications
+      stable
+    ];
+    config = {
+      allowUnfree = true;
+    };
+  };
 }

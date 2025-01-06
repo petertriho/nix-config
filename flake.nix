@@ -32,31 +32,15 @@
     let
       inherit (self) outputs;
 
-      getSystemConfiguration =
-        system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = with self.overlays; [
-              additions
-              modifications
-              stable
-            ];
-            config = {
-              allowUnfree = true;
-            };
-          };
-        in
-        {
-          inherit system;
-          specialArgs = {
-            inherit
-              inputs
-              outputs
-              pkgs
-              ;
-          };
+      getSystemConfiguration = system: {
+        inherit system;
+        specialArgs = {
+          inherit
+            inputs
+            outputs
+            ;
         };
+      };
     in
     {
       overlays = import ./overlays { inherit inputs; };

@@ -1,4 +1,5 @@
 {
+  inputs,
   outputs,
   config,
   pkgs,
@@ -8,6 +9,7 @@
 {
   imports = [
     ../base
+    inputs.home-manager.darwinModules.home-manager
     ./modules/homebrew.nix
     ./modules/system.nix
     ./modules/kanata

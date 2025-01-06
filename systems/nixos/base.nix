@@ -1,4 +1,5 @@
 {
+  inputs,
   config,
   lib,
   ...
@@ -6,6 +7,7 @@
 {
   imports = [
     ../base
+    inputs.home-manager.nixosModules.home-manager
   ];
 
   nix.gc.dates = "weekly";
