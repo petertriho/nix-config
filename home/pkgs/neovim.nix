@@ -45,6 +45,7 @@ in
     sort-package-json
     python3Packages.ssort
     stylua
+    sql-formatter
     yamlfix
     yamlfmt
 
@@ -60,6 +61,7 @@ in
     shellcheck
     selene
     statix
+    sqlfluff
     vale-with-styles
     yamllint
 

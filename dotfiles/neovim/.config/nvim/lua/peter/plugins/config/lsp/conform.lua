@@ -143,6 +143,7 @@ return {
                     return formatters
                 end,
                 sh = { "shfmt" },
+                sql = { "sqlfluff", "sql_formatter" },
                 terraform = { "hcl" },
                 typescript = javascript_formatters,
                 typescriptreact = javascript_formatters,

@@ -158,6 +158,7 @@ return {
             nix = { "statix" },
             python = { "bandit", "refurb" },
             sh = { "shellcheck" },
+            sql = { "sqlfluff" },
             xml = { "tidy" },
             yaml = { "yamllint" },
         }
