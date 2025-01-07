@@ -48,8 +48,8 @@ return {
             "sass",
             "scss",
             "xml",
-            "jsx",
-            "tsx",
+            "javascript.jsx",
+            "typescript.tsx",
             "javascript",
             "typescript",
             "javascriptreact",
@@ -93,7 +93,14 @@ return {
         },
     },
     quick_lint_js = {
-        filetypes = { "javascript", "javascriptreact", "jsx" },
+        filetypes = {
+            "javascript",
+            "javascriptreact",
+            "javascript.jsx",
+            "typescript",
+            "typescriptreact",
+            "typescript.tsx",
+        },
     },
     ruff = {
         capabilities = {
