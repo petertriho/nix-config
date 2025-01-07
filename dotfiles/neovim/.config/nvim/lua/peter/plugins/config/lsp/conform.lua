@@ -1,18 +1,7 @@
-local disabled_lsp_formatters = {
-    lua_ls = true,
-    ts_ls = true,
-    ["typescript-tools"] = true,
-    vtsls = true,
-}
-
 local get_format_opts = function(opts)
     opts = opts or {}
 
     opts.async = true
-    -- opts.lsp_format = "fallback"
-    opts.filter = function(client)
-        return not disabled_lsp_formatters[client.name]
-    end
 
     return opts
 end
