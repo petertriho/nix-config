@@ -22,6 +22,15 @@ in
   #       "Karabiner DriverKit installation failed"
   #     fi
   #   '';
+
+  system.activationScripts.postActivation.text =
+    # sh
+    ''
+      echo "Restarting Kanata ..."
+      sudo launchctl unload /Library/LaunchDaemons/local.jtroo.kanata.plist
+      sudo launchctl load /Library/LaunchDaemons/local.jtroo.kanata.plist
+    '';
+
   homebrew.casks = [
     "karabiner-elements"
   ];
