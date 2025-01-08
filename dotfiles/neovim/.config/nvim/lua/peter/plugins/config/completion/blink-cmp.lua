@@ -30,8 +30,8 @@ end
 
 return {
     "saghen/blink.cmp",
-    -- build = "nix run .#build-plugin",
-    build = 'nix develop --command bash -c "cargo build --release"',
+    build = "nix run .#build-plugin",
+    -- build = 'nix develop --command bash -c "cargo build --release"',
     event = { "CmdlineEnter", "InsertEnter" },
     keys = {
         { "<leader>lc", "<CMD>ToggleBlinkCmp<CR>", desc = "Completion Toggle" },
