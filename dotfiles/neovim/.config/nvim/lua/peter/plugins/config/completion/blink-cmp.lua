@@ -94,7 +94,9 @@ return {
             },
             list = {
                 selection = {
-                    preselect = true,
+                    preselect = function(ctx)
+                        return ctx.mode ~= "cmdline" and not require("blink.cmp").snippet_active({ direction = 1 })
+                    end,
                     auto_insert = function(ctx)
                         return ctx.mode == "cmdline"
                     end,
