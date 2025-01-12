@@ -22,6 +22,8 @@ in
     # dependencies
     gcc
     gnumake
+    # copilot.lua
+    nodejs-slim
     # nvim-markdown-preview
     pandoc
     nodePackages.live-server
