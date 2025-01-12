@@ -18,16 +18,6 @@ let
 in
 {
   home.packages = with pkgs; [
-    # neovim
-    # dependencies
-    gcc
-    gnumake
-    # copilot.lua
-    nodejs-slim
-    # nvim-markdown-preview
-    pandoc
-    nodePackages.live-server
-
     # formatters
     alejandra
     autoflake
@@ -116,6 +106,16 @@ in
     withRuby = false;
     withPython3 = false;
     withNodeJs = false;
+    extraPackages = with pkgs; [
+      # dependencies
+      gcc
+      gnumake
+      # copilot.lua
+      nodejs-slim
+      # nvim-markdown-preview
+      pandoc
+      nodePackages.live-server
+    ];
   };
 
   xdg.configFile = {
