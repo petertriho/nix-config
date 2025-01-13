@@ -5,17 +5,6 @@ return {
     dependencies = {
         "stevearc/dressing.nvim",
         "MunifTanjim/nui.nvim",
-        {
-            "zbirenbaum/copilot.lua",
-            opts = {
-                panel = {
-                    enabled = false,
-                },
-                suggestion = {
-                    enabled = false,
-                },
-            },
-        },
     },
     opts = {
         provider = "copilot",
@@ -23,5 +12,14 @@ return {
         copilot = {
             model = "claude-3.5-sonnet",
         },
+        behaviour = {
+            auto_suggestions = false,
+        },
+        -- mappings = {
+        --     suggestion = {
+        --         accept = "<C-e>",
+        --         dismiss = "<C-CR>",
+        --     },
+        -- },
     },
 }

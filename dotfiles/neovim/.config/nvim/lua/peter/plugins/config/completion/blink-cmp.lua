@@ -36,6 +36,13 @@ return {
     keys = {
         { "<leader>lc", "<CMD>ToggleBlinkCmp<CR>", desc = "Completion Toggle" },
     },
+    dependencies = {
+        {
+            "saghen/blink.compat",
+            lazy = true,
+            opts = {},
+        },
+    },
     init = function()
         vim.g.completion_enabled = true
 
@@ -107,7 +114,16 @@ return {
             preset = "luasnip",
         },
         sources = {
-            default = { "lazydev", "lsp", "path", "snippets", "buffer" },
+            default = {
+                "lazydev",
+                "lsp",
+                "path",
+                "avante_commands",
+                "avante_mentions",
+                "avante_files",
+                "snippets",
+                "buffer",
+            },
             providers = {
                 lazydev = {
                     name = "LazyDev",
@@ -131,6 +147,21 @@ return {
                                 :totable()
                         end,
                     },
+                },
+                avante_commands = {
+                    name = "avante_commands",
+                    module = "blink.compat.source",
+                    opts = {},
+                },
+                avante_files = {
+                    name = "avante_commands",
+                    module = "blink.compat.source",
+                    opts = {},
+                },
+                avante_mentions = {
+                    name = "avante_mentions",
+                    module = "blink.compat.source",
+                    opts = {},
                 },
             },
         },
