@@ -58,6 +58,7 @@ return {
         end,
         keymap = {
             preset = "default",
+            ["<C-e>"] = { "hide", "fallback" },
             cmdline = {
                 preset = "default",
                 ["<Tab>"] = { "select_next", "fallback" },
