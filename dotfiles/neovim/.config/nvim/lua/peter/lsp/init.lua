@@ -93,7 +93,7 @@ local LSP_METHODS = {
     ["textDocument/signatureHelp"] = {
         keymaps = {
             {
-                "",
+                { "n", "i" },
                 "<C-s>",
                 function()
                     vim.lsp.buf.signature_help({ border = "rounded" })
