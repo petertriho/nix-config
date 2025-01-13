@@ -1,5 +1,6 @@
 return {
     "gbprod/yanky.nvim",
+    event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
         "<Plug>(YankyYank)",
         { "y", "<Plug>(YankyYank)", mode = { "n", "x" }, desc = "Yank" },

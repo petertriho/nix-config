@@ -13,8 +13,9 @@ end
 
 return {
     "folke/snacks.nvim",
-    priority = 1000,
-    lazy = false,
+    -- priority = 1000,
+    -- lazy = false,
+    event = { "User LazyLoadFile", "VeryLazy" },
     opts = {
         indent = {
             enabled = true,
