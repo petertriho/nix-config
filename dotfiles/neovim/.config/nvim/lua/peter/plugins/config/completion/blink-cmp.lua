@@ -58,7 +58,12 @@ return {
         end,
         keymap = {
             preset = "default",
-            ["<C-e>"] = { "hide", "fallback" },
+            ["<C-e>"] = {
+                "hide",
+                function()
+                    require("copilot.suggestion").accept()
+                end,
+            },
             cmdline = {
                 preset = "default",
                 ["<Tab>"] = { "select_next", "fallback" },
