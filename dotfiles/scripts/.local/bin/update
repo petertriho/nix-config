@@ -61,7 +61,7 @@ function tool:nix:flake {
 
 function tool:nix:clean {
     echo "Cleaning nix store ..."
-    nix-collect-garbage --delete-older-than 7d
+    sudo nix-collect-garbage --delete-older-than 7d
 }
 
 function tool:nix:rebuild {
