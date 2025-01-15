@@ -5,6 +5,7 @@
 }:
 {
   home.packages = with pkgs; [
+    btop
     cht-sh
     coreutils
     dive
