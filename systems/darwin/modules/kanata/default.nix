@@ -47,7 +47,7 @@ in
     #   };
     # };
     kanata = {
-      command = "sudo ${pkgs.kanata-macos}/bin/kanata -c /etc/kanata.kbd";
+      command = "sudo ${pkgs.kanata-macos}/bin/kanata -c /etc/kanata/kanata.kbd";
       serviceConfig = {
         Label = "local.jtroo.kanata";
         RunAtLoad = true;
@@ -63,7 +63,7 @@ in
       kanata-macos
     ];
     etc = {
-      "kanata.kbd".source = ./kanata.kbd;
+      "kanata/kanata.kbd".source = ./kanata.kbd;
       # "sudoers.d/karabiner-driverkit".source =
       #   pkgs.runCommand "sudoers-karabiner-driverkit" { }
       #     # sh
