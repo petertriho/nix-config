@@ -2,8 +2,8 @@ return {
     "RishabhRD/lspactions",
     event = "VeryLazy",
     config = function()
-        vim.ui.select = require("lspactions").select
-        vim.ui.input = require("lspactions").input
+        -- vim.ui.select = require("lspactions").select
+        -- vim.ui.input = require("lspactions").input
 
         vim.lsp.handlers["textDocument/codeAction"] = require("lspactions").codeaction
         vim.lsp.handlers["textDocument/references"] = require("lspactions").references
