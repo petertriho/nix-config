@@ -24,7 +24,7 @@ in
     black
     commitmsgfmt
     docformatter
-    eslint_d
+    # eslint_d
     hclfmt
     isort
     nixfmt-rfc-style

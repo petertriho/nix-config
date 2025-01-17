@@ -1,7 +1,16 @@
+local disabled_lsp_formatters = {
+    ts_ls = true,
+    ["typescript-tools"] = true,
+    vtsls = true,
+}
+
 local get_format_opts = function(opts)
     opts = opts or {}
 
     opts.async = true
+    opts.filter = function(client)
+        return not disabled_lsp_formatters[client.name]
+    end
 
     return opts
 end
@@ -102,7 +111,8 @@ return {
         end
 
         local prettier = { "prettierd", "prettier", stop_after_first = true }
-        local javascript_formatters = with_prettier_formatter({ "eslint_d" })
+        -- local javascript_formatters = with_prettier_formatter({ "eslint_d" })
+        local javascript_formatters = vim.tbl_extend("force", prettier, { lsp_format = "first" })
 
         conform.setup({
             formatters_by_ft = {
@@ -143,14 +153,14 @@ return {
                 lsp_format = "fallback",
             }),
             formatters = {
-                eslint_d = {
-                    condition = function(ctx)
-                        -- TODO: parse package.json to check if eslint config/package exists
-                        return vim.fs.find(function(name, path)
-                            return name:match(".*eslint.config.*")
-                        end, { path = ctx.filename, upward = true })[1]
-                    end,
-                },
+                -- eslint_d = {
+                --     condition = function(ctx)
+                --         -- TODO: parse package.json to check if eslint config/package exists
+                --         return vim.fs.find(function(name, path)
+                --             return name:match(".*eslint*")
+                --         end, { path = ctx.filename, upward = true })[1]
+                --     end,
+                -- },
                 google_java_format = {
                     command = "google-java-format",
                     args = { "-" },
