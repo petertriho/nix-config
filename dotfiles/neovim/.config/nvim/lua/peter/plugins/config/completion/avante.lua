@@ -3,7 +3,17 @@ return {
     event = { "User LazyLoadFile", "VeryLazy" },
     build = "make",
     dependencies = {
-        "stevearc/dressing.nvim",
+        -- {
+        --     "stevearc/dressing.nvim",
+        --     opts = {
+        --         input = {
+        --             enabled = false,
+        --         },
+        --         select = {
+        --             enabled = false,
+        --         },
+        --     },
+        -- },
         "MunifTanjim/nui.nvim",
     },
     opts = {
