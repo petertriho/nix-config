@@ -96,6 +96,7 @@ return {
             parser = require("lint.parser").from_pattern([[:(%d+):(%d+) (.+)]], { "lnum", "col", "message" }, {
                 error = vim.diagnostic.severity.ERROR,
             }, { source = "refurb" }, {}),
+            defer = true,
         }
 
         -- Overrides
@@ -109,6 +110,7 @@ return {
             "--msg-template",
             "{line}:{col}:{severity}:{test_id} {msg}",
         }
+        lint.linters.bandit.defer = true
         lint.linters.markdownlint.args = {
             "--config",
             vim.fn.expand("$HOME/.config/nvim/code/.markdownlint.jsonc"),
@@ -144,7 +146,7 @@ return {
         }
 
         lint.linters_by_ft = {
-            ["*"] = { "codespell" },
+            -- ["*"] = { "codespell" },
             conf = { "dotenv_linter" },
             css = { "stylelint" },
             dockerfile = { "hadolint" },

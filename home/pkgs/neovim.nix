@@ -43,7 +43,7 @@ in
 
     # linters
     bandit
-    codespell
+    # codespell
     dotenv-linter
     google-java-format
     hadolint
@@ -81,6 +81,7 @@ in
     taplo
     terraform-ls
     tflint
+    typos-lsp
     vscode-langservers-extracted # html, css, json, eslint
     vtsls
     yaml-language-server

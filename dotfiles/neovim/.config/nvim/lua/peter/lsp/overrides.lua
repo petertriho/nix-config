@@ -157,6 +157,11 @@ return {
     --         },
     --     },
     -- },
+    typos_lsp = {
+        init_options = {
+            diagnosticSeverity = "information",
+        },
+    },
     vtsls = vtsls_setup({
         init_options = {
             hostInfo = "neovim",
