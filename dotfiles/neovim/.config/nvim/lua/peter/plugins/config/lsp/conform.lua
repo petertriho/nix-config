@@ -28,6 +28,9 @@ local get_range = function(args)
 end
 
 local format_msg = function(msg)
+    if type(msg) == "table" then
+        msg = vim.inspect(msg)
+    end
     return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
 end
 
