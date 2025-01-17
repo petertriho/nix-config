@@ -34,7 +34,7 @@ local format_msg = function(msg)
     return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
 end
 
-local format = function(opts)
+local get_format_msg_handle = function()
     local conform = require("conform")
     local formatters, will_use_lsp = conform.list_formatters_to_run()
 
@@ -57,6 +57,16 @@ local format = function(opts)
         percentage = nil,
     })
 
+    return msg_handle
+end
+
+local format = function(opts)
+    local msg_handle = get_format_msg_handle()
+
+    if not msg_handle then
+        return
+    end
+
     local format_opts = get_format_opts(opts)
     require("conform").format(format_opts, function(err)
         msg_handle.message = "Completed"
@@ -74,6 +84,7 @@ return {
         { "<leader>i", "<CMD>ConformInfo<CR>", desc = "Format Info" },
         { "<leader>f", "<CMD>Format<CR>", mode = { "n", "v" }, desc = "Format" },
         { "<leader>F", "<CMD>SlowFormat<CR>", mode = { "n", "v" }, desc = "Slow Format" },
+        { "<leader>gf", "<CMD>DiffFormat<CR>", mode = { "n", "v" }, desc = "Diff Format" },
     },
     init = function()
         vim.api.nvim_create_user_command("Format", function(args)
@@ -90,6 +101,56 @@ return {
                 range = get_range(args),
             })
         end, { range = true })
+
+        vim.api.nvim_create_user_command("DiffFormat", function()
+            local msg_handle = get_format_msg_handle()
+
+            if not msg_handle then
+                return
+            end
+
+            local hunks = require("gitsigns").get_hunks()
+
+            if hunks == nil then
+                msg_handle.message = "Completed"
+                msg_handle:finish()
+                return
+            end
+
+            local function format_range()
+                if next(hunks) == nil then
+                    msg_handle.message = "Completed"
+                    msg_handle:finish()
+                    return
+                end
+                local hunk = nil
+                while next(hunks) ~= nil and (hunk == nil or hunk.type == "delete") do
+                    hunk = table.remove(hunks)
+                end
+
+                if hunk ~= nil and hunk.type ~= "delete" then
+                    local start = hunk.added.start
+                    local last = start + hunk.added.count
+                    local last_hunk_line = vim.api.nvim_buf_get_lines(0, last - 2, last - 1, true)[1]
+                    local range = { start = { start, 0 }, ["end"] = { last - 1, last_hunk_line:len() } }
+
+                    local format_opts = get_format_opts({ range = range })
+                    require("conform").format(format_opts, function(err)
+                        if err then
+                            msg_handle.message = "Completed"
+                            msg_handle:finish()
+                            require("fidget").notify(format_msg(err), vim.log.levels.ERROR)
+                        end
+
+                        vim.defer_fn(function()
+                            format_range()
+                        end, 1)
+                    end)
+                end
+            end
+
+            format_range()
+        end, {})
     end,
     config = function()
         local conform = require("conform")

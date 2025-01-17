@@ -128,20 +128,20 @@ return {
             desc = "Other Buffers",
         },
         {
-            "<leader>gf",
-            function()
-                require("snacks").gitbrowse({ what = "file" })
-            end,
-            mode = { "n", "v" },
-            desc = "File URL",
-        },
-        {
             "<leader>gr",
             function()
                 require("snacks").gitbrowse({ what = "repo" })
             end,
             mode = { "n", "v" },
             desc = "Repo URL",
+        },
+        {
+            "<leader>gu",
+            function()
+                require("snacks").gitbrowse({ what = "file" })
+            end,
+            mode = { "n", "v" },
+            desc = "File URL",
         },
         {
             "<leader>z",
