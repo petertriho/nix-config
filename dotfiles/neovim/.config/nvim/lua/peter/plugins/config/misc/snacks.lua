@@ -51,13 +51,38 @@ return {
             picker = {
                 enabled = true,
                 ui_select = true,
-                -- layouts = {
-                --     select = {
-                --         layout = {
-                --             relative = "cursor",
-                --         },
-                --     },
-                -- },
+                layouts = {
+                    -- select = {
+                    --     layout = {
+                    --         relative = "cursor",
+                    --     },
+                    -- },
+                    default = {
+                        layout = {
+                            box = "horizontal",
+                            width = 0.8,
+                            min_width = 120,
+                            height = 0.8,
+                            {
+                                box = "vertical",
+                                border = "rounded",
+                                title = "{source} {live}",
+                                title_pos = "center",
+                                { win = "input", height = 1, border = "bottom" },
+                                { win = "list", border = "none" },
+                            },
+                            { win = "preview", border = "rounded", width = 0.6 },
+                        },
+                    },
+                },
+                sources = {
+                    files = {
+                        hidden = true,
+                    },
+                    grep = {
+                        hidden = true,
+                    },
+                },
                 win = {
                     input = {
                         keys = {
@@ -71,6 +96,11 @@ return {
                             ["8"] = { "select_8", mode = { "n", "i" } },
                             ["9"] = { "select_9", mode = { "n", "i" } },
                             ["0"] = { "select_0", mode = { "n", "i" } },
+                            ["<c-d>"] = { "preview_scroll_down", mode = { "i", "n" } },
+                            ["<c-u>"] = { "preview_scroll_up", mode = { "i", "n" } },
+                            ["<c-b>"] = { "list_scroll_up", mode = { "i", "n" } },
+                            ["<c-f>"] = { "list_scroll_down", mode = { "i", "n" } },
+                            ["<c-l>"] = { "toggle_preview", mode = { "i", "n" } },
                         },
                     },
                 },
@@ -94,6 +124,20 @@ return {
         })
     end,
     keys = {
+        {
+            "<leader>;",
+            function()
+                require("snacks").picker.files()
+            end,
+            desc = "Find Files",
+        },
+        {
+            "<leader>'",
+            function()
+                require("snacks").picker.grep()
+            end,
+            desc = "Live Grep",
+        },
         {
             "<leader>d",
             function()

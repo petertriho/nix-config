@@ -2,9 +2,9 @@ return {
     "nvim-telescope/telescope.nvim",
     cmd = "Telescope",
     keys = {
-        { "<leader>;", "<CMD>Telescope find_files hidden=true<CR>", desc = "Find Files" },
+        -- { "<leader>;", "<CMD>Telescope find_files hidden=true<CR>", desc = "Find Files" },
         { "<leader>o;", "<CMD>Telescope yaml_schema<CR>", desc = "Yaml Schema" },
-        { "<leader>'", "<CMD>Telescope live_grep<CR>", desc = "Live Grep" },
+        -- { "<leader>'", "<CMD>Telescope live_grep<CR>", desc = "Live Grep" },
         {
             "<leader>ln",
             "<CMD>lua require('telescope.builtin').lsp_dynamic_workspace_symbols()<CR>",
