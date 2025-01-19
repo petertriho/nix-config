@@ -53,7 +53,6 @@ return {
     },
     config = function()
         local telescope = require("telescope")
-        local actions = require("telescope.actions")
         local actions_layout = require("telescope.actions.layout")
 
         local function flash(prompt_bufnr)
@@ -76,29 +75,6 @@ return {
             })
         end
 
-        local select = function(n)
-            return function(bufnr)
-                actions.move_to_top(bufnr)
-                for _ = 1, n - 1 do
-                    actions.move_selection_next(bufnr)
-                end
-                actions.select_default(bufnr)
-            end
-        end
-
-        local keymaps = {
-            ["1"] = { select(1), type = "action" },
-            ["2"] = { select(2), type = "action" },
-            ["3"] = { select(3), type = "action" },
-            ["4"] = { select(4), type = "action" },
-            ["5"] = { select(5), type = "action" },
-            ["6"] = { select(6), type = "action" },
-            ["7"] = { select(7), type = "action" },
-            ["8"] = { select(8), type = "action" },
-            ["9"] = { select(9), type = "action" },
-            ["0"] = { select(10), type = "action" },
-        }
-
         telescope.setup({
             defaults = {
                 vimgrep_arguments = {
@@ -114,14 +90,14 @@ return {
                 prompt_prefix = "   ",
                 selection_caret = "  ",
                 mappings = {
-                    i = vim.tbl_extend("force", keymaps, {
+                    i = {
                         ["<C-l>"] = actions_layout.toggle_preview,
                         ["<c-s>"] = flash,
-                    }),
-                    n = vim.tbl_extend("force", keymaps, {
+                    },
+                    n = {
                         ["<C-l>"] = actions_layout.toggle_preview,
                         s = flash,
-                    }),
+                    },
                 },
                 history = false,
                 file_ignore_patterns = vim.opt.wildignore:get(),
