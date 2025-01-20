@@ -25,4 +25,7 @@ require("lazy").setup({
     rocks = {
         enabled = false,
     },
+    git = {
+        timeout = 600,
+    },
 })
