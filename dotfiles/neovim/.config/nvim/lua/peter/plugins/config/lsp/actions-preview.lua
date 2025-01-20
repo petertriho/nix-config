@@ -23,7 +23,7 @@ return {
         end
 
         require("actions-preview").setup({
-            telescope = {
+            telescope = vim.tbl_extend("force", require("telescope.themes").get_dropdown(), {
                 attach_mappings = function(_, map)
                     for i = 1, 9 do
                         map({ "i", "n" }, tostring(i), select(i))
@@ -31,7 +31,7 @@ return {
                     map({ "i", "n" }, "0", select(10))
                     return true
                 end,
-            },
+            }),
         })
     end,
 }
