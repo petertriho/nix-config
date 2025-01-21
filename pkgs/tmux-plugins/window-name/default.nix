@@ -9,12 +9,12 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "tmux-window-name";
-  version = "unstable-2025-01-12";
+  version = "unstable-2025-01-21";
   src = fetchFromGitHub {
     owner = "ofirgall";
     repo = "tmux-window-name";
-    rev = "bf3b8966fb45512d33dc6cee6a0380175c0e2892";
-    sha256 = "10abf6b8xrz67j99j9236g69gjs12wlhs7436pjl5li70p1rxx54";
+    rev = "28bbe2a117bf728087fc41f6c9892b45bae01c90";
+    sha256 = "13dc6bdmpbwmj2x41k28dfqrif1vn27cpaz15fy54dzvwhjhy9cs";
   };
   nativeBuildInputs = [ makeWrapper ];
   rtpFilePath = "tmux_window_name.tmux";
