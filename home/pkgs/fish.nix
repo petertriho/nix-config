@@ -148,7 +148,7 @@
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
-  home.activation.setTheme = lib.hm.dag.entryAfter [ "writeBoundary" "installPackages" ] ''
+  home.activation.setTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     PATH="${
       lib.makeBinPath (
         with pkgs;
