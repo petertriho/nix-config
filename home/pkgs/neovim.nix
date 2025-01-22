@@ -23,7 +23,6 @@ in
     autoflake
     black
     commitmsgfmt
-    docformatter
     # eslint_d
     hclfmt
     isort
@@ -32,6 +31,7 @@ in
     nodePackages.svgo
     prettierd
     pybetter
+    python3Packages.docformatter
     python3Packages.reorder-python-imports
     shfmt
     sort-package-json

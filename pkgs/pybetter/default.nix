@@ -4,13 +4,6 @@
   pyemojify,
   ...
 }:
-let
-  removePythonLicense =
-    # sh
-    ''
-      rm $out/lib/python*/site-packages/LICENSE
-    '';
-in
 with python3Packages;
 buildPythonApplication rec {
   pname = "pybetter";
@@ -22,11 +15,9 @@ buildPythonApplication rec {
   };
   postPatch = ''
     substituteInPlace pyproject.toml \
-    --replace poetry.masonry.api poetry.core.masonry.api \
-    --replace "poetry>=" "poetry-core>="
+        --replace poetry.masonry.api poetry.core.masonry.api \
+        --replace "poetry>=" "poetry-core>="
   '';
-  postFixup = removePythonLicense;
-
   doCheck = false;
   dontCheckRuntimeDeps = true;
   nativeBuildInputs = [ poetry-core ];

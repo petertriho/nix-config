@@ -19,12 +19,6 @@
     in
     {
       autoflake = prev.python3Packages.autoflake.overridePythonAttrs { postFixup = removePythonLicense; };
-      docformatter = prev.python3Packages.docformatter.overridePythonAttrs {
-        postFixup = removePythonLicense;
-      };
-      ruff = prev.ruff.overrideAttrs (oldAttrs: {
-        checkFlags = [ ];
-      });
     };
 
   stable = final: prev: {
