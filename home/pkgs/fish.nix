@@ -145,6 +145,10 @@
     shellAliases = {
       v = "nvim";
     };
+    functions = {
+      set_theme = builtins.readFile ../../dotfiles/fish/.config/fish/functions/set_theme.fish;
+      set_nextcloud = builtins.readFile ../../dotfiles/fish/.config/fish/functions/set_nextcloud.fish;
+    };
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
@@ -162,8 +166,6 @@
     }
   '';
 
-  xdg.configFile."fish/functions".source =
-    config.lib.meta.mkDotfilesSymlink "fish/.config/fish/functions";
   xdg.configFile."fish/conf.d/00_prompt.fish".source =
     config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/00_prompt.fish";
 }
