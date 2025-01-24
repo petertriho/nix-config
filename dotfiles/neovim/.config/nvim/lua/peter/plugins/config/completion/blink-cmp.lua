@@ -42,6 +42,11 @@ return {
             lazy = true,
             opts = {},
         },
+        {
+            "xzbdmw/colorful-menu.nvim",
+            lazy = true,
+            opt = {},
+        },
     },
     init = function()
         vim.g.completion_enabled = true
@@ -90,14 +95,21 @@ return {
                 draw = {
                     columns = {
                         { "kind_icon" },
-                        { "label", "label_description", gap = 1 },
+                        { "label", gap = 1 },
                         { "source_name" },
                     },
                     components = {
-                        -- customize the drawing of kind icons
                         kind_icon = {
                             text = get_kind_icon_text,
                             highlight = get_kind_icon_highlight,
+                        },
+                        label = {
+                            text = function(ctx)
+                                return require("colorful-menu").blink_components_text(ctx)
+                            end,
+                            highlight = function(ctx)
+                                return require("colorful-menu").blink_components_highlight(ctx)
+                            end,
                         },
                         source_name = {
                             text = get_source_name_text,
