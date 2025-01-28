@@ -60,7 +60,9 @@ function tool:nix:flake {
 }
 
 function tool:nix:clean {
-    echo "Cleaning nix store ..."
+    echo "Cleaning user nix store ..."
+    nix-collect-garbage --delete-older-than 7d
+    echo "Cleaning root nix store ..."
     sudo nix-collect-garbage --delete-older-than 7d
 }
 
