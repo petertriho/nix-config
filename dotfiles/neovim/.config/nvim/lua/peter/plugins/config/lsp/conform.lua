@@ -1,6 +1,9 @@
 local disabled_lsp_formatters = {
-    ts_ls = true,
     ["typescript-tools"] = true,
+    basedpyright = true,
+    pyright = true,
+    ruff = true,
+    ts_ls = true,
     vtsls = true,
 }
 
