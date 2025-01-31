@@ -95,7 +95,7 @@ alt-f = ['layout floating tiling', 'mode main']
 alt-z = 'fullscreen'
 
 alt-enter = 'exec-and-forget open -n -a WezTerm'
-alt-e = 'exec-and-forget open -n finder'
+alt-shift-e = 'exec-and-forget open -n finder'
 alt-t = 'exec-and-forget open -n -a "Floorp"'
 alt-q = "close --quit-if-last-window"
 alt-shift-q = "close-all-windows-but-current --quit-if-last-window"
