@@ -155,9 +155,15 @@ return {
                 provider = "lsp_client_count",
                 hl = function()
                     if not vim.g.completion_enabled then
-                        return "error"
+                        return {
+                            fg = "error",
+                            bg = "bg",
+                        }
                     end
-                    return "fg_sidebar"
+                    return {
+                        fg = "fg_sidebar",
+                        bg = "bg",
+                    }
                 end,
                 left_sep = " ",
                 truncate_hide = true,
