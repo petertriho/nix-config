@@ -1,5 +1,5 @@
 return {
-    "freddiehaddad/feline.nvim",
+    "git@github.com:petertriho/feline.nvim.git",
     config = function()
         local colors = require("peter.plugins.colors")
 
