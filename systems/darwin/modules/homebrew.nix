@@ -54,9 +54,11 @@ in
         # "bartender"
         # "betterdisplay"
         # "cursorsense"
+        # "jordanbaird-ice"
         # "istat-menus"
         # "rectangle"
         # "steermouse"
+        # "stats"
         # "swish"
       ]
       ++ (
