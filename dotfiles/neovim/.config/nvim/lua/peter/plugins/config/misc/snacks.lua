@@ -115,6 +115,9 @@ return {
                 enabled = true,
                 filter = filter,
             },
+            words = {
+                enabled = true,
+            },
         })
     end,
     keys = {
