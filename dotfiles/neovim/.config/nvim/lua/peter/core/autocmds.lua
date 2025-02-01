@@ -142,14 +142,4 @@ set_augroups({
         --     },
         -- },
     },
-    _targets = {
-        {
-            "User",
-            {
-                pattern = "targets#mappings#user",
-                command = "call targets#mappings#extend({'a': {'argument': [{'o': '[{([]', 'c': '[])}]', 's': ','}]}})",
-                desc = "Additional ia/aa text objects",
-            },
-        },
-    },
 })
