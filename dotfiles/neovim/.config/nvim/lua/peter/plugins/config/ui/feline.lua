@@ -1,6 +1,9 @@
 return {
     "git@github.com:petertriho/feline.nvim.git",
     event = "VeryLazy",
+    init = function()
+        vim.opt.laststatus = 3
+    end,
     config = function()
         local colors = require("peter.plugins.colors")
 
@@ -105,6 +108,10 @@ return {
 
         components.active[2] = {
             {
+                provider = "position_2",
+                left_sep = " ",
+            },
+            {
                 provider = "diagnostic_info",
                 enabled = function()
                     return lsp.diagnostics_exist(vim.diagnostic.severity.INFO)
@@ -155,10 +162,6 @@ return {
                 left_sep = " ",
                 truncate_hide = true,
                 priority = 2,
-            },
-            {
-                provider = "position_2",
-                left_sep = " ",
             },
             {
                 provider = "file_type_2",
