@@ -1,5 +1,6 @@
 return {
     "git@github.com:petertriho/feline.nvim.git",
+    event = "VeryLazy",
     config = function()
         local colors = require("peter.plugins.colors")
 
