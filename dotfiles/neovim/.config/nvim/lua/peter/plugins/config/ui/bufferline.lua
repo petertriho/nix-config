@@ -1,6 +1,6 @@
 return {
     "akinsho/bufferline.nvim",
-    event = "VeryLazy",
+    event = { "UIEnter", "VeryLazy" },
     keys = {
         { "<C-n>", "<CMD>BufferLineCycleNext<CR>" },
         { "<C-p>", "<CMD>BufferLineCyclePrev<CR>" },
