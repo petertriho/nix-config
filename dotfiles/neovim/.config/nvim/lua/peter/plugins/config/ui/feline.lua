@@ -46,12 +46,6 @@ return {
                 right_sep = "block",
             },
             {
-                provider = " ",
-                hl = function()
-                    return { fg = vi_mode_utils.get_mode_color(), bg = "bg_highlight" }
-                end,
-            },
-            {
                 provider = { name = "file_info", opts = { type = "relative", file_readonly_icon = " " } },
                 short_provider = { name = "file_info", opts = { type = "base-only", file_readonly_icon = " " } },
                 icon = "",
@@ -62,6 +56,7 @@ return {
                         style = "bold",
                     }
                 end,
+                left_sep = "block",
                 right_sep = "block",
                 priority = 0,
             },
@@ -109,10 +104,6 @@ return {
         }
 
         components.active[2] = {
-            {
-                provider = "position_2",
-                left_sep = " ",
-            },
             {
                 provider = "diagnostic_info",
                 enabled = function()
@@ -164,6 +155,10 @@ return {
                 left_sep = " ",
                 truncate_hide = true,
                 priority = 2,
+            },
+            {
+                provider = "position_2",
+                left_sep = " ",
             },
             {
                 provider = "file_type_2",
