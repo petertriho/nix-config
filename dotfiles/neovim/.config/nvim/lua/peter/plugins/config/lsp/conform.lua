@@ -291,7 +291,7 @@ return {
                     stdin = false,
                 },
                 stylelint = {
-                    args = {
+                    prepend_args = {
                         "--config",
                         vim.fn.expand("$HOME/.config/nvim/code/.stylelintrc.json"),
                     },
