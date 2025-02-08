@@ -210,7 +210,10 @@ return {
                     return formatters
                 end,
                 sh = { "shfmt" },
-                sql = { "sqlfluff", "sql_formatter" },
+                sql = {
+                    -- "sqlfluff",
+                    "sql_formatter",
+                },
                 svg = { "svgo" },
                 terraform = { "hcl" },
                 typescript = javascript_formatters,

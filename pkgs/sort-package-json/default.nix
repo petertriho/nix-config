@@ -13,4 +13,7 @@ buildNpmPackage {
   };
   npmDepsHash = "sha256-x+k3ocdyMxhkUr/EiAO/u9sYRE0tYtGqtrAS56zwjqw=";
   dontNpmBuild = true;
+  postInstall = ''
+    find -L $out -type l -print -delete
+  '';
 }
