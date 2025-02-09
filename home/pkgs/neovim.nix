@@ -53,7 +53,7 @@ in
     shellcheck
     selene
     statix
-    # sqlfluff
+    sqlfluff
     vale-with-styles
     yamllint
 

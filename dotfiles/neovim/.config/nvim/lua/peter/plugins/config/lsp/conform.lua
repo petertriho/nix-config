@@ -211,7 +211,7 @@ return {
                 end,
                 sh = { "shfmt" },
                 sql = {
-                    -- "sqlfluff",
+                    "sqlfluff",
                     "sql_formatter",
                 },
                 svg = { "svgo" },
