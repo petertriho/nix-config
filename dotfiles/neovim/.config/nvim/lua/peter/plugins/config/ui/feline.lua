@@ -2,7 +2,7 @@ return {
     "git@github.com:petertriho/feline.nvim.git",
     event = { "UiEnter", "VeryLazy" },
     init = function()
-        vim.opt.laststatus = 3
+        vim.opt.laststatus = 2
     end,
     config = function()
         local colors = require("peter.plugins.colors")
