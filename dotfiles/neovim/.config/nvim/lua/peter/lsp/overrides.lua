@@ -174,6 +174,17 @@ return {
                 },
             },
         },
+        commands = {
+            VtslsOrganizeImports = {
+                function()
+                    execute_command("vtsls", {
+                        command = "typescript.organizeImports",
+                        arguments = { vim.api.nvim_buf_get_name(0) },
+                    })
+                end,
+                description = "Organize Imports",
+            },
+        },
     }),
     yamlls = require("yaml-companion").setup({ lspconfig = {} }),
 }

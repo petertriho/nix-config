@@ -7,7 +7,7 @@ local LSP_METHODS = {
                 { "n", "x" },
                 "gra",
                 function()
-                    vim.lsp.buf.code_action()
+                    vim.lsp.buf.code_action({ context = { only = { "source", "refactor", "quickfix" } } })
                 end,
                 { desc = "Code Actions" },
             },
@@ -172,6 +172,8 @@ local function lsp_attach_callback(args)
         buf_keymap("n", "gro", "<CMD>RuffOrganizeImports<CR>", { desc = "Organize Imports" })
     elseif client.name == "ts_ls" then
         buf_keymap("n", "gro", "<CMD>TSServerOrganizeImports<CR>", { desc = "Organize Imports" })
+    elseif client.name == "vtsls" then
+        buf_keymap("n", "gro", "<CMD>VtslsOrganizeImports<CR>", { desc = "Organize Imports" })
     end
 
     for method, _ in pairs(LSP_METHODS) do
