@@ -7,9 +7,17 @@ local LSP_METHODS = {
                 { "n", "x" },
                 "gra",
                 function()
-                    vim.lsp.buf.code_action({ context = { only = { "source", "refactor", "quickfix" } } })
+                    vim.lsp.buf.code_action()
                 end,
                 { desc = "Code Actions" },
+            },
+            {
+                { "n", "x" },
+                "grA",
+                function()
+                    vim.lsp.buf.code_action({ context = { only = { "source", "refactor", "quickfix" } } })
+                end,
+                { desc = "Code Actions (ALL)" },
             },
         },
     },
