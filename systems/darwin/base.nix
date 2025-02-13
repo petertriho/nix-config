@@ -25,8 +25,6 @@
     settings.auto-optimise-store = false;
   };
 
-  services.nix-daemon.enable = true;
-
   security.pam.enableSudoTouchIdAuth = true;
 
   security.sudo = {
