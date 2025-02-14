@@ -1,5 +1,6 @@
 return {
     "stevearc/stickybuf.nvim",
+    enabled = false,
     event = { "User LazyLoadFile", "VeryLazy" },
     opts = {
         get_auto_pin = function(bufnr)
