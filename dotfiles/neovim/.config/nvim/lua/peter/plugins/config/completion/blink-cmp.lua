@@ -69,7 +69,9 @@ return {
                     require("copilot.suggestion").accept()
                 end,
             },
-            cmdline = {
+        },
+        cmdline = {
+            keymap = {
                 preset = "default",
                 ["<Tab>"] = { "select_next", "fallback" },
                 ["<S-Tab>"] = { "select_prev", "fallback" },
