@@ -216,6 +216,7 @@ return {
                 },
                 svg = { "svgo" },
                 terraform = { "hcl" },
+                tf = { "hcl" },
                 typescript = javascript_formatters,
                 typescriptreact = javascript_formatters,
                 xml = { "tidy" },
