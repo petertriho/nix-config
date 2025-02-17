@@ -20,8 +20,13 @@ in
 
   homebrew = {
     enable = true;
+    global = {
+      autoUpdate = true;
+    };
     onActivation = {
+      autoUpdate = true;
       cleanup = "zap";
+      upgrade = true;
     };
     taps = [
       "homebrew/bundle"
