@@ -70,7 +70,6 @@ in
     lua-language-server
     marksman
     nil
-    nodePackages.graphql-language-service-cli
     # nodePackages.typescript-language-server
     # pylyzer
     quick-lint-js

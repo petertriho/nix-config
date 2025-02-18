@@ -59,9 +59,6 @@ return {
     eslint = {},
     fish_lsp = {},
     gopls = {},
-    graphql = {
-        filetypes = { "graphql" },
-    },
     html = {
         init_options = {
             provideFormatter = false,
