@@ -38,9 +38,6 @@
             ;
         };
       };
-
-      forEachSupportedSystem =
-        supportedSystems: f: nixpkgs.lib.genAttrs supportedSystems (system: f { inherit system; });
     in
     {
       overlays = import ./overlays { inherit inputs; };
@@ -52,21 +49,12 @@
       };
 
       nixosConfigurations = {
-        WSL =
-          forEachSupportedSystem
-            [
-              "aarch64-linux"
-              "x86_64-linux"
-            ]
-            (
-              system:
-              nixpkgs.lib.nixosSystem (
-                getSystemConfiguration "x86_64-linux"
-                // {
-                  modules = [ ./systems/nixos/WSL.nix ];
-                }
-              )
-            );
+        WSL = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
+            modules = [ ./systems/nixos/WSL.nix ];
+          }
+        );
       };
 
       darwinConfigurations = {
