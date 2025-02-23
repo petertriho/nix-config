@@ -13,7 +13,7 @@ local config = {
         "zero=1", -- slashed zero
         "cv06=1", -- 'm' smaller middle apex
         "cv07=1", -- 'w' smaller middle apex
-        "cv12=1", -- 'u spur
+        "cv12=1", -- 'u' spur
         "cv14=1", -- '¢$' broken strikes
     },
     front_end = "WebGpu",
