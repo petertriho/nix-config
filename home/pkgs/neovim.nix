@@ -106,9 +106,6 @@ in
       gnumake
       # copilot.lua
       nodejs-slim
-      # nvim-markdown-preview
-      pandoc
-      nodePackages.live-server
     ];
   };
 
