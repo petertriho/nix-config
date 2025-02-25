@@ -25,7 +25,7 @@
     settings.auto-optimise-store = false;
   };
 
-  security.pam.enableSudoTouchIdAuth = true;
+  security.pam.services.sudo_local.touchIdAuth = true;
 
   security.sudo = {
     extraConfig = ''
