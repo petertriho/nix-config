@@ -159,7 +159,7 @@ return {
             markdown = { "markdownlint", "vale" },
             nix = { "statix" },
             python = { "bandit", "refurb" },
-            sh = { "shellcheck" },
+            -- sh = { "shellcheck" },
             sql = { "sqlfluff" },
             xml = { "tidy" },
             yaml = { "yamllint" },
