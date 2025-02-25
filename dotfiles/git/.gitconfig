@@ -5,15 +5,23 @@
 [include]
     path = ~/.config/git/.gitconfig
 
+[branch]
+    sort = -committerdate
+
+[column]
+    ui = auto
+
 [commit]
     verbose = true
     template = ~/.gittemplates/commit
 
 [core]
+    fsmonitor = true
     # Remove delta_side_by_side function when fixed
     # https://github.com/dandavison/delta/issues/359
     # https://github.com/wfxr/forgit/issues/121
     pager = delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}
+    untrackedCache = true
 
 [delta]
     navigate = true
@@ -22,7 +30,9 @@
 
 [diff]
     colorMoved = zebra
+    mnemonicPrefix = true
     # external = difft
+    renames = true
     tool = difftastic
 
 [difftool]
@@ -39,6 +49,8 @@
 
 [fetch]
     prune = true
+    pruneTags = true
+    all = true
 
 [filter "lfs"]
     clean = git-lfs clean -- %f
@@ -46,8 +58,11 @@
     process = git-lfs filter-process
     required = true
 
+[help]
+    autocorrect = prompt
+
 [merge]
-    conflictStyle = diff3
+    conflictStyle = zdiff3
     tool = mergetool
 
 [mergetool "fugitive"]
@@ -65,4 +80,18 @@
     rebase = true
 
 [push]
+    default = simple
     autoSetupRemote = true
+    followTags = true
+
+[rebase]
+    autoSquash = true
+    autoStash = true
+    updateRefs = true
+
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[tag]
+    sort = version:refname
