@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/direnv/layouts"
+
 function base_flake_nix {
     local packages=$1
     local extras=$2
@@ -103,11 +105,13 @@ function tool:python {
 }
 
 function tool:clean {
-    echo "TODO: Remove direnv for current dir in ~/.cache/direnv/layouts"
+    hash="$(sha1sum - <<< "$PWD" | head -c40)"
+    path="${PWD//[^a-zA-Z0-9]/-}"
+    rm -rf "${CACHE_DIR:?}/${hash}${path}"
 }
 
 function tool:clean-all {
-    rm -rf ~/.cache/direnv/layouts
+    rm -rf "${CACHE_DIR:?}"
 }
 
 function tool:list {
