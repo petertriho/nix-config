@@ -5,12 +5,12 @@
 }:
 tmuxPlugins.mkTmuxPlugin rec {
   pluginName = "tokyo-night";
-  version = "unstable-2024-11-30";
+  version = "unstable-2025-02-25";
   src = fetchFromGitHub {
     owner = "janoamaral";
     repo = "tokyo-night-tmux";
-    rev = "d610ced20d5f602a7995854931440e4a1e0ab780";
-    sha256 = "0pzrchfrjxay5lzmvwk7ixnv9v4hblzsaq2yzrlrs2zv8a1c9fyp";
+    rev = "caf6cbb4c3a32d716dfedc02bc63ec8cf238f632";
+    sha256 = "0kd589277i45z03r3md2dmsnxa4598zxq0cbhb08jc44wgwvvr2c";
   };
   rtpFilePath = "${pluginName}.tmux";
 }
