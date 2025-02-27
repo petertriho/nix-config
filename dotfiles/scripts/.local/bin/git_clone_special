@@ -18,6 +18,6 @@ git clone "$repository" "${directory}/${default_branch}"
 
 pushd "${directory}/${default_branch}" > /dev/null
 
-git config set worktree.guessRemote true
+git config worktree.guessRemote true
 
 popd > /dev/null
