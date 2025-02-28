@@ -7,12 +7,12 @@
 }:
 tmuxPlugins.mkTmuxPlugin rec {
   pluginName = "session-wizard";
-  version = "unstable-2024-10-30";
+  version = "unstable-2025-02-28";
   src = fetchFromGitHub {
     owner = "27medkamal";
     repo = "tmux-session-wizard";
-    rev = "5f574960dfe6dd889ee5dc136473f3a0507682bf";
-    sha256 = "14wghnasvqczq9srkg96fcy46ydlyq6p7lv87irndzxqbklak0fs";
+    rev = "c642809ebc5ceaa1431db9ce365554ab4ea92c31";
+    sha256 = "12rxd4yjhk1zb97fsyf1n17ma025rr3cvqvzrbl4j46m0ciax51z";
   };
   rtpFilePath = "${pluginName}.tmux";
   nativeBuildInputs = [ makeWrapper ];
