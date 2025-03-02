@@ -47,7 +47,7 @@ in
     #   };
     # };
     kanata = {
-      command = "sudo ${pkgs.kanata-macos}/bin/kanata -c /etc/kanata/kanata.kbd";
+      command = "sudo ${pkgs.kanata}/bin/kanata -c /etc/kanata/kanata.kbd";
       serviceConfig = {
         Label = "local.jtroo.kanata";
         RunAtLoad = true;
@@ -60,7 +60,7 @@ in
 
   environment = {
     systemPackages = with pkgs; [
-      kanata-macos
+      kanata
     ];
     etc = {
       "kanata/kanata.kbd".source = ./kanata.kbd;
@@ -78,7 +78,7 @@ in
         pkgs.runCommand "sudoers-kanata" { }
           # sh
           ''
-            BIN="${pkgs.kanata-macos}/bin/kanata"
+            BIN="${pkgs.kanata}/bin/kanata"
             SHASUM=$(sha256sum "$BIN" | cut -d' ' -f1)
             cat << EOF > "$out"
             %admin ALL=(root) NOPASSWD: sha256:$SHASUM $BIN
