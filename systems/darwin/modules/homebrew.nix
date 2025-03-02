@@ -61,11 +61,12 @@ in
         # "bartender"
         # "betterdisplay"
         # "cursorsense"
-        # "jordanbaird-ice"
         # "istat-menus"
+        # "itsycal"
+        # "jordanbaird-ice"
         # "rectangle"
-        # "steermouse"
         # "stats"
+        # "steermouse"
         # "swish"
       ]
       ++ (
