@@ -10,9 +10,9 @@
   imports = [
     ../base
     inputs.home-manager.darwinModules.home-manager
+    outputs.systemModules.darwin
     ./modules/homebrew.nix
     ./modules/system.nix
-    ./modules/kanata
   ];
 
   nix = {
@@ -40,6 +40,10 @@
   };
 
   programs.zsh = {
+    enable = true;
+  };
+
+  services.kanata = {
     enable = true;
   };
 
