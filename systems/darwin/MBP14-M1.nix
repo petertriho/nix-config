@@ -8,4 +8,6 @@
     "bartender"
     "betterdisplay"
   ];
+
+  system.stateVersion = 4;
 }
