@@ -4,14 +4,14 @@
 }:
 buildNpmPackage {
   pname = "sort-package-json";
-  version = "unstable-2025-03-01";
+  version = "unstable-2025-03-04";
   src = fetchFromGitHub {
     owner = "keithamus";
     repo = "sort-package-json";
-    rev = "43ee7e7f613d113e0621d78195158cfe1dd9df1f";
-    sha256 = "15rkgnvbng4xaq7a90k4ckwkwwn9jwx2a4dwss092k4lg3jgzvds";
+    rev = "819cd97d787e81c7cb12a618bd07dc100c4bc9f8";
+    sha256 = "0rj0d4gpwp0kiyxjgf3lk1q69cyssp5w0kjh206g4jwa2a68cwm4";
   };
-  npmDepsHash = "sha256-MXVfDaUQN70xWLrf3UhbPwgfCdetP9v1Gw/7RYG2RQ0";
+  npmDepsHash = "sha256-vPizvY1Wuv1svGiWwQeqUI3UYdu/F4X0vQGdJIyHU0Q=";
   dontNpmBuild = true;
   postInstall = ''
     find -L $out -type l -print -delete
