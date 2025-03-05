@@ -3,9 +3,9 @@
   "actions-preview.nvim": { "branch": "master", "commit": "4ab7842eb6a5b6d2b004f8234dcf33382a0fdde2" },
   "any-jump.vim": { "branch": "master", "commit": "f95674d9a4251ac02f452d5f1861e4422f4652c7" },
   "auto-indent.nvim": { "branch": "main", "commit": "46801cf8857d42a20a73c40b0a5d3dfe8b2b6192" },
-  "avante.nvim": { "branch": "main", "commit": "7578f13d8d1a79cf5312fb6f44bc1082eb238c94" },
+  "avante.nvim": { "branch": "main", "commit": "662b6a547b2214232e7ff9e2dd3ba15fc22ca75a" },
   "barbecue.nvim": { "branch": "main", "commit": "3e31404f0b93a2c30d151abf0648650ac811c664" },
-  "blink.cmp": { "branch": "main", "commit": "ef9d861952bfe29d096c993d4bd69576e09447fe" },
+  "blink.cmp": { "branch": "main", "commit": "bf810ebe1251dfa756c7fa328e56b0c2e157d313" },
   "blink.compat": { "branch": "main", "commit": "4104671562c663d059d91a99da3780bead5bc467" },
   "bufferline.nvim": { "branch": "main", "commit": "655133c3b4c3e5e05ec549b9f8cc2894ac6f51b3" },
   "bufjump.nvim": { "branch": "master", "commit": "ae2728a77defbd27e9e5ef64c854fb0813ffba01" },
@@ -16,6 +16,7 @@
   "dial.nvim": { "branch": "master", "commit": "34bbd9c387c358190e61ce71017faad3dffa7a74" },
   "diffview.nvim": { "branch": "main", "commit": "4516612fe98ff56ae0415a259ff6361a89419b0a" },
   "dir-telescope.nvim": { "branch": "main", "commit": "805405b9f98dc3470f8676773dc0e6151a9158ed" },
+  "dressing.nvim": { "branch": "master", "commit": "2d7c2db2507fa3c4956142ee607431ddb2828639" },
   "eyeliner.nvim": { "branch": "main", "commit": "8f197eb30cecdf4c2cc9988a5eecc6bc34c0c7d6" },
   "feline.nvim": { "branch": "main", "commit": "81a033f437f8a5cd3476dc6327e5adb0d5eed81e" },
   "fidget.nvim": { "branch": "main", "commit": "d9ba6b7bfe29b3119a610892af67602641da778e" },
@@ -58,7 +59,7 @@
   "plenary.nvim": { "branch": "master", "commit": "857c5ac632080dba10aae49dba902ce3abf91b35" },
   "popup.nvim": { "branch": "master", "commit": "b7404d35d5d3548a82149238289fa71f7f6de4ac" },
   "promise-async": { "branch": "main", "commit": "119e8961014c9bfaf1487bf3c2a393d254f337e2" },
-  "quicker.nvim": { "branch": "master", "commit": "76bfadd8f29895e79429fe0d30f0b3df82cd466a" },
+  "quicker.nvim": { "branch": "master", "commit": "1798be71cdcb15fb84fa8054148a56e17fd391dc" },
   "rainbow": { "branch": "master", "commit": "76ca1a20aa42edb5c65c19029968aad4625790dc" },
   "rainbow-delimiters.nvim": { "branch": "master", "commit": "c2255b20bb1accb0e83e70f995adf99b78dee13d" },
   "range-highlight.nvim": { "branch": "master", "commit": "8b5e8ccb3460b2c3675f4639b9f54e64eaab36d9" },
@@ -91,5 +92,5 @@
   "which-key.nvim": { "branch": "main", "commit": "370ec46f710e058c9c1646273e6b225acf47cbed" },
   "winshift.nvim": { "branch": "main", "commit": "37468ed6f385dfb50402368669766504c0e15583" },
   "yaml-companion.nvim": { "branch": "chore/remove-deprecated-apis", "commit": "4d8058b2aae63cd78fbbe980d01859df4d4db3ac" },
-  "yanky.nvim": { "branch": "main", "commit": "9543d4c6c537720419bccb3338c4ddd5bb6fbd44" }
+  "yanky.nvim": { "branch": "main", "commit": "80d9385dbebe7049fd1961d7909b835a58ce9dcc" }
 }
