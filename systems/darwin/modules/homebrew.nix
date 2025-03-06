@@ -24,9 +24,9 @@ in
       autoUpdate = true;
     };
     onActivation = {
-      autoUpdate = true;
+      # autoUpdate = true;
       cleanup = "zap";
-      upgrade = true;
+      # upgrade = true;
     };
     taps = [
       "homebrew/bundle"
