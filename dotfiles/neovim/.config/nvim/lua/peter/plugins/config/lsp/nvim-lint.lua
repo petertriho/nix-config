@@ -158,7 +158,7 @@ return {
             lua = { "luacheck", "selene" },
             markdown = { "markdownlint", "vale" },
             nix = { "statix" },
-            python = { "bandit", "refurb" },
+            python = { "bandit", "pylint", "refurb" },
             -- sh = { "shellcheck" },
             sql = { "sqlfluff" },
             xml = { "tidy" },

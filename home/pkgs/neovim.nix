@@ -49,6 +49,7 @@ in
     hadolint
     luajitPackages.luacheck
     markdownlint-cli
+    pylint
     refurb
     shellcheck
     selene
