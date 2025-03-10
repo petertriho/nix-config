@@ -116,7 +116,7 @@ return {
                     execute_command("ruff", {
                         command = "ruff.applyAutofix",
                         arguments = {
-                            { uri = vim.uri_from_bufnr(bufnr) },
+                            { uri = vim.uri_from_bufnr(0) },
                         },
                     })
                 end,
