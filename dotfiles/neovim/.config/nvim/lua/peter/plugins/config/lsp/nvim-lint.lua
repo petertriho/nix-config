@@ -116,6 +116,15 @@ return {
             vim.fn.expand("$HOME/.config/nvim/code/.markdownlint.jsonc"),
             "--stdin",
         }
+        lint.linters.pylint.args = {
+            "-f",
+            "json",
+            "--from-stdin",
+            "--init-hook=import pylint_venv; pylint_venv.inithook(quiet=True)",
+            function()
+                return vim.api.nvim_buf_get_name(0)
+            end,
+        }
         lint.linters.selene.condition = function(ctx)
             return vim.fs.find({ "selene.toml" }, { path = ctx.filename, upward = true })[1]
         end
