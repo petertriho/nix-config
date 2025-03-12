@@ -19,6 +19,9 @@
     in
     {
       autoflake = prev.python3Packages.autoflake.overridePythonAttrs { postFixup = removePythonLicense; };
+      pylint = prev.python3Packages.pylint.overridePythonAttrs {
+        dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
+      };
     };
 
   stable = final: prev: {
