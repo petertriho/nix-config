@@ -143,6 +143,7 @@
           { }
       );
     shellAliases = {
+      aws_profile = "export AWS_PROFILE=$(aws configure list-profiles | fzf --prompt 'Select AWS Profile > ') 2&> /dev/null";
       v = "nvim";
     };
     functions = {
