@@ -28,6 +28,9 @@
         });
     shellAbbrs =
       {
+        acs = "aws configure sso";
+        ap = "aws_profile";
+        asl = "aws sso login";
         d = "docker";
         dc = "docker compose";
         dcd = "docker compose down --remove-orphans";
