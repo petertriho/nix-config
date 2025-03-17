@@ -39,6 +39,11 @@ M.file_is_big = function(bufnr, path)
 
     local line_count = vim.api.nvim_buf_line_count(bufnr)
 
+    if line_count == 0 then
+        vim.b[bufnr].file_is_big = false
+        return vim.b[bufnr].file_is_big
+    end
+
     if line_count > M.BIG_FILE_LINE_COUNT then
         vim.b[bufnr].file_is_big = true
         return vim.b[bufnr].file_is_big
