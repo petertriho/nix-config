@@ -33,7 +33,7 @@ opt.fillchars = {
 }
 opt.ignorecase = true
 opt.lazyredraw = true
-opt.list = true
+opt.list = false
 opt.listchars = {
     eol = "¬",
     extends = "›",

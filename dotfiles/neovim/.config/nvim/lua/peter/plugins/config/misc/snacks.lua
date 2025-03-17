@@ -119,6 +119,9 @@ return {
                 enabled = true,
             },
         })
+
+        snacks.toggle.option("list"):map("<leader>tl")
+        snacks.toggle.option("wrap"):map("<leader>tw")
     end,
     keys = {
         {
