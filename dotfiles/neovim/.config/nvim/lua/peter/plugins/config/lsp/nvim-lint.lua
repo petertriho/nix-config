@@ -159,11 +159,6 @@ return {
             conf = { "dotenv_linter" },
             css = { "stylelint" },
             dockerfile = { "hadolint" },
-            html = { "tidy", "djlint" },
-            htmlangular = { "tidy", "djlint" },
-            htmldjango = { "tidy", "djlint" },
-            json = { "jq" },
-            jsonc = { "jq" },
             lua = { "luacheck", "selene" },
             markdown = { "markdownlint", "vale" },
             nix = { "statix" },
@@ -173,5 +168,37 @@ return {
             xml = { "tidy" },
             yaml = { "yamllint" },
         }
+
+        local filetypes_to_linters = {
+            {
+                { "html", "htmlangular", "htmldjango" },
+                { "tidy", "djlint" },
+            },
+            {
+                {
+                    "javascript",
+                    "javascriptreact",
+                    "javascript.jsx",
+                    "typescript",
+                    "typescriptreact",
+                    "typescript.tsx",
+                },
+                { "eslint_d" },
+            },
+            {
+                { "json", "jsonc" },
+                { "jq" },
+            },
+        }
+
+        for _, config in ipairs(filetypes_to_linters) do
+            local ft = config[1]
+            local linters = config[2]
+
+            for _, f in ipairs(ft) do
+                lint.linters_by_ft[f] = lint.linters_by_ft[f] or {}
+                vim.list_extend(lint.linters_by_ft[f], linters)
+            end
+        end
     end,
 }

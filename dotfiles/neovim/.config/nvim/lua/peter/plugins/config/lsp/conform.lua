@@ -178,8 +178,8 @@ return {
         end
 
         local prettier = { "prettierd", "prettier", stop_after_first = true }
-        -- local javascript_formatters = with_prettier_formatter({ "eslint_d" })
-        local javascript_formatters = vim.tbl_extend("force", prettier, { lsp_format = "first" })
+        local javascript_formatters = with_prettier_formatter({ "eslint_d" })
+        -- local javascript_formatters = vim.tbl_extend("force", prettier, { lsp_format = "first" })
 
         conform.setup({
             formatters_by_ft = {

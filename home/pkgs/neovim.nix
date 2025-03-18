@@ -23,7 +23,7 @@ in
     autoflake
     black
     commitmsgfmt
-    # eslint_d
+    eslint_d
     hclfmt
     isort
     nixfmt-rfc-style

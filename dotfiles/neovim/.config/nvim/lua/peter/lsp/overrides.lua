@@ -56,7 +56,7 @@ return {
     --         "typescriptreact",
     --     },
     -- },
-    eslint = {},
+    -- eslint = {},
     fish_lsp = {},
     gopls = {},
     html = {
