@@ -88,6 +88,7 @@
         gr = "git rebase";
         gra = "git rebase --abort";
         grbc = "git rebase --continue";
+        grd = "git rebase (git_default_branch)";
         grf = "git reflog";
         gri = "git rebase --interactive";
         grs = "git reset";
