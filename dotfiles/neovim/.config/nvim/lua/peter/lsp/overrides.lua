@@ -62,7 +62,7 @@ return {
     --         "xml",
     --     },
     -- },
-    -- eslint = {},
+    eslint = {},
     fish_lsp = {},
     gopls = {},
     html = {

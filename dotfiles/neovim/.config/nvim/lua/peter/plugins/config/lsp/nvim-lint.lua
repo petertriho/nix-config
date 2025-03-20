@@ -174,17 +174,17 @@ return {
                 { "html", "htmlangular", "htmldjango" },
                 { "tidy", "djlint" },
             },
-            {
-                {
-                    "javascript",
-                    "javascriptreact",
-                    "javascript.jsx",
-                    "typescript",
-                    "typescriptreact",
-                    "typescript.tsx",
-                },
-                { "eslint_d" },
-            },
+            -- {
+            --     {
+            --         "javascript",
+            --         "javascriptreact",
+            --         "javascript.jsx",
+            --         "typescript",
+            --         "typescriptreact",
+            --         "typescript.tsx",
+            --     },
+            --     { "eslint_d" },
+            -- },
             {
                 { "json", "jsonc" },
                 { "jq" },
