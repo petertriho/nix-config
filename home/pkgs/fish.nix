@@ -72,6 +72,7 @@
         gcls = "git_clone_special";
         gco = "git checkout";
         gcob = "git checkout -b";
+        gdb = "git_default_branch";
         gdi = "git diff";
         gdt = "git difftool";
         gf = "git fetch";
