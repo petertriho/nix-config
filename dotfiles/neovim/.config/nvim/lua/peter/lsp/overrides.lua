@@ -113,7 +113,7 @@ return {
         },
         init_options = {
             settings = {
-                configuration = vim.fn.expand("$HOME/.config/nvim/code/.ruff.toml"),
+                configuration = vim.fn.expand("$HOME/.config/nvim/code/ruff.toml"),
             },
         },
         commands = {

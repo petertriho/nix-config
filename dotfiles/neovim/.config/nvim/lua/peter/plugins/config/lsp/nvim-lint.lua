@@ -162,7 +162,7 @@ return {
             lua = { "luacheck", "selene" },
             markdown = { "markdownlint", "vale" },
             nix = { "statix" },
-            python = { "bandit", "pylint", "refurb" },
+            python = { "pylint" },
             -- sh = { "shellcheck" },
             sql = { "sqlfluff" },
             xml = { "tidy" },

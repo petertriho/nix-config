@@ -42,7 +42,6 @@ in
     yamlfmt
 
     # linters
-    bandit
     # codespell
     dotenv-linter
     google-java-format
@@ -50,7 +49,6 @@ in
     luajitPackages.luacheck
     markdownlint-cli
     pylint
-    refurb
     shellcheck
     selene
     statix

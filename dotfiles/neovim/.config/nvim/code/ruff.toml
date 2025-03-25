@@ -1,0 +1,22 @@
+select = [
+  "ASYNC", # flake8-async
+  "B",     # flake8-bugbear
+  "D",     # pydocstyle
+  "E",     # pycodestyle
+  "F",     # pyflakes
+  "FAST",  # fastapi
+  "FLY",   # flynt
+  "FURB",  # refurb
+  "N",     # pep8-naming
+  "PERF",  # perflint
+  "PL",    # pylint
+  "RUF",   # ruff
+  "S",     # flake8-bandit
+  "TRY",   # tryceratops
+  "UP",    # pyupgrade
+  "W",     # pycodestyle
+  # "I",     # isort
+]
+
+[format]
+preview = true
