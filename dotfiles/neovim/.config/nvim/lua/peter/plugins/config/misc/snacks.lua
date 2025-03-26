@@ -11,6 +11,10 @@ local filter = function(buf)
     return not require("peter.core.utils").is_ft("excludes", filetype)
 end
 
+local get_scratch_path = function()
+    return os.getenv("SCRATCH_PATH") or vim.fn.stdpath("data") .. "/scratch"
+end
+
 return {
     "folke/snacks.nvim",
     -- priority = 1000,
@@ -115,6 +119,9 @@ return {
                 enabled = true,
                 filter = filter,
             },
+            scratch = {
+                root = get_scratch_path() .. "/scratch",
+            },
             words = {
                 enabled = true,
             },
@@ -137,6 +144,17 @@ return {
                 require("snacks").picker.grep()
             end,
             desc = "Live Grep",
+        },
+        {
+            "<leader>b",
+            function()
+                require("snacks").scratch({
+                    file = get_scratch_path() .. "/scratch.md",
+                    name = "Scratch",
+                    ft = "markdown",
+                })
+            end,
+            desc = "Scratch Buffer",
         },
         {
             "<leader>d",
@@ -186,6 +204,20 @@ return {
             end,
             mode = { "n", "v" },
             desc = "File URL",
+        },
+        {
+            "<leader>ts",
+            function()
+                require("snacks").scratch()
+            end,
+            desc = "Toggle Scratch Buffer",
+        },
+        {
+            "<leader>tS",
+            function()
+                require("snacks").scratch.select()
+            end,
+            desc = "Select Scratch Buffer",
         },
         {
             "<leader>z",
