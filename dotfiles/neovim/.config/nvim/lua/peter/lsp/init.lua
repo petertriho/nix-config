@@ -185,7 +185,7 @@ local function lsp_attach_callback(args)
     end
 
     for method, _ in pairs(LSP_METHODS) do
-        if client.supports_method(method, { bufnr = bufnr }) then
+        if client:supports_method(method, bufnr) then
             lsp_setup_method(client, bufnr, method)
         end
     end

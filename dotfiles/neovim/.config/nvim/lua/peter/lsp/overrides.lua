@@ -4,7 +4,7 @@ local execute_command = function(client_name, params)
         name = client_name,
     })
     for _, client in ipairs(clients) do
-        client.request("workspace/executeCommand", params, nil, 0)
+        client:request("workspace/executeCommand", params, nil, 0)
     end
 end
 
