@@ -12,7 +12,13 @@ local filter = function(buf)
 end
 
 local get_scratch_path = function()
-    return os.getenv("SCRATCH_PATH") or vim.fn.stdpath("data") .. "/scratch"
+    local scratch_path = os.getenv("SCRATCH_PATH")
+
+    if scratch_path then
+        return vim.fn.expand(scratch_path)
+    else
+        return vim.fn.stdpath("data") .. "/scratch"
+    end
 end
 
 return {
