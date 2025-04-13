@@ -108,6 +108,7 @@
         gwm = "git worktree move";
         gwr = "git worktree remove";
         k = "kubectl";
+        kc = "kubie ctx";
         ll = "ls -la";
         mk = "minikube";
         n = "nix";
