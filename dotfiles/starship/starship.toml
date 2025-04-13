@@ -12,5 +12,8 @@ when = true
 fish_style_pwd_dir_length = 1
 truncate_to_repo = false
 
+[kubernetes]
+disabled = false
+
 [time]
 disabled = false
