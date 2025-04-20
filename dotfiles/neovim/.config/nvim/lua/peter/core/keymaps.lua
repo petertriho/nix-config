@@ -15,10 +15,10 @@ keymap("v", "]e", ":m '>+1<CR>gv=gv", { unpack(opts), desc = "Exchange Below" })
 keymap("v", "[e", ":m '<-2<CR>gv=gv", { unpack(opts), desc = "Exchange Above" })
 
 -- Line Text Objects
-keymap("v", "al", ":<C-u>norm!0v$h<CR>", opts)
-keymap("v", "il", ":<C-u>norm!^vg_<CR>", opts)
-keymap("o", "al", ":norm val<CR>", opts)
-keymap("o", "il", ":norm vil<CR>", opts)
+keymap("v", "aL", ":<C-u>norm!0v$h<CR>", opts)
+keymap("v", "iL", ":<C-u>norm!^vg_<CR>", opts)
+keymap("o", "aL", ":norm val<CR>", opts)
+keymap("o", "iL", ":norm vil<CR>", opts)
 
 -- Search: In Visual Selection
 keymap("x", "gv", [[<Esc>/\%V]], {})
