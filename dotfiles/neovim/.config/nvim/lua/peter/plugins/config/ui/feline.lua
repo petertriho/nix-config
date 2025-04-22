@@ -1,6 +1,7 @@
 return {
     "git@github.com:petertriho/feline.nvim.git",
     event = { "UiEnter", "VeryLazy" },
+    enabled = false,
     init = function()
         vim.opt.laststatus = 2
     end,

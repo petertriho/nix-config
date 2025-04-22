@@ -1,0 +1,191 @@
+@comment.error xxx guifg=#db4b4b
+@comment.hint  xxx guifg=#1abc9c
+@comment.info  xxx guifg=#0db9d7
+@comment.note  xxx guifg=#1abc9c
+@comment.todo  xxx guifg=#7aa2f7
+@comment.warning xxx guifg=#e0af68
+@constructor   xxx guifg=#bb9af7
+@constructor.tsx xxx guifg=#2ac3de
+@markup.heading.1.delimiter.vimdoc xxx cterm=underdouble,nocombine gui=underdouble,nocombine guifg=bg guibg=bg guisp=fg
+@markup.heading.1.markdown xxx cterm=bold gui=bold guifg=#7aa2f7
+@markup.heading.2.delimiter.vimdoc xxx cterm=underline,nocombine gui=underline,nocombine guifg=bg guibg=bg guisp=fg
+@markup.heading.2.markdown xxx cterm=bold gui=bold guifg=#e0af68
+@markup.heading.3.markdown xxx cterm=bold gui=bold guifg=#9ece6a
+@markup.heading.4.markdown xxx cterm=bold gui=bold guifg=#1abc9c
+@markup.heading.5.markdown xxx cterm=bold gui=bold guifg=#bb9af7
+@markup.heading.6.markdown xxx cterm=bold gui=bold guifg=#9d7cd8
+@markup.heading.7.markdown xxx cterm=bold gui=bold guifg=#ff9e64
+@markup.heading.8.markdown xxx cterm=bold gui=bold guifg=#f7768e
+@markup.italic xxx cterm=italic gui=italic
+@markup.link   xxx guifg=#1abc9c
+@markup.list   xxx guifg=#89ddff
+@markup.list.checked xxx guifg=#73daca
+@markup.list.markdown xxx cterm=bold gui=bold guifg=#ff9e64
+@markup.list.unchecked xxx guifg=#7aa2f7
+@markup.raw.markdown_inline xxx guifg=#7aa2f7 guibg=#414868
+@markup.strikethrough xxx cterm=strikethrough gui=strikethrough
+@markup.strong xxx cterm=bold gui=bold
+@markup.underline xxx cterm=underline gui=underline
+@module.builtin xxx guifg=#f7768e
+@operator      xxx guifg=#89ddff
+@property      xxx guifg=#73daca
+@punctuation.bracket xxx guifg=#a9b1d6
+@punctuation.delimiter xxx guifg=#89ddff
+@punctuation.special xxx guifg=#89ddff
+@punctuation.special.markdown xxx guifg=#ff9e64
+@string.documentation xxx guifg=#e0af68
+@string.escape xxx guifg=#bb9af7
+@string.regexp xxx guifg=#b4f9f8
+@tag.delimiter.tsx xxx guifg=#5d7ab8
+@tag.javascript xxx guifg=#f7768e
+@tag.tsx       xxx guifg=#f7768e
+@type.builtin  xxx guifg=#27a1b9
+@variable      xxx guifg=#c0caf5
+@variable.builtin xxx guifg=#f7768e
+@variable.member xxx guifg=#73daca
+@variable.parameter xxx guifg=#e0af68
+@variable.parameter.builtin xxx guifg=#dab484
+Added          xxx ctermfg=10 guifg=NvimLightGreen
+Bold           xxx cterm=bold gui=bold guifg=#c0caf5
+Changed        xxx ctermfg=14 guifg=NvimLightCyan
+Character      xxx guifg=#9ece6a
+ColorColumn    xxx guibg=#15161e
+Comment        xxx cterm=italic gui=italic guifg=#565f89
+Conceal        xxx guifg=#737aa2
+ConflictMarkerBegin xxx guibg=#20303b
+ConflictMarkerCommonAncestors xxx guibg=#37222c
+ConflictMarkerCommonAncestorsHunk xxx guibg=#37222c
+ConflictMarkerEnd xxx guibg=#1f2231
+ConflictMarkerOurs xxx guibg=#20303b
+ConflictMarkerSeparator xxx guibg=#1f2231
+ConflictMarkerTheirs xxx guibg=#1f2231
+Constant       xxx guifg=#ff9e64
+Cursor         xxx guifg=#1a1b26 guibg=#c0caf5
+CursorColumn   xxx guibg=#292e42
+CursorIM       xxx guifg=#1a1b26 guibg=#c0caf5
+CursorLine     xxx guibg=#292e42
+CursorLineNr   xxx cterm=bold gui=bold guifg=#ff9e64
+Debug          xxx guifg=#ff9e64
+DiagnosticDeprecated xxx cterm=strikethrough gui=strikethrough guisp=NvimLightRed
+DiagnosticError xxx guifg=#db4b4b
+DiagnosticHint xxx guifg=#1abc9c
+DiagnosticInfo xxx guifg=#0db9d7
+DiagnosticOk   xxx ctermfg=10 guifg=NvimLightGreen
+DiagnosticUnderlineError xxx cterm=undercurl gui=undercurl guisp=#db4b4b
+DiagnosticUnderlineHint xxx cterm=undercurl gui=undercurl guisp=#1abc9c
+DiagnosticUnderlineInfo xxx cterm=undercurl gui=undercurl guisp=#0db9d7
+DiagnosticUnderlineOk xxx cterm=underline gui=underline guisp=NvimLightGreen
+DiagnosticUnderlineWarn xxx cterm=undercurl gui=undercurl guisp=#e0af68
+DiagnosticUnnecessary xxx guifg=#1abc9c
+DiagnosticVirtualTextError xxx guifg=#db4b4b guibg=#2d202a
+DiagnosticVirtualTextHint xxx guifg=#1abc9c guibg=#1a2b32
+DiagnosticVirtualTextInfo xxx guifg=#0db9d7 guibg=#192b38
+DiagnosticVirtualTextWarn xxx guifg=#e0af68 guibg=#2e2a2d
+DiagnosticWarn xxx guifg=#e0af68
+DiffAdd        xxx guibg=#20303b
+DiffChange     xxx guibg=#1f2231
+DiffDelete     xxx guibg=#37222c
+DiffText       xxx guibg=#394b70
+Directory      xxx guifg=#7aa2f7
+EndOfBuffer    xxx guifg=#1a1b26
+Error          xxx guifg=#db4b4b
+ErrorMsg       xxx guifg=#db4b4b
+EyelinerPrimary xxx cterm=underline gui=underline guifg=#7aa2f7
+EyelinerSecondary xxx cterm=underline gui=underline guifg=#f7768e
+FlashBackdrop  xxx guifg=#545c7e
+FlashLabel     xxx cterm=bold gui=bold guifg=#c0caf5 guibg=#ff007c
+FloatBorder    xxx guifg=#27a1b9 guibg=#16161e
+FloatShadow    xxx ctermbg=0 guibg=NvimDarkGrey4 blend=80
+FloatShadowThrough xxx ctermbg=0 guibg=NvimDarkGrey4 blend=100
+FloatTitle     xxx guifg=#27a1b9 guibg=#16161e
+FoldColumn     xxx guifg=#565f89 guibg=#1a1b26
+Folded         xxx guifg=#565f89
+Foo            xxx guifg=#c0caf5 guibg=#ff007c
+Function       xxx guifg=#7aa2f7
+Identifier     xxx guifg=#bb9af7
+IncSearch      xxx guifg=#15161e guibg=#ff9e64
+Italic         xxx cterm=italic gui=italic guifg=#c0caf5
+Keyword        xxx cterm=italic gui=italic guifg=#7dcfff
+LineNr         xxx guifg=#3b4261
+LineNrAbove    xxx guifg=#3b4261
+LineNrBelow    xxx guifg=#3b4261
+LspCodeLens    xxx guifg=#565f89
+LspInfoBorder  xxx guifg=#27a1b9 guibg=#16161e
+LspInlayHint   xxx guifg=#545c7e guibg=#1d202d
+LspReferenceRead xxx guibg=#3b4261
+LspReferenceText xxx guibg=#3b4261
+LspReferenceWrite xxx guibg=#3b4261
+LspSignatureActiveParameter xxx cterm=bold gui=bold guibg=#20253a
+MatchParen     xxx cterm=bold gui=bold guifg=#ff9e64
+ModeMsg        xxx cterm=bold gui=bold guifg=#a9b1d6
+MoreMsg        xxx guifg=#7aa2f7
+MsgArea        xxx guifg=#a9b1d6
+NonText        xxx guifg=#545c7e
+Normal         xxx guifg=#c0caf5 guibg=#1a1b26
+NormalFloat    xxx guifg=#c0caf5 guibg=#16161e
+NormalNC       xxx guifg=#c0caf5 guibg=#1a1b26
+NormalSB       xxx guifg=#a9b1d6 guibg=#16161e
+Operator       xxx guifg=#89ddff
+Pmenu          xxx guifg=#c0caf5 guibg=#16161e
+PmenuMatch     xxx guifg=#2ac3de guibg=#16161e
+PmenuMatchSel  xxx guifg=#2ac3de guibg=#343a55
+PmenuSbar      xxx guibg=#1f1f29
+PmenuSel       xxx guibg=#343a55
+PmenuThumb     xxx guibg=#3b4261
+PreProc        xxx guifg=#7dcfff
+Question       xxx guifg=#7aa2f7
+QuickFixLine   xxx cterm=bold gui=bold guibg=#283457
+RedrawDebugClear xxx ctermfg=0 ctermbg=11 guibg=NvimDarkYellow
+RedrawDebugComposed xxx ctermfg=0 ctermbg=10 guibg=NvimDarkGreen
+RedrawDebugNormal xxx cterm=reverse gui=reverse
+RedrawDebugRecompose xxx ctermfg=0 ctermbg=9 guibg=NvimDarkRed
+Removed        xxx ctermfg=9 guifg=NvimLightRed
+Search         xxx guifg=#c0caf5 guibg=#3d59a1
+SignColumn     xxx guifg=#3b4261 guibg=#1a1b26
+SignColumnSB   xxx guifg=#3b4261 guibg=#16161e
+Special        xxx guifg=#2ac3de
+SpecialKey     xxx guifg=#545c7e
+SpellBad       xxx cterm=undercurl gui=undercurl guisp=#db4b4b
+SpellCap       xxx cterm=undercurl gui=undercurl guisp=#e0af68
+SpellLocal     xxx cterm=undercurl gui=undercurl guisp=#0db9d7
+SpellRare      xxx cterm=undercurl gui=undercurl guisp=#1abc9c
+Statement      xxx guifg=#bb9af7
+StatusLine     xxx guifg=#a9b1d6 guibg=#16161e
+StatusLineNC   xxx guifg=#3b4261 guibg=#16161e
+String         xxx guifg=#9ece6a
+Substitute     xxx guifg=#15161e guibg=#f7768e
+TabLine        xxx guifg=#3b4261 guibg=#16161e
+TabLineFill    xxx guibg=#15161e
+TabLineSel     xxx guifg=#15161e guibg=#7aa2f7
+TermCursor     xxx cterm=reverse gui=reverse
+Title          xxx cterm=bold gui=bold guifg=#7aa2f7
+Todo           xxx guifg=#1a1b26 guibg=#e0af68
+Type           xxx guifg=#2ac3de
+Underlined     xxx cterm=underline gui=underline
+VertSplit      xxx guifg=#15161e
+Visual         xxx guibg=#283457
+VisualNOS      xxx guibg=#283457
+WarningMsg     xxx guifg=#e0af68
+Whitespace     xxx guifg=#3b4261
+WildMenu       xxx guibg=#283457
+WinSeparator   xxx cterm=bold gui=bold guifg=#15161e
+debugBreakpoint xxx guifg=#0db9d7 guibg=#192b38
+debugPC        xxx guibg=#16161e
+diffAdded      xxx guifg=#449dab
+diffChanged    xxx guifg=#6183bb
+diffFile       xxx guifg=#7aa2f7
+diffIndexLine  xxx guifg=#bb9af7
+diffLine       xxx guifg=#565f89
+diffNewFile    xxx guifg=#ff9e64
+diffOldFile    xxx guifg=#e0af68
+diffRemoved    xxx guifg=#914c54
+healthError    xxx guifg=#db4b4b
+healthSuccess  xxx guifg=#73daca
+healthWarning  xxx guifg=#e0af68
+helpCommand    xxx guifg=#7aa2f7 guibg=#414868
+helpExample    xxx guifg=#565f89
+htmlH1         xxx cterm=bold gui=bold guifg=#bb9af7
+htmlH2         xxx cterm=bold gui=bold guifg=#7aa2f7
+lCursor        xxx guifg=#1a1b26 guibg=#c0caf5
+qfFileName     xxx guifg=#7aa2f7
+qfLineNr       xxx guifg=#737aa2
