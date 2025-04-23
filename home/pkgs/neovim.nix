@@ -106,6 +106,10 @@ in
       # copilot.lua
       nodejs-slim
     ];
+    extraLuaPackages = ps: [
+      # CopilotChat.nvim
+      ps.tiktoken_core
+    ];
   };
 
   xdg.configFile = {

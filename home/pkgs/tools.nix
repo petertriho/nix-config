@@ -21,6 +21,7 @@
     iperf3
     jq
     lsof
+    lynx
     navi
     nurl
     openssl
