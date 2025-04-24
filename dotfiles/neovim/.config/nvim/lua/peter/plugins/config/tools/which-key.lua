@@ -37,6 +37,7 @@ return {
                 mode = { "n", "x" },
                 { "<leader>a", group = "ai" },
                 { "<leader>i", group = "ai" },
+                { "<leader>n", group = "namu" },
                 { "<leader>o", group = "operations" },
             },
             -- vim-abolish
