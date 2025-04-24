@@ -1,10 +1,13 @@
+local ft = {
+    "markdown",
+    "Avante",
+    "codecompanion",
+    "copilot-chat",
+}
 return {
     "MeanderingProgrammer/render-markdown.nvim",
-    ft = { "markdown", "Avante" },
+    ft = ft,
     opts = {
-        file_types = {
-            "markdown",
-            "Avante",
-        },
+        file_types = ft,
     },
 }

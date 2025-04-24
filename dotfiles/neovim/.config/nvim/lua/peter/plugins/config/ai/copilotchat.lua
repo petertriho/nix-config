@@ -3,19 +3,19 @@ return {
     build = "make tiktoken",
     event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
-        { "<leader>io", "<CMD>CopilotChatOpen<CR>", desc = "Open" },
+        { "<leader>Io", "<CMD>CopilotChatOpen<CR>", desc = "Open" },
         {
-            "<leader>ic",
+            "<leader>Ic",
             "<CMD>CopilotChatClose<CR>",
             desc = "Close",
         },
         {
-            "<leader>it",
+            "<leader>It",
             "<CMD>CopilotChatToggle<CR>",
             desc = "Toggle",
         },
         {
-            "<leader>is",
+            "<leader>Is",
             "<CMD>CopilotChatStop<CR>",
             desc = "Stop",
         },
