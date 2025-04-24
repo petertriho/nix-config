@@ -1,5 +1,3 @@
-local g = vim.g
-
 -- filetypes.lua
 vim.filetype.add({
     extension = {
@@ -15,6 +13,9 @@ vim.filetype.add({
         [".*%.env.*"] = "conf",
     },
 })
+
+-- Globals
+vim.g.copilot_model = os.getenv("COPILOT_MODEL")
 
 -- Options
 local opt = vim.opt
@@ -85,7 +86,7 @@ opt.wildignore = {
 -- Clipboard
 if vim.fn.exists("$TMUX") == 0 and vim.fn.has("wsl") == 1 and vim.fn.executable("win32yank.exe") == 0 then
     -- Use native clip.exe if win32yank does not exist
-    g.clipboard = {
+    vim.g.clipboard = {
         name = "WslClipboard",
         copy = {
             ["+"] = "clip.exe",

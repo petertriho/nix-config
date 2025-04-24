@@ -25,7 +25,6 @@ return {
         { "<leader>Ia", "<CMD>CopilotChatAgents<CR>", desc = "Agents" },
     },
     opts = {
-        model = "gemini-2.5-pro",
         mappings = {
             reset = {
                 normal = "<C-e>",
@@ -33,4 +32,13 @@ return {
             },
         },
     },
+    config = function(_, opts)
+        if vim.g.copilot_model then
+            opts = vim.tbl_deep_extend("force", opts, {
+                model = vim.g.copilot_model,
+            })
+        end
+
+        require("CopilotChat").setup(opts)
+    end,
 }

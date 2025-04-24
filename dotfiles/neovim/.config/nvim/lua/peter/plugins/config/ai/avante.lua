@@ -18,18 +18,19 @@ return {
     },
     opts = {
         provider = "copilot",
-        auto_suggestion_provider = "claude",
-        copilot = {
-            model = "claude-3.5-sonnet",
-        },
         behaviour = {
             auto_suggestions = false,
         },
-        -- mappings = {
-        --     suggestion = {
-        --         accept = "<C-e>",
-        --         dismiss = "<C-CR>",
-        --     },
-        -- },
     },
+    config = function(_, opts)
+        if vim.g.copilot_model then
+            opts = vim.tbl_deep_extend("force", opts, {
+                copilot = {
+                    model = vim.g.copilot_model,
+                },
+            })
+        end
+
+        require("avante").setup(opts)
+    end,
 }

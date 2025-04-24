@@ -1,25 +1,5 @@
 return {
     "olimorris/codecompanion.nvim",
-    config = function()
-        require("codecompanion").setup({
-            adapters = {
-                copilot = function()
-                    return require("codecompanion.adapters").extend("copilot", {
-                        schema = {
-                            model = {
-                                default = "gemini-2.5-pro",
-                            },
-                        },
-                    })
-                end,
-            },
-            display = {
-                chat = {
-                    show_settings = true,
-                },
-            },
-        })
-    end,
     cmd = {
         "CodeCompanion",
     },
@@ -33,4 +13,30 @@ return {
         },
         { "<leader>ia", "<CMD>CodeCompanionChat Add<CR>", desc = "Add" },
     },
+    opts = {
+        display = {
+            chat = {
+                show_settings = true,
+            },
+        },
+    },
+    config = function(_, opts)
+        if vim.g.copilot_model then
+            opts = vim.tbl_deep_extend("force", opts, {
+                adapters = {
+                    copilot = function()
+                        return require("codecompanion.adapters").extend("copilot", {
+                            schema = {
+                                model = {
+                                    default = vim.g.copilot_model,
+                                },
+                            },
+                        })
+                    end,
+                },
+            })
+        end
+
+        require("codecompanion").setup(opts)
+    end,
 }
