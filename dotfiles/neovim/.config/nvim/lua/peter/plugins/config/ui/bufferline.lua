@@ -1,3 +1,10 @@
+local close_command = function(bufnr)
+    require("snacks").bufdelete({
+        buf = bufnr,
+        wipe = true,
+    })
+end
+
 return {
     "akinsho/bufferline.nvim",
     event = { "UIEnter", "VeryLazy" },
@@ -18,8 +25,8 @@ return {
     opts = {
         options = {
             numbers = "ordinal",
-            close_command = "Bwipeout! %d",
-            right_mouse_command = "Bwipeout! %d",
+            close_command = close_command,
+            right_mouse_command = close_command,
             offsets = {
                 {
                     filetype = "DiffViewFiles",
