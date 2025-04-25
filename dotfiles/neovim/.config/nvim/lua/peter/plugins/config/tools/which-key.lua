@@ -36,7 +36,8 @@ return {
             {
                 mode = { "n", "x" },
                 { "<leader>a", group = "ai" },
-                { "<leader>i", group = "ai" },
+                { "<leader>i", group = "ai (cc)" },
+                { "<leader>I", group = "ai (chat)" },
                 { "<leader>n", group = "namu" },
                 { "<leader>o", group = "operations" },
             },
