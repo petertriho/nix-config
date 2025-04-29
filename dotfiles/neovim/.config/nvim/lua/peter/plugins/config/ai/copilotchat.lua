@@ -1,7 +1,6 @@
 return {
     "CopilotC-Nvim/CopilotChat.nvim",
     build = "make tiktoken",
-    event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
         { "<leader>co", "<CMD>CopilotChatOpen<CR>", desc = "Open" },
         {
