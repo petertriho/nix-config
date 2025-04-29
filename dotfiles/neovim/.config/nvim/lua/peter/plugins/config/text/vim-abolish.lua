@@ -2,7 +2,7 @@ return {
     "petertriho/vim-abolish",
     cmd = { "Subvert", "S" },
     keys = {
-        { "<leader>c", "<Plug>(abolish-coerce-word)", desc = "Coerce" },
+        { "\\c", "<Plug>(abolish-coerce-word)", desc = "Coerce" },
     },
     init = function()
         vim.g.abolish_no_mappings = 1

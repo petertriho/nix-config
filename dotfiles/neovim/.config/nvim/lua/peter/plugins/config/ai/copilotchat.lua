@@ -3,26 +3,26 @@ return {
     build = "make tiktoken",
     event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
-        { "<leader>Io", "<CMD>CopilotChatOpen<CR>", desc = "Open" },
+        { "<leader>co", "<CMD>CopilotChatOpen<CR>", desc = "Open" },
         {
-            "<leader>Ic",
+            "<leader>cc",
             "<CMD>CopilotChatClose<CR>",
             desc = "Close",
         },
         {
-            "<leader>It",
+            "<leader>ct",
             "<CMD>CopilotChatToggle<CR>",
             desc = "Toggle",
         },
         {
-            "<leader>Is",
+            "<leader>cs",
             "<CMD>CopilotChatStop<CR>",
             desc = "Stop",
         },
-        { "<leader>Ir", "<CMD>CopilotChatReset<CR>", desc = "Reset" },
-        { "<leader>Ip", "<CMD>CopilotChatPrompts<CR>", desc = "Prompts" },
-        { "<leader>Im", "<CMD>CopilotChatModels<CR>", desc = "Models" },
-        { "<leader>Ia", "<CMD>CopilotChatAgents<CR>", desc = "Agents" },
+        { "<leader>cr", "<CMD>CopilotChatReset<CR>", desc = "Reset" },
+        { "<leader>cp", "<CMD>CopilotChatPrompts<CR>", desc = "Prompts" },
+        { "<leader>cm", "<CMD>CopilotChatModels<CR>", desc = "Models" },
+        { "<leader>ca", "<CMD>CopilotChatAgents<CR>", desc = "Agents" },
     },
     opts = {
         mappings = {
