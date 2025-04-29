@@ -95,6 +95,7 @@ return {
             },
         },
     },
+    postgres_lsp = {},
     quick_lint_js = {
         filetypes = {
             "javascript",

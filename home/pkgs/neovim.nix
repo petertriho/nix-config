@@ -70,6 +70,7 @@ in
     marksman
     nil
     # nodePackages.typescript-language-server
+    postgres-lsp
     # pylyzer
     quick-lint-js
     rust-analyzer
