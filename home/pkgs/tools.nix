@@ -28,7 +28,7 @@
     ripgrep
     sqlite
     sqlite-web
-    tabiew
+    # tabiew
     tldr
     unzip
     update-nix-fetchgit
