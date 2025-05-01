@@ -111,6 +111,24 @@ return {
             "{line}:{col}:{severity}:{test_id} {msg}",
         }
         lint.linters.bandit.defer = true
+        lint.linters.dmypy.args = {
+            "run",
+            "--timeout",
+            "50000",
+            "--",
+            "--show-column-numbers",
+            "--show-error-end",
+            "--hide-error-context",
+            "--no-color-output",
+            "--no-error-summary",
+            "--no-pretty",
+            "--follow-untyped-imports",
+            "--python-executable",
+            function()
+                return vim.fn.exepath("python3") or vim.fn.exepath("python")
+            end,
+        }
+        lint.linters.dmypy.defer = true
         lint.linters.markdownlint.args = {
             "--config",
             vim.fn.expand("$HOME/.config/nvim/code/.markdownlint.jsonc"),
@@ -162,7 +180,7 @@ return {
             lua = { "luacheck", "selene" },
             markdown = { "markdownlint", "vale" },
             nix = { "statix" },
-            python = { "pylint" },
+            python = { "pylint", "dmypy" },
             -- sh = { "shellcheck" },
             sql = { "sqlfluff" },
             xml = { "tidy" },

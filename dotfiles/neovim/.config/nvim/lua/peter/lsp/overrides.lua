@@ -29,7 +29,8 @@ return {
                     autoSearchPaths = true,
                     diagnosticMode = "workspace",
                     useLibraryCodeForTypes = true,
-                    typeCheckingMode = "standard",
+                    typeCheckingMode = "off",
+                    ignore = { "*" },
                     diagnosticSeverityOverrides = {
                         reportGeneralTypeIssues = "information",
                     },

@@ -48,6 +48,7 @@ in
     hadolint
     luajitPackages.luacheck
     markdownlint-cli
+    mypy
     pylint
     shellcheck
     selene
