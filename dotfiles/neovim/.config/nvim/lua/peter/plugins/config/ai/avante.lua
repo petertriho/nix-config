@@ -21,6 +21,10 @@ return {
         behaviour = {
             auto_suggestions = false,
         },
+        mode = "legacy",
+        disabled_tools = {
+            "python",
+        },
     },
     config = function(_, opts)
         if vim.g.copilot_model then
