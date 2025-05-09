@@ -12,7 +12,7 @@ function get_profiles {
     if [ -f ~/.aws/credentials ]; then
         profiles+=$(grep -E '^\[.+\]' ~/.aws/credentials | sed -E 's/^\[//; s/\]$//' | tr '\n' ' ')
     fi
-    echo "$profiles" | tr ' ' '\n' | grep . | sort -u
+    echo "$profiles" | tr ' ' '\n' | awk '!seen[$0]++'
 }
 
 selected_profile=$(get_profiles | fzf --prompt 'Select AWS Profile > ')
