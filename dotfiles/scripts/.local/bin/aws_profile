@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+function get_profiles {
+    # aws configure list-profiles
+    local profiles=""
+    if [ -f ~/.aws/config ]; then
+        profiles+=$(grep -E '^\[(profile .+|default)\]' ~/.aws/config | sed -E 's/^\[profile //; s/^\[//; s/\]$//' | tr '\n' ' ')
+    fi
+
+    if [ -f ~/.aws/credentials ]; then
+        profiles+=$(grep -E '^\[.+\]' ~/.aws/credentials | sed -E 's/^\[//; s/\]$//' | tr '\n' ' ')
+    fi
+    echo "$profiles" | tr ' ' '\n' | grep . | sort -u
+}
+
+selected_profile=$(get_profiles | fzf --prompt 'Select AWS Profile > ')
+
+if [ -n "$selected_profile" ]; then
+    echo "$selected_profile"
+else
+    echo "No AWS profile selected." >&2
+    exit 1
+fi

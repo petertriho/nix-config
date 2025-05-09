@@ -29,7 +29,7 @@
     shellAbbrs =
       {
         acs = "aws configure sso";
-        ap = "aws_profile";
+        ap = "export AWS_PROFILE=(aws_profile)";
         asl = "aws sso login";
         d = "docker";
         dc = "docker compose";
@@ -150,7 +150,6 @@
           { }
       );
     shellAliases = {
-      aws_profile = "export AWS_PROFILE=$(aws configure list-profiles | fzf --prompt 'Select AWS Profile > ') 2&> /dev/null";
       v = "nvim";
     };
     functions = {
