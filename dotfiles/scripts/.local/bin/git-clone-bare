@@ -9,7 +9,7 @@ export GIT_DIR=.git
 if [[ $# -ge 2 ]] && [[ -n $2 ]]; then
     directory=$2
 else
-    directory=$(git_repo_name "$repository")
+    directory=$(git-repo-name "$repository")
 fi
 
 mkdir -p "${directory}/${GIT_DIR}"

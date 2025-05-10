@@ -7,7 +7,7 @@ repository=$1
 if [[ $# -ge 2 ]] && [[ -n $2 ]]; then
     directory=$2
 else
-    directory=$(git_repo_name "$repository")
+    directory=$(git-repo-name "$repository")
 fi
 
 default_branch=${3:-main}

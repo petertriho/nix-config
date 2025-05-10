@@ -29,17 +29,17 @@
     shellAbbrs =
       {
         acs = "aws configure sso";
-        ap = "export AWS_PROFILE=(aws_profile)";
+        ap = "export AWS_PROFILE=(aws-profile)";
         asl = "aws sso login";
         d = "docker";
         dc = "docker compose";
         dcd = "docker compose down --remove-orphans";
         dcl = "docker compose logs -f -t --tail=100";
-        dcp = "docker compose -p (git_repo_name)";
-        dcpd = "docker compose -p (git_repo_name) down --remove-orphans";
-        dcpl = "docker compose -p (git_repo_name) logs -f -t --tail=100";
-        dcpr = "docker compose -p (git_repo_name) restart";
-        dcpu = "docker compose -p (git_repo_name) up -d";
+        dcp = "docker compose -p (git-repo-name)";
+        dcpd = "docker compose -p (git-repo-name) down --remove-orphans";
+        dcpl = "docker compose -p (git-repo-name) logs -f -t --tail=100";
+        dcpr = "docker compose -p (git-repo-name) restart";
+        dcpu = "docker compose -p (git-repo-name) up -d";
         dcu = "docker compose up -d";
         de = "devenv";
         deg = "devenv gc";
@@ -63,17 +63,17 @@
         gaa = "git add --all";
         gb = "git branch";
         gbrd = "git branch -D";
-        gbs = "git_branch_set_upstream";
+        gbs = "git-branch-set-upstream";
         gbu = "git branch --unset-upstream";
         gc = "git commit";
         gcam = "git commit -am";
         gcl = "git clone";
-        gclb = "git_clone_bare";
-        gcls = "git_clone_special";
+        gclb = "git-clone-bare";
+        gcls = "git-clone-special";
         gco = "git checkout";
         gcob = "git checkout -b";
-        gcd = "git_checkout_default";
-        gdb = "git_default_branch";
+        gcd = "git-checkout-default";
+        gdb = "git-default-branch";
         gdi = "git diff";
         gdt = "git difftool";
         gf = "git fetch";
@@ -90,7 +90,7 @@
         gr = "git rebase";
         gra = "git rebase --abort";
         grbc = "git rebase --continue";
-        grd = "git rebase (git_default_branch)";
+        grd = "git rebase (git-default-branch)";
         grf = "git reflog";
         gri = "git rebase --interactive";
         grs = "git reset";
