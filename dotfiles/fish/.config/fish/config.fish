@@ -19,7 +19,7 @@ if type --query zoxide
     zoxide init fish | source
 end
 
-function delta_side_by_side --on-signal WINCH
+function delta-side-by-side --on-signal WINCH
     set -x COLUMNS $COLUMNS
 
     if test "$COLUMNS" -ge 180; and ! contains side-by-side "$DELTA_FEATURES"
@@ -35,6 +35,6 @@ if type --query eza
     set -g ls_cmd eza
 end
 
-function ls_on_cd --on-variable PWD
+function ls-on-cd --on-variable PWD
     $ls_cmd --classify
 end

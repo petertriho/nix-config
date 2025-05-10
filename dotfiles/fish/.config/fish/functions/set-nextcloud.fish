@@ -1,4 +1,4 @@
-function set_nextcloud --description "Set nextcloud related variables"
+function set-nextcloud --description "Set nextcloud related variables"
     if test -z "$NEXTCLOUD_PATH"
         read -p "echo 'NEXTCLOUD_PATH > '" nextcloud_path
         set -Ux NEXTCLOUD_PATH "$HOME/$nextcloud_path"

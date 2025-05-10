@@ -153,8 +153,8 @@
       v = "nvim";
     };
     functions = {
-      set_theme = builtins.readFile ../../dotfiles/fish/.config/fish/functions/set_theme.fish;
-      set_nextcloud = builtins.readFile ../../dotfiles/fish/.config/fish/functions/set_nextcloud.fish;
+      set-nextcloud = builtins.readFile ../../dotfiles/fish/.config/fish/functions/set-nextcloud.fish;
+      set-theme = builtins.readFile ../../dotfiles/fish/.config/fish/functions/set-theme.fish;
     };
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
@@ -169,10 +169,10 @@
         ]
       )
     }:$PATH" run /usr/bin/env fish --no-config ${
-      config.lib.meta.configPath + "/dotfiles/fish/.config/fish/functions/set_theme.fish"
+      config.lib.meta.configPath + "/dotfiles/fish/.config/fish/functions/set-theme.fish"
     }
   '';
 
-  xdg.configFile."fish/conf.d/00_prompt.fish".source =
-    config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/00_prompt.fish";
+  xdg.configFile."fish/conf.d/00-prompt.fish".source =
+    config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/00-prompt.fish";
 }

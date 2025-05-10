@@ -1,4 +1,4 @@
-function set_theme --description "Set ansi theme"
+function set-theme --description "Set ansi theme"
     set -U fish_greeting
     set -U fish_key_bindings            fish_hybrid_key_bindings
     set -U fzf_fish_custom_keybindings
