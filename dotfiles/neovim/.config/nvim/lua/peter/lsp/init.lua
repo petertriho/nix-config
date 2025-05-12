@@ -292,11 +292,17 @@ M.setup = function()
     })
 
     local lspconfig = require("lspconfig")
+    local configs = require("lspconfig.configs")
     local overrides = require("peter.lsp.overrides")
 
     local base_config = make_base_config()
 
     for server, override in pairs(overrides) do
+        if configs[server] == nil and server ~= "yamlls" then
+            configs[server] = {
+                default_config = vim.deepcopy(override),
+            }
+        end
         local config = vim.tbl_deep_extend("force", base_config, override or {})
         lspconfig[server].setup(config)
     end

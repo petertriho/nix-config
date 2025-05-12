@@ -81,6 +81,7 @@ in
     taplo
     terraform-ls
     tflint
+    ty
     typos-lsp
     vscode-langservers-extracted # html, css, json, eslint
     vtsls

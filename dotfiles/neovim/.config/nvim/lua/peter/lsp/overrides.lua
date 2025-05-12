@@ -162,6 +162,19 @@ return {
     --         },
     --     },
     -- },
+    ty = {
+        cmd = { "ty", "server" },
+        filetypes = { "python" },
+        root_dir = require("lspconfig.util").root_pattern(
+            "ty.toml",
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "requirements.txt",
+            "Pipfile",
+            ".git"
+        ),
+    },
     typos_lsp = {
         init_options = {
             diagnosticSeverity = "information",
