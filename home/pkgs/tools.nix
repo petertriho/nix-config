@@ -25,6 +25,7 @@
     navi
     nurl
     openssl
+    python3Packages.pipdeptree
     ripgrep
     sqlite
     sqlite-web
