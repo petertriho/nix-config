@@ -180,47 +180,78 @@ return {
         -- local javascript_formatters = with_prettier_formatter({ "eslint_d" })
         local javascript_formatters = vim.tbl_extend("force", prettier, { lsp_format = "first" })
 
-        conform.setup({
-            formatters_by_ft = {
-                css = with_prettier_formatter({ "stylelint" }),
-                fish = { "fish_indent" },
-                gitcommit = { "commitmsgfmt" },
-                go = { "goimports", "gofmt" },
-                graphql = prettier,
-                hcl = { "hcl" },
-                html = with_prettier_formatter({ "tidy", "djlint" }),
-                htmlangular = with_prettier_formatter({ "tidy", "djlint" }),
-                htmldjango = with_prettier_formatter({ "tidy", "djlint" }),
-                java = { "google_java_format", lsp_format = "prefer" },
-                javascript = javascript_formatters,
-                javascriptreact = javascript_formatters,
-                json = with_prettier_formatter({ "jq", "sort_package_json" }),
-                jsonc = prettier,
-                lua = { "stylua" },
-                markdown = with_prettier_formatter({}, { "injected" }),
-                nix = { "alejandra", "nixfmt", "injected" },
-                python = function(bufnr)
-                    local formatters = { "autoflake", "docformatter", "ssort", "reorder-python-imports" }
-                    if conform.get_formatter_info("ruff_format", bufnr).available then
-                        vim.list_extend(formatters, { "ruff_fix", "ruff_organize_imports", "ruff_format" })
-                    else
-                        vim.list_extend(formatters, { "isort", "black" })
-                    end
-                    return formatters
-                end,
-                sh = { "shfmt" },
-                sql = {
-                    "sqlfluff",
-                    "sql_formatter",
-                },
-                svg = { "svgo" },
-                terraform = { "hcl" },
-                tf = { "hcl" },
-                typescript = javascript_formatters,
-                typescriptreact = javascript_formatters,
-                xml = { "tidy" },
-                yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
+        local formatters_by_ft = {
+            css = with_prettier_formatter({ "stylelint" }),
+            fish = { "fish_indent" },
+            gitcommit = { "commitmsgfmt" },
+            go = { "goimports", "gofmt" },
+            java = { "google_java_format", lsp_format = "prefer" },
+            json = with_prettier_formatter({ "jq", "sort_package_json" }),
+            lua = { "stylua" },
+            markdown = with_prettier_formatter({}, { "injected" }),
+            nix = { "alejandra", "nixfmt", "injected" },
+            python = function(bufnr)
+                local formatters = { "autoflake", "docformatter", "ssort", "reorder-python-imports" }
+                if conform.get_formatter_info("ruff_format", bufnr).available then
+                    vim.list_extend(formatters, { "ruff_fix", "ruff_organize_imports", "ruff_format" })
+                else
+                    vim.list_extend(formatters, { "isort", "black" })
+                end
+                return formatters
+            end,
+            sh = { "shfmt" },
+            sql = {
+                "sqlfluff",
+                "sql_formatter",
             },
+            svg = { "svgo" },
+            xml = { "tidy" },
+            yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
+        }
+
+        local filetypes_to_formatters = {
+            {
+                {
+                    "html",
+                    "htmlangular",
+                    "htmldjango",
+                },
+                with_prettier_formatter({ "tidy", "djlint" }),
+            },
+            {
+                {
+                    "javascript",
+                    "javascriptreact",
+                    "typescript",
+                    "typescriptreact",
+                },
+                javascript_formatters,
+            },
+            {
+                {
+                    "hcl",
+                    "terraform",
+                    "tf",
+                },
+                { "hcl" },
+            },
+            {
+                { "graphql", "jsonc" },
+                prettier,
+            },
+        }
+
+        for _, config in ipairs(filetypes_to_formatters) do
+            local ft = config[1]
+            local formatters = config[2]
+
+            for _, f in ipairs(ft) do
+                formatters_by_ft[f] = formatters
+            end
+        end
+
+        conform.setup({
+            formatters_by_ft = formatters_by_ft,
             default_format_opts = get_format_opts({
                 lsp_format = "fallback",
             }),
