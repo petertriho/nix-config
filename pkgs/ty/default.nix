@@ -3,26 +3,23 @@
   stdenv,
   rustPlatform,
   fetchFromGitHub,
-
   # nativeBuildInputs
   installShellFiles,
-
   buildPackages,
-  versionCheckHook,
+  # versionCheckHook,
   python3Packages,
   nix-update-script,
 }:
-
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "ty";
-  version = "0.0.0-alpha.7";
+  version = "unstable-2025-05-14";
 
   src = fetchFromGitHub {
     owner = "astral-sh";
     repo = "ty";
-    tag = finalAttrs.version;
+    rev = "2effdb8ebd27c4bd8e539447e35ab16b8ad5add3";
     fetchSubmodules = true;
-    hash = "sha256-PC6e/5znCDxeLzIPELKtKaYFrGTW5USlsCArQjRLV6c=";
+    sha256 = "1afndlvdv9l5gpdsaddqgbkwgvf0i0pq6zwp32id1kc8nblixj5m";
   };
 
   cargoRoot = "ruff";
@@ -31,7 +28,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   cargoBuildFlags = [ "--package=ty" ];
 
   useFetchCargoVendor = true;
-  cargoHash = "sha256-xAIRdiWYELC9pvLA/pOJHmDYeUfDNi1nQmgwA59w7Dw=";
+  cargoHash = "sha256-zKy2hlU3Buy+SzN1lNEXb/7V6VlhbGOc78nz1/Ruk+0=";
 
   nativeBuildInputs = [ installShellFiles ];
 
@@ -52,8 +49,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
     "--package=ty_test" # test framework tests
   ];
 
-  nativeInstallCheckInputs = [ versionCheckHook ];
-  versionCheckProgramArg = "--version";
+  # nativeInstallCheckInputs = [ versionCheckHook ];
+  # versionCheckProgramArg = "--version";
   doInstallCheck = true;
 
   postInstall = lib.optionalString (stdenv.hostPlatform.emulatorAvailable buildPackages) (
@@ -76,7 +73,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   meta = {
     description = "Extremely fast Python type checker and language server, written in Rust";
     homepage = "https://github.com/astral-sh/ty";
-    changelog = "https://github.com/astral-sh/ty/blob/${finalAttrs.version}/CHANGELOG.md";
+    changelog = "https://github.com/astral-sh/ty/blob/main/CHANGELOG.md";
     license = [ lib.licenses.mit ];
     mainProgram = "ty";
     maintainers = [ lib.maintainers.bengsparks ];
