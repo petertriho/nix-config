@@ -12,14 +12,14 @@
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "ty";
-  version = "unstable-2025-05-14";
+  version = "unstable-2025-05-16";
 
   src = fetchFromGitHub {
     owner = "astral-sh";
     repo = "ty";
-    rev = "516aa69688f6908ec7e04a3b55c8049d23f3e1cf";
+    rev = "b6767534cf75608c65edc2c8b4f2635e89e42df1";
     fetchSubmodules = true;
-    sha256 = "1bcq16nlr0mik0kr4sw9nq9552n5jjrivrf46h45hh7cy8ps1cxy";
+    sha256 = "134z6p10y699f4vamd4ndm0bakqbq0kdqfh44jxnfd2m8amppkh0";
   };
 
   cargoRoot = "ruff";
@@ -28,7 +28,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   cargoBuildFlags = [ "--package=ty" ];
 
   useFetchCargoVendor = true;
-  cargoHash = "sha256-8i5iWrMCI7smi6MS5SBHpumbHDOvcSDPtI/s30yMmd4=";
+  cargoHash = "sha256-+vyROtaKQ0bxmab370nCs3J5wHOk+awa5YRvxaoVwHU=";
 
   nativeBuildInputs = [ installShellFiles ];
 
