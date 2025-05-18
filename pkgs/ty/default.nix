@@ -12,14 +12,14 @@
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "ty";
-  version = "unstable-2025-05-16";
+  version = "unstable-2025-05-17";
 
   src = fetchFromGitHub {
     owner = "astral-sh";
     repo = "ty";
-    rev = "cf971274f6f3c7b9c4bc0cbdb9a5f183902ae95e";
+    rev = "4ad13f211decea53cd88f0f7f00fa19bfddbe5fb";
     fetchSubmodules = true;
-    sha256 = "024ry1r7322ykiiw387k9zwa4bvqhi1q5sp41mdysakgdj0hyfvv";
+    sha256 = "1gi0bbgi2qkgkjkp4biz9mhv7wb2a82ik8i6kfx456mcbzrivf51";
   };
 
   cargoRoot = "ruff";
