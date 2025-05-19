@@ -2,6 +2,7 @@
 {
   system = {
     defaults = {
+      # CustomUserPreferences = {};
       LaunchServices = {
         LSQuarantine = false;
       };

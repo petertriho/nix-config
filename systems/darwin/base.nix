@@ -48,6 +48,7 @@
   };
 
   system = {
+    primaryUser = config.user;
     configurationRevision = outputs.rev or outputs.dirtyRev or null;
     stateVersion = lib.mkDefault 5;
   };
