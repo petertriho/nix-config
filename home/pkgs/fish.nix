@@ -118,7 +118,8 @@
         nfu = "nix flake update";
         nr = "nix run nixpkgs#";
         nrs = lib.strings.concatStringsSep " " [
-          (if pkgs.stdenv.isDarwin then "darwin-rebuild" else "sudo nixos-rebuild")
+          "sudo"
+          (if pkgs.stdenv.isDarwin then "darwin-rebuild" else "nixos-rebuild")
           "switch --flake ~/.nix-config"
         ];
         ns = "nix search nixpkgs";
