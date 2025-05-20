@@ -28,6 +28,7 @@ function tool:nvim {
         echo "Updating neovim plugins ..."
         nvim --headless "+TSUpdateSync" +qa
         nvim --headless "+Lazy! sync" +qa
+        watchman watch-del-all # clear watchman watches for nvim plugins
     fi
 }
 
