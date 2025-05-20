@@ -10,6 +10,8 @@
       # dependencies
       delta
       difftastic
+      rs-git-fsmonitor
+      watchman
     ];
 
     file.".gitconfig".source = config.lib.meta.mkDotfilesSymlink "git/.gitconfig";
