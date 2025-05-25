@@ -25,7 +25,11 @@ return {
             auto_suggestions = false,
         },
         mode = "legacy",
+        copilot = {
+            disable_tools = true,
+        },
         disabled_tools = {
+            "bash",
             "python",
         },
     },
