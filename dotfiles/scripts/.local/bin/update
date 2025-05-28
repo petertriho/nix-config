@@ -99,7 +99,6 @@ function tool:clean {
 }
 
 function tool:restore {
-    tool:config
     tool:nvim:restore
     tool:nix:rebuild
     tool:clean
