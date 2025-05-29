@@ -159,18 +159,6 @@ return {
             "--config",
             vim.fn.expand("$HOME/.config/nvim/code/.stylelintrc.json"),
         }
-        lint.linters.vale.args = {
-            "--config",
-            vim.fn.expand("$HOME/.config/vale/.vale.ini"),
-            "--no-exit",
-            "--output",
-            "JSON",
-            "--ext",
-            function(bufnr)
-                bufnr = bufnr or 0
-                return "." .. vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":e")
-            end,
-        }
 
         lint.linters_by_ft = {
             -- ["*"] = { "codespell" },
@@ -178,7 +166,7 @@ return {
             css = { "stylelint" },
             dockerfile = { "hadolint" },
             lua = { "luacheck", "selene" },
-            markdown = { "markdownlint", "vale" },
+            markdown = { "markdownlint" },
             nix = { "statix" },
             python = { "pylint", "dmypy" },
             -- sh = { "shellcheck" },

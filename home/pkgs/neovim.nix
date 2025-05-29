@@ -4,18 +4,6 @@
   pkgs,
   ...
 }:
-let
-  vale-with-styles = pkgs.vale.withStyles (
-    s: with s; [
-      alex
-      google
-      microsoft
-      proselint
-      readability
-      write-good
-    ]
-  );
-in
 {
   home.packages = with pkgs; [
     # formatters
@@ -54,7 +42,6 @@ in
     selene
     statix
     sqlfluff
-    vale-with-styles
     yamllint
 
     # lsp
@@ -117,6 +104,5 @@ in
 
   xdg.configFile = {
     "nvim".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim";
-    "vale".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/vale";
   };
 }
