@@ -94,5 +94,10 @@
     enabled = true
     autoupdate = true
 
+[status]
+    branch = true
+    showStash = true
+    showUntrackedFiles = all
+
 [tag]
     sort = version:refname
