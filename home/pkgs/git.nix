@@ -7,6 +7,7 @@
   home = {
     packages = with pkgs; [
       git
+      git-machete
       # dependencies
       delta
       difftastic
