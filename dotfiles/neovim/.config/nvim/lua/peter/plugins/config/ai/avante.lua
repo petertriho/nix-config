@@ -25,8 +25,10 @@ return {
             auto_suggestions = false,
         },
         mode = "legacy",
-        copilot = {
-            disable_tools = true,
+        providers = {
+            copilot = {
+                disable_tools = true,
+            },
         },
         disabled_tools = {
             "bash",
@@ -36,8 +38,10 @@ return {
     config = function(_, opts)
         if vim.g.copilot_model then
             opts = vim.tbl_deep_extend("force", opts, {
-                copilot = {
-                    model = vim.g.copilot_model,
+                providers = {
+                    copilot = {
+                        model = vim.g.copilot_model,
+                    },
                 },
             })
         end
