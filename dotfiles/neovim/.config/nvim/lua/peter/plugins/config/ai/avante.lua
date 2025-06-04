@@ -23,6 +23,7 @@ return {
         provider = "copilot",
         behaviour = {
             auto_suggestions = false,
+            enable_token_counting = false,
         },
         mode = "legacy",
         providers = {
