@@ -202,7 +202,9 @@ return {
             sh = { "shfmt" },
             sql = {
                 "sqlfluff",
-                "sql_formatter",
+                -- "sql_formatter",
+                -- "plsql_formatter",
+                "postgresql_formatter",
             },
             svg = { "svgo" },
             xml = { "tidy" },
@@ -285,6 +287,16 @@ return {
                 jq = {
                     command = "jq",
                 },
+                plsql_formatter = {
+                    command = "sql-formatter",
+                    args = { "--language", "plsql" },
+                    -- exit_codes = { 0, 1 },
+                },
+                postgresql_formatter = {
+                    command = "sql-formatter",
+                    args = { "--language", "postgresql" },
+                    -- exit_codes = { 0, 1 },
+                },
                 pybetter = {
                     command = "pybetter",
                     args = {
@@ -319,6 +331,10 @@ return {
                     condition = function(self, ctx)
                         return vim.fs.basename(ctx.filename):lower():match("package.json$") ~= nil
                     end,
+                },
+                sql_formatter = {
+                    command = "sql-formatter",
+                    -- exit_codes = { 0, 1 },
                 },
                 ssort = {
                     command = "ssort",
