@@ -47,7 +47,11 @@ local LSP_METHODS = {
     },
     ["textDocument/documentSymbol"] = {
         callback = function(client, bufnr)
+            if vim.b.lsp_document_symbols then
+                return
+            end
             require("nvim-navic").attach(client, bufnr)
+            vim.b.lsp_document_symbols = true
         end,
     },
     ["textDocument/hover"] = {
