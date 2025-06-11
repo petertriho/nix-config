@@ -97,6 +97,7 @@ return {
         },
     },
     postgres_lsp = {},
+    pyrefly = {},
     quick_lint_js = {
         filetypes = {
             "javascript",

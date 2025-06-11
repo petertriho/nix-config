@@ -60,6 +60,7 @@
     # nodePackages.typescript-language-server
     postgres-lsp
     # pylyzer
+    pyrefly
     quick-lint-js
     rust-analyzer
     superhtml
