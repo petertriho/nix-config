@@ -22,22 +22,22 @@ end
 
 return {
     -- angularls = {},
-    -- basedpyright = {
-    --     settings = {
-    --         basedpyright = {
-    --             analysis = {
-    --                 autoSearchPaths = true,
-    --                 diagnosticMode = "workspace",
-    --                 useLibraryCodeForTypes = true,
-    --                 typeCheckingMode = "off",
-    --                 ignore = { "*" },
-    --                 diagnosticSeverityOverrides = {
-    --                     reportGeneralTypeIssues = "information",
-    --                 },
-    --             },
-    --         },
-    --     },
-    -- },
+    basedpyright = {
+        settings = {
+            basedpyright = {
+                analysis = {
+                    autoSearchPaths = true,
+                    diagnosticMode = "workspace",
+                    useLibraryCodeForTypes = true,
+                    typeCheckingMode = "off",
+                    ignore = { "*" },
+                    diagnosticSeverityOverrides = {
+                        reportGeneralTypeIssues = "information",
+                    },
+                },
+            },
+        },
+    },
     bashls = {},
     cssls = {},
     dockerls = {},
@@ -97,7 +97,7 @@ return {
         },
     },
     postgres_lsp = {},
-    pyrefly = {},
+    -- pyrefly = {},
     quick_lint_js = {
         filetypes = {
             "javascript",
