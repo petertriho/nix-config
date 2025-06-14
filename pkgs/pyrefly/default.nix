@@ -9,17 +9,17 @@
 }:
 python3.pkgs.buildPythonApplication rec {
   pname = "pyrefly";
-  version = "0.19.0";
+  version = "0.19.1";
   pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-f95oWrJHs7OWTLSqTXpt2yaUkhz9UGDK3BCohbJMGWk=";
+    hash = "sha256-GR7fTlCRNjp2AzfUw6oAxzM6ZnQ2KtVqskcbfU8hz8g=";
   };
 
   cargoDeps = rustPlatform.fetchCargoVendor {
     inherit src;
-    hash = "sha256-QAwo5jyuYIRVNmUuXAQjBHFy66V7lOV1oFVabqzZ6cY=";
+    hash = "sha256-BbyCkUCSXLFlBzmvg2+us1AlToXmj0mMusz/Lj6bqHs=";
   };
 
   build-system = [ maturin ];
