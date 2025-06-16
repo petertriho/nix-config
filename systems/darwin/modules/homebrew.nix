@@ -14,7 +14,7 @@ in
         $DRY_RUN_CMD xcode-select --install
       fi
       if ! [ -f "${HOMEBREW_PREFIX}/bin/brew" ]; then
-        $DRY_RUN_CMD su ${config.user} -c "NONINTERACTIVE=1 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        $DRY_RUN_CMD sudo su ${config.user} -c "NONINTERACTIVE=1 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
       fi
     '';
 
@@ -29,7 +29,6 @@ in
       # upgrade = true;
     };
     taps = [
-      "homebrew/bundle"
       "nikitabobko/tap"
     ];
     brews = [

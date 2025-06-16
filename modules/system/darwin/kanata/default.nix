@@ -28,26 +28,26 @@ in
 
   config = lib.mkIf cfg.enable {
     system.activationScripts.postActivation.text =
-    # sh
-    ''
-      if [ ! -f ${KDK_MANAGER} ]; then
-          sudo /usr/sbin/installer -pkg ${KDK_PKG} -target /
-      fi
+      # sh
+      ''
+        if [ ! -f ${KDK_MANAGER} ]; then
+            sudo /usr/sbin/installer -pkg ${KDK_PKG} -target /
+        fi
 
-      if [ -f ${KDK_MANAGER} ]; then
-          ${KDK_MANAGER} activate
-      else
-          "Karabiner DriverKit installation failed"
-      fi
+        if [ -f ${KDK_MANAGER} ]; then
+            ${KDK_MANAGER} activate
+        else
+            "Karabiner DriverKit installation failed"
+        fi
 
-      echo "Restarting Karabiner DriverKit ..."
-      sudo launchctl unload /Library/LaunchDaemons/org.pqrs.karabiner.driverkit.plist
-      sudo launchctl load /Library/LaunchDaemons/org.pqrs.karabiner.driverkit.plist
+        echo "Restarting Karabiner DriverKit ..."
+        sudo launchctl unload /Library/LaunchDaemons/org.pqrs.karabiner.driverkit.plist
+        sudo launchctl load /Library/LaunchDaemons/org.pqrs.karabiner.driverkit.plist
 
-      echo "Restarting Kanata ..."
-      sudo launchctl unload /Library/LaunchDaemons/local.jtroo.kanata.plist
-      sudo launchctl load /Library/LaunchDaemons/local.jtroo.kanata.plist
-    '';
+        echo "Restarting Kanata ..."
+        sudo launchctl unload /Library/LaunchDaemons/local.jtroo.kanata.plist
+        sudo launchctl load /Library/LaunchDaemons/local.jtroo.kanata.plist
+      '';
 
     launchd.daemons = {
       karabinerDriverKit = {
@@ -78,6 +78,7 @@ in
       ];
       etc = {
         "kanata/kanata.kbd".text = cfg.config;
+        # FIXME: breaks initial activation
         "sudoers.d/karabiner-driverkit".source =
           pkgs.runCommand "sudoers-karabiner-driverkit" { }
             # sh
