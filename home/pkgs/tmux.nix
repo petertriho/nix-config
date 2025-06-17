@@ -96,18 +96,23 @@
             surround = srd: str: srd + str + srd;
             mkStringList = srd: lst: "[" + (lib.concatMapStringsSep ", " (surround srd) lst) + "]";
             substitute_sets = mkStringList "" [
-              "('^(/usr)?/bin/(.+)', '\\\\g<2>')"
-              "('/nix/store/\\\\S+/bin/(n?vim?).*', '\\\\g<1>')"
-              "('/nix/store/\\\\S+/bin/(.+)', '\\\\g<1>')"
+              "(r'^/etc/profiles/per-user/(.+)/bin/(.+)', r'\\\\g<2>')"
+              "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
+              "(r'/nix/store/\\\\S+/bin/(n?vim?).*', r'\\\\g<1>')"
+              "(r'/nix/store/\\\\S+/bin/(.+)', r'\\\\g<1>')"
             ];
             dir_programs = mkStringList "'" [
               "git"
+            ];
+            ignored_programs = mkStringList "'" [
+              "kubie"
             ];
           in
           # tmux
           ''
             set -g @tmux_window_name_substitute_sets "${substitute_sets}"
             set -g @tmux_window_name_dir_programs "${dir_programs}"
+            set -g @tmux_window_name_ignored_programs "${ignored_programs}"
           '';
       }
       {
