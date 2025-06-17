@@ -6,18 +6,19 @@
 }:
 {
   home = {
+    packages = with pkgs; [
+      gitmux
+      tmuxPlugins.session-wizard
+    ];
     file = {
       ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
+      ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
     sessionVariables = {
       # TINTED_TMUX_OPTION_ACTIVE = 1;
       # TINTED_TMUX_OPTION_STATUSBAR = 1;
     };
   };
-
-  home.packages = with pkgs; [
-    tmuxPlugins.session-wizard
-  ];
 
   programs.tmux = {
     enable = true;
