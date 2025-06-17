@@ -65,7 +65,7 @@ return {
             },
             {
                 provider = "git_branch",
-                icon = " ",
+                icon = "󰘬 ",
                 enabled = function()
                     return vim.b.gitsigns_status_dict
                 end,
@@ -116,7 +116,7 @@ return {
                 enabled = function()
                     return lsp.diagnostics_exist(vim.diagnostic.severity.INFO)
                 end,
-                icon = "  ",
+                icon = " 󰋽 ",
                 hl = { fg = "info" },
                 truncate_hide = true,
                 priority = 2,
@@ -281,7 +281,7 @@ return {
                 end,
                 position_2 = function()
                     return string.format(
-                        " %d:%d",
+                        "󱋼 %d:%d",
                         unpack(vim.api.nvim_win_get_cursor(vim.api.nvim_get_current_win()))
                     )
                 end,
