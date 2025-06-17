@@ -95,6 +95,12 @@
           let
             surround = srd: str: srd + str + srd;
             mkStringList = srd: lst: "[" + (lib.concatMapStringsSep ", " (surround srd) lst) + "]";
+            name_shells = mkStringList "'" [
+              "bash"
+              "fish"
+              "sh"
+              "zsh"
+            ];
             substitute_sets = mkStringList "" [
               "(r'^/etc/profiles/per-user/(.+)/bin/(.+)', r'\\\\g<2>')"
               "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
@@ -110,6 +116,7 @@
           in
           # tmux
           ''
+            set -g @tmux_window_name_shells "${name_shells}"
             set -g @tmux_window_name_substitute_sets "${substitute_sets}"
             set -g @tmux_window_name_dir_programs "${dir_programs}"
             set -g @tmux_window_name_ignored_programs "${ignored_programs}"
