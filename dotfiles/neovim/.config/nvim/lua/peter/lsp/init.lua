@@ -211,6 +211,8 @@ local function make_base_config()
                             "documentation",
                             "detail",
                             "additionalTextEdits",
+                            "command",
+                            "data",
                             -- todo: support more properties? should test if it improves latency
                         },
                     },
