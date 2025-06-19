@@ -12,7 +12,13 @@ when = true
 fish_style_pwd_dir_length = 1
 truncate_to_repo = false
 
+[git_branch]
+symbol = "󰘬 "
+
 [kubernetes]
+contexts = [
+    { context_pattern = "^arn:aws:eks:.*/(?P<cluster>.*)$", context_alias = "$cluster" },
+]
 disabled = false
 detect_env_vars = ['KUBECONFIG']
 
