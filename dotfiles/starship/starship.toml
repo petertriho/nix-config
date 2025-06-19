@@ -1,5 +1,8 @@
 right_format = "${custom.arch}${time}"
 
+[aws]
+symbol = " "
+
 [battery]
 disabled = true
 
