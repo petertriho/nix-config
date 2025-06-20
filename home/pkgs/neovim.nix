@@ -23,7 +23,7 @@
     python3Packages.reorder-python-imports
     shfmt
     sort-package-json
-    python3Packages.ssort
+    python312Packages.ssort
     stylua
     sql-formatter
     yamlfix
