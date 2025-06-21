@@ -22,6 +22,7 @@ local M = {
         "graphql",
         "hcl",
         "html",
+        "hurl",
         "java",
         "javascript",
         "json",

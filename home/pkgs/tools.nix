@@ -17,6 +17,7 @@
     glow
     # python3Packages.howdoi
     httpie
+    stable.hurl
     hyperfine
     iperf3
     jq
