@@ -22,6 +22,7 @@
     iperf3
     jq
     lsof
+    lstr
     lynx
     navi
     nurl
