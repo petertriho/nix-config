@@ -66,6 +66,7 @@ return {
     eslint = {},
     fish_lsp = {},
     gopls = {},
+    harper_ls = {},
     html = {
         init_options = {
             provideFormatter = false,

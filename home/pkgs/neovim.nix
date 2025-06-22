@@ -53,6 +53,7 @@
     emmet-language-server
     fish-lsp
     gopls
+    harper
     jdt-language-server
     lua-language-server
     marksman
