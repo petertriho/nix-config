@@ -5,6 +5,7 @@
 with pkgs;
 rec {
   angular-language-server = callPackage ./angular-language-server { };
+  mbake = callPackage ./mbake { };
   pybetter = callPackage ./pybetter { inherit pkgs pyemojify; };
   pyemojify = callPackage ./pyemojify { };
   pyrefly = callPackage ./pyrefly { };
