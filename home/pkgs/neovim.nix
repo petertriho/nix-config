@@ -14,6 +14,7 @@
     # eslint_d
     hclfmt
     isort
+    mbake
     nixfmt-rfc-style
     nodePackages.prettier
     nodePackages.svgo
