@@ -116,7 +116,7 @@ return {
                 enabled = function()
                     return lsp.diagnostics_exist(vim.diagnostic.severity.INFO)
                 end,
-                icon = " i ",
+                icon = "  ",
                 hl = { fg = "info" },
                 truncate_hide = true,
                 priority = 2,
@@ -136,7 +136,7 @@ return {
                 enabled = function()
                     return lsp.diagnostics_exist(vim.diagnostic.severity.WARN)
                 end,
-                icon = " ! ",
+                icon = "  ",
                 hl = { fg = "warning" },
                 truncate_hide = true,
                 priority = 2,
@@ -146,7 +146,7 @@ return {
                 enabled = function()
                     return lsp.diagnostics_exist(vim.diagnostic.severity.ERROR)
                 end,
-                icon = "  ",
+                icon = "  ",
                 hl = { fg = "error" },
                 truncate_hide = true,
                 priority = 2,
