@@ -1,8 +1,8 @@
 return {
     "yetone/avante.nvim",
-    event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
-        { "<leader>aC", "<CMD>AvanteClear<CR>", desc = "Avante Clear" },
+        { "<leader>at", "<CMD>AvanteToggle<CR>", desc = "avante: toggle" },
+        { "<leader>aC", "<CMD>AvanteClear<CR>", desc = "avante: clear" },
     },
     build = "make",
     dependencies = {
