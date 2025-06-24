@@ -1,36 +1,28 @@
 {
   lib,
-  python3,
-  fetchPypi,
+  rustPlatform,
+  fetchFromGitHub,
   versionCheckHook,
   nix-update-script,
-  rustPlatform,
-  maturin,
 }:
-python3.pkgs.buildPythonApplication rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "pyrefly";
-  version = "0.20.1";
-  pyproject = true;
+  version = "0.20.2";
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-o3zNKHL21nllufWhUiFEKgAJPhrGwOki6f2GBnkePEQ=";
+  src = fetchFromGitHub {
+    owner = "facebook";
+    repo = "pyrefly";
+    tag = finalAttrs.version;
+    hash = "sha256-E3CPs3/c5/0VKeRFI6dNRj0xUoU9YBV1rZ1qFt4E2+U=";
   };
 
-  cargoDeps = rustPlatform.fetchCargoVendor {
-    inherit src;
-    hash = "sha256-CeNIkdYNMAZF4bywJBEtcMi0SZj12I3pnNoKmu7W4ck=";
-  };
+  buildAndTestSubdir = "pyrefly";
+  cargoHash = "sha256-EkGw7y5NtJ6Yd3DzL4z+81I0v5WyIwZ28klHXMqHjJc=";
 
-  build-system = [ maturin ];
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
 
-  nativeBuildInputs = with rustPlatform; [
-    cargoSetupHook
-    maturinBuildHook
-  ];
-
-  nativeCheckInputs = [ versionCheckHook ];
-
+  # requires unstable rust features
   env.RUSTC_BOOTSTRAP = 1;
 
   passthru.updateScript = nix-update-script { };
@@ -41,5 +33,9 @@ python3.pkgs.buildPythonApplication rec {
     license = lib.licenses.mit;
     mainProgram = "pyrefly";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;
+    maintainers = with lib.maintainers; [
+      cybardev
+      QuiNzX
+    ];
   };
-}
+})

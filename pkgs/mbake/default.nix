@@ -1,17 +1,21 @@
 {
   python3Packages,
-  fetchPypi,
+  fetchFromGitHub,
   ...
 }:
 with python3Packages;
-buildPythonApplication rec {
+buildPythonApplication {
   pname = "mbake";
-  version = "1.2.1";
+  version = "unstable-2025-06-23";
   format = "pyproject";
-  src = fetchPypi {
-    inherit pname version;
-    sha256 = "sha256-ssXJwUPRM57xBPaxvfNrOq1xsNL7qkGYzsSgtUflWT4=";
+
+  src = fetchFromGitHub {
+    owner = "EbodShojaei";
+    repo = "bake";
+    rev = "766d59ed4bfa14a600bc19e064277c7883b84d27";
+    sha256 = "14gmaphpafk9f4rf2jvppbylkwhga8gvp5v8pzxwyqk9wwvbyhmy";
   };
+
   build-system = [
     hatchling
   ];
