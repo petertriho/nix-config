@@ -1,10 +1,10 @@
 {
   "CopilotChat.nvim": { "branch": "main", "commit": "55f2162c36901224e22ff8424fd60ecef670b8fc" },
-  "LuaSnip": { "branch": "master", "commit": "fb525166ccc30296fb3457441eb979113de46b00" },
+  "LuaSnip": { "branch": "master", "commit": "eda5be8f0ce9816278671f0b578cdbb8b762c701" },
   "actions-preview.nvim": { "branch": "master", "commit": "36513ad213855d497b7dd3391a24d1d75d58e36f" },
   "any-jump.vim": { "branch": "master", "commit": "f95674d9a4251ac02f452d5f1861e4422f4652c7" },
   "auto-indent.nvim": { "branch": "main", "commit": "46801cf8857d42a20a73c40b0a5d3dfe8b2b6192" },
-  "avante.nvim": { "branch": "main", "commit": "46d27ff0fd30f5934c8655c96df5220c962916b6" },
+  "avante.nvim": { "branch": "main", "commit": "e89f1fd922743e7fa2ead17e03d76163c94ed706" },
   "barbecue.nvim": { "branch": "main", "commit": "3e31404f0b93a2c30d151abf0648650ac811c664" },
   "blink.cmp": { "branch": "main", "commit": "3513b27d1565d09927ccb8c81731ee06dab6c1c7" },
   "blink.compat": { "branch": "main", "commit": "1454f14a8d855a578ceeba77c62538fa1459a67c" },
