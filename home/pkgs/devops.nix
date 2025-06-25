@@ -4,7 +4,7 @@
     # NOTE: add these to direnv/devenv instead
     # opentofu
     # terraform
-    terraform-docs
-    terraform-compliance
+    # terraform-docs
+    # terraform-compliance
   ];
 }
