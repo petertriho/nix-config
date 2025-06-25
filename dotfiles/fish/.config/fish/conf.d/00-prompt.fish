@@ -1,3 +1,3 @@
-if type --query starship
-    starship init fish | source
-end
+# if type --query starship
+#     starship init fish --print-full-init | source
+# end
