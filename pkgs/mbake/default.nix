@@ -12,8 +12,8 @@ buildPythonApplication {
   src = fetchFromGitHub {
     owner = "EbodShojaei";
     repo = "bake";
-    rev = "5c82db7b191444ebcfc98a3952db4ca9e38d13bf";
-    sha256 = "103q1s88krzg61zjnqin3ys98c3c0iyvypbjg5yb5rfg74dip21v";
+    rev = "349b01464cff355bdf2ed82ba355ff1eede94b3a";
+    sha256 = "17jyxvbmbj9scy05jb8dg2wb71wj214zjzs8z968pa5pqcfl32fi";
   };
 
   build-system = [
