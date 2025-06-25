@@ -5,12 +5,12 @@
 }:
 fishPlugins.buildFishPlugin {
   pname = "async-prompt";
-  version = "unstable-2024-07-19";
+  version = "unstable-2025-06-25";
 
   src = fetchFromGitHub {
     owner = "petertriho";
     repo = "fish-async-prompt";
-    rev = "9ea45bc236c9e549ab8781195f6b7fd81d9f78a4";
-    sha256 = "0hwji3h6cx93agq199f4rjdnp97nzsvasnij7nrx3ljrisd8bfav";
+    rev = "4b57eff4f07cafb5f1d026096eeef102bf413d45";
+    sha256 = "08f7qa8rn794rr6rxkphlwlcsrx90fr4nvpqy48cwpdrbqxfc0y6";
   };
 }
