@@ -5,41 +5,42 @@
 }:
 {
   home.packages = with pkgs; [
-    btop
-    cht-sh
-    coreutils
-    dive
-    eza
-    fd
-    fx
-    fzf
-    git-gone
-    glow
-    # python3Packages.howdoi
-    httpie
-    stable.hurl
-    hyperfine
-    iperf3
-    jq
-    lsof
-    lstr
-    lynx
-    navi
-    nurl
-    openssl
-    python3Packages.pgcli
-    python3Packages.pipdeptree
-    ripgrep
-    sqlite
-    sqlite-web
-    tabiew
-    tldr
-    unzip
-    update-nix-fetchgit
-    watchexec
-    yq-go
-    zip
-    zoxide
+    btop # better htop
+    cht-sh # command-line cheat sheets
+    coreutils # GNU core utilities
+    csvkit # command-line CSV toolkit
+    dive # inspect docker images
+    eza # ls replacement
+    fd # find replacement
+    fx # json viewer
+    fzf # fuzzy finder
+    git-gone # git garbage collector
+    glow # markdown viewer
+    gron # make JSON greppable
+    httpie # user-friendly HTTP client
+    stable.hurl # http client for testing APIs
+    hyperfine # command-line benchmarking tool
+    iperf3 # network performance measurement tool
+    jq # JSON processor
+    lsof # list open files
+    lstr # tree replacement
+    lynx # text-based web browser
+    navi # interactive cheatsheet tool
+    nurl # generate nix fetcher calls
+    openssl # for generating certificates
+    python3Packages.pgcli # PostgreSQL CLI with autocompletion
+    python3Packages.pipdeptree # view installed Python packages as a tree
+    ripgrep # search tool
+    sqlite # command-line SQLite client
+    sqlite-web # web-based SQLite client
+    tabiew # csv data viewer
+    tldr # simplified man pages
+    unzip # unzip files
+    update-nix-fetchgit # update fetchgit URLs in Nix files
+    watchexec # run commands when files change
+    yq-go # YAML processor
+    zip # zip files
+    zoxide # smarter cd command
   ];
 
   home.sessionVariables = {
