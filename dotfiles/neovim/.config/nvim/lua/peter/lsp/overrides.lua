@@ -164,7 +164,7 @@ return {
     --         },
     --     },
     -- },
-    ty = {},
+    -- ty = {},
     typos_lsp = {
         init_options = {
             diagnosticSeverity = "information",

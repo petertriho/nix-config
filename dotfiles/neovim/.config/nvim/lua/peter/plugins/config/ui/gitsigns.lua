@@ -1,5 +1,6 @@
 return {
     "lewis6991/gitsigns.nvim",
+    enabled = false,
     event = "User LazyLoadFile",
     keys = {
         { "<leader>gt", "<CMD>Gitsigns toggle_current_line_blame<CR>", desc = "Toggle Blame" },
