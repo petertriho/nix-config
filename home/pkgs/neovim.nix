@@ -62,7 +62,7 @@
     # nodePackages.typescript-language-server
     postgres-lsp
     # pylyzer
-    pyrefly
+    # pyrefly
     quick-lint-js
     rust-analyzer
     superhtml
@@ -71,7 +71,7 @@
     taplo
     terraform-ls
     tflint
-    ty
+    # ty
     typos-lsp
     vscode-langservers-extracted # html, css, json, eslint
     vtsls
