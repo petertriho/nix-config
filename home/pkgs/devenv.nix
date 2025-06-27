@@ -1,4 +1,4 @@
 { pkgs, ... }:
 {
-  home.packages = with pkgs; [ stable.devenv ];
+  home.packages = with pkgs; [ devenv ];
 }
