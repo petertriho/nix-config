@@ -21,7 +21,6 @@ local vtsls_setup = function(config)
 end
 
 return {
-    -- angularls = {},
     basedpyright = {
         settings = {
             basedpyright = {

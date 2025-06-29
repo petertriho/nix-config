@@ -46,7 +46,6 @@
     yamllint
 
     # lsp
-    # angular-language-server
     basedpyright
     bash-language-server
     docker-compose-language-service
