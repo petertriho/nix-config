@@ -68,12 +68,21 @@
             set -g @easy-motion-default-motion "bd-f"
           '';
       }
+      # {
+      #   plugin = tmux-thumbs;
+      #   extraConfig =
+      #     # tmux
+      #     ''
+      #       set -g @thumbs-key "F"
+      #     '';
+      # }
       {
-        plugin = tmux-thumbs;
+        plugin = fingers;
         extraConfig =
           # tmux
           ''
-            set -g @thumbs-key "F"
+            set -g @fingers-key "F"
+            set -g @fingers-jump-key "J"
           '';
       }
       {
