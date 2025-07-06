@@ -10,6 +10,8 @@ buildPythonPackage rec {
     inherit pname version;
     sha256 = "sha256-a7w8jVLj3z5AObwMrTYW0+tXm0xuFaEb1eDvDVeVlqk=";
   };
+  pyproject = true;
+  build-system = [ setuptools ];
   propagatedBuildInputs = [ click ];
   doCheck = false;
 }
