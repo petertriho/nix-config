@@ -1,0 +1,3 @@
+[core]
+    # fsmonitor = true
+    fsmonitor = rs-git-fsmonitor

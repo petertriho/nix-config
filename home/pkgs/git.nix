@@ -15,7 +15,11 @@
       watchman
     ];
 
-    file.".gitconfig".source = config.lib.meta.mkDotfilesSymlink "git/.gitconfig";
-    file.".gittemplates".source = config.lib.meta.mkDotfilesSymlink "git/.gittemplates";
+    file = {
+      ".gitconfig".source = config.lib.meta.mkDotfilesSymlink "git/.gitconfig";
+      ".gittemplates".source = config.lib.meta.mkDotfilesSymlink "git/.gittemplates";
+      ".config/git/fsmonitor.gitconfig".source =
+        config.lib.meta.mkDotfilesSymlink "git/.config/git/fsmonitor.gitconfig";
+    };
   };
 }

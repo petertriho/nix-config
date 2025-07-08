@@ -4,6 +4,7 @@
 
 [include]
     path = ~/.config/git/.gitconfig
+    path = ~/.config/git/fsmonitor.gitconfig
 
 [branch]
     sort = -committerdate
@@ -16,8 +17,6 @@
     template = ~/.gittemplates/commit
 
 [core]
-    # fsmonitor = true
-    fsmonitor = rs-git-fsmonitor
     # Remove delta_side_by_side function when fixed
     # https://github.com/dandavison/delta/issues/359
     # https://github.com/wfxr/forgit/issues/121
