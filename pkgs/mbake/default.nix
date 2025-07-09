@@ -6,14 +6,14 @@
 with python3Packages;
 buildPythonApplication {
   pname = "mbake";
-  version = "unstable-2025-06-25";
+  version = "unstable-2025-07-08";
   format = "pyproject";
 
   src = fetchFromGitHub {
     owner = "EbodShojaei";
     repo = "bake";
-    rev = "14ea4bd03f584778a0dd511d54e3df09f92e927a";
-    sha256 = "0fni1qnz2z2mdgqf5qwh4lhwrhw5m38ahabqk9vsyqp55lf3fcs7";
+    rev = "d401e2b1d3a08cb1c917e41e569eb9a18a06d10e";
+    sha256 = "0bvk9h86f98sm7n0v3jaddgig88drpl45rgrkm5bagsdcc7x807r";
   };
 
   build-system = [
