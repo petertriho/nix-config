@@ -14,11 +14,11 @@ return {
         { "<leader>ia", "<CMD>CodeCompanionChat Add<CR>", desc = "Add" },
     },
     opts = {
-        display = {
-            chat = {
-                show_settings = true,
-            },
-        },
+        -- display = {
+        --     chat = {
+        --         show_settings = true,
+        --     },
+        -- },
     },
     config = function(_, opts)
         if vim.g.copilot_model then
