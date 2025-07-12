@@ -7,17 +7,17 @@
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "pyrefly";
-  version = "unstable-2025-07-11";
+  version = "unstable-2025-07-12";
 
   src = fetchFromGitHub {
     owner = "facebook";
     repo = "pyrefly";
-    rev = "229822095d4d45f4f536aa383aa9728e6cc564e5";
-    sha256 = "194g2fzdj25cgxzgb57zi9d48p0kj281i8bfdnmf6wsd9ky3c77h";
+    rev = "469feb64c558b34b03370d8706da6187f61fb0bf";
+    sha256 = "1ld3ca3ja6xx4s61ymsz1hcvrb02zmwd3vzp1a5n084251iqscd3";
   };
 
   buildAndTestSubdir = "pyrefly";
-  cargoHash = "sha256-ZSxGro2NxF5WJ9GgfEj7GJ0A4O5xNEvIxmJPz1wfeWk=";
+  cargoHash = "sha256-0PBIs80+AhBNRIQftUqeh1ejoJBcMLXdrNurtghmV+c=";
 
   # nativeInstallCheckInputs = [ versionCheckHook ];
   # doInstallCheck = true;
