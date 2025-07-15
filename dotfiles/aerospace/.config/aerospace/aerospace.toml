@@ -98,7 +98,7 @@ alt-enter = 'exec-and-forget open -n -a WezTerm'
 alt-shift-e = 'exec-and-forget open -n finder'
 alt-t = 'exec-and-forget open -n -a "Floorp"'
 alt-q = "close --quit-if-last-window"
-alt-shift-q = "close-all-windows-but-current --quit-if-last-window"
+alt-shift-q = "close-all-windows-but-current"
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#focus
 alt-h = 'focus left'
