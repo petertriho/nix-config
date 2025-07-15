@@ -8,6 +8,7 @@
 {
   imports = [
     outputs.homeManagerModules.helpers
+    ./pkgs/ai.nix
     ./pkgs/bat.nix
     ./pkgs/devenv.nix
     ./pkgs/devops.nix
