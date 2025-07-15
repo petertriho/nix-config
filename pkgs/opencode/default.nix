@@ -12,9 +12,9 @@
 }:
 let
   opencode-node-modules-hash = {
-    "aarch64-darwin" = "sha256-uk8HQfHCKTAW54rNHZ1Rr0piZzeJdx6i4o0+xKjfFZs=";
+    "aarch64-darwin" = "sha256-n3PP1cddv4yOI4GPIZxf1jruae6+Gfl0QWFr+NVJAfg=";
     "aarch64-linux" = "sha256-Qw9zdnWBOVGTJdnR4zVTH7mWRg6e3ZKYPV417108xFM=";
-    "x86_64-darwin" = "sha256-H5+qa7vxhwNYRXUo4v8IFUToVXtyXzU3veIqu4idAbU=";
+    "x86_64-darwin" = "sha256-n3PP1cddv4yOI4GPIZxf1jruae6+Gfl0QWFr+NVJAfg=";
     "x86_64-linux" = "sha256-Qw9zdnWBOVGTJdnR4zVTH7mWRg6e3ZKYPV417108xFM=";
   };
   bun-target = {
@@ -108,7 +108,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   models-dev-data = fetchurl {
     url = "https://models.dev/api.json";
-    sha256 = "04hkq285gmv8l4n1xv6201l0fz7r28j4dsjm0pimk9f3zp2v5pnc";
+    sha256 = "sha256-ra9R2AcW48n11DsRWxKJEMIQiQ/4BhPmwx8+En4LGls=";
   };
 
   nativeBuildInputs = [ bun ];
