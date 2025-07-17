@@ -14,7 +14,7 @@ return {
             },
         },
         suggestion = {
-            auto_trigger = true,
+            auto_trigger = vim.g.copilot_model ~= nil,
             keymap = {
                 accept = "<C-e>",
                 accept_line = false,
