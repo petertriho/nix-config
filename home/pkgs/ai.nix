@@ -1,6 +1,13 @@
-{ pkgs, config, ... }:
 {
-  home.packages = with pkgs; [ opencode ];
+  pkgs,
+  config,
+  ...
+}:
+{
+  home.packages = with pkgs; [
+    gemini-cli
+    opencode
+  ];
 
   xdg.configFile."opencode/opencode.json".source =
     config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode.json";
