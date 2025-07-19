@@ -30,8 +30,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "9964d8e6c0e21b921838b2ee6c681a8933e4b8e6";
-    sha256 = "00ghjg0vk8mm9addhav6vnava6hfcf1ajxzcam4fpgqv5f9q7rkm";
+    rev = "1676f8b5dd203f66fd463381aa41963debdf496f";
+    sha256 = "0sknn3xxpnsahfishakr7himvmb79w8ig2y2bhbgd08f5q2lbbld";
   };
 
   tui = buildGoModule {
@@ -39,7 +39,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     inherit (finalAttrs) version;
     src = "${finalAttrs.src}/packages/tui";
 
-    vendorHash = "sha256-GeXDi/y9NoJJ9P5hQk0vtIxg/6pDDtMPdxgQvHZJzJ4=";
+    vendorHash = "sha256-G1vM8wxTTPpB1Oaxz2YI8AkirwG54A9i6Uq5e92ucyY=";
 
     subPackages = [ "cmd/opencode" ];
 

@@ -12,8 +12,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "facebook";
     repo = "pyrefly";
-    rev = "cbf0fd647478cab98d4ac8ed072d40da0eff2f53";
-    sha256 = "0q9nv2664rq8n5nyvf9z5vlxihfg9qwl0sbwr0sbc7nrxf0krxdv";
+    rev = "6811389a6562e4d0ed94f7fbfbfd8967caa27334";
+    sha256 = "1ln5a3x4ai55jr8bfpf1m0hhmsbzfsg45czmkv2ndmsxhmnjfrqd";
   };
 
   buildAndTestSubdir = "pyrefly";
