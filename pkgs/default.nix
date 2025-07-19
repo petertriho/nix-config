@@ -5,7 +5,8 @@
 with pkgs;
 rec {
   mbake = callPackage ./mbake { };
-  opencode = callPackage ./opencode { };
+  models-dev = callPackage ./models-dev { };
+  opencode = callPackage ./opencode { inherit models-dev; };
   pybetter = callPackage ./pybetter { inherit pkgs pyemojify; };
   pyemojify = callPackage ./pyemojify { };
   pyrefly = callPackage ./pyrefly { };
