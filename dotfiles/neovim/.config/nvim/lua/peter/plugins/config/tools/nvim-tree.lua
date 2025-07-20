@@ -1,5 +1,10 @@
 return {
     "nvim-tree/nvim-tree.lua",
+    dependencies = {
+        {
+            dir = "~/.config/nvim/plugins/nvim-tree-utils",
+        },
+    },
     cmd = {
         "NvimTreeOpen",
         "NvimTreeClose",
@@ -49,12 +54,14 @@ return {
                 vim.keymap.del("n", "s", { buffer = bufnr })
                 vim.keymap.del("n", "S", { buffer = bufnr })
 
+                local utils = require("nvim-tree-utils")
+
                 vim.keymap.set("n", "<C-f>", function()
-                    require("peter.plugins.nvim-tree-utils").launch_telescope("find_files")
+                    utils.launch_telescope("find_files")
                 end, opts("Telescope Files"))
 
                 vim.keymap.set("n", "<C-s>", function()
-                    require("peter.plugins.nvim-tree-utils").launch_telescope("live_grep")
+                    utils.launch_telescope("live_grep")
                 end, opts("Telescope Grep"))
             end,
             actions = {
