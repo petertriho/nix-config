@@ -80,8 +80,11 @@ local HelpFileName = {
         elseif buftype == "quickfix" then
             return "[Quickfix]"
         end
-        local filename = vim.api.nvim_buf_get_name(0)
-        return vim.fn.fnamemodify(filename, ":t")
+        local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":~:.")
+        if filename == "" then
+            return "[No Name]"
+        end
+        return filename
     end,
     hl = { fg = "blue" },
 }
