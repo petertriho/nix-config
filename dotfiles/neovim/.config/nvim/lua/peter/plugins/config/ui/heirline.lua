@@ -476,27 +476,23 @@ return {
             end,
         }
 
-        local TerminalName = {
-            provider = function()
-                local tname, _ = vim.api.nvim_buf_get_name(0):gsub(".*:", "")
-                return " " .. tname
-            end,
-            hl = { fg = "blue", bold = true },
-        }
+        local BgHighlight = function(component)
+            return {
+                hl = { bg = "bg_highlight" },
+                Space,
+                component,
+                Space,
+            }
+        end
 
         local InactiveStatusLine = {
             condition = conditions.is_not_active,
             hl = { fg = "fg" },
-            {
-                hl = { bg = "bg_highlight" },
-                Space,
-                FileType,
-                Space,
-            },
+            BgHighlight(FileType),
             Space,
             FileName,
             Align,
-            WindowNumber,
+            BgHighlight(WindowNumber),
         }
 
         local HelpFileName = {
@@ -524,28 +520,30 @@ return {
                     filetype = { "^git.*", "fugitive" },
                 })
             end,
-            {
-                hl = { bg = "bg_highlight" },
-                Space,
-                FileType,
-                Space,
-            },
+            BgHighlight(FileType),
             Space,
             HelpFileName,
             Align,
-            WindowNumber,
+            BgHighlight(WindowNumber),
+        }
+
+        local TerminalName = {
+            provider = function()
+                local tname, _ = vim.api.nvim_buf_get_name(0):gsub(".*:", "")
+                return " " .. tname
+            end,
+            hl = { fg = "blue", bold = true },
         }
 
         local TerminalStatusLine = {
             condition = function()
                 return conditions.buffer_matches({ buftype = { "terminal" } })
             end,
-            hl = { bg = "bg_highlight" },
             ViMode,
             Space,
             TerminalName,
             Align,
-            WindowNumber,
+            BgHighlight(WindowNumber),
         }
 
         heirline.setup({
