@@ -152,6 +152,139 @@ return {
             desc = "Live Grep",
         },
         {
+            "<leader>ln",
+            function()
+                require("snacks").picker.lsp_symbols()
+            end,
+            desc = "Dynamic Workspace Symbols",
+        },
+        {
+            "<leader>m",
+            function()
+                require("snacks").picker.marks()
+            end,
+            desc = "Marks",
+        },
+        {
+            "<leader>gb",
+            function()
+                require("snacks").picker.git_branches()
+            end,
+            desc = "Branches",
+        },
+        {
+            "<leader>gc",
+            function()
+                require("snacks").picker.git_log()
+            end,
+            desc = "Commits",
+        },
+        {
+            "<leader>gs",
+            function()
+                require("snacks").picker.git_stash()
+            end,
+            desc = "Stash",
+        },
+        {
+            "<leader>ta",
+            function()
+                require("snacks").picker.files({ hidden = true })
+            end,
+            desc = "Find Files All",
+        },
+        {
+            "<leader>tb",
+            function()
+                require("snacks").picker.buffers()
+            end,
+            desc = "Buffers",
+        },
+        {
+            "<leader>tc",
+            function()
+                require("snacks").picker.commands()
+            end,
+            desc = "Commands",
+        },
+        {
+            "<leader>th",
+            function()
+                require("snacks").picker.help()
+            end,
+            desc = "Help Tags",
+        },
+        {
+            "<leader>tj",
+            function()
+                require("snacks").picker.jumplist()
+            end,
+            desc = "Command History",
+        },
+        {
+            "<leader>tm",
+            function()
+                require("snacks").picker.man()
+            end,
+            desc = "Man Pages",
+        },
+        {
+            "<leader>to",
+            function()
+                require("snacks").picker.recent()
+            end,
+            desc = "Old Files",
+        },
+        {
+            "<leader>ld",
+            function()
+                require("snacks").picker.lsp_definitions()
+            end,
+            desc = "Definitions",
+        },
+        {
+            "<leader>le",
+            function()
+                require("snacks").picker.diagnostics()
+            end,
+            desc = "Errors",
+        },
+        {
+            "<leader>li",
+            function()
+                require("snacks").picker.lsp_implementations()
+            end,
+            desc = "Implementations",
+        },
+        {
+            "<leader>lr",
+            function()
+                require("snacks").picker.lsp_references()
+            end,
+            desc = "References",
+        },
+        {
+            "<leader>ls",
+            function()
+                require("snacks").picker.lsp_symbols({ scope = "document" })
+            end,
+            desc = "Document Symbols",
+        },
+        {
+            "<leader>lw",
+            function()
+                require("snacks").picker.lsp_symbols({ scope = "workspace" })
+            end,
+            desc = "Workspace Symbols",
+        },
+        {
+            "<leader>ly",
+            function()
+                require("snacks").picker.lsp_type_definitions()
+            end,
+            desc = "Type Definitions",
+        },
+        {
             "<leader>b",
             function()
                 require("snacks").scratch({
@@ -224,6 +357,13 @@ return {
                 require("snacks").scratch.select()
             end,
             desc = "Select Scratch Buffer",
+        },
+        {
+            "<leader>ty",
+            function()
+                require("snacks").picker.yanky()
+            end,
+            desc = "Yank History",
         },
         {
             "<leader>z",
