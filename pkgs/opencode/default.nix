@@ -39,7 +39,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     inherit (finalAttrs) version;
     src = "${finalAttrs.src}/packages/tui";
 
-    vendorHash = "sha256-W0PQ0inIdfxRKoFHBxtKpdlNvzzVX5vlCPSRRPF7eq8=";
+    vendorHash = "sha256-MZAKEXA34dHiH4XYUlLq6zo8ppG8JD3nj7fhZMrr+TI=";
 
     subPackages = [ "cmd/opencode" ];
 
