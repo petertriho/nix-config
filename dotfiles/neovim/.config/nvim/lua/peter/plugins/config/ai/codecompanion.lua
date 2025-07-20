@@ -4,14 +4,14 @@ return {
         "CodeCompanion",
     },
     keys = {
-        { "<leader>ic", "<CMD>CodeCompanionCmd<CR>", desc = "Cmd" },
-        { "<leader>ip", "<CMD>CodeCompanionActions<CR>", desc = "Palette" },
+        { "<leader>cc", "<CMD>CodeCompanionCmd<CR>", desc = "Cmd" },
+        { "<leader>cp", "<CMD>CodeCompanionActions<CR>", desc = "Palette" },
         {
-            "<leader>it",
+            "<leader>ct",
             "<CMD>CodeCompanionChat Toggle<CR>",
             desc = "Toggle",
         },
-        { "<leader>ia", "<CMD>CodeCompanionChat Add<CR>", desc = "Add" },
+        { "<leader>ca", "<CMD>CodeCompanionChat Add<CR>", desc = "Add" },
     },
     opts = {
         -- display = {

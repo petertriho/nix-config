@@ -1,5 +1,6 @@
 return {
     "yetone/avante.nvim",
+    enabled = false,
     keys = {
         { "<leader>at", "<CMD>AvanteToggle<CR>", desc = "avante: toggle" },
         { "<leader>aC", "<CMD>AvanteClear<CR>", desc = "avante: clear" },

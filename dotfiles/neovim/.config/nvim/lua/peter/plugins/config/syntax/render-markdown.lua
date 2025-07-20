@@ -3,6 +3,7 @@ local ft = {
     "Avante",
     "codecompanion",
     "copilot-chat",
+    "opencode_output",
 }
 return {
     "MeanderingProgrammer/render-markdown.nvim",

@@ -36,10 +36,10 @@ return {
             {
                 mode = { "n", "x" },
                 { "<leader>a", group = "ai (avante)" },
-                { "<leader>c", group = "ai (copilot)" },
-                { "<leader>i", group = "ai (code)" },
+                { "<leader>c", group = "ai (codecompanion)" },
                 { "<leader>n", group = "namu" },
-                { "<leader>o", group = "operations" },
+                { "<leader>o", group = "ai (opencode)" },
+                { "<leader>X", group = "extras" },
             },
             -- vim-abolish
             {

@@ -2,7 +2,7 @@ return {
     "j-hui/fidget.nvim",
     event = "VeryLazy",
     keys = {
-        { "<leader>of", "<CMD>Fidget clear<CR>", desc = "Fidget Clear" },
+        { "<leader>Xf", "<CMD>Fidget clear<CR>", desc = "Fidget Clear" },
     },
     opts = {
         integration = {
