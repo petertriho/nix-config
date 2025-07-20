@@ -35,7 +35,7 @@ return {
             },
             {
                 mode = { "n", "x" },
-                { "<leader>a", group = "ai (avante)" },
+                { "<leader>a", group = "ai (aider)" },
                 { "<leader>c", group = "ai (codecompanion)" },
                 { "<leader>n", group = "namu" },
                 { "<leader>o", group = "ai (opencode)" },
