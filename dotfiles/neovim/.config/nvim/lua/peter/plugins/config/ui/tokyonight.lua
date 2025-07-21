@@ -21,6 +21,14 @@ return {
                 hl.EyelinerSecondary = { fg = colors.red, underline = true }
 
                 hl.Folded = { fg = colors.comment, bg = nil }
+
+                hl.SnacksPickerPathHidden = { fg = colors.fg }
+
+                hl.TabLine = { fg = colors.fg_gutter, bg = colors.bg_statusline }
+                hl.TabLineSel = {
+                    fg = colors.fg,
+                    bg = colors.bg,
+                }
             end,
             plugins = { markdown = true },
         })

@@ -7,6 +7,7 @@ end
 
 return {
     "akinsho/bufferline.nvim",
+    -- enabled = false,
     event = { "UIEnter", "VeryLazy" },
     keys = {
         { "<C-n>", "<CMD>BufferLineCycleNext<CR>" },
@@ -52,10 +53,10 @@ return {
                     and vim.bo[buf_number].filetype ~= "NeogitStatus"
                     and vim.bo[buf_number].buftype ~= "terminal"
             end,
-            diagnostics = "nvim_lsp",
-            diagnostics_indicator = function(count, level, diagnostics_dict, context)
-                return "(" .. count .. ")"
-            end,
+            -- diagnostics = "nvim_lsp",
+            -- diagnostics_indicator = function(count, level, diagnostics_dict, context)
+            --     return "(" .. count .. ")"
+            -- end,
         },
     },
 }
