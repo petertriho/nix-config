@@ -88,6 +88,10 @@ return {
                     },
                     explorer = {
                         hidden = true,
+                        layout = {
+                            hidden = { "input" },
+                        },
+                        focus = "list",
                     },
                 },
                 win = {

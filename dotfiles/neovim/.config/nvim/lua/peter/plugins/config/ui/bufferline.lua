@@ -42,7 +42,7 @@ return {
                 },
                 {
                     filetype = "snacks_layout_box",
-                    text = "",
+                    text = "EXPLORER",
                     highlight = "Directory",
                     text_align = "center",
                 },
