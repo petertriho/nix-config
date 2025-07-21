@@ -1,6 +1,3 @@
-set -gx FORGIT_FZF_DEFAULT_OPTS "$FZF_DEFAULT_OPTS"
-set -gx FORGIT_LOG_GRAPH_ENABLE true
-
 if type --query fzf_configure_bindings
     set -g fzf_fd_opts --hidden --exclude .git
     fzf_configure_bindings \
