@@ -10,8 +10,8 @@ return {
         { "<leader>a-", "<CMD>Aider drop<CR>", desc = "Drop File" },
         { "<leader>ar", "<CMD>Aider add readonly<CR>", desc = "Add Read-Only" },
         { "<leader>aR", "<CMD>Aider reset<CR>", desc = "Reset Session" },
-        { "<leader>a+", "<CMD>AiderTreeAddFile<CR>", desc = "Add File from Tree to Aider", ft = "NvimTree" },
-        { "<leader>a-", "<CMD>AiderTreeDropFile<CR>", desc = "Drop File from Tree from Aider", ft = "NvimTree" },
+        -- { "<leader>a+", "<CMD>AiderTreeAddFile<CR>", desc = "Add File from Tree to Aider", ft = "NvimTree" },
+        -- { "<leader>a-", "<CMD>AiderTreeDropFile<CR>", desc = "Drop File from Tree from Aider", ft = "NvimTree" },
     },
     config = true,
 }

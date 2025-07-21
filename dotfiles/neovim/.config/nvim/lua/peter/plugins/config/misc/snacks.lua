@@ -86,6 +86,9 @@ return {
                     grep = {
                         hidden = true,
                     },
+                    explorer = {
+                        hidden = true,
+                    },
                 },
                 win = {
                     input = {
@@ -143,6 +146,13 @@ return {
                 require("snacks").picker.files()
             end,
             desc = "Find Files",
+        },
+        {
+            "<leader>e",
+            function()
+                require("snacks").picker.explorer()
+            end,
+            desc = "Explorer",
         },
         {
             "<leader>'",

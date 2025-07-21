@@ -1,8 +1,8 @@
 local sidebars = {
     "DiffViewFiles",
     "NeogitStatus",
-    "NvimTree",
     "fugitive",
+    "snacks_layout_box",
     "undotree",
 }
 

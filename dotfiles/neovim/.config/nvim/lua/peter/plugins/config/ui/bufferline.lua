@@ -41,14 +41,8 @@ return {
                     text_align = "center",
                 },
                 {
-                    filetype = "NvimTree",
-                    text = "EXPLORER",
-                    highlight = "Directory",
-                    text_align = "center",
-                },
-                {
-                    filetype = "Outline",
-                    text = "OUTLINE",
+                    filetype = "snacks_layout_box",
+                    text = "",
                     highlight = "Directory",
                     text_align = "center",
                 },
