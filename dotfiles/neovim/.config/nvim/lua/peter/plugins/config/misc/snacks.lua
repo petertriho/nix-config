@@ -159,7 +159,7 @@ return {
             desc = "Dynamic Workspace Symbols",
         },
         {
-            "<leader>m",
+            "<leader>t'",
             function()
                 require("snacks").picker.marks()
             end,
