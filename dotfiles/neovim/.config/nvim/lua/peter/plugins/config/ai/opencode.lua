@@ -1,5 +1,6 @@
 return {
     "sudo-tee/opencode.nvim",
+    enabled = false,
     keys = {
         { "<leader>og", "<CMD>Opencode<CR>", desc = "toggle" },
         { "<leader>oi", "<CMD>OpencodeOpenInput<CR>", desc = "input" },
