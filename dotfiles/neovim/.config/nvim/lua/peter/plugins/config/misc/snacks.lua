@@ -92,6 +92,10 @@ return {
                             hidden = { "input" },
                         },
                         focus = "list",
+                        diagnostics = false,
+                        diagnostics_open = false,
+                        git_status = false,
+                        git_status_open = false,
                     },
                 },
                 win = {
