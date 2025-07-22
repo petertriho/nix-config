@@ -18,7 +18,7 @@
     glow # markdown viewer
     gron # make JSON greppable
     httpie # user-friendly HTTP client
-    stable.hurl # http client for testing APIs
+    hurl # http client for testing APIs
     hyperfine # command-line benchmarking tool
     iperf3 # network performance measurement tool
     jq # JSON processor
