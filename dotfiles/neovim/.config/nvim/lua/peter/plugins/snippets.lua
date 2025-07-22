@@ -35,8 +35,8 @@ M.setup = function()
         }),
     })
 
-    local atlassian_company_name = os.getenv("ATLASSIAN_COMPANY_NAME") or "COMPANY_NAME"
-    local atlassian_project_key = os.getenv("ATLASSIAN_PROJECT_KEY") or "PROJECT_KEY"
+    local atlassian_company_name = vim.env.ATLASSIAN_COMPANY_NAME or "COMPANY_NAME"
+    local atlassian_project_key = vim.env.ATLASSIAN_PROJECT_KEY or "PROJECT_KEY"
     local refsx_snippet = function(trigger)
         return s(
             trigger,

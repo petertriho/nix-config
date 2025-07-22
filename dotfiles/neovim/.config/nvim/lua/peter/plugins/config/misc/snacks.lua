@@ -12,7 +12,7 @@ local filter = function(buf)
 end
 
 local get_scratch_path = function()
-    local scratch_path = os.getenv("SCRATCH_PATH")
+    local scratch_path = vim.env.SCRATCH_PATH
 
     if scratch_path then
         return vim.fn.expand(scratch_path)

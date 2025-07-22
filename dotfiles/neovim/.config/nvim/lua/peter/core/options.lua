@@ -15,7 +15,7 @@ vim.filetype.add({
 })
 
 -- Globals
-vim.g.copilot_model = os.getenv("COPILOT_MODEL")
+vim.g.copilot_model = vim.env.COPILOT_MODEL
 
 -- Options
 local opt = vim.opt
