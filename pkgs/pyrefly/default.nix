@@ -7,13 +7,13 @@
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "pyrefly";
-  version = "unstable-2025-07-22";
+  version = "unstable-2025-07-23";
 
   src = fetchFromGitHub {
     owner = "facebook";
     repo = "pyrefly";
-    rev = "32ee4f90ff41b63bf652c4b8be614b0476674bd4";
-    sha256 = "0py2m242a1v73zg85x8dwwvawimdki3lhk5jbm7xiww8n0arngh9";
+    rev = "e6da7b6e749432c53f1c9f1391864f585148715b";
+    sha256 = "0znq0v3mcc9g9gb6s8dk97dipr8q0212kkis55bldq0z72bsqbg9";
   };
 
   buildAndTestSubdir = "pyrefly";
