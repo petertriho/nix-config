@@ -6,10 +6,10 @@
 }:
 let
   cfg = config.services.kanata;
-  KDK_VER = "5.0.0";
+  KDK_VER = "6.0.0";
   KDK_PKG = pkgs.fetchurl {
     url = "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v${KDK_VER}/Karabiner-DriverKit-VirtualHIDDevice-${KDK_VER}.pkg";
-    sha256 = "1iwqz6wnw55mn5ynxlwknzxxna55ckx49fx4cmzkkdhxca1bda44";
+    hash = "sha256-S14c06v/L/PraLekzIroG6FQnV5dpx0cyJNb9ylB458=";
   };
   KDK_MANAGER = "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager";
   KDK_DAEMON = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon";
@@ -40,7 +40,7 @@ in
             # Check version from Info.plist
             PLIST_PATH="/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/Info.plist"
             if [ -f "$PLIST_PATH" ]; then
-                INSTALLED_VERSION=$(${pkgs.libplist}/bin/plistutil -i "$PLIST_PATH" | grep -A1 CFBundleShortVersionString | tail -1 | sed 's/.*<string>\(.*\)<\/string>.*/\1/' || echo "unknown")
+                INSTALLED_VERSION=$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$PLIST_PATH" 2>/dev/null || echo "unknown")
                 if [ "$INSTALLED_VERSION" != "${KDK_VER}" ]; then
                     echo "Karabiner DriverKit version mismatch (installed: $INSTALLED_VERSION, expected: ${KDK_VER}), reinstalling..."
                     NEEDS_INSTALL=true
