@@ -1,13 +1,3 @@
-local execute_command = function(client_name, params)
-    local clients = require("lspconfig.util").get_lsp_clients({
-        bufnr = vim.api.nvim_get_current_buf(),
-        name = client_name,
-    })
-    for _, client in ipairs(clients) do
-        client:request("workspace/executeCommand", params, nil, 0)
-    end
-end
-
 local vtsls_setup = function(config)
     -- NOTE: workaround for https://yarnpkg.com/getting-started/editor-sdks
     local yarn_sdks = vim.fs.find({ "sdks" }, { type = "directory", path = ".yarn" })
@@ -36,6 +26,9 @@ return {
                 },
             },
         },
+        on_attach = function(client, bufnr)
+            vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+        end,
     },
     bashls = {},
     cssls = {},
@@ -119,28 +112,25 @@ return {
                 configuration = vim.fn.expand("$HOME/.config/nvim/code/ruff.toml"),
             },
         },
-        commands = {
-            RuffAutoFix = {
-                function()
-                    execute_command("ruff", {
-                        command = "ruff.applyAutofix",
-                        arguments = {
-                            { uri = vim.uri_from_bufnr(0) },
-                        },
-                    })
-                end,
-                description = "Auto-fix",
-            },
-            RuffOrganizeImports = {
-                function()
-                    execute_command("ruff", {
-                        command = "ruff.applyOrganizeImports",
-                        arguments = { { uri = vim.uri_from_bufnr(0), version = 123 } },
-                    })
-                end,
-                description = "Organize Imports",
-            },
-        },
+        on_attach = function(client, bufnr)
+            vim.api.nvim_buf_create_user_command(bufnr, "RuffAutoFix", function()
+                client:exec_cmd({
+                    command = "ruff.applyAutofix",
+                    arguments = {
+                        { uri = vim.uri_from_bufnr(0) },
+                    },
+                })
+            end, { desc = "Auto-fix" })
+
+            vim.api.nvim_buf_create_user_command(bufnr, "RuffOrganizeImports", function()
+                client:exec_cmd({
+                    command = "ruff.applyOrganizeImports",
+                    arguments = { { uri = vim.uri_from_bufnr(0), version = 123 } },
+                })
+            end, { desc = "Organize Imports" })
+
+            vim.keymap.set("n", "gro", "<CMD>RuffOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+        end,
     },
     rust_analyzer = {},
     -- pylyzer = {},
@@ -151,17 +141,21 @@ return {
     terraformls = {},
     tflint = {},
     -- ts_ls = {
-    --     commands = {
-    --         TSServerOrganizeImports = {
-    --             function()
-    --                 execute_command("ts_ls", {
-    --                     command = "_typescript.organizeImports",
-    --                     arguments = { vim.api.nvim_buf_get_name(0) },
-    --                 })
-    --             end,
-    --             description = "Organize Imports",
-    --         },
-    --     },
+    --     on_attach = function(client, bufnr)
+    --         vim.api.nvim_buf_create_user_command(bufnr, "TSServerOrganizeImports", function()
+    --             client:exec_cmd({
+    --                 command = "_typescript.organizeImports",
+    --                 arguments = { vim.api.nvim_buf_get_name(0) },
+    --             })
+    --         end, { desc = "Organize Imports" })
+    --
+    --         vim.keymap.set(
+    --             "n",
+    --             "gro",
+    --             "<CMD>TSServerOrganizeImports<CR>",
+    --             { buffer = bufnr, desc = "Organize Imports" }
+    --         )
+    --     end,
     -- },
     -- ty = {},
     typos_lsp = {
@@ -181,17 +175,16 @@ return {
                 },
             },
         },
-        commands = {
-            VtslsOrganizeImports = {
-                function()
-                    execute_command("vtsls", {
-                        command = "typescript.organizeImports",
-                        arguments = { vim.api.nvim_buf_get_name(0) },
-                    })
-                end,
-                description = "Organize Imports",
-            },
-        },
+        on_attach = function(client, bufnr)
+            vim.api.nvim_buf_create_user_command(bufnr, "VtslsOrganizeImports", function()
+                client:exec_cmd({
+                    command = "typescript.organizeImports",
+                    arguments = { vim.api.nvim_buf_get_name(0) },
+                })
+            end, { desc = "Organize Imports" })
+
+            vim.keymap.set("n", "gro", "<CMD>VtslsOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+        end,
     }),
     yamlls = require("yaml-companion").setup({ lspconfig = {} }),
 }

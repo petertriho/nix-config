@@ -176,16 +176,6 @@ local function lsp_attach_callback(args)
     buf_keymap("n", "grq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "QDiagnostics" })
     buf_keymap("n", "grl", "<CMD>lua vim.diagnostic.setloclist()<CR>", { desc = "LDiagnostics" })
 
-    if client.name == "basedpyright" then
-        buf_keymap("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { desc = "Organize Imports" })
-    elseif client.name == "ruff" then
-        buf_keymap("n", "gro", "<CMD>RuffOrganizeImports<CR>", { desc = "Organize Imports" })
-    elseif client.name == "ts_ls" then
-        buf_keymap("n", "gro", "<CMD>TSServerOrganizeImports<CR>", { desc = "Organize Imports" })
-    elseif client.name == "vtsls" then
-        buf_keymap("n", "gro", "<CMD>VtslsOrganizeImports<CR>", { desc = "Organize Imports" })
-    end
-
     for method, _ in pairs(LSP_METHODS) do
         if client:supports_method(method, bufnr) then
             lsp_setup_method(client, bufnr, method)
