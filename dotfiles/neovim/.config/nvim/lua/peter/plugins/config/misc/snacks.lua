@@ -41,6 +41,8 @@ return {
             end
         end
 
+        local exclude = vim.opt.wildignore:get()
+
         snacks.setup({
             indent = {
                 enabled = true,
@@ -82,12 +84,15 @@ return {
                 sources = {
                     files = {
                         hidden = true,
+                        exclude = exclude,
                     },
                     grep = {
                         hidden = true,
+                        exclude = exclude,
                     },
                     explorer = {
                         hidden = true,
+                        exclude = exclude,
                         layout = {
                             hidden = { "input" },
                         },

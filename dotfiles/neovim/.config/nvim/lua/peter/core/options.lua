@@ -72,17 +72,34 @@ opt.titlestring = "nvim %t %M"
 -- opt.ttimeoutlen = 0
 opt.updatetime = 100
 opt.wrap = false
-opt.wildignore = {
-    "*%.o",
-    "*%.pyc",
-    "%.git/*",
-    "%.venv/*",
-    "__pycache__/*",
-    "cache/*",
-    "node_modules/*",
-    "tmp/*",
-    "%.yarn/*",
-}
+local function build_wildignore()
+    local patterns = {
+        -- Compiled files
+        "*%.o",
+        "*%.pyc",
+    }
+
+    local folders = {
+        "%.git", -- Version control
+        ".venv", -- Python virtual environments
+        "__pycache__", -- Python cache
+        "node_modules", -- Node.js dependencies
+        "%.yarn", -- Yarn cache
+        "cache", -- General cache
+        "tmp", -- Temporary files
+    }
+
+    -- Generate folder patterns
+    for _, folder in ipairs(folders) do
+        table.insert(patterns, "**/" .. folder)
+        table.insert(patterns, "**/" .. folder .. "/*")
+        table.insert(patterns, "**/" .. folder .. "/**")
+    end
+
+    return patterns
+end
+
+opt.wildignore = build_wildignore()
 
 -- Clipboard
 if vim.fn.exists("$TMUX") == 0 and vim.fn.has("wsl") == 1 and vim.fn.executable("win32yank.exe") == 0 then
