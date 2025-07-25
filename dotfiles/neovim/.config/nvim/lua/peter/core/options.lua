@@ -80,12 +80,13 @@ local function build_wildignore()
     }
 
     local folders = {
+        ".devenv", -- Devenv
         ".git", -- Version control
         ".venv", -- Python virtual environments
-        "__pycache__", -- Python cache
-        "node_modules", -- Node.js dependencies
         ".yarn", -- Yarn cache
+        "__pycache__", -- Python cache
         "cache", -- General cache
+        "node_modules", -- Node.js dependencies
         "tmp", -- Temporary files
     }
 
