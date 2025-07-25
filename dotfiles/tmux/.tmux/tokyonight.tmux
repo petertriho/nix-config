@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 none="NONE"
 black="#15161e"
 blue="#7aa2f7"

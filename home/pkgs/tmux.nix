@@ -12,6 +12,7 @@
     ];
     file = {
       ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
+      ".tmux/copy-mode-vi.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/copy-mode-vi.tmux";
       ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
     sessionVariables = {
@@ -34,7 +35,7 @@
             set -g prefix C-a
 
             # Theme
-            if-shell "test -f ~/.tmux/tokyonight.tmux" "source ~/.tmux/tokyonight.tmux"
+            source-file "~/.tmux/tokyonight.tmux"
           '';
       }
       pain-control
