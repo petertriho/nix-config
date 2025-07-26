@@ -12,12 +12,12 @@ rustPlatform.buildRustPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "facebook";
     repo = "pyrefly";
-    rev = "07e16ac4f9379787b6a0e9258b804ae4352553e5";
-    sha256 = "0q9nwmqc6j1kw8cwq955nj3qaqywxba38kjv5nki08lbmb0k15dz";
+    rev = "9b4a24f22454968933d394a638a922261de6509b";
+    sha256 = "1k9s6xg60hyrzr8b70znzylxxg599lljkhajrpl7klxnp7np0877";
   };
 
   buildAndTestSubdir = "pyrefly";
-  cargoHash = "sha256-J+zHQJ+jtPvvS6d8RloeuuOjra5JIhXPqeHPAj+/Rcw=";
+  cargoHash = "sha256-YFFDh563o25vi/T95uKeT1UHfOljFKJRexidBgl02pE=";
 
   # nativeInstallCheckInputs = [ versionCheckHook ];
   # doInstallCheck = true;
