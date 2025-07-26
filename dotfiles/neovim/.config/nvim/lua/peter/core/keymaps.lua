@@ -1,5 +1,8 @@
 local keymap = vim.keymap.set
 local opts = { noremap = true, silent = true }
+-- Buffers: Navigation
+keymap("", "<C-n>", "<CMD>bnext<CR>", {})
+keymap("", "<C-p>", "<CMD>bprev<CR>", {})
 
 -- Windows: Navigation
 keymap("", "<C-j>", "<C-w>j", {})

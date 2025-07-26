@@ -15,6 +15,8 @@ local hl_names = {
     "Special",
     "Statement",
     "String",
+    "TabLine",
+    "TabLineSel",
     "Todo",
     "diffAdded",
     "diffChanged",
@@ -47,4 +49,8 @@ return {
     git_del = hl.diffRemoved.fg,
     git_change = hl.diffChanged.fg,
     directory = hl.Directory.fg,
+    tabline_fg = hl.TabLine.fg,
+    tabline_bg = hl.TabLine.bg,
+    tabline_sel_fg = hl.TabLineSel.fg,
+    tabline_sel_bg = hl.TabLineSel.bg,
 }

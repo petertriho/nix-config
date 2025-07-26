@@ -7,7 +7,6 @@
   "barbecue.nvim": { "branch": "main", "commit": "3e31404f0b93a2c30d151abf0648650ac811c664" },
   "blink.cmp": { "branch": "main", "commit": "cdceeef5b89fd0cc8f9c0ead99c52d4bec64dbbe" },
   "blink.compat": { "branch": "main", "commit": "1454f14a8d855a578ceeba77c62538fa1459a67c" },
-  "bufferline.nvim": { "branch": "main", "commit": "655133c3b4c3e5e05ec549b9f8cc2894ac6f51b3" },
   "bufjump.nvim": { "branch": "master", "commit": "ae2728a77defbd27e9e5ef64c854fb0813ffba01" },
   "cmd-parser.nvim": { "branch": "master", "commit": "6363b8bddef968c3ec51a38172af44f675f01ef3" },
   "codecompanion.nvim": { "branch": "main", "commit": "dd06dd9f75725457f2924968ec83f5495eaf5d5a" },
