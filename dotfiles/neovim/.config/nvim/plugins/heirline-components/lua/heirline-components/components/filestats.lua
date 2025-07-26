@@ -1,4 +1,4 @@
-local LeftSeparator = require("heirline-components.components.leftseparator")
+local RightAngle = require("heirline-components.components.rightangle")
 local Space = require("heirline-components.components.space")
 
 local FileEncoding = {
@@ -43,20 +43,20 @@ return {
     flexible = true,
     {
         { Space, FileEncoding },
-        { LeftSeparator, FileFormat },
-        { LeftSeparator, TabStyle },
-        { LeftSeparator, LineCount },
+        { RightAngle, FileFormat },
+        { RightAngle, TabStyle },
+        { RightAngle, LineCount },
         Space,
     },
     {
         { Space, FileFormat },
-        { LeftSeparator, TabStyle },
-        { LeftSeparator, LineCount },
+        { RightAngle, TabStyle },
+        { RightAngle, LineCount },
         Space,
     },
     {
         { Space, TabStyle },
-        { LeftSeparator, LineCount },
+        { RightAngle, LineCount },
         Space,
     },
     {

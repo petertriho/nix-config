@@ -9,7 +9,7 @@ local StatusLineHl = function()
 end
 
 local Align = require("heirline-components.components.align")
-local LeftSeparator = require("heirline-components.components.leftseparator")
+local RightAngle = require("heirline-components.components.rightangle")
 local Space = require("heirline-components.components.space")
 
 local ViMode = require("heirline-components.components.vimode")
@@ -36,7 +36,7 @@ local DefaultStatusLine = {
     Position,
     Space,
     LspClientCount,
-    LeftSeparator,
+    RightAngle,
     FileType,
     Space,
     FileStats,
@@ -103,13 +103,7 @@ local SpecialStatusLine = {
     BgHighlight(WindowNumber),
 }
 
-local TerminalName = {
-    provider = function()
-        local tname, _ = vim.api.nvim_buf_get_name(0):gsub(".*:", "")
-        return " " .. tname
-    end,
-    hl = { fg = "blue", bold = true },
-}
+local TerminalName = require("heirline-components.components.terminalname")
 
 local TerminalStatusLine = {
     condition = function()
