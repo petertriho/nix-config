@@ -217,7 +217,7 @@ return {
             desc = "Find Files All",
         },
         {
-            "<leader>tb",
+            "<leader>b",
             function()
                 require("snacks").picker.buffers()
             end,
@@ -308,7 +308,7 @@ return {
             desc = "Type Definitions",
         },
         {
-            "<leader>b",
+            "<leader>tg",
             function()
                 require("snacks").scratch({
                     file = get_scratch_path() .. "/scratch.md",
@@ -316,7 +316,7 @@ return {
                     ft = "markdown",
                 })
             end,
-            desc = "Scratch Buffer",
+            desc = "Global Scratch Buffer",
         },
         {
             "<leader>d",
