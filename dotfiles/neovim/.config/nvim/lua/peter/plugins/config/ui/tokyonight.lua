@@ -29,6 +29,10 @@ return {
                     fg = colors.fg,
                     bg = colors.bg,
                 }
+                hl.VisualNonText = {
+                    fg = colors.fg_gutter,
+                    bg = colors.bg_visual,
+                }
             end,
             plugins = { markdown = true },
         })
