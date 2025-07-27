@@ -158,7 +158,6 @@ local FileNameBlock = {
     BufIndex,
     FileIcon,
     FileName,
-    FileFlags,
 }
 
 local BufferCloseButton = {
@@ -233,8 +232,9 @@ local BufferBlock = {
             return { bg = "tabline_bg" }
         end
     end,
-    { ActiveIndicator, Space, FileNameBlock, Space, Space, BufferCloseButton, BufferPicker },
+    { ActiveIndicator, Space, FileNameBlock, Space, Space, FileFlags, BufferCloseButton, BufferPicker },
 }
+
 local BufferLine = utils.make_buflist(
     BufferBlock,
     { provider = " ", hl = { fg = "gray" } },
