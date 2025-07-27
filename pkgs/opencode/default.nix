@@ -12,10 +12,10 @@
 }:
 let
   opencode-node-modules-hash = {
-    "aarch64-darwin" = "sha256-SmsBAlQ/eQJM3uk06zR7FkIp/35QotW4wjjv/E/LI94=";
-    "aarch64-linux" = "sha256-mapp+765B/Tgfg38GmPaKDXMwE1Zx/mxlXwxZ4+zfvk=";
-    "x86_64-darwin" = "sha256-SmsBAlQ/eQJM3uk06zR7FkIp/35QotW4wjjv/E/LI94=";
-    "x86_64-linux" = "sha256-mapp+765B/Tgfg38GmPaKDXMwE1Zx/mxlXwxZ4+zfvk=";
+    "aarch64-darwin" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
+    "aarch64-linux" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
+    "x86_64-darwin" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
+    "x86_64-linux" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -26,12 +26,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "unstable-2025-07-25";
+  version = "unstable-2025-07-26";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "10ae43a12190ed3ac96ae1d672b1aa1dd006b072";
-    sha256 = "sha256-oy2VdJjaa1M3kjlKQQ5fpTNObG0X6jOc3F0Y8UP7NF8=";
+    rev = "e827294c9b56ead67a91614ad9b670fe49de3ad9";
+    sha256 = "0ha74k6vv4833l3y679nvyixwl7g542dlvcfxqmd1lr5amdcx02j";
   };
 
   tui = buildGoModule {
@@ -39,7 +39,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     inherit (finalAttrs) version;
     src = "${finalAttrs.src}/packages/tui";
 
-    vendorHash = "sha256-0nKjp9CuqnhWfsqgwsfdCdx7pR2kzr+WEP5c990ow3Y=";
+    vendorHash = "sha256-g2IhNOIKuBf4G4PioXhFvKIWds9ZiYfiG9vnyXCaz6o=";
 
     subPackages = [ "cmd/opencode" ];
 
@@ -81,7 +81,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       export BUN_INSTALL_CACHE_DIR=$(mktemp -d)
 
       bun install \
-          --filter=opencode \
           --force \
           --frozen-lockfile \
           --no-progress
@@ -115,6 +114,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     # Patch `packages/opencode/src/provider/models-macro.ts` to get contents of
     # `api.json` from the file bundled with `bun build`.
     ./local-models-dev.patch
+    # Add missing @octokit dependencies to package.json
+    ./add-missing-octokit-deps.patch
   ];
 
   configurePhase = ''
