@@ -10,6 +10,7 @@ local Navic = require("heirline-components.components.navic")
 local ShortFileName = {
     init = function(self)
         self.filename = vim.api.nvim_buf_get_name(0)
+        self.is_active = conditions.is_active()
     end,
     FileIcon,
     {
@@ -19,6 +20,13 @@ local ShortFileName = {
                 return "[No Name]"
             end
             return filename
+        end,
+        hl = function(self)
+            if self.is_active then
+                return { fg = "blue" }
+            else
+                return { fg = "fg" }
+            end
         end,
     },
 }
@@ -39,7 +47,7 @@ local WinBar = {
     --     condition = function()
     --         return not conditions.is_active()
     --     end,
-    --     { ShortFileName, Navic },
+    --     { Space, ShortFileName, Navic },
     -- },
     { Space, ShortFileName, Navic },
 }
