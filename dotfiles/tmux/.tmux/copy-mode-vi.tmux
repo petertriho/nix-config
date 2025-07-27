@@ -211,15 +211,15 @@ bind -T copyModeYankKey_a \> \
 # Enhanced Navigation with Scroll Centering
 # ==============================================================================
 
-bind -T copy-mode-vi j \
-    if-shell -F "#{selection_present}" \
-    "send -X cursor-down" \
-    "send -X cursor-down \; send -X scroll-middle"
-
-bind -T copy-mode-vi k \
-    if-shell -F "#{selection_present}" \
-    "send -X cursor-up" \
-    "send -X cursor-up \; send -X scroll-middle"
+# bind -T copy-mode-vi j \
+#     if-shell -F "#{selection_present}" \
+#     "send -X cursor-down" \
+#     "send -X cursor-down \; send -X scroll-middle"
+#
+# bind -T copy-mode-vi k \
+#     if-shell -F "#{selection_present}" \
+#     "send -X cursor-up" \
+#     "send -X cursor-up \; send -X scroll-middle"
 
 bind -T copy-mode-vi C-d \
     if-shell -F "#{selection_present}" \
