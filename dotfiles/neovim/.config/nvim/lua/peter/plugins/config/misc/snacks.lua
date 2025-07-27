@@ -382,6 +382,13 @@ return {
             desc = "Select Scratch Buffer",
         },
         {
+            "<leader>tu",
+            function()
+                require("snacks").picker.undo()
+            end,
+            desc = "Undo History",
+        },
+        {
             "<leader>ty",
             function()
                 require("snacks").picker.yanky()

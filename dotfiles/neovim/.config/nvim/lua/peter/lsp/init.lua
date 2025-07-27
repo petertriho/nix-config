@@ -293,12 +293,6 @@ M.setup = function()
         vim.lsp.config(server, override)
         vim.lsp.enable(server)
     end
-
-    -- require("typescript-tools").setup({
-    --     settings = {
-    --         expose_as_code_action = "all",
-    --     },
-    -- })
 end
 
 return M
