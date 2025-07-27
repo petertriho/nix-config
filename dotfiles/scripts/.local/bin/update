@@ -81,7 +81,51 @@ function tool:nix:rebuild {
 function tool:nix:fetchers {
     echo "Updating nix fetchers ..."
     pushd "$NIX_CONFIG_PATH"
+
+    # Run update-nix-fetchgit on all .nix files
+    echo "Running update-nix-fetchgit on all .nix files..."
     find pkgs -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+
+    # Get list of files that were changed by update-nix-fetchgit
+    changed_files=($(git diff --name-only pkgs/ | grep '\.nix$' || true))
+
+    if [[ ${#changed_files[@]} -gt 0 ]]; then
+        echo "Updating hashes for ${#changed_files[@]} changed files..."
+        for file in "${changed_files[@]}"; do
+            echo "Checking hashes for $file"
+
+            # Try to build the package and capture any hash mismatches
+            build_output=$(timeout 120 nix-build -E "with import <nixpkgs> {}; callPackage ./$file {}" 2>&1 || true)
+
+            # Extract hash mismatches and replace them directly
+            if echo "$build_output" | grep -q "hash mismatch"; then
+                # Extract both specified and got hashes from build output
+                specified_hash=$(echo "$build_output" | grep -o "specified:.*sha256-[^']*" | sed 's/specified: *//' | head -1)
+                got_hash=$(echo "$build_output" | grep -o "got:.*sha256-[^']*" | sed 's/got: *//' | head -1)
+
+                if [[ -n "$specified_hash" && -n "$got_hash" ]]; then
+                    echo "Replacing hash in $file: $specified_hash -> $got_hash"
+
+                    # Use | as delimiter to avoid issues with / and + in hashes
+                    # Escape special characters for sed, including the | delimiter
+                    specified_escaped=$(echo "$specified_hash" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                    got_escaped=$(echo "$got_hash" | sed 's/[[\.*^$()+?{|]/\\&/g')
+
+                    # Replace the specified hash with the got hash using # as delimiter
+                    sed -i.bak "s#$specified_escaped#$got_escaped#g" "$file"
+                    rm -f "$file.bak"
+
+                    echo "Successfully updated hash in $file"
+                else
+                    echo "Warning: Could not extract both specified and got hashes from build output for $file"
+                    echo "Specified: '$specified_hash'"
+                    echo "Got: '$got_hash'"
+                fi
+            fi        done
+    else
+        echo "No files were changed by update-nix-fetchgit"
+    fi
+
     popd
 }
 
