@@ -126,6 +126,8 @@ function tool:nix:fetchers {
         echo "No files were changed by update-nix-fetchgit"
     fi
 
+    rm -rf result
+
     popd
 }
 

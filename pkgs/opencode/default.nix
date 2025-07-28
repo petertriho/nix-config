@@ -12,10 +12,10 @@
 }:
 let
   opencode-node-modules-hash = {
-    "aarch64-darwin" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
-    "aarch64-linux" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
-    "x86_64-darwin" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
-    "x86_64-linux" = "sha256-QI/ou1zoWG7r5abxfL35d79MWKjrv8Uu7IjIgYkgCGU=";
+    "aarch64-darwin" = "sha256-ZtZvS0jF2YpkDeCdP2y1qX4fJVMq8BBq6EFwqvDEfdc=";
+    "aarch64-linux" = "sha256-ZtZvS0jF2YpkDeCdP2y1qX4fJVMq8BBq6EFwqvDEfdc=";
+    "x86_64-darwin" = "sha256-ZtZvS0jF2YpkDeCdP2y1qX4fJVMq8BBq6EFwqvDEfdc=";
+    "x86_64-linux" = "sha256-ZtZvS0jF2YpkDeCdP2y1qX4fJVMq8BBq6EFwqvDEfdc=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -26,12 +26,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "unstable-2025-07-26";
+  version = "unstable-2025-07-28";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "e827294c9b56ead67a91614ad9b670fe49de3ad9";
-    sha256 = "0ha74k6vv4833l3y679nvyixwl7g542dlvcfxqmd1lr5amdcx02j";
+    rev = "10d749a85ee7852c22312de5e0db4f8fb346dd9e";
+    sha256 = "1mql795jh620d1i5wrg86g9vpsi5i5762xxwgp005wv6rjjas5ph";
   };
 
   tui = buildGoModule {
@@ -63,6 +63,11 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     pname = "opencode-node_modules";
     inherit (finalAttrs) version src;
 
+    patches = [
+      # Add missing @octokit dependencies to package.json
+      ./add-missing-octokit-deps.patch
+    ];
+
     impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [
       "GIT_PROXY_COMMAND"
       "SOCKS_SERVER"
@@ -81,6 +86,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       export BUN_INSTALL_CACHE_DIR=$(mktemp -d)
 
       bun install \
+          --filter=opencode \
           --force \
           --frozen-lockfile \
           --no-progress
@@ -114,8 +120,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     # Patch `packages/opencode/src/provider/models-macro.ts` to get contents of
     # `api.json` from the file bundled with `bun build`.
     ./local-models-dev.patch
-    # Add missing @octokit dependencies to package.json
-    ./add-missing-octokit-deps.patch
   ];
 
   configurePhase = ''

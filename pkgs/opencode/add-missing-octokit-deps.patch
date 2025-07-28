@@ -1,11 +1,11 @@
 --- a/packages/opencode/package.json
 +++ b/packages/opencode/package.json
-@@ -34,6 +34,8 @@
-     "@hono/zod-validator": "0.4.2",
+@@ -32,6 +32,8 @@
      "@modelcontextprotocol/sdk": "1.15.1",
      "@openauthjs/openauth": "0.4.3",
+     "@standard-schema/spec": "1.0.0",
 +    "@octokit/graphql": "9.0.1",
 +    "@octokit/rest": "22.0.0",
-     "@standard-schema/spec": "1.0.0",
      "@zip.js/zip.js": "2.7.62",
      "ai": "catalog:",
+     "decimal.js": "10.5.0",
