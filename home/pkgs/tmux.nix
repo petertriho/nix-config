@@ -86,19 +86,19 @@
             set -g @fingers-jump-key "J"
           '';
       }
-      {
-        plugin = extrakto;
-        extraConfig =
-          # tmux
-          ''
-            set -g @extrakto_copy_key "tab"
-            set -g @extrakto_insert_key "enter"
-            set -g @extrakto_fzf_layout "reverse"
-            set -g @extrakto_popup_size "50%,50%"
-            set -g @extrakto_split_direction "p"
-            set -g @extrakto_popup_position "200,100"
-          '';
-      }
+      # {
+      #   plugin = extrakto;
+      #   extraConfig =
+      #     # tmux
+      #     ''
+      #       set -g @extrakto_copy_key "tab"
+      #       set -g @extrakto_insert_key "enter"
+      #       set -g @extrakto_fzf_layout "reverse"
+      #       set -g @extrakto_popup_size "50%,50%"
+      #       set -g @extrakto_split_direction "p"
+      #       set -g @extrakto_popup_position "200,100"
+      #     '';
+      # }
       {
         plugin = window-name;
         extraConfig =
