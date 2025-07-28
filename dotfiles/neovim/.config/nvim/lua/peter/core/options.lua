@@ -82,6 +82,8 @@ local function build_wildignore()
     local folders = {
         ".devenv", -- Devenv
         ".git", -- Version control
+        ".mypy_cache", -- MyPy cache
+        ".pytest_cache", -- Pytest cache
         ".venv", -- Python virtual environments
         ".yarn", -- Yarn cache
         "__pycache__", -- Python cache
@@ -93,7 +95,6 @@ local function build_wildignore()
     -- Generate folder patterns
     for _, folder in ipairs(folders) do
         table.insert(patterns, "**/" .. folder)
-        table.insert(patterns, "**/" .. folder .. "/*")
         table.insert(patterns, "**/" .. folder .. "/**")
     end
 
