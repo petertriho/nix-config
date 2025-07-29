@@ -17,9 +17,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "astral-sh";
     repo = "ty";
-    rev = "89762cf67660dd6747ce318540573c70a598bdf5";
+    rev = "e663c524c2f20874b31ec971b91f1e58b7b68d88";
     fetchSubmodules = true;
-    sha256 = "1dfvvqizv6bxl1mnjiwrralaq1536smxci9b5hmk770zsxblb3ry";
+    sha256 = "0mbq0kzrkcsl2wl2ykaaqwwf43kxwqr2rl7j96zljdvgs1faa93j";
   };
 
   cargoRoot = "ruff";
