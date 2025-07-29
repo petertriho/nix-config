@@ -14,6 +14,8 @@
     fd # find replacement
     fx # json viewer
     fzf # fuzzy finder
+    gcc # GNU Compiler Collection
+    gnumake # GNU Make
     git-gone # git garbage collector
     glow # markdown viewer
     gron # make JSON greppable
