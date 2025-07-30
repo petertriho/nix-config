@@ -308,7 +308,7 @@ return {
             desc = "Type Definitions",
         },
         {
-            "<leader>tg",
+            "<leader>s",
             function()
                 require("snacks").scratch({
                     file = get_scratch_path() .. "/scratch.md",
@@ -316,7 +316,7 @@ return {
                     ft = "markdown",
                 })
             end,
-            desc = "Global Scratch Buffer",
+            desc = "Scratch",
         },
         {
             "<leader>d",
