@@ -30,8 +30,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "c165360e17d54e8c1f428dafbc700b8eae5dc3cf";
-    sha256 = "1nx1j3m3jsmn6kw03dqmhd5cjmz8mzj9vm6zd33z7js1y3l1l1il";
+    rev = "0bd045386676d3b4c1e1142f0368b0902c11ff4d";
+    sha256 = "0i0yz85162bm4bwbiahhlpb7riwgr9kdvkn1kp7yiqgl130z3wyf";
   };
 
   tui = buildGoModule {
@@ -39,7 +39,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     inherit (finalAttrs) version;
     src = "${finalAttrs.src}/packages/tui";
 
-    vendorHash = "sha256-eNGjWJL/IuOEJowq5UrnHF5SltGXd4jHR4Ob2Wt6MOE=";
+    vendorHash = "sha256-+j8+TjTzd7AH9Si9tS7noTpPcG1lz9j+tmxUTrPcThw=";
 
     subPackages = [ "cmd/opencode" ];
 
@@ -62,11 +62,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   node_modules = stdenvNoCC.mkDerivation {
     pname = "opencode-node_modules";
     inherit (finalAttrs) version src;
-
-    patches = [
-      # Add missing @octokit dependencies to package.json
-      ./add-missing-octokit-deps.patch
-    ];
 
     impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [
       "GIT_PROXY_COMMAND"
