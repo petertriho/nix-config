@@ -11,7 +11,6 @@
     };
   };
 
-  xdg.configFile."starship/starship.toml".source = config.lib.meta.mkDotfilesSymlink "starship/.config/starship/starship.toml";
-  xdg.configFile."starship/starship-tmux.toml".source =
-    config.lib.meta.mkDotfilesSymlink "starship/.config/starship/starship-tmux.toml";
+  xdg.configFile."starship/starship.toml".source =
+    config.lib.meta.mkDotfilesSymlink "starship/.config/starship/starship.toml";
 }

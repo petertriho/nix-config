@@ -37,11 +37,5 @@ function ls-on-cd --on-variable PWD
 end
 
 if type --query starship
-    if set -q TMUX
-        set -gx STARSHIP_CONFIG $HOME/.config/starship/starship-tmux.toml
-    else
-        set -gx STARSHIP_CONFIG $HOME/.config/starship/starship.toml
-    end
-
     starship init fish --print-full-init | source
 end
