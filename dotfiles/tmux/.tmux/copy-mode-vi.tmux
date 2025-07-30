@@ -221,12 +221,12 @@ bind -T copyModeYankKey_a \> \
 #     "send -X cursor-up" \
 #     "send -X cursor-up \; send -X scroll-middle"
 
-bind -T copy-mode-vi C-d \
-    if-shell -F "#{selection_present}" \
-    "send -X halfpage-down" \
-    "send -X halfpage-down \; send -X scroll-middle"
-
-bind -T copy-mode-vi C-u \
-    if-shell -F "#{selection_present}" \
-    "send -X halfpage-up" \
-    "send -X halfpage-up \; send -X scroll-middle"
+# bind -T copy-mode-vi C-d \
+#     if-shell -F "#{selection_present}" \
+#     "send -X halfpage-down" \
+#     "send -X halfpage-down \; send -X scroll-middle"
+#
+# bind -T copy-mode-vi C-u \
+#     if-shell -F "#{selection_present}" \
+#     "send -X halfpage-up" \
+#     "send -X halfpage-up \; send -X scroll-middle"
