@@ -8,5 +8,7 @@ return {
     keys = {
         { "<leader>u", "<CMD>MundoToggle<CR>", desc = "Undotree" },
     },
-    opts = {},
+    opts = {
+        mirror_graph = true,
+    },
 }
