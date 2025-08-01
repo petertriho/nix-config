@@ -12,10 +12,10 @@
 }:
 let
   opencode-node-modules-hash = {
-    "aarch64-darwin" = "sha256-ZKniuqp9Qb/UWJHbBq38J4bIjoEAJfJkw6K+tdYli7E=";
-    "aarch64-linux" = "sha256-LKmbi++w65PLsgCp1n+k6C8vy6uayrp0h787i/AlSx8=";
-    "x86_64-darwin" = "sha256-ZKniuqp9Qb/UWJHbBq38J4bIjoEAJfJkw6K+tdYli7E=";
-    "x86_64-linux" = "sha256-LKmbi++w65PLsgCp1n+k6C8vy6uayrp0h787i/AlSx8=";
+    "aarch64-darwin" = "sha256-byPmGnWi5/s2WiNWTqkcDsWsoxM1grC2nvBVSDsqEsc=";
+    "aarch64-linux" = "sha256-byPmGnWi5/s2WiNWTqkcDsWsoxM1grC2nvBVSDsqEsc=";
+    "x86_64-darwin" = "sha256-byPmGnWi5/s2WiNWTqkcDsWsoxM1grC2nvBVSDsqEsc=";
+    "x86_64-linux" = "sha256-byPmGnWi5/s2WiNWTqkcDsWsoxM1grC2nvBVSDsqEsc=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -30,16 +30,17 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "ad66b9746345485ceac7839bb1530a534598ea18";
-    sha256 = "1bckb8146bfxxp2dlqpzlp6pasfbmvj5vm2qzsys5xwhbfmb2vxk";
+    rev = "a0d2e53bde04878ec9dc5594f6b118232b569775";
+    sha256 = "1sn3x99w14hh1n4ay6da3yvvdlslg811gm8p5pbih1qnni4x9yyr";
   };
 
   tui = buildGoModule {
     pname = "opencode-tui";
     inherit (finalAttrs) version;
-    src = "${finalAttrs.src}/packages/tui";
+    src = finalAttrs.src;
+    sourceRoot = "source/packages/tui";
 
-    vendorHash = "sha256-+j8+TjTzd7AH9Si9tS7noTpPcG1lz9j+tmxUTrPcThw=";
+    vendorHash = "sha256-nBwYVaBau1iTnPY3d5F/5/ENyjMCikpQYNI5whEJwBk=";
 
     subPackages = [ "cmd/opencode" ];
 
@@ -80,11 +81,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
       export BUN_INSTALL_CACHE_DIR=$(mktemp -d)
 
+      # First install all dependencies to get the workspace set up correctly
       bun install \
-          --filter=opencode \
           --force \
           --frozen-lockfile \
-          --no-progress
+          --no-progress \
+          --ignore-scripts
 
       runHook postBuild
     '';
