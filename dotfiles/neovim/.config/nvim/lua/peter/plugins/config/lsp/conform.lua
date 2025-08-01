@@ -93,12 +93,12 @@ local finish_format_progress = function(token, err)
     progress_item.done = true
 
     progress_item.title = "Formatted"
-    local notif_level = "info"
+    local notif_level = vim.log.levels.INFO
     local notif_icon = ""
 
     if err then
         progress_item.title = "Failed"
-        notif_level = "error"
+        notif_level = vim.log.levels.ERROR
         notif_icon = ""
     end
 

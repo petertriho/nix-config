@@ -22,7 +22,7 @@ return {
                 linters = vim.tbl_filter(function(name)
                     local linter = lint.linters[name]
                     if not linter then
-                        print(string.format("ERROR: Linter %s not found", name))
+                        vim.notify(string.format("ERROR: Linter %s not found", name), vim.log.levels.ERROR)
                     end
                     return filter(ctx, linter)
                 end, linters)
