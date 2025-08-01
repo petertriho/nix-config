@@ -13,12 +13,18 @@ return {
         },
         { "<leader>ca", "<CMD>CodeCompanionChat Add<CR>", desc = "Add" },
     },
+    dependencies = {
+        "franco-ruggeri/codecompanion-spinner.nvim",
+    },
     opts = {
         -- display = {
         --     chat = {
         --         show_settings = true,
         --     },
         -- },
+        extensions = {
+            spinner = {},
+        },
     },
     config = function(_, opts)
         if vim.g.copilot_model then
