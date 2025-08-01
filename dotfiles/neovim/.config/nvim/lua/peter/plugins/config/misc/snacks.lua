@@ -60,6 +60,16 @@ return {
                     relative = "cursor",
                 },
             },
+            notifier = {
+                enabled = true,
+                top_down = false,
+                margin = {
+                    top = 1,
+                    bottom = 1,
+                    left = 1,
+                    right = 1,
+                },
+            },
             picker = {
                 enabled = true,
                 ui_select = true,
@@ -250,6 +260,28 @@ return {
                 require("snacks").picker.man()
             end,
             desc = "Man Pages",
+        },
+        {
+            "<leader>tp",
+            function()
+                require("snacks").picker.plugins()
+            end,
+            desc = "Plugins",
+        },
+        {
+            "<leader>tn",
+            function()
+                require("snacks").notifier.show_history()
+            end,
+            desc = "Notifications History",
+        },
+        {
+            "<ESC>",
+            function()
+                require("snacks").notifier.hide()
+                vim.cmd("nohlsearch")
+            end,
+            desc = "Hide Notifications",
         },
         {
             "<leader>to",

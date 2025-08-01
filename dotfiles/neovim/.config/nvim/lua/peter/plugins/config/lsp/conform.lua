@@ -7,6 +7,10 @@ local disabled_lsp_formatters = {
     vtsls = true,
 }
 
+-- Progress tracking for formatting operations
+local format_progress = {}
+local format_token_counter = 0
+
 local get_format_opts = function(opts)
     opts = opts or {}
 
@@ -37,45 +41,92 @@ local format_msg = function(msg)
     return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
 end
 
-local get_format_msg_handle = function()
+local create_format_progress = function()
     local conform = require("conform")
     local formatters, will_use_lsp = conform.list_formatters_to_run()
 
-    local fmt_names = {}
+    local formatter_names = {}
     if not vim.tbl_isempty(formatters) then
-        fmt_names = vim.tbl_map(function(f)
-            return f.name .. " ❬"
+        formatter_names = vim.tbl_map(function(f)
+            return f.name
         end, formatters)
     elseif will_use_lsp then
-        fmt_names = { "lsp ❬" }
+        formatter_names = { "lsp" }
     else
-        require("fidget").notify(format_msg("No lsp/formatters configured"), vim.log.levels.WARN)
+        vim.notify(format_msg("No lsp/formatters configured"), vim.log.levels.WARN)
+        return nil
+    end
+
+    format_token_counter = format_token_counter + 1
+    local token = "format_" .. format_token_counter
+
+    local title = "Formatting"
+    local msg = table.concat(formatter_names, "\n")
+
+    -- Add to progress tracking
+    format_progress[token] = {
+        token = token,
+        title = title,
+        msg = msg,
+        done = false,
+    }
+
+    -- Show initial progress notification
+    local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+    vim.notify(msg, "info", {
+        id = "format_progress",
+        title = title,
+        opts = function(notif)
+            notif.icon = spinner[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #spinner + 1]
+        end,
+    })
+
+    return token
+end
+
+local finish_format_progress = function(token, err)
+    if not token or not format_progress[token] then
         return
     end
 
-    local msg_handle = require("fidget.progress").handle.create({
-        title = "fmt",
-        message = "In progress...\n" .. table.concat(fmt_names, "\n"),
-        lsp_client = { name = "conform" },
-        percentage = nil,
+    local progress_item = format_progress[token]
+    progress_item.done = true
+
+    progress_item.title = "Formatted"
+    local notif_level = "info"
+    local notif_icon = ""
+
+    if err then
+        progress_item.title = "Failed"
+        notif_level = "error"
+        notif_icon = ""
+    end
+
+    vim.notify(progress_item.msg, notif_level, {
+        id = "format_progress",
+        title = progress_item.title,
+        opts = function(notif)
+            notif.icon = notif_icon
+        end,
     })
 
-    return msg_handle
+    -- Clean up completed progress
+    format_progress[token] = nil
 end
 
 local format = function(opts)
-    local msg_handle = get_format_msg_handle()
+    local token = create_format_progress()
 
-    if not msg_handle then
+    if not token then
         return
     end
 
     local format_opts = get_format_opts(opts)
     require("conform").format(format_opts, function(err)
-        msg_handle.message = "Completed"
-        msg_handle:finish()
         if err then
-            require("fidget").notify(format_msg(err), vim.log.levels.ERROR)
+            finish_format_progress(token, format_msg(err))
+        else
+            finish_format_progress(token, nil)
         end
     end)
 end
@@ -105,24 +156,22 @@ return {
         end, { range = true })
 
         vim.api.nvim_create_user_command("DiffFormat", function()
-            local msg_handle = get_format_msg_handle()
+            local token = create_format_progress()
 
-            if not msg_handle then
+            if not token then
                 return
             end
 
             local hunks = require("gitsigns").get_hunks()
 
             if hunks == nil then
-                msg_handle.message = "Completed"
-                msg_handle:finish()
+                finish_format_progress(token, nil)
                 return
             end
 
             local function format_range()
                 if next(hunks) == nil then
-                    msg_handle.message = "Completed"
-                    msg_handle:finish()
+                    finish_format_progress(token, nil)
                     return
                 end
                 local hunk = nil
@@ -139,15 +188,16 @@ return {
                     local format_opts = get_format_opts({ range = range })
                     require("conform").format(format_opts, function(err)
                         if err then
-                            msg_handle.message = "Completed"
-                            msg_handle:finish()
-                            require("fidget").notify(format_msg(err), vim.log.levels.ERROR)
+                            finish_format_progress(token, format_msg(err))
+                            return
                         end
 
                         vim.defer_fn(function()
                             format_range()
                         end, 1)
                     end)
+                else
+                    finish_format_progress(token, nil)
                 end
             end
 
