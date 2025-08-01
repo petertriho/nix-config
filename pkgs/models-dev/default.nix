@@ -8,9 +8,9 @@
 }:
 let
   models-dev-node-modules-hash = {
-    "aarch64-darwin" = "sha256-2EVW5zQTcqH9zBYAegWj/Wtb0lYHZwA7Bbqs3gRjcx0=";
+    "aarch64-darwin" = "sha256-099Y+7cLtSQ0s71vxUGEochQSpCv1hbkwYbWx/eOvhY=";
     "aarch64-linux" = "sha256-Enx27ag7D0Qeb/ss/7zTQ1XSukyPzOMMK7pTYHqQUMs=";
-    "x86_64-darwin" = "sha256-2EVW5zQTcqH9zBYAegWj/Wtb0lYHZwA7Bbqs3gRjcx0=";
+    "x86_64-darwin" = "sha256-099Y+7cLtSQ0s71vxUGEochQSpCv1hbkwYbWx/eOvhY=";
     "x86_64-linux" = "sha256-Enx27ag7D0Qeb/ss/7zTQ1XSukyPzOMMK7pTYHqQUMs=";
   };
 in
