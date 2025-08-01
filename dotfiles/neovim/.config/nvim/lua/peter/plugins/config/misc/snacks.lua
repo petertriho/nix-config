@@ -69,6 +69,7 @@ return {
                     left = 1,
                     right = 1,
                 },
+                style = "compact",
             },
             picker = {
                 enabled = true,
@@ -269,11 +270,11 @@ return {
             desc = "Plugins",
         },
         {
-            "<leader>tn",
+            "<leader>nn",
             function()
                 require("snacks").notifier.show_history()
             end,
-            desc = "Notifications History",
+            desc = "Notifications",
         },
         {
             "<ESC>",

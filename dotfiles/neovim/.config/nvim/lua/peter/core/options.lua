@@ -34,7 +34,7 @@ opt.fillchars = {
 }
 opt.foldenable = false
 opt.ignorecase = true
-opt.lazyredraw = true
+-- opt.lazyredraw = true
 opt.list = false
 opt.listchars = {
     eol = "¬",
