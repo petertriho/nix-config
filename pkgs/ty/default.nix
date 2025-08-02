@@ -7,7 +7,6 @@
   installShellFiles,
   buildPackages,
   # versionCheckHook,
-  python3Packages,
   nix-update-script,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -22,12 +21,17 @@ rustPlatform.buildRustPackage (finalAttrs: {
     sha256 = "1164pa8kz8yr244ix1yrrzzclyzxql9izmfhrg9rrpb363wscy7j";
   };
 
+  # For Darwin platforms, remove the integration test for file notifications,
+  # as these tests fail in its sandboxes.
+  postPatch = lib.optionalString stdenv.hostPlatform.isDarwin ''
+    rm ${finalAttrs.cargoRoot}/crates/ty/tests/file_watching.rs
+  '';
+
   cargoRoot = "ruff";
   buildAndTestSubdir = finalAttrs.cargoRoot;
 
   cargoBuildFlags = [ "--package=ty" ];
 
-  useFetchCargoVendor = true;
   cargoHash = "sha256-/SoF87aZHypzEsetgmALmNTheEH/CodZEPW2I5+F/a4=";
 
   nativeBuildInputs = [ installShellFiles ];
@@ -44,7 +48,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   '';
 
   cargoTestFlags = [
-    "--package=ty" # CLI and file-watching
+    "--package=ty" # CLI tests; file-watching tests only on Linux platforms
     "--package=ty_python_semantic" # core type checking tests
     "--package=ty_test" # test framework tests
   ];
@@ -66,16 +70,18 @@ rustPlatform.buildRustPackage (finalAttrs: {
   );
 
   passthru = {
-    tests.ty-python = python3Packages.ty;
-    updateScript = nix-update-script { };
+    updateScript = nix-update-script { extraArgs = [ "--version=unstable" ]; };
   };
 
   meta = {
     description = "Extremely fast Python type checker and language server, written in Rust";
     homepage = "https://github.com/astral-sh/ty";
     changelog = "https://github.com/astral-sh/ty/blob/main/CHANGELOG.md";
-    license = [ lib.licenses.mit ];
+    license = lib.licenses.mit;
     mainProgram = "ty";
-    maintainers = [ lib.maintainers.bengsparks ];
+    maintainers = with lib.maintainers; [
+      bengsparks
+      GaetanLepage
+    ];
   };
 })

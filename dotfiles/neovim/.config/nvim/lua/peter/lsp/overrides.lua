@@ -11,25 +11,25 @@ local vtsls_setup = function(config)
 end
 
 return {
-    basedpyright = {
-        settings = {
-            basedpyright = {
-                analysis = {
-                    autoSearchPaths = true,
-                    diagnosticMode = "workspace",
-                    useLibraryCodeForTypes = true,
-                    typeCheckingMode = "off",
-                    ignore = { "*" },
-                    diagnosticSeverityOverrides = {
-                        reportGeneralTypeIssues = "information",
-                    },
-                },
-            },
-        },
-        on_attach = function(client, bufnr)
-            vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
-        end,
-    },
+    -- basedpyright = {
+    --     settings = {
+    --         basedpyright = {
+    --             analysis = {
+    --                 autoSearchPaths = true,
+    --                 diagnosticMode = "workspace",
+    --                 useLibraryCodeForTypes = true,
+    --                 typeCheckingMode = "off",
+    --                 ignore = { "*" },
+    --                 diagnosticSeverityOverrides = {
+    --                     reportGeneralTypeIssues = "information",
+    --                 },
+    --             },
+    --         },
+    --     },
+    --     on_attach = function(client, bufnr)
+    --         vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+    --     end,
+    -- },
     bashls = {},
     cssls = {},
     dockerls = {},
@@ -90,7 +90,7 @@ return {
         },
     },
     postgres_lsp = {},
-    -- pyrefly = {},
+    pyrefly = {},
     quick_lint_js = {
         filetypes = {
             "javascript",
@@ -157,7 +157,7 @@ return {
     --         )
     --     end,
     -- },
-    -- ty = {},
+    ty = {},
     typos_lsp = {
         init_options = {
             diagnosticSeverity = "information",
