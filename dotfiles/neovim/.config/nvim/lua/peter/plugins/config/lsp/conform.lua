@@ -9,7 +9,6 @@ local disabled_lsp_formatters = {
 
 -- Progress tracking for formatting operations
 local format_progress = {}
-local format_token_counter = 0
 
 local get_format_opts = function(opts)
     opts = opts or {}
@@ -48,7 +47,7 @@ local create_format_progress = function()
     local formatter_names = {}
     if not vim.tbl_isempty(formatters) then
         formatter_names = vim.tbl_map(function(f)
-            return f.name
+            return "- " .. f.name
         end, formatters)
     elseif will_use_lsp then
         formatter_names = { "lsp" }
@@ -57,8 +56,7 @@ local create_format_progress = function()
         return nil
     end
 
-    format_token_counter = format_token_counter + 1
-    local token = "format_" .. format_token_counter
+    local token = require("peter.core.utils").generate_uuid()
 
     local title = "Formatting"
     local msg = table.concat(formatter_names, "\n")
@@ -73,7 +71,7 @@ local create_format_progress = function()
 
     -- Show initial progress notification
     require("peter.core.utils").create_progress_notification({
-        id = "format_progress",
+        id = token,
         title = title,
         message = msg,
     })
@@ -93,7 +91,7 @@ local finish_format_progress = function(token, err)
     local notif_level = err and vim.log.levels.ERROR or vim.log.levels.INFO
 
     require("peter.core.utils").finish_progress_notification({
-        id = "format_progress",
+        id = token,
         title = progress_item.title,
         message = progress_item.msg,
         level = notif_level,
