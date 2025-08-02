@@ -41,24 +41,18 @@
             source-file "~/.tmux/tokyonight.tmux"
 
             # Sesh
-            bind-key -N "Sesh" "T" run-shell "sesh connect \"$(
-              sesh list --icons | fzf-tmux -p 80%,70% \
-                --no-sort --ansi --border-label ' sesh ' --prompt '⚡  ' \
-                --header '  ^a all ^t tmux ^g configs ^x zoxide ^d tmux kill ^f find' \
-                --bind 'tab:down,btab:up' \
-                --bind 'ctrl-a:change-prompt(⚡  )+reload(sesh list --icons)' \
-                --bind 'ctrl-t:change-prompt(🪟  )+reload(sesh list -t --icons)' \
-                --bind 'ctrl-g:change-prompt(⚙️  )+reload(sesh list -c --icons)' \
-                --bind 'ctrl-x:change-prompt(📁  )+reload(sesh list -z --icons)' \
-                --bind 'ctrl-f:change-prompt(🔎  )+reload(fd -H -d 2 -t d -E .Trash . ~)' \
-                --bind 'ctrl-d:execute(tmux kill-session -t {2..})+change-prompt(⚡  )+reload(sesh list --icons)' \
-                --preview-window 'right:55%' \
-                --preview 'sesh preview {}'
-            )\""
+            bind-key -N "Sesh" "g" run-shell "sesh-connect-fzf"
           '';
       }
       pain-control
-      sessionist-fork
+      {
+        plugin = sessionist-fork;
+        extraConfig =
+          # tmux
+          ''
+            set -g @sessionist-goto "G"
+          '';
+      }
       yank
       # {
       #   plugin = tokyo-night;
@@ -91,6 +85,7 @@
         extraConfig =
           # tmux
           ''
+            set -g @easy-motion-prefix "Space"
             set -g @easy-motion-verbose "true"
             set -g @easy-motion-default-motion "bd-f"
           '';
