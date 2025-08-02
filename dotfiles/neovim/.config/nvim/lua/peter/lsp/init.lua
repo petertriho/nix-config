@@ -317,13 +317,12 @@ M.setup = function()
                 return table.insert(msg, v.msg) or not v.done
             end, p)
 
-            local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+            local utils = require("peter.core.utils")
             vim.notify(table.concat(msg, "\n"), vim.log.levels.INFO, {
                 id = "lsp_progress",
                 title = client.name,
                 opts = function(notif)
-                    notif.icon = #progress[client.id] == 0 and " "
-                        or spinner[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #spinner + 1]
+                    notif.icon = #progress[client.id] == 0 and "" or utils.spinner:get_frame()
                 end,
             })
         end,

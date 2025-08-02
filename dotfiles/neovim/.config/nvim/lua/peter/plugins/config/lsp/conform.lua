@@ -72,13 +72,10 @@ local create_format_progress = function()
     }
 
     -- Show initial progress notification
-    local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-    vim.notify(msg, vim.log.levels.INFO, {
+    require("peter.core.utils").create_progress_notification({
         id = "format_progress",
         title = title,
-        opts = function(notif)
-            notif.icon = spinner[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #spinner + 1]
-        end,
+        message = msg,
     })
 
     return token
@@ -92,22 +89,14 @@ local finish_format_progress = function(token, err)
     local progress_item = format_progress[token]
     progress_item.done = true
 
-    progress_item.title = "Formatted"
-    local notif_level = vim.log.levels.INFO
-    local notif_icon = ""
+    progress_item.title = err and "Failed" or "Formatted"
+    local notif_level = err and vim.log.levels.ERROR or vim.log.levels.INFO
 
-    if err then
-        progress_item.title = "Failed"
-        notif_level = vim.log.levels.ERROR
-        notif_icon = ""
-    end
-
-    vim.notify(progress_item.msg, notif_level, {
+    require("peter.core.utils").finish_progress_notification({
         id = "format_progress",
         title = progress_item.title,
-        opts = function(notif)
-            notif.icon = notif_icon
-        end,
+        message = progress_item.msg,
+        level = notif_level,
     })
 
     -- Clean up completed progress
