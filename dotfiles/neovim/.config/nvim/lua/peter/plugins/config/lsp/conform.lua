@@ -73,7 +73,7 @@ local create_format_progress = function()
 
     -- Show initial progress notification
     local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-    vim.notify(msg, "info", {
+    vim.notify(msg, vim.log.levels.INFO, {
         id = "format_progress",
         title = title,
         opts = function(notif)
