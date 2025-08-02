@@ -10,42 +10,31 @@ return {
             desc = "Quickfix",
         },
     },
-    config = function()
-        local actions = require("telescope.actions")
-        local state = require("telescope.actions.state")
-        local select = function(n)
-            return function(bufnr)
-                actions.move_to_top(bufnr)
-                for _ = 1, n - 1 do
-                    actions.move_selection_next(bufnr)
-                end
-                actions.select_default(bufnr)
-            end
-        end
-
-        require("actions-preview").setup({
-            telescope = vim.tbl_extend("force", require("telescope.themes").get_dropdown(), {
-                attach_mappings = function(prompt_bufnr, map)
-                    actions.select_default:replace(function()
-                        local selection = state.get_selected_entry()
-                        actions.close(prompt_bufnr)
-                        if not selection then
-                            return
-                        end
-
-                        selection.value.action:apply()
-                    end)
-
-                    for i = 1, 9 do
-                        map({ "i", "n" }, tostring(i), select(i))
-                    end
-                    map({ "i", "n" }, "0", select(10))
-
-                    return true
-                end,
-                make_value = nil,
-                make_make_display = nil,
-            }),
-        })
-    end,
+    opts = {
+        backend = {
+            "snacks",
+            "minipick",
+            "telescope",
+            "nui",
+        },
+        snacks = {
+            layout = "dropdown",
+            win = {
+                input = {
+                    keys = {
+                        ["1"] = { "select_1", mode = { "n", "i" } },
+                        ["2"] = { "select_2", mode = { "n", "i" } },
+                        ["3"] = { "select_3", mode = { "n", "i" } },
+                        ["4"] = { "select_4", mode = { "n", "i" } },
+                        ["5"] = { "select_5", mode = { "n", "i" } },
+                        ["6"] = { "select_6", mode = { "n", "i" } },
+                        ["7"] = { "select_7", mode = { "n", "i" } },
+                        ["8"] = { "select_8", mode = { "n", "i" } },
+                        ["9"] = { "select_9", mode = { "n", "i" } },
+                        ["0"] = { "select_0", mode = { "n", "i" } },
+                    },
+                },
+            },
+        },
+    },
 }
