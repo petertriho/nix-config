@@ -4,38 +4,39 @@
   "autoshare": false,
   "autoupdate": false,
   "mode": {
+    "docs": {
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "write": true,
+        "bash": false,
+        "glob": true,
+        "grep": true,
+        "edit": true
+      }
+    },
     "review": {
       "temperature": 0.1,
       "tools": {
-        "write": false,
-        "edit": false,
-        "bash": false,
         "read": true,
+        "write": false,
+        "bash": false,
+        "glob": true,
         "grep": true,
-        "glob": true
+        "edit": false
       }
     },
     "debug": {
       "temperature": 0.1,
       "tools": {
-        "bash": true,
         "read": true,
-        "grep": true,
-        "glob": true,
+        "bash": true,
         "write": false,
+        "glob": true,
+        "grep": true,
         "edit": false
       }
-    },
-    "docs": {
-      "temperature": 0.2,
-      "tools": {
-        "write": true,
-        "edit": true,
-        "read": true,
-        "grep": true,
-        "glob": true,
-        "bash": false
-      }
     }
-  }
+  },
+  "small_model": "github-copilot/gpt-4.1"
 }
