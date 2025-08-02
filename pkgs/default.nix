@@ -10,6 +10,7 @@ rec {
   pybetter = callPackage ./pybetter { inherit pkgs pyemojify; };
   pyemojify = callPackage ./pyemojify { };
   pyrefly = callPackage ./pyrefly { };
+  sesh = callPackage ./sesh { };
   sort-package-json = callPackage ./sort-package-json { };
   ty = callPackage ./ty { };
   vim-custom = callPackage ./vim-custom { };

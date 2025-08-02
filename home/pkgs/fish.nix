@@ -126,6 +126,8 @@
       pv = "python -m venv .venv";
       rmf = "rm -rf";
       rv = "rm -rf .venv";
+      sc = "sesh connect $(sesh list | fzf)";
+      sl = "sesh list";
       sv = "source .venv/bin/activate.fish";
       sw = "session-wizard";
       t = "tmux";

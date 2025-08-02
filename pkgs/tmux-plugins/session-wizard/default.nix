@@ -18,21 +18,20 @@ tmuxPlugins.mkTmuxPlugin rec {
   nativeBuildInputs = [ makeWrapper ];
   postInstall = ''
     for f in .gitignore Dockerfile flake.* scripts tests; do
-      rm -rf $target/$f
+        rm -rf $target/$f
     done
-    substituteInPlace $target/session-wizard.tmux --replace  \$CURRENT_DIR $target
+    substituteInPlace $target/session-wizard.tmux --replace \$CURRENT_DIR $target
     wrapProgram $target/bin/t \
-      --prefix PATH : ${
-        with pkgs;
-        lib.makeBinPath [
-          fzf
-          zoxide
-          coreutils
-          gnugrep
-          gnused
-        ]
-      }
-
+        --prefix PATH :${
+          with pkgs;
+          lib.makeBinPath [
+            fzf
+            zoxide
+            coreutils
+            gnugrep
+            gnused
+          ]
+        }
     mkdir -p $out/bin
     makeWrapper $target/bin/t $out/bin/session-wizard
   '';

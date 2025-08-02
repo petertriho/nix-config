@@ -1,0 +1,7 @@
+[[session]]
+name = "nix-config"
+path = "~/.nix-config"
+
+[[session]]
+name = "k8s"
+path = "~"

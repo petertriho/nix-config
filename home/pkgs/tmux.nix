@@ -8,6 +8,7 @@
   home = {
     packages = with pkgs; [
       gitmux
+      sesh
       tmuxPlugins.session-wizard
     ];
     file = {
@@ -20,6 +21,8 @@
       # TINTED_TMUX_OPTION_STATUSBAR = 1;
     };
   };
+
+  xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";
 
   programs.tmux = {
     enable = true;
@@ -36,6 +39,22 @@
 
             # Theme
             source-file "~/.tmux/tokyonight.tmux"
+
+            # Sesh
+            bind-key -N "Sesh" "T" run-shell "sesh connect \"$(
+              sesh list --icons | fzf-tmux -p 80%,70% \
+                --no-sort --ansi --border-label ' sesh ' --prompt '⚡  ' \
+                --header '  ^a all ^t tmux ^g configs ^x zoxide ^d tmux kill ^f find' \
+                --bind 'tab:down,btab:up' \
+                --bind 'ctrl-a:change-prompt(⚡  )+reload(sesh list --icons)' \
+                --bind 'ctrl-t:change-prompt(🪟  )+reload(sesh list -t --icons)' \
+                --bind 'ctrl-g:change-prompt(⚙️  )+reload(sesh list -c --icons)' \
+                --bind 'ctrl-x:change-prompt(📁  )+reload(sesh list -z --icons)' \
+                --bind 'ctrl-f:change-prompt(🔎  )+reload(fd -H -d 2 -t d -E .Trash . ~)' \
+                --bind 'ctrl-d:execute(tmux kill-session -t {2..})+change-prompt(⚡  )+reload(sesh list --icons)' \
+                --preview-window 'right:55%' \
+                --preview 'sesh preview {}'
+            )\""
           '';
       }
       pain-control
@@ -59,7 +78,14 @@
       #       # set -g @tinted-color "base16-tokyo-night-dark"
       #     '';
       # }
-      session-wizard
+      {
+        plugin = session-wizard;
+        extraConfig =
+          # tmux
+          ''
+            set -g @session-wizard 'W'
+          '';
+      }
       {
         plugin = easy-motion;
         extraConfig =
