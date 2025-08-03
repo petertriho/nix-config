@@ -8,7 +8,7 @@
   "blink.compat": { "branch": "main", "commit": "1454f14a8d855a578ceeba77c62538fa1459a67c" },
   "bufjump.nvim": { "branch": "master", "commit": "ae2728a77defbd27e9e5ef64c854fb0813ffba01" },
   "codecompanion-spinner.nvim": { "branch": "main", "commit": "1f53b8d402de2a5ee6f9d64793f5eda49ed12a64" },
-  "codecompanion.nvim": { "branch": "main", "commit": "5e7d451098f61afdb13710844aaf0d83530e4128" },
+  "codecompanion.nvim": { "branch": "main", "commit": "17dc923059ec1b793d9f881785571493adfca4de" },
   "colorful-menu.nvim": { "branch": "master", "commit": "bc3e82609f2fcf7dad7ca87c20e65e51d5d9d87c" },
   "conform.nvim": { "branch": "master", "commit": "973f3cb73887d510321653044791d7937c7ec0fa" },
   "copilot.lua": { "branch": "master", "commit": "0f2fd3829dd27d682e46c244cf48d9715726f612" },
