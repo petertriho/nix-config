@@ -16,10 +16,6 @@
       ".tmux/copy-mode-vi.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/copy-mode-vi.tmux";
       ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
-    sessionVariables = {
-      # TINTED_TMUX_OPTION_ACTIVE = 1;
-      # TINTED_TMUX_OPTION_STATUSBAR = 1;
-    };
   };
 
   xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";

@@ -10,7 +10,6 @@
     outputs.homeManagerModules.helpers
     ./pkgs/ai.nix
     ./pkgs/bat.nix
-    ./pkgs/devenv.nix
     ./pkgs/devops.nix
     ./pkgs/direnv.nix
     ./pkgs/fish.nix
@@ -18,13 +17,11 @@
     ./pkgs/git.nix
     ./pkgs/k8s.nix
     ./pkgs/neovim.nix
-    ./pkgs/ripgrep-all.nix
     ./pkgs/scripts.nix
     ./pkgs/starship.nix
     ./pkgs/tmux.nix
     ./pkgs/tools.nix
     ./pkgs/vivid.nix
-    ./pkgs/yazi.nix
   ];
 
   home = {
