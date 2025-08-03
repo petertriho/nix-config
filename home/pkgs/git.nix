@@ -11,6 +11,7 @@
       # dependencies
       delta
       difftastic
+      jujutsu
       rs-git-fsmonitor
       watchman
     ];
