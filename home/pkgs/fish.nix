@@ -119,6 +119,7 @@
         "switch --flake ~/.nix-config"
       ];
       ns = "nix search nixpkgs";
+      oc = "opencode";
       pv = "python -m venv .venv";
       rmf = "rm -rf";
       rv = "rm -rf .venv";
