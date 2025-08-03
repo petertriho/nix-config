@@ -61,6 +61,10 @@
       "--color='border:7,fg:-1,bg:-1,hl:5,fg+:7,bg+:8,hl+:5'"
       "--color='info:6,prompt:2,pointer:2,marker:3,spinner:1,header:4'"
     ];
+    _ZO_EXCLUDE_DIRS = lib.strings.concatStringsSep ":" [
+      "**/main"
+      "**/work"
+    ];
     _ZO_FZF_OPTS = lib.strings.concatStringsSep " " [
       "$FZF_DEFAULT_OPTS"
       "--keep-right"
