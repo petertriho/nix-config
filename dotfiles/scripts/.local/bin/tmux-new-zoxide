@@ -2,4 +2,12 @@
 
 set -euo pipefail
 
-tmux new-session -s "$1" "cd $(zoxide query "$1"); exec $SHELL"
+if [ $# -eq 0 ]; then
+    dir=$(zoxide query --interactive)
+    session_name=$(basename "$dir")
+else
+    dir=$(zoxide query "$1")
+    session_name="$1"
+fi
+
+tmux new-session -s "$session_name" "cd '$dir'; exec $SHELL"
