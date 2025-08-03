@@ -101,8 +101,7 @@
       nodejs-slim
     ];
     extraLuaPackages = ps: [
-      # CopilotChat.nvim
-      ps.tiktoken_core
+      # ps.tiktoken_core
     ];
   };
 
