@@ -47,6 +47,7 @@ return {
             lazy = true,
             opt = {},
         },
+        "mikavilpas/blink-ripgrep.nvim",
     },
     init = function()
         vim.g.completion_enabled = true
@@ -78,7 +79,7 @@ return {
             enabled = false,
         },
         fuzzy = {
-            implementation = "prefer_rust"
+            implementation = "prefer_rust",
         },
         completion = {
             documentation = {
@@ -136,6 +137,7 @@ return {
                 "path",
                 "snippets",
                 "buffer",
+                "ripgrep",
             },
             providers = {
                 lazydev = {
@@ -161,6 +163,41 @@ return {
                         end,
                     },
                 },
+                ripgrep = {
+                    module = "blink-ripgrep",
+                    name = "Ripgrep",
+                    opts = {
+                        prefix_min_len = 3,
+                        project_root_marker = ".git",
+                        fallback_to_regex_highlighting = true,
+                        toggles = {
+                            on_off = "<leader>tg",
+                            debug = nil,
+                        },
+
+                        backend = {
+                            use = "gitgrep-or-ripgrep",
+                            customize_icon_highlight = true,
+                            ripgrep = {
+                                context_size = 5,
+                                max_filesize = "1M",
+                                project_root_fallback = true,
+                                search_casing = "--ignore-case",
+                                additional_rg_options = {},
+                                ignore_paths = {},
+                                additional_paths = {},
+                            },
+                        },
+                        debug = false,
+                    },
+                    -- transform_items = function(_, items)
+                    --     for _, item in ipairs(items) do
+                    --         item.labelDetails = {
+                    --             description = "(rg)",
+                    --         }
+                    --     end
+                    --     return items
+                    -- end,
                 },
             },
         },
