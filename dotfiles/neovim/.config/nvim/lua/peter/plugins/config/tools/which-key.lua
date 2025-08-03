@@ -40,7 +40,7 @@ return {
                 { "<leader>c", group = "ai (codecompanion)" },
                 { "<leader>h", group = "hierarchy" },
                 { "<leader>o", group = "ai (opencode)" },
-                { "<leader>X", group = "extras" },
+                { "<leader>m", group = "misc" },
             },
             -- vim-abolish
             {

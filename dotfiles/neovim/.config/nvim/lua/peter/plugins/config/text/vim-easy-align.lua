@@ -5,8 +5,8 @@ return {
         "LiveEasyAlign",
     },
     keys = {
-        { "<leader>Xa", "<Plug>(EasyAlign)", mode = { "n", "x" }, desc = "Align" },
-        { "<leader>Xl", "<Plug>(LiveEasyAlign)", mode = { "n", "x" }, desc = "Live Align" },
+        { "<leader>ma", "<Plug>(EasyAlign)", mode = { "n", "x" }, desc = "Align" },
+        { "<leader>ml", "<Plug>(LiveEasyAlign)", mode = { "n", "x" }, desc = "Live Align" },
     },
     init = function()
         vim.g.easy_align_ignore_groups = {}
