@@ -1,8 +1,6 @@
 local ft = {
     "markdown",
-    "Avante",
     "codecompanion",
-    "copilot-chat",
     "opencode_output",
 }
 return {
