@@ -54,24 +54,6 @@
           '';
       }
       yank
-      # {
-      #   plugin = tokyo-night;
-      #   extraConfig =
-      #     # tmux
-      #     ''
-      #       set -g @tokyo-night-tmux_window_id_style "none"
-      #       set -g @tokyo-night-tmux_show_git 0
-      #       set -g @tokyo-night-tmux_show_wbg 0
-      #     '';
-      # }
-      # {
-      #   plugin = tinted;
-      #   extraConfig =
-      #     # tmux
-      #     ''
-      #       # set -g @tinted-color "base16-tokyo-night-dark"
-      #     '';
-      # }
       {
         plugin = session-wizard;
         extraConfig =
@@ -90,14 +72,6 @@
             set -g @easy-motion-default-motion "bd-f"
           '';
       }
-      # {
-      #   plugin = tmux-thumbs;
-      #   extraConfig =
-      #     # tmux
-      #     ''
-      #       set -g @thumbs-key "F"
-      #     '';
-      # }
       {
         plugin = fingers;
         extraConfig =
@@ -107,19 +81,6 @@
             set -g @fingers-jump-key "J"
           '';
       }
-      # {
-      #   plugin = extrakto;
-      #   extraConfig =
-      #     # tmux
-      #     ''
-      #       set -g @extrakto_copy_key "tab"
-      #       set -g @extrakto_insert_key "enter"
-      #       set -g @extrakto_fzf_layout "reverse"
-      #       set -g @extrakto_popup_size "50%,50%"
-      #       set -g @extrakto_split_direction "p"
-      #       set -g @extrakto_popup_position "200,100"
-      #     '';
-      # }
       {
         plugin = window-name;
         extraConfig =
