@@ -11,15 +11,11 @@
       with pkgs.fishPlugins;
       lib.lists.forEach
         [
-          # abbreviation-tips
-          # async-prompt-fork
           autopair
           colored-man-pages-fork
-          # evalcache
           forgit
           fzf-fish
           puffer
-          # replay
           sponge
           upto
         ]
