@@ -23,9 +23,9 @@ end
 
 return {
     "folke/snacks.nvim",
-    -- priority = 1000,
-    -- lazy = false,
-    event = { "User LazyLoadFile", "VeryLazy" },
+    priority = 1000,
+    lazy = false,
+    -- event = { "User LazyLoadFile", "VeryLazy" },
     config = function()
         local snacks = require("snacks")
 
@@ -135,11 +135,11 @@ return {
                 win = {
                     input = {
                         keys = {
-                            ["<c-d>"] = { "preview_scroll_down", mode = { "i", "n" } },
-                            ["<c-u>"] = { "preview_scroll_up", mode = { "i", "n" } },
-                            ["<c-b>"] = { "list_scroll_up", mode = { "i", "n" } },
-                            ["<c-f>"] = { "list_scroll_down", mode = { "i", "n" } },
-                            ["<c-l>"] = { "toggle_preview", mode = { "i", "n" } },
+                            ["<c-d>"] = { "preview_scroll_down", mode = { "n", "i" } },
+                            ["<c-u>"] = { "preview_scroll_up", mode = { "n", "i" } },
+                            ["<c-b>"] = { "list_scroll_up", mode = { "n", "i" } },
+                            ["<c-f>"] = { "list_scroll_down", mode = { "n", "i" } },
+                            ["<c-l>"] = { "toggle_preview", mode = { "n", "i" } },
                         },
                     },
                 },
