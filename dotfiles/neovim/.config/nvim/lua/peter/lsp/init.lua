@@ -167,14 +167,15 @@ local function lsp_attach_callback(args)
 
     local buf_keymap = create_buf_keymap(bufnr)
 
-    buf_keymap(
-        "n",
-        "gh",
-        "<CMD>lua vim.diagnostic.open_float(0, { scope = 'line', source = 'always', border = 'rounded' })<CR>",
-        { desc = "Diagnostic" }
-    )
-    buf_keymap("n", "grq", "<CMD>lua vim.diagnostic.setqflist()<CR>", { desc = "QDiagnostics" })
-    buf_keymap("n", "grl", "<CMD>lua vim.diagnostic.setloclist()<CR>", { desc = "LDiagnostics" })
+    buf_keymap("n", "gh", function()
+        vim.diagnostic.open_float(0, { scope = "line", source = "always", border = "rounded" })
+    end, { desc = "Diagnostic" })
+    buf_keymap("n", "grq", function()
+        vim.diagnostic.setqflist()
+    end, { desc = "QDiagnostics" })
+    buf_keymap("n", "grl", function()
+        vim.diagnostic.setloclist()
+    end, { desc = "LDiagnostics" })
 
     for method, _ in pairs(LSP_METHODS) do
         if client:supports_method(method, bufnr) then
