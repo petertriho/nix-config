@@ -37,6 +37,7 @@
     sqlite-web # web-based SQLite client
     tabiew # csv data viewer
     tldr # simplified man pages
+    typst # typesetting system
     unzip # unzip files
     update-nix-fetchgit # update fetchgit URLs in Nix files
     watchexec # run commands when files change

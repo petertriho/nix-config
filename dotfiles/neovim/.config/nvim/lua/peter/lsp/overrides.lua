@@ -139,6 +139,7 @@ return {
     tailwindcss = {},
     taplo = {},
     terraformls = {},
+    tinymist = {},
     tflint = {},
     -- ts_ls = {
     --     on_attach = function(client, bufnr)

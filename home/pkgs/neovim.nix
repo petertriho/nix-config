@@ -22,10 +22,11 @@
     pybetter
     python3Packages.docformatter
     python3Packages.reorder-python-imports
+    python312Packages.ssort
     shfmt
     sort-package-json
-    python312Packages.ssort
     stylua
+    typstyle
     sql-formatter
     yamlfix
     yamlfmt
@@ -69,6 +70,7 @@
     tailwindcss-language-server
     taplo
     terraform-ls
+    tinymist
     tflint
     ty
     typos-lsp

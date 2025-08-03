@@ -41,6 +41,7 @@ local M = {
         "toml",
         "tsx",
         "typescript",
+        "typst",
         "vim",
         "yaml",
     },

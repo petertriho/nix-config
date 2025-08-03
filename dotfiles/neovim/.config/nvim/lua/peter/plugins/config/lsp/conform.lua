@@ -245,6 +245,7 @@ return {
                 "postgresql_formatter",
             },
             svg = { "svgo" },
+            typst = { "typstyle" },
             xml = { "tidy" },
             yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
         }
