@@ -60,6 +60,7 @@ keymap("n", "<leader>gP", [["+gP]], { desc = "gPut+" })
 keymap({ "n", "v" }, "<leader>p", [["+p]], { desc = "put+" })
 keymap({ "n", "v" }, "<leader>P", [["+P]], { desc = "Put+" })
 keymap({ "n", "v" }, "<leader>x", [["_d]], { desc = "Delete_" })
+keymap({ "n", "v" }, "<leader>X", [["+d]], { desc = "Delete+" })
 keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
 keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
 
