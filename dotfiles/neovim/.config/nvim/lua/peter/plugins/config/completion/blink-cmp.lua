@@ -24,6 +24,13 @@ local get_kind_icon_highlight = function(ctx)
     return highlight
 end
 
+local get_lsp_client_name_text = function(ctx)
+    if ctx.item.source_id == "lsp" then
+        return ctx.item.client_name or ""
+    end
+    return ""
+end
+
 local get_source_name_text = function(ctx)
     return "[" .. string.upper(ctx.source_name) .. "]"
 end
@@ -95,6 +102,7 @@ return {
                     columns = {
                         { "kind_icon" },
                         { "label", gap = 1 },
+                        { "lsp_client_name" },
                         { "source_name" },
                     },
                     components = {
@@ -109,6 +117,10 @@ return {
                             highlight = function(ctx)
                                 return require("colorful-menu").blink_components_highlight(ctx)
                             end,
+                        },
+                        lsp_client_name = {
+                            text = get_lsp_client_name_text,
+                            highlight = "Comment",
                         },
                         source_name = {
                             text = get_source_name_text,
@@ -144,9 +156,11 @@ return {
                     name = "LazyDev",
                     module = "lazydev.integrations.blink",
                     score_offset = 100,
+                    async = true,
                 },
                 lsp = {
                     async = true,
+                    score_offset = 50,
                 },
                 buffer = {
                     opts = {
@@ -166,6 +180,7 @@ return {
                 ripgrep = {
                     module = "blink-ripgrep",
                     name = "Ripgrep",
+                    async = true,
                     opts = {
                         prefix_min_len = 3,
                         project_root_marker = ".git",
