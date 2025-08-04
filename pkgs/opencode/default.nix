@@ -8,15 +8,16 @@
   models-dev,
   nix-update-script,
   testers,
+  tree-sitter,
   writableTmpDirAsHomeHook,
   ...
 }:
 let
   opencode-node-modules-hash = {
     "aarch64-darwin" = "sha256-//XfoFPmiLktpMneax7wjLnKPCn9BcVjQU4OxVTeT/g=";
-    "aarch64-linux" = "sha256-e8ykvdjdPF+T50M0vDz3UECW+FPhNUJ/QLthSeZ1KOM=";
+    "aarch64-linux" = "sha256-0YGVesTiYaDuOONaJrUR8xiAp/ARS7q3+vky7BP/aYM=";
     "x86_64-darwin" = "sha256-//XfoFPmiLktpMneax7wjLnKPCn9BcVjQU4OxVTeT/g=";
-    "x86_64-linux" = "sha256-e8ykvdjdPF+T50M0vDz3UECW+FPhNUJ/QLthSeZ1KOM=";
+    "x86_64-linux" = "sha256-0YGVesTiYaDuOONaJrUR8xiAp/ARS7q3+vky7BP/aYM=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -27,12 +28,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "unstable-2025-08-03_0";
+  version = "unstable-2025-08-04";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "f85d30c484f26c0656dd91ad5f9c5ed26c0a2fce";
-    sha256 = "0x48qaxdipzkil7vdsgr8zwzs6x1gqbbhcz7wldj1bmg1jpvqczs";
+    rev = "ae78ec7a0c48c54aee8a612d098b3e6cec5565d0";
+    sha256 = "1j6krqx32jqnd8a5l38pak1i6s3c1x4w7my57qqsz259pdd68p51";
   };
 
   tui = buildGoModule {
@@ -109,6 +110,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     outputHashMode = "recursive";
   };
 
+  buildInputs = [ tree-sitter ];
+
   nativeBuildInputs = [
     bun
     models-dev
@@ -128,7 +131,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook postConfigure
   '';
 
-  env.MODELS_DEV_API_JSON = "${models-dev}/dist/api.json";
+  env.MODELS_DEV_API_JSON = "${models-dev}/dist/_api.json";
 
   buildPhase = ''
     runHook preBuild
