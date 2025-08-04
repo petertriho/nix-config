@@ -35,6 +35,17 @@ local get_source_name_text = function(ctx)
     return "[" .. string.upper(ctx.source_name) .. "]"
 end
 
+-- Higher number means higher priority
+local LSP_SORT_PRIORITY = {
+    -- python
+    pyrefly = 10,
+    ty = 1,
+    -- js
+    vtsls = 100,
+    eslint = 10,
+    emmet_language_server = 1,
+}
+
 return {
     "saghen/blink.cmp",
     build = "nix run .#build-plugin",
@@ -87,6 +98,25 @@ return {
         },
         fuzzy = {
             implementation = "prefer_rust",
+            sorts = {
+                function(a, b)
+                    if a.source_name ~= "LSP" or b.source_name ~= "LSP" then
+                        return
+                    end
+
+                    if a.client_name == b.client_name then
+                        return
+                    end
+
+                    if not LSP_SORT_PRIORITY[a.client_name] or not LSP_SORT_PRIORITY[b.client_name] then
+                        return
+                    end
+
+                    return LSP_SORT_PRIORITY[a.client_name] > LSP_SORT_PRIORITY[b.client_name]
+                end,
+                "score",
+                "sort_text",
+            },
         },
         completion = {
             documentation = {
