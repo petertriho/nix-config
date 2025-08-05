@@ -6,6 +6,8 @@
 {
   home.packages = with pkgs; [
     aider-chat
+    ccusage
+    claude-code
     gemini-cli
     opencode
   ];
