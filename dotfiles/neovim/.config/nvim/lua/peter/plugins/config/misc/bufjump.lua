@@ -8,7 +8,7 @@ return {
         forward_key = "<C-M-i>",
         backward_key = "<C-M-o>",
         on_success = function()
-            vim.cmd([[execute "normal! g`\"zz"]])
+            vim.cmd.execute([["normal! g`\"zz"]])
         end,
     },
 }

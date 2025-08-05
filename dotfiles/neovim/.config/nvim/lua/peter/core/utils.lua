@@ -65,7 +65,7 @@ M.file_is_big = function(bufnr, path)
 end
 
 M.disable_features = function(bufnr)
-    vim.cmd("syntax clear")
+    vim.cmd.syntax("clear")
     vim.opt_local.syntax = "off"
 
     -- pcall(require("illuminate").pause_buf)
@@ -103,7 +103,7 @@ M.toggle_buffer = function(buf, open_cmd)
         local bufname = vim.fn.bufname(buf)
 
         if vim.fn.bufexists(bufname) == 1 then
-            vim.cmd("bw " .. bufname)
+            vim.cmd.bw(bufname)
         else
             vim.cmd(open_cmd)
         end

@@ -32,7 +32,7 @@ local function exec_lazy_load_file(event)
                 vim.bo[event.buf].syntax = ft
             end
 
-            vim.cmd([[redraw]])
+            vim.cmd.redraw()
         end
     end
 end

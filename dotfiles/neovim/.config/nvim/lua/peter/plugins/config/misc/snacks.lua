@@ -288,7 +288,7 @@ return {
             "<ESC>",
             function()
                 require("snacks").notifier.hide()
-                vim.cmd("nohlsearch")
+                vim.cmd.nohlsearch()
             end,
             desc = "Hide Notifications",
         },
