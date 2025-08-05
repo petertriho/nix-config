@@ -8,7 +8,6 @@
   models-dev,
   nix-update-script,
   testers,
-  tree-sitter,
   writableTmpDirAsHomeHook,
   ...
 }:
@@ -32,8 +31,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "8168626cd3c6d6eaea30e0c07d67ec6e785b0eac";
-    sha256 = "0gi9n1ajpb0pw58hbsrpy7j2ppn8k40rmimyyk2b2jam1w3fb4ma";
+    rev = "2b195e82ee29debc33a36d04271629932b615e13";
+    sha256 = "14xs5rgblxb6yvbmwd74r1198j526gff9n20h26g9mcpwppa8s91";
   };
 
   tui = buildGoModule {
@@ -110,8 +109,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     outputHashMode = "recursive";
   };
 
-  buildInputs = [ tree-sitter ];
-
   nativeBuildInputs = [
     bun
     models-dev
@@ -121,6 +118,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     # Patch `packages/opencode/src/provider/models-macro.ts` to get contents of
     # `api.json` from the file bundled with `bun build`.
     ./local-models-dev.patch
+    # Fix tree-sitter parsing errors in bash tool
+    ./fix-tree-sitter-bash.patch
   ];
 
   configurePhase = ''
