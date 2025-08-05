@@ -5,7 +5,6 @@
   "auto-indent.nvim": { "branch": "main", "commit": "46801cf8857d42a20a73c40b0a5d3dfe8b2b6192" },
   "blink-ripgrep.nvim": { "branch": "main", "commit": "bdc1e90da30bf34d6c5551ee49cb7ad4a7ba3428" },
   "blink.cmp": { "branch": "main", "commit": "33f0789297cfec5279c30c8f8980c035fdc91e34" },
-  "blink.compat": { "branch": "main", "commit": "1454f14a8d855a578ceeba77c62538fa1459a67c" },
   "bufjump.nvim": { "branch": "master", "commit": "ae2728a77defbd27e9e5ef64c854fb0813ffba01" },
   "codecompanion-spinner.nvim": { "branch": "main", "commit": "1f53b8d402de2a5ee6f9d64793f5eda49ed12a64" },
   "codecompanion.nvim": { "branch": "main", "commit": "638b643a17a656a34d15c884e1fd059d0992d660" },

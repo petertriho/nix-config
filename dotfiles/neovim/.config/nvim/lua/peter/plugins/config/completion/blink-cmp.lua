@@ -55,11 +55,11 @@ return {
         { "<leader>lc", "<CMD>ToggleBlinkCmp<CR>", desc = "Completion Toggle" },
     },
     dependencies = {
-        {
-            "saghen/blink.compat",
-            lazy = true,
-            opts = {},
-        },
+        -- {
+        --     "saghen/blink.compat",
+        --     lazy = true,
+        --     opts = {},
+        -- },
         {
             "xzbdmw/colorful-menu.nvim",
             lazy = true,
@@ -174,12 +174,17 @@ return {
         },
         sources = {
             default = {
-                "lazydev",
                 "lsp",
                 "path",
                 "snippets",
                 "buffer",
                 "ripgrep",
+            },
+            per_filetype = {
+                lua = {
+                    inherit_defaults = true,
+                    "lazydev",
+                },
             },
             providers = {
                 lazydev = {
