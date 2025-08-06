@@ -40,6 +40,79 @@ local format_msg = function(msg)
     return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
 end
 
+-- Generate formatted message for formatter progress display
+local generate_formatter_message = function(formatter_names, completed_formatters, current_formatter, failed_formatter)
+    local msg_lines = {}
+    local current_line = {}
+
+    for i = 1, #formatter_names do
+        local name = formatter_names[i]
+        local prefix
+
+        if failed_formatter and name == failed_formatter then
+            -- Mark only the failed formatter with ✗
+            prefix = "✗ "
+        elseif completed_formatters[name] then
+            -- Show checkmark for completed formatters
+            prefix = "✓ "
+        elseif name == current_formatter then
+            -- Mark current formatter with arrow
+            prefix = "→ "
+        else
+            -- Show dot for pending formatters
+            prefix = "• "
+        end
+
+        table.insert(current_line, prefix .. name)
+
+        -- Group into lines of 3
+        if #current_line == 3 or i == #formatter_names then
+            table.insert(msg_lines, table.concat(current_line, " "))
+            current_line = {}
+        end
+    end
+
+    return table.concat(msg_lines, "\n")
+end
+
+local update_formatter_progress = function(token, current_formatter)
+    if not token or not format_progress[token] then
+        return
+    end
+
+    local progress_item = format_progress[token]
+    local formatter_names = progress_item.formatter_names
+    local completed_formatters = progress_item.completed_formatters
+
+    -- Mark previous formatter as completed if we're moving to a new one
+    local current_index = nil
+    for i, name in ipairs(formatter_names) do
+        if name == current_formatter then
+            current_index = i
+            break
+        end
+    end
+
+    if current_index and current_index > 1 then
+        local prev_formatter = formatter_names[current_index - 1]
+        if not completed_formatters[prev_formatter] then
+            completed_formatters[prev_formatter] = true
+        end
+    end
+
+    local msg = generate_formatter_message(formatter_names, completed_formatters, current_formatter, nil)
+
+    -- Update notification
+    vim.notify(msg, vim.log.levels.INFO, {
+        id = token,
+        title = progress_item.title,
+        replace = true,
+        opts = function(notif)
+            notif.icon = require("peter.core.utils").spinner:get_frame()
+        end,
+    })
+end
+
 local create_format_progress = function()
     local conform = require("conform")
     local formatters, will_use_lsp = conform.list_formatters_to_run()
@@ -60,22 +133,16 @@ local create_format_progress = function()
 
     local title = "Formatting"
 
-    -- Group formatter names into chunks of 3 per line
-    local lines = {}
-    for i = 1, #formatter_names, 3 do
-        local chunk = {}
-        for j = i, math.min(i + 2, #formatter_names) do
-            table.insert(chunk, formatter_names[j])
-        end
-        table.insert(lines, table.concat(chunk, " • "))
-    end
-    local msg = table.concat(lines, "\n")
+    local msg = generate_formatter_message(formatter_names, {}, nil, nil)
 
     -- Add to progress tracking
     format_progress[token] = {
         token = token,
         title = title,
         msg = msg,
+        formatter_names = formatter_names,
+        current_formatter_index = 1,
+        completed_formatters = {},
         done = false,
     }
 
@@ -86,10 +153,15 @@ local create_format_progress = function()
         message = msg,
     })
 
+    -- Start highlighting the first formatter
+    if #formatter_names > 0 then
+        update_formatter_progress(token, formatter_names[1])
+    end
+
     return token
 end
 
-local finish_format_progress = function(token, err)
+local finish_format_progress = function(token, err, failed_formatter)
     if not token or not format_progress[token] then
         return
     end
@@ -100,15 +172,80 @@ local finish_format_progress = function(token, err)
     progress_item.title = err and "Failed" or "Formatted"
     local notif_level = err and vim.log.levels.ERROR or vim.log.levels.INFO
 
+    -- If formatting succeeded, mark all formatters as completed
+    if not err then
+        for _, name in ipairs(progress_item.formatter_names) do
+            progress_item.completed_formatters[name] = true
+        end
+    end
+
+    local msg = generate_formatter_message(
+        progress_item.formatter_names,
+        progress_item.completed_formatters,
+        nil,
+        failed_formatter
+    )
+
     require("peter.core.utils").finish_progress_notification({
         id = token,
         title = progress_item.title,
-        message = progress_item.msg,
+        message = msg,
         level = notif_level,
     })
 
     -- Clean up completed progress
     format_progress[token] = nil
+end
+
+-- Set up autocmd to track formatter progress using conform's built-in events
+local setup_formatter_progress_tracking = function()
+    local augroup = vim.api.nvim_create_augroup("ConformProgressTracking", { clear = true })
+
+    vim.api.nvim_create_autocmd("User", {
+        pattern = "ConformFormatPre",
+        group = augroup,
+        callback = function(args)
+            -- Find the current formatting token
+            local current_token = nil
+            for token, progress in pairs(format_progress) do
+                if not progress.done then
+                    current_token = token
+                    break
+                end
+            end
+
+            -- Update progress to show current formatter
+            if current_token and args.data and args.data.formatter then
+                update_formatter_progress(current_token, args.data.formatter.name)
+            end
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("User", {
+        pattern = "ConformFormatPost",
+        group = augroup,
+        callback = function(args)
+            -- Find the current formatting token
+            local current_token = nil
+            for token, progress in pairs(format_progress) do
+                if not progress.done then
+                    current_token = token
+                    break
+                end
+            end
+
+            -- Check if this formatter failed and store the failure
+            if current_token and args.data then
+                local progress_item = format_progress[current_token]
+                if progress_item and args.data.err then
+                    -- Store the failed formatter name
+                    if args.data.formatter then
+                        progress_item.failed_formatter = args.data.formatter.name
+                    end
+                end
+            end
+        end,
+    })
 end
 
 local format = function(opts)
@@ -120,10 +257,13 @@ local format = function(opts)
 
     local format_opts = get_format_opts(opts)
     require("conform").format(format_opts, function(err)
+        local progress_item = format_progress[token]
+        local failed_formatter = progress_item and progress_item.failed_formatter
+
         if err then
-            finish_format_progress(token, format_msg(err))
+            finish_format_progress(token, format_msg(err), failed_formatter)
         else
-            finish_format_progress(token, nil)
+            finish_format_progress(token, nil, nil)
         end
     end)
 end
@@ -162,13 +302,13 @@ return {
             local hunks = require("gitsigns").get_hunks()
 
             if hunks == nil then
-                finish_format_progress(token, nil)
+                finish_format_progress(token, nil, nil)
                 return
             end
 
             local function format_range()
                 if next(hunks) == nil then
-                    finish_format_progress(token, nil)
+                    finish_format_progress(token, nil, nil)
                     return
                 end
                 local hunk = nil
@@ -185,7 +325,9 @@ return {
                     local format_opts = get_format_opts({ range = range })
                     require("conform").format(format_opts, function(err)
                         if err then
-                            finish_format_progress(token, format_msg(err))
+                            local progress_item = format_progress[token]
+                            local failed_formatter = progress_item and progress_item.failed_formatter
+                            finish_format_progress(token, format_msg(err), failed_formatter)
                             return
                         end
 
@@ -194,7 +336,7 @@ return {
                         end, 1)
                     end)
                 else
-                    finish_format_progress(token, nil)
+                    finish_format_progress(token, nil, nil)
                 end
             end
 
@@ -202,6 +344,9 @@ return {
         end, {})
     end,
     config = function()
+        -- Set up progress tracking using conform's autocmd events
+        setup_formatter_progress_tracking()
+
         local conform = require("conform")
 
         local function first(bufnr, ...)
