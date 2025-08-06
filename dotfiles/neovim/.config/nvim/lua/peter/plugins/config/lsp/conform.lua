@@ -47,7 +47,7 @@ local create_format_progress = function()
     local formatter_names = {}
     if not vim.tbl_isempty(formatters) then
         formatter_names = vim.tbl_map(function(f)
-            return "- " .. f.name
+            return f.name
         end, formatters)
     elseif will_use_lsp then
         formatter_names = { "lsp" }
@@ -59,7 +59,17 @@ local create_format_progress = function()
     local token = require("peter.core.utils").generate_uuid()
 
     local title = "Formatting"
-    local msg = table.concat(formatter_names, "\n")
+
+    -- Group formatter names into chunks of 3 per line
+    local lines = {}
+    for i = 1, #formatter_names, 3 do
+        local chunk = {}
+        for j = i, math.min(i + 2, #formatter_names) do
+            table.insert(chunk, formatter_names[j])
+        end
+        table.insert(lines, table.concat(chunk, " • "))
+    end
+    local msg = table.concat(lines, "\n")
 
     -- Add to progress tracking
     format_progress[token] = {
