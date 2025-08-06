@@ -71,6 +71,11 @@ return {
                 },
                 style = "compact",
             },
+            styles = {
+                notification = {
+                    wo = { wrap = true, linebreak = true },
+                },
+            },
             picker = {
                 enabled = true,
                 ui_select = true,
