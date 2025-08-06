@@ -54,7 +54,7 @@ local generate_formatter_message = function(formatter_names, completed_formatter
             prefix = "✗ "
         elseif completed_formatters[name] then
             -- Show checkmark for completed formatters
-            prefix = "✓ "
+            prefix = "[✓] "
         elseif name == current_formatter then
             -- Mark current formatter with arrow
             prefix = "→ "
