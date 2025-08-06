@@ -38,5 +38,42 @@
       }
     }
   },
+  "lsp": {
+    "eslint": {
+      "command": ["vscode-eslint-language-server", "--stdio"],
+      "extensions": [".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte"]
+    },
+    "typescript": {
+      "disabled": true
+    },
+    "vtsls": {
+      "command": ["vtsls", "--stdio"],
+      "extensions": [
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".mjs",
+        ".cjs",
+        ".mts",
+        ".cts"
+      ]
+    },
+    "pyright": {
+      "disabled": true
+    },
+    "basedpyright": {
+      "command": ["basedpyright-langserver", "--stdio"],
+      "extensions": [".py", ".pyi"]
+    },
+    "lua_ls": {
+      "command": ["lua-language-server"],
+      "extensions": [".lua"]
+    },
+    "terraformls": {
+      "command": ["terraform-ls", "serve"],
+      "extensions": [".tf", ".tfvars"]
+    }
+  },
   "small_model": "github-copilot/gpt-4.1"
 }
