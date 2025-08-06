@@ -1,5 +1,7 @@
---- a/packages/opencode/src/tool/bash.ts
-+++ b/packages/opencode/src/tool/bash.ts
+diff --git i/packages/opencode/src/tool/bash.ts w/packages/opencode/src/tool/bash.ts
+index de1eedaa..27e85572 100644
+--- i/packages/opencode/src/tool/bash.ts
++++ w/packages/opencode/src/tool/bash.ts
 @@ -41,7 +41,14 @@ export const BashTool = Tool.define("bash", {
      const timeout = Math.min(params.timeout ?? DEFAULT_TIMEOUT, MAX_TIMEOUT)
      const app = App.info()
@@ -16,9 +18,9 @@
      const permissions = (() => {
        const value = cfg.permission?.bash
        if (!value)
-@@ -56,52 +63,54 @@ export const BashTool = Tool.define("bash", {
+@@ -56,57 +63,60 @@ export const BashTool = Tool.define("bash", {
      })()
- 
+
      let needsAsk = false
 -    for (const node of tree.rootNode.descendantsOfType("command")) {
 -      const command = []
@@ -33,6 +35,7 @@
 -          child.type !== "concatenation"
 -        ) {
 -          continue
++
 +    if (tree) {
 +      for (const node of tree.rootNode.descendantsOfType("command")) {
 +        const command = []
@@ -52,7 +55,7 @@
          }
 -        command.push(child.text)
 -      }
- 
+
 -      // not an exhaustive list, but covers most common cases
 -      if (["cd", "rm", "cp", "mv", "mkdir", "touch", "chmod", "chown"].includes(command[0])) {
 -        for (const arg of command.slice(1)) {
@@ -85,21 +88,17 @@
            }
          }
 -      }
- 
+
 -      // always allow cd if it passes above check
 -      if (!needsAsk && command[0] !== "cd") {
--        const ask = (() => {
+-        const action = (() => {
 -          for (const [pattern, value] of Object.entries(permissions)) {
 -            const match = Wildcard.match(node.text, pattern)
 -            log.info("checking", { text: node.text.trim(), pattern, match })
 -            if (match) return value
--          }
--          return "ask"
--        })()
--        if (ask === "ask") needsAsk = true
 +        // always allow cd if it passes above check
 +        if (!needsAsk && command[0] !== "cd") {
-+          const ask = (() => {
++          const action = (() => {
 +            for (const [pattern, value] of Object.entries(permissions)) {
 +              const match = Wildcard.match(node.text, pattern)
 +              log.info("checking", { text: node.text.trim(), pattern, match })
@@ -107,7 +106,19 @@
 +            }
 +            return "ask"
 +          })()
-+          if (ask === "ask") needsAsk = true
-+        }
++          if (action === "deny") {
++            throw new Error(
++              "The user has specifically restricted access to this command, you are not allowed to execute it.",
++            )
+           }
+-          return "ask"
+-        })()
+-        if (action === "deny") {
+-          throw new Error(
+-            "The user has specifically restricted access to this command, you are not allowed to execute it.",
+-          )
++          if (action === "ask") needsAsk = true
+         }
+-        if (action === "ask") needsAsk = true
        }
      }
