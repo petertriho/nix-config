@@ -70,6 +70,10 @@
       "command": ["lua-language-server"],
       "extensions": [".lua"]
     },
+    "nil_ls": {
+      "command": ["nil"],
+      "extensions": [".nix"]
+    },
     "terraformls": {
       "command": ["terraform-ls", "serve"],
       "extensions": [".tf", ".tfvars"]
