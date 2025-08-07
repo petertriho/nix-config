@@ -1,5 +1,6 @@
 return {
     "luochen1990/rainbow",
+    enabled = false,
     event = "User LazyLoadFile",
     init = function()
         local colors = require("peter.plugins.colors")
