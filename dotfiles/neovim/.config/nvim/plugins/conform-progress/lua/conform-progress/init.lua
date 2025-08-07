@@ -1,5 +1,5 @@
--- Global state for tracking format progress across buffers
-local CONFORM_PROGRESS_STATE = {}
+local CONFORM_PROGRESS_STATES = {}
+local FORMATTER_GROUP_SIZE = 3
 
 local M = {}
 
@@ -10,34 +10,27 @@ local format_msg = function(msg)
     return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
 end
 
--- Generate formatted message for formatter progress display
-local generate_formatter_message = function(progress_item)
+local generate_msg = function(progress_state)
     local msg_lines = {}
     local current_line = {}
 
-    for i = 1, #progress_item.formatter_names do
-        local name = progress_item.formatter_names[i]
+    for i = 1, #progress_state.formatter_names do
+        local name = progress_state.formatter_names[i]
         local prefix
 
-        if progress_item.failed_formatter and name == progress_item.failed_formatter then
-            -- Mark only the failed formatter with ✗
+        if progress_state.failed_formatter and name == progress_state.failed_formatter then
             prefix = "✗ "
-        elseif progress_item.completed_formatters[name] then
-            -- Show checkmark for completed formatters
-            -- prefix = "[✓] "
+        elseif progress_state.completed_formatters[name] then
             prefix = "✓ "
-        elseif name == progress_item.current_formatter then
-            -- Mark current formatter with arrow
+        elseif name == progress_state.current_formatter then
             prefix = "→ "
         else
-            -- Show dot for pending formatters
             prefix = "• "
         end
 
         table.insert(current_line, prefix .. name)
 
-        -- Group into lines of 3
-        if #current_line == 3 or i == #progress_item.formatter_names then
+        if #current_line == FORMATTER_GROUP_SIZE or i == #progress_state.formatter_names then
             table.insert(msg_lines, table.concat(current_line, " "))
             current_line = {}
         end
@@ -47,17 +40,16 @@ local generate_formatter_message = function(progress_item)
 end
 
 local refresh = function(bufnr, token)
-    local progress_item = CONFORM_PROGRESS_STATE[bufnr]
-    if not token or not progress_item or progress_item.token ~= token then
+    local progress_state = CONFORM_PROGRESS_STATES[bufnr]
+    if not token or not progress_state or progress_state.token ~= token then
         return
     end
 
-    local msg = generate_formatter_message(progress_item)
+    local msg = generate_msg(progress_state)
 
-    -- Update notification
     vim.notify(msg, vim.log.levels.INFO, {
         id = token,
-        title = progress_item.title,
+        title = progress_state.title,
         replace = true,
         opts = function(notif)
             notif.icon = require("peter.core.utils").spinner:get_frame()
@@ -89,8 +81,7 @@ function M.start(bufnr)
 
     local title = "Formatting"
 
-    -- Store progress in global state
-    CONFORM_PROGRESS_STATE[bufnr] = {
+    CONFORM_PROGRESS_STATES[bufnr] = {
         token = token,
         title = title,
         formatter_names = formatter_names,
@@ -100,19 +91,18 @@ function M.start(bufnr)
         done = false,
     }
 
-    local msg = generate_formatter_message(CONFORM_PROGRESS_STATE[bufnr])
+    local msg = generate_msg(CONFORM_PROGRESS_STATES[bufnr])
 
-    -- Show initial progress notification
-    require("peter.core.utils").create_progress_notification({
+    vim.notify(msg, vim.log.levels.INFO, {
         id = token,
         title = title,
-        message = msg,
+        replace = true,
+        opts = function(notif)
+            notif.icon = require("peter.core.utils").spinner:get_frame()
+        end,
     })
 
-    -- Start highlighting the first formatter
-    if #formatter_names > 0 then
-        refresh(bufnr, token)
-    end
+    refresh(bufnr, token)
 
     return token
 end
@@ -122,46 +112,52 @@ function M.finish(bufnr, token, err)
         return
     end
 
-    local progress_item = CONFORM_PROGRESS_STATE[bufnr]
-    if not progress_item or progress_item.token ~= token then
+    local progress_state = CONFORM_PROGRESS_STATES[bufnr]
+    if not progress_state or progress_state.token ~= token then
         return
     end
 
-    progress_item.done = true
-    progress_item.title = err and "Failed" or "Formatted"
+    progress_state.done = true
+    progress_state.title = err and "Failed" or "Formatted"
 
-    -- local notif_level = err and vim.log.levels.ERROR or vim.log.levels.INFO
-    local notif_level = vim.log.levels.INFO
+    local notif_level = err and vim.log.levels.ERROR or vim.log.levels.INFO
+    local notif_icon = err and "" or ""
 
-    local msg = generate_formatter_message(progress_item)
+    local msg = generate_msg(progress_state)
 
-    require("peter.core.utils").finish_progress_notification({
+    vim.notify(msg, notif_level, {
         id = token,
-        title = progress_item.title,
-        message = msg,
-        level = notif_level,
+        title = progress_state.title,
+        replace = true,
+        opts = function(notif)
+            notif.icon = notif_icon
+        end,
     })
 
-    -- Clean up completed progress
-    CONFORM_PROGRESS_STATE[bufnr] = nil
+    CONFORM_PROGRESS_STATES[bufnr] = nil
 end
 
--- Set up autocmd to track formatter progress using conform's built-in events
-function M.setup_formatter_progress_tracking()
-    local augroup = vim.api.nvim_create_augroup("ConformProgressTracking", { clear = true })
+function M.setup()
+    local augroup = vim.api.nvim_create_augroup("ConformFormatProgress", { clear = true })
 
     vim.api.nvim_create_autocmd("User", {
         pattern = "ConformFormatPre",
         group = augroup,
         callback = function(args)
             local bufnr = args.buf
-            local progress_item = CONFORM_PROGRESS_STATE[bufnr]
+            local progress_state = CONFORM_PROGRESS_STATES[bufnr]
 
-            -- Set current formatter
-            if progress_item and not progress_item.done and args.data and args.data.formatter then
-                progress_item.current_formatter = args.data.formatter.name
-                refresh(bufnr, progress_item.token)
+            if not progress_state or progress_state.done then
+                return
             end
+
+            if not args.data or not args.data.formatter then
+                return
+            end
+
+            progress_state.current_formatter = args.data.formatter.name
+
+            refresh(bufnr, progress_state.token)
         end,
     })
 
@@ -170,20 +166,25 @@ function M.setup_formatter_progress_tracking()
         group = augroup,
         callback = function(args)
             local bufnr = args.buf
-            local progress_item = CONFORM_PROGRESS_STATE[bufnr]
+            local progress_state = CONFORM_PROGRESS_STATES[bufnr]
 
-            if progress_item and not progress_item.done and args.data and args.data.formatter then
-                local formatter_name = args.data.formatter.name
-
-                if args.data.err then
-                    -- Mark formatter as failed
-                    progress_item.failed_formatter = formatter_name
-                else
-                    -- Mark formatter as completed
-                    progress_item.completed_formatters[formatter_name] = true
-                end
-                refresh(bufnr, progress_item.token)
+            if not progress_state or progress_state.done then
+                return
             end
+
+            if not args.data or not args.data.formatter then
+                return
+            end
+
+            local formatter_name = args.data.formatter.name
+
+            if args.data.err then
+                progress_state.failed_formatter = formatter_name
+            else
+                progress_state.completed_formatters[formatter_name] = true
+            end
+
+            refresh(bufnr, progress_state.token)
         end,
     })
 end

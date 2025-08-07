@@ -126,8 +126,7 @@ return {
         end, {})
     end,
     config = function()
-        -- Set up progress tracking using conform's autocmd events
-        require("conform-progress").setup_formatter_progress_tracking()
+        require("conform-progress").setup()
 
         local conform = require("conform")
 

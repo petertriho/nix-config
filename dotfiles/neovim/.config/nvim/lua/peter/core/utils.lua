@@ -147,41 +147,4 @@ M.spinner = {
     end,
 }
 
-M.create_progress_notification = function(opts)
-    opts = opts or {}
-    local id = opts.id or "progress"
-    local title = opts.title or "Progress"
-    local message = opts.message or ""
-    local level = opts.level or vim.log.levels.INFO
-
-    vim.notify(message, level, {
-        id = id,
-        title = title,
-        opts = function(notif)
-            notif.icon = M.spinner:get_frame()
-        end,
-    })
-end
-
-M.finish_progress_notification = function(opts)
-    opts = opts or {}
-    local id = opts.id or "progress"
-    local title = opts.title or "Complete"
-    local message = opts.message or ""
-    local level = opts.level or vim.log.levels.INFO
-    local icon = opts.icon or ""
-    local error_icon = opts.error_icon or ""
-
-    local final_icon = (level == vim.log.levels.ERROR) and error_icon or icon
-
-    vim.notify(message, level, {
-        id = id,
-        title = title,
-        replace = true,
-        opts = function(notif)
-            notif.icon = final_icon
-        end,
-    })
-end
-
 return M
