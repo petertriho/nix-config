@@ -1,5 +1,13 @@
 local M = {}
 
+local on_list = function(options)
+    vim.fn.setqflist({}, " ", options)
+    if options.items and #options.items > 1 then
+        vim.cmd("botright copen")
+    end
+    vim.cmd.cfirst()
+end
+
 local LSP_METHODS = {
     ["textDocument/codeAction"] = {
         keymaps = {
@@ -27,7 +35,9 @@ local LSP_METHODS = {
                 "n",
                 "grd",
                 function()
-                    vim.lsp.buf.declaration()
+                    vim.lsp.buf.declaration({
+                        on_list = on_list,
+                    })
                 end,
                 { desc = "Declaration" },
             },
@@ -39,7 +49,9 @@ local LSP_METHODS = {
                 "n",
                 "gd",
                 function()
-                    vim.lsp.buf.definition()
+                    vim.lsp.buf.definition({
+                        on_list = on_list,
+                    })
                 end,
                 { desc = "Definition" },
             },
@@ -72,7 +84,9 @@ local LSP_METHODS = {
                 "n",
                 "gri",
                 function()
-                    vim.lsp.buf.implementation()
+                    vim.lsp.buf.implementation({
+                        on_list = on_list,
+                    })
                 end,
                 { desc = "Implementation" },
             },
@@ -96,7 +110,9 @@ local LSP_METHODS = {
                 "n",
                 "grr",
                 function()
-                    vim.lsp.buf.references()
+                    vim.lsp.buf.references({
+                        on_list = on_list,
+                    })
                 end,
                 { desc = "References" },
             },
@@ -120,7 +136,9 @@ local LSP_METHODS = {
                 "n",
                 "gy",
                 function()
-                    vim.lsp.buf.type_definition()
+                    vim.lsp.buf.type_definition({
+                        on_list = on_list,
+                    })
                 end,
                 { desc = "Type Definition" },
             },
