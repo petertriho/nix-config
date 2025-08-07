@@ -21,7 +21,7 @@ return {
                 "RainbowDelimiterViolet",
                 "RainbowDelimiterCyan",
             },
-            unmatched_group = "RainbowDelimiterRed",
+            unmatched_group = "SpellBad",
             matchparen = {
                 enabled = true,
                 cmdline = false,
