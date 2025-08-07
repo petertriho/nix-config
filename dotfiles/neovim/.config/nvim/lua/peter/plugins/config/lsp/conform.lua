@@ -33,7 +33,7 @@ end
 local format = function(opts)
     local bufnr = vim.api.nvim_get_current_buf()
     local conform_progress = require("conform-progress")
-    local token = conform_progress.create_format_progress(bufnr)
+    local token = conform_progress.start(bufnr)
 
     if not token then
         return
@@ -41,7 +41,7 @@ local format = function(opts)
 
     local format_opts = get_format_opts(opts)
     require("conform").format(format_opts, function(err)
-        conform_progress.finish_format_progress(bufnr, token)
+        conform_progress.finish(bufnr, token, err)
     end)
 end
 
@@ -77,7 +77,7 @@ return {
         vim.api.nvim_create_user_command("DiffFormat", function()
             local bufnr = vim.api.nvim_get_current_buf()
             local conform_progress = require("conform-progress")
-            local token = conform_progress.create_format_progress(bufnr)
+            local token = conform_progress.start(bufnr)
 
             if not token then
                 return
@@ -86,13 +86,13 @@ return {
             local hunks = require("gitsigns").get_hunks()
 
             if hunks == nil then
-                conform_progress.finish_format_progress(bufnr, token)
+                conform_progress.finish(bufnr, token, nil)
                 return
             end
 
             local function format_range()
                 if next(hunks) == nil then
-                    conform_progress.finish_format_progress(bufnr, token)
+                    conform_progress.finish(bufnr, token, nil)
                     return
                 end
                 local hunk = nil
@@ -109,7 +109,7 @@ return {
                     local format_opts = get_format_opts({ range = range })
                     require("conform").format(format_opts, function(err)
                         if err then
-                            conform_progress.finish_format_progress(bufnr, token)
+                            conform_progress.finish(bufnr, token, err)
                             return
                         end
 
@@ -118,7 +118,7 @@ return {
                         end, 1)
                     end)
                 else
-                    conform_progress.finish_format_progress(bufnr, token)
+                    conform_progress.finish(bufnr, token)
                 end
             end
 

@@ -177,6 +177,7 @@ M.finish_progress_notification = function(opts)
     vim.notify(message, level, {
         id = id,
         title = title,
+        replace = true,
         opts = function(notif)
             notif.icon = final_icon
         end,
