@@ -136,6 +136,7 @@ function tool:nix:fetchers {
     fi
 
     rm -rf result
+    rm -rf result-*
 
     popd
 }
