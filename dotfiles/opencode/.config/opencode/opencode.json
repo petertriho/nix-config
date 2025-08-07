@@ -39,6 +39,10 @@
     }
   },
   "lsp": {
+    "bashls": {
+      "command": ["bash-language-server", "start"],
+      "extensions": [".sh", ".bash"]
+    },
     "eslint": {
       "command": ["vscode-eslint-language-server", "--stdio"],
       "extensions": [".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte"]
