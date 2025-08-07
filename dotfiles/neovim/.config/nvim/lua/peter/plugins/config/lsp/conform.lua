@@ -41,7 +41,7 @@ local format_msg = function(msg)
 end
 
 -- Generate formatted message for formatter progress display
-local generate_formatter_message = function(formatter_names, completed_formatters, current_formatter, failed_formatter)
+local generate_formatter_message = function(formatter_names, current_formatter, completed_formatters, failed_formatter)
     local msg_lines = {}
     local current_line = {}
 
@@ -75,32 +75,20 @@ local generate_formatter_message = function(formatter_names, completed_formatter
     return table.concat(msg_lines, "\n")
 end
 
-local update_formatter_progress = function(bufnr, token, current_formatter)
+local update_formatter_progress = function(bufnr, token)
     local progress_item = vim.b[bufnr][FORMAT_PROGRESS_VAR]
     if not token or not progress_item or progress_item.token ~= token then
         return
     end
 
     local formatter_names = progress_item.formatter_names
-    local completed_formatters = progress_item.completed_formatters
 
-    -- Mark previous formatter as completed if we're moving to a new one
-    local current_index = nil
-    for i, name in ipairs(formatter_names) do
-        if name == current_formatter then
-            current_index = i
-            break
-        end
-    end
-
-    if current_index and current_index > 1 then
-        local prev_formatter = formatter_names[current_index - 1]
-        if not completed_formatters[prev_formatter] then
-            completed_formatters[prev_formatter] = true
-        end
-    end
-
-    local msg = generate_formatter_message(formatter_names, completed_formatters, current_formatter, nil)
+    local msg = generate_formatter_message(
+        formatter_names,
+        progress_item.current_formatter,
+        progress_item.completed_formatters,
+        nil
+    )
 
     -- Update notification
     vim.notify(msg, vim.log.levels.INFO, {
@@ -119,11 +107,14 @@ local create_format_progress = function(bufnr)
     local formatters, will_use_lsp = conform.list_formatters_to_run(bufnr)
 
     local formatter_names = {}
+    local completed_formatters = {}
     if not vim.tbl_isempty(formatters) then
         formatter_names = vim.tbl_map(function(f)
+            completed_formatters[f.name] = false
             return f.name
         end, formatters)
     elseif will_use_lsp then
+        completed_formatters["lsp"] = false
         formatter_names = { "lsp" }
     else
         vim.notify(format_msg("No lsp/formatters configured"), vim.log.levels.WARN)
@@ -134,7 +125,7 @@ local create_format_progress = function(bufnr)
 
     local title = "Formatting"
 
-    local msg = generate_formatter_message(formatter_names, {}, nil, nil)
+    local msg = generate_formatter_message(formatter_names, nil, completed_formatters, nil)
 
     -- Store progress in buffer-local variable
     vim.b[bufnr][FORMAT_PROGRESS_VAR] = {
@@ -142,8 +133,9 @@ local create_format_progress = function(bufnr)
         title = title,
         msg = msg,
         formatter_names = formatter_names,
-        current_formatter_index = 1,
-        completed_formatters = {},
+        current_formatter = nil,
+        failed_formatter = nil,
+        completed_formatters = completed_formatters,
         done = false,
     }
 
@@ -156,35 +148,33 @@ local create_format_progress = function(bufnr)
 
     -- Start highlighting the first formatter
     if #formatter_names > 0 then
-        update_formatter_progress(bufnr, token, formatter_names[1])
+        update_formatter_progress(bufnr, token)
     end
 
     return token
 end
 
-local finish_format_progress = function(bufnr, token, err, failed_formatter)
+local finish_format_progress = function(bufnr, token, err)
+    if not token then
+        return
+    end
+
     local progress_item = vim.b[bufnr][FORMAT_PROGRESS_VAR]
-    if not token or not progress_item or progress_item.token ~= token then
+    if not progress_item or progress_item.token ~= token then
         return
     end
 
     progress_item.done = true
-
     progress_item.title = err and "Failed" or "Formatted"
-    local notif_level = err and vim.log.levels.ERROR or vim.log.levels.INFO
+    vim.b[bufnr][FORMAT_PROGRESS_VAR] = progress_item
 
-    -- If formatting succeeded, mark all formatters as completed
-    if not err then
-        for _, name in ipairs(progress_item.formatter_names) do
-            progress_item.completed_formatters[name] = true
-        end
-    end
+    local notif_level = err and vim.log.levels.ERROR or vim.log.levels.INFO
 
     local msg = generate_formatter_message(
         progress_item.formatter_names,
-        progress_item.completed_formatters,
         nil,
-        failed_formatter
+        progress_item.completed_formatters,
+        progress_item.failed_formatter
     )
 
     require("peter.core.utils").finish_progress_notification({
@@ -209,9 +199,11 @@ local setup_formatter_progress_tracking = function()
             local bufnr = args.buf
             local progress_item = vim.b[bufnr][FORMAT_PROGRESS_VAR]
 
-            -- Update progress to show current formatter
+            -- Set current formatter
             if progress_item and not progress_item.done and args.data and args.data.formatter then
-                update_formatter_progress(bufnr, progress_item.token, args.data.formatter.name)
+                progress_item.current_formatter = args.data.formatter.name
+                vim.b[bufnr][FORMAT_PROGRESS_VAR] = progress_item
+                update_formatter_progress(bufnr, progress_item.token)
             end
         end,
     })
@@ -223,14 +215,18 @@ local setup_formatter_progress_tracking = function()
             local bufnr = args.buf
             local progress_item = vim.b[bufnr][FORMAT_PROGRESS_VAR]
 
-            -- Check if this formatter failed and store the failure
-            if progress_item and not progress_item.done and args.data then
+            if progress_item and not progress_item.done and args.data and args.data.formatter then
+                local formatter_name = args.data.formatter.name
+
                 if args.data.err then
-                    -- Store the failed formatter name
-                    if args.data.formatter then
-                        progress_item.failed_formatter = args.data.formatter.name
-                    end
+                    -- Mark formatter as failed
+                    progress_item.failed_formatter = formatter_name
+                else
+                    -- Mark formatter as completed
+                    progress_item.completed_formatters[formatter_name] = true
                 end
+                vim.b[bufnr][FORMAT_PROGRESS_VAR] = progress_item
+                update_formatter_progress(bufnr, progress_item.token)
             end
         end,
     })
@@ -246,14 +242,7 @@ local format = function(opts)
 
     local format_opts = get_format_opts(opts)
     require("conform").format(format_opts, function(err)
-        local progress_item = vim.b[bufnr][FORMAT_PROGRESS_VAR]
-        local failed_formatter = progress_item and progress_item.failed_formatter
-
-        if err then
-            finish_format_progress(bufnr, token, format_msg(err), failed_formatter)
-        else
-            finish_format_progress(bufnr, token, nil, nil)
-        end
+        finish_format_progress(bufnr, token, err)
     end)
 end
 
@@ -292,13 +281,13 @@ return {
             local hunks = require("gitsigns").get_hunks()
 
             if hunks == nil then
-                finish_format_progress(bufnr, token, nil, nil)
+                finish_format_progress(bufnr, token, nil)
                 return
             end
 
             local function format_range()
                 if next(hunks) == nil then
-                    finish_format_progress(bufnr, token, nil, nil)
+                    finish_format_progress(bufnr, token, nil)
                     return
                 end
                 local hunk = nil
@@ -315,9 +304,7 @@ return {
                     local format_opts = get_format_opts({ range = range })
                     require("conform").format(format_opts, function(err)
                         if err then
-                            local progress_item = vim.b[bufnr][FORMAT_PROGRESS_VAR]
-                            local failed_formatter = progress_item and progress_item.failed_formatter
-                            finish_format_progress(bufnr, token, format_msg(err), failed_formatter)
+                            finish_format_progress(bufnr, token, format_msg(err))
                             return
                         end
 
@@ -326,7 +313,7 @@ return {
                         end, 1)
                     end)
                 else
-                    finish_format_progress(bufnr, token, nil, nil)
+                    finish_format_progress(bufnr, token, nil)
                 end
             end
 
