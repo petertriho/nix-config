@@ -6,9 +6,15 @@ return {
 
         local function run_linters(filter)
             return function(bufnr)
+                local filetype = vim.bo[bufnr].filetype
+
+                if utils.is_ft("excludes", filetype) then
+                    return
+                end
+
                 local lint = require("lint")
                 -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/plugins/linting.lua
-                local linters = lint._resolve_linter_by_ft(vim.bo.filetype)
+                local linters = lint._resolve_linter_by_ft(filetype)
 
                 linters = vim.list_extend({}, linters)
 
@@ -16,6 +22,10 @@ return {
                     vim.list_extend(linters, lint.linters_by_ft["_"] or {})
                 end
                 vim.list_extend(linters, lint.linters_by_ft["*"] or {})
+
+                if #linters == 0 then
+                    return
+                end
 
                 local ctx = { filename = vim.api.nvim_buf_get_name(bufnr) }
                 ctx.dirname = vim.fn.fnamemodify(ctx.filename, ":h")
