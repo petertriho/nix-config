@@ -1,5 +1,8 @@
 return {
     "zbirenbaum/copilot.lua",
+    enabled = function()
+        return vim.g.copilot_model ~= nil
+    end,
     cmd = "Copilot",
     event = "InsertEnter",
     opts = {

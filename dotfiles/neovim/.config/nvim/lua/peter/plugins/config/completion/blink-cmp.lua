@@ -85,6 +85,9 @@ return {
             ["<C-e>"] = {
                 "hide",
                 function()
+                    if vim.g.copilot_model == nil then
+                        return
+                    end
                     require("copilot.suggestion").accept()
                 end,
             },
