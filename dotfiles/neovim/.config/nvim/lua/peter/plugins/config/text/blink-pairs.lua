@@ -1,6 +1,7 @@
 return {
     "saghen/blink.pairs",
     build = "nix run .#build-plugin",
+    event = "User LazyLoadFile",
     opts = {
         mappings = {
             enabled = true,

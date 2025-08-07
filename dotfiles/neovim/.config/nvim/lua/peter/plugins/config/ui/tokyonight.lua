@@ -34,7 +34,7 @@ return {
                     bg = colors.bg_visual,
                 }
             end,
-            plugins = { markdown = true },
+            plugins = { markdown = true, rainbow = true },
         })
 
         vim.cmd.colorscheme("tokyonight")
