@@ -14,9 +14,9 @@
 let
   opencode-node-modules-hash = {
     "aarch64-darwin" = "sha256-4m7rvptGFLTtBNrN7b/r8raYXl5jMX+GCzu+0rPbx/s=";
-    "aarch64-linux" = "sha256-4xAPOR4xgqpT95vlfX1q2YA7iZZg3axAigxp32vlm48=";
+    "aarch64-linux" = "sha256-6SQnuiNxnpzZxC7HaYBREFcQee+icrmj34uGB50H+Ck=";
     "x86_64-darwin" = "sha256-4m7rvptGFLTtBNrN7b/r8raYXl5jMX+GCzu+0rPbx/s=";
-    "x86_64-linux" = "sha256-4xAPOR4xgqpT95vlfX1q2YA7iZZg3axAigxp32vlm48=";
+    "x86_64-linux" = "sha256-6SQnuiNxnpzZxC7HaYBREFcQee+icrmj34uGB50H+Ck=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -27,12 +27,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "unstable-2025-08-05";
+  version = "unstable-2025-08-07";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "a48274f82b95eb5a2f68d94a1cfa8518cf80c2a7";
-    sha256 = "0aki54sji46z63h8gl0qacyv89mndvf58s3b9hkjnnn4zgwig8vg";
+    rev = "15e830410fd59d72dd04a6f90e3a829cfb598020";
+    sha256 = "1wa6szmz01qh6anrnfn03mxppkc21g3pvzskhd4knmb151qilfp4";
   };
 
   tui = buildGoModule {
@@ -41,7 +41,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     src = finalAttrs.src;
     sourceRoot = "source/packages/tui";
 
-    vendorHash = "sha256-qsOL6gsZwEm7YcYO/zoyJAnVmciCjPYqPavV77psybU=";
+    vendorHash = "sha256-uHb7fAiZ8XNGq9YZ6drNYU1SoKrWMgXpTfudOMvmcHU";
 
     subPackages = [ "cmd/opencode" ];
 

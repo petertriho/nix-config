@@ -10,20 +10,20 @@
 let
   node-modules-hash = {
     "aarch64-darwin" = "sha256-Ver9Sf+UgNRen6bU3chWB+L/p3yBghqFSYnJV08zIN0=";
-    "aarch64-linux" = "sha256-selQSWv5smxxbMluTEvWBYFxFkfK2z6qDPq8iN+DXjs=";
+    "aarch64-linux" = "sha256-qU9/cLsMkhbZj8Xp4NZUr89FVDoB3HnpI5THyvIvG+M=";
     "x86_64-darwin" = "sha256-Ver9Sf+UgNRen6bU3chWB+L/p3yBghqFSYnJV08zIN0=";
-    "x86_64-linux" = "sha256-selQSWv5smxxbMluTEvWBYFxFkfK2z6qDPq8iN+DXjs=";
+    "x86_64-linux" = "sha256-qU9/cLsMkhbZj8Xp4NZUr89FVDoB3HnpI5THyvIvG+M=";
   };
   # Fixed-output derivation for node_modules
   bunDeps = stdenv.mkDerivation {
     pname = "ccusage-bun-deps";
-    version = "unstable-2025-08-06";
+    version = "unstable-2025-08-07";
 
     src = fetchFromGitHub {
       owner = "ryoppippi";
       repo = "ccusage";
-      rev = "fa28d02c799c659d209bc2122980aac38a0065c9";
-      sha256 = "0l8qpr7mbkvxdv8r4rcmldbqdlv1g21whqgd512096ljfgasl4r7";
+      rev = "8dc3a320c096b2bcbf6c3ffe876a6cfcff0e5135";
+      sha256 = "1z13aa8wx5nfhsyzq6z7fy1rd23l473p531s6m32afs3ffpkyvbn";
     };
 
     nativeBuildInputs = [
@@ -60,13 +60,13 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "ccusage";
-  version = "unstable-2025-08-06";
+  version = "unstable-2025-08-07";
 
   src = fetchFromGitHub {
     owner = "ryoppippi";
     repo = "ccusage";
-    rev = "fa28d02c799c659d209bc2122980aac38a0065c9";
-    sha256 = "0l8qpr7mbkvxdv8r4rcmldbqdlv1g21whqgd512096ljfgasl4r7";
+    rev = "8dc3a320c096b2bcbf6c3ffe876a6cfcff0e5135";
+    sha256 = "1z13aa8wx5nfhsyzq6z7fy1rd23l473p531s6m32afs3ffpkyvbn";
   };
 
   nativeBuildInputs = [
