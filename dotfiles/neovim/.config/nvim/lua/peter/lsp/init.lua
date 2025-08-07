@@ -128,34 +128,6 @@ local LSP_METHODS = {
     },
 }
 
-local function create_buf_keymap(bufnr)
-    local function buf_keymap(mode, lhs, rhs, opts)
-        opts = opts or {}
-        opts.buffer = bufnr
-        vim.keymap.set(mode, lhs, rhs, opts)
-    end
-    return buf_keymap
-end
-
-local function lsp_setup_method(client, bufnr, method)
-    local config = LSP_METHODS[method]
-
-    if not config then
-        return
-    end
-
-    if config.keymaps then
-        local buf_keymap = create_buf_keymap(bufnr)
-        for _, keymap in ipairs(config.keymaps) do
-            buf_keymap(unpack(keymap))
-        end
-    end
-
-    if config.callback then
-        config.callback(client, bufnr)
-    end
-end
-
 local function lsp_setup_progress()
     ---@type table<number, {token:lsp.ProgressToken, msg:string, done:boolean}[]>
     local progress = vim.defaulttable()
@@ -199,6 +171,52 @@ local function lsp_setup_progress()
             })
         end,
     })
+end
+
+local function create_buf_keymap(bufnr)
+    local function buf_keymap(mode, lhs, rhs, opts)
+        opts = opts or {}
+        opts.buffer = bufnr
+        vim.keymap.set(mode, lhs, rhs, opts)
+    end
+    return buf_keymap
+end
+
+local function lsp_setup_method(client, bufnr, method)
+    local config = LSP_METHODS[method]
+
+    if not config then
+        return
+    end
+
+    if config.keymaps then
+        local buf_keymap = create_buf_keymap(bufnr)
+        for _, keymap in ipairs(config.keymaps) do
+            buf_keymap(unpack(keymap))
+        end
+    end
+
+    if config.callback then
+        config.callback(client, bufnr)
+    end
+end
+
+local function lsp_setup_handlers()
+    local register_capability_handler = vim.lsp.handlers["client/registerCapability"]
+    vim.lsp.handlers["client/registerCapability"] = function(err, result, ctx)
+        local client = vim.lsp.get_client_by_id(ctx.client_id)
+        if client then
+            for _, registration in pairs(result.registrations) do
+                local method = registration.method
+                if LSP_METHODS[method] then
+                    for buffer in pairs(client.attached_buffers) do
+                        lsp_setup_method(client, buffer, method)
+                    end
+                end
+            end
+        end
+        return register_capability_handler(err, result, ctx)
+    end
 end
 
 local function lsp_attach_callback(args)
@@ -311,27 +329,12 @@ M.setup = function()
         },
     })
 
-    local register_capability_handler = vim.lsp.handlers["client/registerCapability"]
-    vim.lsp.handlers["client/registerCapability"] = function(err, result, ctx)
-        local client = vim.lsp.get_client_by_id(ctx.client_id)
-        if client then
-            for _, registration in pairs(result.registrations) do
-                local method = registration.method
-                if LSP_METHODS[method] then
-                    for buffer in pairs(client.attached_buffers) do
-                        lsp_setup_method(client, buffer, method)
-                    end
-                end
-            end
-        end
-        return register_capability_handler(err, result, ctx)
-    end
+    lsp_setup_handlers()
+    lsp_setup_progress()
 
     vim.api.nvim_create_autocmd("LspAttach", {
         callback = lsp_attach_callback,
     })
-
-    lsp_setup_progress()
 
     local base_config = make_base_config()
     vim.lsp.config("*", base_config)
