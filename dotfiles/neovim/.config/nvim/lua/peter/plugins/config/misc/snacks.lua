@@ -69,6 +69,13 @@ return {
                     left = 1,
                     right = 1,
                 },
+                icons = {
+                    error = " ",
+                    warn = " ",
+                    info = " ",
+                    debug = " ",
+                    trace = " ",
+                },
                 style = "compact",
             },
             styles = {

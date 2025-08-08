@@ -5,7 +5,7 @@ return {
     provider = function()
         local bufnr = vim.api.nvim_get_current_buf()
         local client_count = #vim.lsp.get_clients({ bufnr = bufnr })
-        return " " .. client_count
+        return "󰒓 " .. client_count
     end,
     update = { "LspAttach", "LspDetach" },
 }
