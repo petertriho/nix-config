@@ -8,15 +8,15 @@
   vscode-extensions,
 }:
 buildNpmPackage {
-  pname = "zed-industries";
-  version = "unstable-2024-05-08";
+  pname = "vscode-langservers-extracted";
+  version = "unstable-2025-04-26";
 
   srcs = [
     (fetchFromGitHub {
-      owner = "hrsh7th";
+      owner = "zed-industries";
       repo = "vscode-langservers-extracted";
-      rev = "0a7a86dd080ec1adfb61732c17ba59492719c001";
-      sha256 = "0s8ibbnn9dpppqs9jb7hkamfvxvy8gz66jn15mjigqrnjqfpwvyy";
+      rev = "b644508b87b89e439627efe81a6967dc4c1d7e80";
+      sha256 = "0sdi9s1inbh8wp7bmkxh0w2h0ax6gqfr2bx18z3sixd6gz05nbw3";
     })
     vscodium.src
   ];

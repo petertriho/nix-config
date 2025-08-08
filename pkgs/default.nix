@@ -15,7 +15,7 @@ rec {
   sort-package-json = callPackage ./sort-package-json { };
   ty = callPackage ./ty { };
   vim-custom = callPackage ./vim-custom { };
-  vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
+  # vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
   yamlfix = callPackage ./yamlfix {
     inherit (pkgs.python3Packages)
       buildPythonPackage
