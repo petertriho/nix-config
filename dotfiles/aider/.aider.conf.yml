@@ -1,0 +1,5 @@
+model: github_copilot/gpt-4.1
+# weak-model: github_copilot/gpt-4.1
+gitignore: false
+max-chat-history-tokens: 8000
+show-model-warnings: false
