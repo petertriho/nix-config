@@ -3,41 +3,6 @@
   "theme": "system",
   "autoshare": false,
   "autoupdate": false,
-  "mode": {
-    "docs": {
-      "temperature": 0.2,
-      "tools": {
-        "read": true,
-        "write": true,
-        "bash": false,
-        "glob": true,
-        "grep": true,
-        "edit": true
-      }
-    },
-    "review": {
-      "temperature": 0.1,
-      "tools": {
-        "read": true,
-        "write": false,
-        "bash": false,
-        "glob": true,
-        "grep": true,
-        "edit": false
-      }
-    },
-    "debug": {
-      "temperature": 0.1,
-      "tools": {
-        "read": true,
-        "bash": true,
-        "write": false,
-        "glob": true,
-        "grep": true,
-        "edit": false
-      }
-    }
-  },
   "lsp": {
     "bashls": {
       "command": ["bash-language-server", "start"],
