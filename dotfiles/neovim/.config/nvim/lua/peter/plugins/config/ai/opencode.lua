@@ -14,12 +14,13 @@ return {
         { "<leader>od", "<CMD>OpencodeDiff<CR>", desc = "diff open" },
         { "<leader>o]", "<CMD>OpencodeDiffNext<CR>", desc = "diff next" },
         { "<leader>o[", "<CMD>OpencodeDiffPrev<CR>", desc = "diff prev" },
-        { "<leader>oc", "<CMD>OpencodeDiffClose<CR>", desc = "diff close" },
+        { "<leader>oC", "<CMD>OpencodeDiffClose<CR>", desc = "diff close" },
         { "<leader>ora", "<CMD>OpencodeRevertAll<CR>", desc = "revert all" },
         { "<leader>ort", "<CMD>OpencodeRevertThis<CR>", desc = "revert this" },
         { "<leader>oC", "<CMD>OpencodeConfigFile<CR>", desc = "config file" },
     },
-    config = function()
-        require("opencode").setup({})
-    end,
+    opts = {
+        prefered_picker = "snacks",
+        default_global_keymaps = false,
+    },
 }

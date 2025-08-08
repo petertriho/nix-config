@@ -21,8 +21,8 @@ return {
     keys = {
         { "<leader>oc", "<CMD>OpencodeSend<CR>", desc = "Send prompt to opencode" },
         { "<leader>oc", "<CMD>OpencodeSend<CR>", mode = "v", desc = "Send prompt to opencode" },
-        { "<leader>ot", "<CMD>OpencodeSwitchMode<CR>", desc = "Toggle opencode mode" },
-        { "<leader>op", "<CMD>OpencodePrompt<CR>", desc = "Open opencode persistent prompt" },
+        { "<leader>oT", "<CMD>OpencodeSwitchMode<CR>", desc = "Toggle opencode mode" },
+        { "<leader>oP", "<CMD>OpencodePrompt<CR>", desc = "Open opencode persistent prompt" },
     },
     cmd = { "OpencodeSend", "OpencodeSwitchMode", "OpencodePrompt" },
 }
