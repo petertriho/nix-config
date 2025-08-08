@@ -23,7 +23,7 @@ buildNpmPackage {
 
   sourceRoot = "source";
 
-  npmDepsHash = "sha256-XGlFtmikUrnnWXsAYzTqw2K7Y2O0bUtYug0xXFIASBQ=";
+  npmDepsHash = "sha256-/Af71mB/kD7zsZtyQfuOoPRSqnV+p6cY2BYlMB4VuUM=";
 
   nativeBuildInputs = [ unzip ];
 
