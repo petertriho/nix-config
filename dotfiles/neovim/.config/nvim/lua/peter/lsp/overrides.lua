@@ -63,6 +63,11 @@ return {
         init_options = {
             provideFormatter = false,
         },
+        settings = {
+            html = {
+                tagAutoclosing = true,
+            },
+        },
     },
     jdtls = {},
     jsonls = {
