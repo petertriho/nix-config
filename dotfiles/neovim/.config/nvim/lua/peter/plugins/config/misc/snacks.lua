@@ -374,14 +374,14 @@ return {
         {
             "<leader>d",
             function()
-                require("snacks").bufdelete.delete({ wipe = true })
+                require("snacks").bufdelete.delete()
             end,
             desc = "Delete Buffer",
         },
         {
             "<leader>D",
             function()
-                require("snacks").bufdelete.all({ wipe = true })
+                require("snacks").bufdelete.all()
             end,
             desc = "All Buffers",
         },
@@ -389,7 +389,6 @@ return {
             "<leader>,",
             function()
                 require("snacks").bufdelete.delete({
-                    wipe = true,
                     filter = function(buf)
                         return vim.fn.bufwinnr(buf) == -1
                     end,
@@ -400,7 +399,7 @@ return {
         {
             "<leader>.",
             function()
-                require("snacks").bufdelete.other({ wipe = true })
+                require("snacks").bufdelete.other()
             end,
             desc = "Other Buffers",
         },
