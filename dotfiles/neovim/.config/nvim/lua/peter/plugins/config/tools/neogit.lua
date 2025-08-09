@@ -9,7 +9,7 @@ return {
     init = function()
         vim.api.nvim_create_user_command("ToggleNeogit", function()
             local current_ft = vim.bo.filetype
-            if current_ft == "NeogitStatus" or current_ft == "NeogitCommitMessage" or current_ft == "Neogit" then
+            if current_ft == "NeogitStatus" then
                 vim.cmd("tabprevious")
             else
                 vim.cmd("Neogit")
