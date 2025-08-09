@@ -7,6 +7,7 @@
   home = {
     packages = with pkgs; [
       git
+      git-lfs
       git-machete
       # dependencies
       delta
