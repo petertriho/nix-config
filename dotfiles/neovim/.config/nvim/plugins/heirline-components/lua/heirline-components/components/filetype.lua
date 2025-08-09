@@ -6,9 +6,9 @@ return {
         self.filetype = vim.bo[self.bufnr].filetype:upper()
 
         if self.filetype == "YAML" then
-            local schema = require("yaml-companion").get_buf_schema(0)
-            if schema and schema.result[1].name ~= "none" then
-                self.filetype = string.format("%s (%s)", self.filetype, schema.result[1].name)
+            local schema = require("schema-companion.context").get_buffer_schema()
+            if schema and schema.name ~= "none" then
+                self.filetype = string.format("%s (%s)", self.filetype, schema.name)
             end
         end
 

@@ -192,5 +192,5 @@ return {
             vim.keymap.set("n", "gro", "<CMD>VtslsOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
         end,
     }),
-    yamlls = require("yaml-companion").setup({ lspconfig = {} }),
+    yamlls = require("schema-companion").setup_client(),
 }
