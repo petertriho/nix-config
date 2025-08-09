@@ -245,7 +245,7 @@ local BufferLine = utils.make_buflist(
     false
 )
 
-local Tabpage = {
+local TabPage = {
     provider = function(self)
         return "%" .. self.tabnr .. "T " .. self.tabpage .. " %T"
     end,
@@ -258,7 +258,7 @@ local Tabpage = {
     end,
 }
 
-local TabpageClose = {
+local TabPageClose = {
     provider = "%999X 󰅖 %X",
     hl = "TabLine",
 }
@@ -268,8 +268,8 @@ local TabPages = {
         return #vim.api.nvim_list_tabpages() >= 2
     end,
     { provider = "%=" },
-    utils.make_tablist(Tabpage),
-    TabpageClose,
+    utils.make_tablist(TabPage),
+    TabPageClose,
 }
 
 local TabLineOffset = {
