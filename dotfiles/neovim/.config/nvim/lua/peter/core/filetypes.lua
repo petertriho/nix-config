@@ -55,7 +55,6 @@ local M = {
         "cmp_docs",
         "cmp_menu",
         "fugitiveblame",
-        "gitcommit",
         "help",
         "lspinfo",
         "notify",
