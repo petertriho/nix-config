@@ -1,8 +1,21 @@
-local CONFORM_PROGRESS_STATES = {}
+---@alias ProgressState {
+---  token: string,
+---  title: string,
+---  formatter_names: string[],
+---  completed_formatters: table<string, boolean>,
+---  current_formatter: string?,
+---  failed_formatter: string?,
+---  done: boolean,
+---}
+
+---@type table<integer, ProgressState>
+local CONFORM_PROGRESS_STATES = vim.defaulttable()
 local FORMATTER_GROUP_SIZE = 3
 
 local M = {}
 
+---@param msg string|table
+---@return string
 local format_msg = function(msg)
     if type(msg) == "table" then
         msg = vim.inspect(msg)
@@ -10,6 +23,8 @@ local format_msg = function(msg)
     return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
 end
 
+---@param progress_state ProgressState
+---@return string
 local generate_msg = function(progress_state)
     local msg_lines = {}
     local current_line = {}
@@ -39,6 +54,8 @@ local generate_msg = function(progress_state)
     return table.concat(msg_lines, "\n")
 end
 
+---@param bufnr integer
+---@param token string?
 local refresh = function(bufnr, token)
     local progress_state = CONFORM_PROGRESS_STATES[bufnr]
     if not token or not progress_state or progress_state.token ~= token then
@@ -57,6 +74,8 @@ local refresh = function(bufnr, token)
     })
 end
 
+---@param bufnr integer?
+---@return string?
 function M.start(bufnr)
     bufnr = bufnr or vim.api.nvim_get_current_buf()
     local conform = require("conform")
@@ -107,6 +126,9 @@ function M.start(bufnr)
     return token
 end
 
+---@param bufnr integer
+---@param token string?
+---@param err string?
 function M.finish(bufnr, token, err)
     if not token then
         return
