@@ -4,25 +4,28 @@ return {
         "Neogit",
     },
     keys = {
-        { "<leader>J", "<CMD>ToggleNeogitStatus<CR>", desc = "Neogit Status" },
+        { "<leader>j", "<CMD>ToggleNeogit<CR>", desc = "Neogit Status" },
     },
     init = function()
-        vim.api.nvim_create_user_command(
-            "ToggleNeogitStatus",
-            require("peter.core.utils").toggle_buffer("NeogitStatus", "Neogit"),
-            {}
-        )
+        vim.api.nvim_create_user_command("ToggleNeogit", function()
+            local current_ft = vim.bo.filetype
+            if current_ft == "NeogitStatus" or current_ft == "NeogitCommitMessage" or current_ft == "Neogit" then
+                vim.cmd("tabprevious")
+            else
+                vim.cmd("Neogit")
+            end
+        end, { desc = "Neogit Status" })
     end,
     opts = {
-        kind = "split_below_all",
+        kind = "tab",
         commit_editor = {
-            kind = "split_below_all",
+            kind = "auto",
         },
         log_view = {
-            kind = "split_below_all",
+            kind = "auto",
         },
         reflog_view = {
-            kind = "split_below_all",
+            kind = "auto",
         },
     },
 }
