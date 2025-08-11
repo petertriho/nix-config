@@ -81,7 +81,17 @@
 
       homeConfigurations = {
         droid = home-manager.lib.homeManagerConfiguration {
-          pkgs = nixpkgs.legacyPackages.aarch64-linux;
+          pkgs = import nixpkgs {
+            system = "aarch64-linux";
+            overlays = with outputs.overlays; [
+              additions
+              modifications
+              stable
+            ];
+            config = {
+              allowUnfree = true;
+            };
+          };
           extraSpecialArgs = {
             inherit
               inputs

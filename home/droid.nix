@@ -7,6 +7,10 @@
   ...
 }:
 {
+  import = [
+    outputs.homeManagerModules.helpers
+  ];
+
   home = {
     username = user;
     homeDirectory = homePath;
