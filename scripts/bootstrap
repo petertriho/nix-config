@@ -14,24 +14,24 @@ ARCH=""
 OS=""
 
 # Logging functions
-log_info() {
+function log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-log_success() {
+function log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-log_warn() {
+function log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
-log_error() {
+function log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
 # Detect system architecture and OS
-detect_system() {
+function detect_system() {
     ARCH=$(uname -m)
     case "$ARCH" in
         x86_64) ARCH="x86_64" ;;
@@ -62,12 +62,12 @@ detect_system() {
 }
 
 # Check if command exists
-command_exists() {
+function command_exists() {
     command -v "$1" > /dev/null 2>&1
 }
 
 # Install git on Debian/Ubuntu systems
-install_git() {
+function install_git() {
     if command_exists git; then
         log_info "Git is already installed"
         return 0
@@ -82,7 +82,7 @@ install_git() {
 }
 
 # Install Nix using Determinate Systems installer
-install_nix() {
+function install_nix() {
     if command_exists nix; then
         log_info "Nix is already installed"
         return 0
@@ -100,7 +100,7 @@ install_nix() {
 }
 
 # Clone the nix-config repository
-clone_config() {
+function clone_config() {
     local config_dir="$HOME/.nix-config"
 
     if [ -d "$config_dir" ]; then
@@ -119,7 +119,7 @@ clone_config() {
 }
 
 # Setup for Ubuntu/Debian systems
-setup_linux_home_manager() {
+function setup_linux_home_manager() {
     local distro="$1"
     log_info "Setting up $distro system..."
 
@@ -131,7 +131,7 @@ setup_linux_home_manager() {
 }
 
 # Setup for macOS systems
-setup_darwin() {
+function setup_darwin() {
     log_info "Setting up macOS system..."
 
     # Apply nix-darwin configuration
@@ -142,7 +142,7 @@ setup_darwin() {
 }
 
 # Setup for NixOS systems
-setup_nixos() {
+function setup_nixos() {
     log_info "Setting up NixOS system..."
 
     # Apply NixOS configuration
@@ -153,7 +153,7 @@ setup_nixos() {
 }
 
 # Setup GitHub authentication and SSH remote
-setup_github() {
+function setup_github() {
     if command_exists gh; then
         log_info "Setting up GitHub authentication..."
         if ! gh auth status > /dev/null 2>&1; then
@@ -173,21 +173,16 @@ setup_github() {
     fi
 }
 
-# Main function
-main() {
+function main() {
     log_info "Starting Nix configuration bootstrap..."
 
-    # Detect system
     detect_system
     log_info "Detected system: ${ARCH}-${OS}"
 
-    # Install git if on Debian/Ubuntu and not present
     install_git
 
-    # Install Nix if not present
     install_nix
 
-    # Clone configuration
     clone_config
 
     # Setup based on OS
@@ -210,12 +205,10 @@ main() {
             ;;
     esac
 
-    # Setup GitHub
     setup_github
 
     log_success "Bootstrap completed successfully!"
     log_info "You may need to restart your shell or source your profile to use the new configuration."
 }
 
-# Run main function
 main "$@"
