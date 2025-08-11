@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Detect system architecture and OS
+detect_system() {
+    local arch
+    local os
+
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64) arch="x86_64" ;;
+        aarch64 | arm64) arch="aarch64" ;;
+        *)
+            log_error "Unsupported architecture: $arch"
+            exit 1
+            ;;
+    esac
+
+    if [[ $OSTYPE == "linux-gnu"* ]]; then
+        if grep -q "Ubuntu" /etc/os-release 2> /dev/null; then
+            os="ubuntu"
+        elif grep -q "Debian" /etc/os-release 2> /dev/null; then
+            os="debian"
+        elif grep -q "NixOS" /etc/os-release 2> /dev/null; then
+            os="nixos"
+        else
+            log_error "Unsupported Linux distribution. Only Ubuntu, Debian, and NixOS are supported."
+            exit 1
+        fi
+    elif [[ $OSTYPE == "darwin"* ]]; then
+        os="macos"
+    else
+        log_error "Unsupported operating system: $OSTYPE"
+        exit 1
+    fi
+
+    echo "${arch}-${os}"
+}
+
+# Check if command exists
+command_exists() {
+    command -v "$1" > /dev/null 2>&1
+}
+
+# Install Nix using Determinate Systems installer
+install_nix() {
+    if command_exists nix; then
+        log_info "Nix is already installed"
+        return 0
+    fi
+
+    log_info "Installing Nix using Determinate Systems installer..."
+    curl -fsSL https://install.determinate.systems/nix | sh -s -- install
+
+    # Source nix profile
+    if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
+        . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+    fi
+
+    log_success "Nix installed successfully"
+}
+
+# Clone the nix-config repository
+clone_config() {
+    local config_dir="$HOME/.nix-config"
+
+    if [ -d "$config_dir" ]; then
+        log_info "Configuration directory already exists at $config_dir"
+        cd "$config_dir"
+        if command_exists git && [ -d ".git" ]; then
+            log_info "Updating existing repository..."
+            git pull origin main || log_warn "Failed to update repository"
+        fi
+    else
+        log_info "Cloning nix-config repository..."
+        git clone https://github.com/petertriho/nix-config.git "$config_dir"
+        cd "$config_dir"
+        log_success "Repository cloned successfully"
+    fi
+}
+
+# Setup for Ubuntu/Debian systems
+setup_linux_home_manager() {
+    local distro="$1"
+    log_info "Setting up $distro system..."
+
+    # Install home-manager and apply configuration
+    log_info "Installing home-manager configuration..."
+    nix run home-manager/master -- switch --flake ~/.nix-config
+
+    log_success "$distro setup completed"
+}
+
+# Setup for macOS systems
+setup_macos() {
+    log_info "Setting up macOS system..."
+
+    # Apply nix-darwin configuration
+    log_info "Applying nix-darwin configuration..."
+    sudo nix run nix-darwin/master#darwin-rebuild switch --flake ~/.nix-config
+
+    log_success "macOS setup completed"
+}
+
+# Setup for NixOS systems
+setup_nixos() {
+    log_info "Setting up NixOS system..."
+
+    # Apply NixOS configuration
+    log_info "Applying NixOS configuration..."
+    sudo nixos-rebuild switch --flake ~/.nix-config
+
+    log_success "NixOS setup completed"
+}
+
+# Setup GitHub authentication and SSH remote
+setup_github() {
+    if command_exists gh; then
+        log_info "Setting up GitHub authentication..."
+        if ! gh auth status > /dev/null 2>&1; then
+            gh auth login
+        else
+            log_info "Already authenticated with GitHub"
+        fi
+
+        # Switch to SSH remote if authenticated
+        if gh auth status > /dev/null 2>&1; then
+            log_info "Switching to SSH remote..."
+            git remote set-url origin git@github.com:petertriho/nix-config.git
+            log_success "Switched to SSH remote"
+        fi
+    else
+        log_warn "GitHub CLI not available, skipping GitHub setup"
+    fi
+}
+
+# Main function
+main() {
+    log_info "Starting Nix configuration bootstrap..."
+
+    # Detect system
+    local system_info
+    system_info=$(detect_system)
+    log_info "Detected system: $system_info"
+
+    # Install Nix if not present
+    install_nix
+
+    # Clone configuration
+    clone_config
+
+    # Setup based on OS
+    case "$system_info" in
+        *-ubuntu)
+            setup_linux_home_manager "Ubuntu"
+            ;;
+        *-debian)
+            setup_linux_home_manager "Debian"
+            ;;
+        *-macos)
+            setup_macos
+            ;;
+        *-nixos)
+            setup_nixos
+            ;;
+        *)
+            log_error "Unsupported system configuration: $system_info"
+            exit 1
+            ;;
+    esac
+
+    # Setup GitHub
+    setup_github
+
+    log_success "Bootstrap completed successfully!"
+    log_info "You may need to restart your shell or source your profile to use the new configuration."
+}
+
+# Run main function
+main "$@"

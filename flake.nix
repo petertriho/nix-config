@@ -78,5 +78,22 @@
           }
         );
       };
+
+      homeConfigurations = {
+        droid = home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.aarch64-linux;
+          extraSpecialArgs = {
+            inherit
+              inputs
+              outputs
+              ;
+            user = "droid";
+            homePath = "/home/droid";
+          };
+          modules = [
+            ./home/droid.nix
+          ];
+        };
+      };
     };
 }
