@@ -8,17 +8,14 @@
     btop # better htop
     cht-sh # command-line cheat sheets
     coreutils # GNU core utilities
-    csvkit # command-line CSV toolkit
     dive # inspect docker images
     eza # ls replacement
     fd # find replacement
-    fx # json viewer
     fzf # fuzzy finder
     gcc # GNU Compiler Collection
     gnumake # GNU Make
     git-gone # git garbage collector
     glow # markdown viewer
-    gron # make JSON greppable
     httpie # user-friendly HTTP client
     hurl # http client for testing APIs
     hyperfine # command-line benchmarking tool
@@ -30,12 +27,8 @@
     navi # interactive cheatsheet tool
     nurl # generate nix fetcher calls
     openssl # for generating certificates
-    python3Packages.pgcli # PostgreSQL CLI with autocompletion
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
-    sqlite # command-line SQLite client
-    sqlite-web # web-based SQLite client
-    tabiew # csv data viewer
     tldr # simplified man pages
     typst # typesetting system
     unzip # unzip files

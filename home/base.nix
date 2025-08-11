@@ -10,6 +10,7 @@
     outputs.homeManagerModules.helpers
     ./pkgs/ai.nix
     ./pkgs/bat.nix
+    ./pkgs/data.nix
     ./pkgs/devops.nix
     ./pkgs/direnv.nix
     ./pkgs/fish.nix
