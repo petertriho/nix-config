@@ -1,10 +1,12 @@
 # https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/op/opencode/package.nix
 {
   lib,
+  stdenv,
   stdenvNoCC,
   buildGoModule,
   bun,
   fetchFromGitHub,
+  makeWrapper,
   models-dev,
   nix-update-script,
   testers,
@@ -14,9 +16,9 @@
 let
   opencode-node-modules-hash = {
     "aarch64-darwin" = "sha256-xLNZsN3rvs5XEbPEMBcpvHk0R+gpzJdTADKeeYrWZhM=";
-    "aarch64-linux" = "sha256-sh43A/Tge8+ImPw8XGCQobMyQDWZLTcdjsve8d0UMHY=";
+    "aarch64-linux" = "sha256-LmNn4DdnSLVmGS5yqLyk/0e5pCiKfBzKIGRvvwZ6jHY=";
     "x86_64-darwin" = "sha256-xLNZsN3rvs5XEbPEMBcpvHk0R+gpzJdTADKeeYrWZhM=";
-    "x86_64-linux" = "sha256-sh43A/Tge8+ImPw8XGCQobMyQDWZLTcdjsve8d0UMHY=";
+    "x86_64-linux" = "sha256-LmNn4DdnSLVmGS5yqLyk/0e5pCiKfBzKIGRvvwZ6jHY=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -37,9 +39,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   tui = buildGoModule {
     pname = "opencode-tui";
-    inherit (finalAttrs) version;
-    src = finalAttrs.src;
-    sourceRoot = "source/packages/tui";
+    inherit (finalAttrs) version src;
+
+    modRoot = "packages/tui";
 
     vendorHash = "sha256-jINbGug/SPGBjsXNsC9X2r5TwvrOl5PJDL+lrOQP69Q=";
 
@@ -82,12 +84,11 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
       export BUN_INSTALL_CACHE_DIR=$(mktemp -d)
 
-      # First install all dependencies to get the workspace set up correctly
       bun install \
+          --filter=opencode \
           --force \
           --frozen-lockfile \
-          --no-progress \
-          --ignore-scripts
+          --no-progress
 
       runHook postBuild
     '';
@@ -112,14 +113,13 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   nativeBuildInputs = [
     bun
     models-dev
+    makeWrapper
   ];
 
   patches = [
     # Patch `packages/opencode/src/provider/models-macro.ts` to get contents of
-    # `api.json` from the file bundled with `bun build`.
+    # `_api.json` from the file bundled with `bun build`.
     ./local-models-dev.patch
-    # Fix tree-sitter parsing errors in bash tool
-    ./fix-tree-sitter-bash.patch
   ];
 
   configurePhase = ''
@@ -136,13 +136,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook preBuild
 
     bun build \
+      --define OPENCODE_TUI_PATH="'${finalAttrs.tui}/bin/tui'" \
       --define OPENCODE_VERSION="'${finalAttrs.version}'" \
       --compile \
-      --minify \
       --target=${bun-target.${stdenvNoCC.hostPlatform.system}} \
       --outfile=opencode \
       ./packages/opencode/src/index.ts \
-      ${finalAttrs.tui}/bin/tui
 
     runHook postBuild
   '';
@@ -157,6 +156,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
+  postFixup = ''
+    mv $out/bin/opencode $out/bin/.opencode-unwrapped
+    makeWrapper $out/bin/.opencode-unwrapped $out/bin/opencode \
+      --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ stdenv.cc.cc.lib ]}"
+  '';
+
   passthru = {
     tests.version = testers.testVersion {
       package = finalAttrs.finalPackage;
@@ -169,8 +174,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
         "tui"
         "--subpackage"
         "node_modules"
-        "--subpackage"
-        "models-dev-data"
       ];
     };
   };
