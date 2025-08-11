@@ -3,8 +3,40 @@
 set -euo pipefail
 
 NIX_CONFIG_PATH="${HOME}/.nix-config"
-OS=$(uname -s | tr "[:upper:]" "[:lower:]")
-ARCH=$(uname -m)
+ARCH=""
+OS=""
+
+detect_system() {
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64) ARCH="x86_64" ;;
+        aarch64 | arm64) ARCH="aarch64" ;;
+        *)
+            echo "Unsupported architecture: $ARCH" >&2
+            exit 1
+            ;;
+    esac
+
+    if [[ $OSTYPE == "linux-gnu"* ]]; then
+        if grep -q "Ubuntu" /etc/os-release 2> /dev/null; then
+            OS="ubuntu"
+        elif grep -q "Debian" /etc/os-release 2> /dev/null; then
+            OS="debian"
+        elif grep -q "NixOS" /etc/os-release 2> /dev/null; then
+            OS="nixos"
+        else
+            echo "Unsupported Linux distribution. Only Ubuntu, Debian, and NixOS are supported." >&2
+            exit 1
+        fi
+    elif [[ $OSTYPE == "darwin"* ]]; then
+        OS="darwin"
+    else
+        echo "Unsupported operating system: $OSTYPE" >&2
+        exit 1
+    fi
+}
+
+detect_system
 
 function pushd() {
     command pushd "$@" > /dev/null
@@ -70,12 +102,24 @@ function tool:nix:clean {
 function tool:nix:rebuild {
     echo "Rebuilding new nix config ..."
 
-    nix_rebuild_cmd="nixos-rebuild"
-    if [[ $OS == "darwin" ]]; then
-        nix_rebuild_cmd="darwin-rebuild"
-    fi
-
-    sudo $nix_rebuild_cmd switch --flake "$NIX_CONFIG_PATH"
+    case "$OS" in
+        ubuntu | debian)
+            echo "Detected $OS, using home-manager switch ..."
+            home-manager switch --flake "$NIX_CONFIG_PATH"
+            ;;
+        darwin)
+            echo "Detected macOS, using darwin-rebuild ..."
+            sudo darwin-rebuild switch --flake "$NIX_CONFIG_PATH"
+            ;;
+        nixos)
+            echo "Detected NixOS, using nixos-rebuild ..."
+            sudo nixos-rebuild switch --flake "$NIX_CONFIG_PATH"
+            ;;
+        *)
+            echo "Unsupported system configuration: $OS" >&2
+            exit 1
+            ;;
+    esac
 }
 
 function tool:nix:fetchers {

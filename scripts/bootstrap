@@ -54,7 +54,7 @@ detect_system() {
             exit 1
         fi
     elif [[ $OSTYPE == "darwin"* ]]; then
-        OS="macos"
+        OS="darwin"
     else
         log_error "Unsupported operating system: $OSTYPE"
         exit 1
@@ -131,7 +131,7 @@ setup_linux_home_manager() {
 }
 
 # Setup for macOS systems
-setup_macos() {
+setup_darwin() {
     log_info "Setting up macOS system..."
 
     # Apply nix-darwin configuration
@@ -198,8 +198,8 @@ main() {
         debian)
             setup_linux_home_manager "Debian"
             ;;
-        macos)
-            setup_macos
+        darwin)
+            setup_darwin
             ;;
         nixos)
             setup_nixos

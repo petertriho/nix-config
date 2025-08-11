@@ -3,6 +3,7 @@
   lib,
   user,
   homePath,
+  pkgs,
   ...
 }:
 {
@@ -13,4 +14,8 @@
   };
 
   programs.home-manager.enable = true;
+
+  home.packages = with pkgs; [
+    gh
+  ];
 }
