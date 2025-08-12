@@ -31,7 +31,7 @@ return {
 
         local select = function(n)
             return function(picker)
-                local idx = picker.list:row2idx(n - 1)
+                local idx = picker.list:row2idx(n)
                 picker.list:_move(idx, true, true)
                 picker:action("confirm")
             end
