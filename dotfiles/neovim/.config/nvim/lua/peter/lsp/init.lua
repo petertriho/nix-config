@@ -1,6 +1,21 @@
 local M = {}
 
 local on_list = function(options)
+    if options.items then
+        local seen = {}
+        local deduplicated = {}
+
+        for _, item in ipairs(options.items) do
+            local key = string.format("%s:%d", item.filename or "", item.lnum or 0)
+            if not seen[key] then
+                seen[key] = true
+                table.insert(deduplicated, item)
+            end
+        end
+
+        options.items = deduplicated
+    end
+
     vim.fn.setqflist({}, " ", options)
     if options.items and #options.items > 1 then
         vim.cmd("botright copen")
