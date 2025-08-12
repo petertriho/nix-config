@@ -10,7 +10,9 @@
       ccusage
       claude-code
       gemini-cli
+      goose-cli
       opencode
+      plandex
     ];
     file = {
       ".aider.conf.yml".source = config.lib.meta.mkDotfilesSymlink "aider/.aider.conf.yml";
