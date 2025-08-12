@@ -140,6 +140,14 @@ return {
                         diagnostics_open = false,
                         git_status = false,
                         git_status_open = false,
+                        win = {
+                            list = {
+                                keys = {
+                                    ["O"] = { "explorer_open" },
+                                    ["o"] = { { "pick_win", "jump" }, mode = { "n", "i" } },
+                                },
+                            },
+                        },
                     },
                     select = {
                         win = {
