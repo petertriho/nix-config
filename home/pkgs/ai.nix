@@ -20,9 +20,9 @@
         config.lib.meta.mkDotfilesSymlink "aider/.aider.model.settings.yml";
     };
   };
-
-  xdg.configFile."opencode/opencode.json".source =
-    config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/opencode.json";
-  xdg.configFile."opencode/agent/".source =
-    config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
+  xdg.configFile = {
+    "opencode/opencode.json".source =
+      config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/opencode.json";
+    "opencode/agent/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
+  };
 }
