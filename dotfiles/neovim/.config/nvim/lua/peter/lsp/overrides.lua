@@ -71,15 +71,21 @@ return {
     },
     jdtls = {},
     jsonls = {
-        init_options = {
-            provideFormatter = false,
-        },
-        settings = {
-            json = {
-                validate = { enable = true },
-                schemas = require("schemastore").json.schemas(),
-            },
-        },
+        lazy = true,
+        filetypes = { "json", "jsonc" },
+        config = function()
+            return {
+                init_options = {
+                    provideFormatter = false,
+                },
+                settings = {
+                    json = {
+                        validate = { enable = true },
+                        schemas = require("schemastore").json.schemas(),
+                    },
+                },
+            }
+        end,
     },
     lua_ls = {},
     marksman = {},
@@ -169,28 +175,57 @@ return {
             diagnosticSeverity = "information",
         },
     },
-    vtsls = vtsls_setup({
-        init_options = {
-            hostInfo = "neovim",
+    vtsls = {
+        lazy = true,
+        filetypes = {
+            "javascript",
+            "javascriptreact",
+            "javascript.jsx",
+            "typescript",
+            "typescriptreact",
+            "typescript.tsx",
         },
-        settings = {
-            vtsls = {
-                autoUserWorkspaceTsdk = true,
-                experimental = {
-                    completion = { enableServerSideFuzzyMatch = true },
+        config = function()
+            local publish_diagnostics_handler = vim.lsp.handlers["textDocument/publishDiagnostics"]
+            vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx)
+                require("ts-error-translator").translate_diagnostics(err, result, ctx)
+                publish_diagnostics_handler(err, result, ctx)
+            end
+            return vtsls_setup({
+                init_options = {
+                    hostInfo = "neovim",
                 },
-            },
-        },
-        on_attach = function(client, bufnr)
-            vim.api.nvim_buf_create_user_command(bufnr, "VtslsOrganizeImports", function()
-                client:exec_cmd({
-                    command = "typescript.organizeImports",
-                    arguments = { vim.api.nvim_buf_get_name(0) },
-                })
-            end, { desc = "Organize Imports" })
+                settings = {
+                    vtsls = {
+                        autoUserWorkspaceTsdk = true,
+                        experimental = {
+                            completion = { enableServerSideFuzzyMatch = true },
+                        },
+                    },
+                },
+                on_attach = function(client, bufnr)
+                    vim.api.nvim_buf_create_user_command(bufnr, "VtslsOrganizeImports", function()
+                        client:exec_cmd({
+                            command = "typescript.organizeImports",
+                            arguments = { vim.api.nvim_buf_get_name(0) },
+                        })
+                    end, { desc = "Organize Imports" })
 
-            vim.keymap.set("n", "gro", "<CMD>VtslsOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+                    vim.keymap.set(
+                        "n",
+                        "gro",
+                        "<CMD>VtslsOrganizeImports<CR>",
+                        { buffer = bufnr, desc = "Organize Imports" }
+                    )
+                end,
+            })
         end,
-    }),
-    yamlls = require("schema-companion").setup_client(),
+    },
+    yamlls = {
+        lazy = true,
+        filetypes = { "yaml", "yml" },
+        config = function()
+            return require("schema-companion").setup_client()
+        end,
+    },
 }
