@@ -75,6 +75,7 @@
           ''
             set -g @fingers-key "F"
             set -g @fingers-jump-key "J"
+            set -g @fingers-pattern-0 '(sha256|sha384|sha512)-[A-Za-z0-9\+/]+={0,2}( +[!-~]*)?'
           '';
       }
       {
