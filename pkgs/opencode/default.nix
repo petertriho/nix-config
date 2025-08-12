@@ -33,8 +33,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "80b25c79bb931fd8514d4ce0ee0aa487c128adda";
-    sha256 = "0685qmhasvmrfa2jigfcyrlv8cyy81yhzq3dq93j0yakrjz7yfbl";
+    rev = "b2f2c9ac37e05455c282bf4106a5288d3a1478b3";
+    sha256 = "1pgpkbyvhyvc78xg4xa2x68hyc7n7fvyj10957nplhzx84zbx254";
   };
 
   tui = buildGoModule {

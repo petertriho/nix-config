@@ -5,6 +5,7 @@
 with pkgs;
 rec {
   ccusage = callPackage ./ccusage { };
+  goose-cli = callPackage ./goose-cli { };
   mbake = callPackage ./mbake { };
   models-dev = callPackage ./models-dev { };
   opencode = callPackage ./opencode { inherit models-dev; };
