@@ -242,6 +242,7 @@
 
   home.packages = with pkgs; [
     grc
+    vivid
   ];
 
   home.activation.setTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -270,5 +271,8 @@
         name = "fish/conf.d/${file}";
         value.source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/${file}";
       }) fishConfFiles
-    );
+    )
+    // {
+      "vivid".source = config.lib.meta.mkDotfilesSymlink "vivid/.config/vivid";
+    };
 }

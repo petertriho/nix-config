@@ -1,10 +1,12 @@
 {
+  config,
   pkgs,
   lib,
   ...
 }:
 {
   home.packages = with pkgs; [
+    bat # cat replacement with syntax highlighting
     btop # better htop
     cht-sh # command-line cheat sheets
     coreutils # GNU core utilities
@@ -67,4 +69,6 @@
       "--preview-window=bottom"
     ];
   };
+
+  xdg.configFile."bat".source = config.lib.meta.mkDotfilesSymlink "bat/.config/bat";
 }
