@@ -31,11 +31,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "block";
     repo = "goose";
-    rev = "d6341e949297d9ae95a3f9e2966850886023c0ab";
-    sha256 = "1s35z3ri5rb33ihzxxzpzxn2yqhvq1z32i1vw9nr3rz4isrvbnvv";
+    rev = "f055b051ee674d79da72a89bfe52ff82e69bef69";
+    sha256 = "0rqq4qvdhxnz9l0i2als3rplkslg6bps8qm37w9hbg53y5wvj6ag";
   };
 
-  cargoHash = "sha256-pTpXc67r4iApJ7o/L1uUIEtGiX8YBrcWyFfxq3uMQ+g=";
+  cargoHash = "sha256-WFqLqxROiAxl9khh7FCuDjG36XuTham+Oj0pNT/0NLY=";
 
   nativeBuildInputs = [
     pkg-config
