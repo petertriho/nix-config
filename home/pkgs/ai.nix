@@ -10,7 +10,7 @@
       ccusage
       claude-code
       gemini-cli
-      goose-cli
+      # goose-cli
       opencode
       plandex
     ];
