@@ -74,6 +74,7 @@ M.setup = function()
         }),
         refsx_snippet("refsx"),
         refsx_snippet(atlassian_project_key),
+        refsx_snippet(string.lower(atlassian_project_key)),
     })
     ls.filetype_extend("NeogitCommitMessage", { "gitcommit" })
     ls.filetype_extend("markdown", { "gitcommit" })
