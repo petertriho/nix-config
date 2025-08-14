@@ -3,12 +3,10 @@
   lib,
   pkgs,
 }:
-let
+pkgs.python3Packages.buildPythonPackage {
   pname = "serena-agent";
   version = "unstable-2025-08-14";
-in
-pkgs.python3Packages.buildPythonPackage {
-  inherit pname version;
+
   pyproject = true;
 
   src = pkgs.fetchFromGitHub {
@@ -89,6 +87,6 @@ pkgs.python3Packages.buildPythonPackage {
         capabilities (MCP server & Agno integration)
     '';
     license = licenses.mit;
-    maintainers = with maintainers; [ breakds ];
+    # maintainers = with maintainers; [ breakds ];
   };
 }
