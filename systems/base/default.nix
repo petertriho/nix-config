@@ -34,6 +34,7 @@
       additions
       modifications
       stable
+      unstable
     ];
     config = {
       allowUnfree = true;
