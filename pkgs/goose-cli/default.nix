@@ -26,13 +26,13 @@ let
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "goose-cli";
-  version = "unstable-2025-08-12";
+  version = "unstable-2025-08-13";
 
   src = fetchFromGitHub {
     owner = "block";
     repo = "goose";
-    rev = "f055b051ee674d79da72a89bfe52ff82e69bef69";
-    sha256 = "0rqq4qvdhxnz9l0i2als3rplkslg6bps8qm37w9hbg53y5wvj6ag";
+    rev = "41cb33b44988f00eea98a4b47ff1599049b09cb0";
+    sha256 = "09c83fbivbvfk3gv7k8qsh2l31mk5qlran0nhalmkdv1vh9l5ms8";
   };
 
   cargoHash = "sha256-WFqLqxROiAxl9khh7FCuDjG36XuTham+Oj0pNT/0NLY=";

@@ -20,8 +20,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "models.dev";
-    rev = "a52492c095abcd98409cc84010727a0015765619";
-    sha256 = "1hrvh5fzbd4klpqnhbm04r3mr6i74n4w06kc8gj389d447sm7q83";
+    rev = "70bfd500382590c81db61617a28e2aa1ff9d575c";
+    sha256 = "17v9gy1l6izjpa52ara8gq14012pfcjp758ixizlmhvdkwknvpli";
   };
 
   node_modules = stdenvNoCC.mkDerivation {

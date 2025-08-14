@@ -16,9 +16,9 @@
 let
   opencode-node-modules-hash = {
     "aarch64-darwin" = "sha256-/s6eAI1VJ0kXrxP5yTi+jwNqHBCRcoltJC86AT7nVdI=";
-    "aarch64-linux" = "sha256-ql4qcMtuaRwSVVma3OeKkc9tXhe21PWMMko3W3JgpB0=";
+    "aarch64-linux" = "sha256-fT/xPOeKW2DHI5uL70R98agiVhoVxdS5mHFRJbpfaA8=";
     "x86_64-darwin" = "sha256-/s6eAI1VJ0kXrxP5yTi+jwNqHBCRcoltJC86AT7nVdI=";
-    "x86_64-linux" = "sha256-ql4qcMtuaRwSVVma3OeKkc9tXhe21PWMMko3W3JgpB0=";
+    "x86_64-linux" = "sha256-fT/xPOeKW2DHI5uL70R98agiVhoVxdS5mHFRJbpfaA8=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -33,8 +33,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "4ff13d3290b053cd1aadff0690710b0c54b3d13b";
-    sha256 = "0by80fhp7ig0sckbb9m3br338pmbf3kjrkm65qq8b20b80wfmb6a";
+    rev = "4dea0209bbeb729050af168cc6202395560cd598";
+    sha256 = "1w4s5js2w45hyi4yhb7rvivsvzhlqzlnkk91v8qj9gn51anwba8q";
   };
 
   tui = buildGoModule {
@@ -43,7 +43,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     modRoot = "packages/tui";
 
-    vendorHash = "sha256-/BI9vBMSJjt0SHczH8LkxxWC2hiPPKQwfRhmf2/8+TU=";
+    vendorHash = "sha256-7NN9JTllPeluDU8CR6HVGZxQRdIyRwCQXhwMej0/yZA=";
 
     subPackages = [ "cmd/opencode" ];
 
@@ -88,7 +88,10 @@ stdenvNoCC.mkDerivation (finalAttrs: {
           --filter=opencode \
           --force \
           --frozen-lockfile \
-          --no-progress
+          --no-progress \
+          --ignore-scripts
+
+      bun add ulid --no-progress --ignore-scripts
 
       runHook postBuild
     '';

@@ -11,14 +11,14 @@
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "ty";
-  version = "unstable-2025-08-11";
+  version = "unstable-2025-08-14";
 
   src = fetchFromGitHub {
     owner = "astral-sh";
     repo = "ty";
-    rev = "d3fe41bbedb56f11c3ccfcdcc1b32183c6625afa";
+    rev = "07868315cbe93ca2ed05ab3e8260bc39d8b26b02";
     fetchSubmodules = true;
-    sha256 = "15x8bjdkr229zf95n2b6bkh19rjzysmzhk3bkvgyskfgwq26npr6";
+    sha256 = "1r04k65fvs2b75sc6iwdwd06kjbnjdhxvkq81ipy89y0qlnq3k6q";
   };
 
   # For Darwin platforms, remove the integration test for file notifications,
