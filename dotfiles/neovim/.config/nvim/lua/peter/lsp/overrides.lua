@@ -113,11 +113,11 @@ return {
         },
     },
     ruff = {
-        capabilities = {
-            general = {
-                positionEncodings = { "utf-16" },
-            },
-        },
+        -- capabilities = {
+        --     general = {
+        --         positionEncodings = { "utf-16" },
+        --     },
+        -- },
         init_options = {
             settings = {
                 configuration = vim.fn.expand("$HOME/.config/nvim/code/ruff.toml"),
