@@ -9,6 +9,7 @@
       aider-chat
       ccusage
       claude-code
+      context7-mcp
       gemini-cli
       nodejs
       # goose-cli
@@ -118,9 +119,10 @@
         context7 = {
           type = "local";
           command = [
-            "${pkgs.nodejs}/bin/npx"
-            "-y"
-            "@upstash/context7-mcp"
+            # "${pkgs.nodejs}/bin/npx"
+            # "-y"
+            # "@upstash/context7-mcp"
+            "context7-mcp"
           ];
           enabled = true;
         };

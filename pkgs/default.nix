@@ -5,6 +5,7 @@
 with pkgs;
 rec {
   ccusage = callPackage ./ccusage { };
+  context7-mcp = callPackage ./context7-mcp { };
   mbake = callPackage ./mbake { };
   models-dev = callPackage ./models-dev { };
   opencode = callPackage ./opencode { inherit models-dev; };
