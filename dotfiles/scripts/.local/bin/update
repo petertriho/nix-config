@@ -120,6 +120,7 @@ function tool:nix:rebuild {
             exit 1
             ;;
     esac
+    tool:fish
 }
 
 function tool:nix:fetchers {
@@ -191,6 +192,11 @@ function tool:brew {
         brew update
         brew upgrade --greedy
     fi
+}
+
+function tool:fish {
+    echo "Updating fish completions ..."
+    fish_update_completions
 }
 
 function tool:clean {
