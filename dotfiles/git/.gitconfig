@@ -59,7 +59,8 @@
     required = true
 
 [help]
-    autocorrect = prompt
+    # autocorrect = prompt
+    autocorrect = show
 
 [merge]
     conflictStyle = zdiff3
