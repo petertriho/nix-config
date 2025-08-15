@@ -34,53 +34,52 @@ in
     brews = [
       "mas"
     ];
-    casks =
-      [
-        "aerospace"
-        "appcleaner"
-        "cyberduck"
-        "displaylink"
-        "doll"
-        "easy-move+resize"
-        "firefox"
-        "floorp"
-        "font-jetbrains-mono-nerd-font"
-        "google-chrome"
-        "keepingyouawake"
-        "keka"
-        "keyboardcleantool"
-        "kindavim"
-        "meetingbar"
-        "nextcloud"
-        "notunes"
-        "orbstack"
-        "scrolla"
-        "vlc"
-        "wezterm"
-        "wooshy"
-        # "airbuddy"
-        # "badgeify"
-        # "bartender"
-        # "betterdisplay"
-        # "cursorsense"
-        # "istat-menus"
-        # "itsycal"
-        # "jordanbaird-ice"
-        # "rectangle"
-        # "stats"
-        # "steermouse"
-        # "swish"
-      ]
-      ++ (
-        if pkgs.stdenv.isAarch64 then
-          [
-            "battery"
-          ]
-        else
-          [
-            "aldente"
-          ]
-      );
+    casks = [
+      "aerospace"
+      "appcleaner"
+      "cyberduck"
+      "displaylink"
+      "doll"
+      "easy-move+resize"
+      "firefox"
+      "floorp"
+      "font-jetbrains-mono-nerd-font"
+      "google-chrome"
+      "keepingyouawake"
+      "keka"
+      "keyboardcleantool"
+      "kindavim"
+      "meetingbar"
+      "nextcloud"
+      "notunes"
+      "orbstack"
+      "scrolla"
+      "vlc"
+      "wezterm"
+      "wooshy"
+      # "airbuddy"
+      # "badgeify"
+      # "bartender"
+      # "betterdisplay"
+      # "cursorsense"
+      # "istat-menus"
+      # "itsycal"
+      # "jordanbaird-ice"
+      # "rectangle"
+      # "stats"
+      # "steermouse"
+      # "swish"
+    ]
+    ++ (
+      if pkgs.stdenv.isAarch64 then
+        [
+          "battery"
+        ]
+      else
+        [
+          "aldente"
+        ]
+    );
   };
 
   environment = {

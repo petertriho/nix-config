@@ -54,47 +54,47 @@ pkgs.python3Packages.buildPythonPackage {
   postInstall = ''
     # Create the application directory structure
     mkdir -p $out/share/mighty-security
-    
+
     # Copy all source files
     cp -r src $out/share/mighty-security/ || true
     cp -r examples $out/share/mighty-security/ || true
     cp -r mcp_test_cases $out/share/mighty-security/ || true
-    cp -r hooks $out/share/mighty-security/ || true  
+    cp -r hooks $out/share/mighty-security/ || true
     cp -r docs $out/share/mighty-security/ || true
     cp scan_config.json $out/share/mighty-security/ || true
-    
+
     # Copy the main mighty_mcp.py to the share directory and create a proper wrapper
     cp mighty_mcp.py $out/share/mighty-security/
-    
+
     # Replace the installed mighty-mcp script with a wrapper that sets up the environment
     rm -f $out/bin/mighty-mcp
     cat > $out/bin/mighty-mcp << 'EOF'
-#!/usr/bin/env python3
-import sys
-import os
-from pathlib import Path
+    #!/usr/bin/env python3
+    import sys
+    import os
+    from pathlib import Path
 
-# Find the mighty-security share directory
-share_dir = Path(__file__).parent.parent / "share" / "mighty-security" 
+    # Find the mighty-security share directory
+    share_dir = Path(__file__).parent.parent / "share" / "mighty-security"
 
-# Change working directory and set up paths
-if share_dir.exists():
-    os.chdir(str(share_dir))
-    sys.path.insert(0, str(share_dir))
+    # Change working directory and set up paths
+    if share_dir.exists():
+        os.chdir(str(share_dir))
+        sys.path.insert(0, str(share_dir))
 
-# Run the mighty_mcp.py script directly
-if __name__ == "__main__":
-    exec(open(str(share_dir / "mighty_mcp.py")).read())
-EOF
+    # Run the mighty_mcp.py script directly
+    if __name__ == "__main__":
+        exec(open(str(share_dir / "mighty_mcp.py")).read())
+    EOF
     chmod +x $out/bin/mighty-mcp
   '';
 
   meta = with lib; {
     description = "Unified security framework for Model Context Protocol (MCP) servers";
     longDescription = ''
-      A comprehensive security analysis tool that protects against malicious MCP 
-      (Model Context Protocol) servers and tools. Provides multi-layer analysis 
-      including static analysis, taint analysis, ML-powered detection, and optional 
+      A comprehensive security analysis tool that protects against malicious MCP
+      (Model Context Protocol) servers and tools. Provides multi-layer analysis
+      including static analysis, taint analysis, ML-powered detection, and optional
       LLM deep analysis for semantic understanding.
     '';
     homepage = "https://github.com/NineSunsInc/mighty-security";
