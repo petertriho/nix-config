@@ -64,12 +64,18 @@ local refresh = function(bufnr, token)
 
     local msg = generate_msg(progress_state)
 
-    vim.notify(msg, vim.log.levels.INFO, {
+    local notif_level = progress_state.failed_formatter and vim.log.levels.ERROR or vim.log.levels.INFO
+
+    vim.notify(msg, notif_level, {
         id = token,
         title = progress_state.title,
         replace = true,
         opts = function(notif)
-            notif.icon = require("peter.core.utils").spinner:get_frame()
+            if progress_state.failed_formatter then
+                notif.icon = ""
+            else
+                notif.icon = require("peter.core.utils").spinner:get_frame()
+            end
         end,
     })
 end
