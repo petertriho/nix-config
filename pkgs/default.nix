@@ -15,18 +15,5 @@ rec {
   sort-package-json = callPackage ./sort-package-json { };
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
-  yamlfix = callPackage ./yamlfix {
-    inherit (pkgs.python3Packages)
-      buildPythonPackage
-      click
-      maison
-      pdm-backend
-      pytest-freezegun
-      pytest-xdist
-      pytestCheckHook
-      pythonOlder
-      ruyaml
-      setuptools
-      ;
-  };
+  yamlfix = callPackage ./yamlfix { };
 }

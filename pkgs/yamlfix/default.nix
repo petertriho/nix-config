@@ -1,23 +1,15 @@
 {
   lib,
-  buildPythonPackage,
-  click,
   fetchFromGitHub,
-  maison,
-  pdm-backend,
-  pytest-freezegun,
-  pytest-xdist,
-  pytestCheckHook,
-  pythonOlder,
-  ruyaml,
-  setuptools,
+  python3Packages,
+  ...
 }:
-buildPythonPackage rec {
+python3Packages.buildPythonPackage rec {
   pname = "yamlfix";
   version = "1.17.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
+  disabled = python3Packages.pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "lyz-code";
@@ -26,18 +18,18 @@ buildPythonPackage rec {
     hash = "sha256-TNGFkaPSJKsEeNDA+UZyNE0jpGoePCy0J88oURkuhYQ=";
   };
 
-  build-system = [
+  build-system = with python3Packages; [
     setuptools
     pdm-backend
   ];
 
-  dependencies = [
+  dependencies = with python3Packages; [
     click
     maison
     ruyaml
   ];
 
-  nativeCheckInputs = [
+  nativeCheckInputs = with python3Packages; [
     pytest-freezegun
     pytest-xdist
     pytestCheckHook
@@ -54,11 +46,11 @@ buildPythonPackage rec {
     "ignore::DeprecationWarning"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Python YAML formatter that keeps your comments";
     homepage = "https://github.com/lyz-code/yamlfix";
     changelog = "https://github.com/lyz-code/yamlfix/blob/${version}/CHANGELOG.md";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ koozz ];
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ koozz ];
   };
 }
