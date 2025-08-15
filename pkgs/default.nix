@@ -7,6 +7,7 @@ rec {
   ccusage = callPackage ./ccusage { };
   context7-mcp = callPackage ./context7-mcp { };
   mbake = callPackage ./mbake { };
+  mighty-security = callPackage ./mighty-security { inherit pkgs; };
   models-dev = callPackage ./models-dev { };
   opencode = callPackage ./opencode { inherit models-dev; };
   pybetter = callPackage ./pybetter { inherit pkgs pyemojify; };
