@@ -135,7 +135,7 @@ function tool:pkgs:hashes() {
             echo "Checking hashes for $file"
 
             # Try to build the package and capture any hash mismatches
-            build_output=$(timeout 120 nix-build -E "with import <nixpkgs> {}; callPackage ./$file {}" 2>&1 || true)
+            build_output=$(timeout 300 nix-build -E "with import <nixpkgs> {}; callPackage ./$file {}" 2>&1 || true)
 
             # Extract hash mismatches and replace them directly
             if echo "$build_output" | grep -q "hash mismatch"; then
@@ -228,7 +228,7 @@ function tool:pkgs:update {
             fi
         fi
 
-        if timeout 120 nix-update $update_args "packages.$system.$package" > /dev/null; then
+        if timeout 300 nix-update $update_args "packages.$system.$package" > /dev/null; then
             echo "Successfully updated $package"
         else
             echo "Failed to update $package, skipping..."
