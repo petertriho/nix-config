@@ -27,6 +27,7 @@
     lstr # tree replacement
     lynx # text-based web browser
     navi # interactive cheatsheet tool
+    nix-update # update Nix packages
     nurl # generate nix fetcher calls
     openssl # for generating certificates
     python3Packages.pipdeptree # view installed Python packages as a tree

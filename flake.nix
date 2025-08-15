@@ -58,6 +58,17 @@
       systemModules = import ./modules/system;
       homeManagerModules = import ./modules/home-manager;
 
+      # Expose packages for nix-update
+      packages = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ] (
+        system:
+        import ./pkgs {
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+        }
+      );
+
       options = {
         user = "peter";
       };
