@@ -122,6 +122,7 @@
             "-y"
             "@upstash/context7-mcp"
           ];
+          enabled = true;
         };
         github = {
           type = "local";
@@ -167,6 +168,7 @@
             "--project"
             "."
           ];
+          enabled = true;
         };
         terraform = {
           type = "local";
