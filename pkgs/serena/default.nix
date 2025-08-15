@@ -5,15 +5,15 @@
 }:
 pkgs.python3Packages.buildPythonPackage {
   pname = "serena-agent";
-  version = "unstable-2025-08-14";
+  version = "0.1.3-unstable-2025-08-14";
 
   pyproject = true;
 
   src = pkgs.fetchFromGitHub {
     owner = "oraios";
     repo = "serena";
-    rev = "de173ce0780fdd8342781b8dac2a6ab671cb922a";
-    sha256 = "10g359h2xg8fax6g6x6yd1lrgcv4si1w0g6y8sfl1zq0ls1y84p3";
+    rev = "7df16d21e570a6ce3187983acae21e359b4f0c53";
+    sha256 = "sha256-Momi6PQ+Ez3XiAOpLDYCHmBnbwrsvHeKmwjS1iublHU=";
   };
 
   build-system = with pkgs.python3Packages; [

@@ -6,7 +6,7 @@
 with python3Packages;
 buildPythonApplication {
   pname = "mbake";
-  version = "unstable-2025-07-13";
+  version = "1.3.1-unstable-2025-07-14";
   format = "pyproject";
 
   src = fetchFromGitHub {

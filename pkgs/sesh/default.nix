@@ -7,7 +7,7 @@
 }:
 buildGoModule rec {
   pname = "sesh";
-  version = "unstable-2025-08-05";
+  version = "2.17.1-unstable-2025-08-05";
 
   nativeBuildInputs = [
     go-mockery
