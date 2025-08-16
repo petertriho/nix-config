@@ -6,7 +6,7 @@
 }:
 python3Packages.buildPythonPackage rec {
   pname = "yamlfix";
-  version = "1.16.1-unstable-2024-08-21";
+  version = "1.70.0-unstable-2024-08-21";
   pyproject = true;
 
   disabled = python3Packages.pythonOlder "3.8";
@@ -14,7 +14,7 @@ python3Packages.buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "lyz-code";
     repo = "yamlfix";
-    tag = version;
+    rev = "8072181c0f2eab9f2dd8db2eb3b9556d7cd0bd74";
     hash = "sha256-TNGFkaPSJKsEeNDA+UZyNE0jpGoePCy0J88oURkuhYQ=";
   };
 

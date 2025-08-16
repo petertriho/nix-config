@@ -15,9 +15,9 @@
 }:
 let
   opencode-node-modules-hash = {
-    "aarch64-darwin" = "sha256-tLCqWPmxdAshx1dLpjBst6RfGFtafVV+6wLqZr12csA=";
+    "aarch64-darwin" = "sha256-296MZbNoXiddVGT7Dlmia1T2HJlUN7b2VEawkPKqpI4=";
     "aarch64-linux" = "sha256-fT/xPOeKW2DHI5uL70R98agiVhoVxdS5mHFRJbpfaA8=";
-    "x86_64-darwin" = "sha256-tLCqWPmxdAshx1dLpjBst6RfGFtafVV+6wLqZr12csA=";
+    "x86_64-darwin" = "sha256-296MZbNoXiddVGT7Dlmia1T2HJlUN7b2VEawkPKqpI4=";
     "x86_64-linux" = "sha256-fT/xPOeKW2DHI5uL70R98agiVhoVxdS5mHFRJbpfaA8=";
   };
   bun-target = {
