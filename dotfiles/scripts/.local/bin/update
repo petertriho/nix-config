@@ -81,7 +81,7 @@ function tool:nvim:restore {
 function tool:nix {
     echo "Updating nix ..."
     tool:nix:flake
-    tool:pkgs:update
+    tool:pkgs:update "$@"
     tool:nix:rebuild
 }
 
@@ -125,9 +125,24 @@ function tool:nix:rebuild {
 
 function tool:pkgs:hashes() {
     local operation_name="${1:-manual operation}"
+    shift || true
+    local target_packages=("$@")
 
     # Get list of files that were changed
     changed_files=($(git diff --name-only pkgs/ | grep '\.nix$' || true))
+
+    # If specific packages are provided, filter changed files to only those packages
+    if [[ ${#target_packages[@]} -gt 0 ]]; then
+        filtered_files=()
+        for file in "${changed_files[@]}"; do
+            # Extract package name from file path (e.g., pkgs/foo/default.nix -> foo)
+            package_name=$(basename "$(dirname "$file")")
+            if [[ " ${target_packages[*]} " =~ " ${package_name} " ]]; then
+                filtered_files+=("$file")
+            fi
+        done
+        changed_files=("${filtered_files[@]}")
+    fi
 
     if [[ ${#changed_files[@]} -gt 0 ]]; then
         echo "Updating hashes for ${#changed_files[@]} changed files..."
@@ -172,7 +187,11 @@ function tool:pkgs:hashes() {
             fi
         done
     else
-        echo "No files were changed by $operation_name"
+        if [[ ${#target_packages[@]} -gt 0 ]]; then
+            echo "No files were changed by $operation_name for packages: ${target_packages[*]}"
+        else
+            echo "No files were changed by $operation_name"
+        fi
     fi
 
     rm -rf result
@@ -180,33 +199,59 @@ function tool:pkgs:hashes() {
 }
 
 function tool:pkgs:fetchgit {
+    local target_packages=("$@")
+
     echo "Updating nix pkgs with fetchgit ..."
     pushd "$NIX_CONFIG_PATH"
 
-    # Run update-nix-fetchgit on all .nix files
-    echo "Running update-nix-fetchgit on all .nix files..."
-    find pkgs -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+    if [[ ${#target_packages[@]} -gt 0 ]]; then
+        echo "Running update-nix-fetchgit on specified packages: ${target_packages[*]}"
+        for package in "${target_packages[@]}"; do
+            package_dir="pkgs/$package"
+            if [[ -d "$package_dir" ]]; then
+                find "$package_dir" -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+            else
+                echo "Warning: Package directory $package_dir not found"
+            fi
+        done
+    else
+        # Run update-nix-fetchgit on all .nix files
+        echo "Running update-nix-fetchgit on all .nix files..."
+        find pkgs -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+    fi
 
     # Update hashes for any changed files
-    tool:pkgs:hashes "update-nix-fetchgit"
+    tool:pkgs:hashes "update-nix-fetchgit" "${target_packages[@]}"
 
     popd
 }
 
 function tool:pkgs:update {
+    local target_packages=("$@")
+
     echo "Updating packages with nix-update ..."
     pushd "$NIX_CONFIG_PATH"
 
     # Get the current system
     system=$(nix eval --impure --raw --expr 'builtins.currentSystem')
 
-    # Get list of available packages
-    packages=($(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]'))
-
-    echo "Found ${#packages[@]} packages to update..."
+    if [[ ${#target_packages[@]} -gt 0 ]]; then
+        packages=("${target_packages[@]}")
+        echo "Updating specified packages: ${packages[*]}"
+    else
+        # Get list of available packages
+        packages=($(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]'))
+        echo "Found ${#packages[@]} packages to update..."
+    fi
 
     for package in "${packages[@]}"; do
         echo "Attempting to update package: $package"
+
+        # Check if package exists in the flake
+        if ! nix eval ".#packages.$system.$package" &> /dev/null; then
+            echo "Warning: Package $package not found in flake, skipping..."
+            continue
+        fi
 
         # Check if package has subpackages by looking for buildGoModule, buildNpmPackage, etc.
         package_file=$(nix eval --json ".#packages.$system.$package.meta.position" 2> /dev/null | jq -r '.' | cut -d: -f1 2> /dev/null || echo "")
@@ -232,11 +277,13 @@ function tool:pkgs:update {
             echo "Successfully updated $package"
         else
             echo "Failed to update $package, skipping..."
+            echo "Falling back to fetchgit for $package"
+            tool:pkgs:fetchgit "$package"
         fi
     done
 
     # Update hashes for any changed files
-    tool:pkgs:hashes "nix-update"
+    tool:pkgs:hashes "nix-update" "${target_packages[@]}"
 
     popd
 }
@@ -251,7 +298,7 @@ function tool:brew {
 
 function tool:fish {
     echo "Updating fish completions ..."
-    fish_update_completions
+    fish -c 'fish_update_completions'
 }
 
 function tool:clean {
