@@ -1,9 +1,12 @@
 {
   python3Packages,
   fetchPypi,
-  pyemojify,
+  callPackage,
   ...
 }:
+let
+  pyemojify = callPackage ./pyemojify.nix { };
+in
 with python3Packages;
 buildPythonApplication rec {
   pname = "pybetter";
@@ -26,5 +29,6 @@ buildPythonApplication rec {
     libcst
     pyemojify
     pygments
+    typing-extensions
   ];
 }

@@ -261,7 +261,6 @@ in
           ];
           enabled = false;
         };
-        # TODO: investigate why this doesn't work
         serena = {
           type = "local";
           command = [
