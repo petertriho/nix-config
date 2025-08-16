@@ -128,20 +128,20 @@ function tool:pkgs:hashes() {
     shift || true
     local target_packages=("$@")
 
-    # Get list of files that were changed
-    changed_files=($(git diff --name-only pkgs/ | grep '\.nix$' || true))
-
-    # If specific packages are provided, filter changed files to only those packages
+    # If specific packages are provided, construct file list directly
     if [[ ${#target_packages[@]} -gt 0 ]]; then
-        filtered_files=()
-        for file in "${changed_files[@]}"; do
-            # Extract package name from file path (e.g., pkgs/foo/default.nix -> foo)
-            package_name=$(basename "$(dirname "$file")")
-            if [[ " ${target_packages[*]} " =~ " ${package_name} " ]]; then
-                filtered_files+=("$file")
+        changed_files=()
+        for package in "${target_packages[@]}"; do
+            # Look for the package's nix files
+            if [[ -d "pkgs/$package" ]]; then
+                while IFS= read -r -d '' file; do
+                    changed_files+=("$file")
+                done < <(find "pkgs/$package" -name "*.nix" -print0)
             fi
         done
-        changed_files=("${filtered_files[@]}")
+    else
+        # Get list of files that were changed
+        changed_files=($(git diff --name-only pkgs/ | grep '\.nix$' || true))
     fi
 
     if [[ ${#changed_files[@]} -gt 0 ]]; then
