@@ -143,7 +143,7 @@ return {
             vim.keymap.set("n", "gro", "<CMD>RuffOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
         end,
     },
-    rust_analyzer = {},
+    -- rust_analyzer = {},
     -- pylyzer = {},
     superhtml = {},
     svelte = {},

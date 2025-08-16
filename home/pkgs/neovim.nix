@@ -64,7 +64,7 @@
     # pylyzer
     unstable.pyrefly
     quick-lint-js
-    rust-analyzer
+    # rust-analyzer
     superhtml
     svelte-language-server
     tailwindcss-language-server
