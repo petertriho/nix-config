@@ -22,8 +22,8 @@ let
     src = fetchFromGitHub {
       owner = "ryoppippi";
       repo = "ccusage";
-      rev = "20c534a1c862c8987a80d617c01276b0a6f3913c";
-      sha256 = "sha256-hWGvAV6l+nn5/pQJL6ts2QAy6BEWCWaD7kOw7qYKfrI=";
+      rev = "3643730ff09733ba571cae49b02c8e7eace38fda";
+      sha256 = "sha256-5dus3WOHf75tKnplPOvNyDQ9x0je8ugODigbfA0Y/cI=";
     };
 
     nativeBuildInputs = [
@@ -60,13 +60,13 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "ccusage";
-  version = "15.9.5-unstable-2025-08-15";
+  version = "15.9.7-unstable-2025-08-16";
 
   src = fetchFromGitHub {
     owner = "ryoppippi";
     repo = "ccusage";
-    rev = "20c534a1c862c8987a80d617c01276b0a6f3913c";
-    sha256 = "sha256-hWGvAV6l+nn5/pQJL6ts2QAy6BEWCWaD7kOw7qYKfrI=";
+    rev = "3643730ff09733ba571cae49b02c8e7eace38fda";
+    sha256 = "sha256-5dus3WOHf75tKnplPOvNyDQ9x0je8ugODigbfA0Y/cI=";
   };
 
   nativeBuildInputs = [

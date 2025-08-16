@@ -6,7 +6,7 @@
 }:
 python3Packages.buildPythonPackage rec {
   pname = "yamlfix";
-  version = "1.70.0-unstable-2024-08-21";
+  version = "1.16.1-unstable-2024-08-21";
   pyproject = true;
 
   disabled = python3Packages.pythonOlder "3.8";

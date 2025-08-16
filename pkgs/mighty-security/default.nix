@@ -4,7 +4,7 @@
 }:
 pkgs.python3Packages.buildPythonPackage {
   pname = "mighty-security";
-  version = "0.1.0-unstable-2025-08-15";
+  version = "0-unstable-2025-08-15";
 
   pyproject = true;
 
