@@ -10,6 +10,7 @@ let
     mcp-grafana
     mcp-nixos
     playwright-mcp
+    # serena
     terraform-mcp-server
   ];
 in
@@ -24,7 +25,6 @@ in
         gemini-cli
         mighty-security
         nodejs
-        serena
         # goose-cli
         # plandex
       ]
@@ -261,18 +261,18 @@ in
           ];
           enabled = false;
         };
-        serena = {
-          type = "local";
-          command = [
-            "serena"
-            "start-mcp-server"
-            "--context"
-            "ide-assistant"
-            "--project"
-            "."
-          ];
-          enabled = false;
-        };
+        # serena = {
+        #   type = "local";
+        #   command = [
+        #     "serena"
+        #     "start-mcp-server"
+        #     "--context"
+        #     "ide-assistant"
+        #     "--project"
+        #     "."
+        #   ];
+        #   enabled = false;
+        # };
         terraform = {
           type = "local";
           command = [
