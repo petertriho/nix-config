@@ -6,13 +6,45 @@ NIX_CONFIG_PATH="${HOME}/.nix-config"
 ARCH=""
 OS=""
 
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Helper functions for colored output
+function echo_info() {
+    echo -e "${BLUE}ℹ️  ${1}${NC}"
+}
+
+function echo_success() {
+    echo -e "${GREEN}✅ ${1}${NC}"
+}
+
+function echo_warning() {
+    echo -e "${YELLOW}⚠️  ${1}${NC}"
+}
+
+function echo_error() {
+    echo -e "${RED}❌ ${1}${NC}"
+}
+
+function echo_header() {
+    echo -e "${BOLD}${CYAN}🚀 ${1}${NC}"
+}
+
 function detect_system() {
     ARCH=$(uname -m)
     case "$ARCH" in
         x86_64) ARCH="x86_64" ;;
         aarch64 | arm64) ARCH="aarch64" ;;
         *)
-            echo "Unsupported architecture: $ARCH" >&2
+            echo_error "Unsupported architecture: $ARCH"
             exit 1
             ;;
     esac
@@ -25,13 +57,13 @@ function detect_system() {
         elif grep -q "NixOS" /etc/os-release 2> /dev/null; then
             OS="nixos"
         else
-            echo "Unsupported Linux distribution. Only Ubuntu, Debian, and NixOS are supported." >&2
+            echo_error "Unsupported Linux distribution. Only Ubuntu, Debian, and NixOS are supported."
             exit 1
         fi
     elif [[ $OSTYPE == "darwin"* ]]; then
         OS="darwin"
     else
-        echo "Unsupported operating system: $OSTYPE" >&2
+        echo_error "Unsupported operating system: $OSTYPE"
         exit 1
     fi
 }
@@ -47,80 +79,101 @@ function popd() {
 }
 
 function tool:config {
-    echo "Updating config ..."
+    echo_header "Updating config"
     pushd "$NIX_CONFIG_PATH"
+    echo_info "Stashing local changes..."
     git stash || true
+    echo_info "Pulling latest changes..."
     git pull
+    echo_info "Restoring local changes..."
     git stash pop || true
+    echo_success "Config updated"
     popd
 }
 
 function tool:nvim {
     if command -v nvim &> /dev/null; then
-        echo "Updating neovim plugins ..."
+        echo_header "Updating neovim plugins"
+        echo_info "Updating TreeSitter parsers..."
         nvim --headless "+TSUpdateSync" +qa
+        echo_info "Syncing Lazy plugins..."
         nvim --headless "+Lazy! sync" +qa
+        echo_info "Clearing watchman watches..."
         watchman watch-del-all # clear watchman watches for nvim plugins
+        echo_success "Neovim plugins updated"
+    else
+        echo_warning "Neovim not found, skipping plugin updates"
     fi
 }
 
 function tool:nvim:clean {
     if command -v nvim &> /dev/null; then
-        echo "Cleaning neovim plugins ..."
+        echo_header "Cleaning neovim plugins"
         nvim --headless "+Lazy! clean" +qa
+        echo_success "Neovim plugins cleaned"
+    else
+        echo_warning "Neovim not found, skipping plugin cleanup"
     fi
 }
 
 function tool:nvim:restore {
     if command -v nvim &> /dev/null; then
-        echo "Restoring neovim plugins ..."
+        echo_header "Restoring neovim plugins"
         nvim --headless "+Lazy! restore" +qa
+        echo_success "Neovim plugins restored"
+    else
+        echo_warning "Neovim not found, skipping plugin restore"
     fi
 }
 
 function tool:nix {
-    echo "Updating nix ..."
+    echo_header "Updating nix"
     tool:nix:flake
     tool:pkgs:update "$@"
     tool:nix:rebuild
+    echo_success "Nix update complete"
 }
 
 function tool:nix:flake {
-    echo "Updating flake.lock ..."
+    echo_header "Updating flake.lock"
     pushd "$NIX_CONFIG_PATH"
     nix flake update
+    echo_success "Flake.lock updated"
     popd
 }
 
 function tool:nix:clean {
-    echo "Cleaning user nix store ..."
+    echo_header "Cleaning nix store"
+    echo_info "Cleaning user nix store..."
     nix-collect-garbage --delete-older-than 7d
-    echo "Cleaning root nix store ..."
+    echo_info "Cleaning root nix store..."
     sudo nix-collect-garbage --delete-older-than 7d
+    echo_success "Nix store cleaned"
 }
 
 function tool:nix:rebuild {
-    echo "Rebuilding new nix config ..."
+    echo_header "Rebuilding nix config"
 
     case "$OS" in
         ubuntu | debian)
-            echo "Detected $OS, using home-manager switch ..."
+            echo_info "Detected $OS, using home-manager switch..."
             home-manager switch --flake "$NIX_CONFIG_PATH"
             ;;
         darwin)
-            echo "Detected macOS, using darwin-rebuild ..."
+            echo_info "Detected macOS, using darwin-rebuild..."
             sudo darwin-rebuild switch --flake "$NIX_CONFIG_PATH"
             ;;
         nixos)
-            echo "Detected NixOS, using nixos-rebuild ..."
+            echo_info "Detected NixOS, using nixos-rebuild..."
             sudo nixos-rebuild switch --flake "$NIX_CONFIG_PATH"
             ;;
         *)
-            echo "Unsupported system configuration: $OS" >&2
+            echo_error "Unsupported system configuration: $OS"
             exit 1
             ;;
     esac
     tool:fish
+    echo_success "Nix config rebuilt"
 }
 
 function tool:pkgs:hashes() {
@@ -145,16 +198,16 @@ function tool:pkgs:hashes() {
     fi
 
     if [[ ${#changed_files[@]} -gt 0 ]]; then
-        echo "Updating hashes for ${#changed_files[@]} changed files..."
+        echo_info "Updating hashes for ${#changed_files[@]} changed files..."
         for file in "${changed_files[@]}"; do
-            echo "Checking hashes for $file"
+            echo_info "Checking hashes for $file"
 
             # Try to build the package and capture any hash mismatches
             build_output=$(timeout 300 nix-build -E "with import <nixpkgs> {}; callPackage ./$file {}" 2>&1 || true)
 
             # Extract hash mismatches and replace them directly
             if echo "$build_output" | grep -q "hash mismatch"; then
-                echo "Hash mismatch detected in $file"
+                echo_warning "Hash mismatch detected in $file"
 
                 # Extract both specified and got hashes from build output
                 # Look for patterns like "specified: sha256-..." or "specified: sha256:..."
@@ -162,23 +215,23 @@ function tool:pkgs:hashes() {
                 got_hash=$(echo "$build_output" | grep -oE "got:.*sha256[:-][A-Za-z0-9+/=]+" | sed 's/got:[[:space:]]*//' | head -1)
 
                 if [[ -n $specified_hash && -n $got_hash ]]; then
-                    echo "Replacing hash in $file:"
-                    echo "  Old: $specified_hash"
-                    echo "  New: $got_hash"
+                    echo_info "Replacing hash in $file:"
+                    echo -e "  ${YELLOW}Old:${NC} $specified_hash"
+                    echo -e "  ${GREEN}New:${NC} $got_hash"
 
                     # Use a more robust replacement approach
                     # First, try to find and replace the exact hash string
                     if grep -q "$specified_hash" "$file"; then
                         sed -i.bak "s|$specified_hash|$got_hash|g" "$file"
                         rm -f "$file.bak"
-                        echo "Successfully updated hash in $file"
+                        echo_success "Successfully updated hash in $file"
                     else
-                        echo "Warning: Could not find specified hash in $file"
-                        echo "Searching for similar hashes..."
+                        echo_warning "Could not find specified hash in $file"
+                        echo_info "Searching for similar hashes..."
                         grep -n "sha256" "$file" || true
                     fi
                 else
-                    echo "Warning: Could not extract both specified and got hashes from build output for $file"
+                    echo_warning "Could not extract both specified and got hashes from build output for $file"
                     echo "Specified: '$specified_hash'"
                     echo "Got: '$got_hash'"
                     echo "Raw build output:"
@@ -188,9 +241,9 @@ function tool:pkgs:hashes() {
         done
     else
         if [[ ${#target_packages[@]} -gt 0 ]]; then
-            echo "No files were changed by $operation_name for packages: ${target_packages[*]}"
+            echo_info "No files were changed by $operation_name for packages: ${target_packages[*]}"
         else
-            echo "No files were changed by $operation_name"
+            echo_info "No files were changed by $operation_name"
         fi
     fi
 
@@ -201,35 +254,36 @@ function tool:pkgs:hashes() {
 function tool:pkgs:fetchgit {
     local target_packages=("$@")
 
-    echo "Updating nix pkgs with fetchgit ..."
+    echo_header "Updating nix pkgs with fetchgit"
     pushd "$NIX_CONFIG_PATH"
 
     if [[ ${#target_packages[@]} -gt 0 ]]; then
-        echo "Running update-nix-fetchgit on specified packages: ${target_packages[*]}"
+        echo_info "Running update-nix-fetchgit on specified packages: ${target_packages[*]}"
         for package in "${target_packages[@]}"; do
             package_dir="pkgs/$package"
             if [[ -d "$package_dir" ]]; then
                 find "$package_dir" -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
             else
-                echo "Warning: Package directory $package_dir not found"
+                echo_warning "Package directory $package_dir not found"
             fi
         done
     else
         # Run update-nix-fetchgit on all .nix files
-        echo "Running update-nix-fetchgit on all .nix files..."
+        echo_info "Running update-nix-fetchgit on all .nix files..."
         find pkgs -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
     fi
 
     # Update hashes for any changed files
     tool:pkgs:hashes "update-nix-fetchgit" "${target_packages[@]}"
 
+    echo_success "Fetchgit update complete"
     popd
 }
 
 function tool:pkgs:update {
     local target_packages=("$@")
 
-    echo "Updating packages with nix-update ..."
+    echo_header "Updating packages with nix-update"
     pushd "$NIX_CONFIG_PATH"
 
     # Get the current system
@@ -237,22 +291,22 @@ function tool:pkgs:update {
 
     if [[ ${#target_packages[@]} -gt 0 ]]; then
         packages=("${target_packages[@]}")
-        echo "Updating specified packages: ${packages[*]}"
+        echo_info "Updating specified packages: ${packages[*]}"
     else
         # Get list of available packages
         packages=($(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]'))
-        echo "Found ${#packages[@]} packages to update..."
+        echo_info "Found ${#packages[@]} packages to update..."
     fi
 
     failed_packages=()
     successful_packages=()
 
     for package in "${packages[@]}"; do
-        echo "Attempting to update package: $package"
+        echo_info "Attempting to update package: $package"
 
         # Check if package exists in the flake
         if ! nix eval ".#packages.$system.$package" &> /dev/null; then
-            echo "Warning: Package $package not found in flake, skipping..."
+            echo_warning "Package $package not found in flake, skipping..."
             continue
         fi
 
@@ -277,28 +331,28 @@ function tool:pkgs:update {
         fi
 
         if timeout 300 nix-update $update_args "packages.$system.$package" &> /dev/null; then
-            echo "Successfully updated $package"
+            echo_success "Successfully updated $package"
             successful_packages+=("$package")
         else
-            echo "Failed to update $package"
+            echo_error "Failed to update $package"
             failed_packages+=("$package")
         fi
     done
 
     # Update hashes only for successfully updated packages
     if [[ ${#successful_packages[@]} -gt 0 ]]; then
-        echo "Updating hashes for ${#successful_packages[@]} successfully updated packages: ${successful_packages[*]}"
+        echo_info "Updating hashes for ${#successful_packages[@]} successfully updated packages: ${successful_packages[*]}"
         tool:pkgs:hashes "nix-update" "${successful_packages[@]}"
     else
-        echo "No packages were successfully updated with nix-update, skipping hash updates"
+        echo_warning "No packages were successfully updated with nix-update, skipping hash updates"
     fi
 
     # Fallback to fetchgit if any packages failed to update with nix-update
     if [[ ${#failed_packages[@]} -gt 0 ]]; then
-        echo "Running fetchgit on ${#failed_packages[@]} failed packages: ${failed_packages[*]}"
+        echo_info "Running fetchgit on ${#failed_packages[@]} failed packages: ${failed_packages[*]}"
         tool:pkgs:fetchgit "${failed_packages[@]}"
     else
-        echo "All packages updated successfully with nix-update"
+        echo_success "All packages updated successfully with nix-update"
     fi
 
     popd
@@ -306,29 +360,40 @@ function tool:pkgs:update {
 
 function tool:brew {
     if command -v brew &> /dev/null; then
-        echo "Updating homebrew packages ..."
+        echo_header "Updating homebrew packages"
+        echo_info "Updating brew formulae..."
         brew update
+        echo_info "Upgrading packages..."
         brew upgrade --greedy
+        echo_success "Homebrew packages updated"
+    else
+        echo_warning "Homebrew not found, skipping"
     fi
 }
 
 function tool:fish {
-    echo "Updating fish completions ..."
+    echo_header "Updating fish completions"
     fish -c 'fish_update_completions'
+    echo_success "Fish completions updated"
 }
 
 function tool:clean {
+    echo_header "Cleaning up"
     tool:nvim:clean
     tool:nix:clean
+    echo_success "Cleanup complete"
 }
 
 function tool:restore {
+    echo_header "Restoring system"
     tool:nvim:restore
     tool:nix:rebuild
     tool:clean
+    echo_success "System restore complete"
 }
 
 function tool:all {
+    echo_header "Running complete system update"
     tool:config
     tool:nvim
     tool:nix
@@ -336,6 +401,7 @@ function tool:all {
         tool:brew
     fi
     tool:clean
+    echo_success "🎉 Complete system update finished!"
 }
 
 function tool:list {
@@ -343,9 +409,29 @@ function tool:list {
 }
 
 function tool:help {
-    printf "Usage: %s [TOOL] [ARGS]\n\nTools:\n" "$0"
-
-    compgen -A function | sed -rn 's/tool:(.*)/\1/p' | cat -n
+    echo_header "Update Script Help"
+    printf "${BOLD}Usage:${NC} %s [TOOL] [ARGS]\n\n" "$0"
+    echo -e "${BOLD}Available Tools:${NC}"
+    
+    local tools=($(compgen -A function | sed -rn 's/tool:(.*)/\1/p'))
+    for i in "${!tools[@]}"; do
+        local tool="${tools[$i]}"
+        local emoji=""
+        case "$tool" in
+            "all") emoji="🚀" ;;
+            "config") emoji="⚙️" ;;
+            "nvim"*) emoji="📝" ;;
+            "nix"*) emoji="❄️" ;;
+            "brew") emoji="🍺" ;;
+            "fish") emoji="🐟" ;;
+            "clean") emoji="🧹" ;;
+            "restore") emoji="🔄" ;;
+            "help") emoji="❓" ;;
+            "list") emoji="📋" ;;
+            *) emoji="🔧" ;;
+        esac
+        printf "  ${CYAN}%2d.${NC} ${emoji} ${BOLD}%s${NC}\n" $((i+1)) "$tool"
+    done
 }
 
 "tool:${@:-all}"
