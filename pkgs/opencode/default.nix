@@ -33,8 +33,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "9c7fa35051eefa5400e7b84f0e9c978834cc3dda";
-    sha256 = "sha256-xwcvfttvLZwOwHBI2oVLpUeG62NqSTGhqdESPXbOc8k=";
+    rev = "5d5ac168a4233ee1f38581ec56b915733b12510c";
+    sha256 = "sha256-LTAVNunznMlCy9PeAj4dvuQG1ZcCE5tM3UjKObrOBGg=";
   };
 
   tui = buildGoModule {
@@ -89,9 +89,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
           --force \
           --frozen-lockfile \
           --no-progress \
-          --ignore-scripts
-
-      bun add ulid --no-progress --ignore-scripts
+          --ignore-scripts \
+          --production
 
       runHook postBuild
     '';
