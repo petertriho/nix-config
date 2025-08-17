@@ -9,9 +9,9 @@
 }:
 let
   node-modules-hash = {
-    "aarch64-darwin" = "sha256-3J+c1q0h1XZ9mzQXeAx2PYSX1QGdjWE4owJcecisH/I=";
+    "aarch64-darwin" = "sha256-b9gVMO1Q2r4iN3WRtOMe8/G1oZQY4/r29AYzJulSlBs=";
     "aarch64-linux" = "sha256-eFammHet3Q3PXxcWfZbx+L5EULFZEY6/LNHTb0Vbsz4=";
-    "x86_64-darwin" = "sha256-3J+c1q0h1XZ9mzQXeAx2PYSX1QGdjWE4owJcecisH/I=";
+    "x86_64-darwin" = "sha256-b9gVMO1Q2r4iN3WRtOMe8/G1oZQY4/r29AYzJulSlBs=";
     "x86_64-linux" = "sha256-eFammHet3Q3PXxcWfZbx+L5EULFZEY6/LNHTb0Vbsz4=";
   };
   # Fixed-output derivation for node_modules
