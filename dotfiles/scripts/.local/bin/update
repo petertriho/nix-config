@@ -261,7 +261,7 @@ function tool:pkgs:fetchgit {
         echo_info "Running update-nix-fetchgit on specified packages: ${target_packages[*]}"
         for package in "${target_packages[@]}"; do
             package_dir="pkgs/$package"
-            if [[ -d "$package_dir" ]]; then
+            if [[ -d $package_dir ]]; then
                 find "$package_dir" -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
             else
                 echo_warning "Package directory $package_dir not found"
@@ -320,7 +320,7 @@ function tool:pkgs:update {
             # Check for common subpackage patterns
             if grep -q "buildGoModule\|buildNpmPackage\|buildRustPackage" "$package_file" 2> /dev/null; then
                 # Look for attribute assignments that might be subpackages
-                subpackages=$(grep -E "^\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=\s*build(Go|Npm|Rust)" "$package_file" | sed -E 's/^\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*=.*/\1/' | grep -v "^src$" | grep -v "^version$" | grep -v "^pname$" || true)
+                subpackages=$(grep -E "^\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=\s*build(Go|Npm|Rust)Module" "$package_file" | sed -E 's/^\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*=.*/\1/' | grep -v "^src$" | grep -v "^version$" | grep -v "^pname$" | grep -E "^[a-zA-Z][a-zA-Z0-9_-]*$" || true)
 
                 for subpkg in $subpackages; do
                     if [[ $subpkg != "$package" && -n $subpkg ]]; then
@@ -412,7 +412,7 @@ function tool:help {
     echo_header "Update Script Help"
     printf "${BOLD}Usage:${NC} %s [TOOL] [ARGS]\n\n" "$0"
     echo -e "${BOLD}Available Tools:${NC}"
-    
+
     local tools=($(compgen -A function | sed -rn 's/tool:(.*)/\1/p'))
     for i in "${!tools[@]}"; do
         local tool="${tools[$i]}"
@@ -430,7 +430,7 @@ function tool:help {
             "list") emoji="📋" ;;
             *) emoji="🔧" ;;
         esac
-        printf "  ${CYAN}%2d.${NC} ${emoji} ${BOLD}%s${NC}\n" $((i+1)) "$tool"
+        printf "  ${CYAN}%2d.${NC} ${emoji} ${BOLD}%s${NC}\n" $((i + 1)) "$tool"
     done
 }
 
