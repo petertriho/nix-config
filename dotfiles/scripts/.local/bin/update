@@ -263,7 +263,7 @@ function tool:pkgs:update {
             # Check for common subpackage patterns
             if grep -q "buildGoModule\|buildNpmPackage\|buildRustPackage" "$package_file" 2> /dev/null; then
                 # Look for attribute assignments that might be subpackages
-                subpackages=$(grep -E "^\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=" "$package_file" | grep -E "build(Go|Npm|Rust|)" | head -5 | sed -E 's/^\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*=.*/\1/' | grep -v "^src$" | grep -v "^version$" | grep -v "^pname$" || true)
+                subpackages=$(grep -E "^\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=\s*build(Go|Npm|Rust)" "$package_file" | sed -E 's/^\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*=.*/\1/' | grep -v "^src$" | grep -v "^version$" | grep -v "^pname$" || true)
 
                 for subpkg in $subpackages; do
                     if [[ $subpkg != "$package" && -n $subpkg ]]; then
