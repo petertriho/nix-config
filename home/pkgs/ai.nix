@@ -27,96 +27,10 @@ in
         # goose-cli
         # plandex
       ]
-      ++ mcpServers
-      ++ [
-        (pkgs.writeShellScriptBin "check-all-mcps" ''
-          #!/usr/bin/env bash
-
-          echo "🔍 Checking all MCP configurations and installed MCPs with mighty-security..."
-          echo "=================================================="
-
-          # Get the current user's home directory
-          HOME_DIR="$HOME"
-          CONFIG_DIR="$HOME/.config/opencode"
-
-          # Check if opencode config exists
-          if [ ! -d "$CONFIG_DIR" ]; then
-            echo "❌ OpenCode configuration directory not found at $CONFIG_DIR"
-            echo "💡 Make sure you have opencode configured first"
-            exit 1
-          fi
-
-          echo "📂 Scanning OpenCode MCP configuration..."
-
-          # Run mighty-mcp check with comprehensive options
-          mighty-mcp check \
-            --client opencode \
-            --deep \
-            --format markdown \
-            --output "/tmp/mcp-security-report.md"
-
-          if [ $? -eq 0 ]; then
-            echo "✅ MCP configuration check completed successfully!"
-            echo "📄 Report saved to: /tmp/mcp-security-report.md"
-          else
-            echo "❌ MCP configuration check failed"
-            exit 1
-          fi
-
-          # Scan MCP installation directories
-          echo ""
-          echo "🔍 Scanning MCP installation directories..."
-
-          # Common MCP installation paths
-          MCP_DIRS=(
-            "$HOME/.local/share/mcp"
-            "$HOME/.mcp"
-            "/usr/local/lib/node_modules"
-            "$HOME/.npm-global/lib/node_modules"
-            "$HOME/node_modules"
-          )
-
-          # Add Nix store paths for the MCPs we have installed (full packages)
-          MCP_DIRS+=(
-            ${pkgs.lib.concatMapStringsSep "\n          " (pkg: ''"${pkg}"'') mcpServers}
-          )
-
-          FOUND_DIRS=0
-          for MCP_DIR in "''${MCP_DIRS[@]}"; do
-            if [ -d "$MCP_DIR" ]; then
-              echo "📁 Checking directory: $MCP_DIR"
-              ${pkgs.mighty-security}/bin/mighty-mcp check "$MCP_DIR" \
-                --profile production \
-                --format text \
-                --output "/tmp/mcp-directory-scan-$(basename "$MCP_DIR").txt"
-
-              if [ $? -eq 0 ]; then
-                echo "  ✅ Directory scan completed"
-                FOUND_DIRS=$((FOUND_DIRS + 1))
-              else
-                echo "  ⚠️ Directory scan had issues"
-              fi
-            fi
-          done
-
-          echo ""
-          echo "📊 Summary:"
-          echo "  • Configuration files: Scanned"
-          echo "  • Installation directories: $FOUND_DIRS found and scanned"
-          echo "  • Reports saved to: /tmp/mcp-*.txt and /tmp/mcp-security-report.md"
-
-          # Also run a quick realtime scan for immediate feedback
-          echo ""
-          echo "🔄 Running quick scan for immediate feedback..."
-          ${pkgs.mighty-security}/bin/mighty-mcp check --quick --client opencode
-
-          echo ""
-          echo "🎯 To start realtime monitoring, run:"
-          echo "   mighty-mcp check --realtime --client opencode"
-          echo ""
-          echo "📚 For more options, see: https://github.com/NineSunsInc/mighty-security"
-        '')
-      ];
+      ++ mcpServers;
+    sessionVariables = {
+      INSTALLED_MCP_SERVER_DIRS = pkgs.lib.concatStringsSep ":" (map (pkg: "${pkg}/bin") mcpServers);
+    };
     file = {
       ".aider.conf.yml".source = config.lib.meta.mkDotfilesSymlink "aider/.aider.conf.yml";
       ".aider.model.settings.yml".source =

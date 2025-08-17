@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_NAME
+readonly OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
+readonly TEMP_DIR="/tmp"
+
+show_usage() {
+  cat << EOF
+Usage: $SCRIPT_NAME [PATHS]
+
+Check MCP configurations and installed MCPs with mighty-security.
+
+Arguments:
+  PATHS    Colon-separated list of directories to check (optional)
+
+Examples:
+  $SCRIPT_NAME                                    # Check default and environment paths
+  $SCRIPT_NAME /path/to/mcp1:/path/to/mcp2        # Check specific paths only
+
+Environment variables:
+  INSTALLED_MCP_SERVER_DIRS    Colon-separated paths (used if no PATHS provided)
+EOF
+}
+
+log_info() {
+  echo "$1"
+}
+
+log_success() {
+  echo "✅ $1"
+}
+
+log_warning() {
+  echo "⚠️  $1"
+}
+
+log_error() {
+  echo "❌ $1" >&2
+}
+
+check_dependencies() {
+  if ! command -v mighty-mcp > /dev/null 2>&1; then
+    log_error "mighty-mcp command not found. Please install mighty-security first."
+    exit 1
+  fi
+}
+
+validate_opencode_config() {
+  if [[ ! -d $OPENCODE_CONFIG_DIR ]]; then
+    log_error "OpenCode configuration directory not found at $OPENCODE_CONFIG_DIR"
+    log_error "💡 Make sure you have opencode configured first"
+    exit 1
+  fi
+}
+
+run_config_scan() {
+  log_info "📂 Scanning OpenCode MCP configuration..."
+
+  local output_file="$TEMP_DIR/mcp-security-report.md"
+
+  if mighty-mcp check \
+    --client opencode \
+    --deep \
+    --format markdown \
+    --output "$output_file"; then
+    log_success "MCP configuration check completed successfully!"
+    log_info "📄 Report saved to: $output_file"
+  else
+    log_error "MCP configuration check failed"
+    exit 1
+  fi
+}
+
+get_default_mcp_dirs() {
+  local -a default_dirs=(
+    "$HOME/.local/share/mcp"
+    "$HOME/.mcp"
+    "/usr/local/lib/node_modules"
+    "$HOME/.npm-global/lib/node_modules"
+    "$HOME/node_modules"
+  )
+
+  local -a valid_dirs=()
+  for dir in "${default_dirs[@]}"; do
+    if [[ -d $dir ]]; then
+      valid_dirs+=("$dir")
+    fi
+  done
+
+  printf '%s\n' "${valid_dirs[@]}"
+}
+
+parse_custom_paths() {
+  local custom_paths="$1"
+  local -a valid_dirs=()
+
+  log_info "📝 Using custom paths: $custom_paths"
+
+  IFS=':' read -ra custom_dirs <<< "$custom_paths"
+  for dir in "${custom_dirs[@]}"; do
+    if [[ -d $dir ]]; then
+      valid_dirs+=("$dir")
+    else
+      log_warning "Directory not found: $dir"
+    fi
+  done
+
+  printf '%s\n' "${valid_dirs[@]}"
+}
+
+parse_environment_paths() {
+  local -a valid_dirs=()
+
+  if [[ -n ${INSTALLED_MCP_SERVER_DIRS:-} ]]; then
+    log_info "📝 Using environment paths: $INSTALLED_MCP_SERVER_DIRS"
+
+    IFS=':' read -ra installed_dirs <<< "$INSTALLED_MCP_SERVER_DIRS"
+    for dir in "${installed_dirs[@]}"; do
+      if [[ -d $dir ]]; then
+        valid_dirs+=("$dir")
+      fi
+    done
+  fi
+
+  printf '%s\n' "${valid_dirs[@]}"
+}
+
+collect_mcp_directories() {
+  local custom_paths="$1"
+  local -a mcp_dirs=()
+
+  if [[ -n $custom_paths ]]; then
+    readarray -t mcp_dirs < <(parse_custom_paths "$custom_paths")
+  else
+    readarray -t default_dirs < <(get_default_mcp_dirs)
+    readarray -t env_dirs < <(parse_environment_paths)
+    mcp_dirs=("${default_dirs[@]}" "${env_dirs[@]}")
+  fi
+
+  printf '%s\n' "${mcp_dirs[@]}"
+}
+
+scan_mcp_directory() {
+  local mcp_dir="$1"
+  local output_file
+  output_file="$TEMP_DIR/mcp-directory-scan-$(basename "$mcp_dir").txt"
+
+  log_info "📁 Checking directory: $mcp_dir"
+
+  if mighty-mcp check "$mcp_dir" \
+    --profile production \
+    --format text \
+    --output "$output_file"; then
+    log_success "  Directory scan completed"
+    return 0
+  else
+    log_warning "  Directory scan had issues"
+    return 1
+  fi
+}
+
+run_directory_scans() {
+  local custom_paths="$1"
+  local found_dirs=0
+  local -a mcp_dirs
+
+  log_info ""
+  log_info "🔍 Scanning MCP installation directories..."
+
+  readarray -t mcp_dirs < <(collect_mcp_directories "$custom_paths")
+
+  for mcp_dir in "${mcp_dirs[@]}"; do
+    if [[ -d $mcp_dir ]] && scan_mcp_directory "$mcp_dir"; then
+      ((found_dirs++))
+    fi
+  done
+
+  echo "$found_dirs"
+}
+
+print_summary() {
+  local found_dirs="$1"
+
+  log_info ""
+  log_info "📊 Summary:"
+  log_info "  • Configuration files: Scanned"
+  log_info "  • Installation directories: $found_dirs found and scanned"
+  log_info "  • Reports saved to: $TEMP_DIR/mcp-*.txt and $TEMP_DIR/mcp-security-report.md"
+}
+
+run_quick_scan() {
+  log_info ""
+  log_info "🔄 Running quick scan for immediate feedback..."
+  mighty-mcp check --quick --client opencode
+}
+
+print_next_steps() {
+  log_info ""
+  log_info "🎯 To start realtime monitoring, run:"
+  log_info "   mighty-mcp check --realtime --client opencode"
+  log_info ""
+  log_info "📚 For more options, see: https://github.com/NineSunsInc/mighty-security"
+}
+
+main() {
+  local custom_paths="${1:-}"
+
+  if [[ $custom_paths == "-h" || $custom_paths == "--help" ]]; then
+    show_usage
+    exit 0
+  fi
+
+  log_info "🔍 Checking all MCP configurations and installed MCPs with mighty-security..."
+  log_info "=================================================="
+
+  check_dependencies
+  validate_opencode_config
+  run_config_scan
+
+  local found_dirs
+  found_dirs=$(run_directory_scans "$custom_paths")
+
+  print_summary "$found_dirs"
+  run_quick_scan
+  print_next_steps
+}
+
+main "$@"
