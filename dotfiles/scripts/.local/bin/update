@@ -244,6 +244,9 @@ function tool:pkgs:update {
         echo "Found ${#packages[@]} packages to update..."
     fi
 
+    failed_packages=()
+    successful_packages=()
+
     for package in "${packages[@]}"; do
         echo "Attempting to update package: $package"
 
@@ -273,17 +276,30 @@ function tool:pkgs:update {
             fi
         fi
 
-        if timeout 300 nix-update $update_args "packages.$system.$package" > /dev/null; then
+        if timeout 300 nix-update $update_args "packages.$system.$package" &> /dev/null; then
             echo "Successfully updated $package"
+            successful_packages+=("$package")
         else
-            echo "Failed to update $package, skipping..."
-            echo "Falling back to fetchgit for $package"
-            tool:pkgs:fetchgit "$package"
+            echo "Failed to update $package"
+            failed_packages+=("$package")
         fi
     done
 
-    # Update hashes for any changed files
-    tool:pkgs:hashes "nix-update" "${target_packages[@]}"
+    # Update hashes only for successfully updated packages
+    if [[ ${#successful_packages[@]} -gt 0 ]]; then
+        echo "Updating hashes for ${#successful_packages[@]} successfully updated packages: ${successful_packages[*]}"
+        tool:pkgs:hashes "nix-update" "${successful_packages[@]}"
+    else
+        echo "No packages were successfully updated with nix-update, skipping hash updates"
+    fi
+
+    # Fallback to fetchgit if any packages failed to update with nix-update
+    if [[ ${#failed_packages[@]} -gt 0 ]]; then
+        echo "Running fetchgit on ${#failed_packages[@]} failed packages: ${failed_packages[*]}"
+        tool:pkgs:fetchgit "${failed_packages[@]}"
+    else
+        echo "All packages updated successfully with nix-update"
+    fi
 
     popd
 }
