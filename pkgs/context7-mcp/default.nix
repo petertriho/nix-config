@@ -10,7 +10,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "context7-mcp";
-  version = "unstable-2025-08-14";
+  version = "1.0.14-unstable-2025-08-14";
 
   src = fetchFromGitHub {
     owner = "upstash";
@@ -86,18 +86,14 @@ stdenv.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
-  passthru = {
-    updateScript = ./update.sh;
-  };
-
   meta = {
     description = "Up-to-date code documentation for LLMs and AI code editors";
     homepage = "https://context7.com";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [
-      natsukium
-      vaporif
-    ];
+    # maintainers = with lib.maintainers; [
+    #   natsukium
+    #   vaporif
+    # ];
     mainProgram = "context7-mcp";
   };
 })
