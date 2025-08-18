@@ -60,6 +60,7 @@
     _ZO_EXCLUDE_DIRS = lib.strings.concatStringsSep ":" [
       "**/main"
       "**/work"
+      "**/hotfix"
     ];
     _ZO_FZF_OPTS = lib.strings.concatStringsSep " " [
       "$FZF_DEFAULT_OPTS"
