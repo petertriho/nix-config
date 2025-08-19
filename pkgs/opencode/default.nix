@@ -15,10 +15,10 @@
 }:
 let
   opencode-node-modules-hash = {
-    "aarch64-darwin" = "sha256-/RdfDi1QMHlwvnx4wHKs2o1QwdGkHSOHG6yH0RtJdws=";
-    "aarch64-linux" = "sha256-/RdfDi1QMHlwvnx4wHKs2o1QwdGkHSOHG6yH0RtJdws=";
-    "x86_64-darwin" = "sha256-/RdfDi1QMHlwvnx4wHKs2o1QwdGkHSOHG6yH0RtJdws=";
-    "x86_64-linux" = "sha256-/RdfDi1QMHlwvnx4wHKs2o1QwdGkHSOHG6yH0RtJdws=";
+    "aarch64-darwin" = "sha256-hznCg/7c9uNV7NXTkb6wtn3EhJDkGI7yZmSIA2SqX7g=";
+    "aarch64-linux" = "sha256-hznCg/7c9uNV7NXTkb6wtn3EhJDkGI7yZmSIA2SqX7g=";
+    "x86_64-darwin" = "sha256-hznCg/7c9uNV7NXTkb6wtn3EhJDkGI7yZmSIA2SqX7g=";
+    "x86_64-linux" = "sha256-hznCg/7c9uNV7NXTkb6wtn3EhJDkGI7yZmSIA2SqX7g=";
   };
   bun-target = {
     "aarch64-darwin" = "bun-darwin-arm64";
@@ -29,12 +29,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "0.5.5-unstable-2025-08-18";
+  version = "0.5.7-unstable-2025-08-19";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "847a63e15af966c448912033467b6467b4fb1ffb";
-    sha256 = "sha256-mKSOO0EmehHcDJ9q9rhuJ9A+ysj3X+BeiJ7CmsLqCIk=";
+    rev = "c0f90eb5641e24af257c15ba993d18ad533c3b9d";
+    sha256 = "sha256-wDUMn7i9AwXe/E+xo8/VhQcSoGXeJjSvB/T0c9B5ufI=";
   };
 
   tui = buildGoModule {

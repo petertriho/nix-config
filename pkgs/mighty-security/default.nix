@@ -4,15 +4,15 @@
 }:
 pkgs.python3Packages.buildPythonPackage {
   pname = "mighty-security";
-  version = "0-unstable-2025-08-15";
+  version = "0-unstable-2025-08-19";
 
   pyproject = true;
 
   src = pkgs.fetchFromGitHub {
     owner = "NineSunsInc";
     repo = "mighty-security";
-    rev = "2d8892b98ac40781fa8820436b81ca26613c14f5";
-    sha256 = "sha256-sdYnfTsQzEbhF3efJlXRpAvoH7hpl7hq0Tgtfoq1LHU=";
+    rev = "197847a934165eb361e19d51bca69cfa46e3dc0c";
+    sha256 = "sha256-awDGswPDYpCSEd+Ubg/jxM9RBXgfkX85rDH3FJEUyp8=";
   };
 
   build-system = with pkgs.python3Packages; [
