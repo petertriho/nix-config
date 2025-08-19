@@ -57,11 +57,41 @@
       "--color='border:7,fg:-1,bg:-1,hl:5,fg+:7,bg+:8,hl+:5'"
       "--color='info:6,prompt:2,pointer:2,marker:3,spinner:1,header:4'"
     ];
-    _ZO_EXCLUDE_DIRS = lib.strings.concatStringsSep ":" [
-      "**/main"
-      "**/work"
-      "**/hotfix"
-    ];
+    _ZO_EXCLUDE_DIRS =
+      let
+        # Helper function to generate both dir and dir/** patterns
+        excludeDir = dir: [
+          "**/${dir}"
+          "**/${dir}/**"
+        ];
+
+        # Git worktree dirs to exclude
+        gitDirs = [
+          "main"
+          "work"
+          "hotfix"
+        ];
+
+        # Development directories to exclude
+        devDirs = [
+          "node_modules" # Node.js dependencies
+          ".git" # Git metadata
+          "target" # Rust/Cargo build
+          "build" # Build artifacts
+          "dist" # Distribution builds
+          "coverage" # Test coverage
+          "__pycache__" # Python bytecode
+          "venv" # Python virtual env
+          ".venv" # Python virtual env (hidden)
+          "vendor" # Dependencies
+          "tmp" # Temporary files
+          "temp" # Temporary files
+        ];
+
+        allExcludes = lib.concatMap excludeDir (gitDirs ++ devDirs);
+      in
+      lib.strings.concatStringsSep ":" allExcludes;
+
     _ZO_FZF_OPTS = lib.strings.concatStringsSep " " [
       "$FZF_DEFAULT_OPTS"
       "--keep-right"
