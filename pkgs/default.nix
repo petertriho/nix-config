@@ -4,6 +4,7 @@
 }:
 with pkgs;
 rec {
+  amazon-q-cli = callPackage ./amazon-q-cli { };
   ccusage = callPackage ./ccusage { };
   context7-mcp = callPackage ./context7-mcp { };
   mighty-security = callPackage ./mighty-security { inherit pkgs; };
