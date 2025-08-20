@@ -18,6 +18,8 @@ python3Packages.buildPythonApplication rec {
   pyproject = true;
   sourceRoot = "${src.name}/src/fetch";
 
+  patches = [ ./fix-httpx-proxies.patch ];
+
   build-system = [ python3Packages.hatchling ];
 
   dependencies = with python3Packages; [
