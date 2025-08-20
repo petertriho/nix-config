@@ -12,6 +12,7 @@ let
     mcp-server-fetch
     mcp-server-sequential-thinking
     playwright-mcp
+    postgres-mcp
     serena
     terraform-mcp-server
   ];
@@ -176,6 +177,17 @@ in
             "mcp-nixos"
           ];
           enabled = true;
+        };
+        postgres = {
+          type = "local";
+          command = [
+            "postgres-mcp"
+            "--access-mode=restricted"
+          ];
+          environment = {
+            DATABASE_URI = "{env:OPENCODE_DATABASE_URI}";
+          };
+          enabled = false;
         };
         playwright = {
           type = "local";
