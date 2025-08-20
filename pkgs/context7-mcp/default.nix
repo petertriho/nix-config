@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "context7-mcp";
-  version = "1.0.14-unstable-2025-08-14";
+  version = "1.0.15-unstable-2025-08-19";
 
   src = fetchFromGitHub {
     owner = "upstash";
     repo = "context7";
-    rev = "baef8b3e1d3b935c79c9181425279ef2cd50a6da";
-    sha256 = "1n53029aw71yff72hc2vx3b0kx9xravjnbc7kb6mp2xxi4fabzi2";
+    rev = "9c86cf60eb7320cd5a267b1fa73f5bf7c5b9966d";
+    sha256 = "sha256-teWOSGiK/QG7sHEN4WhtsrB2gNgpgkGCPo50nsUsLCA=";
   };
 
   nativeBuildInputs = [
@@ -46,7 +46,7 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
     # This hash represents the dependencies
-    outputHash = "sha256-BUPq25dg+Hlut9E2itB+TJZ0zhuhHm6y7A1IWUOdGvQ=";
+    outputHash = "sha256-k5I1Zcwfs99v8VQLG/hS8GilRemM/pVt8udVF9Dup7A=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
