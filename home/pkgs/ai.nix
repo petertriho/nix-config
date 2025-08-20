@@ -9,7 +9,10 @@ let
     github-mcp-server
     mcp-grafana
     mcp-nixos
+    mcp-server-fetch
+    mcp-server-sequential-thinking
     playwright-mcp
+    serena
     terraform-mcp-server
   ];
 in
@@ -139,6 +142,13 @@ in
           ];
           enabled = true;
         };
+        fetch = {
+          type = "local";
+          command = [
+            "mcp-server-fetch"
+          ];
+          enabled = true;
+        };
         github = {
           type = "local";
           command = [
@@ -171,6 +181,23 @@ in
           type = "local";
           command = [
             "playwright-mcp"
+          ];
+          enabled = false;
+        };
+        sequential-thinking = {
+          type = "local";
+          command = [
+            "mcp-server-sequential-thinking"
+          ];
+          enabled = true;
+        };
+        serena = {
+          type = "local";
+          command = [
+            "serena"
+            "start-mcp-server"
+            "--context"
+            "ide-assistant"
           ];
           enabled = false;
         };
