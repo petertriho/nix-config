@@ -233,11 +233,6 @@ return {
                 lsp_format = "fallback",
             }),
             formatters = {
-                bake = {
-                    command = "bake",
-                    args = { "format", "$FILENAME" },
-                    stdin = false,
-                },
                 -- eslint_d = {
                 --     condition = function(ctx)
                 --         -- TODO: parse package.json to check if eslint config/package exists
