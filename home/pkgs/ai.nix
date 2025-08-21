@@ -148,7 +148,7 @@ in
           command = [
             "mcp-server-fetch"
           ];
-          enabled = true;
+          enabled = false;
         };
         github = {
           type = "local";
