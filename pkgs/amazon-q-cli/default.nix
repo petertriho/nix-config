@@ -6,13 +6,13 @@
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "amazon-q-cli";
-  version = "1.14.0-unstable-2025-08-19";
+  version = "1.14.0-unstable-2025-08-21";
 
   src = fetchFromGitHub {
     owner = "aws";
     repo = "amazon-q-developer-cli";
-    rev = "71c00814247c3c2d6e134c3cbd0f23f6745b1466";
-    sha256 = "sha256-3ZP0dXgytHnISR23NygNciEOdj0Rb0AKav6d2CDeIMg=";
+    rev = "5c6fe2800c10e90fc85df8a333f38ee353083ac9";
+    sha256 = "sha256-2oI4PJPsWQZDwmTxq1MtFPP5w36bEs+aXYRFcsVaUDQ=";
   };
 
   nativeBuildInputs = [
