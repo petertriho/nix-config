@@ -40,6 +40,7 @@
     markdownlint-cli
     mypy
     pylint
+    python3Packages.vulture
     shellcheck
     selene
     statix
