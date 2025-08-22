@@ -233,6 +233,12 @@ return {
                 lsp_format = "fallback",
             }),
             formatters = {
+                docformatter = {
+                    prepend_args = {
+                        "--black",
+                        "--pre-summary-newline",
+                    },
+                },
                 -- eslint_d = {
                 --     condition = function(ctx)
                 --         -- TODO: parse package.json to check if eslint config/package exists
