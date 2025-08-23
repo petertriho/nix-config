@@ -9,9 +9,9 @@
 }:
 let
   node-modules-hash = {
-    "aarch64-darwin" = "sha256-sGaJM9kiWn0/JgJbuH9JG+BMLR9SY5o1tBCOQvr84kI=";
+    "aarch64-darwin" = "sha256-92hcUSOqDlfFhtPBKYbkpf6atdT6gz+dzAD3rdNTisI=";
     "aarch64-linux" = "sha256-QC4D4etRuO9PuPY2gJZV2CzagL4mkCAaN3nitUm4bbM=";
-    "x86_64-darwin" = "sha256-sGaJM9kiWn0/JgJbuH9JG+BMLR9SY5o1tBCOQvr84kI=";
+    "x86_64-darwin" = "sha256-92hcUSOqDlfFhtPBKYbkpf6atdT6gz+dzAD3rdNTisI=";
     "x86_64-linux" = "sha256-QC4D4etRuO9PuPY2gJZV2CzagL4mkCAaN3nitUm4bbM=";
   };
   # Fixed-output derivation for node_modules
@@ -22,8 +22,8 @@ let
     src = fetchFromGitHub {
       owner = "ryoppippi";
       repo = "ccusage";
-      rev = "4c5f496eb207b54e0c7024f9986abb9af95db9ce";
-      sha256 = "sha256-2V3Do5wOUFSKTbE2pTzgZb0sc9WoXgXgLuWw1eFqjLc=";
+      rev = "343d2ebad70d3ed1d0cc72cfbcc9b7232ce07b54";
+      sha256 = "sha256-L8TKyAsgkEASDI85Q07AQteIG4X0PqbF5ZzsVQBMbPE=";
     };
 
     nativeBuildInputs = [
@@ -60,13 +60,13 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "ccusage";
-  version = "16.1.1-unstable-2025-08-22";
+  version = "16.1.2-unstable-2025-08-23";
 
   src = fetchFromGitHub {
     owner = "ryoppippi";
     repo = "ccusage";
-    rev = "4c5f496eb207b54e0c7024f9986abb9af95db9ce";
-    sha256 = "sha256-2V3Do5wOUFSKTbE2pTzgZb0sc9WoXgXgLuWw1eFqjLc=";
+    rev = "343d2ebad70d3ed1d0cc72cfbcc9b7232ce07b54";
+    sha256 = "sha256-L8TKyAsgkEASDI85Q07AQteIG4X0PqbF5ZzsVQBMbPE=";
   };
 
   nativeBuildInputs = [
