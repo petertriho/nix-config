@@ -27,7 +27,120 @@ return {
     },
     config = function()
         require("mini.ai").setup({
+            custom_textobjects = {
+                -- Comment block
+                c = function()
+                    local comment_string = vim.split(vim.bo.commentstring, "%%s")[1]
+                    if comment_string == "" then
+                        return nil
+                    end
+
+                    local cur_line = vim.fn.line(".")
+                    local start_line, end_line = cur_line, cur_line
+
+                    -- Find start of comment block
+                    while start_line > 1 and vim.fn.getline(start_line - 1):match("^%s*" .. vim.pesc(comment_string)) do
+                        start_line = start_line - 1
+                    end
+
+                    -- Find end of comment block
+                    while
+                        end_line < vim.fn.line("$")
+                        and vim.fn.getline(end_line + 1):match("^%s*" .. vim.pesc(comment_string))
+                    do
+                        end_line = end_line + 1
+                    end
+
+                    return {
+                        from = { line = start_line, col = 1 },
+                        to = { line = end_line, col = vim.fn.getline(end_line):len() },
+                    }
+                end,
+                -- Entire buffer
+                e = function()
+                    local n_lines = vim.fn.line("$")
+                    return {
+                        from = { line = 1, col = 1 },
+                        to = { line = n_lines, col = math.max(vim.fn.getline(n_lines):len(), 1) },
+                    }
+                end,
+                -- Git conflict markers
+                g = function()
+                    local patterns = { "^<<<<<<< ", "^=======$", "^>>>>>>> " }
+                    local start_line, end_line = vim.fn.line("."), vim.fn.line(".")
+
+                    -- Find conflict start
+                    for line = vim.fn.line("."), 1, -1 do
+                        if vim.fn.getline(line):match(patterns[1]) then
+                            start_line = line
+                            break
+                        end
+                    end
+
+                    -- Find conflict end
+                    for line = vim.fn.line("."), vim.fn.line("$") do
+                        if vim.fn.getline(line):match(patterns[3]) then
+                            end_line = line
+                            break
+                        end
+                    end
+
+                    return {
+                        from = { line = start_line, col = 1 },
+                        to = { line = end_line, col = vim.fn.getline(end_line):len() },
+                    }
+                end,
+                -- HTML/XML/JSX attributes
+                x = function(ai_type)
+                    local line = vim.fn.getline(".")
+                    local col = vim.fn.col(".")
+                    local line_num = vim.fn.line(".")
+
+                    -- Pattern to match attribute="value" or attribute={value}
+                    local attr_pattern = "([%w%-_:]+)%s*=%s*(['\"`{])([^'\"}`]*)(['\"`}])"
+
+                    local start_pos = 1
+                    while true do
+                        local attr_start, attr_end, attr_name, quote_start, attr_value =
+                            line:find(attr_pattern, start_pos)
+                        if not attr_start then
+                            break
+                        end
+
+                        if col >= attr_start and col <= attr_end then
+                            if ai_type == "i" then
+                                -- Inside: just the attribute value (between quotes)
+                                local value_start = attr_start
+                                    + #attr_name
+                                    + line:sub(attr_start + #attr_name):find("=")
+                                    + #quote_start
+                                local value_end = value_start + #attr_value - 1
+                                return {
+                                    from = { line = line_num, col = value_start },
+                                    to = { line = line_num, col = value_end },
+                                }
+                            else
+                                -- Around: entire attribute key="value"
+                                return {
+                                    from = { line = line_num, col = attr_start },
+                                    to = { line = line_num, col = attr_end },
+                                }
+                            end
+                        end
+
+                        start_pos = attr_end + 1
+                    end
+
+                    return nil
+                end,
+            },
             n_lines = 100,
+            mappings = {
+                around_next = "aN",
+                inside_next = "iN",
+                around_last = "aL",
+                inside_last = "iL",
+            },
         })
         require("mini.files").setup()
         require("mini.icons").setup()
