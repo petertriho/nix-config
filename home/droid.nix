@@ -7,7 +7,7 @@
   ...
 }:
 {
-  import = [
+  imports = [
     outputs.homeManagerModules.helpers
   ];
 
