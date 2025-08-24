@@ -57,6 +57,7 @@ local M = {
         "fugitiveblame",
         "help",
         "lspinfo",
+        "minifiles",
         "notify",
         "oil",
         "oil_preview",
