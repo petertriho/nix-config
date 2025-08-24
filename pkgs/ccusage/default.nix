@@ -10,9 +10,9 @@
 let
   node-modules-hash = {
     "aarch64-darwin" = "sha256-ugcvH2ACeA0U4Zfa4eWmTXmoubHbn6wzs667YauSNWY=";
-    "aarch64-linux" = "sha256-QC4D4etRuO9PuPY2gJZV2CzagL4mkCAaN3nitUm4bbM=";
+    "aarch64-linux" = "sha256-gXc9QbX56jl7yfWHWfgP85LRBigSxVBKnFAUinTz8jo=";
     "x86_64-darwin" = "sha256-ugcvH2ACeA0U4Zfa4eWmTXmoubHbn6wzs667YauSNWY=";
-    "x86_64-linux" = "sha256-QC4D4etRuO9PuPY2gJZV2CzagL4mkCAaN3nitUm4bbM=";
+    "x86_64-linux" = "sha256-gXc9QbX56jl7yfWHWfgP85LRBigSxVBKnFAUinTz8jo=";
   };
   # Fixed-output derivation for node_modules
   bunDeps = stdenv.mkDerivation {
