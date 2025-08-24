@@ -1,6 +1,20 @@
 return {
     "andymass/vim-matchup",
     event = "User LoadedNvimTreesitter",
+    keys = {
+        {
+            "im",
+            "<Plug>(matchup-i%)",
+            desc = "Inside a matched pair",
+            mode = { "o", "x" },
+        },
+        {
+            "am",
+            "<Plug>(matchup-a%)",
+            desc = "Around a matched pair",
+            mode = { "o", "x" },
+        },
+    },
     config = function()
         require("nvim-treesitter.configs").setup({
             matchup = { enable = true },

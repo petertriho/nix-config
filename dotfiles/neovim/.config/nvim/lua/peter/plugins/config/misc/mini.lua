@@ -26,7 +26,9 @@ return {
         },
     },
     config = function()
-        require("mini.ai").setup()
+        require("mini.ai").setup({
+            n_lines = 100,
+        })
         require("mini.files").setup()
         require("mini.icons").setup()
         require("mini.splitjoin").setup()
