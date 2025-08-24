@@ -12,6 +12,7 @@ end
 
 return {
     "stevearc/oil.nvim",
+    enabled = false,
     init = function()
         vim.keymap.set("n", "-", function()
             require("oil").open()
