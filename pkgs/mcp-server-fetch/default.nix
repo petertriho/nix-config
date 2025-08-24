@@ -6,13 +6,13 @@
 }:
 python3Packages.buildPythonApplication rec {
   pname = "mcp-server-fetch";
-  version = "2025.8.21-unstable-2025-08-22";
+  version = "2025.8.21-unstable-2025-08-23";
 
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "60eb7c28ad43403f99197d44712bb62aa62937d3";
-    sha256 = "sha256-NKuRFqgTZP2hhOmPtkOhs61uRT3z/YqbOG2ML1ojTp4=";
+    rev = "338d8af7a6d117b848d42e07b9ac480e16b80343";
+    sha256 = "sha256-rjiFfvo575Cxjmeh7bJzZ3UkFaVnoFdb/tfO2Pef/3o=";
   };
 
   pyproject = true;
