@@ -154,6 +154,9 @@ in
           type = "local";
           command = [
             "github-mcp-server"
+            "stdio"
+            "--read-only"
+            "--dynamic-toolsets"
           ];
           environment = {
             GITHUB_PERSONAL_ACCESS_TOKEN = "{env:OPENCODE_GITHUB_PERSONAL_ACCESS_TOKEN}";
