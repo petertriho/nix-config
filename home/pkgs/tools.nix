@@ -19,7 +19,7 @@
     git-gone # git garbage collector
     glow # markdown viewer
     httpie # user-friendly HTTP client
-    hurl # http client for testing APIs
+    stable.hurl # http client for testing APIs
     hyperfine # command-line benchmarking tool
     iperf3 # network performance measurement tool
     jq # JSON processor

@@ -8,7 +8,7 @@ let
     context7-mcp
     github-mcp-server
     mcp-grafana
-    mcp-nixos
+    # mcp-nixos
     mcp-server-fetch
     mcp-server-sequential-thinking
     playwright-mcp
@@ -22,7 +22,7 @@ in
     packages =
       with pkgs;
       [
-        aider-chat
+        # aider-chat
         ccusage
         claude-code
         gemini-cli
@@ -174,13 +174,13 @@ in
           };
           enabled = false;
         };
-        nixos = {
-          type = "local";
-          command = [
-            "mcp-nixos"
-          ];
-          enabled = true;
-        };
+        # nixos = {
+        #   type = "local";
+        #   command = [
+        #     "mcp-nixos"
+        #   ];
+        #   enabled = true;
+        # };
         postgres = {
           type = "local";
           command = [
