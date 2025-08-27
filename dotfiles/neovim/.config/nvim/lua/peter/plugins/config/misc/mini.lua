@@ -28,36 +28,8 @@ return {
     config = function()
         require("mini.ai").setup({
             custom_textobjects = {
-                -- Comment block
-                c = function()
-                    local comment_string = vim.split(vim.bo.commentstring, "%%s")[1]
-                    if comment_string == "" then
-                        return nil
-                    end
-
-                    local cur_line = vim.fn.line(".")
-                    local start_line, end_line = cur_line, cur_line
-
-                    -- Find start of comment block
-                    while start_line > 1 and vim.fn.getline(start_line - 1):match("^%s*" .. vim.pesc(comment_string)) do
-                        start_line = start_line - 1
-                    end
-
-                    -- Find end of comment block
-                    while
-                        end_line < vim.fn.line("$")
-                        and vim.fn.getline(end_line + 1):match("^%s*" .. vim.pesc(comment_string))
-                    do
-                        end_line = end_line + 1
-                    end
-
-                    return {
-                        from = { line = start_line, col = 1 },
-                        to = { line = end_line, col = vim.fn.getline(end_line):len() },
-                    }
-                end,
                 -- Entire buffer
-                e = function()
+                E = function()
                     local n_lines = vim.fn.line("$")
                     return {
                         from = { line = 1, col = 1 },
