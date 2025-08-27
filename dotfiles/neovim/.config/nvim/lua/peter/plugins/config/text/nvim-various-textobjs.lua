@@ -18,7 +18,7 @@ return {
             desc = "Inner subword",
         },
         {
-            "ah",
+            "a#",
             function()
                 require("various-textobjs").color("outer")
             end,
@@ -26,12 +26,28 @@ return {
             desc = "Outer color",
         },
         {
-            "ih",
+            "i#",
             function()
                 require("various-textobjs").color("inner")
             end,
             mode = { "o", "x" },
             desc = "Inner color",
+        },
+        {
+            "a0",
+            function()
+                require("various-textobjs").number("outer")
+            end,
+            mode = { "o", "x" },
+            desc = "Outer number",
+        },
+        {
+            "i0",
+            function()
+                require("various-textobjs").number("inner")
+            end,
+            mode = { "o", "x" },
+            desc = "Inner number",
         },
         {
             "ak",
@@ -48,22 +64,6 @@ return {
             end,
             mode = { "o", "x" },
             desc = "Inner key",
-        },
-        {
-            "an",
-            function()
-                require("various-textobjs").number("outer")
-            end,
-            mode = { "o", "x" },
-            desc = "Outer number",
-        },
-        {
-            "in",
-            function()
-                require("various-textobjs").number("inner")
-            end,
-            mode = { "o", "x" },
-            desc = "Inner number",
         },
         {
             "au",
