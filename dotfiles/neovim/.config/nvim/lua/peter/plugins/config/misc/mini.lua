@@ -116,6 +116,10 @@ return {
         })
         require("mini.files").setup()
         require("mini.icons").setup()
-        require("mini.splitjoin").setup()
+        require("mini.splitjoin").setup({
+            mappings = {
+                toggle = "<leader>mj",
+            },
+        })
     end,
 }
