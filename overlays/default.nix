@@ -30,14 +30,20 @@
   stable = final: prev: {
     stable = import inputs.nixpkgs-stable {
       inherit (final) system;
-      config.allowUnfree = true;
+      config = {
+        allowUnfree = true;
+        allowBroken = true;
+      };
     };
   };
 
   unstable = final: prev: {
     unstable = import inputs.nixpkgs-unstable {
       inherit (final) system;
-      config.allowUnfree = true;
+      config = {
+        allowUnfree = true;
+        allowBroken = true;
+      };
     };
   };
 }
