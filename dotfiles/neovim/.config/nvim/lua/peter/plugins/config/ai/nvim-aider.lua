@@ -1,5 +1,6 @@
 return {
     "GeorgesAlkhouri/nvim-aider",
+    enabled = false,
     cmd = "Aider",
     keys = {
         { "<leader>a/", "<CMD>Aider toggle<CR>", desc = "Toggle Aider" },

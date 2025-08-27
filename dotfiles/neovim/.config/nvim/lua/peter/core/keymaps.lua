@@ -28,7 +28,14 @@ keymap("o", "il", ":norm vil<CR>", { unpack(opts), desc = "Inner Line" })
 keymap("x", "gv", [[<Esc>/\%V]], {})
 
 -- ESC to turn off hlsearch
-keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
+-- keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
+keymap("n", "<ESC>", function()
+    pcall(require("copilot-lsp.nes").clear())
+    pcall(require("snacks").notifier.hide)
+    vim.cmd.nohlsearch()
+end, {
+    desc = "Hide",
+})
 
 -- Quickfix
 keymap("", "qn", "<CMD>cnext<CR>", { unpack(opts), desc = "QF Next" })

@@ -66,6 +66,7 @@ return {
             opt = {},
         },
         "mikavilpas/blink-ripgrep.nvim",
+        "fang2hou/blink-copilot",
     },
     init = function()
         vim.g.completion_enabled = true
@@ -84,12 +85,35 @@ return {
             preset = "default",
             ["<C-e>"] = {
                 "hide",
-                function()
-                    if vim.g.copilot_model == nil then
-                        return
+                -- function()
+                --     if vim.g.copilot_model == nil then
+                --         return
+                --     end
+                --     require("copilot.suggestion").accept()
+                -- end,
+            },
+            ["<Tab>"] = {
+                function(cmp)
+                    local bufnr = vim.api.nvim_get_current_buf()
+                    local state = vim.b[bufnr].nes_state
+                    if state then
+                        cmp.hide()
+                        return (
+                            require("copilot-lsp.nes").walk_cursor_start_edit()
+                            or (
+                                require("copilot-lsp.nes").apply_pending_nes()
+                                and require("copilot-lsp.nes").walk_cursor_end_edit()
+                            )
+                        )
                     end
-                    require("copilot.suggestion").accept()
+                    if cmp.snippet_active() then
+                        return cmp.accept()
+                    else
+                        return cmp.select_and_accept()
+                    end
                 end,
+                "snippet_forward",
+                "fallback",
             },
         },
         appearance = {
@@ -177,6 +201,7 @@ return {
         },
         sources = {
             default = {
+                "copilot",
                 "lsp",
                 "path",
                 "snippets",
@@ -190,6 +215,12 @@ return {
                 },
             },
             providers = {
+                copilot = {
+                    name = "copilot",
+                    module = "blink-copilot",
+                    score_offset = 150,
+                    async = true,
+                },
                 lazydev = {
                     name = "LazyDev",
                     module = "lazydev.integrations.blink",

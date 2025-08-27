@@ -4,10 +4,10 @@ return {
         return vim.g.copilot_model ~= nil
     end,
     cmd = "Copilot",
-    event = "InsertEnter",
+    -- event = "InsertEnter",
     opts = {
         panel = {
-            auto_refresh = true,
+            auto_refresh = false,
             keymap = {
                 accept = "<CR>",
                 jump_next = "<M-]>",
@@ -17,7 +17,8 @@ return {
             },
         },
         suggestion = {
-            auto_trigger = vim.g.copilot_model ~= nil,
+            -- auto_trigger = vim.g.copilot_model ~= nil,
+            auto_trigger = false,
             keymap = {
                 accept = "<C-e>",
                 accept_line = false,
@@ -28,7 +29,7 @@ return {
             },
         },
         filetypes = {
-            ["*"] = true,
+            ["*"] = false,
         },
     },
 }

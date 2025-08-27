@@ -331,14 +331,6 @@ return {
             desc = "Notifications",
         },
         {
-            "<ESC>",
-            function()
-                require("snacks").notifier.hide()
-                vim.cmd.nohlsearch()
-            end,
-            desc = "Hide Notifications",
-        },
-        {
             "<leader>to",
             function()
                 require("snacks").picker.recent()
