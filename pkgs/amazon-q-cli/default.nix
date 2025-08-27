@@ -11,15 +11,15 @@ rustPlatform.buildRustPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "aws";
     repo = "amazon-q-developer-cli";
-    rev = "aa84de05d54b4dc0d68154ce5951ad582c6cb5c0";
-    sha256 = "sha256-1V5mw3dOVQ4L10uiAwodKkmwdvElzQ7DAyCJtRV1TNs=";
+    rev = "5bf5afa782bad244245e0f4a29da84e3e85063d0";
+    sha256 = "sha256-3tz+eh07uAgM8HY159AZO7NpntdO9ee4xYBZpfT/RUk=";
   };
 
   nativeBuildInputs = [
     rustPlatform.bindgenHook
   ];
 
-  cargoHash = "sha256-qcuxJf038260hr/1Mi5hgWC4Nwmj2xkt4XFkdfgs4QQ=";
+  cargoHash = "sha256-JKEoD72nMP2MJDDs/F4aCZZDWNEGyDe271OJxC82Bo0=";
 
   cargoBuildFlags = [
     "-p"
