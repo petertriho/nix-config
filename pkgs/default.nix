@@ -7,6 +7,7 @@ rec {
   amazon-q-cli = callPackage ./amazon-q-cli { };
   ccusage = callPackage ./ccusage { };
   context7-mcp = callPackage ./context7-mcp { };
+  copilot-language-server = callPackage ./copilot-language-server { };
   mcp-server-fetch = callPackage ./mcp-server-fetch { };
   mcp-server-sequential-thinking = callPackage ./mcp-server-sequential-thinking { };
   mighty-security = callPackage ./mighty-security { inherit pkgs; };

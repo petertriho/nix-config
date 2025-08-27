@@ -25,7 +25,9 @@ in
         # aider-chat
         ccusage
         claude-code
+        copilot-language-server
         gemini-cli
+        gh-copilot
         mighty-security
         nodejs
         # goose-cli
