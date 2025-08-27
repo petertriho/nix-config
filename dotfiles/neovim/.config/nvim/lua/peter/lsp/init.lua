@@ -149,7 +149,7 @@ local LSP_METHODS = {
         keymaps = {
             {
                 "n",
-                "gy",
+                "grt",
                 function()
                     vim.lsp.buf.type_definition({
                         on_list = on_list,
