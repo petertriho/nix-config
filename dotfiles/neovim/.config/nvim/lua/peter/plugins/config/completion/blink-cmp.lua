@@ -66,7 +66,7 @@ return {
             opt = {},
         },
         "mikavilpas/blink-ripgrep.nvim",
-        "fang2hou/blink-copilot",
+        -- "fang2hou/blink-copilot",
     },
     init = function()
         vim.g.completion_enabled = true
@@ -204,7 +204,7 @@ return {
         },
         sources = {
             default = {
-                "copilot",
+                -- "copilot",
                 "lsp",
                 "path",
                 "snippets",
@@ -218,12 +218,12 @@ return {
                 },
             },
             providers = {
-                copilot = {
-                    name = "copilot",
-                    module = "blink-copilot",
-                    score_offset = 150,
-                    async = true,
-                },
+                -- copilot = {
+                --     name = "copilot",
+                --     module = "blink-copilot",
+                --     score_offset = 150,
+                --     async = true,
+                -- },
                 lazydev = {
                     name = "LazyDev",
                     module = "lazydev.integrations.blink",
