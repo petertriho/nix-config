@@ -22,6 +22,14 @@ local LspClientCount = require("heirline-components.components.lspclientscount")
 local FileType = require("heirline-components.components.filetype")
 local FileStats = require("heirline-components.components.filestats")
 local Ruler = require("heirline-components.components.ruler")
+local MacroRecorder = require("heirline-components.components.macrorecorder")
+
+local MacroRuler = {
+    condition = function()
+        return vim.g.reg_recording == ""
+    end,
+    Ruler,
+}
 
 local DefaultStatusLine = {
     -- LHS
@@ -40,7 +48,8 @@ local DefaultStatusLine = {
     FileType,
     Space,
     FileStats,
-    Ruler,
+    MacroRecorder,
+    MacroRuler,
 }
 
 local WindowNumber = {

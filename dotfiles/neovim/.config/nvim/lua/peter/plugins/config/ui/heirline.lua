@@ -20,7 +20,7 @@ return {
         heirline.setup({
             statusline = require("heirline-components.statusline"),
             tabline = require("heirline-components.tabline"),
-            winbar = require("heirline-components.winbar"),
+            -- winbar = require("heirline-components.winbar"),
             opts = {
                 colors = require("heirline-components.colors"),
                 disable_winbar_cb = function(args)
