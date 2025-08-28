@@ -317,13 +317,6 @@ return {
             desc = "Man Pages",
         },
         {
-            "<leader>tp",
-            function()
-                require("snacks").picker.plugins()
-            end,
-            desc = "Plugins",
-        },
-        {
             "<leader>nn",
             function()
                 require("snacks").notifier.show_history()
