@@ -85,12 +85,15 @@ return {
             preset = "default",
             ["<C-e>"] = {
                 "hide",
-                -- function()
-                --     if vim.g.copilot_model == nil then
-                --         return
-                --     end
-                --     require("copilot.suggestion").accept()
-                -- end,
+                function()
+                    if not vim.lsp.inline_completion.get() then
+                        return
+                    end
+                    -- if vim.g.copilot_model == nil then
+                    --     return
+                    -- end
+                    -- require("copilot.suggestion").accept()
+                end,
             },
             ["<Tab>"] = {
                 function(cmp)

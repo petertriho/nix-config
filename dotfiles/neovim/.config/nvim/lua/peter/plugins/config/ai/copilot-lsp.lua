@@ -31,5 +31,6 @@ return {
     end,
     config = function()
         vim.lsp.enable("copilot_ls")
+        vim.lsp.inline_completion.enable(true)
     end,
 }
