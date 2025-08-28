@@ -7,6 +7,7 @@ return {
     -- event = "InsertEnter",
     opts = {
         panel = {
+            enabled = false,
             auto_refresh = false,
             keymap = {
                 accept = "<CR>",
@@ -17,6 +18,7 @@ return {
             },
         },
         suggestion = {
+            enabled = false,
             -- auto_trigger = vim.g.copilot_model ~= nil,
             auto_trigger = false,
             keymap = {

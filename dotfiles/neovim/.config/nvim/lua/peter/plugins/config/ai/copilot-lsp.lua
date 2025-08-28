@@ -21,7 +21,7 @@ return {
                     return "<C-i>"
                 end
             end,
-            desc = "Accept Copilot NES suggestion",
+            desc = "Copilot NES",
             expr = true,
             mode = { "n" },
         },
