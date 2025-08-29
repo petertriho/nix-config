@@ -1,5 +1,5 @@
 return {
-    "echasnovski/mini.nvim",
+    "nvim-mini/mini.nvim",
     event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
         {
