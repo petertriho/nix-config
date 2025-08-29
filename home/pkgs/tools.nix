@@ -43,6 +43,7 @@
   ];
 
   home.sessionVariables = {
+    GROFF_NO_SGR = "1"; # fix colored-man-pages plugin colors
     FZF_DEFAULT_OPTS = lib.strings.concatStringsSep " " [
       "--ansi"
       "--exact"

@@ -12,7 +12,7 @@
       lib.lists.forEach
         [
           autopair
-          colored-man-pages-fork
+          colored-man-pages
           forgit
           fzf-fish
           puffer
