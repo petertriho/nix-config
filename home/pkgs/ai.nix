@@ -23,7 +23,7 @@ in
         # aider-chat
         claude-code
         copilot-language-server
-        unstable.gemini-cli
+        # unstable.gemini-cli
         gh-copilot
         mighty-security
         nodejs

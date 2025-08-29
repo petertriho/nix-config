@@ -22,6 +22,7 @@
       inherit (final) system;
       config = {
         allowUnfree = true;
+        allowBroken = true;
       };
     };
   };
@@ -31,6 +32,7 @@
       inherit (final) system;
       config = {
         allowUnfree = true;
+        allowBroken = true;
       };
     };
   };
