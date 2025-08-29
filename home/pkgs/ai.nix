@@ -23,7 +23,7 @@ in
       with pkgs;
       [
         # aider-chat
-        ccusage
+        # ccusage
         claude-code
         copilot-language-server
         gemini-cli
