@@ -6,13 +6,11 @@
 let
   mcpServers = with pkgs; [
     context7-mcp
-    github-mcp-server
     mcp-grafana
     # mcp-nixos
     mcp-server-fetch
     mcp-server-sequential-thinking
     playwright-mcp
-    postgres-mcp
     serena
     terraform-mcp-server
   ];
@@ -23,7 +21,6 @@ in
       with pkgs;
       [
         # aider-chat
-        # ccusage
         claude-code
         copilot-language-server
         gemini-cli
@@ -45,7 +42,7 @@ in
   };
   programs.opencode = {
     enable = true;
-    package = pkgs.opencode;
+    package = pkgs.unstable.opencode;
     settings = {
       theme = "system";
       autoshare = false;
@@ -152,19 +149,6 @@ in
           ];
           enabled = false;
         };
-        github = {
-          type = "local";
-          command = [
-            "github-mcp-server"
-            "stdio"
-            "--read-only"
-            "--dynamic-toolsets"
-          ];
-          environment = {
-            GITHUB_PERSONAL_ACCESS_TOKEN = "{env:OPENCODE_GITHUB_PERSONAL_ACCESS_TOKEN}";
-          };
-          enabled = false;
-        };
         grafana = {
           type = "local";
           command = [
@@ -183,17 +167,6 @@ in
         #   ];
         #   enabled = true;
         # };
-        postgres = {
-          type = "local";
-          command = [
-            "postgres-mcp"
-            "--access-mode=restricted"
-          ];
-          environment = {
-            DATABASE_URI = "{env:OPENCODE_DATABASE_URI}";
-          };
-          enabled = false;
-        };
         playwright = {
           type = "local";
           command = [
