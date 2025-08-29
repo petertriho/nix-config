@@ -59,6 +59,7 @@
     jdt-language-server
     lua-language-server
     marksman
+    mpls
     nil
     # nodePackages.typescript-language-server
     postgres-lsp
