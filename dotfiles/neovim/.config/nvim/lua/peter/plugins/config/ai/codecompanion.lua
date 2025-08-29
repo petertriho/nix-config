@@ -30,15 +30,17 @@ return {
         if vim.g.copilot_model then
             opts = vim.tbl_deep_extend("force", opts, {
                 adapters = {
-                    copilot = function()
-                        return require("codecompanion.adapters").extend("copilot", {
-                            schema = {
-                                model = {
-                                    default = vim.g.copilot_model,
+                    http = {
+                        copilot = function()
+                            return require("codecompanion.adapters").extend("copilot", {
+                                schema = {
+                                    model = {
+                                        default = vim.g.copilot_model,
+                                    },
                                 },
-                            },
-                        })
-                    end,
+                            })
+                        end,
+                    },
                 },
             })
         end
