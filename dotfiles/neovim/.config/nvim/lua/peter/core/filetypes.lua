@@ -12,6 +12,7 @@ local M = {
         "css",
         "diff",
         "dockerfile",
+        "elixir",
         "fish",
         "git_config",
         "git_rebase",

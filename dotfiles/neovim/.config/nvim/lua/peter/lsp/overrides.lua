@@ -56,6 +56,7 @@ return {
         },
     },
     eslint = {},
+    expert = {},
     fish_lsp = {},
     gopls = {},
     harper_ls = {},
