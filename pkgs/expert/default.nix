@@ -13,7 +13,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "expert";
-  version = "unstable-2024-08-30";
+  version = "nightly-unstable-2025-08-30";
 
   src = fetchgit {
     url = "https://github.com/elixir-lang/expert.git";
