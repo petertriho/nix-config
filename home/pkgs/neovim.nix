@@ -52,7 +52,7 @@
     bash-language-server
     docker-compose-language-service
     dockerfile-language-server-nodejs
-    expert
+    # expert
     emmet-language-server
     fish-lsp
     gopls
