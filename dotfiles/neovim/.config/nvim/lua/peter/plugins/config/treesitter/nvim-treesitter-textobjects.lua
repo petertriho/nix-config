@@ -41,14 +41,14 @@ return {
 
         local move = require("nvim-treesitter-textobjects.move")
         local move_keymaps = {
-            { key = "]f", func = "goto_next_start", query = "@function.outer", desc = "Next function start" },
+            { key = "[c", func = "goto_previous_start", query = "@class.outer", desc = "Previous class start" },
             { key = "]c", func = "goto_next_start", query = "@class.outer", desc = "Next class start" },
-            { key = "]F", func = "goto_next_end", query = "@function.outer", desc = "Next function end" },
+            { key = "[C", func = "goto_previous_end", query = "@class.outer", desc = "Previous class end" },
             { key = "]C", func = "goto_next_end", query = "@class.outer", desc = "Next class end" },
             { key = "[f", func = "goto_previous_start", query = "@function.outer", desc = "Previous function start" },
-            { key = "[c", func = "goto_previous_start", query = "@class.outer", desc = "Previous class start" },
+            { key = "]f", func = "goto_next_start", query = "@function.outer", desc = "Next function start" },
             { key = "[F", func = "goto_previous_end", query = "@function.outer", desc = "Previous function end" },
-            { key = "[C", func = "goto_previous_end", query = "@class.outer", desc = "Previous class end" },
+            { key = "]F", func = "goto_next_end", query = "@function.outer", desc = "Next function end" },
         }
         for _, keymap in ipairs(move_keymaps) do
             vim.keymap.set({ "n", "x", "o" }, keymap.key, function()
