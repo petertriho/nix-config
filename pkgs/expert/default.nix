@@ -17,8 +17,8 @@ stdenv.mkDerivation (finalAttrs: {
 
   src = fetchgit {
     url = "https://github.com/elixir-lang/expert.git";
-    rev = "0767fb48357a1cb7a0e14ffade6ed9f5e0ae4fc3";
-    hash = "sha256-8yJozbwESlNXJy6oIl4nTV6SC7NJSWOsGdq1Zii01f0=";
+    rev = "6c5cbe981c96e47422307f8a195306d69d2edcdc";
+    hash = "sha256-8I7Eor+Wa97JUgEUoqdCcs1458BTqNciHMXjvtcLysM=";
     fetchLFS = true;
   };
 
