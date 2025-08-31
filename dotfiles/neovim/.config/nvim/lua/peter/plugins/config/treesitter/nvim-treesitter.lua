@@ -7,6 +7,19 @@ return {
     },
     event = { "User LazyLoadFile", "VeryLazy" },
     build = ":TSUpdate",
+    dependencies = {
+        {
+            dir = "~/.config/nvim/plugins/incremental-selection",
+            opts = {
+                keymaps = {
+                    init_selection = false,
+                    node_incremental = "v",
+                    node_decremental = "V",
+                    scope_incremental = false,
+                },
+            },
+        },
+    },
     init = function()
         vim.api.nvim_create_user_command("TSUpdateSync", function()
             require("nvim-treesitter").update():wait(600000) -- 10 mins
@@ -34,7 +47,6 @@ return {
                     return
                 end
 
-                local ft = vim.bo[event.buf].ft
                 local lang = vim.treesitter.language.get_lang(ft)
                 pcall(vim.treesitter.start, event.buf, lang)
                 vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
