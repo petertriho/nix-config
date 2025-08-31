@@ -100,6 +100,7 @@
       # dependencies
       gcc
       gnumake
+      tree-sitter
       # copilot.lua
       nodejs-slim
     ];

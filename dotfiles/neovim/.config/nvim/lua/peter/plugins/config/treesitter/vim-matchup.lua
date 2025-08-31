@@ -16,11 +16,13 @@ return {
         },
     },
     config = function()
-        require("nvim-treesitter.configs").setup({
-            matchup = { enable = true },
+        require("match-up").setup({
+            treesitter = { enabled = true },
+            matchparen = {
+                deferred = 1,
+                offset = {},
+            },
         })
-        vim.g.matchup_matchparen_offscreen = {}
-        vim.g.matchup_matchparen_deferred = 1
         vim.api.nvim_del_keymap("", "z%")
     end,
 }
