@@ -7,19 +7,6 @@ return {
     },
     event = { "User LazyLoadFile", "VeryLazy" },
     build = ":TSUpdate",
-    dependencies = {
-        {
-            dir = "~/.config/nvim/plugins/incremental-selection",
-            opts = {
-                keymaps = {
-                    init_selection = false,
-                    node_incremental = "v",
-                    node_decremental = "V",
-                    scope_incremental = false,
-                },
-            },
-        },
-    },
     init = function()
         vim.api.nvim_create_user_command("TSUpdateSync", function()
             require("nvim-treesitter").update():wait(600000) -- 10 mins
