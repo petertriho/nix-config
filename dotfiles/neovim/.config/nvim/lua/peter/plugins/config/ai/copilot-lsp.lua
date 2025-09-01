@@ -16,7 +16,7 @@ return {
                             require("copilot-lsp.nes").apply_pending_nes()
                             and require("copilot-lsp.nes").walk_cursor_end_edit()
                         )
-                    return
+                    return nil
                 else
                     return "<C-i>"
                 end
@@ -28,9 +28,9 @@ return {
     },
     init = function()
         vim.g.copilot_nes_debounce = 500
+        vim.lsp.inline_completion.enable()
     end,
     config = function()
-        vim.lsp.inline_completion.enable(true)
         vim.lsp.enable("copilot_ls")
     end,
 }
