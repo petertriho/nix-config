@@ -66,7 +66,7 @@ return {
             opt = {},
         },
         "mikavilpas/blink-ripgrep.nvim",
-        -- "fang2hou/blink-copilot",
+        "fang2hou/blink-copilot",
     },
     init = function()
         vim.g.completion_enabled = true
@@ -85,15 +85,15 @@ return {
             preset = "default",
             ["<C-e>"] = {
                 "hide",
-                function()
-                    if not vim.lsp.inline_completion.get() then
-                        return
-                    end
-                    -- if vim.g.copilot_model == nil then
-                    --     return
-                    -- end
-                    -- require("copilot.suggestion").accept()
-                end,
+                -- function()
+                --     if not vim.lsp.inline_completion.get() then
+                --         return
+                --     end
+                --     -- if vim.g.copilot_model == nil then
+                --     --     return
+                --     -- end
+                --     -- require("copilot.suggestion").accept()
+                -- end,
             },
             ["<Tab>"] = {
                 function(cmp)
@@ -201,7 +201,7 @@ return {
         },
         sources = {
             default = {
-                -- "copilot",
+                "copilot",
                 "lsp",
                 "path",
                 "snippets",
@@ -215,12 +215,12 @@ return {
                 },
             },
             providers = {
-                -- copilot = {
-                --     name = "copilot",
-                --     module = "blink-copilot",
-                --     score_offset = 150,
-                --     async = true,
-                -- },
+                copilot = {
+                    name = "copilot",
+                    module = "blink-copilot",
+                    score_offset = 150,
+                    async = true,
+                },
                 lazydev = {
                     name = "LazyDev",
                     module = "lazydev.integrations.blink",
