@@ -28,7 +28,7 @@ local function select_range(start_row, start_col, end_row, end_col)
     start_row = start_row + 1
     start_col = start_col + 1
     end_row = end_row + 1
-    end_col = end_col + 1
+    -- end_col = end_col + 1
 
     -- Validate positions
     local buf = api.nvim_get_current_buf()
