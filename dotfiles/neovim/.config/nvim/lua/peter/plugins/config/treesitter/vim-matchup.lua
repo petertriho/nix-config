@@ -20,7 +20,7 @@ return {
             treesitter = { enabled = true },
             matchparen = {
                 deferred = 1,
-                offset = {},
+                offscreen = {},
             },
         })
         vim.api.nvim_del_keymap("", "z%")
