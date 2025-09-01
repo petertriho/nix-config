@@ -30,9 +30,9 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- ESC to turn off hlsearch
 -- keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 keymap("n", "<ESC>", function()
-    pcall(require("copilot-lsp.nes").clear())
-    pcall(require("snacks").notifier.hide)
     vim.cmd.nohlsearch()
+    pcall(require("copilot-lsp.nes").clear)
+    pcall(require("snacks").notifier.hide)
 end, {
     desc = "Hide",
 })
