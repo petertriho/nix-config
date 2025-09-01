@@ -11,7 +11,7 @@ let
     mcp-server-fetch
     mcp-server-sequential-thinking
     playwright-mcp
-    serena
+    # serena
     terraform-mcp-server
   ];
 in
@@ -181,16 +181,16 @@ in
           ];
           enabled = true;
         };
-        serena = {
-          type = "local";
-          command = [
-            "serena"
-            "start-mcp-server"
-            "--context"
-            "ide-assistant"
-          ];
-          enabled = false;
-        };
+        # serena = {
+        #   type = "local";
+        #   command = [
+        #     "serena"
+        #     "start-mcp-server"
+        #     "--context"
+        #     "ide-assistant"
+        #   ];
+        #   enabled = false;
+        # };
         terraform = {
           type = "local";
           command = [
