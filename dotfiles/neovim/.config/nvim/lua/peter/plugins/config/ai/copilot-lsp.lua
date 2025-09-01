@@ -6,7 +6,7 @@ return {
     event = "InsertEnter",
     keys = {
         {
-            "<TAB>",
+            "<Tab>",
             function()
                 local bufnr = vim.api.nvim_get_current_buf()
                 local state = vim.b[bufnr].nes_state
@@ -16,7 +16,7 @@ return {
                             require("copilot-lsp.nes").apply_pending_nes()
                             and require("copilot-lsp.nes").walk_cursor_end_edit()
                         )
-                    return nil
+                    return
                 else
                     return "<C-i>"
                 end
