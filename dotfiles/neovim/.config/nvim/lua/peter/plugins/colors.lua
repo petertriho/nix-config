@@ -1,13 +1,16 @@
 -- local colors = require("tokyonight.colors").setup(require("tokyonight.config"))
-
+--
 -- colors = vim.tbl_extend("force", colors, {
 --     fg = colors.fg_sidebar,
 --     bg = colors.bg_statusline,
 -- })
+--
+-- vim.print(vim.inspect(colors))
 
 local colors = {
     bg = "#16161e",
     bg_dark = "#16161e",
+    bg_dark1 = "#0C0E14",
     bg_float = "#16161e",
     bg_highlight = "#292e42",
     bg_popup = "#16161e",
@@ -24,7 +27,7 @@ local colors = {
     blue6 = "#b4f9f8",
     blue7 = "#394b70",
     border = "#15161e",
-    border_highlight = "#2d3149",
+    border_highlight = "#27a1b9",
     comment = "#565f89",
     cyan = "#7dcfff",
     dark3 = "#545c7e",
@@ -57,10 +60,28 @@ local colors = {
     none = "NONE",
     orange = "#ff9e64",
     purple = "#9d7cd8",
-    rainbow = { "#7aa2f7", "#e0af68", "#9ece6a", "#1abc9c", "#bb9af7", "#9d7cd8" },
+    rainbow = { "#7aa2f7", "#e0af68", "#9ece6a", "#1abc9c", "#bb9af7", "#9d7cd8", "#ff9e64", "#f7768e" },
     red = "#f7768e",
     red1 = "#db4b4b",
     teal = "#1abc9c",
+    terminal = {
+        black = "#15161e",
+        black_bright = "#414868",
+        blue = "#7aa2f7",
+        blue_bright = "#8db0ff",
+        cyan = "#7dcfff",
+        cyan_bright = "#a4daff",
+        green = "#9ece6a",
+        green_bright = "#9fe044",
+        magenta = "#bb9af7",
+        magenta_bright = "#c7a9ff",
+        red = "#f7768e",
+        red_bright = "#ff899d",
+        white = "#a9b1d6",
+        white_bright = "#c0caf5",
+        yellow = "#e0af68",
+        yellow_bright = "#faba4a",
+    },
     terminal_black = "#414868",
     todo = "#7aa2f7",
     warning = "#e0af68",

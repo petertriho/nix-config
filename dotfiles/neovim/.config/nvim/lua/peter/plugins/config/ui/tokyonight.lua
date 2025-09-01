@@ -33,6 +33,16 @@ return {
                     fg = colors.fg_gutter,
                     bg = colors.bg_visual,
                 }
+
+                hl.BlinkPairsBlue = { fg = colors.blue }
+                hl.BlinkPairsYellow = { fg = colors.yellow }
+                hl.BlinkPairsGreen = { fg = colors.green }
+                hl.BlinkPairsTeal = { fg = colors.teal }
+                hl.BlinkPairsMagenta = { fg = colors.magenta }
+                hl.BlinkPairsPurple = { fg = colors.purple }
+                hl.BlinkPairsOrange = { fg = colors.orange }
+                hl.BlinkPairsRed = { fg = colors.red }
+                hl.BlinkPairsUnmatched = { fg = colors.error, underline = true, bold = true }
             end,
             plugins = { markdown = true, rainbow = true },
         })
