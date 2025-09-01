@@ -158,6 +158,7 @@ return {
             fish = { "fish_indent" },
             gitcommit = { "commitmsgfmt" },
             go = { "goimports", "gofmt" },
+            hurl = { "hurlfmt" },
             java = { "google_java_format", lsp_format = "prefer" },
             json = with_prettier_formatter({ "jq", "sort_package_json" }),
             lua = { "stylua" },
