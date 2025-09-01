@@ -6,11 +6,11 @@
 let
   mcpServers = with pkgs; [
     context7-mcp
-    mcp-grafana
+    # mcp-grafana
     # mcp-nixos
     mcp-server-fetch
     mcp-server-sequential-thinking
-    playwright-mcp
+    # playwright-mcp
     # serena
     terraform-mcp-server
   ];
@@ -160,13 +160,13 @@ in
           };
           enabled = false;
         };
-        # nixos = {
-        #   type = "local";
-        #   command = [
-        #     "mcp-nixos"
-        #   ];
-        #   enabled = true;
-        # };
+        nixos = {
+          type = "local";
+          command = [
+            "mcp-nixos"
+          ];
+          enabled = false;
+        };
         playwright = {
           type = "local";
           command = [
@@ -181,16 +181,16 @@ in
           ];
           enabled = true;
         };
-        # serena = {
-        #   type = "local";
-        #   command = [
-        #     "serena"
-        #     "start-mcp-server"
-        #     "--context"
-        #     "ide-assistant"
-        #   ];
-        #   enabled = false;
-        # };
+        serena = {
+          type = "local";
+          command = [
+            "serena"
+            "start-mcp-server"
+            "--context"
+            "ide-assistant"
+          ];
+          enabled = false;
+        };
         terraform = {
           type = "local";
           command = [
