@@ -12,7 +12,7 @@ let
 in
 python3Packages.buildPythonApplication rec {
   pname = "mcp-server-fetch";
-  version = "2025.8.21-unstable-2025-08-29";
+  version = "2025.9.1-unstable-2025-08-29";
 
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";

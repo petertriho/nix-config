@@ -8,7 +8,7 @@
 }:
 buildNpmPackage {
   pname = "mcp-server-sequential-thinking";
-  version = "2025.8.21-unstable-2025-08-29";
+  version = "2025.9.1-unstable-2025-08-29";
 
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
