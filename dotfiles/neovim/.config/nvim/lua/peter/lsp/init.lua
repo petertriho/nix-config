@@ -23,8 +23,10 @@ local on_list = function(options)
     vim.cmd.cfirst()
 end
 
+local methods = vim.lsp.protocol.Methods
+
 local LSP_METHODS = {
-    ["textDocument/codeAction"] = {
+    [methods.textDocument_codeAction] = {
         keymaps = {
             {
                 { "n", "x" },
@@ -44,7 +46,7 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/declaration"] = {
+    [methods.textDocument_declaration] = {
         keymaps = {
             {
                 "n",
@@ -58,7 +60,7 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/definition"] = {
+    [methods.textDocument_definition] = {
         keymaps = {
             {
                 "n",
@@ -72,7 +74,7 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/documentSymbol"] = {
+    [methods.textDocument_documentSymbol] = {
         callback = function(client, bufnr)
             if vim.b.lsp_document_symbols then
                 return
@@ -81,7 +83,7 @@ local LSP_METHODS = {
             vim.b.lsp_document_symbols = true
         end,
     },
-    ["textDocument/hover"] = {
+    [methods.textDocument_hover] = {
         keymaps = {
             {
                 "n",
@@ -93,7 +95,7 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/implementation"] = {
+    [methods.textDocument_implementation] = {
         keymaps = {
             {
                 "n",
@@ -107,7 +109,15 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/rename"] = {
+    [methods.textDocument_inlineCompletion] = {
+        callback = function(client, bufnr)
+            vim.lsp.inline_completion.enable(true, {
+                -- client_id = client.id,
+                bufnr = bufnr,
+            })
+        end,
+    },
+    [methods.textDocument_rename] = {
         keymaps = {
             {
                 "n",
@@ -119,7 +129,7 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/references"] = {
+    [methods.textDocument_references] = {
         keymaps = {
             {
                 "n",
@@ -133,7 +143,7 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/signatureHelp"] = {
+    [methods.textDocument_signatureHelp] = {
         keymaps = {
             {
                 { "n", "i" },
@@ -145,7 +155,7 @@ local LSP_METHODS = {
             },
         },
     },
-    ["textDocument/typeDefinition"] = {
+    [methods.textDocument_typeDefinition] = {
         keymaps = {
             {
                 "n",
@@ -235,8 +245,8 @@ local function lsp_setup_method(client, bufnr, method)
 end
 
 local function lsp_setup_handlers()
-    local register_capability_handler = vim.lsp.handlers["client/registerCapability"]
-    vim.lsp.handlers["client/registerCapability"] = function(err, result, ctx)
+    local register_capability_handler = vim.lsp.handlers[methods.client_registerCapability]
+    vim.lsp.handlers[methods.client_registerCapability] = function(err, result, ctx)
         local client = vim.lsp.get_client_by_id(ctx.client_id)
         if client then
             for _, registration in pairs(result.registrations) do

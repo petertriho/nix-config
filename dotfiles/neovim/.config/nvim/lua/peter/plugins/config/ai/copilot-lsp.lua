@@ -3,8 +3,8 @@ return {
     enabled = function()
         return vim.g.copilot_model ~= nil
     end,
-    event = { "User LazyLoadFile", "VeryLazy" },
-    -- event = "InsertEnter",
+    -- event = { "User LazyLoadFile", "VeryLazy" },
+    event = "InsertEnter",
     keys = {
         {
             "<Tab>",
@@ -31,7 +31,6 @@ return {
         vim.g.copilot_nes_debounce = 500
     end,
     config = function()
-        -- vim.lsp.inline_completion.enable()
         vim.lsp.enable("copilot_ls")
     end,
 }
