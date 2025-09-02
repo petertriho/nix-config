@@ -117,6 +117,13 @@ local LSP_METHODS = {
             })
         end,
     },
+    [methods.textDocument_onTypeFormatting] = {
+        callback = function(client, bufnr)
+            vim.lsp.on_type_formatting.enable(true, {
+                client_id = client.id,
+            })
+        end,
+    },
     [methods.textDocument_rename] = {
         keymaps = {
             {
