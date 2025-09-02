@@ -357,6 +357,13 @@ local function make_base_config()
                 didDelete = true,
             },
         },
+    }, {
+        -- NOTE: bug with basedpyright requires this https://github.com/DetachHead/basedpyright/pull/1452
+        textDocument = {
+            onTypeFormatting = {
+                dynamicRegistration = true,
+            },
+        },
     })
 
     return {
