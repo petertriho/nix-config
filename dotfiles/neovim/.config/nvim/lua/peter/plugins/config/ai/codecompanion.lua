@@ -11,7 +11,14 @@ return {
             "<CMD>CodeCompanionChat Toggle<CR>",
             desc = "Toggle",
         },
-        { "<leader>ca", "<CMD>CodeCompanionChat Add<CR>", desc = "Add" },
+        {
+            "<leader>ca",
+            "<CMD>CodeCompanionChat Add<CR>",
+            mode = {
+                "v",
+            },
+            desc = "Add",
+        },
     },
     dependencies = {
         "franco-ruggeri/codecompanion-spinner.nvim",
