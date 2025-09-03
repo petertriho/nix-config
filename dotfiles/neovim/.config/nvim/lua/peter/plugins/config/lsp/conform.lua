@@ -162,7 +162,7 @@ return {
             java = { "google_java_format", lsp_format = "prefer" },
             json = with_prettier_formatter({ "jq", "sort_package_json" }),
             lua = { "stylua" },
-            make = { "bake" },
+            make = { "mbake" },
             markdown = with_prettier_formatter({}, { "injected" }),
             nix = { "alejandra", "nixfmt", "injected" },
             python = function(bufnr)
@@ -268,6 +268,11 @@ return {
                 },
                 jq = {
                     command = "jq",
+                },
+                mbake = {
+                    command = "mbake",
+                    args = { "format", "$FILENAME" },
+                    stdin = false,
                 },
                 plsql_formatter = {
                     command = "sql-formatter",
