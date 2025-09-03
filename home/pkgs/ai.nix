@@ -47,6 +47,7 @@ in
       theme = "system";
       autoshare = false;
       autoupdate = false;
+      # snapshot = false;
       lsp = {
         bashls = {
           command = [
