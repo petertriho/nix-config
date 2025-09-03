@@ -28,6 +28,9 @@ return {
         },
         on_attach = function(client, bufnr)
             vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+            -- Disable server_capabilities, use pyrefly instead
+            client.server_capabilities.renameProvider = false
+            client.server_capabilities.semanticTokensProvider = nil
         end,
     },
     bashls = {},
