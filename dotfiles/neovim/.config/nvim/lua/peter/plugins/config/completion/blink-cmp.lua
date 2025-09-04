@@ -97,6 +97,10 @@ return {
             },
             ["<Tab>"] = {
                 function(cmp)
+                    if cmp.snippet_active() then
+                        return cmp.accept()
+                    end
+
                     local bufnr = vim.api.nvim_get_current_buf()
                     local state = vim.b[bufnr].nes_state
                     if state then
@@ -106,11 +110,8 @@ return {
                             and require("copilot-lsp.nes").walk_cursor_end_edit()
                         )
                     end
-                    if cmp.snippet_active() then
-                        return cmp.accept()
-                    else
-                        return cmp.select_and_accept()
-                    end
+
+                    return cmp.select_and_accept()
                 end,
                 "snippet_forward",
                 "fallback",
