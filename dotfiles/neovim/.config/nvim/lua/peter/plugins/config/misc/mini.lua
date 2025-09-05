@@ -121,5 +121,23 @@ return {
                 toggle = "<leader>mj",
             },
         })
+        require("mini.surround").setup({
+            mappings = {
+                add = "ys",
+                delete = "ds",
+                replace = "cs",
+                find = "",
+                find_left = "",
+                highlight = "",
+                update_n_lines = "",
+            },
+        })
+        vim.keymap.del("x", "ys")
+        vim.keymap.set(
+            "x",
+            "gs",
+            ":<C-u>lua require('mini.surround').add('visual')<CR>",
+            { desc = "Add surrounding to selection", noremap = true }
+        )
     end,
 }
