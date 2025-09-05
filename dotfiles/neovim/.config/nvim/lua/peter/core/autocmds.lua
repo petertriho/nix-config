@@ -133,6 +133,35 @@ set_augroups({
                 desc = "Lazy load file",
             },
         },
+        {
+            { "BufRead" },
+            {
+
+                callback = function(event)
+                    vim.api.nvim_create_autocmd("BufWinEnter", {
+                        once = true,
+                        buffer = event.buf,
+                        callback = function()
+                            local buftype = vim.bo[event.buf].buftype
+                            if buftype ~= "" then
+                                return
+                            end
+
+                            local filetype = vim.bo[event.buf].filetype
+                            if require("peter.core.utils").is_ft("excludes", filetype) then
+                                return
+                            end
+
+                            local last_known_line = vim.api.nvim_buf_get_mark(event.buf, '"')[1]
+                            if last_known_line > 1 and last_known_line <= vim.api.nvim_buf_line_count(event.buf) then
+                                vim.api.nvim_feedkeys([[g`"]], "nx", false)
+                            end
+                        end,
+                    })
+                end,
+                desc = "Restore cursor",
+            },
+        },
         -- {
         --     "User",
         --     {
