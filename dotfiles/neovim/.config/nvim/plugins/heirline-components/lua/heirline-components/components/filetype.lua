@@ -1,3 +1,9 @@
+local schema_companion_supported_filetypes = {
+    JSON = true,
+    TOML = true,
+    YAML = true,
+}
+
 return {
     init = function(self)
         self.bufnr = vim.api.nvim_get_current_buf()
@@ -5,10 +11,10 @@ return {
         self.extension = vim.fn.fnamemodify(self.filename, ":e")
         self.filetype = vim.bo[self.bufnr].filetype:upper()
 
-        if self.filetype == "YAML" then
-            local schema = require("schema-companion.context").get_buffer_schema()
-            if schema and schema.name ~= "none" then
-                self.filetype = string.format("%s (%s)", self.filetype, schema.name)
+        if schema_companion_supported_filetypes[self.filetype] then
+            local ok, schema = pcall(require("schema-companion").get_current_schemas)
+            if ok and schema and schema ~= "none" then
+                self.filetype = string.format("%s (%s)", self.filetype, schema)
             end
         end
 

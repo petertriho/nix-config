@@ -78,17 +78,26 @@ return {
         lazy = true,
         filetypes = { "json", "jsonc" },
         config = function()
-            return {
-                init_options = {
-                    provideFormatter = false,
-                },
-                settings = {
-                    json = {
-                        validate = { enable = true },
-                        schemas = require("schemastore").json.schemas(),
+            local sc = require("schema-companion")
+            return sc.setup_client(
+                sc.adapters.jsonls.setup({
+                    sources = {
+                        sc.sources.lsp.setup(),
+                        sc.sources.none.setup(),
                     },
-                },
-            }
+                }),
+                {
+                    init_options = {
+                        provideFormatter = false,
+                    },
+                    settings = {
+                        json = {
+                            validate = { enable = true },
+                            schemas = require("schemastore").json.schemas(),
+                        },
+                    },
+                }
+            )
         end,
     },
     lua_ls = {},
@@ -180,7 +189,19 @@ return {
     superhtml = {},
     svelte = {},
     tailwindcss = {},
-    taplo = {},
+    taplo = {
+        lazy = true,
+        filetypes = { "toml" },
+        config = function()
+            local sc = require("schema-companion")
+            return sc.setup_client(sc.adapters.taplo.setup({
+                sources = {
+                    sc.sources.lsp.setup(),
+                    sc.sources.none.setup(),
+                },
+            }))
+        end,
+    },
     terraformls = {},
     tinymist = {},
     tflint = {},
@@ -218,8 +239,9 @@ return {
             "typescript.tsx",
         },
         config = function()
-            local publish_diagnostics_handler = vim.lsp.handlers["textDocument/publishDiagnostics"]
-            vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx)
+            local publish_diagnostics_handler =
+                vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
+            vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics] = function(err, result, ctx)
                 require("ts-error-translator").translate_diagnostics(err, result, ctx)
                 publish_diagnostics_handler(err, result, ctx)
             end
@@ -257,7 +279,26 @@ return {
         lazy = true,
         filetypes = { "yaml", "yml" },
         config = function()
-            return require("schema-companion").setup_client()
+            local sc = require("schema-companion")
+            return sc.setup_client(
+                sc.adapters.yamlls.setup({
+                    sources = {
+                        sc.sources.lsp.setup(),
+                        sc.sources.none.setup(),
+                    },
+                })
+                -- {
+                --     settings = {
+                --         yaml = {
+                --             schemaStore = {
+                --                 enable = false,
+                --                 url = "",
+                --             },
+                --             schemas = require("schemastore").yaml.schemas(),
+                --         },
+                --     },
+                -- }
+            )
         end,
     },
 }
