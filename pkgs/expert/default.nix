@@ -13,12 +13,12 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "expert";
-  version = "nightly-unstable-2025-09-03";
+  version = "nightly-unstable-2025-09-04";
 
   src = fetchgit {
     url = "https://github.com/elixir-lang/expert.git";
-    rev = "e510182b90fc931cc0fe9e65d4a241521d990312";
-    hash = "sha256-l+8xHzyAPNzx1qP0MXoEBiJK5QHGBhdGPcT1m3ftq7g=";
+    rev = "db67ba90b31eac0451ba9727ec11266d71dc844c";
+    hash = "sha256-QxLNayaMb0kgdUj4Hzz7DRuMk/yYdZoBugM2aLFQCk0=";
     fetchLFS = true;
   };
 
