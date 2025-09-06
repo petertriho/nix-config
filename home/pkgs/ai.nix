@@ -24,10 +24,12 @@ in
         amazon-q-cli
         claude-code
         copilot-language-server
-        # unstable.gemini-cli
+        unstable.gemini-cli
         gh-copilot
         mighty-security
         nodejs
+        unstable.qwen-code
+        python3Packages.tiktoken
         # goose-cli
         # plandex
       ]
