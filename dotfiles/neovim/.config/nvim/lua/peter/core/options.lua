@@ -105,38 +105,26 @@ opt.wildignore = build_wildignore()
 
 -- Clipboard
 if vim.fn.has("wsl") == 1 then
+    local copy = "clip.exe"
+    local paste = 'powershell.exe -NoLogo -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))'
+
     if vim.fn.executable("win32yank.exe") == 1 then
-        local copy = "win32yank.exe -i --crlf"
-        local paste = "win32yank.exe -o --lf"
-        vim.g.clipboard = {
-            name = "win32yank",
-            copy = {
-                ["+"] = copy,
-                ["*"] = copy,
-            },
-            paste = {
-                ["+"] = paste,
-                ["*"] = paste,
-            },
-            cache_enabled = 0,
-        }
-    else
-        local copy = "clip.exe"
-        local paste =
-            'powershell.exe -NoLogo -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))'
-        vim.g.clipboard = {
-            name = "windows-clip",
-            copy = {
-                ["+"] = copy,
-                ["*"] = copy,
-            },
-            paste = {
-                ["+"] = paste,
-                ["*"] = paste,
-            },
-            cache_enabled = 0,
-        }
+        copy = "win32yank.exe -i --crlf"
+        paste = "win32yank.exe -o --lf"
     end
+
+    vim.g.clipboard = {
+        name = "wsl-clipboard",
+        copy = {
+            ["+"] = copy,
+            ["*"] = copy,
+        },
+        paste = {
+            ["+"] = paste,
+            ["*"] = paste,
+        },
+        cache_enabled = 0,
+    }
 end
 
 -- Vimgrep
