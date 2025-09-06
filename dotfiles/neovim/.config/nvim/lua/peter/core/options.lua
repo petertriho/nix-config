@@ -104,20 +104,39 @@ end
 opt.wildignore = build_wildignore()
 
 -- Clipboard
-if vim.fn.exists("$TMUX") == 0 and vim.fn.has("wsl") == 1 and vim.fn.executable("win32yank.exe") == 0 then
-    -- Use native clip.exe if win32yank does not exist
-    vim.g.clipboard = {
-        name = "WslClipboard",
-        copy = {
-            ["+"] = "clip.exe",
-            ["*"] = "clip.exe",
-        },
-        paste = {
-            ["+"] = 'powershell.exe -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
-            ["*"] = 'powershell.exe -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
-        },
-        cache_enabled = 0,
-    }
+if vim.fn.has("wsl") == 1 then
+    if vim.fn.executable("win32yank.exe") == 1 then
+        local copy = "win32yank.exe -i --crlf"
+        local paste = "win32yank.exe -o --lf"
+        vim.g.clipboard = {
+            name = "win32yank",
+            copy = {
+                ["+"] = copy,
+                ["*"] = copy,
+            },
+            paste = {
+                ["+"] = paste,
+                ["*"] = paste,
+            },
+            cache_enabled = 0,
+        }
+    else
+        local copy = "clip.exe"
+        local paste =
+            'powershell.exe -NoLogo -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))'
+        vim.g.clipboard = {
+            name = "windows-clip",
+            copy = {
+                ["+"] = copy,
+                ["*"] = copy,
+            },
+            paste = {
+                ["+"] = paste,
+                ["*"] = paste,
+            },
+            cache_enabled = 0,
+        }
+    end
 end
 
 -- Vimgrep
