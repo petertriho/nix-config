@@ -122,6 +122,7 @@
       ns = "nix search nixpkgs";
       oc = "opencode";
       pv = "python -m venv .venv";
+      q = "amazon-q";
       rmf = "rm -rf";
       rv = "rm -rf .venv";
       sc = "sesh-connect-fzf";

@@ -21,6 +21,7 @@ in
       with pkgs;
       [
         # aider-chat
+        amazon-q-cli
         claude-code
         copilot-language-server
         # unstable.gemini-cli
