@@ -52,7 +52,6 @@
     bash-language-server
     docker-compose-language-service
     dockerfile-language-server-nodejs
-    # expert
     emmet-language-server
     fish-lsp
     gopls
@@ -64,7 +63,6 @@
     nil
     # nodePackages.typescript-language-server
     postgres-lsp
-    # pylyzer
     unstable.pyrefly
     quick-lint-js
     # rust-analyzer
