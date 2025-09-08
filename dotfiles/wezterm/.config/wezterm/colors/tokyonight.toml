@@ -4,7 +4,7 @@ background = "#1a1b26"
 cursor_bg = "#c0caf5"
 cursor_border = "#c0caf5"
 cursor_fg = "#1a1b26"
-selection_bg = "#33467C"
+selection_bg = "#33467c"
 selection_fg = "#c0caf5"
 
 ansi = [
