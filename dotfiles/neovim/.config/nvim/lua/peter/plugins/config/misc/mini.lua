@@ -114,7 +114,12 @@ return {
                 inside_last = "iL",
             },
         })
-        require("mini.files").setup()
+        require("mini.files").setup({
+            mappings = {
+                go_in = "<C-l>",
+                go_out = "<C-h>",
+            },
+        })
         require("mini.icons").setup()
         require("mini.splitjoin").setup({
             mappings = {
