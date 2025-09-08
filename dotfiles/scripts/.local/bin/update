@@ -98,8 +98,6 @@ function tool:nvim {
         nvim --headless "+TSUpdateSync" +qa
         echo_info "Syncing Lazy plugins..."
         nvim --headless "+Lazy! sync" +qa
-        echo_info "Clearing watchman watches..."
-        watchman watch-del-all # clear watchman watches for nvim plugins
         echo_success "Neovim plugins updated"
     else
         echo_warning "Neovim not found, skipping plugin updates"
@@ -111,6 +109,8 @@ function tool:nvim:clean {
         echo_header "Cleaning neovim plugins"
         nvim --headless "+Lazy! clean" +qa
         echo_success "Neovim plugins cleaned"
+        echo_info "Clearing watchman watches..."
+        watchman watch-del-all # clear watchman watches for nvim plugins
     else
         echo_warning "Neovim not found, skipping plugin cleanup"
     fi
