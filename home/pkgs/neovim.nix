@@ -63,7 +63,8 @@
     nil
     # nodePackages.typescript-language-server
     postgres-lsp
-    unstable.pyrefly
+    # unstable.pyrefly
+    pyrefly
     quick-lint-js
     # rust-analyzer
     superhtml
@@ -73,7 +74,8 @@
     terraform-ls
     tinymist
     tflint
-    unstable.ty
+    # unstable.ty
+    ty
     typos-lsp
     vscode-langservers-extracted # html, css, json, eslint
     vtsls

@@ -24,11 +24,13 @@ in
         amazon-q-cli
         claude-code
         copilot-language-server
-        unstable.gemini-cli
+        # unstable.gemini-cli
+        gemini-cli
         gh-copilot
         mighty-security
         nodejs
-        unstable.qwen-code
+        # unstable.qwen-code
+        qwen-code
         python3Packages.tiktoken
         # goose-cli
         # plandex
@@ -45,7 +47,8 @@ in
   };
   programs.opencode = {
     enable = true;
-    package = pkgs.unstable.opencode;
+    # package = pkgs.unstable.opencode;
+    package = pkgs.opencode;
     settings = {
       theme = "system";
       autoshare = false;
