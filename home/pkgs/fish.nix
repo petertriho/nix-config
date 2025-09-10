@@ -109,6 +109,9 @@
       ll = "ls -la";
       mk = "minikube";
       n = "nix";
+      na = "navi";
+      nac = "navi --cheatsh";
+      nat = "navi --tldr";
       ncg = "nix-collect-garbage --delete-older-than";
       ndh = "nix-direnv-helper";
       ndr = "nix-direnv-reload";

@@ -8,7 +8,6 @@
   home.packages = with pkgs; [
     bat # cat replacement with syntax highlighting
     btop # better htop
-    cht-sh # command-line cheat sheets
     coreutils # GNU core utilities
     dive # inspect docker images
     eza # ls replacement
@@ -18,6 +17,7 @@
     gnumake # GNU Make
     git-gone # git garbage collector
     glow # markdown viewer
+    python3Packages.howdoi # instant coding answers
     httpie # user-friendly HTTP client
     stable.hurl # http client for testing APIs
     hyperfine # command-line benchmarking tool
@@ -32,7 +32,6 @@
     openssl # for generating certificates
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
-    tldr # simplified man pages
     typst # typesetting system
     unzip # unzip files
     update-nix-fetchgit # update fetchgit URLs in Nix files
