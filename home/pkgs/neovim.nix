@@ -99,8 +99,6 @@
       gcc
       gnumake
       tree-sitter
-      # copilot.lua
-      nodejs-slim
     ];
     extraLuaPackages = ps: [
       # ps.tiktoken_core
