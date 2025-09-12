@@ -118,13 +118,13 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
     }
 end)
 
+config.font = wezterm.font("JetBrainsMono Nerd Font Mono")
+
 if wezterm.target_triple == "x86_64-pc-windows-msvc" then
     config.default_domain = "WSL:NixOS"
-    config.font = wezterm.font("JetBrainsMono Nerd Font")
     config.font_size = 12
     config.allow_win32_input_mode = false
 else
-    config.font = wezterm.font("JetBrainsMono Nerd Font Mono")
     config.font_size = 14
 end
 
