@@ -16,8 +16,8 @@ buildPythonPackage {
   src = fetchFromGitHub {
     owner = "oraios";
     repo = "serena";
-    rev = "a9ce7a3ccbb008d3cbaeb7934fb305b52386dfb6";
-    sha256 = "sha256-oUVjWDQi4S28zvrkF7idftACFEcGyzV6QEBdhyyGnP0=";
+    rev = "75bdee7d549fa43ac7213992bd547a65242ca66f";
+    sha256 = "sha256-WgCkepLA2KRzZYKAXYJPhVS3Si9CzptPXZLc7PVmaOY=";
   };
 
   patches = [
