@@ -359,10 +359,9 @@ local function make_base_config()
             },
         },
     }, {
-        -- NOTE: bug with basedpyright requires this https://github.com/DetachHead/basedpyright/pull/1452
         textDocument = {
             onTypeFormatting = {
-                dynamicRegistration = true,
+                dynamicRegistration = false,
             },
         },
     })
