@@ -2,6 +2,7 @@
 {
   imports = [
     ./base.nix
+    ./pkgs/alacritty.nix
     ./pkgs/colima.nix
     ./pkgs/wezterm.nix
   ];

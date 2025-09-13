@@ -38,7 +38,8 @@
           "/System/Applications/Mail.app"
           "/System/Applications/Calendar.app"
           "/Applications/Floorp.app"
-          "/Applications/WezTerm.app"
+          "/Applications/Alacritty.app"
+          # "/Applications/WezTerm.app"
         ];
         persistent-others = [
           "${config.homePath}/Downloads"

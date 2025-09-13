@@ -36,6 +36,7 @@ in
     ];
     casks = [
       "aerospace"
+      "alacritty"
       "appcleaner"
       "cyberduck"
       "displaylink"
