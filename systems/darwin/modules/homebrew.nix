@@ -53,6 +53,7 @@ in
       "nextcloud"
       "notunes"
       "orbstack"
+      "raycast"
       "vlc"
       "wezterm"
       # "airbuddy"
