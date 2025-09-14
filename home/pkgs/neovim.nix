@@ -51,7 +51,7 @@
     basedpyright
     bash-language-server
     docker-compose-language-service
-    dockerfile-language-server-nodejs
+    dockerfile-language-server
     emmet-language-server
     fish-lsp
     gopls
