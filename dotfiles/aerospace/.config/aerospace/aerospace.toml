@@ -94,7 +94,7 @@ alt-comma = 'layout accordion horizontal vertical'
 alt-f = ['layout floating tiling', 'mode main']
 alt-z = 'fullscreen'
 
-alt-enter = 'exec-and-forget open -n -a WezTerm'
+alt-enter = 'exec-and-forget open -n -a Alacritty'
 alt-shift-e = 'exec-and-forget open -n finder'
 alt-t = 'exec-and-forget open -n -a "Floorp"'
 alt-shift-q = "close --quit-if-last-window"
