@@ -7,6 +7,8 @@
     ./pkgs/wezterm.nix
   ];
 
+  home.file.".hushlogin".text = "";
+
   xdg.configFile = {
     "aerospace".source = config.lib.meta.mkDotfilesSymlink "aerospace/.config/aerospace";
     # "karabiner/karabiner.json".source =
