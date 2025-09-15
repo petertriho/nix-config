@@ -14,7 +14,7 @@
     enable = true;
     settings = {
       font = {
-        size = 14;
+        size = if pkgs.stdenv.isLinux then 12 else 14;
         normal.family = "JetBrainsMono Nerd Font Mono";
       };
       colors = {
