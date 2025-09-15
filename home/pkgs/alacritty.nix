@@ -17,6 +17,9 @@
         size = if pkgs.stdenv.isLinux then 12 else 14;
         normal.family = "JetBrainsMono Nerd Font Mono";
       };
+      window = {
+        option_as_alt = "Both";
+      };
       colors = {
         primary = {
           foreground = "#c0caf5";
