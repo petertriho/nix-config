@@ -46,6 +46,7 @@ in
       "floorp"
       "font-jetbrains-mono-nerd-font"
       "google-chrome"
+      "iina"
       "keepingyouawake"
       "keka"
       "keyboardcleantool"
@@ -54,7 +55,6 @@ in
       "notunes"
       "orbstack"
       "raycast"
-      "vlc"
       "wezterm"
       # "airbuddy"
       # "badgeify"
@@ -70,6 +70,7 @@ in
       # "stats"
       # "steermouse"
       # "swish"
+      # "vlc"
       # "wooshy"
     ]
     ++ (
