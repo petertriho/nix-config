@@ -86,13 +86,7 @@ set_augroups({
             {
                 pattern = "*",
                 callback = function(event)
-                    local buftype = vim.bo[event.buf].buftype
-                    if buftype ~= "" then
-                        return
-                    end
-
-                    local filetype = vim.bo[event.buf].filetype
-                    if require("peter.core.utils").is_ft("excludes", filetype) then
+                    if require("peter.core.utils").is_excludes_buf(event.buf) then
                         return
                     end
 
@@ -142,13 +136,7 @@ set_augroups({
                         once = true,
                         buffer = event.buf,
                         callback = function()
-                            local buftype = vim.bo[event.buf].buftype
-                            if buftype ~= "" then
-                                return
-                            end
-
-                            local filetype = vim.bo[event.buf].filetype
-                            if require("peter.core.utils").is_ft("excludes", filetype) then
+                            if require("peter.core.utils").is_excludes_buf(event.buf) then
                                 return
                             end
 

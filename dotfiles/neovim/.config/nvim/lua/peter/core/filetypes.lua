@@ -69,6 +69,10 @@ local M = {
         "snacks_picker_preview",
         unpack(sidebars),
     },
+    excludes_regex = {
+        "^git.*",
+        "^fugitive://",
+    },
     sidebars = sidebars,
 }
 

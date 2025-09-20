@@ -132,6 +132,40 @@ M.is_ft = function(type, filetype)
     return filetype_map[filetype] == true
 end
 
+M.matches_regex = function(type, filename)
+    local regex_list = require("peter.core.filetypes")[type]
+    if not regex_list then
+        return false
+    end
+    
+    for _, regex in ipairs(regex_list) do
+        if filename:match(regex) then
+            return true
+        end
+    end
+    
+    return false
+end
+
+M.is_excludes_buf = function(buf)
+    local buftype = vim.bo[buf].buftype
+    if buftype ~= "" then
+        return true
+    end
+
+    local filetype = vim.bo[buf].filetype
+    if M.is_ft("excludes", filetype) then
+        return true
+    end
+
+    local filename = vim.api.nvim_buf_get_name(buf)
+    if M.matches_regex("excludes_regex", filename) then
+        return true
+    end
+
+    return false
+end
+
 M.generate_uuid = function()
     local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
     return string.gsub(template, "[xy]", function(c)
