@@ -137,13 +137,13 @@ M.matches_regex = function(type, filename)
     if not regex_list then
         return false
     end
-    
+
     for _, regex in ipairs(regex_list) do
         if filename:match(regex) then
             return true
         end
     end
-    
+
     return false
 end
 
@@ -158,8 +158,7 @@ M.is_excludes_buf = function(buf)
         return true
     end
 
-    local filename = vim.api.nvim_buf_get_name(buf)
-    if M.matches_regex("excludes_regex", filename) then
+    if M.matches_regex("excludes_regex", filetype) then
         return true
     end
 
