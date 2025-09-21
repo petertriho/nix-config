@@ -65,8 +65,8 @@
         CPU_MIN_PERF_ON_BAT = 0;
         CPU_MAX_PERF_ON_BAT = 35;
 
-        START_CHARGE_THRESH_ON_BAT = 75;
-        STOP_CHARGE_THRESH_ON_BAT = 80;
+        START_CHARGE_THRESH_BAT0 = 75;
+        STOP_CHARGE_THRESH_BAT0 = 80;
       };
     };
     libinput = {
