@@ -7,10 +7,12 @@
       "flakes"
     ];
     extra-substituters = [
+      "https://hyprland.cachix.org"
       "https://nix-community.cachix.org"
       "https://vicinae.cachix.org"
     ];
     extra-trusted-public-keys = [
+      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
     ];
@@ -21,6 +23,7 @@
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-wsl.url = "github:nix-community/nixos-wsl";
+    nixos-hardware.url = "github:NixOS/nixos-hardware";
     nix-darwin = {
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -29,6 +32,7 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    hyprland.url = "github:hyprwm/Hyprland";
     neovim-nightly-overlay.url = "github:nix-community/neovim-nightly-overlay";
     vicinae.url = "github:vicinaehq/vicinae";
   };
@@ -83,6 +87,12 @@
           getSystemConfiguration "x86_64-linux"
           // {
             modules = [ ./systems/nixos/WSL.nix ];
+          }
+        );
+        X1-NANO = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
+            modules = [ ./systems/nixos/X1-NANO ];
           }
         );
       };
