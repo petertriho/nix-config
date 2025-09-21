@@ -218,6 +218,9 @@
 
             ", Down, resizeactive, 0 50"
             "$mod, Down, resizeactive, 0 50"
+
+            ", Equal, resizeactive, exact"
+            "$mod, Equal, resizeactive, exact"
           ];
           bind = [
             ", Escape, submap, reset"
