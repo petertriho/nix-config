@@ -106,7 +106,7 @@ local FileFlags = {
         condition = function(self)
             return vim.api.nvim_get_option_value("modified", { buf = self.bufnr })
         end,
-        provider = " ●",
+        provider = " ● ",
         hl = { fg = "green" },
     },
     {
@@ -118,7 +118,7 @@ local FileFlags = {
             if vim.api.nvim_get_option_value("buftype", { buf = self.bufnr }) == "terminal" then
                 return "  "
             else
-                return " "
+                return "  "
             end
         end,
         hl = { fg = "orange" },
@@ -154,7 +154,6 @@ local FileNameBlock = {
         end,
         name = "heirline_tabline_buffer_callback",
     },
-    Space,
     BufIndex,
     FileIcon,
     FileName,
@@ -204,7 +203,7 @@ local BufferPicker = {
         self.label = label
     end,
     provider = function(self)
-        return self.label
+        return " " .. self.label .. " "
     end,
     hl = { fg = "red", bold = true },
 }
@@ -232,7 +231,7 @@ local BufferBlock = {
             return { bg = "tabline_bg" }
         end
     end,
-    { ActiveIndicator, Space, FileNameBlock, Space, Space, FileFlags, BufferCloseButton, BufferPicker },
+    { ActiveIndicator, Space, FileNameBlock, Space, FileFlags, BufferCloseButton, BufferPicker },
 }
 
 local BufferLine = utils.make_buflist(
