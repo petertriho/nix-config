@@ -24,7 +24,7 @@ return {
             end,
             desc = "Copilot NES",
             expr = true,
-            mode = { "n", "i" },
+            mode = { "n" },
         },
     },
     init = function()
