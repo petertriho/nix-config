@@ -107,6 +107,8 @@
         "$mod, Tab, cyclenext"
         "$mod SHIFT, Tab, cyclenext, prev"
         "$mod, Q, killactive"
+        "$mod, M, fullscreen, 1"
+        "$mod, Z, fullscreen, 0"
 
         # Window: Focus
         "$mod, H, movefocus, l"
