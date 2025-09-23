@@ -106,6 +106,8 @@ alt-tab = 'focus-back-and-forth'
 alt-shift-tab = 'focus-back-and-forth'
 alt-q = 'close --quit-if-last-window'
 alt-shift-q = "close-all-windows-but-current"
+alt-m = 'fullscreen'
+alt-z = 'fullscreen'
 
 # Window: Focus
 # See: https://nikitabobko.github.io/AeroSpace/commands#focus
