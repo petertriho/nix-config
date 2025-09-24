@@ -3,6 +3,7 @@
   imports = [
     ./base.nix
     ./pkgs/alacritty.nix
+    ./pkgs/ghostty.nix
     ./pkgs/colima.nix
     ./pkgs/wezterm.nix
   ];

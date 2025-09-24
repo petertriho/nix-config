@@ -8,6 +8,7 @@
     ./base.nix
     inputs.vicinae.homeManagerModules.default
     ./pkgs/alacritty.nix
+    ./pkgs/ghostty.nix
     ./pkgs/hyprland.nix
     ./pkgs/waybar.nix
     ./pkgs/vicinae.nix

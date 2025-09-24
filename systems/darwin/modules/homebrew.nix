@@ -45,6 +45,7 @@ in
       "firefox"
       "floorp"
       "font-jetbrains-mono-nerd-font"
+      "ghostty"
       "google-chrome"
       "iina"
       "keepingyouawake"

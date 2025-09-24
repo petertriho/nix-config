@@ -89,7 +89,7 @@ outer.right = 0
 # '''
 
 # Launch
-alt-enter = 'exec-and-forget open -n -a Alacritty'
+alt-enter = 'exec-and-forget open -n -a Ghostty'
 alt-f = 'exec-and-forget open -n finder'
 alt-t = 'exec-and-forget open -n -a "Floorp"'
 alt-v = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
@@ -107,7 +107,7 @@ alt-shift-tab = 'focus-back-and-forth'
 alt-q = 'close --quit-if-last-window'
 alt-shift-q = "close-all-windows-but-current"
 alt-m = 'fullscreen'
-alt-z = 'fullscreen'
+alt-z = 'macos-native-fullscreen'
 
 # Window: Focus
 # See: https://nikitabobko.github.io/AeroSpace/commands#focus

@@ -1,0 +1,19 @@
+bold-color = bright
+confirm-close-surface = false
+font-family = "JetBrainsMono Nerd Font Mono"
+font-size = 13
+font-thicken = true
+# Font features for JetBrainsMono
+# -calt: ligatures off
+# -clig: contextual ligatures off
+# -liga: standard ligatures off
+# +zero: slashed zero
+# +cv06: 'm' smaller middle apex
+# +cv07: 'w' smaller middle apex
+# +cv12: 'u' spur
+# +cv14: '¢$' broken strikes
+font-feature = -calt,-clig,-liga,+zero,+cv06,+cv07,+cv12,+cv14
+macos-option-as-alt = true
+theme = tokyonight
+window-padding-x = 0
+window-padding-y = 0
