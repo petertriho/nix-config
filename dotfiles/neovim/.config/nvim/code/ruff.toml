@@ -1,3 +1,4 @@
+[lint]
 select = [
   "ASYNC", # flake8-async
   "B",     # flake8-bugbear
@@ -16,6 +17,11 @@ select = [
   "UP",    # pyupgrade
   "W",     # pycodestyle
   # "I",     # isort
+]
+
+ignore = [
+  "D205", # missing-blank-line-after-summary
+  "D212", # multi-line-summary-first-line
 ]
 
 [format]
