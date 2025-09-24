@@ -21,6 +21,7 @@
         option_as_alt = "Both";
       };
       colors = {
+        draw_bold_text_with_bright_colors = true;
         primary = {
           foreground = "#c0caf5";
           background = "#1a1b26";
