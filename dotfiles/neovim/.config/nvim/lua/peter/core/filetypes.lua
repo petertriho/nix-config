@@ -71,7 +71,7 @@ local M = {
     },
     excludes_regex = {
         "^git.*",
-        "^fugitive://",
+        "fugitive:",
     },
     sidebars = sidebars,
 }
