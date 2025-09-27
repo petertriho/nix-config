@@ -78,7 +78,7 @@
 
       "$mod" = "SUPER";
       "$browser" = "floorp";
-      "$terminal" = "alacritty";
+      "$terminal" = "ghostty";
       "$fileManager" = "dolphin";
       "$menu" = "vicinae vicinae://toggle";
       "$menuApp" = "vicinae vicinae://extensions/vicinae/applications";
