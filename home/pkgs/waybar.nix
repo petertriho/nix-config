@@ -20,7 +20,6 @@
           "pulseaudio"
           "battery"
           "network"
-          "custom/power"
         ];
 
         "hyprland/workspaces" = {
@@ -156,19 +155,6 @@
           format = "{:%Y-%m-%d %H:%M}";
           tooltip-format = "<tt>{calendar}</tt>";
         };
-
-        "custom/power" = {
-          format = "󰐥";
-          tooltip = "Power options";
-          on-click = ''
-            option=$(echo -e "Shutdown\nRestart\nLogout" | tofi --prompt-text "Power Options")
-            case "$option" in
-              "Shutdown") systemctl poweroff ;;
-              "Restart") systemctl reboot ;;
-              "Logout") loginctl terminate-user $USER ;;
-            esac
-          '';
-        };
       };
     };
 
@@ -214,21 +200,10 @@
       #network,
       #pulseaudio,
       #battery,
-      #clock,
-      #custom-power {
+      #clock {
         padding: 0 2px;
         margin: 0 2px;
         color: #ffffff;
-      }
-
-      #custom-power {
-        color: #ff6b6b;
-        font-size: 16px;
-      }
-
-      #custom-power:hover {
-        background-color: rgba(255, 107, 107, 0.2);
-        border-radius: 3px;
       }
 
       #battery.critical:not(.charging) {
