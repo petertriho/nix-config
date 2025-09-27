@@ -11,7 +11,6 @@
     hyprlock
     pamixer
     playerctl
-    tofi
   ];
 
   services.hypridle = {
