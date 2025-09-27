@@ -64,6 +64,7 @@
     # nodePackages.typescript-language-server
     postgres-lsp
     unstable.pyrefly
+    kdePackages.qtdeclarative # qmlls
     quick-lint-js
     # rust-analyzer
     superhtml

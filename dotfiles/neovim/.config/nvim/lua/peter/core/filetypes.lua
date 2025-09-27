@@ -41,6 +41,7 @@ local M = {
         "todotxt",
         "toml",
         "tsx",
+        "qmljs",
         "typescript",
         "typst",
         "vim",

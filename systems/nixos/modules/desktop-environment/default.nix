@@ -8,7 +8,7 @@
   services = {
     desktopManager = {
       plasma6.enable = true;
-      cosmic.enable = true;
+      cosmic.enable = false;
     };
     xserver = {
       enable = false;

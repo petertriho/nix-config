@@ -153,6 +153,7 @@ return {
             "typescript.tsx",
         },
     },
+    qmlls = {},
     ruff = {
         -- capabilities = {
         --     general = {

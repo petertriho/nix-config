@@ -41,6 +41,13 @@
     package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     systemd.enable = false;
     settings = {
+      windowrulev2 = [
+        "float, title:^(quickshell-osd)$"
+        "noborder, title:^(quickshell-osd)$"
+        "noshadow, title:^(quickshell-osd)$"
+        "pin, title:^(quickshell-osd)$"
+        "workspace special, title:^(quickshell-osd)$"
+      ];
       animations = {
         enabled = false;
       };
@@ -81,12 +88,11 @@
       bind = [
         # System/Hardware Keys
         ", Print, exec, grimblast copy area"
-        ", XF86AudioMute, exec, pamixer --toggle-mute"
-        ", XF86AudioMicMute, exec, pamixer --toggle-mute --default-source"
-        ", XF86AudioLowerVolume, exec, pamixer --decrease 5"
-        ", XF86AudioRaiseVolume, exec, pamixer --increase 5"
-        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
-        ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
+        ", XF86AudioMute, global, quickshell-osd:volume-mute"
+        ", XF86AudioLowerVolume, global, quickshell-osd:volume-down"
+        ", XF86AudioRaiseVolume, global, quickshell-osd:volume-up"
+        ", XF86MonBrightnessDown, global, quickshell-osd:brightness-down"
+        ", XF86MonBrightnessUp, global, quickshell-osd:brightness-up"
         ", XF86AudioPlay, exec, playerctl play-pause"
         ", XF86AudioPrev, exec, playerctl previous"
         ", XF86AudioNext, exec, playerctl next"

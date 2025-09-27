@@ -70,8 +70,8 @@
         };
 
         "pulseaudio" = {
-          format = "{icon} {volume}%";
-          format-bluetooth = "󰂯 {icon} {volume}%";
+          format = "{icon}";
+          format-bluetooth = "󰂯 {icon}";
           format-muted = "󰝟";
           format-icons = {
             headphone = "󰋋";
@@ -135,7 +135,7 @@
         };
 
         "backlight" = {
-          format = "{icon} {percent}%";
+          format = "{icon}";
           format-icons = [
             "󰃞"
             "󰃟"
