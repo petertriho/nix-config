@@ -5,9 +5,15 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import QtQuick.Dialogs
+import "."
 
 ShellRoot {
     id: root
+
+    // Bar component
+    Bar {
+        id: bar
+    }
 
     // Control components
     BrightnessControl {

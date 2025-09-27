@@ -1,1 +1,5 @@
+Bar 1.0 Bar.qml
+BrightnessControl 1.0 BrightnessControl.qml
+ControlOsd 1.0 ControlOsd.qml
+VolumeControl 1.0 VolumeControl.qml
 singleton Colors 1.0 Colors.qml

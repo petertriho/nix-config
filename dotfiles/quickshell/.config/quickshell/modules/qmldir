@@ -1,0 +1,11 @@
+BacklightModule 1.0 BacklightModule.qml
+BaseModule 1.0 BaseModule.qml
+BatteryModule 1.0 BatteryModule.qml
+ClockModule 1.0 ClockModule.qml
+CpuModule 1.0 CpuModule.qml
+MemoryModule 1.0 MemoryModule.qml
+NetworkModule 1.0 NetworkModule.qml
+PulseAudioModule 1.0 PulseAudioModule.qml
+TemperatureModule 1.0 TemperatureModule.qml
+TrayModule 1.0 TrayModule.qml
+WorkspacesModule 1.0 WorkspacesModule.qml
