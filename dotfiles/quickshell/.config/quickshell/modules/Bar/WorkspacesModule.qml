@@ -11,7 +11,8 @@ Row {
 
     // Accept colors from parent
     property QtObject colors
-    property QtObject config
+    property QtObject workspacesConfig
+    property QtObject fontsConfig
     property var windowIcons
 
     property var activeWorkspace: 1
@@ -20,28 +21,27 @@ Row {
     // Window icons are now loaded from config
 
     function getWindowIcon(windowClass) {
-        var icon = (windowIcons) ? windowIcons[windowClass] || "󰘔" : "󰘔";
-        return icon;
+        return root.windowIcons[windowClass] || "󰘔";
     }
 
     Component.onCompleted: {
+        updateClients();
         updateWorkspaces();
         updateTimer.start();
         updateActiveWorkspace();
         activeWorkspaceTimer.start();
-        updateClients();
     }
 
     Timer {
         id: updateTimer
-        interval: config ? config.workspaces.updateInterval : 200
+        interval: workspacesConfig.updateInterval
         repeat: true
         onTriggered: updateWorkspaces()
     }
 
     Timer {
         id: activeWorkspaceTimer
-        interval: config ? config.workspaces.activeUpdateInterval : 100
+        interval: workspacesConfig.activeUpdateInterval
         repeat: true
         onTriggered: updateActiveWorkspace()
     }
@@ -113,11 +113,13 @@ Row {
                 var windowIcons = [];
 
                 // Get window icons for this workspace
-                for (var j = 0; j < clientsData.length; j++) {
-                    var client = clientsData[j];
-                    if (client.workspace.id === ws.id) {
-                        var icon = getWindowIcon(client.class);
-                        windowIcons.push(icon);
+                if (clientsData && clientsData.length > 0) {
+                    for (var j = 0; j < clientsData.length; j++) {
+                        var client = clientsData[j];
+                        if (client.workspace && client.workspace.id === ws.id) {
+                            var icon = getWindowIcon(client.class);
+                            windowIcons.push(icon);
+                        }
                     }
                 }
 
@@ -130,8 +132,6 @@ Row {
                 });
             }
 
-            console.log("Setting workspacesData with activeWorkspace:", activeWorkspace);
-            console.log("Sample workspace data:", newWorkspacesData[0]);
             root.workspacesData = newWorkspacesData;
         } catch (e) {
             console.log("Error parsing workspaces:", e);
@@ -147,7 +147,6 @@ Row {
             updateWorkspaces();
         } catch (e) {
             console.log("Error parsing active workspace:", e);
-            console.log("Active workspace data:", activeWorkspaceData);
         }
     }
 
@@ -156,6 +155,8 @@ Row {
     function parseClients(jsonOutput) {
         try {
             clientsData = JSON.parse(jsonOutput);
+            // Refresh workspaces to update window icons
+            updateWorkspaces();
         } catch (e) {
             console.log("Error parsing clients:", e);
         }
@@ -186,27 +187,23 @@ Row {
             property bool isActive: modelData.active || false
             property int workspaceId: modelData.id || 1
 
-            Component.onCompleted: {
-                console.log("Delegate for workspace", workspaceId, "name:", workspaceName, "active:", isActive);
-            }
-
             width: {
-                var baseWidth = config ? config.workspaces.baseWidth : 30;
-                var iconWidth = icons.length > 0 ? icons.length * (config ? config.workspaces.iconWidth : 16) + (config ? config.workspaces.iconPadding : 12) : 0;
+                var baseWidth = workspacesConfig.baseWidth;
+                var iconWidth = icons.length > 0 ? icons.length * workspacesConfig.iconWidth + workspacesConfig.iconPadding : 0;
                 return Math.max(baseWidth, iconWidth);
             }
-            height: config ? config.workspaces.height : 16
-            color: isActive ? (colors ? colors.bg_highlight : "#292e42") : (colors ? colors.bg_dark : "#16161e")
+            height: workspacesConfig.height
+            color: isActive ? colors.bg_highlight : colors.bg_dark
             radius: 4
 
             Row {
                 anchors.centerIn: parent
-                spacing: config ? config.workspaces.spacing : 4
+                spacing: workspacesConfig.spacing
 
                 Text {
                     text: workspaceName
-                    color: colors ? colors.fg : "#a9b1d6"
-                    font.pixelSize: config ? config.workspaces.fontSize : 12
+                    color: colors.fg
+                    font.pixelSize: workspacesConfig.fontSize
                 }
 
                 Repeater {
@@ -214,9 +211,9 @@ Row {
                     delegate: Text {
                         property string iconText: modelData || ""
                         text: iconText
-                        color: colors ? colors.fg : "#a9b1d6"
-                        font.pixelSize: config ? config.workspaces.iconFontSize : 12
-                        font.family: config ? config.fonts.defaultFamily : "JetBrainsMono Nerd Font Propo"
+                        color: colors.fg
+                        font.pixelSize: workspacesConfig.iconFontSize
+                        font.family: fontsConfig ? fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
                         visible: iconText.length > 0
                         anchors.verticalCenter: parent.verticalCenter
                     }

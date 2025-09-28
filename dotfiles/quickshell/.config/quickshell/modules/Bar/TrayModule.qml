@@ -9,10 +9,10 @@ BaseModule {
     // Simple tray placeholder - Quickshell may have specific tray components
     // This is a basic implementation that can be expanded
     property int iconCount: 0
-    property QtObject config: parent.config
+    property QtObject intervalsConfig: parent.intervalsConfig
 
     Timer {
-        interval: config ? config.intervals.tray : 10000
+        interval: intervalsConfig.tray
         repeat: true
         running: true
         onTriggered: updateTray()

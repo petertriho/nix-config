@@ -12,10 +12,12 @@ BaseModule {
     property bool isBluetooth: false
     property string deviceType: "default"
     property string icon: "󰕿"
-    property QtObject config: parent.config
+    property QtObject intervalsConfig: parent.intervalsConfig
+    property QtObject thresholdsConfig: parent.thresholdsConfig
+    property QtObject stepsConfig: parent.stepsConfig
 
     Timer {
-        interval: config ? config.intervals.volume : 2000
+        interval: intervalsConfig.volume
         repeat: true
         running: true
         onTriggered: updateVolume()
@@ -73,8 +75,8 @@ BaseModule {
         if (deviceType === "car")
             return "󰄋";
 
-        var lowThreshold = config ? config.thresholds.volume.low : 33;
-        var mediumThreshold = config ? config.thresholds.volume.medium : 66;
+        var lowThreshold = thresholdsConfig.volume.low;
+        var mediumThreshold = thresholdsConfig.volume.medium;
 
         if (volume < lowThreshold)
             return "󰕿";

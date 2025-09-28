@@ -10,7 +10,8 @@ BaseModule {
     property real temperature: 0
     property bool isCritical: false
     property string tempPath: ""
-    property QtObject config: parent.config
+    property QtObject intervalsConfig: parent.intervalsConfig
+    property QtObject thresholdsConfig: parent.thresholdsConfig
 
     Process {
         id: findTempPathProcess
@@ -26,7 +27,7 @@ BaseModule {
     }
 
     Timer {
-        interval: config ? config.intervals.temperature : 5000
+        interval: intervalsConfig.temperature
         repeat: true
         running: true
         onTriggered: updateTemperature()
@@ -42,7 +43,7 @@ BaseModule {
                 if (output) {
                     var temp = parseInt(output);
                     temperature = temp / 1000; // Convert from millidegrees
-                    isCritical = temperature >= (config ? config.thresholds.temperature.critical : 80);
+                    isCritical = temperature >= thresholdsConfig.temperature.critical;
                 }
             }
         }
@@ -69,5 +70,5 @@ BaseModule {
         return icon + " " + Math.round(temperature) + "°C";
     }
 
-    textColor: isCritical ? (colors ? colors.red : "#f7768e") : (colors ? colors.fg : "#a9b1d6")
+    textColor: isCritical ? colors.red : colors.fg
 }

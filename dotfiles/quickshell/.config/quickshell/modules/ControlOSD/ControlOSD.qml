@@ -11,16 +11,16 @@ PanelWindow {
         bottom: true
     }
     margins {
-        bottom: config ? config.osd.bottomMargin : 50
+        bottom: osdConfig.bottomMargin
     }
     exclusiveZone: -1
 
-    implicitWidth: config ? config.osd.width : 300
-    implicitHeight: config ? config.osd.height : 100
+    implicitWidth: osdConfig.width
+    implicitHeight: osdConfig.height
 
     // Accept colors from parent
     property QtObject colors: null
-    property QtObject config: null
+    property QtObject osdConfig: null
 
     property string title: "Volume"
     property real value: 0
@@ -30,36 +30,36 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: colors ? colors.bg : "#16161e"
-        radius: config ? config.osd.cornerRadius : 10
-        opacity: config ? config.osd.opacity : 0.9
+        color: colors.bg
+        radius: osdConfig.cornerRadius
+        opacity: osdConfig.opacity
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: config ? config.osd.contentMargins : 20
-            spacing: config ? config.osd.contentSpacing : 10
+            anchors.margins: osdConfig.contentMargins
+            spacing: osdConfig.contentSpacing
 
             Text {
                 text: root.showMute && root.isMuted ? root.title + " (Muted)" : root.title
-                color: root.showMute && root.isMuted ? (colors ? colors.red : "#f7768e") : (colors ? colors.fg : "#a9b1d6")
-                font.pixelSize: config ? config.osd.titleFontSize : 16
+                color: root.showMute && root.isMuted ? colors.red : colors.fg
+                font.pixelSize: osdConfig.titleFontSize
                 Layout.alignment: Qt.AlignHCenter
             }
 
             ProgressBar {
                 value: root.value / 100
                 Layout.fillWidth: true
-                Layout.preferredHeight: config ? config.osd.progressBarHeight : 20
+                Layout.preferredHeight: osdConfig.progressBarHeight
 
                 background: Rectangle {
-                    color: colors ? colors.bg_highlight : "#292e42"
-                    radius: config ? config.osd.progressBarCornerRadius : 5
+                    color: colors.bg_highlight
+                    radius: osdConfig.progressBarCornerRadius
                 }
 
                 contentItem: Item {
                     Rectangle {
-                        color: root.showMute && root.isMuted ? (config ? config.osd.mutedProgressColor : "#f38ba8") : (colors ? colors.green : "#9ece6a")
-                        radius: config ? config.osd.progressFillCornerRadius : 5
+                        color: root.showMute && root.isMuted ? osdConfig.mutedProgressColor : root.progressColor
+                        radius: osdConfig.progressFillCornerRadius
                         height: parent.height
                         width: parent.width * (root.value / 100)
                     }
@@ -68,8 +68,8 @@ PanelWindow {
 
             Text {
                 text: Math.round(root.value) + "%"
-                color: root.showMute && root.isMuted ? (colors ? colors.red : "#f7768e") : (colors ? colors.fg : "#a9b1d6")
-                font.pixelSize: config ? config.osd.valueFontSize : 14
+                color: root.showMute && root.isMuted ? colors.red : colors.fg
+                font.pixelSize: osdConfig.valueFontSize
                 Layout.alignment: Qt.AlignHCenter
             }
         }
@@ -77,7 +77,7 @@ PanelWindow {
 
     Timer {
         id: hideTimer
-        interval: config ? config.osd.hideInterval : 2000
+        interval: osdConfig.hideInterval
         onTriggered: root.visible = false
     }
 

@@ -8,10 +8,11 @@ BaseModule {
     id: root
 
     property real cpuUsage: 0
-    property QtObject config: parent.config
+    property QtObject intervalsConfig: parent.intervalsConfig
+    property QtObject thresholdsConfig: parent.thresholdsConfig
 
     Timer {
-        interval: config ? config.intervals.cpu : 2000
+        interval: intervalsConfig.cpu
         repeat: true
         running: true
         onTriggered: updateCpuUsage()

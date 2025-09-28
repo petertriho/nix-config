@@ -9,10 +9,11 @@ BaseModule {
 
     property real usedMemory: 0
     property real totalMemory: 0
-    property QtObject config: parent.config
+    property QtObject intervalsConfig: parent.intervalsConfig
+    property QtObject thresholdsConfig: parent.thresholdsConfig
 
     Timer {
-        interval: config ? config.intervals.memory : 3000
+        interval: intervalsConfig.memory
         repeat: true
         running: true
         onTriggered: updateMemoryUsage()

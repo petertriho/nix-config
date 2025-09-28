@@ -116,7 +116,7 @@ QtObject {
 
     // Module configuration
     readonly property QtObject module: QtObject {
-        readonly property int defaultHeight: 24
+        readonly property int defaultHeight: 28
         readonly property int widthPadding: 8
         readonly property int contentMargins: 4
     }
@@ -129,7 +129,7 @@ QtObject {
         readonly property int baseWidth: 30
         readonly property int iconWidth: 16
         readonly property int iconPadding: 12
-        readonly property int height: 16
+        readonly property int height: 18
         readonly property int innerSpacing: 4
         readonly property int fontSize: 12
         readonly property int iconFontSize: 12

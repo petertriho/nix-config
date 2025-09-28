@@ -8,7 +8,6 @@ Item {
     id: root
     property var brightness: 0
     property QtObject colors: null
-    property QtObject config: null
 
     Component.onCompleted: {
         getBrightness();
@@ -61,13 +60,13 @@ Item {
         });
     }
 
-    function increase() {
-        var step = config ? config.steps.brightness : 5;
-        setBrightness(Math.min(100, brightness + step));
+    function increase(step) {
+        var stepValue = step || 5;
+        setBrightness(Math.min(100, brightness + stepValue));
     }
 
-    function decrease() {
-        var step = config ? config.steps.brightness : 5;
-        setBrightness(Math.max(0, brightness - step));
+    function decrease(step) {
+        var stepValue = step || 5;
+        setBrightness(Math.max(0, brightness - stepValue));
     }
 }

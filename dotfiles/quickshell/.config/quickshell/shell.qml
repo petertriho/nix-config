@@ -18,25 +18,31 @@ ShellRoot {
     }
 
     // Expose config colors for easier access
-    property QtObject config: configLoader.item ? configLoader.item : null
+    property QtObject config: configLoader.item
 
     // Bar component
     Bar {
         id: bar
-        colors: config ? config.colors : null
-        config: config
-        windowIcons: config ? config.windowIcons : null
+        colors: config.colors
+        barConfig: config.bar
+        moduleConfig: config.module
+        workspacesConfig: config.workspaces
+        intervalsConfig: config.intervals
+        thresholdsConfig: config.thresholds
+        stepsConfig: config.steps
+        fontsConfig: config.fonts
+        windowIcons: config.windowIcons
     }
 
     // Control components
     BrightnessControl {
         id: brightnessControl
-        colors: config ? config.colors : null
+        colors: config.colors
     }
 
     VolumeControl {
         id: volumeControl
-        colors: config ? config.colors : null
+        colors: config.colors
     }
 
     // OSD components
@@ -44,20 +50,20 @@ ShellRoot {
         id: brightnessOsd
         title: "Brightness"
         value: brightnessControl.brightness
-        progressColor: config ? config.colors.yellow : "#e0af68"
-        colors: config ? config.colors : null
-        config: config
+        progressColor: config.colors.yellow
+        colors: config.colors
+        osdConfig: config.osd
     }
 
     ControlOSD {
         id: volumeOsd
         title: "Volume"
         value: volumeControl.volume
-        progressColor: config ? config.colors.green : "#9ece6a"
+        progressColor: config.colors.green
         showMute: true
         isMuted: volumeControl.muted
-        colors: config ? config.colors : null
-        config: config
+        colors: config.colors
+        osdConfig: config.osd
     }
 
     Component.onCompleted: {
@@ -67,7 +73,7 @@ ShellRoot {
 
     Timer {
         id: updateTimer
-        interval: config ? config.intervals.global : 5000
+        interval: config.intervals.global
         repeat: true
         onTriggered: {
             brightnessControl.getBrightness();
@@ -83,7 +89,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            brightnessControl.increase(config ? config.steps.brightness : 5);
+            brightnessControl.increase(config.steps.brightness);
             brightnessOsd.show();
         }
     }
@@ -94,7 +100,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            brightnessControl.decrease(config ? config.steps.brightness : 5);
+            brightnessControl.decrease(config.steps.brightness);
             brightnessOsd.show();
         }
     }
@@ -105,7 +111,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            volumeControl.increase(config ? config.steps.volume : 5);
+            volumeControl.increase(config.steps.volume);
             volumeOsd.show();
         }
     }
@@ -116,7 +122,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            volumeControl.decrease(config ? config.steps.volume : 5);
+            volumeControl.decrease(config.steps.volume);
             volumeOsd.show();
         }
     }

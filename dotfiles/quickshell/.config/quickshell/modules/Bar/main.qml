@@ -13,22 +13,28 @@ PanelWindow {
         left: true
         right: true
     }
-    implicitHeight: config ? config.bar.height : 24
-    exclusiveZone: config ? config.bar.exclusiveZone : 24
+    implicitHeight: barConfig.height
+    exclusiveZone: barConfig.exclusiveZone
 
     // Accept colors from parent (will be set by shell.qml)
     property QtObject colors
-    property QtObject config
+    property QtObject barConfig
+    property QtObject moduleConfig
+    property QtObject workspacesConfig
+    property QtObject intervalsConfig
+    property QtObject thresholdsConfig
+    property QtObject stepsConfig
+    property QtObject fontsConfig
     property var windowIcons
 
     Rectangle {
         anchors.fill: parent
-        color: colors ? colors.bg : "#16161e"
+        color: colors.bg
         opacity: 1.0
 
         Item {
             anchors.fill: parent
-            anchors.margins: config ? config.bar.contentMargins : 4
+            anchors.margins: barConfig.contentMargins
 
             // Left modules - Workspaces
             WorkspacesModule {
@@ -37,7 +43,8 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 height: parent.height
                 colors: root.colors
-                config: root.config
+                workspacesConfig: root.workspacesConfig
+                fontsConfig: root.fontsConfig
                 windowIcons: root.windowIcons
             }
 
@@ -46,14 +53,16 @@ PanelWindow {
                 id: clock
                 anchors.centerIn: parent
                 colors: root.colors
-                config: root.config
+                moduleConfig: root.moduleConfig
+                intervalsConfig: root.intervalsConfig
+                fontsConfig: root.fontsConfig
             }
 
             // Right modules
             Row {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: config ? config.bar.moduleSpacing : 4
+                spacing: barConfig.moduleSpacing
                 height: parent.height
 
                 // TrayModule {
@@ -65,49 +74,70 @@ PanelWindow {
                     id: cpu
                     height: parent.height
                     colors: root.colors
-                    config: root.config
+                    moduleConfig: root.moduleConfig
+                    intervalsConfig: root.intervalsConfig
+                    thresholdsConfig: root.thresholdsConfig
+                    fontsConfig: root.fontsConfig
                 }
 
                 MemoryModule {
                     id: memory
                     height: parent.height
                     colors: root.colors
-                    config: root.config
+                    moduleConfig: root.moduleConfig
+                    intervalsConfig: root.intervalsConfig
+                    thresholdsConfig: root.thresholdsConfig
+                    fontsConfig: root.fontsConfig
                 }
 
                 TemperatureModule {
                     id: temperature
                     height: parent.height
                     colors: root.colors
-                    config: root.config
+                    moduleConfig: root.moduleConfig
+                    intervalsConfig: root.intervalsConfig
+                    thresholdsConfig: root.thresholdsConfig
+                    fontsConfig: root.fontsConfig
                 }
 
                 BacklightModule {
                     id: backlight
                     height: parent.height
                     colors: root.colors
-                    config: root.config
+                    moduleConfig: root.moduleConfig
+                    intervalsConfig: root.intervalsConfig
+                    thresholdsConfig: root.thresholdsConfig
+                    fontsConfig: root.fontsConfig
                 }
 
                 PulseAudioModule {
                     id: pulseaudio
                     height: parent.height
                     colors: root.colors
-                    config: root.config
+                    moduleConfig: root.moduleConfig
+                    intervalsConfig: root.intervalsConfig
+                    thresholdsConfig: root.thresholdsConfig
+                    stepsConfig: root.stepsConfig
+                    fontsConfig: root.fontsConfig
                 }
 
                 BatteryModule {
                     id: battery
                     height: parent.height
                     colors: root.colors
-                    config: root.config
+                    moduleConfig: root.moduleConfig
+                    intervalsConfig: root.intervalsConfig
+                    thresholdsConfig: root.thresholdsConfig
+                    fontsConfig: root.fontsConfig
                 }
 
                 NetworkModule {
                     id: network
                     height: parent.height
                     colors: root.colors
-                    config: root.config
+                    moduleConfig: root.moduleConfig
+                    intervalsConfig: root.intervalsConfig
+                    fontsConfig: root.fontsConfig
                 }
             }
         }

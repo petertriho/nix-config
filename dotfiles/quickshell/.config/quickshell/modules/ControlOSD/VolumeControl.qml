@@ -9,7 +9,6 @@ Item {
     property var volume: 0
     property var muted: false
     property QtObject colors: null
-    property QtObject config: null
 
     Component.onCompleted: {
         getVolume();
@@ -74,17 +73,17 @@ Item {
         return muted;
     }
 
-    function increase() {
+    function increase(step) {
         if (muted)
             toggleMute();
-        var step = config ? config.steps.volume : 5;
-        setVolume(Math.min(100, volume + step));
+        var stepValue = step || 5;
+        setVolume(Math.min(100, volume + stepValue));
     }
 
-    function decrease() {
+    function decrease(step) {
         if (muted)
             toggleMute();
-        var step = config ? config.steps.volume : 5;
-        setVolume(Math.max(0, volume - step));
+        var stepValue = step || 5;
+        setVolume(Math.max(0, volume - stepValue));
     }
 }

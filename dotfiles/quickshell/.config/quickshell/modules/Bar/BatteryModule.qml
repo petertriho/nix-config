@@ -13,10 +13,11 @@ BaseModule {
     property bool isWarning: false
     property bool isCritical: false
     property string icon: "󰁺"
-    property QtObject config: parent.config
+    property QtObject intervalsConfig: parent.intervalsConfig
+    property QtObject thresholdsConfig: parent.thresholdsConfig
 
     Timer {
-        interval: config ? config.intervals.battery : 5000
+        interval: intervalsConfig.battery
         repeat: true
         running: true
         onTriggered: updateBattery()
@@ -62,8 +63,8 @@ BaseModule {
             }
         }
 
-        isWarning = capacity <= (config ? config.thresholds.battery.warning : 30) && !isCharging;
-        isCritical = capacity <= (config ? config.thresholds.battery.critical : 15) && !isCharging;
+        isWarning = capacity <= thresholdsConfig.battery.warning && !isCharging;
+        isCritical = capacity <= thresholdsConfig.battery.critical && !isCharging;
         updateIcon();
     }
 
@@ -94,5 +95,5 @@ BaseModule {
         }
     }
 
-    textColor: isCritical ? (colors ? colors.red : "#f7768e") : (colors ? colors.fg : "#a9b1d6")
+    textColor: isCritical ? colors.red : colors.fg
 }

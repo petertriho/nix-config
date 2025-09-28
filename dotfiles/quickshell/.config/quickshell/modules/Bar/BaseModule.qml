@@ -5,12 +5,13 @@ import QtQuick.Controls
 Rectangle {
     id: root
     color: "transparent"
-    height: parent ? parent.height : (config ? config.module.defaultHeight : 24)
-    implicitWidth: content.implicitWidth + (config ? config.module.widthPadding : 8)
+    height: parent.height
+    implicitWidth: content.implicitWidth + moduleConfig.widthPadding
 
     // Accept colors from parent
     property QtObject colors: parent.colors
-    property QtObject config: parent.config
+    property QtObject moduleConfig: parent.moduleConfig
+    property QtObject fontsConfig: parent.fontsConfig
 
     property alias text: content.text
     property alias textColor: content.color
@@ -23,10 +24,10 @@ Rectangle {
     Text {
         id: content
         anchors.centerIn: parent
-        anchors.margins: config ? config.module.contentMargins : 4
-        color: colors ? colors.fg : "#a9b1d6"
-        font.family: config ? config.fonts.defaultFamily : "JetBrainsMono Nerd Font Propo"
-        font.pixelSize: config ? config.fonts.defaultSize : 13
+        anchors.margins: moduleConfig.contentMargins
+        color: colors.fg
+        font.family: fontsConfig.defaultFamily
+        font.pixelSize: fontsConfig.defaultSize
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }
