@@ -9,9 +9,10 @@ BaseModule {
 
     property real brightness: 0
     property string icon: "󰃞"
+    property QtObject config: parent.config
 
     Timer {
-        interval: 3000
+        interval: config ? config.intervals.backlight : 3000
         repeat: true
         running: true
         onTriggered: updateBacklight()
@@ -42,9 +43,12 @@ BaseModule {
     }
 
     function updateIcon() {
-        if (brightness < 33) {
+        var lowThreshold = config ? config.thresholds.brightness.low : 33;
+        var mediumThreshold = config ? config.thresholds.brightness.medium : 66;
+
+        if (brightness < lowThreshold) {
             icon = "󰃞";
-        } else if (brightness < 66) {
+        } else if (brightness < mediumThreshold) {
             icon = "󰃟";
         } else {
             icon = "󰃠";

@@ -5,40 +5,59 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import QtQuick.Dialogs
-import "."
+import "modules/Bar"
+import "modules/ControlOSD"
 
 ShellRoot {
     id: root
 
+    // Configuration component with colors
+    Loader {
+        id: configLoader
+        source: "config.qml"
+    }
+
+    // Expose config colors for easier access
+    property QtObject config: configLoader.item ? configLoader.item : null
+
     // Bar component
     Bar {
         id: bar
+        colors: config ? config.colors : null
+        config: config
+        windowIcons: config ? config.windowIcons : null
     }
 
     // Control components
     BrightnessControl {
         id: brightnessControl
+        colors: config ? config.colors : null
     }
 
     VolumeControl {
         id: volumeControl
+        colors: config ? config.colors : null
     }
 
     // OSD components
-    ControlOsd {
+    ControlOSD {
         id: brightnessOsd
         title: "Brightness"
         value: brightnessControl.brightness
-        progressColor: Colors.colors.yellow
+        progressColor: config ? config.colors.yellow : "#e0af68"
+        colors: config ? config.colors : null
+        config: config
     }
 
-    ControlOsd {
+    ControlOSD {
         id: volumeOsd
         title: "Volume"
         value: volumeControl.volume
-        progressColor: Colors.colors.green
+        progressColor: config ? config.colors.green : "#9ece6a"
         showMute: true
         isMuted: volumeControl.muted
+        colors: config ? config.colors : null
+        config: config
     }
 
     Component.onCompleted: {
@@ -48,7 +67,7 @@ ShellRoot {
 
     Timer {
         id: updateTimer
-        interval: 5000 // Update every 5 seconds
+        interval: config ? config.intervals.global : 5000
         repeat: true
         onTriggered: {
             brightnessControl.getBrightness();
@@ -64,7 +83,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            brightnessControl.increase();
+            brightnessControl.increase(config ? config.steps.brightness : 5);
             brightnessOsd.show();
         }
     }
@@ -75,7 +94,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            brightnessControl.decrease();
+            brightnessControl.decrease(config ? config.steps.brightness : 5);
             brightnessOsd.show();
         }
     }
@@ -86,7 +105,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            volumeControl.increase();
+            volumeControl.increase(config ? config.steps.volume : 5);
             volumeOsd.show();
         }
     }
@@ -97,7 +116,7 @@ ShellRoot {
         appid: "quickshell-osd"
 
         onPressed: {
-            volumeControl.decrease();
+            volumeControl.decrease(config ? config.steps.volume : 5);
             volumeOsd.show();
         }
     }

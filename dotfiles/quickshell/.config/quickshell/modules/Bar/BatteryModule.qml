@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
-import ".."
 
 BaseModule {
     id: root
@@ -14,9 +13,10 @@ BaseModule {
     property bool isWarning: false
     property bool isCritical: false
     property string icon: "󰁺"
+    property QtObject config: parent.config
 
     Timer {
-        interval: 5000
+        interval: config ? config.intervals.battery : 5000
         repeat: true
         running: true
         onTriggered: updateBattery()
@@ -62,8 +62,8 @@ BaseModule {
             }
         }
 
-        isWarning = capacity <= 30 && !isCharging;
-        isCritical = capacity <= 15 && !isCharging;
+        isWarning = capacity <= (config ? config.thresholds.battery.warning : 30) && !isCharging;
+        isCritical = capacity <= (config ? config.thresholds.battery.critical : 15) && !isCharging;
         updateIcon();
     }
 
@@ -94,5 +94,5 @@ BaseModule {
         }
     }
 
-    textColor: isCritical ? Colors.colors.red : Colors.colors.fg
+    textColor: isCritical ? (colors ? colors.red : "#f7768e") : (colors ? colors.fg : "#a9b1d6")
 }

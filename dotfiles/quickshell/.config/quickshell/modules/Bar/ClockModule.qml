@@ -4,9 +4,10 @@ import QtQuick.Controls
 
 BaseModule {
     id: root
+    property QtObject config: parent.config
 
     Timer {
-        interval: 1000
+        interval: config ? config.intervals.clock : 1000
         repeat: true
         running: true
         onTriggered: updateTime()

@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
-import ".."
 
 BaseModule {
     id: root
@@ -11,6 +10,7 @@ BaseModule {
     property real temperature: 0
     property bool isCritical: false
     property string tempPath: ""
+    property QtObject config: parent.config
 
     Process {
         id: findTempPathProcess
@@ -26,7 +26,7 @@ BaseModule {
     }
 
     Timer {
-        interval: 5000
+        interval: config ? config.intervals.temperature : 5000
         repeat: true
         running: true
         onTriggered: updateTemperature()
@@ -42,7 +42,7 @@ BaseModule {
                 if (output) {
                     var temp = parseInt(output);
                     temperature = temp / 1000; // Convert from millidegrees
-                    isCritical = temperature >= 80;
+                    isCritical = temperature >= (config ? config.thresholds.temperature.critical : 80);
                 }
             }
         }
@@ -69,5 +69,5 @@ BaseModule {
         return icon + " " + Math.round(temperature) + "°C";
     }
 
-    textColor: isCritical ? Colors.colors.red : Colors.colors.fg
+    textColor: isCritical ? (colors ? colors.red : "#f7768e") : (colors ? colors.fg : "#a9b1d6")
 }

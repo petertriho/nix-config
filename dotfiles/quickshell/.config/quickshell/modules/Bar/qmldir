@@ -1,4 +1,5 @@
 BacklightModule 1.0 BacklightModule.qml
+Bar 1.0 main.qml
 BaseModule 1.0 BaseModule.qml
 BatteryModule 1.0 BatteryModule.qml
 ClockModule 1.0 ClockModule.qml

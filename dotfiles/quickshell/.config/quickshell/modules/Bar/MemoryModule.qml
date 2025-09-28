@@ -9,9 +9,10 @@ BaseModule {
 
     property real usedMemory: 0
     property real totalMemory: 0
+    property QtObject config: parent.config
 
     Timer {
-        interval: 3000
+        interval: config ? config.intervals.memory : 3000
         repeat: true
         running: true
         onTriggered: updateMemoryUsage()

@@ -8,9 +8,10 @@ BaseModule {
     id: root
 
     property real cpuUsage: 0
+    property QtObject config: parent.config
 
     Timer {
-        interval: 2000
+        interval: config ? config.intervals.cpu : 2000
         repeat: true
         running: true
         onTriggered: updateCpuUsage()

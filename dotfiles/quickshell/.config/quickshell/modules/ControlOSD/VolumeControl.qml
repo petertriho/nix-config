@@ -8,6 +8,8 @@ Item {
     id: root
     property var volume: 0
     property var muted: false
+    property QtObject colors: null
+    property QtObject config: null
 
     Component.onCompleted: {
         getVolume();
@@ -75,12 +77,14 @@ Item {
     function increase() {
         if (muted)
             toggleMute();
-        setVolume(Math.min(100, volume + 5));
+        var step = config ? config.steps.volume : 5;
+        setVolume(Math.min(100, volume + step));
     }
 
     function decrease() {
         if (muted)
             toggleMute();
-        setVolume(Math.max(0, volume - 5));
+        var step = config ? config.steps.volume : 5;
+        setVolume(Math.max(0, volume - step));
     }
 }

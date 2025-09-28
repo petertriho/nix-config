@@ -4,34 +4,23 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
-import ".."
 
 Row {
     id: root
     spacing: 4
+
+    // Accept colors from parent
+    property QtObject colors
+    property QtObject config
+    property var windowIcons
+
     property var activeWorkspace: 1
     property var workspacesData: []
 
-    // Window class to icon mapping
-    property var windowIcons: {
-        "Alacritty": "󰆍",
-        "chromium": "󰊯",
-        "com.mitchellh.ghostty": "󰆍",
-        "discord": "󰙯",
-        "firefox": "󰈹",
-        "floorp": "󰈹",
-        "kitty": "󰄛",
-        "nautilus": "󰉋",
-        "org.kde.dolphin": "󰉋",
-        "slack": "󰒱",
-        "thunar": "󰉋",
-        "wezterm": "󰆍"
-    }
+    // Window icons are now loaded from config
 
     function getWindowIcon(windowClass) {
-        console.log(windowClass);
-        // var icon = windowIcons[windowClass] || "󰘔";
-        var icon = windowIcons[windowClass] || windowClass;
+        var icon = (windowIcons) ? windowIcons[windowClass] || "󰘔" : "󰘔";
         return icon;
     }
 
@@ -45,14 +34,14 @@ Row {
 
     Timer {
         id: updateTimer
-        interval: 200
+        interval: config ? config.workspaces.updateInterval : 200
         repeat: true
         onTriggered: updateWorkspaces()
     }
 
     Timer {
         id: activeWorkspaceTimer
-        interval: 100
+        interval: config ? config.workspaces.activeUpdateInterval : 100
         repeat: true
         onTriggered: updateActiveWorkspace()
     }
@@ -202,22 +191,22 @@ Row {
             }
 
             width: {
-                var baseWidth = 30;
-                var iconWidth = icons.length > 0 ? icons.length * 16 + 12 : 0;
+                var baseWidth = config ? config.workspaces.baseWidth : 30;
+                var iconWidth = icons.length > 0 ? icons.length * (config ? config.workspaces.iconWidth : 16) + (config ? config.workspaces.iconPadding : 12) : 0;
                 return Math.max(baseWidth, iconWidth);
             }
-            height: 20
-            color: isActive ? Colors.colors.bg_highlight : Colors.colors.bg_dark
+            height: config ? config.workspaces.height : 16
+            color: isActive ? (colors ? colors.bg_highlight : "#292e42") : (colors ? colors.bg_dark : "#16161e")
             radius: 4
 
             Row {
                 anchors.centerIn: parent
-                spacing: 4
+                spacing: config ? config.workspaces.spacing : 4
 
                 Text {
                     text: workspaceName
-                    color: Colors.colors.fg
-                    font.pixelSize: 12
+                    color: colors ? colors.fg : "#a9b1d6"
+                    font.pixelSize: config ? config.workspaces.fontSize : 12
                 }
 
                 Repeater {
@@ -225,9 +214,9 @@ Row {
                     delegate: Text {
                         property string iconText: modelData || ""
                         text: iconText
-                        color: Colors.colors.fg
-                        font.pixelSize: 12
-                        font.family: "JetBrainsMono Nerd Font Propo"
+                        color: colors ? colors.fg : "#a9b1d6"
+                        font.pixelSize: config ? config.workspaces.iconFontSize : 12
+                        font.family: config ? config.fonts.defaultFamily : "JetBrainsMono Nerd Font Propo"
                         visible: iconText.length > 0
                         anchors.verticalCenter: parent.verticalCenter
                     }

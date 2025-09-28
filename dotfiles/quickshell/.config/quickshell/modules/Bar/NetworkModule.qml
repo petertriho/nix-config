@@ -12,9 +12,10 @@ BaseModule {
     property real signalStrength: 0
     property string ipaddr: ""
     property string icon: "󰌙"
+    property QtObject config: parent.config
 
     Timer {
-        interval: 5000
+        interval: config ? config.intervals.network : 5000
         repeat: true
         running: true
         onTriggered: updateNetwork()
