@@ -1,4 +1,4 @@
-{ ... }:
+{ pkgs, ... }:
 {
   imports = [
     ./desktop.nix
@@ -9,6 +9,9 @@
       # tell hyprland to use intel igpu
       AQ_DRM_DEVICES = "/dev/dri/intel-igpu:/dev/dri/nvidia-dgpu";
     };
+    packages = with pkgs; [
+      cura-appimage
+    ];
   };
   wayland.windowManager.hyprland = {
     settings = {
