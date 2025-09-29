@@ -6,6 +6,8 @@
   home = {
     sessionVariables = {
       COPILOT_MODEL = "gpt-4.1";
+      # tell hyprland to use intel igpu
+      AQ_DRM_DEVICES = "/dev/dri/intel-igpu:/dev/dri/nvidia-dgpu";
     };
   };
   wayland.windowManager.hyprland = {

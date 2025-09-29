@@ -60,4 +60,9 @@
     # WLR_NO_HARDWARE_CURSORS = "1";
     WLR_DRM_NO_ATOMIC = "1";
   };
+
+  services.udev.extraRules = ''
+    # NVIDIA dGPU (01:00.0) - create symlink /dev/dri/nvidia-dgpu
+    SUBSYSTEM=="drm", KERNEL=="card*", ATTRS{vendor}=="0x10de", SYMLINK+="dri/nvidia-dgpu"
+  '';
 }

@@ -90,4 +90,9 @@
       };
     };
   };
+
+  services.udev.extraRules = ''
+    # Intel iGPU (00:02.0) - create symlink /dev/dri/intel-igpu
+    SUBSYSTEM=="drm", KERNEL=="card*", ATTRS{vendor}=="0x8086", ATTRS{device}=="0x5917", SYMLINK+="dri/intel-igpu"
+  '';
 }
