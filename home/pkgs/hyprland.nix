@@ -8,10 +8,13 @@
     brightnessctl
     grimblast
     hypridle
-    hyprlock
     pamixer
     playerctl
   ];
+
+  programs.hyprlock = {
+    enable = true;
+  };
 
   services.hypridle = {
     enable = true;
@@ -68,6 +71,15 @@
           tap-to-click = true;
           tap-and-drag = true;
           disable_while_typing = true;
+        };
+      };
+
+      decoration = {
+        blur = {
+          enabled = false;
+        };
+        shadow = {
+          enabled = false;
         };
       };
 

@@ -13,6 +13,12 @@
   ];
   boot.kernelModules = [ "nvidia" ];
 
+  # Kernel parameters for NVIDIA DRM
+  boot.kernelParams = [
+    "nvidia-drm.modeset=1"
+    "nvidia-drm.fbdev=1"
+  ];
+
   hardware.nvidia = {
     # Modesetting is required for wayland
     modesetting.enable = true;
@@ -46,12 +52,12 @@
     config.hardware.nvidia.package
   ];
 
-  # Force NVIDIA GPU usage for all users
   environment.sessionVariables = {
-    __NV_PRIME_RENDER_OFFLOAD = "1";
     __GLX_VENDOR_LIBRARY_NAME = "nvidia";
     LIBVA_DRIVER_NAME = "nvidia";
     GBM_BACKEND = "nvidia-drm";
     WLR_RENDERER = "vulkan";
+    # WLR_NO_HARDWARE_CURSORS = "1";
+    WLR_DRM_NO_ATOMIC = "1";
   };
 }
