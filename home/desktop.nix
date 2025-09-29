@@ -18,5 +18,6 @@
 
   home.packages = with pkgs; [
     floorp-bin
+    ungoogled-chromium
   ];
 }
