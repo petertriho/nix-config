@@ -10,6 +10,8 @@
     hypridle
     pamixer
     playerctl
+    qt5.qtwayland
+    qt6.qtwayland
   ];
 
   programs.hyprlock = {
@@ -44,13 +46,19 @@
     package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     systemd.enable = false;
     settings = {
-      windowrulev2 = [
+      windowrule = [
         "float, title:^(quickshell-osd)$"
         "noborder, title:^(quickshell-osd)$"
         "noshadow, title:^(quickshell-osd)$"
         "pin, title:^(quickshell-osd)$"
         "workspace special, title:^(quickshell-osd)$"
+        "opacity 0.0 override, class:^(xwaylandvideobridge)$"
+        "noanim, class:^(xwaylandvideobridge)$"
+        "noinitialfocus, class:^(xwaylandvideobridge)$"
+        "maxsize 1 1, class:^(xwaylandvideobridge)$"
+        "noblur, class:^(xwaylandvideobridge)$"
       ];
+
       animations = {
         enabled = false;
       };
