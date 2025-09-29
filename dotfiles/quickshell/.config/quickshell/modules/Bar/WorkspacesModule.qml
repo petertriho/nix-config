@@ -117,7 +117,7 @@ Row {
                     for (var j = 0; j < clientsData.length; j++) {
                         var client = clientsData[j];
                         if (client.workspace && client.workspace.id === ws.id) {
-                            if (client.class == "xwaylandvideobridge") {
+                            if (workspacesConfig.ignoreClasses.indexOf(client.class) !== -1) {
                                 continue;
                             }
                             var icon = getWindowIcon(client.class);

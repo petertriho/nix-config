@@ -133,6 +133,7 @@ QtObject {
         readonly property int innerSpacing: 4
         readonly property int fontSize: 12
         readonly property int iconFontSize: 12
+        readonly property var ignoreClasses: ["xwaylandvideobridge"]
     }
 
     // OSD (On Screen Display) configuration
