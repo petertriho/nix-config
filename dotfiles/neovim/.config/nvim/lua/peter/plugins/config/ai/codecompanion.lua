@@ -34,6 +34,20 @@ return {
         },
     },
     config = function(_, opts)
+        opts = vim.tbl_deep_extend("force", opts, {
+            adapters = {
+                acp = {
+                    gemini_cli = function()
+                        return require("codecompanion.adapters").extend("gemini_cli", {
+                            defaults = {
+                                auth_method = "oauth-personal",
+                            },
+                        })
+                    end,
+                },
+            },
+        })
+
         if vim.g.copilot_model then
             opts = vim.tbl_deep_extend("force", opts, {
                 adapters = {
