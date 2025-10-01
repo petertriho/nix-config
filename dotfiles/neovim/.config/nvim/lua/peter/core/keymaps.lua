@@ -31,7 +31,7 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 keymap("n", "<ESC>", function()
     vim.cmd.nohlsearch()
-    pcall(require("copilot-lsp.nes").clear)
+    pcall(require("sidekick").clear)
     pcall(require("snacks").notifier.hide)
 end, {
     desc = "Hide",
