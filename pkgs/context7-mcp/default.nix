@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "context7-mcp";
-  version = "1.0.20-unstable-2025-09-27";
+  version = "1.0.20-unstable-2025-10-02";
 
   src = fetchFromGitHub {
     owner = "upstash";
     repo = "context7";
-    rev = "a170272c20a8da8295611af49993993973477d76";
-    sha256 = "sha256-RYjBGmAd87i0TIv/mfa9GDGWwYQyvAe2NrBD/8+QBlk=";
+    rev = "8a6d3445e2911919f3cf9c2100a304fdc045f69c";
+    sha256 = "sha256-RZABmdYG3goBq6ssyeFTlJPtSsv+fWzD0VxWMTzA9qA=";
   };
 
   nativeBuildInputs = [
