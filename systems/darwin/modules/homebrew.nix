@@ -32,12 +32,14 @@ in
       "nikitabobko/tap"
     ];
     brews = [
+      "block-goose-cli"
       "mas"
     ];
     casks = [
       "aerospace"
       "alacritty"
       "appcleaner"
+      "block-goose"
       "cyberduck"
       "displaylink"
       "doll"
