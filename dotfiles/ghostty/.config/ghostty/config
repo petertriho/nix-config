@@ -14,5 +14,6 @@ font-feature = -calt,-clig,-liga,+zero,+cv06,+cv07,+cv12,+cv14
 theme = tokyonight
 window-padding-x = 0
 window-padding-y = 0
+working-directory = home
 
 config-file = ?system
