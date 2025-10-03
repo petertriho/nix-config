@@ -5,7 +5,7 @@
   ];
   home = {
     sessionVariables = {
-      COPILOT_MODEL = "gpt-4.1";
+      COPILOT_MODEL = "gpt-5-mini";
       # tell hyprland to use intel igpu
       AQ_DRM_DEVICES = "/dev/dri/intel-igpu:/dev/dri/nvidia-dgpu";
     };

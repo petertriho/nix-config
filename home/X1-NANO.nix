@@ -5,7 +5,7 @@
   ];
   home = {
     sessionVariables = {
-      COPILOT_MODEL = "gpt-4.1";
+      COPILOT_MODEL = "gpt-5-mini";
     };
   };
   wayland.windowManager.hyprland = {

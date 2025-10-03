@@ -124,7 +124,7 @@ in
           ];
         };
       };
-      small_model = "github-copilot/gpt-4.1";
+      small_model = "github-copilot/gpt-5-mini";
       mcp = {
         atlassian = {
           type = "local";
