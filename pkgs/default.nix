@@ -8,6 +8,7 @@ with pkgs;
   mcp-server-fetch = callPackage ./mcp-server-fetch { };
   mcp-server-sequential-thinking = callPackage ./mcp-server-sequential-thinking { };
   mighty-security = callPackage ./mighty-security { inherit pkgs; };
+  models-dev = callPackage ./models-dev { };
   opencode = callPackage ./opencode { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   serena = callPackage ./serena { };
