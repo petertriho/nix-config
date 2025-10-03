@@ -33,6 +33,22 @@ return {
             desc = "Toggle",
         },
         {
+            "<leader>ab",
+            function()
+                require("sidekick.cli").send({ msg = "{buffers}" })
+            end,
+            mode = { "n", "x" },
+            desc = "Send Buffers",
+        },
+        {
+            "<leader>af",
+            function()
+                require("sidekick.cli").send({ msg = "{file}" })
+            end,
+            mode = { "n", "x" },
+            desc = "Send File",
+        },
+        {
             "<leader>ap",
             function()
                 require("sidekick.cli").prompt()
@@ -45,7 +61,7 @@ return {
             function()
                 require("sidekick.cli").send({ msg = "{this}" })
             end,
-            mode = { "x", "n" },
+            mode = { "n", "x" },
             desc = "Send This",
         },
         {
