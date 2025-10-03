@@ -20,13 +20,12 @@ in
     packages =
       with pkgs;
       [
-        # aider-chat
         amazon-q-cli
-        claude-code
         copilot-language-server
         # unstable.gemini-cli
         gemini-cli
         gh-copilot
+        github-copilot-cli
         mighty-security
         nodejs
         # unstable.qwen-code
@@ -38,11 +37,6 @@ in
       ++ mcpServers;
     sessionVariables = {
       INSTALLED_MCP_SERVER_DIRS = pkgs.lib.concatStringsSep ":" (map (pkg: "${pkg}/bin") mcpServers);
-    };
-    file = {
-      ".aider.conf.yml".source = config.lib.meta.mkDotfilesSymlink "aider/.aider.conf.yml";
-      ".aider.model.settings.yml".source =
-        config.lib.meta.mkDotfilesSymlink "aider/.aider.model.settings.yml";
     };
   };
   programs.opencode = {
