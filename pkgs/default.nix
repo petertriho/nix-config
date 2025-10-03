@@ -5,6 +5,7 @@
 with pkgs;
 {
   context7-mcp = callPackage ./context7-mcp { };
+  expert = callPackage ./expert { };
   mcp-server-fetch = callPackage ./mcp-server-fetch { };
   mcp-server-sequential-thinking = callPackage ./mcp-server-sequential-thinking { };
   mighty-security = callPackage ./mighty-security { inherit pkgs; };
