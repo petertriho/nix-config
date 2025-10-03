@@ -828,11 +828,11 @@
         "nixpkgs": "nixpkgs_5"
       },
       "locked": {
-        "lastModified": 1759452994,
-        "narHash": "sha256-FPvhNn+WgB2MMCslt9ARR5a4yuImliCoAAXHnZLsJBs=",
+        "lastModified": 1759453543,
+        "narHash": "sha256-J9gprdvV9vhJPytvq478k0gzQzcvkQG7GjFSBvRw0Gc=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "4923e579ed4565d1685656c61b2466556d708b1e",
+        "rev": "ca94753e61b6a4c19e127f145816a8788ec0b73e",
         "type": "github"
       },
       "original": {
