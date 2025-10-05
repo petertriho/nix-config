@@ -1,7 +1,7 @@
 { ... }:
 {
   programs.waybar = {
-    enable = false;
+    enable = true;
     systemd.enable = false;
     settings = {
       mainBar = {
