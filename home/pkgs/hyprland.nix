@@ -4,15 +4,18 @@
   ...
 }:
 {
-  home.packages = with pkgs; [
-    brightnessctl
-    grimblast
-    hypridle
-    pamixer
-    playerctl
-    qt5.qtwayland
-    qt6.qtwayland
-  ];
+  home = {
+    packages = with pkgs; [
+      brightnessctl
+      grimblast
+      hypridle
+      pamixer
+      playerctl
+      qt5.qtwayland
+      qt6.qtwayland
+    ];
+    sessionVariables.NIXOS_OZONE_WSL = "1";
+  };
 
   programs.hyprlock = {
     enable = true;
@@ -300,5 +303,4 @@
       };
     };
   };
-  home.sessionVariables.NIXOS_OZONE_WSL = "1";
 }
