@@ -9,6 +9,7 @@
       brightnessctl
       grimblast
       hypridle
+      hyprpolkitagent
       pamixer
       playerctl
       qt5.qtwayland
@@ -19,6 +20,18 @@
 
   programs.hyprlock = {
     enable = true;
+  };
+
+  systemd.user.services.hyprpolkitagent = {
+    Unit = {
+      Description = "Hyprland Polkit authentication agent";
+      PartOf = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.hyprpolkitagent}/bin/hyprpolkitagent";
+      Restart = "on-failure";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
   };
 
   services.hypridle = {
@@ -66,9 +79,7 @@
         enabled = false;
       };
 
-      exec-once = [
-        "waybar"
-      ];
+      exec-once = [ ];
 
       general = {
         gaps_in = 0;
