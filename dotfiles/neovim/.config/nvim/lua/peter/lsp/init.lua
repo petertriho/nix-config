@@ -111,11 +111,7 @@ local LSP_METHODS = {
     },
     [methods.textDocument_inlineCompletion] = {
         callback = function(client, bufnr)
-            vim.lsp.inline_completion.enable(true)
-            -- vim.lsp.inline_completion.enable(true, {
-            --     client_id = client.id,
-            --     -- bufnr = bufnr,
-            -- })
+            vim.lsp.inline_completion.enable(true, { bufnr = bufnr })
         end,
     },
     [methods.textDocument_onTypeFormatting] = {
