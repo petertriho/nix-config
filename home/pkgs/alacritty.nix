@@ -11,7 +11,7 @@
     ];
 
   programs.alacritty = {
-    enable = true;
+    enable = lib.mkIf pkgs.stdenv.isLinux true;
     settings = {
       font = {
         size = if pkgs.stdenv.isLinux then 10 else 14;
