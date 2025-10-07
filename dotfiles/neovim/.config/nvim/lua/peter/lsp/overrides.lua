@@ -143,16 +143,16 @@ return {
     },
     postgres_lsp = {},
     pyrefly = {},
-    quick_lint_js = {
-        filetypes = {
-            "javascript",
-            "javascriptreact",
-            "javascript.jsx",
-            "typescript",
-            "typescriptreact",
-            "typescript.tsx",
-        },
-    },
+    -- quick_lint_js = {
+    --     filetypes = {
+    --         "javascript",
+    --         "javascriptreact",
+    --         "javascript.jsx",
+    --         "typescript",
+    --         "typescriptreact",
+    --         "typescript.tsx",
+    --     },
+    -- },
     qmlls = {},
     ruff = {
         -- capabilities = {
