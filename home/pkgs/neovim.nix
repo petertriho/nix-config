@@ -66,7 +66,7 @@
     postgres-lsp
     unstable.pyrefly
     kdePackages.qtdeclarative # qmlls
-    quick-lint-js
+    # quick-lint-js
     # rust-analyzer
     superhtml
     svelte-language-server
