@@ -23,7 +23,7 @@
   programs.tmux = {
     enable = true;
     sensibleOnTop = false;
-    terminal = if pkgs.stdenv.isLinux then "screen-256color" else "tmux-256color";
+    terminal = "tmux-256color";
     plugins = with pkgs.tmuxPlugins; [
       {
         plugin = sensible;
