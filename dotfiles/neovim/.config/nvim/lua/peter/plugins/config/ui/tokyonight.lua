@@ -22,8 +22,6 @@ return {
 
                 hl.Folded = { fg = colors.comment, bg = nil }
 
-                hl.SnacksPickerPathHidden = { fg = colors.fg }
-
                 hl.TabLine = { fg = colors.fg_gutter, bg = colors.bg_statusline }
                 hl.TabLineSel = {
                     fg = colors.fg,
