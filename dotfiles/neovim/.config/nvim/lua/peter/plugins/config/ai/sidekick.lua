@@ -9,9 +9,10 @@ return {
         {
             "<Tab>",
             function()
-                if not require("sidekick").nes_jump_or_apply() then
-                    return "<Tab>"
+                if require("sidekick").nes_jump_or_apply() then
+                    return
                 end
+                return "<Tab>"
             end,
             desc = "Copilot NES",
             expr = true,
@@ -28,7 +29,7 @@ return {
         {
             "<leader>aa",
             function()
-                require("sidekick.cli").toggle({ filter = { installed = true } })
+                require("sidekick.cli").select({ filter = { installed = true } })
             end,
             desc = "Toggle",
         },
@@ -109,6 +110,11 @@ return {
             },
             tools = {
                 amazon_q = { cmd = { "amazon-q" } },
+            },
+            win = {
+                keys = {
+                    hide_ctrl_dot = false,
+                },
             },
         },
         nes = {

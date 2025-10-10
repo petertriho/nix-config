@@ -53,7 +53,7 @@ keymap("", "Q", function()
 end, { unpack(opts), desc = "QF Add" })
 
 -- Terminal
-keymap("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+keymap("t", "<C-q>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
 -- H, M, L remap
 keymap("", "H", "^", { desc = "Beginning of Line", remap = true })
