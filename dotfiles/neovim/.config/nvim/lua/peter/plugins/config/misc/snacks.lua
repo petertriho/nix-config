@@ -131,6 +131,7 @@ return {
                     },
                     explorer = {
                         hidden = true,
+                        ignored = true,
                         exclude = exclude,
                         layout = {
                             hidden = { "input" },
@@ -138,8 +139,6 @@ return {
                         focus = "list",
                         diagnostics = false,
                         diagnostics_open = false,
-                        git_status = false,
-                        git_status_open = false,
                         win = {
                             list = {
                                 keys = {
