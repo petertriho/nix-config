@@ -27,6 +27,14 @@ return {
             desc = "Sidekick Focus",
         },
         {
+            "<C-z>",
+            function()
+                require("sidekick.cli").focus()
+            end,
+            mode = { "n", "x", "i", "t" },
+            desc = "Sidekick Focus",
+        },
+        {
             "<leader>aa",
             function()
                 require("sidekick.cli").select({ filter = { installed = true } })
@@ -114,6 +122,7 @@ return {
             win = {
                 keys = {
                     hide_ctrl_dot = false,
+                    hide_ctrl_z = false,
                 },
             },
         },
