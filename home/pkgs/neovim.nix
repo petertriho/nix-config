@@ -53,7 +53,7 @@
     docker-compose-language-service
     dockerfile-language-server
     emmet-language-server
-    expert
+    # expert
     fish-lsp
     gopls
     harper
