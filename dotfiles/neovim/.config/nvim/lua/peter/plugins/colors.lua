@@ -33,9 +33,9 @@ local colors = {
     dark3 = "#545c7e",
     dark5 = "#737aa2",
     diff = {
-        add = "#20303b",
+        add = "#243e4a",
         change = "#1f2231",
-        delete = "#37222c",
+        delete = "#4a272f",
         text = "#394b70",
     },
     error = "#db4b4b",
