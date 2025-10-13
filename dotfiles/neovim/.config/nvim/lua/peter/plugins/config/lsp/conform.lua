@@ -323,6 +323,10 @@ return {
                     command = "sql-formatter",
                     -- exit_codes = { 0, 1 },
                 },
+                sqlfluff = {
+                    command = "sqlfluff",
+                    append_args = { "--dialect", "postgres" },
+                },
                 ssort = {
                     command = "ssort",
                     args = { "$FILENAME" },

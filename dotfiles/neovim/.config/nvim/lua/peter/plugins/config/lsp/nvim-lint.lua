@@ -169,6 +169,11 @@ return {
             "--config",
             vim.fn.expand("$HOME/.config/nvim/code/.stylelintrc.json"),
         }
+        lint.linters.sqlfluff.args = {
+            "lint",
+            "--format=json",
+            "--dialect=postgres",
+        }
 
         lint.linters_by_ft = {
             -- ["*"] = { "codespell" },
