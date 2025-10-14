@@ -13,8 +13,8 @@ let
   expertSrc = pkgs.fetchFromGitHub {
     owner = "elixir-lang";
     repo = "expert";
-    rev = "5dacce456cb111b75c3f1aeeba95b66e1bc07b04";
-    hash = "sha256-tvIEEpTiCHAzrxkAx2yA5o4gWBup3bPKX0m2goGVXN4=";
+    rev = "16c21e087b1d6753e7fa46c13c67242c69a48e31";
+    hash = "sha256-n3cYyAjTaRqHkHuAZVPPM75cS7NDvP0h7hpMR5KVIPU=";
   };
 
   engineDeps = pkgs.callPackages "${expertSrc}/apps/engine/deps.nix" {
@@ -33,7 +33,7 @@ let
 in
 beamPackages'.mixRelease rec {
   pname = "expert";
-  version = "nightly-unstable-2025-10-10";
+  version = "nightly-unstable-2025-10-13";
 
   src = expertSrc;
 
