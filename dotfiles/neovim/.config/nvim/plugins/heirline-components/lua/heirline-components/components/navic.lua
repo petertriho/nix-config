@@ -3,7 +3,7 @@ local config = {
     separator_hl = { fg = "fg_bright" },
     default_hl = { fg = "fg" },
     click_name = "heirline_navic",
-    update_event = "CursorMoved",
+    update_event = "CursorHold",
     ellipsis = "…",
     ellipsis_hl = { fg = "fg_bright" },
     max_depth = 10,
