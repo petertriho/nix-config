@@ -21,12 +21,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "0.15.2-unstable-2025-10-14";
+  version = "0.15.3-unstable-2025-10-15";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "54c3361be786f5302eef9965fa91079a81ef7c4f";
-    sha256 = "sha256-8E1xzDlhefnI/5ZmxsOmgMK9tJkP1b5oxxGKTMvQRxs=";
+    rev = "1ba5535460403be437066c536d6afbd672ccea51";
+    sha256 = "sha256-qyBhvqEP4qtA93a3cdkq3a7tWXtp6NvRqQuAal5x78U=";
   };
 
   tui = buildGoModule {
@@ -76,16 +76,22 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
       export BUN_INSTALL_CACHE_DIR=$(mktemp -d)
 
-      # Disable post-install scripts to avoid shebang issues
+      # NOTE: Disabling post-install scripts with `--ignore-scripts` to avoid
+      # shebang issues
+      # NOTE: `--linker=hoisted` temporarily disables Bun's isolated installs,
+      # which became the default in Bun 1.3.0.
+      # See: https://bun.com/blog/bun-v1.3#isolated-installs-are-now-the-default-for-workspaces
+      # This workaround is required because the 'yargs' dependency is currently
+      # missing when building opencode. Remove this flag once upstream is
+      # compatible with Bun 1.3.0.
       bun install \
           --filter=opencode \
           --force \
+          --frozen-lockfile \
           --ignore-scripts \
-          --no-progress
-      # Remove `--frozen-lockfile` and `--production` — they erroneously report the lockfile needs updating even though `bun install` does not change it.
-      # Related to  https://github.com/oven-sh/bun/issues/19088
-      # --frozen-lockfile \
-      # --production
+          --linker=hoisted \
+          --no-progress \
+          --production
 
       runHook postBuild
     '';
@@ -104,10 +110,10 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     outputHash =
       {
-        x86_64-linux = "sha256-C+/71vNJlJY84UNHLlAEoAArVdRA/DHAEAw4vI3hKQ8=";
-        aarch64-linux = "sha256-jEsDrC/uNZKx7TvD1X9ToTFFTBgrKIeSXd5cTPBvxGI=";
-        x86_64-darwin = "sha256-5RDzxo2bWA1D0RQAVPorU0ZkIKX2LtDNpFlVkqi9zck=";
-        aarch64-darwin = "sha256-5RDzxo2bWA1D0RQAVPorU0ZkIKX2LtDNpFlVkqi9zck=";
+        x86_64-linux = "sha256-4O3zDd+beiNrIjHx+GXVo9zXW3YBNDVAqiONqq/Ury8=";
+        aarch64-linux = "sha256-DHzDyk7BWYgBNhYDlK3dLZglUN7bMiB3acdoU7djbxU=";
+        x86_64-darwin = "sha256-OTEK9SV9IxBHrJlf+F4lI7gF0Gtvik3c7d1mp+4a3Zk=";
+        aarch64-darwin = "sha256-qlLfus/cyrI0HtwVLTjPTdL7OeIYjmH9yoNKa6YNBkg=";
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";
