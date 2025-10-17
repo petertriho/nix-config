@@ -75,8 +75,9 @@ opt.wrap = false
 local function build_wildignore()
     local patterns = {
         -- Compiled files
-        "*%.o",
-        "*%.pyc",
+        "*.o",
+        "*.pyc",
+        ".watchman-cookie-*",
     }
 
     local folders = {
