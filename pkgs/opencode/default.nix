@@ -21,12 +21,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "0.15.3-unstable-2025-10-16";
+  version = "0.15.7-unstable-2025-10-17";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "536934548a71c320e04815f1d971c20bccc291b1";
-    sha256 = "sha256-XQzALMnm0epBuqBHaGdK6CTrwqjTDGp9h3cEXlmx+fA=";
+    rev = "b7c869041458b864aa036f384bb195352a96851d";
+    sha256 = "sha256-w0p61VYtUF4aRNxh6YgIIXK2bc8G6kzLQotxV2NERok=";
   };
 
   tui = buildGoModule {
@@ -110,7 +110,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     outputHash =
       {
-        x86_64-linux = "sha256-4O3zDd+beiNrIjHx+GXVo9zXW3YBNDVAqiONqq/Ury8=";
+        x86_64-linux = "sha256-EfH8fBgP0zsKVu26BxFq1NCwWLG6vlOhDD/WQ7152hA=";
         aarch64-linux = "sha256-DHzDyk7BWYgBNhYDlK3dLZglUN7bMiB3acdoU7djbxU=";
         x86_64-darwin = "sha256-HHW0rr656zrBcdT/owEcLv8ZRF3VUshW4gbfU84bTVI=";
         aarch64-darwin = "sha256-HHW0rr656zrBcdT/owEcLv8ZRF3VUshW4gbfU84bTVI=";
