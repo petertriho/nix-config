@@ -2,7 +2,7 @@
   "LuaSnip": { "branch": "master", "commit": "21e9fecfc07fb2cd707b6c7c3fa148550a34d053" },
   "actions-preview.nvim": { "branch": "master", "commit": "cb938c25edaac38d362555f19244a9cb85d561e8" },
   "any-jump.vim": { "branch": "master", "commit": "f95674d9a4251ac02f452d5f1861e4422f4652c7" },
-  "blink-ripgrep.nvim": { "branch": "main", "commit": "528c801902c851465edf8966278a52d6d26e5bc3" },
+  "blink-ripgrep.nvim": { "branch": "main", "commit": "15ee464cd007f845eea9c1b392baf7443c05b4c9" },
   "blink.cmp": { "branch": "main", "commit": "cb87357e93376fbe9b12e60333c7f5788baca057" },
   "blink.pairs": { "branch": "main", "commit": "c2d4030c10e6628de159cbac79a32a70ad746290" },
   "bufjump.nvim": { "branch": "master", "commit": "ae2728a77defbd27e9e5ef64c854fb0813ffba01" },
