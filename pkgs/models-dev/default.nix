@@ -8,12 +8,12 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "models-dev";
-  version = "0-unstable-2025-10-14";
+  version = "0-unstable-2025-10-17";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "models.dev";
-    rev = "06745bade4e50dddcacce62edb879ab8efe8af1d";
-    sha256 = "sha256-TGZjnSTf7uorwJkCWD2Uqp9O0r9fa5NrHtWKrsPa/hE=";
+    rev = "72053ca665ca1ddc6993c385b1a18e7c7ff58a1e";
+    sha256 = "sha256-YU5f/DYD1E/hePsRuGubFZ8lpBJw0jI3UeMTQ3aAjac=";
   };
 
   node_modules = stdenvNoCC.mkDerivation {
@@ -60,7 +60,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     outputHash =
       {
-        x86_64-linux = "sha256-Uajwvce9EO1UwmpkGrViOrxlm2R/VnnMK8WAiOiQOhY=";
+        x86_64-linux = "sha256-lLuj9OSlsNXf5Sf3+6npt+xwQhsn/gEIFoe6BiSfvV4=";
         aarch64-linux = "sha256-brjdEEYBJ1R5pIkIHyOOmVieTJ0yUJEgxs7MtbzcKXo=";
         x86_64-darwin = "sha256-aGUWZwySmo0ojOBF/PioZ2wp4NRwYyoaJuytzeGYjck=";
         aarch64-darwin = "sha256-IM88XPfttZouN2DEtnWJmbdRxBs8wN7AZ1T28INJlBY=";
