@@ -180,6 +180,7 @@ return {
             conf = { "dotenv_linter" },
             css = { "stylelint" },
             dockerfile = { "hadolint" },
+            elixir = { "credo" },
             lua = { "luacheck", "selene" },
             markdown = { "markdownlint" },
             nix = { "statix" },

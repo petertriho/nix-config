@@ -155,6 +155,7 @@ return {
 
         local formatters_by_ft = {
             css = with_prettier_formatter({ "stylelint" }),
+            elixir = { "mix" },
             fish = { "fish_indent" },
             gitcommit = { "commitmsgfmt" },
             go = { "goimports", "gofmt" },

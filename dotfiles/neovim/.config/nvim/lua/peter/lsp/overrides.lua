@@ -34,6 +34,9 @@ return {
     cssls = {},
     dockerls = {},
     docker_compose_language_service = {},
+    elixirls = {
+        cmd = { "elixir-ls" },
+    },
     emmet_language_server = {
         filetypes = {
             "css",

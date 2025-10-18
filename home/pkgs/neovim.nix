@@ -16,7 +16,7 @@
     isort
     mbake
     nixfmt-rfc-style
-    nodePackages.prettier
+    # nodePackages.prettier
     nodePackages.svgo
     prettierd
     pybetter
@@ -52,6 +52,7 @@
     bash-language-server
     docker-compose-language-service
     dockerfile-language-server
+    elixir-ls
     emmet-language-server
     # expert
     fish-lsp
