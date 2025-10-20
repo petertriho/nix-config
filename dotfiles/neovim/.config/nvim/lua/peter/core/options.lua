@@ -77,6 +77,7 @@ local function build_wildignore()
         -- Compiled files
         "*.o",
         "*.pyc",
+        ".conform.*",
         ".watchman-cookie-*",
     }
 
