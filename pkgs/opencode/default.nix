@@ -112,8 +112,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       {
         x86_64-linux = "sha256-8pJBLNPuF7+wcUCNoI9z68q5Pl6Mvm1ZvIDianLPdHo=";
         aarch64-linux = "sha256-8pJBLNPuF7+wcUCNoI9z68q5Pl6Mvm1ZvIDianLPdHo=";
-        x86_64-darwin = "sha256-oICPefgikykFWNDlxCXH4tILdjv4NytgQdejdQBeQ+A=";
-        aarch64-darwin = "sha256-oICPefgikykFWNDlxCXH4tILdjv4NytgQdejdQBeQ+A=";
+        x86_64-darwin = "sha256-0bjdbPXm2TkOEsSyqvPJnFLIzmBJt5SH40hwYutWYBY=";
+        aarch64-darwin = "sha256-0bjdbPXm2TkOEsSyqvPJnFLIzmBJt5SH40hwYutWYBY=";
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";
