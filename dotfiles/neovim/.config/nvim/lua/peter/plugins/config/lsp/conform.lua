@@ -185,7 +185,8 @@ return {
             svg = { "svgo" },
             typst = { "typstyle" },
             xml = { "tidy" },
-            yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
+            -- yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
+            yaml = with_prettier_formatter({ "yq", "yamlfmt" }),
         }
 
         local filetypes_to_formatters = {

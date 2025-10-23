@@ -28,7 +28,7 @@
     stylua
     typstyle
     sql-formatter
-    yamlfix
+    # yamlfix
     yamlfmt
 
     # linters
