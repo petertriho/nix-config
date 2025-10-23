@@ -158,10 +158,12 @@ return {
             elixir = { "mix" },
             fish = { "fish_indent" },
             gitcommit = { "commitmsgfmt" },
+            graphql = prettier,
             go = { "goimports", "gofmt" },
             hurl = { "hurlfmt" },
             java = { "google_java_format", lsp_format = "prefer" },
-            json = with_prettier_formatter({ "jq", "sort_package_json" }),
+            json = with_prettier_formatter({ "json_repair", "jq", "sort_package_json" }),
+            jsonc = with_prettier_formatter({ "json_repair" }),
             lua = { "stylua" },
             make = { "mbake" },
             markdown = with_prettier_formatter({}, { "injected" }),
@@ -214,10 +216,6 @@ return {
                     "tf",
                 },
                 { "hcl" },
-            },
-            {
-                { "graphql", "jsonc" },
-                prettier,
             },
         }
 

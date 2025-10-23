@@ -14,6 +14,7 @@
     # eslint_d
     hclfmt
     isort
+    json-repair
     mbake
     nixfmt-rfc-style
     # nodePackages.prettier
