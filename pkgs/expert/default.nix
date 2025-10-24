@@ -1,12 +1,12 @@
 {
   pkgs,
-  beamPackages ? pkgs.beamMinimal27Packages,
+  beamPackages ? pkgs.beamMinimal28Packages,
   lib ? pkgs.lib,
 }:
 let
   beamPackages' = beamPackages.extend (
     _: prev: {
-      elixir = prev.elixir_1_17;
+      elixir = prev.elixir_1_18;
     }
   );
 
@@ -51,11 +51,26 @@ beamPackages'.mixRelease rec {
       fi
     '') (builtins.attrValues engineDeps)}
     cd apps/expert
+    
+    # Patch mix.exs to set include_erts: false
+    substituteInPlace mix.exs \
+      --replace-fail 'plain: [' 'plain: [include_erts: false,'
   '';
 
+  # Override installPhase to use default mix release command
+  installPhase = ''
+    runHook preInstall
+    
+    mix release ${mixReleaseName} --no-deps-check --path "$out"
+    
+    runHook postInstall
+  '';
+  
   postInstall = ''
     mv $out/bin/plain $out/bin/expert
-    wrapProgram $out/bin/expert --add-flag start
+    wrapProgram $out/bin/expert \
+      --add-flag start \
+      --prefix PATH : ${lib.makeBinPath [ beamPackages'.erlang beamPackages'.elixir ]}
   '';
 
   removeCookie = false;
