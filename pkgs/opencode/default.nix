@@ -25,8 +25,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "343471b98d421e0867612e89299abbbd03b539bc";
-    sha256 = "sha256-7kv8LGWQ0QKudUDtc5h+lIyhN5DYlP7B4XQxu7SmBeU=";
+    rev = "5fec5ff4249e820865e8b9c2b3bb92cdc3504a1e";
+    sha256 = "sha256-vz4kngF9iTeUtrXmthdsLyYGiuGRe67KrmfqwoH7pp8=";
   };
 
   tui = buildGoModule {
@@ -110,8 +110,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     outputHash =
       {
-        x86_64-linux = "sha256-8pJBLNPuF7+wcUCNoI9z68q5Pl6Mvm1ZvIDianLPdHo=";
-        aarch64-linux = "sha256-8pJBLNPuF7+wcUCNoI9z68q5Pl6Mvm1ZvIDianLPdHo=";
+        x86_64-linux = "sha256-zQfbh4X/FtoVh2A7YEEZKmCHnot6lsCzxwTJwkEdu10=";
+        aarch64-linux = "sha256-zQfbh4X/FtoVh2A7YEEZKmCHnot6lsCzxwTJwkEdu10=";
         x86_64-darwin = "sha256-0bjdbPXm2TkOEsSyqvPJnFLIzmBJt5SH40hwYutWYBY=";
         aarch64-darwin = "sha256-0bjdbPXm2TkOEsSyqvPJnFLIzmBJt5SH40hwYutWYBY=";
       }

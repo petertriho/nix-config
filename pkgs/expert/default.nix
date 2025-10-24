@@ -13,8 +13,8 @@ let
   expertSrc = pkgs.fetchFromGitHub {
     owner = "elixir-lang";
     repo = "expert";
-    rev = "78236ef073c45222720c8e950e618a4289e81650";
-    hash = "sha256-Eq+H170xTekWmgIexMZFaVlO1z1wsCA9Rw4FA9VfiIE=";
+    rev = "0f66faa317fdbefd3aed407ce46c294d1f6bdec2";
+    hash = "sha256-8ABXSOrD8d79nuNmJtJ3yJzwOEXiTPhbB99p96YFMGU=";
   };
 
   engineDeps = pkgs.callPackages "${expertSrc}/apps/engine/deps.nix" {
