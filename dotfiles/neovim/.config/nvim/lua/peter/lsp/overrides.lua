@@ -159,7 +159,10 @@ return {
     --         "typescript.tsx",
     --     },
     -- },
-    qmlls = {},
+    qmlls = {
+        lazy = true,
+        filetypes = { "qml", "qtquick" },
+    },
     ruff = {
         -- capabilities = {
         --     general = {
