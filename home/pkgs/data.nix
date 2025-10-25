@@ -9,5 +9,6 @@
     sqlite # command-line SQLite client
     sqlite-web # web-based SQLite client
     tabiew # csv data viewer
+    zsv # fast CSV command-line toolkit
   ];
 }
