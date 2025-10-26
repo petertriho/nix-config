@@ -74,10 +74,10 @@ opt.updatetime = 100
 opt.wrap = false
 local function build_wildignore()
     local patterns = {
-        -- Compiled files
         "*.o",
         "*.pyc",
         ".conform.*",
+        ".dmypy.json",
         ".watchman-cookie-*",
     }
 
