@@ -31,17 +31,15 @@ if [ -n "$selected_sessions" ]; then
       echo "Connecting to session $((i + 1))/${count}: ${session}"
     fi
 
-    echo_connected="echo 'Connected to session: $session'"
-
     if [ $i -eq $((count - 1)) ]; then
       # Last session - connect and stay attached
-      sesh connect "$session" --command "$echo_connected" &> /dev/null
+      sesh connect "$session" &> /dev/null
     else
       # Not the last session - connect and detach
       if [ -z "$TMUX" ]; then
-        sesh connect "$session" --switch --command "$echo_connected" &> /dev/null
+        sesh connect "$session" --switch &> /dev/null
       else
-        sesh connect "$session" --command "$echo_connected; tmux detach-client" &> /dev/null
+        sesh connect "$session" --command "tmux detach-client" &> /dev/null
       fi
     fi
   done
