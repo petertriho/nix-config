@@ -1,0 +1,97 @@
+set hlsearch
+set ignorecase
+set incsearch
+set number
+
+" set clipboard+=unnamedplus
+" set clipboard+=ideaput
+set ideajoin
+set ideamarks
+set relativenumber
+set showmode
+
+Plug 'tpope/vim-commentary'
+Plug 'tpope/vim-surround'
+
+Plug 'preservim/nerdtree`
+set NERDTree
+
+Plug 'vim-scripts/argtextobj.vim'
+let g:argtextobj_pairs="(:),{:},<:>"
+
+set quickscope
+let g:qs_primary_color = '#7aa2f7'
+let g:qs_secondary_color = '#f7768e'
+
+" AceJump
+nmap s <Action>(AceForwardAction)
+nmap S <Action>(AceBackwardAction)
+
+nmap <ESC> :nohl<CR>
+
+nnoremap Y y$
+
+cnoremap <C-a> <Home>
+cnoremap <C-e> <End>
+cnoremap <C-b> <Left>
+cnoremap <C-f> <Right>
+cnoremap <C-d> <Del>
+cnoremap <C-n> <Down>
+cnoremap <C-p> <Up>
+
+inoremap <C-a> <Home>
+inoremap <C-e> <End>
+inoremap <C-b> <Left>
+inoremap <C-f> <Right>
+inoremap <C-d> <Del>
+inoremap <C-n> <Down>
+inoremap <C-p> <Up>
+
+nmap <C-n> <Action>(NextTab)
+nmap <C-p> <Action>(PreviousTab)
+
+sethandler <C-j> a:vim
+sethandler <C-k> a:vim
+nnoremap <C-h> <C-w>h
+nnoremap <C-l> <C-w>l
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nmap <C-m> <Action>(MoveEditorToOppositeTabGroup)
+
+nmap <C-i> <Action>(Forward)
+nmap <C-o> <Action>(Back)
+
+nmap gh <Action>(ShowErrorDescription)
+
+let mapleader = ' '
+
+nmap <leader>1 <Action>(GoToTab1)
+nmap <leader>2 <Action>(GoToTab2)
+nmap <leader>3 <Action>(GoToTab3)
+nmap <leader>4 <Action>(GoToTab4)
+nmap <leader>5 <Action>(GoToTab5)
+nmap <leader>6 <Action>(GoToTab6)
+nmap <leader>7 <Action>(GoToTab7)
+nmap <leader>8 <Action>(GoToTab8)
+nmap <leader>9 <Action>(GoToTab9)
+nmap <leader>0 <Action>(GoToTab10)
+
+nmap <leader><Leader> :w<CR>
+nmap <leader>/ <Action>(CommentByLineComment)
+vmap <leader>/ <Action>(CommentByLineComment)
+nmap <leader>. <Action>(CloseAllEditorsButActive)
+nmap <leader>\ <Action>(SplitVertically)
+nmap <leader>- <Action>(SplitHorizontally)
+nmap <leader>= <Action>(Unsplit)
+
+
+nmap <leader>d <Action>(CloseContent)
+nmap <leader>e :NERDTreeFocus<CR>
+nmap <leader>f <Action>(ReformatCode)
+nmap <leader>o <Action>(OptimizeImports)
+nmap <leader>p <Action>(PasteFromHistory)
+nmap <leader>r <Action>(Refactorings.QuickListPopupAction)
+nmap <leader>x <Action>(CutToClipboard)
+nmap <leader>y <Action>(CopyToClipboard)
+nmap <leader>Y "+Y
+nmap <leader>z <Action>(ToggleDistractionFreeMode)
