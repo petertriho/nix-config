@@ -17,6 +17,7 @@
     gnumake # GNU Make
     git-gone # git garbage collector
     glow # markdown viewer
+    grex # regex generator
     python3Packages.howdoi # instant coding answers
     httpie # user-friendly HTTP client
     stable.hurl # http client for testing APIs
