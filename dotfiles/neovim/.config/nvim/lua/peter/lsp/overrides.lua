@@ -142,13 +142,13 @@ return {
         },
     },
     postgres_lsp = {},
-    pyrefly = {
-        on_attach = function(client, bufnr)
-            -- Disable server_capabilities, use basedpyright instead
-            client.server_capabilities.renameProvider = false
-            client.server_capabilities.semanticTokensProvider = nil
-        end,
-    },
+    -- pyrefly = {
+    --     on_attach = function(client, bufnr)
+    --         -- Disable server_capabilities, use basedpyright instead
+    --         client.server_capabilities.renameProvider = false
+    --         client.server_capabilities.semanticTokensProvider = nil
+    --     end,
+    -- },
     -- quick_lint_js = {
     --     filetypes = {
     --         "javascript",
