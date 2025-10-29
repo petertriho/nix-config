@@ -21,12 +21,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "0.15.19-unstable-2025-10-28";
+  version = "0.15.23-unstable-2025-10-29";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "6af6a1295f530c095a9f9699bd238993d8219a29";
-    sha256 = "sha256-2q/PvOrdNLjlPMlW5PD4seZQDxQ3gza+Ol8OTraRSaI=";
+    rev = "a0541ba57aebcdb21c36540f0efd8a251fdbc2b8";
+    sha256 = "sha256-sKNq24M2yu43tL2zsQKSTlTw0LwykWwTCz9ZbDeFTuA=";
   };
 
   tui = buildGoModule {
@@ -35,7 +35,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     modRoot = "packages/tui";
 
-    vendorHash = "sha256-g3+2q7yRaM6BgIs5oIXz/u7B84ZMMjnxXpvFpqDePU4=";
+    vendorHash = "sha256-muwry7B0GlgueV8+9pevAjz3Cg3MX9AMr+rBwUcQ9CM=";
 
     subPackages = [ "cmd/opencode" ];
 
@@ -110,8 +110,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     outputHash =
       {
-        x86_64-linux = "sha256-RJMk6rTh4yMwiRcmnj8NpHVeEe7CwRDxdvphvtX4ekc=";
-        aarch64-linux = "sha256-RJMk6rTh4yMwiRcmnj8NpHVeEe7CwRDxdvphvtX4ekc=";
+        x86_64-linux = "sha256-QX+6uxG1V4QdecJX5vyFlgy5pBPPv8rne7pklSA2k3c=";
+        aarch64-linux = "sha256-QX+6uxG1V4QdecJX5vyFlgy5pBPPv8rne7pklSA2k3c=";
         x86_64-darwin = "sha256-wcxGCVFSKbc42oARiV9bJELjo2LfuMyn/wbcRfmveb4=";
         aarch64-darwin = "sha256-wcxGCVFSKbc42oARiV9bJELjo2LfuMyn/wbcRfmveb4=";
       }
