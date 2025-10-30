@@ -11,6 +11,12 @@ local vtsls_setup = function(config)
 end
 
 return {
+    atlas = {
+        lazy = true,
+        filetypes = {
+            "atlas-*",
+        },
+    },
     basedpyright = {
         settings = {
             basedpyright = {

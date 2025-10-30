@@ -6,13 +6,33 @@ vim.filetype.add({
     },
     filename = {
         [".prettierrc"] = "jsonc",
+        ["atlas.hcl"] = "atlas-config",
         ["todo.txt"] = "todotxt",
         ["yarn.lock"] = "txt",
     },
     pattern = {
         [".*%.env.*"] = "conf",
+        [".*/*.ch.hcl"] = "atlas-schema-clickhouse",
+        [".*/*.lt.hcl"] = "atlas-schema-sqlite",
+        [".*/*.ms.hcl"] = "atlas-schema-mssql",
+        [".*/*.my.hcl"] = "atlas-schema-mysql",
+        [".*/*.pg.hcl"] = "atlas-schema-postgresql",
+        [".*/*.plan.hcl"] = "atlas-plan",
+        [".*/*.rs.hcl"] = "atlas-schema-redshift",
+        [".*/*.rule.hcl"] = "atlas-rule",
+        [".*/*.test.hcl"] = "atlas-test",
     },
 })
+vim.treesitter.language.register("hcl", "atlas-config")
+vim.treesitter.language.register("hcl", "atlas-schema-mysql")
+vim.treesitter.language.register("hcl", "atlas-schema-postgresql")
+vim.treesitter.language.register("hcl", "atlas-schema-sqlite")
+vim.treesitter.language.register("hcl", "atlas-schema-clickhouse")
+vim.treesitter.language.register("hcl", "atlas-schema-mssql")
+vim.treesitter.language.register("hcl", "atlas-schema-redshift")
+vim.treesitter.language.register("hcl", "atlas-test")
+vim.treesitter.language.register("hcl", "atlas-plan")
+vim.treesitter.language.register("hcl", "atlas-rule")
 
 -- Globals
 vim.g.copilot_model = vim.env.COPILOT_MODEL
