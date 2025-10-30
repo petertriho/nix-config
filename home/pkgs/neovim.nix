@@ -68,7 +68,7 @@
       mpls
       nil
       # nodePackages.typescript-language-server
-      postgres-lsp
+      postgres-language-server
       unstable.pyrefly
       # quick-lint-js
       # rust-analyzer
