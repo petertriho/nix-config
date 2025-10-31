@@ -21,12 +21,12 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "0.15.29-unstable-2025-10-30";
+  version = "0.15.30-unstable-2025-10-31";
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
-    rev = "4b3a841dd95d67b7176351314571eb0de276aea1";
-    sha256 = "sha256-L3IcADx0fbtnqlf8Ysc1J5DVJp6ZQtN2faBJqAFMD3g=";
+    rev = "504a5994737cc0b4ecec92446251702c5930e6d6";
+    sha256 = "sha256-jKl33wv7jafLNnNJrWfzeMuKwiGBcvTOsfWs9WInnSw=";
   };
 
   tui = buildGoModule {
@@ -110,8 +110,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     outputHash =
       {
-        x86_64-linux = "sha256-QX+6uxG1V4QdecJX5vyFlgy5pBPPv8rne7pklSA2k3c=";
-        aarch64-linux = "sha256-QX+6uxG1V4QdecJX5vyFlgy5pBPPv8rne7pklSA2k3c=";
+        x86_64-linux = "sha256-O9GsCf6pXGOYIu7ogM0OB172bQkIuIyiSD3+OVUNjVE=";
+        aarch64-linux = "sha256-O9GsCf6pXGOYIu7ogM0OB172bQkIuIyiSD3+OVUNjVE=";
         x86_64-darwin = "sha256-vJ1tSW/ozE1Fz16RFcV46DDyyITGeuBhbqNMegIoGAo=";
         aarch64-darwin = "sha256-vJ1tSW/ozE1Fz16RFcV46DDyyITGeuBhbqNMegIoGAo=";
       }
