@@ -153,6 +153,10 @@ return {
         -- local javascript_formatters = with_prettier_formatter({ "eslint_d" })
         local javascript_formatters = vim.tbl_extend("force", prettier, { lsp_format = "first" })
 
+        if vim.g.has_deno then
+            javascript_formatters = with_prettier_formatter({ "deno_fmt" })
+        end
+
         local formatters_by_ft = {
             css = with_prettier_formatter({ "stylelint" }),
             elixir = { "mix" },

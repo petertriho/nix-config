@@ -36,6 +36,7 @@ vim.treesitter.language.register("hcl", "atlas-rule")
 
 -- Globals
 vim.g.copilot_model = vim.env.COPILOT_MODEL
+vim.g.has_deno = vim.fn.executable("deno") == 1
 
 -- Options
 local opt = vim.opt

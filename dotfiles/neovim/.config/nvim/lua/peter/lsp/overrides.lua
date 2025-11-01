@@ -10,7 +10,7 @@ local vtsls_setup = function(config)
     return config
 end
 
-return {
+local M = {
     atlas = {
         lazy = true,
         filetypes = {
@@ -318,3 +318,9 @@ return {
         end,
     },
 }
+
+if vim.g.has_deno then
+    M.denols = {}
+end
+
+return M

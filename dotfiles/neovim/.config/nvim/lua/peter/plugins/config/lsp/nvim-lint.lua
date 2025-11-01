@@ -205,7 +205,7 @@ return {
             --         "typescriptreact",
             --         "typescript.tsx",
             --     },
-            --     { "eslint_d" },
+            --     { vim.g.has_deno and "deno" or "eslint_d" },
             -- },
             {
                 { "json", "jsonc" },
