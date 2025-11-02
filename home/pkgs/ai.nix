@@ -41,8 +41,8 @@ in
   };
   programs.opencode = {
     enable = true;
-    # package = pkgs.unstable.opencode;
-    package = pkgs.opencode;
+    package = pkgs.unstable.opencode;
+    # package = pkgs.opencode;
     settings = {
       theme = "system";
       autoshare = false;
