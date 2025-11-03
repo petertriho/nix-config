@@ -224,13 +224,13 @@ return {
             end,
             desc = "Find Files",
         },
-        -- {
-        --     "<leader>e",
-        --     function()
-        --         require("snacks").picker.explorer()
-        --     end,
-        --     desc = "Explorer",
-        -- },
+        {
+            "<leader>e",
+            function()
+                require("snacks").picker.explorer()
+            end,
+            desc = "Explorer",
+        },
         {
             "<leader>'",
             function()
