@@ -12,12 +12,10 @@ end
 
 return {
     atlas = {
+        lazy = true,
         filetypes = {
             "atlas-*",
         },
-        config = function()
-            return {}
-        end,
     },
     basedpyright = {
         settings = {
@@ -89,6 +87,7 @@ return {
     },
     jdtls = {},
     jsonls = {
+        lazy = true,
         filetypes = { "json", "jsonc" },
         config = function()
             local sc = require("schema-companion")
@@ -173,10 +172,8 @@ return {
     --     },
     -- },
     qmlls = {
+        lazy = true,
         filetypes = { "qml", "qtquick" },
-        config = function()
-            return {}
-        end,
     },
     ruff = {
         -- capabilities = {
@@ -215,6 +212,7 @@ return {
     svelte = {},
     tailwindcss = {},
     taplo = {
+        lazy = true,
         filetypes = { "toml" },
         config = function()
             local sc = require("schema-companion")
@@ -253,6 +251,7 @@ return {
         },
     },
     vtsls = {
+        lazy = true,
         filetypes = {
             "javascript",
             "javascriptreact",
@@ -299,6 +298,7 @@ return {
         end,
     },
     yamlls = {
+        lazy = true,
         filetypes = { "yaml", "yml" },
         config = function()
             local sc = require("schema-companion")
