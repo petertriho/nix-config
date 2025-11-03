@@ -271,20 +271,24 @@ local TabPages = {
     TabPageClose,
 }
 
+local SIDEBAR_TITLES = {
+    DiffViewFiles = "DIFFVIEW",
+    undotree = "UNDOTREE",
+    snacks_layout_box = "EXPLORER",
+    Fyler = "EXPLORER",
+}
+
 local TabLineOffset = {
     condition = function(self)
         local win = vim.api.nvim_tabpage_list_wins(0)[1]
         local bufnr = vim.api.nvim_win_get_buf(win)
         self.winid = win
 
-        if vim.bo[bufnr].filetype == "DiffViewFiles" then
-            self.title = "DIFFVIEW"
-            return true
-        elseif vim.bo[bufnr].filetype == "undotree" then
-            self.title = "UNDOTREE"
-            return true
-        elseif vim.bo[bufnr].filetype == "snacks_layout_box" then
-            self.title = "EXPLORER"
+        local filetype = vim.bo[bufnr].filetype
+        local title = SIDEBAR_TITLES[filetype]
+
+        if title then
+            self.title = title
             return true
         end
     end,

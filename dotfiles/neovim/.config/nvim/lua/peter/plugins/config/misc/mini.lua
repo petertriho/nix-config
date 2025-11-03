@@ -119,6 +119,9 @@ return {
                 go_in = "<C-l>",
                 go_out = "<C-h>",
             },
+            options = {
+                use_as_default_explorer = false,
+            },
         })
         require("mini.icons").setup()
         require("mini.splitjoin").setup({

@@ -15,6 +15,7 @@ local function set_python3_host_prog()
 end
 
 local utils = require("peter.core.utils")
+local filetypes = require("peter.core.filetypes")
 
 local function exec_lazy_load_file(event)
     vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
@@ -148,6 +149,16 @@ set_augroups({
                     })
                 end,
                 desc = "Restore cursor",
+            },
+        },
+        {
+            "FileType",
+            {
+                pattern = require("peter.core.filetypes").sidebars,
+                callback = function()
+                    vim.opt_local.winfixbuf = true
+                end,
+                desc = "Enable winfixbuf for sidebar filetypes",
             },
         },
         -- {

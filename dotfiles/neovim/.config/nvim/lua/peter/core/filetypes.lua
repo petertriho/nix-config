@@ -1,5 +1,6 @@
 local sidebars = {
     "DiffViewFiles",
+    "Fyler",
     "NeogitStatus",
     "fugitive",
     "snacks_layout_box",
