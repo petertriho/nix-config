@@ -10,12 +10,14 @@ local vtsls_setup = function(config)
     return config
 end
 
-local M = {
+return {
     atlas = {
-        lazy = true,
         filetypes = {
             "atlas-*",
         },
+        config = function()
+            return {}
+        end,
     },
     basedpyright = {
         settings = {
@@ -38,6 +40,12 @@ local M = {
     },
     bashls = {},
     cssls = {},
+    denols = {
+        disabled = not vim.g.has_deno,
+        config = function()
+            return {}
+        end,
+    },
     dockerls = {},
     docker_compose_language_service = {},
     elixirls = {
@@ -81,7 +89,6 @@ local M = {
     },
     jdtls = {},
     jsonls = {
-        lazy = true,
         filetypes = { "json", "jsonc" },
         config = function()
             local sc = require("schema-companion")
@@ -166,8 +173,10 @@ local M = {
     --     },
     -- },
     qmlls = {
-        lazy = true,
         filetypes = { "qml", "qtquick" },
+        config = function()
+            return {}
+        end,
     },
     ruff = {
         -- capabilities = {
@@ -206,7 +215,6 @@ local M = {
     svelte = {},
     tailwindcss = {},
     taplo = {
-        lazy = true,
         filetypes = { "toml" },
         config = function()
             local sc = require("schema-companion")
@@ -245,7 +253,6 @@ local M = {
         },
     },
     vtsls = {
-        lazy = true,
         filetypes = {
             "javascript",
             "javascriptreact",
@@ -292,7 +299,6 @@ local M = {
         end,
     },
     yamlls = {
-        lazy = true,
         filetypes = { "yaml", "yml" },
         config = function()
             local sc = require("schema-companion")
@@ -318,9 +324,3 @@ local M = {
         end,
     },
 }
-
-if vim.g.has_deno then
-    M.denols = {}
-end
-
-return M

@@ -395,21 +395,27 @@ M.setup = function()
     local overrides = require("peter.lsp.overrides")
 
     for server, override in pairs(overrides) do
-        if override.lazy then
-            if override.filetypes and #override.filetypes > 0 then
-                vim.api.nvim_create_autocmd("FileType", {
-                    pattern = override.filetypes,
-                    callback = function()
-                        local config = override.config()
-                        vim.lsp.config(server, config)
-                        vim.lsp.enable(server)
-                    end,
-                    once = true,
-                })
-            end
+        if override.filetypes and #override.filetypes > 0 then
+            vim.api.nvim_create_autocmd("FileType", {
+                pattern = override.filetypes,
+                callback = function()
+                    local config = override.config()
+                    vim.lsp.config(server, config)
+                    vim.lsp.enable(server)
+                end,
+                once = true,
+            })
         else
-            vim.lsp.config(server, override)
-            vim.lsp.enable(server)
+            local enabled = true
+            local config = override
+
+            if type(override.config) == "function" then
+                enabled = not override.disabled
+                config = override.config()
+            end
+
+            vim.lsp.config(server, config)
+            vim.lsp.enable(server, enabled)
         end
     end
 end
