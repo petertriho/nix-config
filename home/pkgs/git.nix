@@ -15,6 +15,7 @@
       delta
       difftastic
       # jujutsu
+      mergiraf
       rs-git-fsmonitor
       watchman
     ];
@@ -28,6 +29,7 @@
   xdg.configFile = {
     "git/fsmonitor.gitconfig".source =
       config.lib.meta.mkDotfilesSymlink "git/.config/git/fsmonitor.gitconfig";
+    "git/attributes".source = config.lib.meta.mkDotfilesSymlink "git/.config/git/attributes";
     "gh/config.yml".source = config.lib.meta.mkDotfilesSymlink "gh/.config/gh/config.yml";
   };
 }

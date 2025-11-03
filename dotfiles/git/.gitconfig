@@ -63,8 +63,9 @@
     autocorrect = show
 
 [merge]
-    conflictStyle = zdiff3
-    tool = mergetool
+    # conflictStyle = zdiff3
+    # tool = mergetool
+    conflictStyle = diff3
 
 [mergetool "fugitive"]
     cmd = nvim -f -c "Gvdiffsplit!" "$MERGED"
@@ -73,6 +74,10 @@
 [mergetool "mergetool"]
     cmd = nvim -f -c "MergetoolStart" "$MERGED" "$BASE" "$LOCAL" "$REMOTE"
     trustExitCode = true
+
+[merge "mergiraf"]
+    name = mergiraf
+    driver = mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L
 
 [pager]
     difftool = true
