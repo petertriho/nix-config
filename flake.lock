@@ -701,11 +701,11 @@
         "nixpkgs": "nixpkgs_5"
       },
       "locked": {
-        "lastModified": 1762233278,
-        "narHash": "sha256-12W42zdnMsvq8swA3XunHtUA57McFSt81xbi+AiWMxs=",
+        "lastModified": 1762247914,
+        "narHash": "sha256-aLCFe5SqS2fO8fza8DJg6WqbIYL/kaVWPZvtQJo6eWY=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "0bb3cc95fdb3248e6c717ceced7dae0ea38636e8",
+        "rev": "22c164706789d6fcd9aac681551337084fc72a95",
         "type": "github"
       },
       "original": {
