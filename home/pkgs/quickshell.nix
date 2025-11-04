@@ -5,7 +5,7 @@
   ...
 }:
 {
-  home.packages = [ inputs.quickshell.packages.${pkgs.system}.default ];
+  home.packages = [ inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default ];
 
   xdg.configFile."quickshell".source =
     config.lib.meta.mkDotfilesSymlink "quickshell/.config/quickshell";
@@ -22,7 +22,7 @@
     };
 
     Service = {
-      ExecStart = "${inputs.quickshell.packages.${pkgs.system}.default}/bin/quickshell";
+      ExecStart = "${inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/quickshell";
       Restart = "always";
       RestartSec = 5;
     };

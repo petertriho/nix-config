@@ -19,7 +19,7 @@
 
   stable = final: prev: {
     stable = import inputs.nixpkgs-stable {
-      inherit (final) system;
+      system = final.stdenv.hostPlatform.system;
       config = {
         allowUnfree = true;
         allowBroken = true;
@@ -29,7 +29,7 @@
 
   unstable = final: prev: {
     unstable = import inputs.nixpkgs-unstable {
-      inherit (final) system;
+      system = final.stdenv.hostPlatform.system;
       config = {
         allowUnfree = true;
         allowBroken = true;
