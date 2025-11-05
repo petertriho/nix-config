@@ -63,6 +63,7 @@ return {
                 },
             },
         },
+        use_popups_for_input = false,
     },
     config = function(_, opts)
         local function on_move(data)
