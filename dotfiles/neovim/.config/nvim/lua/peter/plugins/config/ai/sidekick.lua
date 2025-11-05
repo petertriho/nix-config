@@ -135,8 +135,14 @@ return {
             opts.nes.enabled = true
 
             vim.lsp.config("copilot", {
-                telemetry = {
-                    telemetryLevel = "off",
+                cmd = {
+                    "copilot-language-server",
+                    "--stdio",
+                },
+                settings = {
+                    telemetry = {
+                        telemetryLevel = "off",
+                    },
                 },
             })
             vim.lsp.enable("copilot")
