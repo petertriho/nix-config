@@ -58,6 +58,8 @@ return {
                         local path = node.type == "directory" and node.path or vim.fn.fnamemodify(node.path, ":h")
                         require("snacks").picker.grep({ cwd = path })
                     end,
+                    ["<C-v>"] = "open_vsplit",
+                    ["<C-x>"] = "open_split",
                 },
             },
         },
