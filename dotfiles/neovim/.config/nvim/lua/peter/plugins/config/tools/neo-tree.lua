@@ -48,12 +48,12 @@ return {
             },
             window = {
                 mappings = {
-                    ["<C-f>"] = function(state)
+                    ["<leader>;"] = function(state)
                         local node = state.tree:get_node()
                         local path = node.type == "directory" and node.path or vim.fn.fnamemodify(node.path, ":h")
                         require("snacks").picker.files({ cwd = path })
                     end,
-                    ["<C-s>"] = function(state)
+                    ["<leader>'"] = function(state)
                         local node = state.tree:get_node()
                         local path = node.type == "directory" and node.path or vim.fn.fnamemodify(node.path, ":h")
                         require("snacks").picker.grep({ cwd = path })
