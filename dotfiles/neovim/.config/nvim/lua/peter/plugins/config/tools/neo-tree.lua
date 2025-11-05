@@ -18,6 +18,7 @@ return {
                 hide_dotfiles = false,
                 hide_gitignored = true,
                 hide_ignored = true,
+                never_show_by_pattern = vim.opt.wildignore:get(),
             },
             use_libuv_file_watcher = true,
             follow_current_file = {
