@@ -9,14 +9,14 @@
 }:
 buildNpmPackage {
   pname = "vscode-langservers-extracted";
-  version = "unstable-2025-10-22";
+  version = "unstable-2025-11-04";
 
   srcs = [
     (fetchFromGitHub {
       owner = "zed-industries";
       repo = "vscode-langservers-extracted";
-      rev = "3c9941a10380fae4772b0a68df0f8b0dedba93b8";
-      sha256 = "012njwffd779ydxvghzkdfb3n4zcqfjfbmbcmc5zf0fdns6asr5v";
+      rev = "4f4cc2967588f578c52ce47f1af40c43437b1402";
+      sha256 = "0dlq17bp4agyvkazyza63kpxvcfmjvvh8gvpsffpxv50qiys542n";
     })
   ]
   ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [
@@ -25,7 +25,7 @@ buildNpmPackage {
 
   sourceRoot = "source";
 
-  npmDepsHash = "sha256-exibvfPSbC1exQGvmxOwrdNQ53TPNsgM7CaH37PpDy8=";
+  npmDepsHash = "sha256-G4KROyE0OPdDCEEcZOvQbM/h7PDaBCkrlOrGIoUJ1TY=";
 
   nativeBuildInputs = [ unzip ];
 

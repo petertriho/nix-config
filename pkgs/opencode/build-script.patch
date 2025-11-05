@@ -1,31 +1,35 @@
-diff --git i/packages/opencode/script/build.ts w/packages/opencode/script/build.ts
+diff --git a/packages/opencode/script/build.ts b/packages/opencode/script/build.ts
 index 1d3a3fac..fffc5b61 100755
---- i/packages/opencode/script/build.ts
-+++ w/packages/opencode/script/build.ts
-@@ -16,6 +16,8 @@ import pkg from "../package.json"
+--- a/packages/opencode/script/build.ts
++++ b/packages/opencode/script/build.ts
+@@ -16,6 +16,8 @@
  import { Script } from "@opencode-ai/script"
-
+ 
  const singleFlag = process.argv.includes("--single")
 +const npm_pack_only = process.argv.includes("--npm-pack-only")
 +const no_npm_pack = process.argv.includes("--no-npm-pack")
-
+ 
  const allTargets = [
    ["windows", "x64"],
-@@ -37,52 +39,57 @@ const binaries: Record<string, string> = {}
+@@ -37,59 +39,64 @@
  for (const [os, arch] of targets) {
    console.log(`building ${os}-${arch}`)
    const name = `${pkg.name}-${os}-${arch}`
 -  await $`mkdir -p dist/${name}/bin`
-
+ 
    const opentui = `@opentui/core-${os === "windows" ? "win32" : os}-${arch.replace("-baseline", "")}`
 -  await $`mkdir -p ../../node_modules/${opentui}`
--  await $`npm pack ${opentui}@${pkg.dependencies["@opentui/core"]}`.cwd(path.join(dir, "../../node_modules"))
+-  await $`npm pack ${opentui}@${pkg.dependencies["@opentui/core"]}`.cwd(
+-    path.join(dir, "../../node_modules"),
+-  )
 +  if (!no_npm_pack) {
 +    await $`mkdir -p ../../node_modules/${opentui}`
-+    await $`npm pack ${opentui}@${pkg.dependencies["@opentui/core"]}`.cwd(path.join(dir, "../../node_modules"))
++    await $`npm pack ${opentui}@${pkg.dependencies["@opentui/core"]}`.cwd(
++      path.join(dir, "../../node_modules"),
++    )
 +  }
    await $`tar -xf ../../node_modules/${opentui.replace("@opentui/", "opentui-")}-*.tgz -C ../../node_modules/${opentui} --strip-components=1`
-
+ 
    const watcher = `@parcel/watcher-${os === "windows" ? "win32" : os}-${arch.replace("-baseline", "")}${os === "linux" ? "-glibc" : ""}`
 -  await $`mkdir -p ../../node_modules/${watcher}`
 -  await $`npm pack ${watcher}`.cwd(path.join(dir, "../../node_modules")).quiet()
@@ -34,8 +38,12 @@ index 1d3a3fac..fffc5b61 100755
 +    await $`npm pack ${watcher}`.cwd(path.join(dir, "../../node_modules")).quiet()
 +  }
    await $`tar -xf ../../node_modules/${watcher.replace("@parcel/", "parcel-")}-*.tgz -C ../../node_modules/${watcher} --strip-components=1`
-
--  const parserWorker = fs.realpathSync(path.resolve(dir, "./node_modules/@opentui/core/parser.worker.js"))
+ 
+-  const parserWorker = fs.realpathSync(
+-    path.resolve(dir, "./node_modules/@opentui/core/parser.worker.js"),
+-  )
+-  const workerPath = "./src/cli/cmd/tui/worker.ts"
+-
 -  await Bun.build({
 -    conditions: ["browser"],
 -    tsconfig: "./tsconfig.json",
@@ -47,10 +55,11 @@ index 1d3a3fac..fffc5b61 100755
 -      execArgv: [`--user-agent=opencode/${Script.version}`, `--env-file=""`, `--`],
 -      windows: {},
 -    },
--    entrypoints: ["./src/index.ts", parserWorker, "./src/cli/cmd/tui/worker.ts"],
+-    entrypoints: ["./src/index.ts", parserWorker, workerPath],
 -    define: {
 -      OPENCODE_VERSION: `'${Script.version}'`,
 -      OTUI_TREE_SITTER_WORKER_PATH: "/$bunfs/root/" + path.relative(dir, parserWorker),
+-      OPENCODE_WORKER_PATH: workerPath,
 -      OPENCODE_CHANNEL: `'${Script.channel}'`,
 -    },
 -  })
@@ -64,7 +73,11 @@ index 1d3a3fac..fffc5b61 100755
 -        os: [os === "windows" ? "win32" : os],
 -        cpu: [arch],
 +  if (!npm_pack_only) {
-+    const parserWorker = fs.realpathSync(path.resolve(dir, "./node_modules/@opentui/core/parser.worker.js"))
++    const parserWorker = fs.realpathSync(
++      path.resolve(dir, "./node_modules/@opentui/core/parser.worker.js"),
++    )
++    const workerPath = "./src/cli/cmd/tui/worker.ts"
++
 +    await Bun.build({
 +      conditions: ["browser"],
 +      tsconfig: "./tsconfig.json",
@@ -81,10 +94,11 @@ index 1d3a3fac..fffc5b61 100755
 -    ),
 -  )
 -  binaries[name] = Script.version
-+      entrypoints: ["./src/index.ts", parserWorker, "./src/cli/cmd/tui/worker.ts"],
++      entrypoints: ["./src/index.ts", parserWorker, workerPath],
 +      define: {
 +        OPENCODE_VERSION: `'${Script.version}'`,
 +        OTUI_TREE_SITTER_WORKER_PATH: "/$bunfs/root/" + path.relative(dir, parserWorker),
++        OPENCODE_WORKER_PATH: workerPath,
 +        OPENCODE_CHANNEL: `'${Script.channel}'`,
 +      },
 +    })
@@ -105,5 +119,5 @@ index 1d3a3fac..fffc5b61 100755
 +    binaries[name] = Script.version
 +  }
  }
-
+ 
  export { binaries }

@@ -8,13 +8,13 @@
 }:
 buildNpmPackage {
   pname = "mcp-server-sequential-thinking";
-  version = "2025.9.25-unstable-2025-10-29";
+  version = "2025.9.25-unstable-2025-11-05";
 
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "c7c549711b1577227d0ff8ff7c67fdbf7e4a0225";
-    sha256 = "sha256-p8jnBbSWpHhG7CooBCvA6cEIVKBDuCL3J4twG6vi0uc=";
+    rev = "b6862234890fed5ee3a3c84c8521d686333298f6";
+    sha256 = "sha256-MvaJt4n0nTxaY28Y7MEyHgzQMjlfcWN80vyXQLXYRIQ=";
   };
 
   npmDepsHash = "sha256-GQYLDBwmcaWcUmklFkyivBuVAEblXIsXdnxIJOcibIw=";

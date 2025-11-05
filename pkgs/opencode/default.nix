@@ -17,12 +17,12 @@
 let
   src-with-node_modules = stdenvNoCC.mkDerivation (finalAttrs: {
     pname = "opencode-src-with-node_modules";
-    version = "unstable-2025-11-04";
+    version = "unstable-2025-11-05";
     src = fetchFromGitHub {
       owner = "sst";
       repo = "opencode";
-      rev = "d341d26e37fd458bffc6b51c7fe5a4d33eaa182f";
-      sha256 = "0vkfij2v0wl3433izsl7pin92674msh4vvh46kmwniig5214qi4f";
+      rev = "7269c2316d1165b30fc8778e63320a9fc594176a";
+      sha256 = "0aqqys6jj57ndaryqkb0wijpasggh81mbg4pvfn8ikp4hydx4y8m";
     };
     impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [
       "GIT_PROXY_COMMAND"
@@ -78,8 +78,8 @@ let
 
     outputHash =
       {
-        x86_64-linux = "sha256-9gaIBQ1F25L/cwuEsHPUDb3YYxDnWECLEgXipbI6i6A=";
-        aarch64-linux = "sha256-9gaIBQ1F25L/cwuEsHPUDb3YYxDnWECLEgXipbI6i6A=";
+        x86_64-linux = "sha256-q+3/FgnxALMnUavY2rNUgot7S29U3QV8v3wmUQ6vla0=";
+        aarch64-linux = "sha256-q+3/FgnxALMnUavY2rNUgot7S29U3QV8v3wmUQ6vla0=";
         x86_64-darwin = "sha256-Qx709LSjkfSMVTBQAqqDsYCFgz0QPnxbpUw1WT51BII=";
         aarch64-darwin = "sha256-Qx709LSjkfSMVTBQAqqDsYCFgz0QPnxbpUw1WT51BII=";
       }
