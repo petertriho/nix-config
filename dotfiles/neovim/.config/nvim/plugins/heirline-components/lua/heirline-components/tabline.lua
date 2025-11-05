@@ -273,9 +273,10 @@ local TabPages = {
 
 local SIDEBAR_TITLES = {
     DiffViewFiles = "DIFFVIEW",
-    undotree = "UNDOTREE",
-    snacks_layout_box = "EXPLORER",
     Fyler = "EXPLORER",
+    ["neo-tree"] = "EXPLORER",
+    snacks_layout_box = "EXPLORER",
+    undotree = "UNDOTREE",
 }
 
 local TabLineOffset = {

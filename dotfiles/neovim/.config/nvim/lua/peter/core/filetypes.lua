@@ -3,6 +3,7 @@ local sidebars = {
     "Fyler",
     "NeogitStatus",
     "fugitive",
+    "neo-tree",
     "snacks_layout_box",
     "undotree",
 }
