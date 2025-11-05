@@ -3,7 +3,29 @@ return {
     dependencies = {
         "nvim-lua/plenary.nvim",
         "MunifTanjim/nui.nvim",
-        "s1n7ax/nvim-window-picker",
+        {
+            "s1n7ax/nvim-window-picker",
+            opts = {
+                hint = "statusline-winbar",
+                picker_config = {
+                    statusline_winbar_picker = {
+                        use_winbar = "always",
+                    },
+                },
+                show_prompt = false,
+                highlights = {
+                    enabled = true,
+                    statusline = {
+                        focused = "WindowPickerStatusLine",
+                        unfocused = "WindowPickerStatusLineNC",
+                    },
+                    winbar = {
+                        focused = "WindowPickerWinBar",
+                        unfocused = "WindowPickerWinBarNC",
+                    },
+                },
+            },
+        },
     },
     keys = {
         {
@@ -23,6 +45,20 @@ return {
             use_libuv_file_watcher = true,
             follow_current_file = {
                 enabled = true,
+            },
+            window = {
+                mappings = {
+                    ["<C-f>"] = function(state)
+                        local node = state.tree:get_node()
+                        local path = node.type == "directory" and node.path or vim.fn.fnamemodify(node.path, ":h")
+                        require("snacks").picker.files({ cwd = path })
+                    end,
+                    ["<C-s>"] = function(state)
+                        local node = state.tree:get_node()
+                        local path = node.type == "directory" and node.path or vim.fn.fnamemodify(node.path, ":h")
+                        require("snacks").picker.grep({ cwd = path })
+                    end,
+                },
             },
         },
     },

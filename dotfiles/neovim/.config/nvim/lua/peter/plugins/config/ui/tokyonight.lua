@@ -7,6 +7,16 @@ return {
             style = "night",
             sidebars = require("peter.core.filetypes").sidebars,
             on_highlights = function(hl, colors)
+                hl.BlinkPairsBlue = { fg = colors.blue }
+                hl.BlinkPairsYellow = { fg = colors.yellow }
+                hl.BlinkPairsGreen = { fg = colors.green }
+                hl.BlinkPairsTeal = { fg = colors.teal }
+                hl.BlinkPairsMagenta = { fg = colors.magenta }
+                hl.BlinkPairsPurple = { fg = colors.purple }
+                hl.BlinkPairsOrange = { fg = colors.orange }
+                hl.BlinkPairsRed = { fg = colors.red }
+                hl.BlinkPairsUnmatched = { fg = colors.error, underline = true, bold = true }
+
                 hl.ConflictMarkerBegin = { bg = colors.diff.add }
                 hl.ConflictMarkerOurs = { bg = colors.diff.add }
                 hl.ConflictMarkerCommonAncestors = { bg = colors.diff.delete }
@@ -34,15 +44,22 @@ return {
                     bg = colors.bg_visual,
                 }
 
-                hl.BlinkPairsBlue = { fg = colors.blue }
-                hl.BlinkPairsYellow = { fg = colors.yellow }
-                hl.BlinkPairsGreen = { fg = colors.green }
-                hl.BlinkPairsTeal = { fg = colors.teal }
-                hl.BlinkPairsMagenta = { fg = colors.magenta }
-                hl.BlinkPairsPurple = { fg = colors.purple }
-                hl.BlinkPairsOrange = { fg = colors.orange }
-                hl.BlinkPairsRed = { fg = colors.red }
-                hl.BlinkPairsUnmatched = { fg = colors.error, underline = true, bold = true }
+                hl.WindowPickerStatusLine = {
+                    fg = colors.fg,
+                    bg = colors.bg_statusline,
+                }
+                hl.WindowPickerStatusLineNC = {
+                    fg = colors.fg,
+                    bg = colors.bg_statusline,
+                }
+                hl.WindowPickerWinBar = {
+                    fg = colors.fg,
+                    bg = colors.bg_statusline,
+                }
+                hl.WindowPickerWinBarNC = {
+                    fg = colors.fg,
+                    bg = colors.bg_statusline,
+                }
             end,
             plugins = { markdown = true, rainbow = true },
         })
