@@ -35,5 +35,6 @@ return {
             { event = events.FILE_MOVED, handler = on_move },
             { event = events.FILE_RENAMED, handler = on_move },
         })
+        require("neo-tree").setup(opts)
     end,
 }
