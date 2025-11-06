@@ -17,7 +17,7 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "unstable-2025-11-05";
+  version = "unstable-2025-11-06";
   src = (
     finalAttrs.passthru.sources.${stdenvNoCC.hostPlatform.system}
       or (throw "Unsupported system: ${stdenvNoCC.hostPlatform.system}")
@@ -77,8 +77,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
             src = fetchFromGitHub {
               owner = "sst";
               repo = "opencode";
-              rev = "7269c2316d1165b30fc8778e63320a9fc594176a";
-              sha256 = "0aqqys6jj57ndaryqkb0wijpasggh81mbg4pvfn8ikp4hydx4y8m";
+              rev = "e52bfab79db9ab064ebfd2620d7bba32db23a460";
+              sha256 = "134cz63bp11jkf4gls81hqap6s099j14m0gz2h8a5mac92sf4d4s";
             };
             impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [
               "GIT_PROXY_COMMAND"
@@ -138,8 +138,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
           };
       in
       {
-        x86_64-linux = prepareOpencodeSource "sha256-q+3/FgnxALMnUavY2rNUgot7S29U3QV8v3wmUQ6vla0=";
-        aarch64-linux = prepareOpencodeSource "sha256-q+3/FgnxALMnUavY2rNUgot7S29U3QV8v3wmUQ6vla0=";
+        x86_64-linux = prepareOpencodeSource "sha256-Jjgl08cUKd9HAqge2Oyo8kL8jClkbwzw/yQYoU7f4xU=";
+        aarch64-linux = prepareOpencodeSource "sha256-Jjgl08cUKd9HAqge2Oyo8kL8jClkbwzw/yQYoU7f4xU=";
         x86_64-darwin = prepareOpencodeSource "sha256-df7yx5axqrb63Ecebsu0Ks7eVtHm1XfV7DZCqi0/Ff4=";
         aarch64-darwin = prepareOpencodeSource "sha256-df7yx5axqrb63Ecebsu0Ks7eVtHm1XfV7DZCqi0/Ff4=";
       };
