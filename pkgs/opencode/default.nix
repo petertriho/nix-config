@@ -140,8 +140,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       {
         x86_64-linux = prepareOpencodeSource "sha256-Jjgl08cUKd9HAqge2Oyo8kL8jClkbwzw/yQYoU7f4xU=";
         aarch64-linux = prepareOpencodeSource "sha256-Jjgl08cUKd9HAqge2Oyo8kL8jClkbwzw/yQYoU7f4xU=";
-        x86_64-darwin = prepareOpencodeSource "sha256-df7yx5axqrb63Ecebsu0Ks7eVtHm1XfV7DZCqi0/Ff4=";
-        aarch64-darwin = prepareOpencodeSource "sha256-df7yx5axqrb63Ecebsu0Ks7eVtHm1XfV7DZCqi0/Ff4=";
+        x86_64-darwin = prepareOpencodeSource "sha256-6KoPjOkia2iFO044xjFwNtdbwvou39JTbguLj2YBkRg=";
+        aarch64-darwin = prepareOpencodeSource "sha256-6KoPjOkia2iFO044xjFwNtdbwvou39JTbguLj2YBkRg=";
       };
     tests.version = testers.testVersion {
       package = finalAttrs.finalPackage;
