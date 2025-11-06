@@ -35,6 +35,38 @@ return {
         },
     },
     opts = {
+        sources = {
+            "filesystem",
+            "buffers",
+            "git_status",
+            "document_symbols",
+        },
+        source_selector = {
+            winbar = false,
+            statusline = true,
+            sources = {
+                { source = "filesystem", display_name = " 󰉓 Files " },
+                { source = "buffers", display_name = "  Buffers " },
+                { source = "git_status", display_name = " 󰊢 Git " },
+                { source = "document_symbols", display_name = " 󰅩 Symbols " },
+            },
+        },
+        window = {
+            mappings = {
+                ["1"] = function()
+                    vim.cmd("Neotree source=filesystem")
+                end,
+                ["2"] = function()
+                    vim.cmd("Neotree source=buffers")
+                end,
+                ["3"] = function()
+                    vim.cmd("Neotree source=git_status")
+                end,
+                ["4"] = function()
+                    vim.cmd("Neotree source=document_symbols")
+                end,
+            },
+        },
         filesystem = {
             filtered_items = {
                 hide_dotfiles = false,
@@ -60,6 +92,13 @@ return {
                     end,
                     ["<C-v>"] = "open_vsplit",
                     ["<C-x>"] = "open_split",
+                },
+            },
+        },
+        document_symbols = {
+            window = {
+                mappings = {
+                    ["<C-r>"] = "noop",
                 },
             },
         },

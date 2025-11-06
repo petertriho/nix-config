@@ -45,20 +45,24 @@ return {
                 }
 
                 hl.WindowPickerStatusLine = {
-                    fg = colors.fg,
+                    fg = colors.blue,
                     bg = colors.bg_statusline,
+                    bold = true,
                 }
                 hl.WindowPickerStatusLineNC = {
-                    fg = colors.fg,
+                    fg = colors.blue,
                     bg = colors.bg_statusline,
+                    bold = true,
                 }
                 hl.WindowPickerWinBar = {
-                    fg = colors.fg,
+                    fg = colors.blue,
                     bg = colors.bg_statusline,
+                    bold = true,
                 }
                 hl.WindowPickerWinBarNC = {
-                    fg = colors.fg,
+                    fg = colors.blue,
                     bg = colors.bg_statusline,
+                    bold = true,
                 }
             end,
             plugins = { markdown = true, rainbow = true },
