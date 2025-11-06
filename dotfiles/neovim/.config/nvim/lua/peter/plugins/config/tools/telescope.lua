@@ -1,5 +1,6 @@
 return {
     "nvim-telescope/telescope.nvim",
+    enabled = false,
     cmd = "Telescope",
     config = function()
         local telescope = require("telescope")
@@ -80,6 +81,6 @@ return {
             },
         })
 
-        telescope.load_extension("fzf")
+        -- telescope.load_extension("fzf")
     end,
 }
