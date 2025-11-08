@@ -21,6 +21,7 @@ return {
         settings = {
             basedpyright = {
                 analysis = {
+                    autoImportCompletions = true,
                     autoSearchPaths = true,
                     diagnosticMode = "workspace",
                     useLibraryCodeForTypes = true,
@@ -34,6 +35,11 @@ return {
         },
         on_attach = function(client, bufnr)
             vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+
+            client.server_capabilities.completionProvider = false
+            client.server_capabilities.definitionProvider = false
+            client.server_capabilities.documentHighlightProvider = false
+            client.server_capabilities.semanticTokensProvider = false
         end,
     },
     bashls = {},
@@ -154,13 +160,17 @@ return {
         },
     },
     postgres_lsp = {},
-    -- pyrefly = {
-    --     on_attach = function(client, bufnr)
-    --         -- Disable server_capabilities, use basedpyright instead
-    --         client.server_capabilities.renameProvider = false
-    --         client.server_capabilities.semanticTokensProvider = nil
-    --     end,
-    -- },
+    pyrefly = {
+        on_attach = function(client, bufnr)
+            client.server_capabilities.codeActionProvider = false
+            client.server_capabilities.documentSymbolProvider = false
+            client.server_capabilities.hoverProvider = false
+            client.server_capabilities.inlayHintProvider = false
+            client.server_capabilities.referenceProvider = false
+            client.server_capabilities.renameProvider = false
+            client.server_capabilities.signatureHelpProvider = false
+        end,
+    },
     -- quick_lint_js = {
     --     filetypes = {
     --         "javascript",
@@ -184,6 +194,18 @@ return {
         init_options = {
             settings = {
                 configuration = vim.fn.expand("$HOME/.config/nvim/code/ruff.toml"),
+                organizeImports = true,
+                showSyntaxErrors = true,
+                codeAction = {
+                    disableRuleComment = { enable = false },
+                    fixViolation = { enable = false },
+                },
+                format = {
+                    preview = false,
+                },
+                lint = {
+                    enable = true,
+                },
             },
         },
         on_attach = function(client, bufnr)
@@ -204,6 +226,10 @@ return {
             end, { desc = "Organize Imports" })
 
             vim.keymap.set("n", "gro", "<CMD>RuffOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+
+            client.server_capabilities.documentFormattingProvider = false
+            client.server_capabilities.documentRangeFormattingProvider = false
+            client.server_capabilities.hoverProvider = false
         end,
     },
     -- rust_analyzer = {},
