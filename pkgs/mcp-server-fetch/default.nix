@@ -17,8 +17,8 @@ python3Packages.buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "6205ff78381de8990aa46d1fb986969791b79db5";
-    sha256 = "sha256-QapHZRt8ighWKs+VRhpeka19Bib0cfqFga2eskD7+HY=";
+    rev = "65994ca3db466796b8e1e9082d0c2d1855cb73d4";
+    sha256 = "sha256-KQ166p3B3eGYb8AdUdmbVVzjlJ1xD0LlclDTe/uBodg=";
   };
 
   pyproject = true;
