@@ -23,7 +23,7 @@ return {
                 enable = true,
             },
             filters = {
-                custom = vim.opt.wildignore:get(),
+                custom = vim.g.wildignore_regex or {},
             },
             git = {
                 enable = false,
@@ -68,7 +68,7 @@ return {
                     window_picker = {
                         exclude = {
                             filetype = require("peter.core.filetypes").excludes,
-                            buftype = { "nofile", "terminal", "help" },
+                            buftype = { "nofile", "terminal", "help", "quickfix" },
                         },
                     },
                 },

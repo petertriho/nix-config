@@ -121,6 +121,12 @@ local function build_wildignore()
         table.insert(patterns, "**/" .. folder .. "/**")
     end
 
+    local regex_patterns = {}
+    for _, folder in ipairs(folders) do
+        table.insert(regex_patterns, "^" .. folder)
+    end
+    vim.g.wildignore_regex = regex_patterns
+
     return patterns
 end
 
