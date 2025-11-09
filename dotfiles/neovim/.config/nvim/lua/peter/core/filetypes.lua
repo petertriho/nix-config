@@ -2,6 +2,7 @@ local sidebars = {
     "DiffViewFiles",
     "Fyler",
     "NeogitStatus",
+    "NvimTree",
     "fugitive",
     "neo-tree",
     "snacks_layout_box",
