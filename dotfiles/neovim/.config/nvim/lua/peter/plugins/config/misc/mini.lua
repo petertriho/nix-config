@@ -116,8 +116,9 @@ return {
         })
         require("mini.files").setup({
             mappings = {
-                go_in = "<C-l>",
-                go_out = "<C-h>",
+                go_in = "<CR>",
+                go_out = "<BS>",
+                reset = "<Space>"
             },
             options = {
                 use_as_default_explorer = false,
