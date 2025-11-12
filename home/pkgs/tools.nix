@@ -68,9 +68,10 @@
 
         # Git worktree dirs to exclude
         gitDirs = [
+          "dev"
+          "hotfix"
           "main"
           "work"
-          "hotfix"
         ];
 
         # Development directories to exclude
