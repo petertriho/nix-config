@@ -13,8 +13,8 @@ buildNpmPackage {
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "9bfdcdffcce17ed6502c51b62909cb23afa1d8b5";
-    sha256 = "sha256-/aAEdkjWBR9Z9b3UcYysiC0SQbrTNa5OAV53kp3lK2A=";
+    rev = "0f6a7eb6211d8e9c63045f3a75a7f3889e67fe38";
+    sha256 = "sha256-IJHitLhaNBc8q09BfR7u05TZ7jSfbkZyrv/cKacYTyE=";
   };
 
   npmDepsHash = "sha256-GQYLDBwmcaWcUmklFkyivBuVAEblXIsXdnxIJOcibIw=";
