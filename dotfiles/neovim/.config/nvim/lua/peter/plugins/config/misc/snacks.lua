@@ -260,11 +260,18 @@ return {
             desc = "Branches",
         },
         {
-            "<leader>gc",
+            "<leader>gd",
+            function()
+                require("snacks").picker.git_diff()
+            end,
+            desc = "Diff"
+        },
+        {
+            "<leader>gl",
             function()
                 require("snacks").picker.git_log()
             end,
-            desc = "Commits",
+            desc = "Logs",
         },
         {
             "<leader>gs",
