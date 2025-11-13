@@ -370,7 +370,11 @@ end
 
 M.setup = function()
     vim.diagnostic.config({
-        virtual_text = true,
+        virtual_text = {
+            suffix = function(diag)
+                return require("rulebook").hasDocs(diag) and "  " or ""
+            end,
+        },
         severity_sort = true,
         signs = {
             text = {

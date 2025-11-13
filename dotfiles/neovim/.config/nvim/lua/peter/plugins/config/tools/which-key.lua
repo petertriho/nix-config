@@ -39,8 +39,9 @@ return {
                 { "<leader>a", group = "ai (sidekick)" },
                 { "<leader>c", group = "ai (codecompanion)" },
                 { "<leader>h", group = "hierarchy" },
-                { "<leader>o", group = "ai (opencode)" },
                 { "<leader>m", group = "misc" },
+                { "<leader>o", group = "ai (opencode)" },
+                { "<leader>r", group = "rulebook" },
             },
             -- vim-abolish
             {
