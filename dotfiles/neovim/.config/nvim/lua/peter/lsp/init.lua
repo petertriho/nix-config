@@ -139,7 +139,7 @@ local LSP_METHODS = {
                 "n",
                 "grr",
                 function()
-                    vim.lsp.buf.references({
+                    vim.lsp.buf.references(nil, {
                         on_list = on_list,
                     })
                 end,
