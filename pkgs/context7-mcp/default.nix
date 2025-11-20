@@ -15,8 +15,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "upstash";
     repo = "context7";
-    rev = "c16c499f9dfadc5bb42c641f0aa063b1753b104d";
-    sha256 = "sha256-W+XwpA2Dp4dmiaIk0XXJcTPfZTT+UNd7NYQNL/am8sI=";
+    rev = "866243ef304ddd1341755d0de39a2aa48500ab91";
+    sha256 = "sha256-+PDx0NUY1hYHRja7EbHGQ2zhAmJZsTAETQy/LmRW3UQ=";
   };
 
   nativeBuildInputs = [
