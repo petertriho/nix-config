@@ -166,7 +166,7 @@ in
           command = [
             "mcp-nixos"
           ];
-          enabled = true;
+          enabled = false;
         };
         playwright = {
           type = "local";
