@@ -74,6 +74,8 @@
       gdi = "git diff";
       gdt = "git difftool";
       gf = "git fetch";
+      gfs = "git config core.fsmonitor rs-git-fsmonitor";
+      gfS = "git config core.fsmonitor true";
       gg = "git-gone";
       gl = "begin; set -lx GIT_EXTERNAL_DIFF difft; git log -p --ext-diff; end";
       gm = "git merge";
