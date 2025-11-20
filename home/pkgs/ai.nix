@@ -7,7 +7,7 @@ let
   mcpServers = with pkgs; [
     context7-mcp
     # mcp-grafana
-    mcp-nixos
+    # mcp-nixos
     mcp-server-fetch
     mcp-server-sequential-thinking
     # playwright-mcp
