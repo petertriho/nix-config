@@ -244,7 +244,13 @@
         );
       in
       customFunctions // grcFunctions;
-    interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
+    interactiveShellInit =
+      # NOTE: workaround for https://github.com/NixOS/nixpkgs/issues/462025https://github.com/NixOS/nixpkgs/issues/462025
+      # fish
+      ''
+        set -p fish_complete_path ${config.programs.fish.package}/share/fish/completions
+      ''
+      + builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
   home.packages = with pkgs; [
