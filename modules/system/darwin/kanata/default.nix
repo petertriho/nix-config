@@ -6,10 +6,10 @@
 }:
 let
   cfg = config.services.kanata;
-  KDK_VER = "6.4.0";
+  KDK_VER = "6.6.0";
   KDK_PKG = pkgs.fetchurl {
     url = "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v${KDK_VER}/Karabiner-DriverKit-VirtualHIDDevice-${KDK_VER}.pkg";
-    hash = "sha256-xjengMbDfct8HQkvkB09PCb8kT+sfD8+fslL3HkeC58=";
+    hash = "sha256-kOhMyAus5HoEWaBw0aYinLLzNOk0ooDITZwFfELtXdQ=";
   };
   KDK_MANAGER = "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager";
   KDK_DAEMON = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon";
