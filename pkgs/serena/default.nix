@@ -9,15 +9,15 @@
 with python3Packages;
 buildPythonPackage {
   pname = "serena-agent";
-  version = "0.1.4-unstable-2025-11-19";
+  version = "0.1.4-unstable-2025-11-20";
 
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "oraios";
     repo = "serena";
-    rev = "ea3c454a6d2e03e3db90ceff9ed0393d510d4c2a";
-    sha256 = "sha256-pnVyJBjdi6apkletCi9Q/6vPdxfajTxOGEpFpyPgmUo=";
+    rev = "4702fbe1ea0600d6df895277f4301dcd74188bc2";
+    sha256 = "sha256-XHEZ/LxvzqtqK3ZgTsvwBQ0RUSwUbOfwvLaknCteeKw=";
   };
 
   patches = [
