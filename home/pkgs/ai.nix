@@ -11,7 +11,6 @@ let
     mcp-server-fetch
     mcp-server-sequential-thinking
     # playwright-mcp
-    # serena
     terraform-mcp-server
   ];
 in
@@ -26,7 +25,6 @@ in
         gemini-cli
         gh-copilot
         github-copilot-cli
-        mighty-security
         nodejs
         # unstable.qwen-code
         qwen-code
@@ -35,9 +33,6 @@ in
         # plandex
       ]
       ++ mcpServers;
-    sessionVariables = {
-      INSTALLED_MCP_SERVER_DIRS = pkgs.lib.concatStringsSep ":" (map (pkg: "${pkg}/bin") mcpServers);
-    };
   };
   programs.opencode = {
     enable = true;
@@ -181,16 +176,6 @@ in
             "mcp-server-sequential-thinking"
           ];
           enabled = true;
-        };
-        serena = {
-          type = "local";
-          command = [
-            "serena"
-            "start-mcp-server"
-            "--context"
-            "ide-assistant"
-          ];
-          enabled = false;
         };
         terraform = {
           type = "local";
