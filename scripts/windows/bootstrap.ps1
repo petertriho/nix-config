@@ -15,11 +15,13 @@ winget install --source winget --id Betterbird.Betterbird
 winget install --source winget --id Discord.Discord
 winget install --source winget --id Giorgiotani.Peazip
 winget install --source winget --id Google.Chrome
+winget install --source winget --id InputNet.Helium
 winget install --source winget --id MartiCliment.UniGetUI
 winget install --source winget --id Microsoft.PowerToys
 winget install --source winget --id Mozilla.Firefox
 winget install --source winget --id Neovide.Neovide
 winget install --source winget --id Nextcloud.NextcloudDesktop
+winget install --source winget --id Obsidian.Obsidian
 winget install --source winget --id RandyRants.SharpKeys
 winget install --source winget --id SumatraPDF.SumatraPDF
 winget install --source winget --id Valve.Steam
