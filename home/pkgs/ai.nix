@@ -35,9 +35,8 @@ in
       ++ mcpServers;
   };
   programs.opencode = {
-    enable = pkgs.stdenv.isLinux;
-    package = pkgs.unstable.opencode;
-    # package = pkgs.opencode;
+    enable = true;
+    package = if pkgs.stdenv.isLinux then pkgs.unstable.opencode else null;
     settings = {
       theme = "tokyonight";
       autoshare = false;
