@@ -35,7 +35,7 @@ in
       ++ mcpServers;
   };
   programs.opencode = {
-    enable = true;
+    enable = pkgs.stdenv.isLinux;
     package = pkgs.unstable.opencode;
     # package = pkgs.opencode;
     settings = {
