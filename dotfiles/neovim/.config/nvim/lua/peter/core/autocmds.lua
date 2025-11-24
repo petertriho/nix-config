@@ -161,6 +161,16 @@ set_augroups({
                 desc = "Enable winfixbuf for sidebar filetypes",
             },
         },
+        {
+            "FileType",
+            {
+                pattern = "markdown",
+                callback = function()
+                    vim.opt_local.conceallevel = 2
+                end,
+                desc = "Set conceallevel for markdown",
+            },
+        },
         -- {
         --     "User",
         --     {

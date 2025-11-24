@@ -19,10 +19,10 @@ return {
         require("opencode-context").setup(opts)
     end,
     keys = {
-        { "<leader>oc", "<CMD>OpencodeSend<CR>", desc = "Send prompt to opencode" },
-        { "<leader>oc", "<CMD>OpencodeSend<CR>", mode = "v", desc = "Send prompt to opencode" },
-        { "<leader>oT", "<CMD>OpencodeSwitchMode<CR>", desc = "Toggle opencode mode" },
-        { "<leader>oP", "<CMD>OpencodePrompt<CR>", desc = "Open opencode persistent prompt" },
+        { "<leader>ao", "<CMD>OpencodeSend<CR>", desc = "Send prompt to opencode" },
+        { "<leader>ao", "<CMD>OpencodeSend<CR>", mode = "v", desc = "Send prompt to opencode" },
+        { "<leader>aP", "<CMD>OpencodePrompt<CR>", desc = "Open opencode persistent prompt" },
+        { "<leader>aT", "<CMD>OpencodeSwitchMode<CR>", desc = "Toggle opencode mode" },
     },
     cmd = { "OpencodeSend", "OpencodeSwitchMode", "OpencodePrompt" },
 }

@@ -82,28 +82,28 @@ return {
             desc = "Send Visual Selection",
         },
         {
-            "<leader>ac",
+            "<leader>aC",
             function()
                 require("sidekick.cli").toggle({ name = "copilot", focus = true })
             end,
             desc = "Copilot",
         },
         {
-            "<leader>ag",
+            "<leader>aG",
             function()
                 require("sidekick.cli").toggle({ name = "gemini", focus = true })
             end,
             desc = "Gemini",
         },
         {
-            "<leader>ao",
+            "<leader>aO",
             function()
                 require("sidekick.cli").toggle({ name = "opencode", focus = true })
             end,
             desc = "Opencode",
         },
         {
-            "<leader>aq",
+            "<leader>aQ",
             function()
                 require("sidekick.cli").toggle({ name = "amazon_q", focus = true })
             end,
