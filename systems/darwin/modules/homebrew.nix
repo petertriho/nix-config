@@ -57,6 +57,7 @@ in
       "meetingbar"
       "nextcloud"
       "notunes"
+      "obsidian"
       "orbstack"
       "raycast"
       "wezterm"
