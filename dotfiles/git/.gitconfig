@@ -47,6 +47,9 @@
 [interactive]
     diffFilter = delta --color-only
 
+[feature]
+    manyFiles = true
+
 [fetch]
     prune = true
     pruneTags = true
