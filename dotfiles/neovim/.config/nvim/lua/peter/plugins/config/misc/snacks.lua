@@ -119,6 +119,26 @@ return {
                             { win = "preview", title = "{preview}", border = "rounded", width = 0.6 },
                         },
                     },
+                    dropdown = {
+                        layout = {
+                            backdrop = false,
+                            row = 1,
+                            width = 0.4,
+                            min_width = 80,
+                            height = 0.8,
+                            border = "none",
+                            box = "vertical",
+                            { win = "preview", title = "{preview}", height = 0.5, border = true },
+                            {
+                                box = "vertical",
+                                border = true,
+                                title = "{title} {live} {flags}",
+                                title_pos = "center",
+                                { win = "input", height = 1, border = "bottom" },
+                                { win = "list", border = "none" },
+                            },
+                        },
+                    },
                 },
                 sources = {
                     files = {
@@ -264,7 +284,7 @@ return {
             function()
                 require("snacks").picker.git_diff()
             end,
-            desc = "Diff"
+            desc = "Diff",
         },
         {
             "<leader>gl",
