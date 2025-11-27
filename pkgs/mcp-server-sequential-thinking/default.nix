@@ -13,11 +13,11 @@ buildNpmPackage {
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "80a16e5e953d7f43c869d5a52118022916cea919";
-    sha256 = "sha256-70SRWwwvMmLtSe85JfqHnTa59dwujf3uHppeHhSfFo0=";
+    rev = "9b91729fe4a3ce64795847ae0d9858bfec93944c";
+    sha256 = "sha256-6btRJhWwv7+moBIMnEAOJhdwq0PhCMr6aPM2Odsaw4I=";
   };
 
-  npmDepsHash = "sha256-GQYLDBwmcaWcUmklFkyivBuVAEblXIsXdnxIJOcibIw=";
+  npmDepsHash = "sha256-dO++/1oGWgwv+1cVVElw7uPu6Kdk25Uhi4OiQ+m6LOM=";
 
   npmWorkspace = "src/sequentialthinking";
 
