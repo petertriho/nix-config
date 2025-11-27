@@ -7,6 +7,7 @@ symbol = " "
 disabled = true
 
 [custom.arch]
+disabled = true
 command = "uname -m"
 shell = "sh"
 when = true
@@ -16,7 +17,17 @@ fish_style_pwd_dir_length = 1
 truncate_to_repo = false
 
 [git_branch]
+disabled = true
 symbol = "󰘬 "
+
+[git_commit]
+disabled = true
+
+[git_state]
+disabled = true
+
+[git_status]
+disabled = true
 
 [kubernetes]
 contexts = [
