@@ -36,7 +36,7 @@ in
   };
   programs.opencode = {
     enable = true;
-    package = if pkgs.stdenv.isLinux then pkgs.unstable.opencode else null;
+    package = pkgs.unstable.opencode;
     settings = {
       theme = "tokyonight";
       autoshare = false;

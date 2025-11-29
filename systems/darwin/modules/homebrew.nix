@@ -34,7 +34,7 @@ in
     brews = [
       "block-goose-cli"
       "mas"
-      "opencode"
+      # "opencode"
     ];
     casks = [
       "aerospace"
