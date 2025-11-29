@@ -10,7 +10,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "context7-mcp";
-  version = "1.0.31-unstable-2025-11-28";
+  version = "@upstash/context7-mcp@1.0.31-unstable-2025-11-28";
 
   src = fetchFromGitHub {
     owner = "upstash";
