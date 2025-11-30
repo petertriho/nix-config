@@ -44,12 +44,7 @@ return {
     },
     bashls = {},
     cssls = {},
-    denols = {
-        disabled = not vim.g.has_deno,
-        config = function()
-            return {}
-        end,
-    },
+    denols = {},
     dockerls = {},
     docker_compose_language_service = {},
     elixirls = {
@@ -319,10 +314,6 @@ return {
                         "<CMD>VtslsOrganizeImports<CR>",
                         { buffer = bufnr, desc = "Organize Imports" }
                     )
-                    if vim.g.has_deno then
-                        client.server_capabilities.renameProvider = false
-                        client.server_capabilities.semanticTokensProvider = nil
-                    end
                 end,
             })
         end,
