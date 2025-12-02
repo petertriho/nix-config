@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "context7-mcp";
-  version = "@upstash/context7-mcp@1.0.31-unstable-2025-11-28";
+  version = "@upstash/context7-mcp@1.0.31-unstable-2025-12-02";
 
   src = fetchFromGitHub {
     owner = "upstash";
     repo = "context7";
-    rev = "6d1e6442eef312b1937fd589e99717b26739f7d6";
-    sha256 = "05bxxg1izayrmpzbydxq8fz0k65x6chh2mhl9x9sbqx3bzibiiph";
+    rev = "24c592fb961a96b9455987ab7c5b9cc8730802ea";
+    sha256 = "sha256-Sh1fgsiq1KwyZmO3aQrBq/4K39VLDTfcNr3AKNdBpS8=";
   };
 
   # Step 1: Fixed-output derivation for dependencies
@@ -45,7 +45,7 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
     # This hash represents the dependencies
-    outputHash = "sha256-j55PmY17xl7v1PkYy02rrLPR9nlzF0Ai9jHWje15/mg=";
+    outputHash = "sha256-vqXvs1MIQCrzzs89vYuf+Yh7Klsk9r1YhcKJfQow07o=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };

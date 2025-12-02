@@ -10,16 +10,16 @@
 }:
 buildNpmPackage {
   pname = "mcp-server-sequential-thinking";
-  version = "2025.11.25-unstable-2025-11-27";
+  version = "2025.11.25-unstable-2025-12-02";
 
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "d1d6a123c6d1480ed75298b5c2458168fddb1970";
-    sha256 = "sha256-qGNDIZIjLEalBkC/CRRcOaNUGrNiO/9MtPWt+nhUWpg=";
+    rev = "7a21d7c46086d68e36f0034ac18a558aeb68132e";
+    sha256 = "sha256-b0vEswDDybimWZWZGSUy7dubXQAyZPZYuVBc9LmYv6I=";
   };
 
-  npmDepsHash = "sha256-dO++/1oGWgwv+1cVVElw7uPu6Kdk25Uhi4OiQ+m6LOM=";
+  npmDepsHash = "sha256-+1r4S0L9pnfT1ufGgHk2BgDzDeTLm4CYiMNrrJuQ8Tc=";
 
   prePatch = ''
     # Remove test files from filesystem workspace before build

@@ -12,13 +12,13 @@ let
 in
 python3Packages.buildPythonApplication rec {
   pname = "mcp-server-fetch";
-  version = "2025.11.25-unstable-2025-11-27";
+  version = "2025.11.25-unstable-2025-12-02";
 
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "d1d6a123c6d1480ed75298b5c2458168fddb1970";
-    sha256 = "sha256-qGNDIZIjLEalBkC/CRRcOaNUGrNiO/9MtPWt+nhUWpg=";
+    rev = "7a21d7c46086d68e36f0034ac18a558aeb68132e";
+    sha256 = "sha256-b0vEswDDybimWZWZGSUy7dubXQAyZPZYuVBc9LmYv6I=";
   };
 
   pyproject = true;
