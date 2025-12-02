@@ -45,7 +45,7 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
     # This hash represents the dependencies
-    outputHash = "sha256-vqXvs1MIQCrzzs89vYuf+Yh7Klsk9r1YhcKJfQow07o=";
+    outputHash = "sha256-n2U4u73nE9na+JxGDazJhL+u7X09HSxesoZx7lAS/hM=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
