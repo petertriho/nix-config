@@ -15,11 +15,11 @@ buildNpmPackage {
   src = fetchFromGitHub {
     owner = "modelcontextprotocol";
     repo = "servers";
-    rev = "7a21d7c46086d68e36f0034ac18a558aeb68132e";
-    sha256 = "sha256-b0vEswDDybimWZWZGSUy7dubXQAyZPZYuVBc9LmYv6I=";
+    rev = "b7e1cf3a79d421a70abe67876863430a9c049158";
+    sha256 = "sha256-h2Nn9Q+jPHL3TSs42ek5Dm0MbCGSoihNCO7pLKVy228=";
   };
 
-  npmDepsHash = "sha256-+1r4S0L9pnfT1ufGgHk2BgDzDeTLm4CYiMNrrJuQ8Tc=";
+  npmDepsHash = "sha256-wluSvNnZcIz2XyXqmmego+vYThT3EtzakJsamzhgb6g=";
 
   prePatch = ''
     # Remove test files from filesystem workspace before build
