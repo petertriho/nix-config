@@ -45,7 +45,14 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
     # This hash represents the dependencies
-    outputHash = "sha256-LkCliYq/EfY/L6tYjKBq1FW5P68SXVpzx1KYO1F3Ics=";
+    outputHash =
+      {
+        x86_64-linux = "sha256-LkCliYq/EfY/L6tYjKBq1FW5P68SXVpzx1KYO1F3Ics=";
+        aarch64-linux = "sha256-LkCliYq/EfY/L6tYjKBq1FW5P68SXVpzx1KYO1F3Ics=";
+        x86_64-darwin = "sha256-NCLjSCP1TUH/rHmvH48+twwIaIa2A1cm4iyMTtSCaDY=";
+        aarch64-darwin = "sha256-NCLjSCP1TUH/rHmvH48+twwIaIa2A1cm4iyMTtSCaDY=";
+      }
+      .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
