@@ -50,6 +50,7 @@ in
       "font-jetbrains-mono-nerd-font"
       "ghostty"
       "google-chrome"
+      "helium-browser"
       "iina"
       "keepingyouawake"
       "keka"
