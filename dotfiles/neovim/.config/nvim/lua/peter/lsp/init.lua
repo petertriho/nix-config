@@ -264,6 +264,30 @@ local function lsp_setup_handlers()
         end
         return register_capability_handler(err, result, ctx)
     end
+
+    local publish_diagnostics_handler = vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
+
+    local translate_servers = { "vtsls" }
+
+    vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics] = function(err, result, ctx, config)
+        if result and result.diagnostics then
+            local client = vim.lsp.get_client_by_id(ctx.client_id)
+            local client_name = client and client.name or "unknown"
+
+            if vim.tbl_contains(translate_servers, client_name) then
+                for _, diag in ipairs(result.diagnostics) do
+                    if diag.message then
+                        diag.message = require("ts-error-translator.diagnostic").translate_diagnostic_message(
+                            diag.message,
+                            diag.code
+                        )
+                    end
+                end
+            end
+        end
+
+        return publish_diagnostics_handler(err, result, ctx, config)
+    end
 end
 
 local function lsp_attach_callback(args)

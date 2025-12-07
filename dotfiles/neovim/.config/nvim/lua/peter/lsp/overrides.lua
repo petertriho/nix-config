@@ -282,34 +282,6 @@ return {
             "typescript.tsx",
         },
         config = function()
-            local publish_diagnostics_handler =
-                vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
-
-            vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics] = function(
-                err,
-                result,
-                ctx,
-                config
-            )
-                if result and result.diagnostics then
-                    local client = vim.lsp.get_client_by_id(ctx.client_id)
-                    local client_name = client and client.name or "unknown"
-
-                    if client_name == "vtsls" then
-                        for _, diag in ipairs(result.diagnostics) do
-                            if diag.message then
-                                diag.message = require("ts-error-translator.diagnostic").translate_diagnostic_message(
-                                    diag.message,
-                                    diag.code
-                                )
-                            end
-                        end
-                    end
-                end
-
-                return publish_diagnostics_handler(err, result, ctx, config)
-            end
-
             return vtsls_setup({
                 init_options = {
                     hostInfo = "neovim",
