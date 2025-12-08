@@ -7,6 +7,7 @@
 {
   programs.fish = {
     enable = true;
+    generateCompletions = false;
     plugins =
       with pkgs.fishPlugins;
       lib.lists.forEach
@@ -244,13 +245,7 @@
         );
       in
       customFunctions // grcFunctions;
-    interactiveShellInit =
-      # NOTE: workaround for https://github.com/NixOS/nixpkgs/issues/462025https://github.com/NixOS/nixpkgs/issues/462025
-      # fish
-      ''
-        set -p fish_complete_path ${config.programs.fish.package}/share/fish/completions
-      ''
-      + builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
+    interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
   home.packages = with pkgs; [
