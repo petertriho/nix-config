@@ -7,6 +7,7 @@
       fishPlugins = (prev.fishPlugins or { }) // import ../pkgs/fish-plugins { pkgs = final; };
       tmuxPlugins = (prev.tmuxPlugins or { }) // import ../pkgs/tmux-plugins { pkgs = final; };
       mcp-servers = inputs.mcp-servers-nix.packages.${final.stdenv.hostPlatform.system};
+      llm-agents = inputs.llm-agents.packages.${final.stdenv.hostPlatform.system};
     };
 
   modifications = final: prev: {

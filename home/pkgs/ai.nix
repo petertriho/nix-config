@@ -16,6 +16,12 @@ let
       # mcp-grafana
       # playwright-mcp
     ]);
+  llmAgents = with pkgs.llm-agents; [
+    backlog-md
+    crush
+    openspec
+    spec-kit
+  ];
 in
 {
   home = {
@@ -24,22 +30,22 @@ in
       [
         amazon-q-cli
         copilot-language-server
-        # unstable.gemini-cli
         gemini-cli
         gh-copilot
         github-copilot-cli
         nodejs
-        # unstable.qwen-code
         qwen-code
         python3Packages.tiktoken
         # goose-cli
         # plandex
       ]
-      ++ mcpServers;
+      ++ mcpServers
+      ++ llmAgents;
   };
   programs.opencode = {
     enable = true;
-    package = pkgs.unstable.opencode;
+    # package = pkgs.unstable.opencode;
+    package = pkgs.llm-agents.opencode;
     settings = {
       theme = "tokyonight";
       autoshare = false;
