@@ -6,16 +6,18 @@
 {
   home = {
     packages = with pkgs; [
-      gh
-      gh-dash
+      gh # github cli
+      gh-dash # github dashboard
       git
-      git-lfs
-      git-machete
+      git-gone # git garbage collector
+      git-machete # git branch management
+      # gitui # git terminal UI
       # dependencies
-      delta
-      difftastic
+      git-lfs
+      delta # git diff viewer
+      difftastic # structural diff tool
       # jujutsu
-      mergiraf
+      mergiraf # git merge conflict resolver
       rs-git-fsmonitor
       watchman
     ];
@@ -30,7 +32,8 @@
     # "git/fsmonitor.gitconfig".source =
     #   config.lib.meta.mkDotfilesSymlink "git/.config/git/fsmonitor.gitconfig";
     "git/attributes".source = config.lib.meta.mkDotfilesSymlink "git/.config/git/attributes";
-    "git/global.gitignore".source = config.lib.meta.mkDotfilesSymlink "git/.config/git/global.gitignore";
+    "git/global.gitignore".source =
+      config.lib.meta.mkDotfilesSymlink "git/.config/git/global.gitignore";
     "gh/config.yml".source = config.lib.meta.mkDotfilesSymlink "gh/.config/gh/config.yml";
   };
 }

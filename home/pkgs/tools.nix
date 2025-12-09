@@ -15,7 +15,6 @@
     fzf # fuzzy finder
     gcc # GNU Compiler Collection
     gnumake # GNU Make
-    git-gone # git garbage collector
     glow # markdown viewer
     grex # regex generator
     parallel # run jobs in parallel
