@@ -4,15 +4,18 @@
   ...
 }:
 let
-  mcpServers = with pkgs; [
-    context7-mcp
-    # mcp-grafana
-    # mcp-nixos
-    mcp-server-fetch
-    mcp-server-sequential-thinking
-    # playwright-mcp
-    terraform-mcp-server
-  ];
+  mcpServers =
+    (with pkgs.mcp-servers; [
+      context7-mcp
+      mcp-server-fetch
+      mcp-server-sequential-thinking
+    ])
+    ++ (with pkgs; [
+      mcp-nixos
+      terraform-mcp-server
+      # mcp-grafana
+      # playwright-mcp
+    ]);
 in
 {
   home = {
@@ -160,7 +163,7 @@ in
           command = [
             "mcp-nixos"
           ];
-          enabled = false;
+          enabled = true;
         };
         playwright = {
           type = "local";
