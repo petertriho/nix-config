@@ -34,6 +34,7 @@
     openssl # for generating certificates
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
+    tree # directory listing
     typst # typesetting system
     unzip # unzip files
     update-nix-fetchgit # update fetchgit URLs in Nix files
