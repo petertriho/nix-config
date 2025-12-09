@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  lib,
   ...
 }:
 let
@@ -22,6 +23,194 @@ let
     openspec
     spec-kit
   ];
+
+  sharedLspConfig = {
+    bashls = {
+      command = "bash-language-server";
+      args = [ "start" ];
+      filetypes = [
+        "sh"
+        "bash"
+      ];
+    };
+    eslint = {
+      command = "vscode-eslint-language-server";
+      args = [ "--stdio" ];
+      filetypes = [
+        "javascript"
+        "javascriptreact"
+        "typescript"
+        "typescriptreact"
+        "vue"
+        "svelte"
+      ];
+    };
+    vtsls = {
+      command = "vtsls";
+      args = [ "--stdio" ];
+      filetypes = [
+        "javascript"
+        "javascriptreact"
+        "typescript"
+        "typescriptreact"
+      ];
+    };
+    basedpyright = {
+      command = "basedpyright-langserver";
+      args = [ "--stdio" ];
+      filetypes = [
+        "python"
+        "pyi"
+      ];
+    };
+    lua_ls = {
+      command = "lua-language-server";
+      args = [ ];
+      filetypes = [ "lua" ];
+    };
+    nil_ls = {
+      command = "nil";
+      args = [ ];
+      filetypes = [ "nix" ];
+    };
+    terraformls = {
+      command = "terraform-ls";
+      args = [
+        "serve"
+      ];
+      filetypes = [
+        "terraform"
+        "tf"
+      ];
+    };
+  };
+
+  sharedMcpConfig = {
+    atlassian = {
+      type = "stdio";
+      command = "${pkgs.nodejs}/bin/npx";
+      args = [
+        "-y"
+        "mcp-remote"
+        "https://mcp.atlassian.com/v1/sse"
+      ];
+      disabled = true;
+    };
+    context7 = {
+      type = "stdio";
+      command = "context7-mcp";
+      args = [ ];
+      disabled = false;
+    };
+    fetch = {
+      type = "stdio";
+      command = "mcp-server-fetch";
+      args = [ ];
+      disabled = true;
+    };
+    grafana = {
+      type = "stdio";
+      command = "mcp-grafana";
+      args = [ ];
+      env = {
+        GRAFANA_URL = "{env:OPENCODE_GRAFANA_URL}";
+        GRAFANA_API_KEY = "{env:OPENCODE_GRAFANA_API_KEY}";
+      };
+      disabled = true;
+    };
+    nixos = {
+      type = "stdio";
+      command = "mcp-nixos";
+      args = [ ];
+      disabled = false;
+    };
+    playwright = {
+      type = "stdio";
+      command = "playwright-mcp";
+      args = [ ];
+      disabled = true;
+    };
+    sequential-thinking = {
+      type = "stdio";
+      command = "mcp-server-sequential-thinking";
+      args = [ ];
+      disabled = false;
+    };
+    terraform = {
+      type = "stdio";
+      command = "terraform-mcp-server";
+      args = [ ];
+      disabled = true;
+    };
+  };
+
+  toOpencodeLsp =
+    name: cfg:
+    let
+      extensionMap = {
+        sh = ".sh";
+        bash = ".bash";
+        javascript = ".js";
+        javascriptreact = ".jsx";
+        typescript = ".ts";
+        typescriptreact = ".tsx";
+        vue = ".vue";
+        svelte = ".svelte";
+        python = ".py";
+        pyi = ".pyi";
+        lua = ".lua";
+        nix = ".nix";
+        terraform = ".tf";
+        tf = ".tfvars";
+      };
+      extensions = map (ft: extensionMap.${ft} or ".${ft}") cfg.filetypes;
+    in
+    {
+      command = [ cfg.command ] ++ cfg.args;
+      inherit extensions;
+    };
+  opencodeLspConfig = lib.mapAttrs toOpencodeLsp sharedLspConfig // {
+    typescript.disabled = true;
+    pyright.disabled = true;
+  };
+
+  toOpencodeMcp =
+    name: cfg:
+    let
+      baseConfig = {
+        type = "local";
+        command = [ cfg.command ] ++ cfg.args;
+        enabled = !cfg.disabled;
+      };
+    in
+    if cfg ? env then baseConfig // { environment = cfg.env; } else baseConfig;
+  opencodeMcpConfig = lib.mapAttrs toOpencodeMcp sharedMcpConfig;
+
+  toCrushLsp = name: cfg: cfg;
+  crushLspConfig = lib.mapAttrs toCrushLsp sharedLspConfig;
+
+  toCrushMcp = name: cfg: cfg;
+  crushMcpConfig = lib.mapAttrs toCrushMcp sharedMcpConfig;
+
+  crushConfig = builtins.toJSON {
+    "$schema" = "https://charm.land/crush.json";
+    lsp = crushLspConfig;
+    mcp = crushMcpConfig;
+    tools = {
+      ls = {
+        max_depth = 0;
+        max_items = 1000;
+      };
+    };
+    options = {
+      attribution = {
+        trailer_style = "none";
+        generated_with = false;
+      };
+      disable_metrics = true;
+      disabled_tools = [ ];
+    };
+  };
 in
 {
   home = {
@@ -51,151 +240,13 @@ in
       autoshare = false;
       autoupdate = false;
       # snapshot = false;
-      lsp = {
-        bashls = {
-          command = [
-            "bash-language-server"
-            "start"
-          ];
-          extensions = [
-            ".sh"
-            ".bash"
-          ];
-        };
-        eslint = {
-          command = [
-            "vscode-eslint-language-server"
-            "--stdio"
-          ];
-          extensions = [
-            ".js"
-            ".jsx"
-            ".ts"
-            ".tsx"
-            ".vue"
-            ".svelte"
-          ];
-        };
-        typescript = {
-          disabled = true;
-        };
-        vtsls = {
-          command = [
-            "vtsls"
-            "--stdio"
-          ];
-          extensions = [
-            ".js"
-            ".jsx"
-            ".ts"
-            ".tsx"
-            ".mjs"
-            ".cjs"
-            ".mts"
-            ".cts"
-          ];
-        };
-        pyright = {
-          disabled = true;
-        };
-        basedpyright = {
-          command = [
-            "basedpyright-langserver"
-            "--stdio"
-          ];
-          extensions = [
-            ".py"
-            ".pyi"
-          ];
-        };
-        lua_ls = {
-          command = [ "lua-language-server" ];
-          extensions = [ ".lua" ];
-        };
-        nil_ls = {
-          command = [ "nil" ];
-          extensions = [ ".nix" ];
-        };
-        terraformls = {
-          command = [
-            "terraform-ls"
-            "serve"
-          ];
-          extensions = [
-            ".tf"
-            ".tfvars"
-          ];
-        };
-      };
+      lsp = opencodeLspConfig;
       small_model = "github-copilot/gpt-5-mini";
-      mcp = {
-        atlassian = {
-          type = "local";
-          command = [
-            "${pkgs.nodejs}/bin/npx"
-            "-y"
-            "mcp-remote"
-            "https://mcp.atlassian.com/v1/sse"
-          ];
-          enabled = false;
-        };
-        context7 = {
-          type = "local";
-          command = [
-            "context7-mcp"
-          ];
-          enabled = true;
-        };
-        fetch = {
-          type = "local";
-          command = [
-            "mcp-server-fetch"
-          ];
-          enabled = false;
-        };
-        grafana = {
-          type = "local";
-          command = [
-            "mcp-grafana"
-          ];
-          environment = {
-            GRAFANA_URL = "{env:OPENCODE_GRAFANA_URL}";
-            GRAFANA_API_KEY = "{env:OPENCODE_GRAFANA_API_KEY}";
-          };
-          enabled = false;
-        };
-        nixos = {
-          type = "local";
-          command = [
-            "mcp-nixos"
-          ];
-          enabled = true;
-        };
-        playwright = {
-          type = "local";
-          command = [
-            "playwright-mcp"
-          ];
-          enabled = false;
-        };
-        sequential-thinking = {
-          type = "local";
-          command = [
-            "mcp-server-sequential-thinking"
-          ];
-          enabled = true;
-        };
-        terraform = {
-          type = "local";
-          command = [
-            "terraform-mcp-server"
-          ];
-          enabled = false;
-        };
-      };
+      mcp = opencodeMcpConfig;
     };
   };
   xdg.configFile = {
     "opencode/agent/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
+    "crush/crush.json".text = crushConfig;
   };
 }
