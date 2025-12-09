@@ -22,6 +22,7 @@
     # https://github.com/wfxr/forgit/issues/121
     pager = delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}
     untrackedCache = true
+    excludesfile = ~/.config/git/global.gitignore
 
 [delta]
     navigate = true
