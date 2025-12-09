@@ -18,7 +18,7 @@ let
       # playwright-mcp
     ]);
   llmAgents = with pkgs.llm-agents; [
-    backlog-md
+    # backlog-md
     crush
     openspec
     spec-kit
