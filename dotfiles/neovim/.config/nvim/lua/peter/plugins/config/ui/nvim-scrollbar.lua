@@ -16,6 +16,9 @@ return {
                 GitDelete = { text = "│" },
             },
             excluded_filetypes = require("peter.core.filetypes").excludes,
+            handlers = {
+                search = true,
+            },
         })
     end,
 }
