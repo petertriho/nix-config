@@ -63,11 +63,6 @@ let
         "pyi"
       ];
     };
-    lua_ls = {
-      command = "lua-language-server";
-      args = [ ];
-      filetypes = [ "lua" ];
-    };
     nil_ls = {
       command = "nil";
       args = [ ];
@@ -158,7 +153,6 @@ let
         svelte = ".svelte";
         python = ".py";
         pyi = ".pyi";
-        lua = ".lua";
         nix = ".nix";
         terraform = ".tf";
         tf = ".tfvars";
