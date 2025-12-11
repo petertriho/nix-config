@@ -38,8 +38,27 @@ end, {
 })
 
 -- Quickfix
-keymap("", "qn", "<CMD>cnext<CR>", { unpack(opts), desc = "QF Next" })
-keymap("", "qp", "<CMD>cprev<CR>", { unpack(opts), desc = "QF Prev" })
+local function qf_navigate(direction)
+    local qf_list = vim.fn.getqflist()
+    if #qf_list == 0 then
+        return
+    end
+    local current = vim.fn.getqflist({ idx = 0 }).idx
+
+    local commands = {
+        next = current == #qf_list and "cfirst" or "cnext",
+        prev = current == 1 and "clast" or "cprev",
+    }
+    vim.cmd(commands[direction])
+end
+
+keymap("", "qn", function()
+    qf_navigate("next")
+end, { unpack(opts), desc = "QF Next" })
+keymap("", "qp", function()
+    qf_navigate("prev")
+end, { unpack(opts), desc = "QF Prev" })
+
 keymap("", "Q", function()
     vim.fn.setqflist({}, "a", {
         items = {
