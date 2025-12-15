@@ -37,13 +37,13 @@ return {
                 local lang = vim.treesitter.language.get_lang(ft)
                 pcall(vim.treesitter.start, event.buf, lang)
                 vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-                vim.opt_local.foldmethod = "expr"
-                vim.opt_local.foldexpr = "nvim_treesitter#foldexpr()"
-                vim.opt_local.foldminlines = 1
-                vim.opt_local.foldnestmax = 3
-                vim.opt_local.foldlevel = 3
-                vim.opt_local.foldtext =
-                    "substitute(getline(v:foldstart),'\\t',repeat(' ',&tabstop),'g').'...'.trim(getline(v:foldend)).' ('.(v:foldend-v:foldstart+1).' lines)'"
+                -- vim.opt_local.foldmethod = "expr"
+                -- vim.opt_local.foldexpr = "nvim_treesitter#foldexpr()"
+                -- vim.opt_local.foldminlines = 1
+                -- vim.opt_local.foldnestmax = 3
+                -- vim.opt_local.foldlevel = 3
+                -- vim.opt_local.foldtext =
+                --     "substitute(getline(v:foldstart),'\\t',repeat(' ',&tabstop),'g').'...'.trim(getline(v:foldend)).' ('.(v:foldend-v:foldstart+1).' lines)'"
             end,
         })
 

@@ -53,7 +53,7 @@ opt.fillchars = {
     msgsep = "‾",
     vert = "│",
 }
-opt.foldenable = false
+-- opt.foldenable = false
 opt.ignorecase = true
 -- opt.lazyredraw = true
 opt.list = false

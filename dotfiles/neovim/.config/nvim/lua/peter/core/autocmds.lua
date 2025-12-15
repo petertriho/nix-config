@@ -154,7 +154,7 @@ set_augroups({
         {
             "FileType",
             {
-                pattern = require("peter.core.filetypes").sidebars,
+                pattern = filetypes.sidebars,
                 callback = function()
                     vim.opt_local.winfixbuf = true
                 end,
