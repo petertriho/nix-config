@@ -1,7 +1,7 @@
 { pkgs, ... }:
 {
   home.packages = with pkgs; [
-    csvkit # command-line CSV toolkit
+    # csvkit # command-line CSV toolkit
     duckdb # SQL OLAP db management system
     python3Packages.faker # fake data generation library
     fx # JSON viewer
