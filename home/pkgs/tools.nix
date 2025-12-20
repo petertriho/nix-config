@@ -38,6 +38,7 @@
     unzip # unzip files
     update-nix-fetchgit # update fetchgit URLs in Nix files
     watchexec # run commands when files change
+    wget # network downloader
     yq-go # YAML processor
     zip # zip files
     zoxide # smarter cd command
