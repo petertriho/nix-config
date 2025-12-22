@@ -30,7 +30,6 @@ local M = {
         "java",
         "javascript",
         "json",
-        "jsonc",
         "lua",
         "markdown",
         "nix",
