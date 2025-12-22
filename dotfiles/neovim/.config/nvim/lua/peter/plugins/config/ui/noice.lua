@@ -32,15 +32,11 @@ return {
         "MunifTanjim/nui.nvim",
     },
     init = function()
-        -- vim.opt.cmdheight = 0
+        vim.opt.cmdheight = 0
     end,
     opts = {
         cmdline = {
-            enabled = false,
             view = "cmdline",
-        },
-        messages = {
-            enabled = false,
         },
         lsp = {
             progress = {
