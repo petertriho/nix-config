@@ -248,6 +248,16 @@ local function lsp_setup_method(client, bufnr, method)
     end
 end
 
+local function translate_diagnostic_message(message, code)
+    -- If we have a code, prepend it to the message for parsing
+    local message_with_code = code and ("TS" .. tostring(code) .. ": " .. message) or message
+    local parsed = require("ts-error-translator").parse_errors(message_with_code)
+    if #parsed > 0 and parsed[1].improvedError then
+        return parsed[1].improvedError.body
+    end
+    return message
+end
+
 local function lsp_setup_handlers()
     local register_capability_handler = vim.lsp.handlers[methods.client_registerCapability]
     vim.lsp.handlers[methods.client_registerCapability] = function(err, result, ctx)
@@ -265,6 +275,18 @@ local function lsp_setup_handlers()
         return register_capability_handler(err, result, ctx)
     end
 
+    -- require("ts-error-translator.diagnostic").setup({
+    --     servers = {
+    --         "astro",
+    --         "svelte",
+    --         "ts_ls",
+    --         "tsserver",
+    --         "typescript-tools",
+    --         "volar",
+    --         "vtsls",
+    --     },
+    -- })
+
     local publish_diagnostics_handler = vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
 
     local translate_servers = { "vtsls" }
@@ -277,10 +299,7 @@ local function lsp_setup_handlers()
             if vim.tbl_contains(translate_servers, client_name) then
                 for _, diag in ipairs(result.diagnostics) do
                     if diag.message then
-                        diag.message = require("ts-error-translator.diagnostic").translate_diagnostic_message(
-                            diag.message,
-                            diag.code
-                        )
+                        diag.message = translate_diagnostic_message(diag.message, diag.code)
                     end
                 end
             end
