@@ -57,6 +57,30 @@ return {
             })
         end
 
+        local qflist_append = function(picker)
+            picker:close()
+            local sel = picker:selected()
+            local items = #sel > 0 and sel or picker:items()
+
+            local qf = {} ---@type vim.quickfix.entry[]
+            for _, item in ipairs(items) do
+                qf[#qf + 1] = {
+                    filename = snacks.picker.util.path(item),
+                    bufnr = item.buf,
+                    lnum = item.pos and item.pos[1] or 1,
+                    col = item.pos and item.pos[2] + 1 or 1,
+                    end_lnum = item.end_pos and item.end_pos[1] or nil,
+                    end_col = item.end_pos and item.end_pos[2] + 1 or nil,
+                    text = item.line or item.comment or item.label or item.name or item.detail or item.text,
+                    pattern = item.search,
+                    type = ({ "E", "W", "I", "N" })[item.severity],
+                    valid = true,
+                }
+            end
+            vim.fn.setqflist(qf, "a")
+            vim.cmd("botright copen")
+        end
+
         local exclude = vim.opt.wildignore:get()
 
         snacks.setup({
@@ -197,6 +221,7 @@ return {
                             ["<c-l>"] = { "toggle_preview", mode = { "n", "i" } },
                             ["<c-s>"] = { "flash", mode = { "n", "i" } },
                             ["s"] = { "flash" },
+                            ["<c-t>"] = { "qflist_append", mode = { "n", "i" } },
                         },
                     },
                 },
@@ -212,6 +237,7 @@ return {
                     select_8 = select(8),
                     select_9 = select(9),
                     select_0 = select(10),
+                    qflist_append = qflist_append,
                 },
             },
             scope = {
