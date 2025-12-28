@@ -127,6 +127,10 @@
       ];
       ns = "nix search nixpkgs";
       oc = "opencode";
+      oi = "openspec init";
+      oa = "openspec archive";
+      oas = "openspec archive --skip-specs";
+      ol = "openspec list";
       pv = "python -m venv .venv";
       q = "amazon-q";
       rmf = "rm -rf";
