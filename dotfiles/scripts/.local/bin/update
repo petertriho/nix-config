@@ -377,10 +377,17 @@ function tool:fish {
     echo_success "Fish completions updated"
 }
 
+function tool:misc:clean {
+    echo_header "Cleaning miscellaneous"
+    rm "${HOME}/.cache/opencode/models.json"
+    echo_success "Miscellaneous cleaned"
+}
+
 function tool:clean {
     echo_header "Cleaning up"
     tool:nvim:clean
     tool:nix:clean
+    tool:misc:clean
     echo_success "Cleanup complete"
 }
 
