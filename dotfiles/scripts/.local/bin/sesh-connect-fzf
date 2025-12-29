@@ -35,11 +35,11 @@ if [ -n "$selected_sessions" ]; then
       # Last session - connect and stay attached
       sesh connect "$session" &> /dev/null
     else
-      # Not the last session - connect and detach
+      # Not the last session - connect and detach (only if not started in tmux)
       if [ -z "$TMUX" ]; then
         sesh connect "$session" --switch &> /dev/null
       else
-        sesh connect "$session" --command "tmux detach-client" &> /dev/null
+        sesh connect "$session" &> /dev/null
       fi
     fi
   done
