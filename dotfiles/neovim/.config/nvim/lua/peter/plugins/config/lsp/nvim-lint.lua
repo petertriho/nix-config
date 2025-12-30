@@ -184,7 +184,7 @@ return {
             lua = { "luacheck", "selene" },
             markdown = { "markdownlint" },
             nix = { "statix" },
-            python = { "pylint", "dmypy", "vulture" },
+            -- python = { "pylint", "dmypy", "vulture" },
             -- sh = { "shellcheck" },
             sql = { "sqlfluff" },
             xml = { "tidy" },
