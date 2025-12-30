@@ -1,15 +1,3 @@
-local vtsls_setup = function(config)
-    -- NOTE: workaround for https://yarnpkg.com/getting-started/editor-sdks
-    local yarn_sdks = vim.fs.find({ "sdks" }, { type = "directory", path = ".yarn" })
-    if #yarn_sdks > 0 then
-        config.settings.vtsls.typescript = {
-            globalTsdk = "./.yarn/sdks/typescript/lib",
-        }
-    end
-
-    return config
-end
-
 return {
     atlas = {
         lazy = true,
@@ -157,7 +145,7 @@ return {
     postgres_lsp = {},
     pyrefly = {
         on_attach = function(client, bufnr)
-            client.server_capabilities.codeActionProvider = false
+            -- client.server_capabilities.codeActionProvider = false
             client.server_capabilities.documentSymbolProvider = false
             client.server_capabilities.hoverProvider = false
             client.server_capabilities.inlayHintProvider = false
@@ -265,7 +253,21 @@ return {
     --         )
     --     end,
     -- },
-    -- ty = {},
+    ty = {
+        on_attach = function(client, bufnr)
+            -- client.server_capabilities.codeActionProvider = false
+            client.server_capabilities.completionProvider = false
+            client.server_capabilities.definitionProvider = false
+            client.server_capabilities.documentHighlightProvider = false
+            client.server_capabilities.documentSymbolProvider = false
+            client.server_capabilities.hoverProvider = false
+            client.server_capabilities.inlayHintProvider = false
+            client.server_capabilities.referenceProvider = false
+            client.server_capabilities.renameProvider = false
+            client.server_capabilities.semanticTokensProvider = false
+            client.server_capabilities.signatureHelpProvider = false
+        end,
+    },
     typos_lsp = {
         init_options = {
             diagnosticSeverity = "information",
@@ -282,7 +284,7 @@ return {
             "typescript.tsx",
         },
         config = function()
-            return vtsls_setup({
+            local config = {
                 init_options = {
                     hostInfo = "neovim",
                 },
@@ -309,7 +311,16 @@ return {
                         { buffer = bufnr, desc = "Organize Imports" }
                     )
                 end,
-            })
+            }
+
+            local yarn_sdks = vim.fs.find({ "sdks" }, { type = "directory", path = ".yarn" })
+            if #yarn_sdks > 0 then
+                config.settings.vtsls.typescript = {
+                    globalTsdk = "./.yarn/sdks/typescript/lib",
+                }
+            end
+
+            return config
         end,
     },
     yamlls = {
