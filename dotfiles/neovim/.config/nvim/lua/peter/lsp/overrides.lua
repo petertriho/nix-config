@@ -96,7 +96,7 @@ local python_lsp_capabilities = {
         ty = true,
     },
     renameProvider = {
-        active = "pyrefly",
+        active = "ty",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
