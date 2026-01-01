@@ -11,6 +11,7 @@
       git
       git-gone # git garbage collector
       git-machete # git branch management
+      git-spice # git stack diff tool
       # gitui # git terminal UI
       # dependencies
       git-lfs
