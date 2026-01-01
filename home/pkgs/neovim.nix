@@ -48,7 +48,7 @@
       shellcheck
       selene
       statix
-      sqlfluff
+      # sqlfluff
       yamllint
 
       # lsp

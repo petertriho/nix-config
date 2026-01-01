@@ -182,12 +182,12 @@ return {
                 return formatters
             end,
             sh = { "shfmt" },
-            sql = {
-                "sqlfluff",
-                -- "sql_formatter",
-                -- "plsql_formatter",
-                "postgresql_formatter",
-            },
+            -- sql = {
+            --     "sqlfluff",
+            --     -- "sql_formatter",
+            --     -- "plsql_formatter",
+            --     "postgresql_formatter",
+            -- },
             svg = { "svgo" },
             typst = { "typstyle" },
             xml = { "tidy" },

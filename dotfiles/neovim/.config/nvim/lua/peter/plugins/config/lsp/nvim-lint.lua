@@ -186,7 +186,7 @@ return {
             nix = { "statix" },
             -- python = { "pylint", "dmypy", "vulture" },
             -- sh = { "shellcheck" },
-            sql = { "sqlfluff" },
+            -- sql = { "sqlfluff" },
             xml = { "tidy" },
             yaml = { "yamllint" },
         }

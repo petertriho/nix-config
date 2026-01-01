@@ -12,7 +12,7 @@ let
       mcp-server-sequential-thinking
     ])
     ++ (with pkgs; [
-      mcp-nixos
+      # mcp-nixos
       terraform-mcp-server
       # mcp-grafana
       # playwright-mcp
@@ -20,7 +20,9 @@ let
   llmAgents = with pkgs.llm-agents; [
     # backlog-md
     crush
+    gemini-cli
     openspec
+    qwen-code
     spec-kit
   ];
 
@@ -211,13 +213,13 @@ in
     packages =
       with pkgs;
       [
-        amazon-q-cli
+        # amazon-q-cli
         copilot-language-server
-        gemini-cli
+        # gemini-cli
         gh-copilot
         github-copilot-cli
         nodejs
-        qwen-code
+        # qwen-code
         python3Packages.tiktoken
         # goose-cli
         # plandex
