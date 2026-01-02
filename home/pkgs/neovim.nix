@@ -42,9 +42,9 @@
       hadolint
       luajitPackages.luacheck
       markdownlint-cli
-      mypy
-      pylint
-      python3Packages.vulture
+      # mypy
+      # pylint
+      # python3Packages.vulture
       shellcheck
       selene
       statix
