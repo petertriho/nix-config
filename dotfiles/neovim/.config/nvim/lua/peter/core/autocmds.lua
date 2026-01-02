@@ -82,23 +82,23 @@ set_augroups({
                 desc = "Turn on relative number",
             },
         },
-        {
-            "BufWritePre",
-            {
-                pattern = "*",
-                callback = function(event)
-                    if require("peter.core.utils").is_excludes_buf(event.buf) then
-                        return
-                    end
-
-                    local dir = vim.fn.expand("<afile>:p:h")
-                    if vim.fn.isdirectory(dir) == 0 then
-                        vim.fn.mkdir(dir, "p")
-                    end
-                end,
-                desc = "Make directory for file if it does not exist",
-            },
-        },
+        -- {
+        --     "BufWritePre",
+        --     {
+        --         pattern = "*",
+        --         callback = function(event)
+        --             if require("peter.core.utils").is_excludes_buf(event.buf) then
+        --                 return
+        --             end
+        --
+        --             local dir = vim.fn.expand("<afile>:p:h")
+        --             if vim.fn.isdirectory(dir) == 0 then
+        --                 vim.fn.mkdir(dir, "p")
+        --             end
+        --         end,
+        --         desc = "Make directory for file if it does not exist",
+        --     },
+        -- },
         {
             "BufWritePre",
             {
