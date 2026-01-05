@@ -91,6 +91,10 @@
       ruff
       stylelint
       # typescript
+
+      # misc
+      ctags-lsp
+      universal-ctags
     ]
     ++ lib.optionals pkgs.stdenv.isLinux [
       # qmlls (linux only, requires wayland)
