@@ -379,14 +379,14 @@ function tool:fish {
 
 function tool:fish:clean {
     echo_header "Cleaning fish frozen files"
-    rm "${HOME}/.config/fish/conf.d/fish_frozen_key_bindings.fish"
-    rm "${HOME}/.config/fish/conf.d/fish_frozen_theme.fish"
+    rm -f "${HOME}/.config/fish/conf.d/fish_frozen_key_bindings.fish"
+    rm -f "${HOME}/.config/fish/conf.d/fish_frozen_theme.fish"
     echo_success "Fish frozen cleaned"
 }
 
 function tool:misc:clean {
     echo_header "Cleaning miscellaneous"
-    rm "${HOME}/.cache/opencode/models.json"
+    rm -f "${HOME}/.cache/opencode/models.json"
     echo_success "Miscellaneous cleaned"
 }
 
