@@ -276,6 +276,7 @@
       fishConfFiles = [
         "00-prompt.fish"
         "01-forgit.fish"
+        "02-theme.fish"
       ];
     in
     builtins.listToAttrs (
