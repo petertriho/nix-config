@@ -22,7 +22,7 @@ let
     crush
     gemini-cli
     openspec
-    qwen-code
+    # qwen-code
     spec-kit
   ];
 
@@ -115,17 +115,25 @@ let
       };
       disabled = true;
     };
-    nixos = {
+    # nixos = {
+    #   type = "stdio";
+    #   command = "mcp-nixos";
+    #   args = [ ];
+    #   disabled = true;
+    # };
+    # playwright = {
+    #   type = "stdio";
+    #   command = "playwright-mcp";
+    #   args = [ ];
+    #   disabled = true;
+    # };
+    playwriter = {
       type = "stdio";
-      command = "mcp-nixos";
-      args = [ ];
-      disabled = true;
-    };
-    playwright = {
-      type = "stdio";
-      command = "playwright-mcp";
-      args = [ ];
-      disabled = true;
+      command = "${pkgs.nodejs}/bin/npx";
+      args = [
+        "playwriter@latest"
+      ];
+      disabled = false;
     };
     sequential-thinking = {
       type = "stdio";
