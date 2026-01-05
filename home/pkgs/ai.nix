@@ -119,7 +119,7 @@ let
       type = "stdio";
       command = "mcp-nixos";
       args = [ ];
-      disabled = false;
+      disabled = true;
     };
     playwright = {
       type = "stdio";
