@@ -268,9 +268,9 @@ return {
     -- },
     bashls = {},
     cssls = {},
-    ctags_lsp = {
-        cmd = { "ctags-lsp" },
-    },
+    -- ctags_lsp = {
+    --     cmd = { "ctags-lsp" },
+    -- },
     denols = {},
     dockerls = {},
     docker_compose_language_service = {},
