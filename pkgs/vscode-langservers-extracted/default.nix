@@ -54,13 +54,7 @@ buildNpmPackage {
     runHook preInstall
     npmInstallHook
 
-    # Create packages directory structure at root level for binaries to find
-    mkdir -p $out/lib/node_modules/@zed-industries/vscode-langservers-extracted/packages
-    cp -r lib/packages/* $out/lib/node_modules/@zed-industries/vscode-langservers-extracted/packages/
-
-    # Copy CSS and JSON language servers to lib directory
-    cp -r lib/css-language-server $out/lib/node_modules/@zed-industries/vscode-langservers-extracted/lib/
-    cp -r lib/json-language-server $out/lib/node_modules/@zed-industries/vscode-langservers-extracted/lib/
+    cp -r lib $out/lib/node_modules/@zed-industries/vscode-langservers-extracted/
 
     runHook postInstall
   '';
