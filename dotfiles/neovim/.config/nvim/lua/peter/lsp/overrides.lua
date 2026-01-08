@@ -257,6 +257,12 @@ return {
     --                 diagnosticSeverityOverrides = {
     --                     reportGeneralTypeIssues = "information",
     --                 },
+    --                 inlayHints = {
+    --                     variableTypes = true,
+    --                     callArgumentNames = true,
+    --                     functionReturnTypes = true,
+    --                     genericTypes = true,
+    --                 },
     --             },
     --         },
     --     },
@@ -271,11 +277,29 @@ return {
     -- ctags_lsp = {
     --     cmd = { "ctags-lsp" },
     -- },
-    denols = {},
+    denols = {
+        settings = {
+            deno = {
+                inlayHints = {
+                    parameterNames = { enabled = "all" },
+                    parameterTypes = { enabled = true },
+                    variableTypes = { enabled = true },
+                    propertyDeclarationTypes = { enabled = true },
+                    functionLikeReturnTypes = { enabled = true },
+                    enumMemberValues = { enabled = true },
+                },
+            },
+        },
+    },
     dockerls = {},
     docker_compose_language_service = {},
     elixirls = {
         cmd = { "elixir-ls" },
+        settings = {
+            elixirLS = {
+                enableInlayHints = true,
+            },
+        },
     },
     emmet_language_server = {
         filetypes = {
@@ -301,7 +325,21 @@ return {
     eslint = {},
     -- expert = {},
     fish_lsp = {},
-    gopls = {},
+    gopls = {
+        settings = {
+            gopls = {
+                hints = {
+                    assignVariableTypes = true,
+                    compositeLiteralFields = true,
+                    compositeLiteralTypes = true,
+                    constantValues = true,
+                    functionTypeParameters = true,
+                    parameterNames = true,
+                    rangeVariableTypes = true,
+                },
+            },
+        },
+    },
     harper_ls = {},
     html = {
         init_options = {
@@ -313,7 +351,17 @@ return {
             },
         },
     },
-    jdtls = {},
+    jdtls = {
+        settings = {
+            java = {
+                inlayHints = {
+                    parameterNames = {
+                        enabled = "all",
+                    },
+                },
+            },
+        },
+    },
     jsonls = {
         lazy = true,
         filetypes = { "json", "jsonc" },
@@ -388,6 +436,18 @@ return {
                 displayTypeErrors = "force-on",
             },
         },
+        settings = {
+            python = {
+                analysis = {
+                    inlayHints = {
+                        variableTypes = true,
+                        functionReturnTypes = true,
+                        callArgumentNames = true,
+                        pytestParameters = true,
+                    },
+                },
+            },
+        },
         on_attach = function(client, bufnr)
             disable_capabilities_for_server(client)
         end,
@@ -453,7 +513,34 @@ return {
     },
     -- rust_analyzer = {},
     superhtml = {},
-    svelte = {},
+    svelte = {
+        settings = {
+            svelte = {
+                ["enable-ts-plugin"] = true,
+                plugin = {
+                    svelte = {
+                        inlayHints = {
+                            parameterNames = { enabled = "all" },
+                            parameterTypes = { enabled = true },
+                            variableTypes = { enabled = true },
+                            functionLikeReturnTypes = { enabled = true },
+                            enumMemberValues = { enabled = true },
+                        },
+                    },
+                },
+            },
+            typescript = {
+                inlayHints = {
+                    parameterNames = { enabled = "all" },
+                    parameterTypes = { enabled = true },
+                    variableTypes = { enabled = true },
+                    propertyDeclarationTypes = { enabled = true },
+                    functionLikeReturnTypes = { enabled = true },
+                    enumMemberValues = { enabled = true },
+                },
+            },
+        },
+    },
     tailwindcss = {},
     taplo = {
         lazy = true,
@@ -469,9 +556,37 @@ return {
         end,
     },
     terraformls = {},
-    tinymist = {},
+    tinymist = {
+        settings = {
+            inlayHints = {
+                enable = true,
+            },
+        },
+    },
     tflint = {},
     -- ts_ls = {
+    --     settings = {
+    --         typescript = {
+    --             inlayHints = {
+    --                 parameterNames = { enabled = "all" },
+    --                 parameterTypes = { enabled = true },
+    --                 variableTypes = { enabled = true },
+    --                 propertyDeclarationTypes = { enabled = true },
+    --                 functionLikeReturnTypes = { enabled = true },
+    --                 enumMemberValues = { enabled = true },
+    --             },
+    --         },
+    --         javascript = {
+    --             inlayHints = {
+    --                 parameterNames = { enabled = "all" },
+    --                 parameterTypes = { enabled = true },
+    --                 variableTypes = { enabled = true },
+    --                 propertyDeclarationTypes = { enabled = true },
+    --                 functionLikeReturnTypes = { enabled = true },
+    --                 enumMemberValues = { enabled = true },
+    --             },
+    --         },
+    --     },
     --     on_attach = function(client, bufnr)
     --         vim.api.nvim_buf_create_user_command(bufnr, "TSServerOrganizeImports", function()
     --             client:exec_cmd({
@@ -489,6 +604,14 @@ return {
     --     end,
     -- },
     ty = {
+        settings = {
+            ty = {
+                inlayHints = {
+                    variableTypes = true,
+                    callArgumentNames = true,
+                },
+            },
+        },
         on_attach = function(client, bufnr)
             disable_capabilities_for_server(client)
         end,
@@ -518,6 +641,26 @@ return {
                         autoUserWorkspaceTsdk = true,
                         experimental = {
                             completion = { enableServerSideFuzzyMatch = true },
+                        },
+                    },
+                    typescript = {
+                        inlayHints = {
+                            parameterNames = { enabled = "all" },
+                            parameterTypes = { enabled = true },
+                            variableTypes = { enabled = true },
+                            propertyDeclarationTypes = { enabled = true },
+                            functionLikeReturnTypes = { enabled = true },
+                            enumMemberValues = { enabled = true },
+                        },
+                    },
+                    javascript = {
+                        inlayHints = {
+                            parameterNames = { enabled = "all" },
+                            parameterTypes = { enabled = true },
+                            variableTypes = { enabled = true },
+                            propertyDeclarationTypes = { enabled = true },
+                            functionLikeReturnTypes = { enabled = true },
+                            enumMemberValues = { enabled = true },
                         },
                     },
                 },
