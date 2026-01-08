@@ -19,7 +19,7 @@
       isort
       json-repair
       mbake
-      nixfmt-rfc-style
+      nixfmt
       # nodePackages.prettier
       nodePackages.svgo
       prettierd
