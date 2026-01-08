@@ -245,6 +245,7 @@ return {
         },
     },
     -- basedpyright = {
+    --     -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
     --     settings = {
     --         basedpyright = {
     --             analysis = {
@@ -277,6 +278,7 @@ return {
     -- ctags_lsp = {
     --     cmd = { "ctags-lsp" },
     -- },
+    -- https://docs.deno.com/runtime/reference/lsp_integration/
     denols = {
         settings = {
             deno = {
@@ -293,6 +295,7 @@ return {
     },
     dockerls = {},
     docker_compose_language_service = {},
+    -- https://hexdocs.pm/elixir-ls/settings.html
     elixirls = {
         cmd = { "elixir-ls" },
         settings = {
@@ -325,6 +328,7 @@ return {
     eslint = {},
     -- expert = {},
     fish_lsp = {},
+    -- https://github.com/golang/tools/blob/master/gopls/doc/settings.md
     gopls = {
         settings = {
             gopls = {
@@ -351,6 +355,7 @@ return {
             },
         },
     },
+    -- https://github.com/eclipse-jdtls/eclipse.jdt.ls/wiki/Running-the-JAVA-LS-server-from-the-command-line#initialize-request
     jdtls = {
         settings = {
             java = {
@@ -430,6 +435,7 @@ return {
         },
     },
     postgres_lsp = {},
+    -- https://pyrefly.org/en/docs/editors/
     pyrefly = {
         init_options = {
             pyrefly = {
@@ -513,6 +519,7 @@ return {
     },
     -- rust_analyzer = {},
     superhtml = {},
+    -- https://svelte.dev/docs/language-tools/svelte-for-vs-code#settings
     svelte = {
         settings = {
             svelte = {
@@ -556,6 +563,7 @@ return {
         end,
     },
     terraformls = {},
+    -- https://myriad-dreamin.github.io/tinymist/configurations.html
     tinymist = {
         settings = {
             inlayHints = {
@@ -564,6 +572,7 @@ return {
         },
     },
     tflint = {},
+    -- https://github.com/microsoft/TypeScript/blob/main/src/server/protocol.ts (search for InlayHintsOptions)
     -- ts_ls = {
     --     settings = {
     --         typescript = {
@@ -603,6 +612,7 @@ return {
     --         )
     --     end,
     -- },
+    -- https://ty.dev/editors/settings
     ty = {
         settings = {
             ty = {
@@ -621,6 +631,7 @@ return {
             diagnosticSeverity = "information",
         },
     },
+    -- https://github.com/yioneko/vtsls/blob/main/packages/service/configuration.schema.json
     vtsls = {
         lazy = true,
         filetypes = {
