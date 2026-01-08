@@ -103,12 +103,19 @@ return {
             desc = "Opencode",
         },
         {
-            "<leader>aQ",
+            "<leader>aR",
             function()
-                require("sidekick.cli").toggle({ name = "amazon_q", focus = true })
+                require("sidekick.cli").toggle({ name = "crush", focus = true })
             end,
-            desc = "AmazonQ",
+            desc = "Crush",
         },
+        -- {
+        --     "<leader>aQ",
+        --     function()
+        --         require("sidekick.cli").toggle({ name = "amazon_q", focus = true })
+        --     end,
+        --     desc = "AmazonQ",
+        -- },
     },
     opts = {
         cli = {
