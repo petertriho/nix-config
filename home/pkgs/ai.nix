@@ -234,6 +234,8 @@ in
       ]
       ++ mcpServers
       ++ llmAgents;
+    file.".gemini/settings.json".source =
+      config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
   };
   programs.opencode = {
     enable = true;
