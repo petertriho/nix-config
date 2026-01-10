@@ -12,12 +12,13 @@
       git-gone # git garbage collector
       # git-machete # git branch management
       git-spice # git stack diff tool
-      # gitui # git terminal UI
+      gitui # git tui
       # dependencies
       git-lfs
       delta # git diff viewer
       difftastic # structural diff tool
       # jujutsu
+      lazygit # git tui
       mergiraf # git merge conflict resolver
       rs-git-fsmonitor
       watchman
