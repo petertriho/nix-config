@@ -18,7 +18,6 @@
     glow # markdown viewer
     grex # regex generator
     parallel # run jobs in parallel
-    python3Packages.howdoi # instant coding answers
     httpie # user-friendly HTTP client
     stable.hurl # http client for testing APIs
     hyperfine # command-line benchmarking tool
