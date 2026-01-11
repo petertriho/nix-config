@@ -97,7 +97,7 @@
       grs1 = "git reset --soft HEAD@{1}";
       grsh = "git reset --hard";
       grss = "git reset --soft";
-      gss = "git status";
+      gsa = "git status";
       gst = "git stash";
       gsta = "git stash apply";
       gstp = "git stash pop";
