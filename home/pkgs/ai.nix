@@ -19,6 +19,8 @@ let
     ]);
   llmAgents = with pkgs.llm-agents; [
     # backlog-md
+    copilot-cli
+    copilot-language-server
     crush
     gemini-cli
     openspec
@@ -222,10 +224,8 @@ in
       with pkgs;
       [
         # amazon-q-cli
-        copilot-language-server
         # gemini-cli
         gh-copilot
-        github-copilot-cli
         nodejs
         # qwen-code
         python3Packages.tiktoken
