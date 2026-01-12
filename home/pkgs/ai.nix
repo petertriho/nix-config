@@ -249,6 +249,8 @@ in
       lsp = opencodeLspConfig;
       small_model = "github-copilot/gpt-5-mini";
       mcp = opencodeMcpConfig;
+      plugin = [ "opencode-antigravity-auth@beta" ];
+      provider = builtins.fromJSON (builtins.readFile ../../dotfiles/opencode/provider.json);
     };
   };
   xdg.configFile = {
