@@ -19,13 +19,17 @@ let
     ]);
   llmAgents = with pkgs.llm-agents; [
     # backlog-md
+    ccusage-opencode
+    coding-agent-search
     copilot-cli
     copilot-language-server
     crush
     gemini-cli
+    openskills
     openspec
     # qwen-code
     spec-kit
+    tuicr
   ];
 
   sharedLspConfig = {
