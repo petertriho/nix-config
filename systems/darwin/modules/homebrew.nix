@@ -59,6 +59,7 @@ in
       "nextcloud"
       "notunes"
       "obsidian"
+      "opencode-desktop"
       "orbstack"
       "raycast"
       "wezterm"
