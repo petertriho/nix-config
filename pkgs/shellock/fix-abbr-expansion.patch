@@ -1,0 +1,15 @@
+--- a/shellock.fish
++++ b/shellock.fish
+@@ -72,8 +72,10 @@ function __shellock_on_dash
+ end
+ 
+ function __shellock_on_space
+-    # Insert space
+-    commandline -i ' '
++    # Expand abbreviations first, then insert space
++    # This preserves fish's default abbreviation expansion behavior
++    commandline -f expand-abbr
++    commandline -f self-insert
+     # Check if we should update explanations
+     set -l cmdline (commandline -b)
+     # Only update if there are flags

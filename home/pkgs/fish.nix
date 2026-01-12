@@ -23,7 +23,13 @@
         (x: {
           name = x.pname;
           inherit (x) src;
-        });
+        })
+      ++ [
+        # {
+        #   name = "shellock";
+        #   src = pkgs.shellock;
+        # }
+      ];
     shellAbbrs = {
       acs = "aws configure sso";
       ap = "export AWS_PROFILE=(aws-profile)";
@@ -254,6 +260,7 @@
 
   home.packages = with pkgs; [
     grc
+    # shellock
     vivid
   ];
 
