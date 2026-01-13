@@ -78,11 +78,16 @@
         nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ]
           (
             system:
-            import ./pkgs {
+            let
               pkgs = import nixpkgs {
                 inherit system;
                 config.allowUnfree = true;
               };
+            in
+            (import ./pkgs { inherit pkgs; })
+            // {
+              fish-plugins = import ./pkgs/fish-plugins { inherit pkgs; };
+              tmux-plugins = import ./pkgs/tmux-plugins { inherit pkgs; };
             }
           );
 
