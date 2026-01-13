@@ -10,6 +10,7 @@ let
 in
 {
   easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
+  fingers = callPackage ./fingers { inherit crystal; };
   session-wizard = callPackage ./session-wizard { };
   sessionist-fork = callPackage ./sessionist-fork { };
   window-name = callPackage ./window-name { inherit pkgs pythonInputs; };
