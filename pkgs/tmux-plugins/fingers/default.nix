@@ -7,7 +7,7 @@
 let
   fingers = crystal.buildCrystalPackage rec {
     format = "shards";
-    version = "unstable-2026-01-05";
+    version = "2.6.0-unstable-2026-01-05";
     pname = "fingers";
     src = fetchFromGitHub {
       owner = "Morantron";

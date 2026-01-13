@@ -5,7 +5,7 @@
 }:
 fishPlugins.buildFishPlugin {
   pname = "upto";
-  version = "unstable-2018-12-19";
+  version = "0-unstable-2018-12-19";
 
   src = fetchFromGitHub {
     owner = "Markcial";

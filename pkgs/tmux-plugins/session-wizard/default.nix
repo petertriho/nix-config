@@ -7,7 +7,7 @@
 }:
 tmuxPlugins.mkTmuxPlugin rec {
   pluginName = "session-wizard";
-  version = "unstable-2025-02-28";
+  version = "V1.5.0-unstable-2025-02-28";
   src = fetchFromGitHub {
     owner = "27medkamal";
     repo = "tmux-session-wizard";

@@ -9,7 +9,7 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "tmux-window-name";
-  version = "unstable-2025-03-25";
+  version = "0-unstable-2025-03-25";
   src = fetchFromGitHub {
     owner = "ofirgall";
     repo = "tmux-window-name";
