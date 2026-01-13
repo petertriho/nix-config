@@ -254,9 +254,9 @@ in
       small_model = "github-copilot/gpt-5-mini";
       mcp = opencodeMcpConfig;
       plugin = [
-        "@franlol/opencode-md-table-formatter@0.0.3"
-        "@tarquinen/opencode-dcp@latest"
-        "opencode-antigravity-auth@beta"
+        "@franlol/opencode-md-table-formatter"
+        "@tarquinen/opencode-dcp"
+        "opencode-antigravity-auth"
       ];
       provider = builtins.fromJSON (builtins.readFile ../../dotfiles/opencode/provider.json);
     };
