@@ -37,13 +37,14 @@ end
 
 -- Higher number means higher priority
 local LSP_SORT_PRIORITY = {
+    ctags_lsp = 1,
     -- python
     pyrefly = 10,
-    ty = 1,
+    ty = 2,
     -- js
     vtsls = 100,
     eslint = 10,
-    emmet_language_server = 1,
+    emmet_language_server = 2,
 }
 
 return {

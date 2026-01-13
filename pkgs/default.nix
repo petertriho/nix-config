@@ -4,6 +4,7 @@
 }:
 with pkgs;
 {
+  ctags-lsp = callPackage ./ctags-lsp { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   shellock = callPackage ./shellock { };
   sort-package-json = callPackage ./sort-package-json { };

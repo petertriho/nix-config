@@ -275,9 +275,9 @@ return {
     -- },
     bashls = {},
     cssls = {},
-    -- ctags_lsp = {
-    --     cmd = { "ctags-lsp" },
-    -- },
+    ctags_lsp = {
+        cmd = { "ctags-lsp" },
+    },
     -- https://docs.deno.com/runtime/reference/lsp_integration/
     denols = {
         settings = {
