@@ -276,7 +276,8 @@ return {
     bashls = {},
     cssls = {},
     ctags_lsp = {
-        cmd = { "ctags-lsp" },
+        cmd = { "ctags-lsp", "--languages", table.concat(require("peter.core.filetypes").ctags, ",") },
+        filetypes = require("peter.core.filetypes").ctags,
     },
     -- https://docs.deno.com/runtime/reference/lsp_integration/
     denols = {

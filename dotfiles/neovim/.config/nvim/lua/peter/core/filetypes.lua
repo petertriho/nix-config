@@ -77,6 +77,12 @@ local M = {
         "fugitive:",
     },
     sidebars = sidebars,
+    ctags = {
+        "java",
+        "javascript",
+        "python",
+        "typescript",
+    },
 }
 
 return M
