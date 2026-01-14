@@ -33,7 +33,6 @@ in
       "steipete/tap"
     ];
     brews = [
-      "block-goose-cli"
       "mas"
       # "opencode"
     ];
@@ -41,7 +40,6 @@ in
       "alacritty"
       "antigravity"
       "appcleaner"
-      "block-goose"
       "cyberduck"
       "displaylink"
       "doll"
