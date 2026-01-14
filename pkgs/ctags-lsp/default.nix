@@ -11,7 +11,7 @@
 }:
 buildGoModule rec {
   pname = "ctags-lsp";
-  version = "0.10.2";
+  version = "0.10.2-unstable-2026-01-08";
   vendorHash = null;
 
   src = fetchFromGitHub {
