@@ -19,6 +19,7 @@ let
     ]);
   llmAgents = with pkgs.llm-agents; [
     # backlog-md
+    beads
     ccusage-opencode
     coding-agent-search
     copilot-cli
@@ -232,6 +233,7 @@ in
         gh-copilot
         nodejs
         # qwen-code
+        ralph-tui
         python3Packages.tiktoken
         # goose-cli
         # plandex
