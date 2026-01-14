@@ -30,6 +30,7 @@ in
     };
     taps = [
       "nikitabobko/tap"
+      "steipete/tap"
     ];
     brews = [
       "block-goose-cli"
@@ -37,8 +38,8 @@ in
       # "opencode"
     ];
     casks = [
-      "aerospace"
       "alacritty"
+      "antigravity"
       "appcleaner"
       "block-goose"
       "cyberduck"
@@ -57,11 +58,13 @@ in
       "keyboardcleantool"
       "meetingbar"
       "nextcloud"
+      "nikitabobko/tap/aerospace"
       "notunes"
       "obsidian"
       "opencode-desktop"
       "orbstack"
       "raycast"
+      "steipete/tap/codexbar"
       "wezterm"
       # "airbuddy"
       # "badgeify"
