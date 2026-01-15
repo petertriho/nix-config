@@ -5,6 +5,8 @@
   ...
 }:
 let
+  cheapModel = "github-copilot/gpt-5-mini";
+
   mcpServers =
     (with pkgs.mcp-servers; [
       context7-mcp
@@ -253,12 +255,12 @@ in
       autoupdate = false;
       # snapshot = false;
       lsp = opencodeLspConfig;
-      small_model = "github-copilot/gpt-5-mini";
+      small_model = cheapModel;
       mcp = opencodeMcpConfig;
       plugin = [
         "opencode-antigravity-auth"
         "@franlol/opencode-md-table-formatter"
-        "@plannotator/opencode"
+        # "@plannotator/opencode"
         "@tarquinen/opencode-dcp"
         "opencode-mystatus"
       ];
@@ -266,7 +268,7 @@ in
         quota = {
           description = "Query quota usage for all AI accounts";
           template = "Use the mystatus tool to query quota usage. Return the result as-is without modification.";
-          model = "github-copilot/gpt-5-mini";
+          model = cheapModel;
         };
       };
       provider = builtins.fromJSON (builtins.readFile ../../dotfiles/opencode/provider.json);
@@ -276,4 +278,5 @@ in
     "opencode/agent/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
     "crush/crush.json".text = crushConfig;
   };
+  programs.fish.shellAbbrs.quota = "opencode run --model ${cheapModel} /quota";
 }
