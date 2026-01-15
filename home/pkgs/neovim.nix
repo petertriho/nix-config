@@ -86,6 +86,7 @@
       yaml-language-server
 
       # everything everywhere all at once
+      eslint
       djlint
       html-tidy
       ruff
