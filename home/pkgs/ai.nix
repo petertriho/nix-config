@@ -258,6 +258,7 @@ in
       plugin = [
         "opencode-antigravity-auth"
         "@franlol/opencode-md-table-formatter"
+        "@plannotator/opencode"
         "@tarquinen/opencode-dcp"
         "opencode-mystatus"
       ];
