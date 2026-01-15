@@ -256,10 +256,17 @@ in
       small_model = "github-copilot/gpt-5-mini";
       mcp = opencodeMcpConfig;
       plugin = [
+        "opencode-antigravity-auth"
         "@franlol/opencode-md-table-formatter"
         "@tarquinen/opencode-dcp"
-        "opencode-antigravity-auth"
+        "opencode-mystatus"
       ];
+      command = {
+        quota = {
+          description = "Query quota usage for all AI accounts";
+          template = "Use the mystatus tool to query quota usage. Return the result as-is without modification.";
+        };
+      };
       provider = builtins.fromJSON (builtins.readFile ../../dotfiles/opencode/provider.json);
     };
   };
