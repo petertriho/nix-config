@@ -153,6 +153,7 @@
       tl = "tmux list-sessions";
       tn = "tmux new-session -s";
       tnz = "tmux-new-zoxide";
+      ts = "bunx tokscale@latest";
       ysdk = "yarn dlx @yarnpkg/sdks base"; # https://yarnpkg.com/getting-started/editor-sdks#neovim-native-lsp
     }
     // (

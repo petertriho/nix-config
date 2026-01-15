@@ -8,6 +8,7 @@
   home.packages = with pkgs; [
     bat # cat replacement with syntax highlighting
     btop # better htop
+    bun # JavaScript runtime
     coreutils # GNU core utilities
     dive # inspect docker images
     eza # ls replacement
