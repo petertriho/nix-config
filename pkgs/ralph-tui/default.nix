@@ -33,7 +33,14 @@ let
 
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
-    outputHash = "sha256-5WbPYYwqdKfEq/Ye9q5WQFilOSX8FQxSv0rnIvKApcQ=";
+    outputHash =
+      {
+        x86_64-linux = "sha256-5WbPYYwqdKfEq/Ye9q5WQFilOSX8FQxSv0rnIvKApcQ=";
+        aarch64-linux = "sha256-5WbPYYwqdKfEq/Ye9q5WQFilOSX8FQxSv0rnIvKApcQ=";
+        x86_64-darwin = "sha256-8tih1wTNCMBzi4bIv0T30vm62iM6KkqeE56YEs8ouew=";
+        aarch64-darwin = "sha256-8tih1wTNCMBzi4bIv0T30vm62iM6KkqeE56YEs8ouew=";
+      }
+      .${stdenv.hostPlatform.system};
   };
 
   finalAttrs = rec {
