@@ -34,6 +34,7 @@ in
     ];
     brews = [
       "mas"
+      "terminal-notifier"
       # "opencode"
     ];
     casks = [
