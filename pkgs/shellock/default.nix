@@ -9,13 +9,13 @@
 
 stdenv.mkDerivation rec {
   pname = "shellock";
-  version = "0-unstable-2026-01-12";
+  version = "0-unstable-2026-01-15";
 
   src = fetchFromGitHub {
     owner = "ibehnam";
     repo = "shellock";
-    rev = "bac0348e0dba0f68da61b1ba71be3425e49661aa";
-    hash = "sha256-+CDLW46iiCjUCTCJEnYFVxhZiI/oPvmVlWNY4yaQj5s=";
+    rev = "64f7b0e5b5e182cbb99b9d2476fb6aebe8b3135b";
+    hash = "sha256-EBp+uVpD+cM7cxvUrYDt3X+qERHdk+hEwVveTs55kxA=";
   };
 
   patches = [

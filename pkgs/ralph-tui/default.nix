@@ -37,21 +37,21 @@ let
       {
         x86_64-linux = "sha256-5WbPYYwqdKfEq/Ye9q5WQFilOSX8FQxSv0rnIvKApcQ=";
         aarch64-linux = "sha256-5WbPYYwqdKfEq/Ye9q5WQFilOSX8FQxSv0rnIvKApcQ=";
-        x86_64-darwin = "sha256-8tih1wTNCMBzi4bIv0T30vm62iM6KkqeE56YEs8ouew=";
-        aarch64-darwin = "sha256-8tih1wTNCMBzi4bIv0T30vm62iM6KkqeE56YEs8ouew=";
+        x86_64-darwin = "sha256-8RAilfP63HFxn+0ELzynzvFqg3V8wKuOg4l45C3JX7Y=";
+        aarch64-darwin = "sha256-8RAilfP63HFxn+0ELzynzvFqg3V8wKuOg4l45C3JX7Y=";
       }
       .${stdenv.hostPlatform.system};
   };
 
   finalAttrs = rec {
     pname = "ralph-tui";
-    version = "0.1.4-unstable-2026-01-15";
+    version = "0.1.7-unstable-2026-01-15";
 
     src = fetchFromGitHub {
       owner = "subsy";
       repo = "ralph-tui";
-      rev = "98dbf76ab026da76d0cc3826d9913a07dc089de0";
-      hash = "sha256-seoWqKW+17vw2N5//hymZ+++CZOzSukDZKt9Bxq1rfI=";
+      rev = "cdf556b0b05686558384ed1048d14102675b43ed";
+      hash = "sha256-PkkYCygm8xn6DSIaCyZLVI/JFGdXLRnzCyqpOnOhIOw=";
     };
 
     nativeBuildInputs = [
