@@ -115,6 +115,12 @@ M.setup = function()
             t("platform: linux/arm64"),
         }),
     })
+
+    ls.add_snippets("conf", {
+        s("upe", {
+            t("export UV_PROJECT_ENVIRONMENT=.venv"),
+        }),
+    })
 end
 
 return M
