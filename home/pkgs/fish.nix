@@ -155,6 +155,7 @@
       tnz = "tmux-new-zoxide";
       ts = "bunx tokscale@latest";
       tst = "bunx tokscale@latest --light --today";
+      upe = "set -x UV_PROJECT_ENVIRONMENT .venv";
       ysdk = "yarn dlx @yarnpkg/sdks base"; # https://yarnpkg.com/getting-started/editor-sdks#neovim-native-lsp
     }
     // (
