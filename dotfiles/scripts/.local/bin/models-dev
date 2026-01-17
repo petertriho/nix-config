@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/models-dev/api.json"
+CACHE_DURATION=86400
+
+refresh_data() {
+    mkdir -p "$(dirname "$CACHE_FILE")"
+    curl -s https://models.dev/api.json > "$CACHE_FILE"
+}
+
+if [[ ! -f $CACHE_FILE ]] || [[ $(($(date +%s) - $(stat -c %Y "$CACHE_FILE"))) -gt $CACHE_DURATION ]]; then
+    refresh_data
+fi
+
+case "${1:-}" in
+    -r | --refresh)
+        refresh_data
+        ;;
+esac
+
+copy_bind() {
+    local field=$1
+    echo "ctrl-$2:execute-silent(printf %s {$field} | pbcopy 2>/dev/null || printf %s {$field} | wl-copy 2>/dev/null || printf %s {$field} | xclip -selection clipboard 2>/dev/null || printf %s {$field} | xsel --clipboard --input 2>/dev/null || printf %s {$field} | clip.exe 2>/dev/null)"
+}
+
+jq -r 'to_entries[] | .value.id as $provider_id | .value.models | to_entries[] | "\($provider_id)/\(.key) \($provider_id) \(.key) \(.value.name) (\(.value.family))"' "$CACHE_FILE" \
+    | fzf \
+        --delimiter ' ' \
+        --with-nth 1.. \
+        --tiebreak=index \
+        --preview 'jq -r ".\"{2}\".models.\"{3}\"" "$CACHE_FILE" | jq -C .' \
+        --preview-window 'right:50%' \
+        --bind "$(copy_bind 1 y)" \
+        --bind "$(copy_bind 2 i)" \
+        --bind "$(copy_bind 3 o)" \
+        --bind 'ctrl-r:reload(cat "$CACHE_FILE" | jq -r "to_entries[] | .value.id as \$provider_id | .value.models | to_entries[] | \\"\(\$provider_id)/\(.key) \(\$provider_id) \(.key) \(.value.name) (\(.value.family))\\"")' \
+        --bind 'ctrl-c:abort' \
+        --header 'ENTER: select | CTRL-Y: provider/model | CTRL-I: provider | CTRL-O: model | CTRL-C: abort | CTRL-R: refresh' \
+    | awk '{print $1}'

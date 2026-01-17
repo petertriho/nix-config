@@ -116,6 +116,7 @@
       k = "kubectl";
       kc = "kubie ctx";
       ll = "ls -la";
+      md = "models-dev";
       mk = "minikube";
       n = "nix";
       na = "navi";
