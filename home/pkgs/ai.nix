@@ -56,28 +56,18 @@ let
         "svelte"
       ];
     };
-    vtsls = {
-      command = "vtsls";
-      args = [ "--stdio" ];
-      filetypes = [
-        "javascript"
-        "javascriptreact"
-        "typescript"
-        "typescriptreact"
-      ];
-    };
-    basedpyright = {
-      command = "basedpyright-langserver";
-      args = [ "--stdio" ];
-      filetypes = [
-        "python"
-        "pyi"
-      ];
-    };
     nil_ls = {
       command = "nil";
       args = [ ];
       filetypes = [ "nix" ];
+    };
+    pyrefly = {
+      command = "pyrefly";
+      args = [ "lsp" ];
+      filetypes = [
+        "python"
+        "pyi"
+      ];
     };
     terraformls = {
       command = "terraform-ls";
@@ -87,6 +77,16 @@ let
       filetypes = [
         "terraform"
         "tf"
+      ];
+    };
+    vtsls = {
+      command = "vtsls";
+      args = [ "--stdio" ];
+      filetypes = [
+        "javascript"
+        "javascriptreact"
+        "typescript"
+        "typescriptreact"
       ];
     };
   };
