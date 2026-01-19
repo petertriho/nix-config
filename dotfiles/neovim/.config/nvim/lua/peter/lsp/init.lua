@@ -1,19 +1,53 @@
 local M = {}
 
+-- Languages where ctags-lsp should be completely filtered out
+local CTAGS_FILTER_LANGUAGES = { "python", "typescript", "javascript" }
+
+local function should_filter_ctags(bufnr)
+    local filetype = vim.bo[bufnr].filetype
+    return vim.tbl_contains(CTAGS_FILTER_LANGUAGES, filetype)
+end
+
 local on_list = function(options)
     if options.items then
+        local filter_ctags = should_filter_ctags(vim.api.nvim_get_current_buf())
         local seen = {}
-        local deduplicated = {}
+        local regular = {}
+        local ctags = {}
 
+        -- deduplicate
         for _, item in ipairs(options.items) do
+            local is_ctags = false
+
+            if item.user_data then
+                local client_id = item.user_data.lsp and item.user_data.lsp.client_id
+                if client_id then
+                    local client = vim.lsp.get_client_by_id(client_id)
+                    is_ctags = client and client.name == "ctags_lsp"
+                end
+            end
+
             local key = string.format("%s:%d", item.filename or "", item.lnum or 0)
             if not seen[key] then
                 seen[key] = true
-                table.insert(deduplicated, item)
+                if is_ctags then
+                    table.insert(ctags, item)
+                else
+                    table.insert(regular, item)
+                end
             end
         end
 
-        options.items = deduplicated
+        -- ctags as fallback
+        if filter_ctags and #regular == 0 and #ctags > 0 then
+            options.items = ctags
+        else
+            -- put ctags at the end
+            if not filter_ctags then
+                vim.list_extend(regular, ctags)
+            end
+            options.items = regular
+        end
     end
 
     vim.fn.setqflist({}, " ", options)
