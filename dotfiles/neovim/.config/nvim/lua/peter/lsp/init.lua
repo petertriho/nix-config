@@ -23,7 +23,7 @@ local on_list = function(options)
                 local client_id = item.user_data.lsp and item.user_data.lsp.client_id
                 if client_id then
                     local client = vim.lsp.get_client_by_id(client_id)
-                    is_ctags = client and client.name == "ctags_lsp"
+                    is_ctags = client ~= nil and client.name == "ctags_lsp"
                 end
             end
 
