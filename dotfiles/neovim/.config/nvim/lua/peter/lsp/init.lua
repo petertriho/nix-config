@@ -8,53 +8,152 @@ local function should_filter_ctags(bufnr)
     return vim.tbl_contains(CTAGS_FILTER_LANGUAGES, filetype)
 end
 
-local on_list = function(options)
-    if options.items then
-        local filter_ctags = should_filter_ctags(vim.api.nvim_get_current_buf())
+-- Helper function to make LSP requests with client tracking
+local function make_lsp_request(method, make_params_fn)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local filter_ctags = should_filter_ctags(bufnr)
+
+    local all_clients = vim.lsp.get_clients({ bufnr = bufnr, method = method })
+    if #all_clients == 0 then
+        vim.notify("No LSP clients support " .. method, vim.log.levels.WARN)
+        return
+    end
+
+    -- Separate ctags from regular clients
+    local regular_clients = {}
+    local ctags_client = nil
+
+    for _, client in ipairs(all_clients) do
+        if client.name == "ctags_lsp" then
+            ctags_client = client
+        else
+            table.insert(regular_clients, client)
+        end
+    end
+
+    -- Phase 1: Request from regular LSP clients first
+    local responses = {}
+    local pending = #regular_clients
+
+    -- If no regular clients, go straight to ctags
+    if pending == 0 and ctags_client then
+        regular_clients = { ctags_client }
+        ctags_client = nil
+        pending = 1
+    end
+
+    local function process_results()
         local seen = {}
         local regular = {}
         local ctags = {}
 
-        -- deduplicate
-        for _, item in ipairs(options.items) do
-            local is_ctags = false
+        for client_id, response in pairs(responses) do
+            local client = response.client
+            local is_ctags = client.name == "ctags_lsp"
+            local result = response.result
 
-            if item.user_data then
-                local client_id = item.user_data.lsp and item.user_data.lsp.client_id
-                if client_id then
-                    local client = vim.lsp.get_client_by_id(client_id)
-                    is_ctags = client ~= nil and client.name == "ctags_lsp"
-                end
+            local items = result
+            -- Handle both single location and array of locations
+            if not vim.islist(items) then
+                items = { items }
             end
 
-            local key = string.format("%s:%d", item.filename or "", item.lnum or 0)
-            if not seen[key] then
-                seen[key] = true
-                if is_ctags then
-                    table.insert(ctags, item)
-                else
-                    table.insert(regular, item)
+            for _, item in ipairs(items) do
+                local location = item.targetUri and item or item
+                local uri = location.uri or location.targetUri
+                local range = location.range or location.targetRange
+
+                if uri and range then
+                    local filename = vim.uri_to_fname(uri)
+                    local lnum = range.start.line + 1
+                    local key = string.format("%s:%d", filename, lnum)
+
+                    if not seen[key] then
+                        seen[key] = true
+                        local qf_item = {
+                            filename = filename,
+                            lnum = lnum,
+                            col = range.start.character + 1,
+                            text = item.text or "",
+                        }
+
+                        if is_ctags then
+                            table.insert(ctags, qf_item)
+                        else
+                            table.insert(regular, qf_item)
+                        end
+                    end
                 end
             end
         end
 
+        local final_items
         -- ctags as fallback
         if filter_ctags and #regular == 0 and #ctags > 0 then
-            options.items = ctags
+            final_items = ctags
         else
             -- put ctags at the end
             if not filter_ctags then
                 vim.list_extend(regular, ctags)
             end
-            options.items = regular
+            final_items = regular
+        end
+
+        vim.fn.setqflist({}, " ", { items = final_items, title = method })
+        if #final_items > 1 then
+            vim.cmd("botright copen")
+        elseif #final_items == 1 then
+            vim.cmd.cfirst()
         end
     end
 
-    vim.fn.setqflist({}, " ", options)
-    if options.items and #options.items > 1 then
-        vim.cmd("botright copen")
+    for _, client in ipairs(regular_clients) do
+        local params = make_params_fn and make_params_fn(client)
+            or vim.lsp.util.make_position_params(0, client.offset_encoding)
+
+        client:request(method, params, function(err, result)
+            if not err and result then
+                responses[client.id] = { result = result, client = client }
+            end
+
+            pending = pending - 1
+
+            -- Phase 2: If regular LSP returned nothing and we need ctags as fallback
+            if pending == 0 then
+                -- Check if we got any regular results
+                local has_regular_results = false
+                for _, response in pairs(responses) do
+                    if response.client.name ~= "ctags_lsp" then
+                        has_regular_results = true
+                        break
+                    end
+                end
+
+                -- Request ctags only if needed
+                local should_request_ctags = ctags_client
+                    and ((filter_ctags and not has_regular_results) or not filter_ctags)
+
+                if should_request_ctags then
+                    pending = 1
+                    local params = make_params_fn and make_params_fn(ctags_client)
+                        or vim.lsp.util.make_position_params(0, ctags_client.offset_encoding)
+
+                    ctags_client:request(method, params, function(err, result)
+                        if not err and result then
+                            responses[ctags_client.id] = { result = result, client = ctags_client }
+                        end
+
+                        pending = pending - 1
+                        if pending == 0 then
+                            process_results()
+                        end
+                    end)
+                else
+                    process_results()
+                end
+            end
+        end)
     end
-    vim.cmd.cfirst()
 end
 
 local methods = vim.lsp.protocol.Methods
@@ -86,9 +185,7 @@ local LSP_METHODS = {
                 "n",
                 "grd",
                 function()
-                    vim.lsp.buf.declaration({
-                        on_list = on_list,
-                    })
+                    make_lsp_request(methods.textDocument_declaration)
                 end,
                 { desc = "Declaration" },
             },
@@ -100,9 +197,7 @@ local LSP_METHODS = {
                 "n",
                 "gd",
                 function()
-                    vim.lsp.buf.definition({
-                        on_list = on_list,
-                    })
+                    make_lsp_request(methods.textDocument_definition)
                 end,
                 { desc = "Definition" },
             },
@@ -135,9 +230,7 @@ local LSP_METHODS = {
                 "n",
                 "gri",
                 function()
-                    vim.lsp.buf.implementation({
-                        on_list = on_list,
-                    })
+                    make_lsp_request(methods.textDocument_implementation)
                 end,
                 { desc = "Implementation" },
             },
@@ -173,9 +266,11 @@ local LSP_METHODS = {
                 "n",
                 "grr",
                 function()
-                    vim.lsp.buf.references(nil, {
-                        on_list = on_list,
-                    })
+                    make_lsp_request(methods.textDocument_references, function(client)
+                        local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+                        params.context = { includeDeclaration = true }
+                        return params
+                    end)
                 end,
                 { desc = "References" },
             },
@@ -199,9 +294,7 @@ local LSP_METHODS = {
                 "n",
                 "grt",
                 function()
-                    vim.lsp.buf.type_definition({
-                        on_list = on_list,
-                    })
+                    make_lsp_request(methods.textDocument_typeDefinition)
                 end,
                 { desc = "Type Definition" },
             },
