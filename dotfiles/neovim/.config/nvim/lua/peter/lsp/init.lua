@@ -596,6 +596,8 @@ M.setup = function()
             vim.lsp.enable(server, enabled)
         end
     end
+
+    vim.g.lsp_configured = true
 end
 
 return M
