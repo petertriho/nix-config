@@ -4,7 +4,6 @@
 }:
 with pkgs;
 {
-  ctags-lsp = callPackage ./ctags-lsp { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   ralph-tui = callPackage ./ralph-tui { };
   shellock = callPackage ./shellock { };

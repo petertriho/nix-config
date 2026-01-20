@@ -94,7 +94,7 @@
       # typescript
 
       # misc
-      # ctags-lsp
+      ctags-lsp
       # universal-ctags
     ]
     ++ lib.optionals pkgs.stdenv.isLinux [
