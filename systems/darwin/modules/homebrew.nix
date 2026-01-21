@@ -29,6 +29,7 @@ in
       # upgrade = true;
     };
     taps = [
+      "nguyenphutrong/tap"
       "nikitabobko/tap"
       "steipete/tap"
     ];
@@ -58,6 +59,7 @@ in
       "keyboardcleantool"
       "meetingbar"
       "nextcloud"
+      "nguyenphutrong/tap/quotio"
       "nikitabobko/tap/aerospace"
       "notunes"
       "obsidian"
