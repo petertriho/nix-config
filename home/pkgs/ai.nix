@@ -23,7 +23,7 @@ let
     # backlog-md
     beads
     ccusage-opencode
-    coding-agent-search
+    # coding-agent-search
     copilot-cli
     copilot-language-server
     crush
