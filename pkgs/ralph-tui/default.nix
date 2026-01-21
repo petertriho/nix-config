@@ -50,8 +50,8 @@ let
     src = fetchFromGitHub {
       owner = "subsy";
       repo = "ralph-tui";
-      rev = "f5a1286633be7d7614b61a30b49fc1ed6619621f";
-      hash = "sha256-dH+PgIeAJE528ISBjrhl8BrGCYgaDSWrnFpWq6sg7b0=";
+      rev = "2f8b65d106144a5327f6d296e9e10d84ba79b18e";
+      hash = "sha256-WursDMOjTJtD9B2z8Nywm1U2Ucj5xQeeMt2bf1zvyF0=";
     };
 
     nativeBuildInputs = [
