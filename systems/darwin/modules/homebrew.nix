@@ -38,6 +38,7 @@ in
       # "opencode"
     ];
     casks = [
+      "aionui"
       "alacritty"
       "antigravity"
       "appcleaner"
