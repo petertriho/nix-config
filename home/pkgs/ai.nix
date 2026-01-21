@@ -279,5 +279,8 @@ in
     "opencode/agent/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
     "crush/crush.json".text = crushConfig;
   };
-  programs.fish.shellAbbrs.quota = "opencode run --model ${cheapModel} /quota";
+  programs.fish.shellAbbrs = {
+    ocr = "opencode run --model ${cheapModel}";
+    quota = "opencode run --model ${cheapModel} /quota";
+  };
 }
