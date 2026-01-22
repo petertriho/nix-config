@@ -1,5 +1,5 @@
 ---@alias SpinnerState {
----  token: string,
+---  notif_id: string,
 ---  title: string,
 ---  formatter_names: string[],
 ---  completed_formatters: table<string, boolean>,
@@ -13,6 +13,21 @@ local CONFORM_SPINNER_STATES = vim.defaulttable()
 local FORMATTER_GROUP_SIZE = 3
 
 local M = {}
+
+M.generate_notif_id = function()
+    local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+    return string.gsub(template, "[xy]", function(c)
+        local v = (c == "x") and math.random(0, 0xf) or math.random(8, 0xb)
+        return string.format("%x", v)
+    end)
+end
+
+M.spinner = {
+    frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+    get_frame = function(self)
+        return self.frames[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #self.frames + 1]
+    end,
+}
 
 ---@param msg string|table
 ---@return string
@@ -55,10 +70,10 @@ local generate_msg = function(spinner_state)
 end
 
 ---@param bufnr integer
----@param token string?
-local refresh = function(bufnr, token)
+---@param notif_id string?
+local refresh = function(bufnr, notif_id)
     local spinner_state = CONFORM_SPINNER_STATES[bufnr]
-    if not token or not spinner_state or spinner_state.token ~= token then
+    if not notif_id or not spinner_state or spinner_state.notif_id ~= notif_id then
         return
     end
 
@@ -67,14 +82,14 @@ local refresh = function(bufnr, token)
     local notif_level = spinner_state.failed_formatter and vim.log.levels.ERROR or vim.log.levels.INFO
 
     vim.notify(msg, notif_level, {
-        id = token,
+        id = notif_id,
         title = spinner_state.title,
         replace = true,
         opts = function(notif)
             if spinner_state.failed_formatter then
                 notif.icon = ""
             else
-                notif.icon = require("peter.core.utils").spinner:get_frame()
+                notif.icon = M.spinner:get_frame()
             end
         end,
     })
@@ -102,12 +117,12 @@ function M.start(bufnr)
         return nil
     end
 
-    local token = require("peter.core.utils").generate_uuid()
+    local notif_id = M.generate_notif_id()
 
     local title = "Formatting"
 
     CONFORM_SPINNER_STATES[bufnr] = {
-        token = token,
+        notif_id = notif_id,
         title = title,
         formatter_names = formatter_names,
         completed_formatters = completed_formatters,
@@ -119,29 +134,29 @@ function M.start(bufnr)
     local msg = generate_msg(CONFORM_SPINNER_STATES[bufnr])
 
     vim.notify(msg, vim.log.levels.INFO, {
-        id = token,
+        id = notif_id,
         title = title,
         replace = true,
         opts = function(notif)
-            notif.icon = require("peter.core.utils").spinner:get_frame()
+            notif.icon = M.spinner:get_frame()
         end,
     })
 
-    refresh(bufnr, token)
+    refresh(bufnr, notif_id)
 
-    return token
+    return notif_id
 end
 
 ---@param bufnr integer
----@param token string?
+---@param notif_id string?
 ---@param err string?
-function M.finish(bufnr, token, err)
-    if not token then
+function M.finish(bufnr, notif_id, err)
+    if not notif_id then
         return
     end
 
     local spinner_state = CONFORM_SPINNER_STATES[bufnr]
-    if not spinner_state or spinner_state.token ~= token then
+    if not spinner_state or spinner_state.notif_id ~= notif_id then
         return
     end
 
@@ -154,7 +169,7 @@ function M.finish(bufnr, token, err)
     local msg = generate_msg(spinner_state)
 
     vim.notify(msg, notif_level, {
-        id = token,
+        id = notif_id,
         title = spinner_state.title,
         replace = true,
         opts = function(notif)
@@ -171,14 +186,14 @@ end
 ---
 function M.format(opts, callback)
     local bufnr = vim.api.nvim_get_current_buf()
-    local token = M.start(bufnr)
+    local notif_id = M.start(bufnr)
 
-    if not token then
+    if not notif_id then
         return false
     end
 
     require("conform").format(opts, function(err, did_edit)
-        M.finish(bufnr, token, err)
+        M.finish(bufnr, notif_id, err)
         if callback then
             callback(err, did_edit)
         end
@@ -207,7 +222,7 @@ function M.setup()
 
             spinner_state.current_formatter = args.data.formatter.name
 
-            refresh(bufnr, spinner_state.token)
+            refresh(bufnr, spinner_state.notif_id)
         end,
     })
 
@@ -234,7 +249,7 @@ function M.setup()
                 spinner_state.completed_formatters[formatter_name] = true
             end
 
-            refresh(bufnr, spinner_state.token)
+            refresh(bufnr, spinner_state.notif_id)
         end,
     })
 end
