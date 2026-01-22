@@ -30,21 +30,6 @@ local get_range = function(args)
     return range
 end
 
-local format = function(opts)
-    local bufnr = vim.api.nvim_get_current_buf()
-    local conform_progress = require("conform-progress")
-    local token = conform_progress.start(bufnr)
-
-    if not token then
-        return
-    end
-
-    local format_opts = get_format_opts(opts)
-    require("conform").format(format_opts, function(err)
-        conform_progress.finish(bufnr, token, err)
-    end)
-end
-
 return {
     "stevearc/conform.nvim",
     cmd = { "ConformInfo" },
@@ -55,29 +40,30 @@ return {
     },
     dependencies = {
         {
-            dir = "~/.config/nvim/plugins/conform-progress",
+            dir = "~/.config/nvim/plugins/conform-spinner",
         },
     },
     init = function()
+        local format = require("conform-spinner").format
         vim.api.nvim_create_user_command("Format", function(args)
-            format({
+            format(get_format_opts({
                 range = get_range(args),
-            })
+            }))
         end, { range = true })
 
         vim.api.nvim_create_user_command("SlowFormat", function(args)
-            format({
+            format(get_format_opts({
                 formatters = {
                     python = { "pybetter" },
                 },
                 range = get_range(args),
-            })
+            }))
         end, { range = true })
 
         vim.api.nvim_create_user_command("DiffFormat", function()
             local bufnr = vim.api.nvim_get_current_buf()
-            local conform_progress = require("conform-progress")
-            local token = conform_progress.start(bufnr)
+            local conform_spinner = require("conform-spinner")
+            local token = conform_spinner.start(bufnr)
 
             if not token then
                 return
@@ -86,13 +72,13 @@ return {
             local hunks = require("gitsigns").get_hunks()
 
             if hunks == nil then
-                conform_progress.finish(bufnr, token, nil)
+                conform_spinner.finish(bufnr, token, nil)
                 return
             end
 
             local function format_range()
                 if next(hunks) == nil then
-                    conform_progress.finish(bufnr, token, nil)
+                    conform_spinner.finish(bufnr, token, nil)
                     return
                 end
                 local hunk = nil
@@ -109,7 +95,7 @@ return {
                     local format_opts = get_format_opts({ range = range })
                     require("conform").format(format_opts, function(err)
                         if err then
-                            conform_progress.finish(bufnr, token, err)
+                            conform_spinner.finish(bufnr, token, err)
                             return
                         end
 
@@ -118,7 +104,7 @@ return {
                         end, 1)
                     end)
                 else
-                    conform_progress.finish(bufnr, token)
+                    conform_spinner.finish(bufnr, token)
                 end
             end
 
@@ -126,7 +112,7 @@ return {
         end, {})
     end,
     config = function()
-        require("conform-progress").setup()
+        require("conform-spinner").setup()
 
         local conform = require("conform")
 
