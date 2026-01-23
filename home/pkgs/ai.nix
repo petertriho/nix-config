@@ -231,10 +231,7 @@ in
       with pkgs;
       [
         # amazon-q-cli
-        # gemini-cli
-        gh-copilot
         nodejs
-        # qwen-code
         ralph-tui
         python3Packages.tiktoken
         # goose-cli
