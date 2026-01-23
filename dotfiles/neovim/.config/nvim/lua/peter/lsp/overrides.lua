@@ -293,6 +293,16 @@ return {
                 },
             },
         },
+        on_attach = function(client, bufnr)
+            vim.api.nvim_buf_create_user_command(bufnr, "DenoOrganizeImports", function()
+                vim.lsp.buf.code_action({
+                    context = { only = { "source.organizeImports" } },
+                    apply = true,
+                })
+            end, { desc = "Organize Imports" })
+
+            vim.keymap.set("n", "gro", "<CMD>DenoOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+        end,
     },
     dockerls = {},
     docker_compose_language_service = {},
