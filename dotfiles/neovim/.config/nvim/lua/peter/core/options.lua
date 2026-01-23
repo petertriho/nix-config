@@ -123,7 +123,7 @@ local function build_wildignore()
 
     local regex_patterns = {}
     for _, folder in ipairs(folders) do
-        table.insert(regex_patterns, "^" .. folder)
+        table.insert(regex_patterns, "^" .. folder .. "$")
     end
     vim.g.wildignore_regex = regex_patterns
 
