@@ -23,6 +23,7 @@ let
     # backlog-md
     beads
     ccusage-opencode
+    ck
     # coding-agent-search
     copilot-cli
     copilot-language-server
@@ -101,6 +102,12 @@ let
         "https://mcp.atlassian.com/v1/sse"
       ];
       disabled = true;
+    };
+    ck = {
+      type = "stdio";
+      command = "ck";
+      args = [ "--serve" ];
+      disabled = false;
     };
     context7 = {
       type = "stdio";
