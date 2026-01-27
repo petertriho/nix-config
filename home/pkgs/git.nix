@@ -8,6 +8,7 @@
     packages = with pkgs; [
       gh # github cli
       gh-dash # github dashboard
+      gh-notify # github notification cli
       git
       git-gone # git garbage collector
       # git-machete # git branch management
