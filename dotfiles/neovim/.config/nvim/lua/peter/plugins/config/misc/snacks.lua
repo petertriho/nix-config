@@ -165,6 +165,60 @@ return {
                     },
                 },
                 sources = {
+                    semantic = {
+                        finder = function(opts, ctx)
+                            local query = ctx.filter.search
+                            if not query or query == "" then
+                                return function() end
+                            end
+
+                            local limit = tostring(opts.limit or 100)
+                            local args = { "--sem", "--jsonl", "--limit", limit }
+
+                            -- exclude patterns
+                            for _, e in ipairs(opts.exclude or {}) do
+                                vim.list_extend(args, { "--exclude", e })
+                            end
+
+                            -- no_ignore: skip .gitignore
+                            if opts.no_ignore then
+                                table.insert(args, "--no-ignore")
+                            end
+
+                            -- no_ckignore: skip .ckignore
+                            if opts.no_ckignore then
+                                table.insert(args, "--no-ckignore")
+                            end
+
+                            table.insert(args, query)
+                            table.insert(args, vim.uv.cwd() or ".")
+
+                            return require("snacks.picker.source.proc").proc(
+                                ctx:opts({
+                                    cmd = "ck",
+                                    args = args,
+                                    ---@param item snacks.picker.finder.Item
+                                    transform = function(item)
+                                        local ok, data = pcall(vim.json.decode, item.text)
+                                        if not ok or not data.path then
+                                            return false
+                                        end
+
+                                        item.file = data.path
+                                        local line = data.span and data.span.line_start or 1
+                                        item.pos = { line, 0 }
+                                        item.text = tostring(data.snippet or "")
+                                        item.score = data.score
+                                    end,
+                                }),
+                                ctx
+                            )
+                        end,
+                        format = "file",
+                        preview = "file",
+                        live = true,
+                        exclude = exclude,
+                    },
                     files = {
                         hidden = true,
                         exclude = exclude,
@@ -341,7 +395,7 @@ return {
             desc = "Buffers",
         },
         {
-            "<leader>tc",
+            "<leader>t:",
             function()
                 require("snacks").picker.commands()
             end,
@@ -503,6 +557,13 @@ return {
                 require("snacks").scratch.select()
             end,
             desc = "Select Scratch Buffer",
+        },
+        {
+            "<leader>tc",
+            function()
+                require("snacks").picker.semantic()
+            end,
+            desc = "Semantic Search (ck)",
         },
         {
             "<leader>tu",
