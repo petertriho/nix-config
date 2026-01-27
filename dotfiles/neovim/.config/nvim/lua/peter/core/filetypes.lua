@@ -67,6 +67,7 @@ local M = {
         "oil_preview",
         "prompt",
         "qf",
+        "snacks_dashboard",
         "snacks_picker_input",
         "snacks_picker_list",
         "snacks_picker_preview",
