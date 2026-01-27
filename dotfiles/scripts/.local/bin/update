@@ -81,6 +81,14 @@ function popd() {
 function tool:config {
     echo_header "Updating config"
     pushd "$NIX_CONFIG_PATH"
+
+    local current_branch=$(git branch --show-current)
+    if [[ "$current_branch" != "main" ]]; then
+        echo_warning "Not on main branch ($current_branch), skipping config update"
+        popd
+        return
+    fi
+
     echo_info "Stashing local changes..."
     git stash || true
     echo_info "Pulling latest changes..."
