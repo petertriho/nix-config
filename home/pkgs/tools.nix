@@ -11,6 +11,7 @@
     bun # JavaScript runtime
     coreutils # GNU core utilities
     dive # inspect docker images
+    dwt1-shell-color-scripts # shell color scripts collected by dt
     eza # ls replacement
     fd # find replacement
     fzf # fuzzy finder
@@ -19,6 +20,7 @@
     glow # markdown viewer
     grex # regex generator
     parallel # run jobs in parallel
+    pokemon-colorscripts # colorful scripts for Pokémon games
     httpie # user-friendly HTTP client
     stable.hurl # http client for testing APIs
     hyperfine # command-line benchmarking tool
