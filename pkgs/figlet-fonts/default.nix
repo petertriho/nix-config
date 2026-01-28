@@ -6,7 +6,7 @@
 
 stdenv.mkDerivation {
   pname = "figlet-fonts";
-  version = "unstable-2023-01-01";
+  version = "0-unstable-2025-11-23";
 
   src = fetchFromGitHub {
     owner = "xero";
