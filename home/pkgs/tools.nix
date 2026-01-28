@@ -14,6 +14,7 @@
     dwt1-shell-color-scripts # shell color scripts collected by dt
     eza # ls replacement
     fd # find replacement
+    figlet # ascii art text generator
     fzf # fuzzy finder
     gcc # GNU Compiler Collection
     gnumake # GNU Make
@@ -48,6 +49,7 @@
   ];
 
   home.sessionVariables = {
+    FIGLET_FONTDIR = "${pkgs.figlet-fonts}/share/figlet";
     GROFF_NO_SGR = "1"; # fix colored-man-pages plugin colors
     FZF_DEFAULT_OPTS = lib.strings.concatStringsSep " " [
       "--ansi"
