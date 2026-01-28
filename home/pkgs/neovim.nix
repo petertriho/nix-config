@@ -95,7 +95,7 @@
 
       # misc
       ctags-lsp
-      # universal-ctags
+      universal-ctags
     ]
     ++ lib.optionals pkgs.stdenv.isLinux [
       # qmlls (linux only, requires wayland)
