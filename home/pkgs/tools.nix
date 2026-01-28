@@ -31,6 +31,7 @@
     lstr # tree replacement
     lynx # text-based web browser
     navi # interactive cheatsheet tool
+    nix-auth # nix auth for providers (e.g. GitHub)
     nix-update # update Nix packages
     nurl # generate nix fetcher calls
     openssl # for generating certificates

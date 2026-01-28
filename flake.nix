@@ -43,6 +43,7 @@
     vicinae.url = "github:vicinaehq/vicinae";
     mcp-servers-nix.url = "github:natsukium/mcp-servers-nix";
     llm-agents.url = "github:numtide/llm-agents.nix";
+    nix-auth.url = "github:numtide/nix-auth";
   };
 
   outputs =
