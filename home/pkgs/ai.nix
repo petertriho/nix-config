@@ -34,6 +34,7 @@ let
     # qwen-code
     spec-kit
     tuicr
+    workmux
   ];
 
   sharedLspConfig = {
