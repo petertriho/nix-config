@@ -405,7 +405,7 @@ return {
         end,
     },
     lua_ls = {},
-    marksman = {},
+    -- marksman = {},
     mpls = {
         cmd = {
             "mpls",

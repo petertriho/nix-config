@@ -64,7 +64,7 @@
       harper
       jdt-language-server
       lua-language-server
-      marksman
+      # marksman # NOTE: disabled because it depends on dotnet which requires swift 5.10.1 (broken on darwin)
       mpls
       nil
       # nodePackages.typescript-language-server
