@@ -116,6 +116,15 @@ let
       args = [ ];
       disabled = false;
     };
+    chunkhound = {
+      type = "stdio";
+      command = "chunkhound";
+      args = [
+        "mcp"
+        "--stdio"
+      ];
+      disabled = false;
+    };
     fetch = {
       type = "stdio";
       command = "mcp-server-fetch";
@@ -239,9 +248,11 @@ in
       with pkgs;
       [
         # amazon-q-cli
+        chunkhound
         nodejs
         ralph-tui
-        python3Packages.tiktoken
+        # tiktoken is provided by chunkhound
+        # python3Packages.tiktoken
         # goose-cli
         # plandex
       ]
@@ -249,6 +260,11 @@ in
       ++ llmAgents;
     file.".gemini/settings.json".source =
       config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
+    sessionVariables = {
+      CHUNKHOUND_LLM_PROVIDER = "opencode";
+      CHUNKHOUND_LLM_UTILITY_MODEL = cheapModel;
+      CHUNKHOUND_LLM_SYNTHESIS_MODEL = "zai-coding-plan/glm-4.7";
+    };
   };
   programs.opencode = {
     enable = true;

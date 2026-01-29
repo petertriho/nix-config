@@ -2,7 +2,10 @@
 {
   additions =
     final: prev:
-    import ../pkgs { pkgs = final; }
+    import ../pkgs {
+      pkgs = final;
+      inherit inputs;
+    }
     // {
       fishPlugins = (prev.fishPlugins or { }) // import ../pkgs/fish-plugins { pkgs = final; };
       tmuxPlugins = (prev.tmuxPlugins or { }) // import ../pkgs/tmux-plugins { pkgs = final; };

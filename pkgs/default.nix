@@ -1,9 +1,13 @@
 {
   pkgs ? import <nixpkgs> { },
+  inputs ? { },
   ...
 }:
 with pkgs;
 {
+  chunkhound = callPackage ./chunkhound {
+    inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
+  };
   figlet-fonts = callPackage ./figlet-fonts { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   pybetter = callPackage ./pybetter { inherit pkgs; };

@@ -44,6 +44,19 @@
     mcp-servers-nix.url = "github:natsukium/mcp-servers-nix";
     llm-agents.url = "github:numtide/llm-agents.nix";
     nix-auth.url = "github:numtide/nix-auth";
+    pyproject-nix.url = "github:pyproject-nix/pyproject.nix";
+    pyproject-nix.inputs.nixpkgs.follows = "nixpkgs";
+    uv2nix = {
+      url = "github:pyproject-nix/uv2nix";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    pyproject-build-systems = {
+      url = "github:pyproject-nix/build-system-pkgs";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.uv2nix.follows = "uv2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -85,7 +98,12 @@
                 config.allowUnfree = true;
               };
             in
-            (import ./pkgs { inherit pkgs; })
+            (import ./pkgs {
+              inherit
+                pkgs
+                inputs
+                ;
+            })
             // {
               fish-plugins = import ./pkgs/fish-plugins { inherit pkgs; };
               tmux-plugins = import ./pkgs/tmux-plugins { inherit pkgs; };
