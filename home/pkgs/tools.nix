@@ -30,6 +30,7 @@
     lsof # list open files
     lstr # tree replacement
     lynx # text-based web browser
+    mermaid-ascii # render mermaid diagrams in terminal
     navi # interactive cheatsheet tool
     nix-auth # nix auth for providers (e.g. GitHub)
     nix-update # update Nix packages
