@@ -31,6 +31,7 @@ let
     gemini-cli
     openskills
     openspec
+    qmd
     # qwen-code
     spec-kit
     tuicr
