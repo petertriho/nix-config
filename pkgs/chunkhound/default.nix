@@ -1,6 +1,6 @@
 {
   lib,
-  python3Packages,
+  pkgs,
   fetchFromGitHub,
   pyproject-nix,
   uv2nix,
@@ -17,17 +17,13 @@ let
   workspace = uv2nix.lib.workspace.loadWorkspace {
     workspaceRoot = src;
   };
-
   overlay = workspace.mkPyprojectOverlay {
     sourcePreference = "wheel";
   };
-in
-with python3Packages;
-let
-  # Build python package set with uv2nix overlay
+
   pythonSet =
     (pkgs.callPackage pyproject-nix.build.packages {
-      inherit python;
+      inherit (pkgs.python312Packages) python;
     }).overrideScope
       (
         lib.composeManyExtensions [
