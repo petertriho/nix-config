@@ -115,6 +115,7 @@
       gwr = "git worktree remove";
       k = "kubectl";
       kc = "kubie ctx";
+      lg = "lazygit";
       ll = "ls -la";
       md = "models-dev";
       mk = "minikube";
