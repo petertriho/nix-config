@@ -96,7 +96,7 @@ return {
                         },
                         {
                             icon = " ",
-                            key = "g",
+                            key = "s",
                             desc = "Find Text",
                             action = ":lua Snacks.dashboard.pick('live_grep')",
                         },
@@ -105,6 +105,12 @@ return {
                             key = "r",
                             desc = "Recent Files",
                             action = ":lua Snacks.dashboard.pick('oldfiles')",
+                        },
+                        {
+                            icon = " ",
+                            key = "g",
+                            desc = "Lazygit",
+                            action = ":lua Snacks.lazygit()",
                         },
                         -- {
                         --     icon = " ",
@@ -150,11 +156,11 @@ return {
                         padding = 1,
                         key = "b",
                         action = function()
-                            Snacks.gitbrowse()
+                            snacks.gitbrowse()
                         end,
                     },
                     function()
-                        local in_git = Snacks.git.get_root() ~= nil
+                        local in_git = snacks.git.get_root() ~= nil
                         local cmds = {
                             {
                                 title = "Notifications",
