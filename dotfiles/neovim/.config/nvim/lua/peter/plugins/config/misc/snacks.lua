@@ -674,6 +674,12 @@ return {
             desc = "File URL",
         },
         {
+            "<leader>gL",
+            function()
+                require("snacks").lazygit()
+            end,
+        },
+        {
             "<leader>tc",
             function()
                 require("snacks").picker.semantic()
