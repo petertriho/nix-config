@@ -262,9 +262,13 @@ in
     file.".gemini/settings.json".source =
       config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
     sessionVariables = {
-      CHUNKHOUND_LLM_PROVIDER = "opencode";
+      CHUNKHOUND_LLM_PROVIDER = "opencode-cli";
       CHUNKHOUND_LLM_UTILITY_MODEL = cheapModel;
       CHUNKHOUND_LLM_SYNTHESIS_MODEL = "zai-coding-plan/glm-4.7";
+      CHUNKHOUND_EMBEDDING__PROVIDER = "openai";
+      # CHUNKHOUND_EMBEDDING__API_KEY = "";
+      CHUNKHOUND_EMBEDDING__BASE_URL = "https://openrouter.ai/api/v1";
+      CHUNKHOUND_EMBEDDING__MODEL = "qwen/qwen3-embedding-8b";
     };
   };
   programs.opencode = {
