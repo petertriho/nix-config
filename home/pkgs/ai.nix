@@ -288,11 +288,12 @@ in
         "@franlol/opencode-md-table-formatter"
         # "@mohak34/opencode-notifier"
         "@plannotator/opencode"
+        "@slkiser/opencode-quota"
         "@tarquinen/opencode-dcp"
         "opencode-mystatus"
       ];
       command = {
-        quota = {
+        mystatus = {
           description = "Query quota usage for all AI accounts";
           template = "Use the mystatus tool to query quota usage. Return the result as-is without modification.";
           model = cheapModel;
@@ -307,6 +308,7 @@ in
   };
   programs.fish.shellAbbrs = {
     ocr = "opencode run --model ${cheapModel}";
-    quota = "opencode run --model ${cheapModel} /quota";
+    mystatus = "opencode run --model ${cheapModel} /mystatus";
+    tokens = "opencode run --model ${cheapModel} /tokens_today";
   };
 }
