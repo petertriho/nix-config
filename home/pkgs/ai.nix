@@ -304,6 +304,8 @@ in
   };
   xdg.configFile = {
     "opencode/agent/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
+    "opencode/commands/plannotator-review.md".source =
+      config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-review.md";
     "crush/crush.json".text = crushConfig;
   };
   programs.fish.shellAbbrs = {
