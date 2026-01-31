@@ -287,7 +287,7 @@ in
         "opencode-antigravity-auth"
         "@franlol/opencode-md-table-formatter"
         # "@mohak34/opencode-notifier"
-        # "@plannotator/opencode"
+        "@plannotator/opencode"
         "@tarquinen/opencode-dcp"
         "opencode-mystatus"
       ];
