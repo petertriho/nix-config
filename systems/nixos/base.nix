@@ -2,6 +2,7 @@
   inputs,
   config,
   lib,
+  pkgs,
   ...
 }:
 {
@@ -19,6 +20,11 @@
       "docker"
       "wheel"
     ];
+  };
+
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [ ];
   };
 
   virtualisation = {
