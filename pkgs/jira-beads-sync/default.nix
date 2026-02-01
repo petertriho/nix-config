@@ -3,14 +3,14 @@
   buildGoModule,
   fetchFromGitHub,
 }:
-buildGoModule rec {
+buildGoModule {
   pname = "jira-beads-sync";
   version = "0.0.5-unstable-2026-02-01";
 
   src = fetchFromGitHub {
     owner = "conallob";
     repo = "jira-beads-sync";
-    rev = "v${version}";
+    rev = "6fe749359824936e51c54099f745bfa21c29111d";
     hash = "sha256-wqAL4tnHcprNdwVPmiVPgazZMc5bnEQn8OcZA610z+I=";
   };
 
