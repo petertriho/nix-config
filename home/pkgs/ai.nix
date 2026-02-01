@@ -35,6 +35,7 @@ let
     # qwen-code
     spec-kit
     tuicr
+    vibe-kanban
     workmux
   ];
 
