@@ -31,7 +31,8 @@
 
 [diff]
     colorMoved = zebra
-    mnemonicPrefix = true
+    # Disabled b/c of compatibility issues with plannotator-review
+    # mnemonicPrefix = true
     # external = difft
     renames = true
     tool = difftastic
