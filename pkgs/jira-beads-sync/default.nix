@@ -5,7 +5,7 @@
 }:
 buildGoModule rec {
   pname = "jira-beads-sync";
-  version = "0.0.5";
+  version = "0.0.5-unstable-2026-02-01";
 
   src = fetchFromGitHub {
     owner = "conallob";

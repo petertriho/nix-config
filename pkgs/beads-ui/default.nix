@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "beads-ui";
-  version = "0.9.3";
+  version = "0.9.3-unstable-2026-01-26";
 
   src = fetchFromGitHub {
     owner = "mantoni";
     repo = "beads-ui";
-    rev = "v0.9.3";
-    hash = "sha256-mgNnDDsp4gfCiRobXLMqMzzsdjrAQOwdwJYgnYyxRBI=";
+    rev = "cd0a4c59fcfe2c9a655ed2079a2a059a242906c5";
+    hash = "sha256-KRTu+vdHctyiN4CKN1BiAZXV2mf/2OJvuB3z+jB+kic=";
   };
 
   # The upstream package-lock.json is missing resolved/integrity for many
