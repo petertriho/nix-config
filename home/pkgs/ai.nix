@@ -250,6 +250,7 @@ in
       with pkgs;
       [
         # amazon-q-cli
+        beads-ui
         chunkhound
         nodejs
         ralph-tui

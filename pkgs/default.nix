@@ -5,6 +5,7 @@
 }:
 with pkgs;
 {
+  beads-ui = callPackage ./beads-ui { };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
