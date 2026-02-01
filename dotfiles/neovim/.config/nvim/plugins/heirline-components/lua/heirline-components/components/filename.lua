@@ -1,3 +1,5 @@
+local filename_utils = require("heirline-components.utils.filename")
+
 return {
     flexible = true,
     init = function(self)
@@ -6,19 +8,12 @@ return {
     {
         provider = function(self)
             local filename = vim.fn.fnamemodify(self.filename, ":~:.")
-            if filename == "" then
-                return "[No Name]"
-            end
-            return filename
+            return filename == "" and "[No Name]" or filename
         end,
     },
     {
         provider = function(self)
-            local filename = vim.fn.fnamemodify(self.filename, ":t")
-            if filename == "" then
-                return "[No Name]"
-            end
-            return filename
+            return filename_utils.get_smart_filename(self.filename)
         end,
     },
 }

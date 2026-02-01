@@ -91,10 +91,11 @@ local BufIndex = {
 }
 
 local FileName = {
+    init = function(self)
+        self.filename = vim.api.nvim_buf_get_name(self.bufnr)
+    end,
     provider = function(self)
-        local filename = self.filename
-        filename = filename == "" and "[No Name]" or vim.fn.fnamemodify(filename, ":t")
-        return filename
+        return require("heirline-components.utils.filename").get_smart_filename(self.filename)
     end,
     hl = function(self)
         return { bold = self.is_active or self.is_visible }
@@ -126,9 +127,6 @@ local FileFlags = {
 }
 
 local FileNameBlock = {
-    init = function(self)
-        self.filename = vim.api.nvim_buf_get_name(self.bufnr)
-    end,
     hl = function(self)
         if self.is_active then
             return {
