@@ -252,6 +252,7 @@ in
         # amazon-q-cli
         beads-ui
         chunkhound
+        jira-beads-sync
         nodejs
         ralph-tui
         # tiktoken is provided by chunkhound

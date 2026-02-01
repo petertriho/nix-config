@@ -10,6 +10,7 @@ with pkgs;
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
   figlet-fonts = callPackage ./figlet-fonts { };
+  jira-beads-sync = callPackage ./jira-beads-sync { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   ralph-tui = callPackage ./ralph-tui { };
