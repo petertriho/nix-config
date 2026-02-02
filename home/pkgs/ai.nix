@@ -306,10 +306,12 @@ in
     };
   };
   xdg.configFile = {
+    "crush/crush.json".text = crushConfig;
     "opencode/agent/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
     "opencode/commands/plannotator-review.md".source =
       config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-review.md";
-    "crush/crush.json".text = crushConfig;
+    "workmux/config.yaml".source =
+      config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   };
   programs.fish.shellAbbrs = {
     ocr = "opencode run --model ${cheapModel}";

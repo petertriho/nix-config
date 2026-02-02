@@ -1,0 +1,7 @@
+worktree_dir: worktrees/
+nerdfont: true
+agent: opencode
+merge_strategy: rebase
+panes:
+  - command: <agent>
+    focus: true

@@ -7,7 +7,7 @@
 {
   programs.fish = {
     enable = true;
-    generateCompletions = false;
+    # generateCompletions = false;
     plugins =
       with pkgs.fishPlugins;
       lib.lists.forEach
@@ -158,6 +158,16 @@
       ts = "bunx tokscale@latest";
       tst = "bunx tokscale@latest --light --today";
       upe = "set -x UV_PROJECT_ENVIRONMENT .venv";
+      w = "workmux";
+      wa = "workmux add";
+      wc = "workmux close";
+      wd = "workmux dashboard";
+      wi = "workmux init";
+      wl = "workmux list";
+      wm = "workmux merge";
+      wo = "workmux open";
+      wp = "workmux path";
+      wr = "workmux remove";
       ysdk = "yarn dlx @yarnpkg/sdks base"; # https://yarnpkg.com/getting-started/editor-sdks#neovim-native-lsp
     }
     // (
