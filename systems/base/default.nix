@@ -8,7 +8,7 @@
     ./environment.nix
     ./home-manager.nix
     ./options.nix
-    outputs.systemModules.helpers
+    outputs.systemModules.shells
   ];
 
   nix = {
