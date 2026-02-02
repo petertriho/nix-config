@@ -1,5 +1,6 @@
 {
   lib,
+  stdenv,
   pkgs,
   fetchFromGitHub,
   pyproject-nix,
@@ -10,13 +11,14 @@ let
   src = fetchFromGitHub {
     owner = "chunkhound";
     repo = "chunkhound";
-    rev = "52549c0300f820d664844397bb082beaaa964fff";
-    hash = "sha256-LlFl+Gk3+WwOT/IT2VBIFSqqfGJzCLOJL42WmV9GBYI=";
+    rev = "603efe4306731022bda63538382bf1a267f221bd";
+    hash = "sha256-DkpFjRFH6cerUwwDtGXFADxMPTH8ISKM0okxWeSxunk=";
   };
 
   workspace = uv2nix.lib.workspace.loadWorkspace {
     workspaceRoot = src;
   };
+
   overlay = workspace.mkPyprojectOverlay {
     sourcePreference = "wheel";
   };
@@ -31,6 +33,29 @@ let
           overlay
         ]
       );
+
+  pythonEnv = pythonSet.mkVirtualEnv "chunkhound-env" workspace.deps.default;
 in
-# Create virtualenv with chunkhound installed
-pythonSet.mkVirtualEnv "chunkhound" workspace.deps.default
+stdenv.mkDerivation {
+  pname = "chunkhound";
+  version = "4.1.0b1-unstable-2026-02-01";
+
+  inherit src;
+
+  dontUnpack = true;
+  dontBuild = true;
+
+  installPhase = ''
+    runHook preInstall
+    mkdir -p $out/bin
+    ln -s ${pythonEnv}/bin/chunkhound $out/bin/chunkhound
+    runHook postInstall
+  '';
+
+  meta = {
+    description = "Local-first codebase intelligence";
+    homepage = "https://github.com/chunkhound/chunkhound";
+    license = lib.licenses.mit;
+    mainProgram = "chunkhound";
+  };
+}
