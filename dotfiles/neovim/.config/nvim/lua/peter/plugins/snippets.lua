@@ -37,7 +37,8 @@ M.setup = function()
 
     local atlassian_company_name = vim.env.ATLASSIAN_COMPANY_NAME or "COMPANY_NAME"
     local atlassian_project_key = vim.env.ATLASSIAN_PROJECT_KEY or "PROJECT_KEY"
-    local refsx_snippet = function(trigger)
+    local project_keys = vim.split(atlassian_project_key, ",", { trimempty = true })
+    local refsx_snippet = function(trigger, project_key)
         return s(
             trigger,
             fmt(
@@ -47,16 +48,16 @@ M.setup = function()
 
            Refs: https://%s.atlassian.net/browse/%s-{2}
            ]],
-                    atlassian_project_key,
+                    project_key,
                     atlassian_company_name,
-                    atlassian_project_key
+                    project_key
                 ),
                 { i(1, "1234"), rep(1), i(2, "commit message") }
             )
         )
     end
 
-    ls.add_snippets("gitcommit", {
+    local gitcommit_snippets = {
         s("flake", {
             t("chore(nix): update `flake.lock`"),
         }),
@@ -68,14 +69,23 @@ M.setup = function()
                 return string.format(
                     "Refs: https://%s.atlassian.net/browse/%s-",
                     atlassian_company_name,
-                    atlassian_project_key
+                    project_keys[1]
                 )
             end, {}),
         }),
-        refsx_snippet("refsx"),
-        refsx_snippet(atlassian_project_key),
-        refsx_snippet(string.lower(atlassian_project_key)),
-    })
+        refsx_snippet("refsx", project_keys[1]),
+    }
+
+    for i, key in ipairs(project_keys) do
+        if i > 1 then
+            table.insert(gitcommit_snippets, refsx_snippet("refs" .. i - 1, key))
+            table.insert(gitcommit_snippets, refsx_snippet("refsx" .. i - 1, key))
+        end
+        table.insert(gitcommit_snippets, refsx_snippet(key, key))
+        table.insert(gitcommit_snippets, refsx_snippet(string.lower(key), key))
+    end
+
+    ls.add_snippets("gitcommit", gitcommit_snippets)
     ls.filetype_extend("NeogitCommitMessage", { "gitcommit" })
     ls.filetype_extend("markdown", { "gitcommit" })
 
