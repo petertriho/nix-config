@@ -1,15 +1,19 @@
 local M = {}
 
-local function get_filename_counts()
-    local filename_counts = {}
-    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-        local name = vim.api.nvim_buf_get_name(bufnr)
-        if name ~= "" then
-            local filename = vim.fn.fnamemodify(name, ":t")
-            filename_counts[filename] = (filename_counts[filename] or 0) + 1
+local function has_duplicate_basename(target_basename)
+    local count = 0
+    for _, buf in ipairs(vim.fn.getbufinfo({ bufloaded = 1 })) do
+        if buf.name ~= "" then
+            local filename = vim.fn.fnamemodify(buf.name, ":t")
+            if filename == target_basename then
+                count = count + 1
+                if count > 1 then
+                    return true
+                end
+            end
         end
     end
-    return filename_counts
+    return false
 end
 
 local function abbreviate_path(path)
@@ -36,9 +40,8 @@ function M.get_smart_filename(filename)
         return "[No Name]"
     end
 
-    local filename_counts = get_filename_counts()
     local basename = vim.fn.fnamemodify(filename, ":t")
-    local is_duplicate = (filename_counts[basename] or 0) > 1
+    local is_duplicate = has_duplicate_basename(basename)
 
     if is_duplicate then
         local relative_path = vim.fn.fnamemodify(filename, ":~:.")
