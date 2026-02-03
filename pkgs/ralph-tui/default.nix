@@ -45,13 +45,13 @@ let
 
   finalAttrs = rec {
     pname = "ralph-tui";
-    version = "0.6.0-unstable-2026-01-30";
+    version = "0.6.0-unstable-2026-02-02";
 
     src = fetchFromGitHub {
       owner = "subsy";
       repo = "ralph-tui";
-      rev = "17bcefc6a24c1bd6924d0daf3461b866fb491433";
-      hash = "sha256-bIjc3SulsfIB+B3fjyYMhoYakjDW40tkbYvNGiQZ7sA=";
+      rev = "9a5c5a0facf430bf60a9a3f32046fff31112e340";
+      hash = "sha256-Papn6Aj+WnsKD5LhRTSZ8Owq3y2EL0y44Wg60yehtxU=";
     };
 
     nativeBuildInputs = [
