@@ -78,6 +78,10 @@ function install_git() {
         sudo apt-get update
         sudo apt-get install -y git
         log_success "Git installed successfully"
+    elif [[ $OS == "nixos" ]]; then
+        log_info "Installing git on NixOS..."
+        nix profile install nixpkgs#git
+        log_success "Git installed successfully"
     fi
 }
 
