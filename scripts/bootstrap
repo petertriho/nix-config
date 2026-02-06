@@ -161,7 +161,7 @@ function setup_github() {
     if command_exists gh; then
         log_info "Setting up GitHub authentication..."
         if ! gh auth status > /dev/null 2>&1; then
-            gh auth login
+            gh auth login --git-protocol ssh --web
         else
             log_info "Already authenticated with GitHub"
         fi
