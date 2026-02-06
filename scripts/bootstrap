@@ -129,7 +129,7 @@ function setup_linux_home_manager() {
 
     # Install home-manager and apply configuration
     log_info "Installing home-manager configuration..."
-    nix run home-manager/master -- switch --flake ~/.nix-config
+    nix run home-manager/master -- switch --flake ~/.nix-config --accept-flake-config
 
     log_success "$distro setup completed"
 }
@@ -140,7 +140,7 @@ function setup_darwin() {
 
     # Apply nix-darwin configuration
     log_info "Applying nix-darwin configuration..."
-    sudo nix run nix-darwin/master#darwin-rebuild switch --flake ~/.nix-config
+    sudo nix run nix-darwin/master -- darwin-rebuild switch --flake ~/.nix-config --accept-flake-config
 
     log_success "macOS setup completed"
 }
@@ -151,7 +151,7 @@ function setup_nixos() {
 
     # Apply NixOS configuration
     log_info "Applying NixOS configuration..."
-    sudo nixos-rebuild switch --flake ~/.nix-config
+    sudo nixos-rebuild switch --flake ~/.nix-config --accept-flake-config
 
     log_success "NixOS setup completed"
 }
