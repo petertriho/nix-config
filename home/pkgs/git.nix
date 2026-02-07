@@ -31,7 +31,7 @@
     # Remove delta_side_by_side function when fixed
     # https://github.com/dandavison/delta/issues/359
     # https://github.com/wfxr/forgit/issues/121
-    sessionVariables.FORGIT_PAGER = "delta --width $\{FZF_PREVIEW_COLUMNS:-$COLUMNS}";
+    sessionVariables.FORGIT_PAGER = "delta --width \\$\{FZF_PREVIEW_COLUMNS:-$COLUMNS}";
   };
 
   xdg.configFile = {
