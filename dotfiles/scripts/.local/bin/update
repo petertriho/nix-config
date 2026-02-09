@@ -117,8 +117,8 @@ function tool:nvim:clean {
         echo_header "Cleaning neovim plugins"
         nvim --headless "+Lazy! clean" +qa
         echo_success "Neovim plugins cleaned"
-        echo_info "Clearing watchman watches..."
-        watchman watch-del-all # clear watchman watches for nvim plugins
+        # echo_info "Clearing watchman watches..."
+        # watchman watch-del-all # clear watchman watches for nvim plugins
     else
         echo_warning "Neovim not found, skipping plugin cleanup"
     fi
@@ -310,7 +310,7 @@ function tool:pkgs:update {
     else
         # Get list of available packages
         local packages=($(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]'))
-        
+
         for package in "${packages[@]}"; do
             # Check if this is a plugin collection (fish-plugins or tmux-plugins)
             if [[ $package == "fish-plugins" || $package == "tmux-plugins" ]]; then
