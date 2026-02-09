@@ -21,8 +21,8 @@
       # jujutsu
       lazygit # git tui
       mergiraf # git merge conflict resolver
-      rs-git-fsmonitor
-      watchman
+      # rs-git-fsmonitor
+      # watchman
     ];
     file = {
       ".gitconfig".source = config.lib.meta.mkDotfilesSymlink "git/.gitconfig";
