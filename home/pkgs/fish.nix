@@ -141,6 +141,7 @@
       ol = "openspec list";
       pv = "python -m venv .venv";
       q = "amazon-q";
+      rand = "openssl rand -base64 16";
       rmf = "rm -rf";
       rv = "rm -rf .venv";
       sc = "sesh-connect-fzf";
