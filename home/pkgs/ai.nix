@@ -289,7 +289,7 @@ in
       plugin = [
         "opencode-antigravity-auth"
         "@franlol/opencode-md-table-formatter"
-        # "@mohak34/opencode-notifier"
+        "@mohak34/opencode-notifier"
         "@plannotator/opencode"
         "@slkiser/opencode-quota"
         "@tarquinen/opencode-dcp"
@@ -303,6 +303,11 @@ in
         };
       };
       provider = builtins.fromJSON (builtins.readFile ../../dotfiles/opencode/provider.json);
+      agent = {
+        build = {
+          model = "zai-coding-plan/glm-4.7";
+        };
+      };
     };
   };
   xdg.configFile = {
