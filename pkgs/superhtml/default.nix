@@ -10,7 +10,7 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "superhtml";
-  version = "0.6.2";
+  version = "0.6.2-unstable-2025-10-18";
 
   src = fetchFromGitHub {
     owner = "kristoff-it";
