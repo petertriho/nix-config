@@ -304,8 +304,11 @@ in
       };
       provider = builtins.fromJSON (builtins.readFile ../../dotfiles/opencode/provider.json);
       agent = {
+        plan = {
+          model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
+        };
         build = {
-          model = "zai-coding-plan/glm-4.7";
+          model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
         };
       };
     };

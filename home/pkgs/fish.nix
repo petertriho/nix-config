@@ -135,6 +135,8 @@
       ];
       ns = "nix search nixpkgs";
       oc = "opencode";
+      ocb = "set -x OPENCODE_AGENT_BUILD_MODEL (models-dev)";
+      ocp = "set -x OPENCODE_AGENT_PLAN_MODEL (models-dev)";
       oi = "openspec init";
       oa = "openspec archive";
       oas = "openspec archive --skip-specs";
