@@ -110,7 +110,7 @@ let
       type = "stdio";
       command = "ck";
       args = [ "--serve" ];
-      disabled = false;
+      disabled = true;
     };
     context7 = {
       type = "stdio";
@@ -287,7 +287,7 @@ in
       small_model = cheapModel;
       mcp = opencodeMcpConfig;
       plugin = [
-        "opencode-antigravity-auth"
+        "opencode-antigravity-auth@beta"
         "@franlol/opencode-md-table-formatter"
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
