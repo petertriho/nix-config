@@ -287,7 +287,7 @@ in
       small_model = cheapModel;
       mcp = opencodeMcpConfig;
       plugin = [
-        "opencode-antigravity-auth@beta"
+        "opencode-antigravity-auth"
         "@franlol/opencode-md-table-formatter"
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
