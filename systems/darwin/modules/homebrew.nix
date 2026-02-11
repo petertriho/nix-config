@@ -29,9 +29,9 @@ in
       # upgrade = true;
     };
     taps = [
-      "nguyenphutrong/tap"
+      # "nguyenphutrong/tap"
       "nikitabobko/tap"
-      "steipete/tap"
+      # "steipete/tap"
     ];
     brews = [
       "mas"
@@ -59,14 +59,14 @@ in
       "keyboardcleantool"
       "meetingbar"
       "nextcloud"
-      "nguyenphutrong/tap/quotio"
+      # "nguyenphutrong/tap/quotio"
       "nikitabobko/tap/aerospace"
       "notunes"
       "obsidian"
       "opencode-desktop"
       "orbstack"
       "raycast"
-      "steipete/tap/codexbar"
+      # "steipete/tap/codexbar"
       "wezterm"
       # "airbuddy"
       # "badgeify"
