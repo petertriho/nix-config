@@ -127,6 +127,12 @@ M.setup = function()
     })
 
     ls.add_snippets("conf", {
+        s("ocb", {
+            t("export OPENCODE_AGENT_BUILD_MODEL="),
+        }),
+        s("ocp", {
+            t("export OPENCODE_AGENT_PLAN_MODEL="),
+        }),
         s("upe", {
             t("export UV_PROJECT_ENVIRONMENT=.venv"),
         }),
