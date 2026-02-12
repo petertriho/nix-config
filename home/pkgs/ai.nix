@@ -286,11 +286,9 @@ in
       small_model = cheapModel;
       mcp = opencodeMcpConfig;
       plugin = [
-        "opencode-antigravity-auth"
         "@franlol/opencode-md-table-formatter"
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
-        "@slkiser/opencode-quota"
         "@tarquinen/opencode-dcp"
         "opencode-mystatus"
       ];
@@ -301,7 +299,6 @@ in
           model = cheapModel;
         };
       };
-      provider = builtins.fromJSON (builtins.readFile ../../dotfiles/opencode/provider.json);
       agent = {
         plan = {
           model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
