@@ -411,6 +411,16 @@ function tool:brew {
     fi
 }
 
+function tool:brew:clean {
+    if command -v brew &> /dev/null; then
+        echo_header "Cleaning homebrew cache"
+        brew cleanup --prune=7
+        echo_success "Homebrew cache cleaned"
+    else
+        echo_warning "Homebrew not found, skipping"
+    fi
+}
+
 function tool:fish {
     echo_header "Updating fish completions"
     fish -c 'fish_update_completions'
@@ -426,7 +436,7 @@ function tool:fish:clean {
 
 function tool:misc:clean {
     echo_header "Cleaning miscellaneous"
-    rm -f "${HOME}/.cache/opencode/models.json"
+    # rm -f "${HOME}/.cache/opencode/models.json"
     echo_success "Miscellaneous cleaned"
 }
 
@@ -435,6 +445,9 @@ function tool:clean {
     tool:nvim:clean
     tool:nix:clean
     tool:fish:clean
+    if [[ $OS == "darwin" ]]; then
+        tool:brew:clean
+    fi
     tool:misc:clean
     echo_success "Cleanup complete"
 }
