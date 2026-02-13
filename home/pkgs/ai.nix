@@ -106,12 +106,12 @@ let
       ];
       disabled = true;
     };
-    ck = {
-      type = "stdio";
-      command = "ck";
-      args = [ "--serve" ];
-      disabled = true;
-    };
+    # ck = {
+    #   type = "stdio";
+    #   command = "ck";
+    #   args = [ "--serve" ];
+    #   disabled = true;
+    # };
     context7 = {
       type = "stdio";
       command = "context7-mcp";
@@ -127,22 +127,22 @@ let
       ];
       disabled = false;
     };
-    fetch = {
-      type = "stdio";
-      command = "mcp-server-fetch";
-      args = [ ];
-      disabled = true;
-    };
-    grafana = {
-      type = "stdio";
-      command = "mcp-grafana";
-      args = [ ];
-      env = {
-        GRAFANA_URL = "{env:OPENCODE_GRAFANA_URL}";
-        GRAFANA_API_KEY = "{env:OPENCODE_GRAFANA_API_KEY}";
-      };
-      disabled = true;
-    };
+    # fetch = {
+    #   type = "stdio";
+    #   command = "mcp-server-fetch";
+    #   args = [ ];
+    #   disabled = true;
+    # };
+    # grafana = {
+    #   type = "stdio";
+    #   command = "mcp-grafana";
+    #   args = [ ];
+    #   env = {
+    #     GRAFANA_URL = "{env:OPENCODE_GRAFANA_URL}";
+    #     GRAFANA_API_KEY = "{env:OPENCODE_GRAFANA_API_KEY}";
+    #   };
+    #   disabled = true;
+    # };
     # nixos = {
     #   type = "stdio";
     #   command = "mcp-nixos";
@@ -163,18 +163,18 @@ let
       ];
       disabled = false;
     };
-    sequential-thinking = {
-      type = "stdio";
-      command = "mcp-server-sequential-thinking";
-      args = [ ];
-      disabled = false;
-    };
-    terraform = {
-      type = "stdio";
-      command = "terraform-mcp-server";
-      args = [ ];
-      disabled = true;
-    };
+    # sequential-thinking = {
+    #   type = "stdio";
+    #   command = "mcp-server-sequential-thinking";
+    #   args = [ ];
+    #   disabled = true;
+    # };
+    # terraform = {
+    #   type = "stdio";
+    #   command = "terraform-mcp-server";
+    #   args = [ ];
+    #   disabled = true;
+    # };
   };
 
   toOpencodeLsp =
