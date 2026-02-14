@@ -33,7 +33,7 @@ let
     qmd
     # qwen-code
     tuicr
-    # vibe-kanban
+    vibe-kanban
     workmux
   ];
 
