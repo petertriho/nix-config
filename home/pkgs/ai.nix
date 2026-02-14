@@ -22,7 +22,6 @@ let
   llmAgents = with pkgs.llm-agents; [
     # backlog-md
     beads
-    ccusage-opencode
     ck
     # coding-agent-search
     copilot-cli
@@ -33,7 +32,6 @@ let
     openspec
     qmd
     # qwen-code
-    spec-kit
     tuicr
     # vibe-kanban
     workmux
