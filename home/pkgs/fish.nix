@@ -137,10 +137,11 @@
       oc = "opencode";
       ocb = "set -x OPENCODE_AGENT_BUILD_MODEL (models-dev)";
       ocp = "set -x OPENCODE_AGENT_PLAN_MODEL (models-dev)";
-      oi = "openspec init";
-      oa = "openspec archive";
-      oas = "openspec archive --skip-specs";
-      ol = "openspec list";
+      opsa = "openspec archive";
+      opsas = "openspec archive --skip-specs";
+      opsi = "openspec init";
+      opsl = "openspec list";
+      opsv = "openspec view";
       pv = "python -m venv .venv";
       q = "amazon-q";
       rand = "openssl rand -base64 16";
