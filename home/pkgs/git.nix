@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -35,8 +36,9 @@
   };
 
   xdg.configFile = {
-    # "git/fsmonitor.gitconfig".source =
-    #   config.lib.meta.mkDotfilesSymlink "git/.config/git/fsmonitor.gitconfig";
+    "git/fsmonitor.gitconfig" = lib.mkIf pkgs.stdenv.isDarwin {
+      source = config.lib.meta.mkDotfilesSymlink "git/.config/git/fsmonitor.gitconfig";
+    };
     "git/attributes".source = config.lib.meta.mkDotfilesSymlink "git/.config/git/attributes";
     "git/global.gitignore".source =
       config.lib.meta.mkDotfilesSymlink "git/.config/git/global.gitignore";
