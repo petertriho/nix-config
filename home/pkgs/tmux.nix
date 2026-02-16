@@ -113,6 +113,7 @@
             set -g @tmux_window_name_ignored_programs "${ignored_programs}"
             set -g @tmux_window_name_shells "${name_shells}"
             set -g @tmux_window_name_substitute_sets "${substitute_sets}"
+            set -g @tmux_window_name_custom_icons '{"opencode":"󱜚"}'
           '';
       }
       {
