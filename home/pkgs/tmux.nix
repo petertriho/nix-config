@@ -98,6 +98,9 @@
             ];
             dir_programs = mkStringList "'" [
               "git"
+              "nvim"
+              "vi"
+              "vim"
             ];
             ignored_programs = mkStringList "'" [
               "kubie"
@@ -105,10 +108,11 @@
           in
           # tmux
           ''
+            set -g @tmux_window_name_dir_programs "${dir_programs}"
+            set -g @tmux_window_name_icon_style "'name_and_icon'"
+            set -g @tmux_window_name_ignored_programs "${ignored_programs}"
             set -g @tmux_window_name_shells "${name_shells}"
             set -g @tmux_window_name_substitute_sets "${substitute_sets}"
-            set -g @tmux_window_name_dir_programs "${dir_programs}"
-            set -g @tmux_window_name_ignored_programs "${ignored_programs}"
           '';
       }
       {
