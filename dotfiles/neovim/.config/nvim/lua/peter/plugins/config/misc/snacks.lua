@@ -678,6 +678,7 @@ return {
             function()
                 require("snacks").lazygit()
             end,
+            desc = "Lazygit",
         },
         {
             "<leader>tc",
