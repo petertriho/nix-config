@@ -22,7 +22,7 @@ let
     };
     aarch64-darwin = {
       url = "https://github.com/backnotprop/plannotator/releases/download/v${version}/plannotator-darwin-arm64";
-      hash = lib.fakeHash;
+      hash = "sha256-o0PWoKy34AnUxkT/7KzCeG1blORH3L2wWIR+8O0q+w4=";
     };
   };
 
