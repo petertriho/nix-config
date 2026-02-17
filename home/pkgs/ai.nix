@@ -321,6 +321,5 @@ in
   programs.fish.shellAbbrs = {
     ocr = "opencode run --model ${cheapModel}";
     mystatus = "opencode run --model ${cheapModel} /mystatus";
-    tokens = "opencode run --model ${cheapModel} /tokens_today";
   };
 }
