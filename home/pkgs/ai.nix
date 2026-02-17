@@ -309,7 +309,7 @@ in
   };
   xdg.configFile = {
     "crush/crush.json".text = crushConfig;
-    "opencode/agent/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agent/";
+    "opencode/agents/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/";
     "opencode/commands/plannotator-annotate.md".source =
       config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-annotate.md";
     "opencode/commands/plannotator-review.md".source =
