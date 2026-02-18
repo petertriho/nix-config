@@ -87,7 +87,8 @@ return {
             ["<C-e>"] = {
                 "hide",
                 function()
-                    if not vim.lsp.inline_completion.get() then
+                    local _, result = pcall(vim.lsp.inline_completion.get)
+                    if not result then
                         return
                     end
                     -- if vim.g.copilot_model == nil then
