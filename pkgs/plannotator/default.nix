@@ -5,12 +5,12 @@
 }:
 
 let
-  version = "0.8.0";
+  version = "0.8.1";
 
   binaries = {
     x86_64-linux = {
       url = "https://github.com/backnotprop/plannotator/releases/download/v${version}/plannotator-linux-x64";
-      hash = "sha256-plXEV3EYx3hJJUIAPobhBNtT7dDA2Q8KnrHx3F7R8b0=";
+      hash = "sha256-4R8a/ymSJo33dXMBatf63hGZQs8E72fAuyJEWRHAtLo=";
     };
     aarch64-linux = {
       url = "https://github.com/backnotprop/plannotator/releases/download/v${version}/plannotator-linux-arm64";
@@ -22,7 +22,7 @@ let
     };
     aarch64-darwin = {
       url = "https://github.com/backnotprop/plannotator/releases/download/v${version}/plannotator-darwin-arm64";
-      hash = "sha256-o0PWoKy34AnUxkT/7KzCeG1blORH3L2wWIR+8O0q+w4=";
+      hash = lib.fakeHash;
     };
   };
 
@@ -32,7 +32,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "plannotator";
-  version = "0.8.0-unstable-2026-02-16";
+  version = "0.8.1";
 
   src = fetchurl binary;
 
