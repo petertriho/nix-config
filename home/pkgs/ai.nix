@@ -252,7 +252,6 @@ in
         chunkhound
         nodejs
         ralph-tui
-        plannotator
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
         # goose-cli

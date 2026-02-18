@@ -11,7 +11,6 @@ with pkgs;
   };
   figlet-fonts = callPackage ./figlet-fonts { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
-  plannotator = callPackage ./plannotator { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   ralph-tui = callPackage ./ralph-tui { };
   shellock = callPackage ./shellock { };
