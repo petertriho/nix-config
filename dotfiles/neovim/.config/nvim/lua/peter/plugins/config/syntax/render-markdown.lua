@@ -5,6 +5,7 @@ local ft = {
 }
 return {
     "MeanderingProgrammer/render-markdown.nvim",
+    enabled = false,
     ft = ft,
     opts = {
         file_types = ft,
