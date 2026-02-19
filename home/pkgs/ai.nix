@@ -20,6 +20,7 @@ let
       # playwright-mcp
     ]);
   llmAgents = with pkgs.llm-agents; [
+    agent-browser
     # backlog-md
     beads
     ck
