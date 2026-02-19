@@ -4,15 +4,15 @@ return {
         "CodeCompanion",
     },
     keys = {
-        { "<leader>cc", "<CMD>CodeCompanionCmd<CR>", desc = "Cmd" },
-        { "<leader>cp", "<CMD>CodeCompanionActions<CR>", desc = "Palette" },
+        { "<leader>Cc", "<CMD>CodeCompanionCmd<CR>", desc = "Cmd" },
+        { "<leader>Cp", "<CMD>CodeCompanionActions<CR>", desc = "Palette" },
         {
-            "<leader>ct",
+            "<leader>Ct",
             "<CMD>CodeCompanionChat Toggle<CR>",
             desc = "Toggle",
         },
         {
-            "<leader>ca",
+            "<leader>Ca",
             "<CMD>CodeCompanionChat Add<CR>",
             mode = {
                 "v",

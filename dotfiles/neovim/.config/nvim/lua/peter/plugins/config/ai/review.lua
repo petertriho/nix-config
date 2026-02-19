@@ -6,8 +6,8 @@ return {
     },
     cmd = { "Review" },
     keys = {
-        { "<leader>r", "<CMD>Review<CR>", desc = "Review" },
-        { "<leader>R", "<CMD>Review commits<CR>", desc = "Review commits" },
+        { "<leader>gr", "<CMD>Review<CR>", desc = "Review" },
+        { "<leader>gR", "<CMD>Review commits<CR>", desc = "Review commits" },
     },
     opts = {},
 }

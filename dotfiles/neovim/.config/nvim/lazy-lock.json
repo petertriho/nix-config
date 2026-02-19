@@ -65,6 +65,7 @@
   "popup.nvim": { "branch": "master", "commit": "b7404d35d5d3548a82149238289fa71f7f6de4ac" },
   "promise-async": { "branch": "main", "commit": "119e8961014c9bfaf1487bf3c2a393d254f337e2" },
   "quicker.nvim": { "branch": "master", "commit": "fc041830fa7cf093786b0d5990d99cf3c7b0c129" },
+  "quickfix-review-nvim": { "branch": "main", "commit": "591492429572b3d81a9c4803cb10abfb6e69da46" },
   "referencer.nvim": { "branch": "master", "commit": "7e9420ee16e3b3eecc9b3fc53ff75448435e94bd" },
   "render-markdown.nvim": { "branch": "main", "commit": "48b4175dbca8439d30c1f52231cbe5a712c8f9d9" },
   "review.nvim": { "branch": "main", "commit": "004ae79ede88ce8655a777c87fb8d200c86b7bf6" },

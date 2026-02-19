@@ -503,11 +503,34 @@ return {
             desc = "Logs",
         },
         {
+            "<leader>gL",
+            function()
+                require("snacks").lazygit()
+            end,
+            desc = "Lazygit",
+        },
+        {
             "<leader>gs",
             function()
                 require("snacks").picker.git_stash()
             end,
             desc = "Stash",
+        },
+        {
+            "<leader>guf",
+            function()
+                require("snacks").gitbrowse({ what = "file" })
+            end,
+            mode = { "n", "v" },
+            desc = "File URL",
+        },
+        {
+            "<leader>gur",
+            function()
+                require("snacks").gitbrowse({ what = "repo" })
+            end,
+            mode = { "n", "v" },
+            desc = "Repo URL",
         },
         {
             "<leader>ta",
@@ -656,29 +679,6 @@ return {
                 require("snacks").bufdelete.other()
             end,
             desc = "Other Buffers",
-        },
-        {
-            "<leader>gr",
-            function()
-                require("snacks").gitbrowse({ what = "repo" })
-            end,
-            mode = { "n", "v" },
-            desc = "Repo URL",
-        },
-        {
-            "<leader>gu",
-            function()
-                require("snacks").gitbrowse({ what = "file" })
-            end,
-            mode = { "n", "v" },
-            desc = "File URL",
-        },
-        {
-            "<leader>gL",
-            function()
-                require("snacks").lazygit()
-            end,
-            desc = "Lazygit",
         },
         {
             "<leader>tc",
