@@ -13,7 +13,7 @@
       kubeswitch
       kubevpn
       kubie
-      minikube
+      # minikube
       # NOTE: add these to direnv/devenv instead
       # opentofu
       # terraform
