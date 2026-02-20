@@ -153,12 +153,6 @@ let
     #   args = [ ];
     #   disabled = true;
     # };
-    searchmcp = {
-      type = "stdio";
-      command = "rivalsearchmcp";
-      args = [ ];
-      disabled = false;
-    };
     playwriter = {
       type = "stdio";
       command = "${pkgs.nodejs}/bin/npx";
@@ -258,7 +252,6 @@ in
         chunkhound
         nodejs
         ralph-tui
-        rivalsearchmcp
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
         # goose-cli
