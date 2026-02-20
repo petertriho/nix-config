@@ -34,30 +34,30 @@ let
     });
   };
 
-  buildSystemOverrides = final: prev: {
-    hdbscan = prev.hdbscan.overrideAttrs (old: {
-      postPatch = ''
-        substituteInPlace pyproject.toml --replace 'cython<4' 'cython>=0.29,<3'
-        # Patch setup.py to not fail when Cython isn't immediately available
-        # uv's internal isolation will install it from build-system.requires
-        substituteInPlace setup.py --replace \
-          'raise ImportError' '# raise ImportError'
-      '';
-      dontUseBuildIsolation = true;
-      env.UV_NO_BUILD_ISOLATION = "1";
-      nativeBuildInputs =
-        old.nativeBuildInputs or [ ]
-        ++ final.resolveBuildSystem {
-          setuptools = [ ];
-          cython = [ ];
-          numpy = [ ];
-        };
-      buildInputs = old.buildInputs or [ ] ++ [
-        final.cython
-        final.numpy
-      ];
-    });
-  };
+  buildSystemOverrides =
+    final: prev:
+    lib.optionalAttrs stdenv.isLinux {
+      hdbscan = prev.hdbscan.overrideAttrs (old: {
+        postPatch = ''
+          substituteInPlace pyproject.toml --replace 'cython<4' 'cython>=0.29,<3'
+          substituteInPlace setup.py --replace \
+              'raise ImportError' '# raise ImportError'
+        '';
+        dontUseBuildIsolation = true;
+        env.UV_NO_BUILD_ISOLATION = "1";
+        nativeBuildInputs =
+          old.nativeBuildInputs or [ ]
+          ++ final.resolveBuildSystem {
+            setuptools = [ ];
+            cython = [ ];
+            numpy = [ ];
+          };
+        buildInputs = old.buildInputs or [ ] ++ [
+          final.cython
+          final.numpy
+        ];
+      });
+    };
 
   pythonSet =
     (pkgs.callPackage pyproject-nix.build.packages {
