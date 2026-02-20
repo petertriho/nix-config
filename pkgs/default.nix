@@ -13,6 +13,9 @@ with pkgs;
   mermaid-ascii = callPackage ./mermaid-ascii { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   ralph-tui = callPackage ./ralph-tui { };
+  rivalsearchmcp = callPackage ./rivalsearchmcp {
+    inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
+  };
   shellock = callPackage ./shellock { };
   sort-package-json = callPackage ./sort-package-json { };
   superhtml = callPackage ./superhtml { };
