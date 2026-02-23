@@ -6,6 +6,7 @@
 }:
 let
   cheapModel = "github-copilot/gpt-5-mini";
+  defaultModel = "zai-coding-plan/glm-5";
 
   mcpServers =
     (with pkgs.mcp-servers; [
@@ -264,7 +265,7 @@ in
     sessionVariables = {
       CHUNKHOUND_LLM_PROVIDER = "opencode-cli";
       CHUNKHOUND_LLM_UTILITY_MODEL = cheapModel;
-      CHUNKHOUND_LLM_SYNTHESIS_MODEL = "zai-coding-plan/glm-4.7";
+      CHUNKHOUND_LLM_SYNTHESIS_MODEL = defaultModel;
       CHUNKHOUND_EMBEDDING__PROVIDER = "openai";
       # CHUNKHOUND_EMBEDDING__API_KEY = "";
       CHUNKHOUND_EMBEDDING__BASE_URL = "https://openrouter.ai/api/v1";
@@ -284,19 +285,13 @@ in
       small_model = cheapModel;
       mcp = opencodeMcpConfig;
       plugin = [
+        "@bastiangx/opencode-unmoji"
         "@franlol/opencode-md-table-formatter"
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
         "@tarquinen/opencode-dcp"
-        "opencode-mystatus"
+        "octto"
       ];
-      command = {
-        mystatus = {
-          description = "Query quota usage for all AI accounts";
-          template = "Use the mystatus tool to query quota usage. Return the result as-is without modification.";
-          model = cheapModel;
-        };
-      };
       agent = {
         plan = {
           model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
@@ -314,11 +309,27 @@ in
       config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-annotate.md";
     "opencode/commands/plannotator-review.md".source =
       config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-review.md";
+    "opencode/octto.json".text = builtins.toJSON {
+      port = 0;
+      agents = {
+        bootstrapper = {
+          model = defaultModel;
+        };
+        octto = {
+          model = defaultModel;
+        };
+        probe = {
+          model = defaultModel;
+        };
+      };
+      fragments = {
+        octto = [
+          "IMPORTANT: Always start your workflow by using octto to create an interactive session and gather requirements/plans."
+          "IMPORTANT: After using octto, submit the plan to plannotator for review before proceeding with implementation."
+        ];
+      };
+    };
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
-  };
-  programs.fish.shellAbbrs = {
-    ocr = "opencode run --model ${cheapModel}";
-    mystatus = "opencode run --model ${cheapModel} /mystatus";
   };
 }
