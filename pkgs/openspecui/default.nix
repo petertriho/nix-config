@@ -11,7 +11,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "openspecui";
-  version = "1.6.1";
+  version = "0-unstable-2026-02-24";
 
   src = fetchFromGitHub {
     owner = "jixoai";
@@ -24,7 +24,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm_10;
     fetcherVersion = 3;
-    hash = "sha256-YobgzpQxWQsxwkSg5ZO13ZnUnDh+44VdShCDRhyAELw=";
+    hash = "sha256-quKCVz/IY+LqSQS8kkfUlFj6t7ssNN0BJJCxGovOFro=";
   };
 
   nativeBuildInputs = [
