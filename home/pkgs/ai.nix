@@ -252,6 +252,7 @@ in
         beads-ui
         chunkhound
         nodejs
+        openspecui
         ralph-tui
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
