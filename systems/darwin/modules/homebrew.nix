@@ -29,11 +29,13 @@ in
       # upgrade = true;
     };
     taps = [
+      "gromgit/brewtils"
       # "nguyenphutrong/tap"
       "nikitabobko/tap"
       # "steipete/tap"
     ];
     brews = [
+      "gromgit/brewtils/taproom"
       "mas"
       "terminal-notifier"
       # "opencode"
