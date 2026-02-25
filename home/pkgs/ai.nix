@@ -291,7 +291,6 @@ in
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
         "@tarquinen/opencode-dcp"
-        "octto"
       ];
       agent = {
         plan = {
@@ -310,26 +309,6 @@ in
       config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-annotate.md";
     "opencode/commands/plannotator-review.md".source =
       config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-review.md";
-    "opencode/octto.json".text = builtins.toJSON {
-      port = 0;
-      agents = {
-        bootstrapper = {
-          model = defaultModel;
-        };
-        octto = {
-          model = defaultModel;
-        };
-        probe = {
-          model = defaultModel;
-        };
-      };
-      fragments = {
-        octto = [
-          "IMPORTANT: Always start your workflow by using octto to create an interactive session and gather requirements/plans."
-          "IMPORTANT: After using octto, submit the plan to plannotator for review before proceeding with implementation."
-        ];
-      };
-    };
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   };
