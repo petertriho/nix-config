@@ -9,6 +9,7 @@
     bat # cat replacement with syntax highlighting
     btop # better htop
     bun # JavaScript runtime
+    chafa # terminal image viewer
     coreutils # GNU core utilities
     dive # inspect docker images
     dwt1-shell-color-scripts # shell color scripts collected by dt
