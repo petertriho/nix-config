@@ -296,6 +296,12 @@ in
       agent = {
         plan = {
           model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
+          permission = {
+            edit = {
+              "*" = "deny";
+              "openspec/**" = "allow";
+            };
+          };
         };
         build = {
           model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
