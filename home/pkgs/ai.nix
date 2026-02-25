@@ -271,6 +271,7 @@ in
       # CHUNKHOUND_EMBEDDING__API_KEY = "";
       CHUNKHOUND_EMBEDDING__BASE_URL = "https://openrouter.ai/api/v1";
       CHUNKHOUND_EMBEDDING__MODEL = "qwen/qwen3-embedding-8b";
+      OPENSPEC_TELEMETRY = 0;
     };
   };
   programs.opencode = {
