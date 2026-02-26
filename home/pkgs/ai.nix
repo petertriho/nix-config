@@ -300,20 +300,20 @@ in
         build = {
           model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
         };
-        openspec = {
-          mode = "primary";
-          description = "Spec-driven development agent for creating and applying change proposals";
-          prompt = "You are an OpenSpec agent specialized in spec-driven development. Create structured change proposals with proposal.md, specs/, design.md, and tasks.md. Focus on understanding requirements before implementation. Work within openspec/ directory only.";
-          model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
-          permission = {
-            read = "allow";
-            bash = "allow";
-            edit = {
-              "*" = "deny";
-              "openspec/**" = "allow";
-            };
-          };
-        };
+        # openspec = {
+        #   mode = "primary";
+        #   description = "Spec-driven development agent for creating and applying change proposals";
+        #   prompt = "You are an OpenSpec agent specialized in spec-driven development. Create structured change proposals with proposal.md, specs/, design.md, and tasks.md. Focus on understanding requirements before implementation. Work within openspec/ directory only.";
+        #   model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
+        #   permission = {
+        #     read = "allow";
+        #     bash = "allow";
+        #     edit = {
+        #       "*" = "deny";
+        #       "openspec/**" = "allow";
+        #     };
+        #   };
+        # };
       };
     };
   };
