@@ -11,13 +11,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "openspecui";
-  version = "0-unstable-2026-02-24";
+  version = "0-unstable-2026-02-25";
 
   src = fetchFromGitHub {
     owner = "jixoai";
     repo = "openspecui";
-    rev = "cad9e263b9dbe960e64aca43c150a6c5f0b1d9aa";
-    hash = "sha256-Xb13xMvlEsSA1sgGt2HornjwhmSRpQ+MWxJiaCvAKIM=";
+    rev = "873d710b429e1d998d883c556921ce288a3a2f90";
+    hash = "sha256-LJPjNMdy5V5aXcnvsrVayhiwz6HIQ7xb1c/MSSvIvzM=";
   };
 
   pnpmDeps = fetchPnpmDeps {
