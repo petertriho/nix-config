@@ -319,12 +319,30 @@ in
   };
   xdg.configFile = {
     "crush/crush.json".text = crushConfig;
-    "opencode/agents/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/";
+    "opencode/get-shit-done".source = "${pkgs.get-shit-done}/share/opencode/get-shit-done";
     "opencode/commands/plannotator-annotate.md".source =
       "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-annotate.md";
     "opencode/commands/plannotator-review.md".source =
       "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-review.md";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
-  };
+  }
+  // lib.mapAttrs' (
+    name: _:
+    lib.nameValuePair "opencode/agents/${name}" {
+      source = "${pkgs.get-shit-done}/share/opencode/agents/${name}";
+    }
+  ) (builtins.readDir "${pkgs.get-shit-done}/share/opencode/agents")
+  // lib.mapAttrs' (
+    name: _:
+    lib.nameValuePair "opencode/agents/${name}" {
+      source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/${name}";
+    }
+  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/agents)
+  // lib.mapAttrs' (
+    name: _:
+    lib.nameValuePair "opencode/commands/${name}" {
+      source = "${pkgs.get-shit-done}/share/opencode/command/${name}";
+    }
+  ) (builtins.readDir "${pkgs.get-shit-done}/share/opencode/command");
 }
