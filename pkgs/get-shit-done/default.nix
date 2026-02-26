@@ -27,6 +27,10 @@ stdenvNoCC.mkDerivation {
 
     node bin/install.js --opencode --global --config-dir $out/share/opencode
 
+    for f in $out/share/opencode/agents/*.md; do
+      sed -i '1a mode: subagent' "$f"
+    done
+
     runHook postInstall
   '';
 
