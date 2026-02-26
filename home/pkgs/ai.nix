@@ -321,9 +321,9 @@ in
     "crush/crush.json".text = crushConfig;
     "opencode/agents/".source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/";
     "opencode/commands/plannotator-annotate.md".source =
-      config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-annotate.md";
+      "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-annotate.md";
     "opencode/commands/plannotator-review.md".source =
-      config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/commands/plannotator-review.md";
+      "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-review.md";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   };
