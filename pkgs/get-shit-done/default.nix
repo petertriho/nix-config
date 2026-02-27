@@ -6,13 +6,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "get-shit-done";
-  version = "1.21.0-unstable-2026-02-25";
+  version = "1.21.0-unstable-2026-02-27";
 
   src = fetchFromGitHub {
     owner = "gsd-build";
     repo = "get-shit-done";
-    rev = "7f5ae23fc25abe8efbaa5baf944af64ad7e0ac8f";
-    hash = "sha256-HqacboThiUv5NO4ARRvu/c8UJSWy/Mdocq4k49jY9gQ=";
+    rev = "f9fc2a3f33355ca3bfb75ab26343d69873560581";
+    hash = "sha256-gZoLR8eZs3b2v/WZDi6Hc+D7aGU91UTFOEHZVNqZoAE=";
   };
 
   nativeBuildInputs = [ nodejs ];
