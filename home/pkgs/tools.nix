@@ -39,6 +39,7 @@
     openssl # for generating certificates
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
+    television # fuzzy finder tui
     tree # directory listing
     typst # typesetting system
     unzip # unzip files
