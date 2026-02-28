@@ -34,6 +34,7 @@ let
     openspec
     qmd
     # qwen-code
+    rtk
     tuicr
     workmux
   ];
@@ -292,6 +293,7 @@ in
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
         "@tarquinen/opencode-dcp"
+        "openrtk"
       ];
       agent = {
         plan = {
