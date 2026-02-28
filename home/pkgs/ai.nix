@@ -292,7 +292,7 @@ in
         "@franlol/opencode-md-table-formatter"
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
-        "@tarquinen/opencode-dcp"
+        # "@tarquinen/opencode-dcp"
         "openrtk"
       ];
       agent = {

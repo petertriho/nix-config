@@ -25,6 +25,11 @@
   },
   "general": {
     "vimMode": true,
-    "previewFeatures": true
+    "previewFeatures": true,
+    "sessionRetention": {
+      "enabled": true,
+      "maxAge": "30d",
+      "warningAcknowledged": true
+    }
   }
 }
