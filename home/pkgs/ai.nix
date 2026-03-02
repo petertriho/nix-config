@@ -10,7 +10,7 @@ let
 
   mcpServers =
     (with pkgs.mcp-servers; [
-      context7-mcp
+      # context7-mcp
     ])
     ++ (with pkgs; [
       terraform-mcp-server
@@ -107,12 +107,12 @@ let
     #   args = [ "--serve" ];
     #   disabled = true;
     # };
-    context7 = {
-      type = "stdio";
-      command = "context7-mcp";
-      args = [ ];
-      disabled = false;
-    };
+    # context7 = {
+    #   type = "stdio";
+    #   command = "context7-mcp";
+    #   args = [ ];
+    #   disabled = false;
+    # };
     chunkhound = {
       type = "stdio";
       command = "chunkhound";
@@ -295,5 +295,11 @@ in
     lib.nameValuePair "opencode/agents/${name}" {
       source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/${name}";
     }
-  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/agents);
+  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/agents)
+  // lib.mapAttrs' (
+    name: _:
+    lib.nameValuePair "opencode/skills/${name}" {
+      source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/${name}";
+    }
+  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/skills);
 }
