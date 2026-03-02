@@ -11,7 +11,6 @@ let
   mcpServers =
     (with pkgs.mcp-servers; [
       context7-mcp
-      mcp-server-fetch
     ])
     ++ (with pkgs; [
       terraform-mcp-server
@@ -123,12 +122,6 @@ let
       ];
       disabled = false;
     };
-    # fetch = {
-    #   type = "stdio";
-    #   command = "mcp-server-fetch";
-    #   args = [ ];
-    #   disabled = true;
-    # };
     playwriter = {
       type = "stdio";
       command = "${pkgs.nodejs}/bin/npx";
