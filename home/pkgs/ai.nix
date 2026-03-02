@@ -12,13 +12,9 @@ let
     (with pkgs.mcp-servers; [
       context7-mcp
       mcp-server-fetch
-      mcp-server-sequential-thinking
     ])
     ++ (with pkgs; [
-      # mcp-nixos
       terraform-mcp-server
-      # mcp-grafana
-      # playwright-mcp
     ]);
   llmAgents = with pkgs.llm-agents; [
     agent-browser
@@ -133,28 +129,6 @@ let
     #   args = [ ];
     #   disabled = true;
     # };
-    # grafana = {
-    #   type = "stdio";
-    #   command = "mcp-grafana";
-    #   args = [ ];
-    #   env = {
-    #     GRAFANA_URL = "{env:OPENCODE_GRAFANA_URL}";
-    #     GRAFANA_API_KEY = "{env:OPENCODE_GRAFANA_API_KEY}";
-    #   };
-    #   disabled = true;
-    # };
-    # nixos = {
-    #   type = "stdio";
-    #   command = "mcp-nixos";
-    #   args = [ ];
-    #   disabled = true;
-    # };
-    # playwright = {
-    #   type = "stdio";
-    #   command = "playwright-mcp";
-    #   args = [ ];
-    #   disabled = true;
-    # };
     playwriter = {
       type = "stdio";
       command = "${pkgs.nodejs}/bin/npx";
@@ -163,12 +137,6 @@ let
       ];
       disabled = false;
     };
-    # sequential-thinking = {
-    #   type = "stdio";
-    #   command = "mcp-server-sequential-thinking";
-    #   args = [ ];
-    #   disabled = true;
-    # };
     # terraform = {
     #   type = "stdio";
     #   command = "terraform-mcp-server";
