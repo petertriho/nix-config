@@ -202,6 +202,10 @@ return {
                     inherit_defaults = true,
                     "lazydev",
                 },
+                markdown = {
+                    inherit_defaults = true,
+                    "path_at",
+                },
             },
             providers = {
                 -- copilot = {
@@ -219,6 +223,58 @@ return {
                 lsp = {
                     async = true,
                     score_offset = 50,
+                },
+                path_at = {
+                    module = "blink.cmp.sources.path",
+                    name = "PathAt",
+                    enabled = function()
+                        return vim.bo.filetype == "markdown"
+                    end,
+                    opts = {
+                        get_cwd = function(_)
+                            return vim.fn.getcwd()
+                        end,
+                        ignore_root_slash = true,
+                    },
+                    override = {
+                        get_trigger_characters = function(self)
+                            local trigger_characters = self:get_trigger_characters()
+                            if not vim.tbl_contains(trigger_characters, "@") then
+                                table.insert(trigger_characters, "@")
+                            end
+                            return trigger_characters
+                        end,
+                        get_completions = function(self, context, callback)
+                            if vim.bo[context.bufnr].filetype ~= "markdown" then
+                                return callback({ is_incomplete_forward = false, is_incomplete_backward = false, items = {} })
+                            end
+
+                            local line_before_cursor = context.line:sub(1, context.cursor[2])
+                            local at_query = line_before_cursor:match("@([^%s]*)$")
+                            if at_query == nil then
+                                return callback({ is_incomplete_forward = false, is_incomplete_backward = false, items = {} })
+                            end
+
+                            local prefix = line_before_cursor:sub(1, #line_before_cursor - #at_query - 1)
+                            local adapted_line = prefix .. "/" .. at_query .. context.line:sub(context.cursor[2] + 1)
+                            local adapted_context = vim.tbl_extend("force", context, { line = adapted_line })
+
+                            local keyword_range = require("blink.cmp.config").completion.keyword.range
+                            local start_col, end_col = require("blink.cmp.fuzzy").get_keyword_range(
+                                adapted_context.line,
+                                adapted_context.cursor[2],
+                                keyword_range
+                            )
+                            adapted_context.bounds = {
+                                line = adapted_context.line,
+                                line_number = context.bounds.line_number,
+                                start_col = start_col + 1,
+                                length = end_col - start_col,
+                            }
+
+                            return self:get_completions(adapted_context, callback)
+                        end,
+                    },
                 },
                 buffer = {
                     opts = {
