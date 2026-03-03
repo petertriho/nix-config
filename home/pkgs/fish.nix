@@ -262,19 +262,8 @@
             '';
           }) grcPluginExecs
         );
-        fishFunctions = [
-          "set-chunkhound-key"
-          "set-nextcloud"
-          "set-theme"
-        ];
-        customFunctions = builtins.listToAttrs (
-          map (func: {
-            name = func;
-            value = builtins.readFile (../../dotfiles/fish/.config/fish/functions + "/${func}.fish");
-          }) fishFunctions
-        );
       in
-      customFunctions // grcFunctions;
+      grcFunctions;
     interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
   };
 
@@ -305,6 +294,11 @@
         "01-forgit.fish"
         "02-theme.fish"
       ];
+      fishFunctionFiles = [
+        "set-chunkhound-key.fish"
+        "set-nextcloud.fish"
+        "set-theme.fish"
+      ];
     in
     builtins.listToAttrs (
       map (file: {
@@ -312,9 +306,16 @@
         value.source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/${file}";
       }) fishConfFiles
     )
+    // builtins.listToAttrs (
+      map (file: {
+        name = "fish/functions/${file}";
+        value.source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/functions/${file}";
+      }) fishFunctionFiles
+    )
     // {
       "vivid".source = config.lib.meta.mkDotfilesSymlink "vivid/.config/vivid";
       "fish/completions/set-chunkhound-key.fish".source =
         ../../dotfiles/fish/.config/fish/completions/set-chunkhound-key.fish;
     };
+  programs.man.generateCaches = false; # disabled due to slow builds
 }
