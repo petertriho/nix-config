@@ -256,6 +256,7 @@ in
         "@franlol/opencode-md-table-formatter"
         "@mohak34/opencode-notifier"
         "@plannotator/opencode"
+        "@slkiser/opencode-quota"
         # "@tarquinen/opencode-dcp"
         "openrtk"
       ];
