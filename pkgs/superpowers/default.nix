@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "superpowers";
-  version = "unstable-2026-02-21";
+  version = "4.3.1-unstable-2026-02-21";
 
   src = fetchFromGitHub {
     owner = "obra";
