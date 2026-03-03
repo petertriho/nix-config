@@ -1,76 +1,69 @@
 ---
 name: openspec-superpowers
-description: Use when working an OpenSpec change lifecycle and you need superpowers process rigor without replacing OpenSpec commands, artifacts, or change state.
+description: Use when OpenSpec workflow is already active (for example, /opsx-* commands or work in openspec/changes/*) and superpowers discipline is needed during that change lifecycle.
 ---
 
 # OpenSpec Superpowers
 
 ## Overview
 
-Route work to OpenSpec first, then layer the right superpowers skill at each stage.
+Layer superpowers rigor onto an already active OpenSpec workflow.
 
-Core principle: OpenSpec is the source of truth; superpowers is the quality and process layer.
+Core principle: OpenSpec owns workflow state; superpowers adds execution discipline.
+
+Routing is one-way: OpenSpec -> superpowers hooks only.
 
 ## When to Use
 
-- User mentions OpenSpec actions: propose, explore, apply, verify, sync, archive
-- User asks to "use superpowers" while working `openspec/changes/*`
-- User needs stronger process discipline (TDD/debug/verification/review) during OpenSpec execution
+- OpenSpec workflow is already active and user references OpenSpec actions
+- User references `/opsx-*` commands in current work
+- User is working in `openspec/changes/*`
+- Superpowers workflow is already running and OpenSpec context is explicitly present
 
-Do not use this skill when work is not OpenSpec-driven.
+Do not use this skill when OpenSpec workflow is not active. For superpowers-only work, continue normal superpowers workflow as usual.
 
 ## Router Flow
 
 1. **Preflight**
-   - Check OpenSpec workspace (`openspec/` exists, change context resolvable).
-   - If missing, initialize with OpenSpec commands instead of inventing parallel docs.
+   - Confirm active OpenSpec context (`/opsx-*`, `openspec/changes/*`, or explicit change context).
+   - If not active, do not route into OpenSpec.
 
 2. **Route by intent**
-   - **Explore / shape request**: Use `superpowers:brainstorming`, then run `/opsx:explore` or `/opsx:propose`.
-   - **Implement active change**: Use `superpowers:test-driven-development`, then run `/opsx:apply`.
-   - **If blocked by failures**: Use `superpowers:systematic-debugging` before proposing fixes.
-   - **Pre-finish quality gate**: Use `superpowers:verification-before-completion`; optionally `superpowers:requesting-code-review`.
-   - **Close out change**: Use `superpowers:finishing-a-development-branch`, then `/opsx:archive`.
+   - Explore/shape: `superpowers:brainstorming`, then continue `/opsx:explore` or `/opsx:propose`.
+   - Implement: `superpowers:test-driven-development`, then continue `/opsx:apply`.
+   - If blocked: `superpowers:systematic-debugging`, then continue `/opsx:apply`.
+   - Pre-finish gate: `superpowers:verification-before-completion` (+ optional `superpowers:requesting-code-review`).
+   - Close out: `superpowers:finishing-a-development-branch`, then `/opsx:archive`.
 
-3. **Keep state in OpenSpec**
-   - Use OpenSpec status/instructions/tasks as execution truth.
-   - Update OpenSpec artifacts; do not create a second planning system.
+3. **Continuity rule**
+   - If superpowers started first, continue the current stage as usual.
+   - When OpenSpec context appears, layer OpenSpec guardrails onto the ongoing flow.
+   - Never restart/replace an active superpowers flow.
+
+4. **State source**
+   - For active OpenSpec work, keep status and tasks in OpenSpec artifacts.
 
 ## Quick Reference
 
-| User intent                     | Superpowers hook                                                     | OpenSpec action                                   |
-| ------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------- |
-| "Help me plan this change"      | `brainstorming`                                                      | `/opsx:explore` or `/opsx:propose`                |
-| "Implement this change"         | `test-driven-development`                                            | `/opsx:apply`                                     |
-| "Tests fail / bug during apply" | `systematic-debugging`                                               | continue `/opsx:apply` after diagnosis            |
-| "Ready to finish"               | `verification-before-completion` + optional `requesting-code-review` | `/opsx:verify` (if enabled), then `/opsx:archive` |
-| "Ship/merge branch work"        | `finishing-a-development-branch`                                     | archive and finalize                              |
+| Intent                                         | Superpowers hook                                                       | OpenSpec action                          |
+| ---------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
+| Plan change                                    | `brainstorming`                                                        | `/opsx:explore` or `/opsx:propose`       |
+| Implement change                               | `test-driven-development`                                              | `/opsx:apply`                            |
+| Failures during apply                          | `systematic-debugging`                                                 | continue `/opsx:apply`                   |
+| Finish change                                  | `verification-before-completion` (+ optional `requesting-code-review`) | `/opsx:verify` then `/opsx:archive`      |
+| Superpowers started first, OpenSpec now active | continue current superpowers stage                                     | continue active `/opsx-*` flow, no reset |
+| Superpowers-only task                          | continue normal superpowers workflow                                   | do not route to OpenSpec                 |
 
 ## Guardrails
 
-- Never replace OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`) with external plan files.
-- Never archive before verification gate unless user explicitly accepts risk.
-- Never bypass process skill hooks for the matching stage.
-- Never invent non-OpenSpec status tracking for OpenSpec change progress.
+- Never route superpowers-only work into OpenSpec.
+- Never restart/replace an active superpowers flow when OpenSpec appears.
+- Never replace OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`) with external plans.
+- Never archive before verification unless user explicitly accepts risk.
 
 ## Common Mistakes
 
-- Running superpowers implementation flow without checking OpenSpec change context first.
-- Treating OpenSpec and superpowers as competing planners instead of router + discipline layers.
-- Skipping TDD/debug/verification hooks because `/opsx:apply` already exists.
-
-## Rationalizations and Counters
-
-| Excuse                                            | Reality                                                                    |
-| ------------------------------------------------- | -------------------------------------------------------------------------- |
-| "OpenSpec already has apply, no need superpowers" | OpenSpec defines workflow state; superpowers enforces execution rigor.     |
-| "I'll track tasks in a separate plan doc"         | That creates split truth; OpenSpec tasks remain canonical for the change.  |
-| "I can archive now and verify later"              | Verification must precede archive to avoid locking in unverified behavior. |
-
-## Red Flags
-
-- Creating a second plan/checklist outside `openspec/changes/*`
-- Applying fixes without TDD or debugging discipline during `/opsx:apply`
-- Archiving a change without an explicit verification step
-
-If any red flag appears, stop and re-route through this skill.
+- Starting OpenSpec from a superpowers-only request.
+- Skipping superpowers hooks because `/opsx:apply` exists.
+- Tracking OpenSpec progress outside OpenSpec artifacts.
+- Resetting superpowers flow when OpenSpec context appears.
