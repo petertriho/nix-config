@@ -232,8 +232,8 @@ in
       CHUNKHOUND_LLM_SYNTHESIS_MODEL = defaultModel;
       CHUNKHOUND_EMBEDDING__PROVIDER = "openai";
       # CHUNKHOUND_EMBEDDING__API_KEY = "";
-      # CHUNKHOUND_EMBEDDING__BASE_URL = "https://openrouter.ai/api/v1";
-      # CHUNKHOUND_EMBEDDING__MODEL = "qwen/qwen3-embedding-8b";
+      CHUNKHOUND_EMBEDDING__BASE_URL = "https://openrouter.ai/api/v1";
+      CHUNKHOUND_EMBEDDING__MODEL = "qwen/qwen3-embedding-8b";
       # CHUNKHOUND_EMBEDDING__BASE_URL = "https://llm.chutes.ai/v1";
       # CHUNKHOUND_EMBEDDING__MODEL = "Qwen/Qwen3-Embedding-8B";
       OPENSPEC_TELEMETRY = 0;
