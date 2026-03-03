@@ -215,7 +215,7 @@ in
         chunkhound
         nodejs
         openspecui
-        ralph-tui
+        python3
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
         # goose-cli

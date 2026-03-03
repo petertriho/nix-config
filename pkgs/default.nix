@@ -14,8 +14,6 @@ with pkgs;
   openspecui = callPackage ./openspecui { };
   plannotator = callPackage ./plannotator { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
-  ralph-tui = callPackage ./ralph-tui { };
-  shellock = callPackage ./shellock { };
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
   vim-custom = callPackage ./vim-custom { };

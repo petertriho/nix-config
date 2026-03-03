@@ -25,10 +25,6 @@
           inherit (x) src;
         })
       ++ [
-        # {
-        #   name = "shellock";
-        #   src = pkgs.shellock;
-        # }
       ];
     shellAbbrs = {
       acs = "aws configure sso";
@@ -269,7 +265,6 @@
 
   home.packages = with pkgs; [
     grc
-    # shellock
     vivid
   ];
 
