@@ -12,6 +12,7 @@ with pkgs;
   figlet-fonts = callPackage ./figlet-fonts { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   openspecui = callPackage ./openspecui { };
+  pinchtab = callPackage ./pinchtab { };
   plannotator = callPackage ./plannotator { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   sort-package-json = callPackage ./sort-package-json { };

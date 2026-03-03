@@ -121,14 +121,14 @@ let
       ];
       disabled = false;
     };
-    playwriter = {
-      type = "stdio";
-      command = "${pkgs.nodejs}/bin/npx";
-      args = [
-        "playwriter@latest"
-      ];
-      disabled = false;
-    };
+    # playwriter = {
+    #   type = "stdio";
+    #   command = "${pkgs.nodejs}/bin/npx";
+    #   args = [
+    #     "playwriter@latest"
+    #   ];
+    #   disabled = false;
+    # };
     # terraform = {
     #   type = "stdio";
     #   command = "terraform-mcp-server";
@@ -214,6 +214,7 @@ in
         chunkhound
         nodejs
         openspecui
+        pinchtab
         python3
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
@@ -291,6 +292,7 @@ in
     "opencode/plugins/superpowers.js".source =
       "${pkgs.superpowers}/share/superpowers/.opencode/plugins/superpowers.js";
     "opencode/skills/superpowers".source = "${pkgs.superpowers}/share/superpowers/skills";
+    "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skill/pinchtab";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   }
