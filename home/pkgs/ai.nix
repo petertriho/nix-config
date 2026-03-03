@@ -289,6 +289,9 @@ in
       "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-annotate.md";
     "opencode/commands/plannotator-review.md".source =
       "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-review.md";
+    "opencode/plugins/superpowers.js".source =
+      "${pkgs.superpowers}/share/superpowers/.opencode/plugins/superpowers.js";
+    "opencode/skills/superpowers".source = "${pkgs.superpowers}/share/superpowers/skills";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   }
