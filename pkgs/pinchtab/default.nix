@@ -5,7 +5,7 @@
 }:
 buildGoModule rec {
   pname = "pinchtab";
-  version = "0.7.6";
+  version = "0.7.6-unstable-2026-03-03";
 
   src = fetchFromGitHub {
     owner = "pinchtab";
