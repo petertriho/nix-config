@@ -32,6 +32,7 @@ in
       "gromgit/brewtils"
       # "nguyenphutrong/tap"
       "nikitabobko/tap"
+      "opgginc/tap"
       # "steipete/tap"
     ];
     brews = [
@@ -66,6 +67,7 @@ in
       "notunes"
       # "obsidian"
       # "opencode-desktop"
+      "opgginc/tap/opencode-bar"
       "orbstack"
       "raycast"
       # "steipete/tap/codexbar"
