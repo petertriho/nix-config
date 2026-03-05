@@ -258,7 +258,7 @@ in
         "@plannotator/opencode"
         "@slkiser/opencode-quota"
         # "@tarquinen/opencode-dcp"
-        "openrtk"
+        # "openrtk"
       ];
       agent = {
         plan = {
