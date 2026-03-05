@@ -210,10 +210,8 @@ in
       with pkgs;
       [
         # amazon-q-cli
-        beads-ui
         chunkhound
         nodejs
-        openspecui
         pinchtab
         python3
         # tiktoken is provided by chunkhound
