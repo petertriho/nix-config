@@ -17,6 +17,12 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# Packages to skip during automatic updates
+SKIP_PACKAGES=(
+    "superpowers"
+    "vim-custom"
+)
+
 # Helper functions for colored output
 function echo_info() {
     echo -e "${BLUE}ℹ️  ${1}${NC}"
@@ -83,7 +89,7 @@ function tool:config {
     pushd "$NIX_CONFIG_PATH"
 
     local current_branch=$(git branch --show-current)
-    if [[ "$current_branch" != "main" ]]; then
+    if [[ $current_branch != "main" ]]; then
         echo_warning "Not on main branch ($current_branch), skipping config update"
         popd
         return
@@ -326,6 +332,25 @@ function tool:pkgs:update {
         done
 
         echo_info "Found ${#all_items[@]} items to update (packages + plugins)..."
+
+        # Filter out skipped packages
+        if [[ ${#SKIP_PACKAGES[@]} -gt 0 ]]; then
+            local filtered_items=()
+            for item in "${all_items[@]}"; do
+                local skip=false
+                for skip_pkg in "${SKIP_PACKAGES[@]}"; do
+                    if [[ $item == "$skip_pkg" ]]; then
+                        skip=true
+                        echo_warning "Skipping $item (in SKIP_PACKAGES list)"
+                        break
+                    fi
+                done
+                if [[ $skip == false ]]; then
+                    filtered_items+=("$item")
+                fi
+            done
+            all_items=("${filtered_items[@]}")
+        fi
     fi
 
     failed_items=()
