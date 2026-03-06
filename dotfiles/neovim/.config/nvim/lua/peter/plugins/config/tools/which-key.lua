@@ -37,7 +37,7 @@ return {
             {
                 mode = { "n", "x" },
                 { "<leader>a", group = "ai (sidekick)" },
-                { "<leader>c", group = "ai (codecompanion)" },
+                { "<leader>c", group = "code-review" },
                 { "<leader>h", group = "hierarchy" },
                 { "<leader>m", group = "misc" },
                 { "<leader>o", group = "obsidian" },
