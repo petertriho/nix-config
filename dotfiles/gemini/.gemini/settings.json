@@ -7,7 +7,8 @@
   "ui": {
     "theme": "Default",
     "showCitations": true,
-    "showModelInfoInChat": true
+    "showModelInfoInChat": true,
+    "inlineThinkingMode": "full"
   },
   "mcpServers": {},
   "general": {
@@ -17,6 +18,13 @@
       "enabled": true,
       "maxAge": "30d",
       "warningAcknowledged": true
-    }
+    },
+    "enableNotifications": true
+  },
+  "experimental": {
+    "modelSteering": true
+  },
+  "billing": {
+    "overageStrategy": "never"
   }
 }
