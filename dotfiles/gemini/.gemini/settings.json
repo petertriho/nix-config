@@ -9,12 +9,7 @@
     "showCitations": true,
     "showModelInfoInChat": true
   },
-  "mcpServers": {
-    "context7": {
-      "command": "context7-mcp",
-      "args": []
-    }
-  },
+  "mcpServers": {},
   "general": {
     "vimMode": true,
     "previewFeatures": true,
