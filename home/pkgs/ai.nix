@@ -20,6 +20,7 @@ let
     # backlog-md
     beads
     ck
+    codex
     # coding-agent-search
     copilot-language-server
     crush
