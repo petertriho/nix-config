@@ -6,7 +6,7 @@
 }:
 let
   cheapModel = "github-copilot/gpt-5-mini";
-  defaultModel = "zai-coding-plan/glm-5";
+  defaultModel = "openai/gpt-5.4";
 
   mcpServers =
     (with pkgs.mcp-servers; [
@@ -280,6 +280,32 @@ in
         #     };
         #   };
         # };
+      };
+      provider = {
+        acp = {
+          npm = "@ai-sdk/openai-compatible";
+          name = "ACP Agents";
+          models = {
+            "cursor/auto" = {
+              name = "Cursor Auto";
+            };
+            "goose/default" = {
+              name = "Goose Default";
+            };
+            "gemini/pro" = {
+              name = "Gemini Pro";
+            };
+            "gemini/flash" = {
+              name = "Gemini Flash";
+            };
+            "claude/opus" = {
+              name = "Claude Opus";
+            };
+            "claude/sonnet" = {
+              name = "Claude Sonnet";
+            };
+          };
+        };
       };
     };
   };
