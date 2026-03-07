@@ -4,38 +4,97 @@ set -euo pipefail
 
 CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/models-dev/api.json"
 CACHE_DURATION=86400
+HEADER_TEXT='ENTER: select | CTRL-Y: provider/model | CTRL-I: provider | CTRL-O: model | CTRL-C: abort | CTRL-R: refresh'
+STATUS_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/models-dev"
+
+mkdir -p "$STATUS_DIR"
+
+if [[ -n ${MODELS_DEV_STATUS_FILE:-} ]]; then
+    STATUS_FILE="$MODELS_DEV_STATUS_FILE"
+else
+    STATUS_FILE=$(mktemp "$STATUS_DIR/refresh-status.XXXXXX")
+    trap 'rm -f "$STATUS_FILE"' EXIT
+fi
 
 refresh_data() {
     mkdir -p "$(dirname "$CACHE_FILE")"
-    curl -s https://models.dev/api.json > "$CACHE_FILE"
+
+    local tmp_file
+    tmp_file=$(mktemp "${CACHE_FILE}.tmp.XXXXXX")
+
+    if curl -fsS https://models.dev/api.json -o "$tmp_file" && jq -e . "$tmp_file" > /dev/null; then
+        mv "$tmp_file" "$CACHE_FILE"
+        return 0
+    fi
+
+    rm -f "$tmp_file"
+    return 1
 }
 
-if [[ ! -f $CACHE_FILE ]] || [[ $(($(date +%s) - $(stat -c %Y "$CACHE_FILE"))) -gt $CACHE_DURATION ]]; then
-    refresh_data
-fi
+write_status() {
+    mkdir -p "$(dirname "$STATUS_FILE")"
+    printf '%s\n' "$1" > "$STATUS_FILE"
+}
 
-case "${1:-}" in
-    -r | --refresh)
-        refresh_data
-        ;;
-esac
+cache_is_stale() {
+    [[ $(($(date +%s) - $(stat -c %Y "$CACHE_FILE"))) -gt $CACHE_DURATION ]]
+}
 
 copy_bind() {
     local field=$1
     echo "ctrl-$2:execute-silent(printf %s {$field} | pbcopy 2>/dev/null || printf %s {$field} | wl-copy 2>/dev/null || printf %s {$field} | xclip -selection clipboard 2>/dev/null || printf %s {$field} | xsel --clipboard --input 2>/dev/null || printf %s {$field} | clip.exe 2>/dev/null)"
 }
 
-jq -r 'to_entries[] | .value.id as $provider_id | .value.models | to_entries[] | "\($provider_id)/\(.key) \($provider_id) \(.key) \(.value.name) (\(.value.family))"' "$CACHE_FILE" \
+list_models() {
+    jq -r 'to_entries[] | .value.id as $provider_id | .value.models | to_entries[] | "\($provider_id)/\(.key) \($provider_id) \(.key) \(.value.name) (\(.value.family))"' "$CACHE_FILE"
+}
+
+case "${1:-}" in
+    --list-models)
+        list_models
+        exit 0
+        ;;
+    --refresh-cache-status)
+        if refresh_data; then
+            write_status "$HEADER_TEXT"
+            exit 0
+        fi
+
+        write_status 'Refresh failed; showing cached data'
+        exit 1
+        ;;
+    --refresh-cache)
+        refresh_data
+        exit 0
+        ;;
+    -r | --refresh)
+        refresh_data
+        ;;
+esac
+
+if [[ ! -f $CACHE_FILE ]]; then
+    refresh_data
+elif cache_is_stale; then
+    refresh_data || true
+fi
+
+preview_command="jq -r '.\"{2}\".models.\"{3}\"' \"$CACHE_FILE\" | jq -C ."
+list_command="\"$0\" --list-models"
+refresh_status_command="MODELS_DEV_STATUS_FILE=\"$STATUS_FILE\" \"$0\" --refresh-cache-status"
+header_command="cat \"$STATUS_FILE\" 2>/dev/null || printf '%s\\n' \"$HEADER_TEXT\""
+reload_command="change-header(Refreshing...)+execute-silent($refresh_status_command)+reload($list_command)+transform-header($header_command)"
+
+list_models \
     | fzf \
         --delimiter ' ' \
         --with-nth 1.. \
         --tiebreak=index \
-        --preview 'jq -r ".\"{2}\".models.\"{3}\"" "$CACHE_FILE" | jq -C .' \
+        --preview "$preview_command" \
         --preview-window 'right:50%' \
         --bind "$(copy_bind 1 y)" \
         --bind "$(copy_bind 2 i)" \
         --bind "$(copy_bind 3 o)" \
-        --bind 'ctrl-r:reload(cat "$CACHE_FILE" | jq -r "to_entries[] | .value.id as \$provider_id | .value.models | to_entries[] | \\"\(\$provider_id)/\(.key) \(\$provider_id) \(.key) \(.value.name) (\(.value.family))\\"")' \
+        --bind "ctrl-r:$reload_command" \
         --bind 'ctrl-c:abort' \
-        --header 'ENTER: select | CTRL-Y: provider/model | CTRL-I: provider | CTRL-O: model | CTRL-C: abort | CTRL-R: refresh' \
+        --header "$HEADER_TEXT" \
     | awk '{print $1}'
