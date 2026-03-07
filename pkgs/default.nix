@@ -10,6 +10,7 @@ with pkgs;
   };
   figlet-fonts = callPackage ./figlet-fonts { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
+  models = callPackage ./models { };
   pinchtab = callPackage ./pinchtab { };
   plannotator = callPackage ./plannotator { };
   pybetter = callPackage ./pybetter { inherit pkgs; };

@@ -212,6 +212,7 @@ in
       [
         # amazon-q-cli
         chunkhound
+        models
         nodejs
         pinchtab
         python3
