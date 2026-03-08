@@ -115,4 +115,6 @@
   };
 
   xdg.configFile."bat".source = config.lib.meta.mkDotfilesSymlink "bat/.config/bat";
+  xdg.configFile."television/config.toml".source =
+    config.lib.meta.mkDotfilesSymlink "television/.config/television/config.toml";
 }
