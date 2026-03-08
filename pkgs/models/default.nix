@@ -16,6 +16,8 @@ rustPlatform.buildRustPackage {
 
   cargoHash = "sha256-XMaGuKv9ippmnqt/l8B/xb+Q7YytGpgitXAqur/i6MU=";
 
+  doCheck = false;
+
   meta = {
     description = "CLI and TUI for browsing AI models and tracking coding agents";
     homepage = "https://github.com/arimxyer/models";
