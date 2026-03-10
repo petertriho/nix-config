@@ -10,8 +10,8 @@ buildGoModule rec {
   src = fetchFromGitHub {
     owner = "pinchtab";
     repo = "pinchtab";
-    rev = "58b67340f993f383dcba6e3a33cf401b0ba3e51e";
-    sha256 = "sha256-DmWFNkMFDS14EQ4RPPeor/88CFwmxR42dpZodDmlfJQ=";
+    rev = "3ffc049a1302aacb2fb8d51ae1501d6cebd9eacf";
+    sha256 = "sha256-2SVfXINvR1Lc3IAa4nSjEmSc0Ttwf1lcLVD7VZn+/8E=";
   };
 
   vendorHash = "sha256-l6dOEWaG4w8WoS4RvAa5AD0ynmXThJnZLUMzFvATAlE=";
