@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+shell_quote() {
+  local value="$1"
+
+  if [[ $value =~ ^[A-Za-z0-9_@%+=:,./-]+$ ]]; then
+    printf '%s' "$value"
+  else
+    printf "'%s'" "${value//\'/\'\"\'\"\'}"
+  fi
+}
+
+join_shell_quoted() {
+  local item
+  local quoted_items=()
+
+  for item in "$@"; do
+    quoted_items+=("$(shell_quote "$item")")
+  done
+
+  local IFS=' '
+  printf '%s' "${quoted_items[*]}"
+}
+
+copy_selection() {
+  local formatted
+
+  if [ "$#" -gt 1 ]; then
+    shift
+  fi
+
+  if [ "$#" -eq 0 ]; then
+    return 0
+  fi
+
+  formatted="$(join_shell_quoted "$@")"
+  tmux set-buffer -- "$formatted"
+}
+
+write_selection() {
+  local destination="$1"
+  local formatted
+
+  shift
+
+  if [ "$#" -eq 0 ]; then
+    return 0
+  fi
+
+  formatted="$(join_shell_quoted "$@")"
+  printf '%s' "$formatted" > "$destination"
+}
+
+if [ "${1:-}" = "--copy" ]; then
+  shift
+  copy_selection "$@"
+  exit 0
+fi
+
+if [ "${1:-}" = "--write" ]; then
+  shift
+  write_selection "$@"
+  exit 0
+fi
+
+output_file="${1:?missing output file}"
+wait_channel="${2:?missing wait channel}"
+script_path="$(printf '%q' "$0")"
+output_file_quoted="$(printf '%q' "$output_file")"
+
+signal_done() {
+  tmux wait-for -S "$wait_channel" 2> /dev/null || true
+}
+
+trap signal_done EXIT
+
+fd --strip-cwd-prefix --type f --hidden --follow --exclude .git . | fzf \
+  --multi \
+  --prompt 'Files> ' \
+  --header 'tab selects, shift-tab deselects, enter inserts, ctrl-y copies' \
+  --bind 'tab:select+down,btab:deselect+up' \
+  --bind "enter:execute-silent(${script_path} --write ${output_file_quoted} {+})+abort" \
+  --bind "ctrl-y:execute-silent(${script_path} --copy {} {+})"
