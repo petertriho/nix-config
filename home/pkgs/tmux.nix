@@ -44,7 +44,7 @@
               pane_id="#{pane_id}"
               output_file="$(mktemp)"
               wait_channel="tmux-popup-file-picker-#{session_id}-#{window_id}-#{pane_id}"
-              if tmux display-popup -E -d "#{pane_current_path}" "\
+              if tmux display-popup -E -w "80%" -h "80%" -d "#{pane_current_path}" "\
                 [ -x \"$HOME/.local/bin/tmux-popup-file-picker\" ] || { tmux wait-for -S \"$wait_channel\"; exit 1; }; \
                 \"$HOME/.local/bin/tmux-popup-file-picker\" \"$output_file\" \"$wait_channel\"\
               "; then
