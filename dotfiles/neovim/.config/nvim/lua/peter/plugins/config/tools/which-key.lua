@@ -1,15 +1,8 @@
 return {
     "folke/which-key.nvim",
     event = "VeryLazy",
-    opts = {
-        preset = "helix",
-        win = {
-            title_pos = "center",
-        },
-        layout = {
-            align = "center",
-        },
-        spec = {
+    opts = function()
+        local spec = {
             -- overrides
             {
                 "gx",
@@ -39,8 +32,8 @@ return {
                 { "<leader>a", group = "ai (sidekick)" },
                 { "<leader>c", group = "code-review" },
                 { "<leader>h", group = "hierarchy" },
-                { "<leader>m", group = "misc" },
-                { "<leader>o", group = "obsidian" },
+                { "<leader>i", group = "insert" },
+                { "<leader>m", group = "mole" },
                 { "<leader>r", group = "rulebook" },
             },
             -- vim-abolish
@@ -81,6 +74,21 @@ return {
                     { "\\CU", desc = "SNAKE_UPPERCASE" },
                 },
             },
-        },
-    },
+        }
+
+        if os.getenv("OBSIDIAN_VAULTS") ~= nil then
+            table.insert(spec[3], { "<leader>o", group = "obsidian" })
+        end
+
+        return {
+            preset = "helix",
+            win = {
+                title_pos = "center",
+            },
+            layout = {
+                align = "center",
+            },
+            spec = spec,
+        }
+    end,
 }

@@ -7,23 +7,23 @@ return {
     },
     keys = {
         {
-            "<leader>ms",
+            "<leader>is",
             "<CMD>TabsVsSpacesStandardize<CR>",
             desc = "Standardize Tabs",
-            mode = { "n", "v" },
+            mode = "n",
         },
         {
-            "<leader>mt",
+            "<leader>it",
             "<CMD>TabsVsSpacesToggle<CR>",
             desc = "Toggle Tabs",
         },
         {
-            "<leader>mS",
+            "<leader>iS",
             "<CMD>TabsVsSpacesConvert tabs_to_spaces<CR>",
             desc = "Tabs 󰜴 Spaces",
         },
         {
-            "<leader>mT",
+            "<leader>iT",
             "<CMD>TabsVsSpacesConvert spaces_to_tabs<CR>",
             desc = "Spaces 󰜴 Tabs",
         },
