@@ -91,16 +91,16 @@ let
   };
 
   sharedMcpConfig = {
-    atlassian = {
-      type = "stdio";
-      command = "${pkgs.nodejs}/bin/npx";
-      args = [
-        "-y"
-        "mcp-remote"
-        "https://mcp.atlassian.com/v1/sse"
-      ];
-      disabled = true;
-    };
+    # atlassian = {
+    #   type = "stdio";
+    #   command = "${pkgs.nodejs}/bin/npx";
+    #   args = [
+    #     "-y"
+    #     "mcp-remote"
+    #     "https://mcp.atlassian.com/v1/sse"
+    #   ];
+    #   disabled = true;
+    # };
     # ck = {
     #   type = "stdio";
     #   command = "ck";
