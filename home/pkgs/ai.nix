@@ -13,7 +13,7 @@ let
       # context7-mcp
     ])
     ++ (with pkgs; [
-      terraform-mcp-server
+      # terraform-mcp-server
     ]);
   llmAgents = with pkgs.llm-agents; [
     agent-browser
