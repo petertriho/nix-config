@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "plannotator";
-  version = "0.12.0-unstable-2026-03-12";
+  version = "0.12.0-unstable-2026-03-14";
 
   src = fetchFromGitHub {
     owner = "backnotprop";
     repo = "plannotator";
-    rev = "d7ccc55f33a33ad092acdb83d28e39ccbde3b37b";
-    sha256 = "sha256-Fj4dlxcUb0m+WezTBp6KX7zE6yx9an9vdrI1bfq2wlU=";
+    rev = "d2238ac73624f505ca490238052140c65f7189ba";
+    sha256 = "sha256-99gwbTD46uLYs721ZYtgWeQxR4m2uU2lIwT6IZ69N/o=";
   };
 
   dontBuild = true;
