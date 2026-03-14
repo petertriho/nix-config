@@ -40,6 +40,7 @@
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
     television # fuzzy finder tui
+    tldr # help pages for command-line tools
     tree # directory listing
     typst # typesetting system
     unzip # unzip files
