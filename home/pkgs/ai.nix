@@ -239,62 +239,65 @@ in
       OPENSPEC_TELEMETRY = 0;
     };
   };
-  programs.opencode = {
-    enable = true;
-    # package = pkgs.unstable.opencode;
-    package = pkgs.llm-agents.opencode;
-    settings = {
-      theme = "tokyonight";
-      autoshare = false;
-      autoupdate = false;
-      # snapshot = false;
-      lsp = opencodeLspConfig;
-      small_model = cheapModel;
-      mcp = opencodeMcpConfig;
-      plugin = [
-        "@bastiangx/opencode-unmoji"
-        "@franlol/opencode-md-table-formatter"
-        "@mohak34/opencode-notifier"
-        "@plannotator/opencode"
-        "@slkiser/opencode-quota"
-        # "@tarquinen/opencode-dcp"
-        "openrtk"
-      ];
-      agent = {
-        plan = {
-          model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
+  programs = {
+    opencode = {
+      enable = true;
+      # package = pkgs.unstable.opencode;
+      package = pkgs.llm-agents.opencode;
+      settings = {
+        theme = "tokyonight";
+        autoshare = false;
+        autoupdate = false;
+        # snapshot = false;
+        lsp = opencodeLspConfig;
+        small_model = cheapModel;
+        mcp = opencodeMcpConfig;
+        plugin = [
+          "@bastiangx/opencode-unmoji"
+          "@franlol/opencode-md-table-formatter"
+          "@mohak34/opencode-notifier"
+          "@plannotator/opencode"
+          "@slkiser/opencode-quota"
+          # "@tarquinen/opencode-dcp"
+          "openrtk"
+        ];
+        agent = {
+          plan = {
+            model = "{env:OPENCODE_AGENT_PLAN_MODEL}";
+          };
+          build = {
+            model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
+          };
         };
-        build = {
-          model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
-        };
-      };
-      provider = {
-        acp = {
-          npm = "@ai-sdk/openai-compatible";
-          name = "ACP Agents";
-          models = {
-            "cursor/auto" = {
-              name = "Cursor Auto";
-            };
-            "goose/default" = {
-              name = "Goose Default";
-            };
-            "gemini/pro" = {
-              name = "Gemini Pro";
-            };
-            "gemini/flash" = {
-              name = "Gemini Flash";
-            };
-            "claude/opus" = {
-              name = "Claude Opus";
-            };
-            "claude/sonnet" = {
-              name = "Claude Sonnet";
+        provider = {
+          acp = {
+            npm = "@ai-sdk/openai-compatible";
+            name = "ACP Agents";
+            models = {
+              "cursor/auto" = {
+                name = "Cursor Auto";
+              };
+              "goose/default" = {
+                name = "Goose Default";
+              };
+              "gemini/pro" = {
+                name = "Gemini Pro";
+              };
+              "gemini/flash" = {
+                name = "Gemini Flash";
+              };
+              "claude/opus" = {
+                name = "Claude Opus";
+              };
+              "claude/sonnet" = {
+                name = "Claude Sonnet";
+              };
             };
           };
         };
       };
     };
+    superpowers.enable = true;
   };
   xdg.configFile = {
     "crush/crush.json".text = crushConfig;
@@ -302,9 +305,6 @@ in
       "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-annotate.md";
     "opencode/commands/plannotator-review.md".source =
       "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-review.md";
-    "opencode/plugins/superpowers.js".source =
-      "${pkgs.superpowers}/share/superpowers/.opencode/plugins/superpowers.js";
-    "opencode/skills/superpowers".source = "${pkgs.superpowers}/share/superpowers/skills";
     "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
