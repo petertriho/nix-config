@@ -256,7 +256,6 @@ in
           "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
           "@mohak34/opencode-notifier"
-          "@plannotator/opencode"
           "@slkiser/opencode-quota"
           # "@tarquinen/opencode-dcp"
           "openrtk"
@@ -297,14 +296,11 @@ in
         };
       };
     };
+    plannotator.enable = true;
     superpowers.enable = true;
   };
   xdg.configFile = {
     "crush/crush.json".text = crushConfig;
-    "opencode/commands/plannotator-annotate.md".source =
-      "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-annotate.md";
-    "opencode/commands/plannotator-review.md".source =
-      "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-review.md";
     "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
