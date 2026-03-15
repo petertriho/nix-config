@@ -317,6 +317,12 @@ in
   ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/agents)
   // lib.mapAttrs' (
     name: _:
+    lib.nameValuePair "opencode/agents/${name}" {
+      source = "${pkgs.agency-agents}/share/agency-agents/integrations/opencode/agents/${name}";
+    }
+  ) (builtins.readDir "${pkgs.agency-agents}/share/agency-agents/integrations/opencode/agents")
+  // lib.mapAttrs' (
+    name: _:
     lib.nameValuePair "opencode/skills/${name}" {
       source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/${name}";
     }

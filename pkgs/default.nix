@@ -5,6 +5,7 @@
 }:
 with pkgs;
 {
+  agency-agents = callPackage ./agency-agents { };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
