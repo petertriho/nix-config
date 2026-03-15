@@ -305,7 +305,7 @@ in
     "opencode/plugins/superpowers.js".source =
       "${pkgs.superpowers}/share/superpowers/.opencode/plugins/superpowers.js";
     "opencode/skills/superpowers".source = "${pkgs.superpowers}/share/superpowers/skills";
-    "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skill/pinchtab";
+    "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   }
