@@ -11,7 +11,7 @@
     };
   };
   home = {
-    packages = with pkgs; [ devenv ];
+    packages = with pkgs; [ unstable.devenv ];
     sessionVariables.DIRENV_LOG_FORMAT = "";
   };
 
