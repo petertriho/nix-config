@@ -1,5 +1,8 @@
 bold-color = bright
 confirm-close-surface = false
+copy-on-select = clipboard
+clipboard-read = allow
+clipboard-write = allow
 font-family = "JetBrainsMono Nerd Font Mono"
 # Font features for JetBrainsMono
 # -calt: ligatures off
