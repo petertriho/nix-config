@@ -11,8 +11,8 @@ stdenvNoCC.mkDerivation {
   src = fetchFromGitHub {
     owner = "msitarzewski";
     repo = "agency-agents";
-    rev = "5c669c28e6162a5bfbda8d0837eae163362f52a8";
-    sha256 = "sha256-+qJb4aeSwpQdXm4dWl6OCdLPCCliTnvQcgXLZNbgoBU=";
+    rev = "6254154899f510eb4a4de10561fecfc1f32ff17f";
+    sha256 = "sha256-kjpQZo3S8E0bYOhkMqOzOr1V133yTZzAMC/eQqwA84Y=";
   };
 
   nativeBuildInputs = [ bash ];
