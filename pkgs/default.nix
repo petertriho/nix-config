@@ -6,11 +6,12 @@
 with pkgs;
 {
   agency-agents = callPackage ./agency-agents { };
-  impeccable = callPackage ./impeccable { };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
   figlet-fonts = callPackage ./figlet-fonts { };
+  kubectl-prof = callPackage ./kubectl-prof { };
+  impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   models = callPackage ./models { };
   pinchtab = callPackage ./pinchtab { };

@@ -8,6 +8,7 @@
     packages = with pkgs; [
       k9s
       kubectl
+      kubectl-prof
       kubectx
       kubernetes-helm
       kubeswitch
