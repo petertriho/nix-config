@@ -49,6 +49,7 @@ local LSP_SORT_PRIORITY = {
 
 return {
     "saghen/blink.cmp",
+    branch = "v1",
     build = "nix run .#build-plugin",
     -- build = 'nix develop --command bash -c "cargo build --release"',
     event = { "CmdlineEnter", "InsertEnter" },
@@ -246,13 +247,21 @@ return {
                         end,
                         get_completions = function(self, context, callback)
                             if vim.bo[context.bufnr].filetype ~= "markdown" then
-                                return callback({ is_incomplete_forward = false, is_incomplete_backward = false, items = {} })
+                                return callback({
+                                    is_incomplete_forward = false,
+                                    is_incomplete_backward = false,
+                                    items = {},
+                                })
                             end
 
                             local line_before_cursor = context.line:sub(1, context.cursor[2])
                             local at_query = line_before_cursor:match("@([^%s]*)$")
                             if at_query == nil then
-                                return callback({ is_incomplete_forward = false, is_incomplete_backward = false, items = {} })
+                                return callback({
+                                    is_incomplete_forward = false,
+                                    is_incomplete_backward = false,
+                                    items = {},
+                                })
                             end
 
                             local prefix = line_before_cursor:sub(1, #line_before_cursor - #at_query - 1)
