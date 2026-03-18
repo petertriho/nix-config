@@ -9,13 +9,13 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "impeccable";
-  version = "0-unstable-2026-03-16";
+  version = "0-unstable-2026-03-17";
 
   src = fetchFromGitHub {
     owner = "pbakaus";
     repo = "impeccable";
-    rev = "b5af865d84bc1ba1b8bc7104488bc7db50977029";
-    hash = "sha256-TiiSfW268HGaSLPy2DGl76w47bF68hyXJ2cUefUfCzY=";
+    rev = "2bf7fce2d6fcfe26646e8910ced00967321d68c4";
+    hash = "sha256-ISX94T3mksoNXe7vF4CosIzRVX+8+uqCWNh309aj7EU=";
   };
 
   node_modules = stdenvNoCC.mkDerivation {
