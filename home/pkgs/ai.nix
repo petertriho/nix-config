@@ -258,7 +258,7 @@ in
           "@mohak34/opencode-notifier"
           "@slkiser/opencode-quota"
           # "@tarquinen/opencode-dcp"
-          "openrtk"
+          # "openrtk"
         ];
         agent = {
           plan = {
