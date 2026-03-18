@@ -63,6 +63,9 @@ return {
         --     opts = {},
         -- },
         {
+            dir = "~/.config/nvim/plugins/opencode-sources",
+        },
+        {
             "xzbdmw/colorful-menu.nvim",
             lazy = true,
             opt = {},
@@ -206,6 +209,9 @@ return {
                 markdown = {
                     inherit_defaults = true,
                     "path_at",
+                    "opencode_agents",
+                    "opencode_skills",
+                    "opencode_commands",
                 },
             },
             providers = {
@@ -284,6 +290,21 @@ return {
                             return self:get_completions(adapted_context, callback)
                         end,
                     },
+                },
+                opencode_agents = {
+                    name = "Agents",
+                    module = "opencode-sources.source.opencode_agents",
+                    score_offset = 120,
+                },
+                opencode_skills = {
+                    name = "Skills",
+                    module = "opencode-sources.source.opencode_skills",
+                    score_offset = 110,
+                },
+                opencode_commands = {
+                    name = "Commands",
+                    module = "opencode-sources.source.opencode_commands",
+                    score_offset = 105,
                 },
                 buffer = {
                     opts = {
