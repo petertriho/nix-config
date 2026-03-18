@@ -143,4 +143,96 @@ function M.make_items(names, ctx, match, kind)
     return items
 end
 
+local RESOLVE_STRATEGIES = {
+    file = function(root, label)
+        for entry, entry_type in scandir(root) do
+            local is_file = entry_type == "file"
+            if not is_file and entry_type == "link" then
+                local stat = vim.uv.fs_stat(vim.fs.joinpath(root, entry))
+                is_file = stat and stat.type == "file"
+            end
+
+            if is_file then
+                local basename = M.strip_extension(entry)
+                if basename == label then
+                    return vim.fs.joinpath(root, entry)
+                end
+            end
+        end
+        return nil
+    end,
+
+    skill = function(root, label)
+        local visited = {}
+
+        local function walk(logical_path)
+            local stat = vim.uv.fs_stat(logical_path)
+            if not stat or stat.type ~= "directory" then
+                return nil
+            end
+
+            local real_path = vim.uv.fs_realpath(logical_path) or logical_path
+            if visited[real_path] then
+                return nil
+            end
+            visited[real_path] = true
+
+            if vim.fs.basename(logical_path) == label then
+                local skill_md = vim.fs.joinpath(logical_path, "SKILL.md")
+                if vim.uv.fs_stat(skill_md) then
+                    return skill_md
+                end
+            end
+
+            for child in scandir(logical_path) do
+                local child_path = vim.fs.joinpath(logical_path, child)
+                local child_stat = vim.uv.fs_stat(child_path)
+                if child_stat and child_stat.type == "directory" then
+                    local result = walk(child_path)
+                    if result then
+                        return result
+                    end
+                end
+            end
+
+            return nil
+        end
+
+        return walk(root)
+    end,
+}
+
+local function read_file_content(path)
+    local file = io.open(path, "r")
+    if not file then
+        return nil
+    end
+    local content = file:read("*a")
+    file:close()
+    return content
+end
+
+function M.resolve(item, root, strategy, callback)
+    local finder = RESOLVE_STRATEGIES[strategy]
+    if not finder then
+        callback(item)
+        return
+    end
+
+    local path = finder(root, item.label)
+    if not path then
+        callback(item)
+        return
+    end
+
+    local content = read_file_content(path)
+    if content then
+        item.documentation = {
+            kind = "markdown",
+            value = content,
+        }
+    end
+    callback(item)
+end
+
 return M

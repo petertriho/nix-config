@@ -38,4 +38,8 @@ function Source:get_completions(ctx, callback)
     })
 end
 
+function Source:resolve(item, callback)
+    catalog.resolve(item, self.root, "skill", callback)
+end
+
 return Source

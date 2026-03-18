@@ -294,17 +294,17 @@ return {
                 opencode_agents = {
                     name = "Agents",
                     module = "opencode-sources.source.opencode_agents",
-                    score_offset = 120,
+                    -- score_offset = 120,
                 },
                 opencode_skills = {
                     name = "Skills",
                     module = "opencode-sources.source.opencode_skills",
-                    score_offset = 110,
+                    -- score_offset = 110,
                 },
                 opencode_commands = {
                     name = "Commands",
                     module = "opencode-sources.source.opencode_commands",
-                    score_offset = 105,
+                    -- score_offset = 105,
                 },
                 buffer = {
                     opts = {
