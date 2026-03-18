@@ -10,12 +10,12 @@
   };
 
   config = lib.mkIf config.programs.plannotator.enable {
-    xdg.configFile = {
-      "opencode/commands/plannotator-annotate.md".source =
-        "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-annotate.md";
-      "opencode/commands/plannotator-review.md".source =
-        "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-review.md";
-    };
+    xdg.configFile = lib.mapAttrs' (
+      name: _:
+      lib.nameValuePair "opencode/commands/${name}" {
+        source = "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/${name}";
+      }
+    ) (builtins.readDir "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands");
     programs.opencode.settings.plugin = [ "@plannotator/opencode" ];
     home.sessionVariables.PLANNOTATOR_ALLOW_SUBAGENTS = "1";
   };
