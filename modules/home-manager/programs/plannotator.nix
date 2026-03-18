@@ -17,5 +17,6 @@
         "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/plannotator-review.md";
     };
     programs.opencode.settings.plugin = [ "@plannotator/opencode" ];
+    home.sessionVariables.PLANNOTATOR_ALLOW_SUBAGENTS = "1";
   };
 }
