@@ -216,6 +216,7 @@ in
         nodejs
         pinchtab
         python3
+        tmuxai
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
         # goose-cli
@@ -302,6 +303,7 @@ in
   xdg.configFile = {
     "crush/crush.json".text = crushConfig;
     "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
+    "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   }

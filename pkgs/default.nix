@@ -19,6 +19,7 @@ with pkgs;
   pybetter = callPackage ./pybetter { inherit pkgs; };
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
+  tmuxai = callPackage ./tmuxai { };
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
 }

@@ -1,0 +1,17 @@
+default_model: zai-coding-plan
+models:
+  chutes:
+    provider: openrouter
+    base_url: https://llm.chutes.ai/v1
+    api_key: "${TMUXAI_CHUTES_API_KEY}"
+    model: "${TMUXAI_CHUTES_MODEL}"
+  openrouter:
+    provider: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "${TMUXAI_OPENROUTER_API_KEY}"
+    model: "${TMUXAI_OPENROUTER_MODEL}"
+  zai-coding-plan:
+    provider: openrouter
+    base_url: https://api.z.ai/api/coding/paas/v4
+    api_key: "${TMUXAI_ZAI_CODING_PLAN_API_KEY}"
+    model: "${TMUXAI_ZAI_CODING_PLAN_MODEL}"
