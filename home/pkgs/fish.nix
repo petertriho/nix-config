@@ -158,16 +158,16 @@
       ts = "bunx tokscale@latest";
       tst = "bunx tokscale@latest --light --today";
       upe = "set -x UV_PROJECT_ENVIRONMENT .venv";
-      w = "workmux";
-      wa = "workmux add";
-      wc = "workmux close";
-      wd = "workmux dashboard";
-      wi = "workmux init";
-      wl = "workmux list";
-      wm = "workmux merge";
-      wo = "workmux open";
-      wp = "workmux path";
-      wr = "workmux remove";
+      wm = "workmux";
+      wma = "workmux add";
+      wmc = "workmux close";
+      wmd = "workmux dashboard";
+      wmi = "workmux init";
+      wml = "workmux list";
+      wmm = "workmux merge";
+      wmo = "workmux open";
+      wmp = "workmux path";
+      wmr = "workmux remove";
       ysdk = "yarn dlx @yarnpkg/sdks base"; # https://yarnpkg.com/getting-started/editor-sdks#neovim-native-lsp
     }
     // (
