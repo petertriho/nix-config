@@ -11,8 +11,8 @@ let
   src = fetchFromGitHub {
     owner = "chunkhound";
     repo = "chunkhound";
-    rev = "3d84d5cb367eb5212c4df7883b20e11bbdf92e1e";
-    hash = "sha256-E1KSOtg6TVR5TRh96Aw5aGpWPZR0ZxjJNZL415vu+RY=";
+    rev = "388882820950d546d49ac3d49f46283cf4dd2a0a";
+    hash = "sha256-wh7217ndLKUeGpVQvHUDGYY0nTNWK4ebeIn0jYj13js=";
   };
 
   workspace = uv2nix.lib.workspace.loadWorkspace {

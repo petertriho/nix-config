@@ -5,16 +5,16 @@
 }:
 buildGoModule rec {
   pname = "tmuxai";
-  version = "2.1.1-unstable-2026-03-18";
+  version = "2.1.2-unstable-2026-03-18";
 
   src = fetchFromGitHub {
     owner = "alvinunreal";
     repo = "tmuxai";
-    rev = "7770f156e3609079c98712d478ec627fe5940a03";
-    hash = "sha256-eAauLivhbqi5kwsugEPu4pWS81Dtt9oz5Bg98EqFPbI=";
+    rev = "f015c0eeab2a5f4bda255cb3ed19314b4cbb94bc";
+    hash = "sha256-fHssAR2YOhNEEkSStFmy5SnGccHtU8JREwXsy+yISG8=";
   };
 
-  vendorHash = "sha256-rXvsEbSOi8kXgP5oL3FxyFSXpyIYMLuQTaRLkEmscqk=";
+  vendorHash = "sha256-tdJZ72IHMlVJmIn1YEUsx8UN+zL9pYl0s9mQ8JebDJY=";
 
   ldflags = [
     "-s"
