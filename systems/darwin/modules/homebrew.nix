@@ -38,6 +38,7 @@ in
     brews = [
       "gromgit/brewtils/taproom"
       "mas"
+      "mole"
       "terminal-notifier"
       # "opencode"
     ];
