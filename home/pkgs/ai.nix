@@ -212,6 +212,7 @@ in
       [
         # amazon-q-cli
         chunkhound
+        ilmari
         models
         nodejs
         pinchtab
