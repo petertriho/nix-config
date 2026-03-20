@@ -217,6 +217,7 @@ in
         pinchtab
         python3
         tmuxai
+        tmuxcc
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
         # goose-cli

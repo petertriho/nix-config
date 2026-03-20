@@ -20,6 +20,7 @@ with pkgs;
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
   tmuxai = callPackage ./tmuxai { };
+  tmuxcc = callPackage ./tmuxcc { };
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
 }
