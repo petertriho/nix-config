@@ -258,7 +258,7 @@ in
         plugin = [
           "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
-          "@mohak34/opencode-notifier"
+          # "@mohak34/opencode-notifier"
           "@slkiser/opencode-quota"
           # "@tarquinen/opencode-dcp"
           # "openrtk"
