@@ -5,7 +5,7 @@
 }:
 rustPlatform.buildRustPackage {
   pname = "tmuxcc";
-  version = "0.1.7-unstable-2026-03-20";
+  version = "0.1.5-unstable-2026-01-19";
 
   src = fetchFromGitHub {
     owner = "nyanko3141592";
