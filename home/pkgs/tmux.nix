@@ -41,8 +41,8 @@
             # Sesh
             bind-key -N "Sesh" "g" run-shell "sesh-connect-fzf"
 
-            # Files
-            bind-key -N "Files" "T" run-shell '
+            # Explorer
+            bind-key -N "Explorer" "e" run-shell '
               pane_id="#{pane_id}"
               output_file="$(mktemp)"
               wait_channel="tmux-popup-file-picker-#{session_id}-#{window_id}-#{pane_id}"
