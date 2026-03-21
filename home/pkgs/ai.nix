@@ -219,6 +219,7 @@ in
         python3
         tmuxai
         tmuxcc
+        uipro
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
         # goose-cli
