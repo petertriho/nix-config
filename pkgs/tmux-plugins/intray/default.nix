@@ -39,8 +39,8 @@ tmuxPlugins.mkTmuxPlugin {
     mkdir -p $out/bin
     makeWrapper ${cli}/bin/tmux-intray $out/bin/tmux-intray
 
-    mkdir -p $out/share/intray
-    cp -r $src/opencode/plugins/* $out/share/intray/
+    mkdir -p $out/share/intray/opencode/plugins
+    cp -r $src/opencode/plugins/* $out/share/intray/opencode/plugins/
   '';
 
   passthru = {

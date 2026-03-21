@@ -152,6 +152,12 @@
       task = "./Taskfile";
       tf = "terraform";
       tk = "tmux kill-session -t";
+      ti = "tmux-intray";
+      tic = "tmux-intray clear";
+      ticu = "tmux-intray cleanup --days=7";
+      tid = "tmux-intray dismiss";
+      tida = "tmux-intray dismiss --all";
+      til = "tmux-intray list";
       tl = "tmux list-sessions";
       tn = "tmux new-session -s";
       tnz = "tmux-new-zoxide";
