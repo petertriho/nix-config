@@ -19,6 +19,8 @@
   };
 
   xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";
+  xdg.configFile."opencode/plugins/opencode-tmux-agent-indicator.js".source =
+    "${pkgs.tmuxPlugins.agent-indicator}/share/agent-indicator/opencode/plugins/opencode-tmux-agent-indicator.js";
 
   programs.tmux = {
     enable = true;
@@ -142,6 +144,16 @@
             set -g @fuzzback-bind "/"
             set -g @fuzzback-popup 1
             set -g @fuzzback-popup-size "80%"
+          '';
+      }
+      {
+        plugin = agent-indicator;
+        extraConfig =
+          # tmux
+          ''
+            set -g @agent-indicator-icons 'claude=󰢚,codex=,opencode=󱙺,default='
+            set -g @agent-indicator-animation-enabled 'on'
+            set -g @agent-indicator-animation-speed '300'
           '';
       }
     ];

@@ -47,6 +47,7 @@ set -g status-right-style ${none}
 status_left_content="#[fg=${tokyo_black},bg=${mode_aware_bg},bold] #{?client_prefix,●,○} #S "
 
 status_right_content="#[fg=${tokyo_blue},bg=${tokyo_bg_statusline}] #{prefix_highlight} "\
+"#{agent_session_dots} #{agent_indicator} "\
 "#(gitmux -cfg $HOME/.gitmux.conf '#{pane_current_path}') "\
 "#[fg=${tokyo_fg_sidebar},bg=${tokyo_bg_highlight}] %Y-%m-%d ❬ %I:%M %p "\
 "#[fg=${tokyo_black},bg=${mode_aware_bg},bold] #h "

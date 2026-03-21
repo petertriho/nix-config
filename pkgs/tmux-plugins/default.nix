@@ -9,6 +9,7 @@ let
   );
 in
 {
+  agent-indicator = callPackage ./agent-indicator { };
   easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
   session-wizard = callPackage ./session-wizard { };
   sessionist-fork = callPackage ./sessionist-fork { };
