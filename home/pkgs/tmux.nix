@@ -10,6 +10,7 @@
       gitmux
       sesh
       tmuxPlugins.session-wizard
+      tmuxPlugins.intray
     ];
     file = {
       ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
@@ -155,6 +156,12 @@
             set -g @agent-indicator-animation-enabled 'on'
             set -g @agent-indicator-animation-speed '300'
           '';
+      }
+      {
+        plugin = intray;
+        extraConfig =
+          # tmux
+          "";
       }
     ];
     extraConfig = builtins.readFile ../../dotfiles/tmux/.tmux.conf;

@@ -11,6 +11,7 @@ in
 {
   agent-indicator = callPackage ./agent-indicator { };
   easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
+  intray = callPackage ./intray { };
   session-wizard = callPackage ./session-wizard { };
   sessionist-fork = callPackage ./sessionist-fork { };
   window-name = callPackage ./window-name { inherit pkgs pythonInputs; };
