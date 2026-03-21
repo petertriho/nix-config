@@ -14,6 +14,24 @@ tmuxPlugins.mkTmuxPlugin {
     hash = "sha256-l5ceGR7JVKuiaGobPQyhON0jOjITf77zdWhs/sjk/uw=";
   };
   rtpFilePath = "agent-indicator.tmux";
+  postPatch = ''
+    for script in scripts/agent-state.sh scripts/pane-focus-in.sh; do
+      substituteInPlace "$script" \
+        --replace-fail 'TMUX_AGENT_PANE_''${pane_id}_' 'TMUX_AGENT_PANE_''${pane_id/#%/}_' \
+        --replace-fail 'TMUX_AGENT_WINDOW_''${window_id}_' 'TMUX_AGENT_WINDOW_''${window_id/#@/}_'
+    done
+    substituteInPlace scripts/reset_all.sh \
+      --replace-fail 'TMUX_AGENT_WINDOW_''${window_id}_' 'TMUX_AGENT_WINDOW_''${window_id/#@/}_'
+    substituteInPlace scripts/pane-focus-in.sh \
+      --replace-fail 'TMUX_AGENT_WINDOW_''${done_window}_' 'TMUX_AGENT_WINDOW_''${done_window/#@/}_'
+    substituteInPlace scripts/indicator.sh \
+      --replace-fail 'TMUX_AGENT_PANE_''${PANE_ID}_' 'TMUX_AGENT_PANE_''${PANE_ID/#%/}_' \
+      --replace-fail 'TMUX_AGENT_PANE_''${other_pane}_' 'TMUX_AGENT_PANE_''${other_pane/#%/}_'
+    substituteInPlace scripts/agent-state.sh \
+      --replace-fail 'pane_exists "$pane_candidate"' 'pane_exists "%''${pane_candidate}"' \
+      --replace-fail 'pane="$running_candidate"' 'pane="%''${running_candidate}"' \
+      --replace-fail 'pane="$done_candidate"' 'pane="%''${done_candidate}"'
+  '';
   postInstall = ''
     mkdir -p $out/share/agent-indicator/opencode/plugins
     cp -r $src/plugins/* $out/share/agent-indicator/opencode/plugins/
