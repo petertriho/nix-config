@@ -5,13 +5,13 @@
 }:
 rustPlatform.buildRustPackage {
   pname = "models";
-  version = "0.11.2-unstable-2026-03-21";
+  version = "0.11.2-unstable-2026-03-22";
 
   src = fetchFromGitHub {
     owner = "arimxyer";
     repo = "models";
-    rev = "8b547179c14f7883bcbaff1a2579aec9c872c716";
-    hash = "sha256-hCpJpAAiXOgEz1XrZ+9z83GLik7Jk5kkyZ2zflEVAWs=";
+    rev = "d73aab76a0a1b961ca54e4c5198086826d50f9e5";
+    hash = "sha256-VfVfKIfOzW16BVo6UcALQ/DnFnKAQlM7g3uOG/Pf3V4=";
   };
 
   cargoHash = "sha256-L+SzBbJ3m6OKB5IYxswp5d4hMi2z3oVNCKo0MWdUp4s=";

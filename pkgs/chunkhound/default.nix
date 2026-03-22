@@ -11,8 +11,8 @@ let
   src = fetchFromGitHub {
     owner = "chunkhound";
     repo = "chunkhound";
-    rev = "0ab0ff8b84ef2246785bdaa9e070e1eb67f7f41a";
-    hash = "sha256-yhXyJcfl895eKITvDzPX/VdlfvFIwNhIUg8GX8CQeG8=";
+    rev = "1d7cb34368e7c1576137c671e3b921c007d1095c";
+    hash = "sha256-gR+UuSrkw9LuUMACdsGFDrK5Baapj7m6JNTP3VvFb1s=";
   };
 
   workspace = uv2nix.lib.workspace.loadWorkspace {
@@ -76,7 +76,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "chunkhound";
-  version = "4.1.0b1-unstable-2026-03-19";
+  version = "4.1.0b1-unstable-2026-03-22";
 
   inherit src;
 

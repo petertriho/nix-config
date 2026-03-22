@@ -11,7 +11,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "excalidraw-mcp";
-  version = "0.3.2-unstable-2026-03-22";
+  version = "0.3.2-unstable-2026-02-20";
 
   src = fetchFromGitHub {
     owner = "excalidraw";
