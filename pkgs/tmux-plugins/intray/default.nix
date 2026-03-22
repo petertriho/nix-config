@@ -7,12 +7,11 @@
 }:
 let
   version = "0.0.1-a01-unstable-2026-03-21";
-  rev = "fb6f29e09d67f22e7a1bfdd1e49a1b05789fd805";
 
   src = fetchFromGitHub {
     owner = "cristianoliveira";
     repo = "tmux-intray";
-    inherit rev;
+    rev = "fb6f29e09d67f22e7a1bfdd1e49a1b05789fd805";
     hash = "sha256-Q9PejCVQzHoD5/YmleVrQTtfUmugwxAKAFkIqxeKfNw=";
   };
 

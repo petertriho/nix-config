@@ -10,8 +10,8 @@ stdenvNoCC.mkDerivation {
   src = fetchFromGitHub {
     owner = "backnotprop";
     repo = "plannotator";
-    rev = "c5204770d2214b2cba337746bca841199518b169";
-    sha256 = "sha256-O4tJjsfY7/0yno7F28O56spzEkSFmJpiyzg51rGDuPA=";
+    rev = "4fd0ff45f28ac570d3a8f6bf7ae01fef782a301c";
+    sha256 = "sha256-ORh8eRsFaRavK+HPkfbYdpxcr0w9919iZI9gmS+T+Z4=";
   };
 
   dontBuild = true;

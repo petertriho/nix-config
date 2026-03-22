@@ -9,12 +9,12 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "uipro-cli";
-  version = "2.5.0";
+  version = "2.5.0-unstable-2026-03-10";
 
   src = fetchFromGitHub {
     owner = "nextlevelbuilder";
     repo = "ui-ux-pro-max-skill";
-    rev = "v2.5.0";
+    rev = "07f4ef3ac2568c25a3b0c8ef5165a86abc3e56e4";
     hash = "sha256-zrWVV48rhz+4Hm4Ho1371yymkwbbtSveXLUvq55EGB4=";
   };
 
