@@ -102,10 +102,10 @@ return {
                 end,
             },
             ["<Tab>"] = {
-                "snippet_forward",
                 function()
                     return require("sidekick").nes_jump_or_apply()
                 end,
+                "snippet_forward",
                 "fallback",
             },
         },
