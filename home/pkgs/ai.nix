@@ -13,6 +13,7 @@ let
       # context7-mcp
     ])
     ++ (with pkgs; [
+      excalidraw-mcp
       # terraform-mcp-server
     ]);
   llmAgents = with pkgs.llm-agents; [
@@ -118,6 +119,20 @@ let
       command = "chunkhound";
       args = [
         "mcp"
+        "--stdio"
+      ];
+      disabled = false;
+    };
+    # drawio = {
+    #   type = "stdio";
+    #   command = "npx";
+    #   args = [ "@next-ai-drawio/mcp-server@latest" ];
+    #   disabled = false;
+    # };
+    excalidraw = {
+      type = "stdio";
+      command = "excalidraw-mcp";
+      args = [
         "--stdio"
       ];
       disabled = false;

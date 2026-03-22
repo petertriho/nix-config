@@ -6,6 +6,7 @@
 with pkgs;
 {
   agency-agents = callPackage ./agency-agents { };
+  excalidraw-mcp = callPackage ./excalidraw-mcp { };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
