@@ -3,101 +3,128 @@
 set -euo pipefail
 
 shell_quote() {
-  local value="$1"
+    local value="$1"
 
-  if [[ $value =~ ^[A-Za-z0-9_@%+=:,./-]+$ ]]; then
-    printf '%s' "$value"
-  else
-    printf "'%s'" "${value//\'/\'\"\'\"\'}"
-  fi
+    if [[ $value =~ ^[A-Za-z0-9_@%+=:,./-]+$ ]]; then
+        printf '%s' "$value"
+    else
+        printf "'%s'" "${value//\'/\'\"\'\"\'}"
+    fi
 }
 
 join_shell_quoted() {
-  local item
-  local quoted_items=()
+    local item
+    local quoted_items=()
 
-  for item in "$@"; do
-    quoted_items+=("$(shell_quote "$item")")
-  done
+    for item in "$@"; do
+        quoted_items+=("$(shell_quote "$item")")
+    done
 
-  local IFS=' '
-  printf '%s' "${quoted_items[*]}"
+    local IFS=' '
+    printf '%s' "${quoted_items[*]}"
 }
 
 copy_selection() {
-  local formatted
+    local formatted
 
-  if [ "$#" -gt 1 ]; then
-    shift
-  fi
+    if [ "$#" -gt 1 ]; then
+        shift
+    fi
 
-  if [ "$#" -eq 0 ]; then
-    return 0
-  fi
+    if [ "$#" -eq 0 ]; then
+        return 0
+    fi
 
-  formatted="$(join_shell_quoted "$@")"
-  tmux set-buffer -- "$formatted"
+    formatted="$(join_shell_quoted "$@")"
+    tmux set-buffer -- "$formatted"
 }
 
 write_selection() {
-  local destination="$1"
-  local formatted
+    local destination="$1"
+    local formatted
 
-  shift
+    shift
 
-  if [ "$#" -eq 0 ]; then
-    return 0
-  fi
+    if [ "$#" -eq 0 ]; then
+        return 0
+    fi
 
-  formatted="$(join_shell_quoted "$@")"
-  printf '%s' "$formatted" > "$destination"
+    formatted="$(join_shell_quoted "$@")"
+    printf '%s' "$formatted" > "$destination"
 }
 
 render_candidates() {
-  local path
-  local display
+    local path
+    local display
 
-  while IFS= read -r path; do
-    if command -v eza > /dev/null 2>&1; then
-      display="$(eza --color=always --icons=never --oneline --no-quotes --absolute=off -- "$path")"
-    else
-      display="$path"
-    fi
+    while IFS= read -r path; do
+        if command -v eza > /dev/null 2>&1; then
+            display="$(eza --color=always --icons=never --oneline --no-quotes --absolute=off -- "$path")"
+        else
+            display="$path"
+        fi
 
-    printf '%s\t%s\n' "$path" "$display"
-  done
+        printf '%s\t%s\n' "$path" "$display"
+    done
 }
 
 if [ "${1:-}" = "--copy" ]; then
-  shift
-  copy_selection "$@"
-  exit 0
+    shift
+    copy_selection "$@"
+    exit 0
 fi
 
 if [ "${1:-}" = "--write" ]; then
-  shift
-  write_selection "$@"
-  exit 0
+    shift
+    write_selection "$@"
+    exit 0
 fi
 
-output_file="${1:?missing output file}"
-wait_channel="${2:?missing wait channel}"
-script_path="$(printf '%q' "$0")"
-output_file_quoted="$(printf '%q' "$output_file")"
+run_picker() {
+    local output_file="$1"
+    local wait_channel="$2"
+    local script_path
+    local output_file_quoted
 
-signal_done() {
-  tmux wait-for -S "$wait_channel" 2> /dev/null || true
+    script_path="$(printf '%q' "$0")"
+    output_file_quoted="$(printf '%q' "$output_file")"
+
+    signal_done() {
+        tmux wait-for -S "$wait_channel" 2> /dev/null || true
+    }
+
+    trap signal_done EXIT
+
+    fd --strip-cwd-prefix --type f --hidden --follow --exclude .git . | render_candidates | fzf \
+        --ansi \
+        --multi \
+        --delimiter=$'\t' \
+        --with-nth=2.. \
+        --prompt 'Files> ' \
+        --header 'tab selects, shift-tab deselects, enter inserts, ctrl-y copies' \
+        --bind 'tab:select+down,btab:deselect+up' \
+        --bind "enter:execute-silent(${script_path} --write ${output_file_quoted} {+1})+abort" \
+        --bind "ctrl-y:execute-silent(${script_path} --copy {1} {+1})"
 }
 
-trap signal_done EXIT
+if [ "$#" -eq 2 ]; then
+    run_picker "$1" "$2"
+    exit 0
+fi
 
-fd --strip-cwd-prefix --type f --hidden --follow --exclude .git . | render_candidates | fzf \
-  --ansi \
-  --multi \
-  --delimiter=$'\t' \
-  --with-nth=2.. \
-  --prompt 'Files> ' \
-  --header 'tab selects, shift-tab deselects, enter inserts, ctrl-y copies' \
-  --bind 'tab:select+down,btab:deselect+up' \
-  --bind "enter:execute-silent(${script_path} --write ${output_file_quoted} {+1})+abort" \
-  --bind "ctrl-y:execute-silent(${script_path} --copy {1} {+1})"
+pane_id="$(tmux display-message -p '#{pane_id}')"
+output_file="$(mktemp)"
+wait_channel="tmux-popup-file-picker-$(tmux display-message -p '#{session_id}')-$(tmux display-message -p '#{window_id}')-${pane_id}"
+script_path="$(printf '%q' "$0")"
+
+if tmux display-popup -E -w "80%" -h "80%" -d "$(tmux display-message -p '#{pane_current_path}')" \
+    "${script_path} ${output_file} ${wait_channel}"; then
+    tmux wait-for "$wait_channel"
+fi
+
+if [ -s "$output_file" ]; then
+    selected="$(cat "$output_file")"
+    tmux send-keys -t "$pane_id" -l -- "$selected"
+fi
+
+rm -f "$output_file"

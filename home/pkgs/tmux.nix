@@ -47,22 +47,7 @@
             bind-key -N "Sesh" "g" run-shell "sesh-connect-fzf"
 
             # Explorer
-            bind-key -N "Explorer" "e" run-shell '
-              pane_id="#{pane_id}"
-              output_file="$(mktemp)"
-              wait_channel="tmux-popup-file-picker-#{session_id}-#{window_id}-#{pane_id}"
-              if tmux display-popup -E -w "80%" -h "80%" -d "#{pane_current_path}" "\
-                [ -x \"$HOME/.local/bin/tmux-popup-file-picker\" ] || { tmux wait-for -S \"$wait_channel\"; exit 1; }; \
-                \"$HOME/.local/bin/tmux-popup-file-picker\" \"$output_file\" \"$wait_channel\"\
-              "; then
-                tmux wait-for "$wait_channel"
-              fi
-              if [ -s "$output_file" ]; then
-                selected="$(cat "$output_file")"
-                tmux send-keys -t "$pane_id" -l -- "$selected"
-              fi
-              rm -f "$output_file"
-            '
+            bind-key -N "Explorer" "e" run-shell "tmux-popup-file-picker"
           '';
       }
       pain-control
