@@ -157,8 +157,6 @@
           # tmux
           ''
             set -g @agent-indicator-icons 'claude=󰢚,codex=,opencode=󱙺,default='
-            set -g @agent-indicator-animation-enabled 'on'
-            set -g @agent-indicator-animation-speed '300'
             set -g @agent-indicator-notification-enabled 'off'
             set -g @agent-indicator-notification-duration '0'
           '';
