@@ -297,6 +297,7 @@
       ];
       fishFunctionFiles = [
         "set-chunkhound-key.fish"
+        "set-grip-key.fish"
         "set-nextcloud.fish"
         "set-theme.fish"
         "set-tmuxai-keys.fish"

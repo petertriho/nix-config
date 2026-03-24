@@ -213,6 +213,10 @@ return {
                     "opencode_skills",
                     "opencode_commands",
                 },
+                sql = {
+                    inherit_defaults = true,
+                    "dadbod_grip",
+                },
             },
             providers = {
                 -- copilot = {
@@ -221,6 +225,7 @@ return {
                 --     score_offset = 150,
                 --     async = true,
                 -- },
+                dadbod_grip = { name = "Grip SQL", module = "dadbod-grip.completion.blink" },
                 lazydev = {
                     name = "LazyDev",
                     module = "lazydev.integrations.blink",

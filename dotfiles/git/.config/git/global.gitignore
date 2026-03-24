@@ -1,8 +1,9 @@
 .chunkhound
 .ck
+.grip
 .opencode
 .plans
 .worktrees
 AGENTS.md
-openspec
 docs/superpowers
+openspec
