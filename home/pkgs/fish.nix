@@ -289,32 +289,18 @@
   '';
 
   xdg.configFile =
-    let
-      fishConfFiles = [
-        "00-prompt.fish"
-        "01-forgit.fish"
-        "02-theme.fish"
-      ];
-      fishFunctionFiles = [
-        "set-chunkhound-key.fish"
-        "set-grip-key.fish"
-        "set-nextcloud.fish"
-        "set-theme.fish"
-        "set-tmuxai-keys.fish"
-      ];
-    in
-    builtins.listToAttrs (
-      map (file: {
-        name = "fish/conf.d/${file}";
-        value.source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/${file}";
-      }) fishConfFiles
-    )
-    // builtins.listToAttrs (
-      map (file: {
-        name = "fish/functions/${file}";
-        value.source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/functions/${file}";
-      }) fishFunctionFiles
-    )
+    lib.mapAttrs' (
+      name: _:
+      lib.nameValuePair "fish/conf.d/${name}" {
+        source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/conf.d/${name}";
+      }
+    ) (builtins.readDir ../../dotfiles/fish/.config/fish/conf.d)
+    // lib.mapAttrs' (
+      name: _:
+      lib.nameValuePair "fish/functions/${name}" {
+        source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/functions/${name}";
+      }
+    ) (builtins.readDir ../../dotfiles/fish/.config/fish/functions)
     // {
       "vivid".source = config.lib.meta.mkDotfilesSymlink "vivid/.config/vivid";
       "fish/completions/set-chunkhound-key.fish".source =
