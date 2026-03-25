@@ -22,5 +22,6 @@
     ) (builtins.readDir "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands");
     programs.opencode.settings.plugin = [ "@plannotator/opencode" ];
     home.sessionVariables.PLANNOTATOR_ALLOW_SUBAGENTS = "1";
+    home.packages = [ pkgs.plannotator ];
   };
 }
