@@ -11,13 +11,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "excalidraw-mcp";
-  version = "0.3.2-unstable-2026-02-20";
+  version = "0.3.2-unstable-2026-03-24";
 
   src = fetchFromGitHub {
     owner = "excalidraw";
     repo = "excalidraw-mcp";
-    rev = "542091bff3517f965b67b77dd5af5566817f682d";
-    hash = "sha256-0iSVdHt6eT5c7clA55wScYgOX9KHOd4yKkf+YPoSTKE=";
+    rev = "157aa23ceb1976008aadc89eb05e3444060f09d6";
+    hash = "sha256-UOAKGf3iqFb2WQ5kXIj/+1oypZ6I7oktT0Xn2tvulSE=";
   };
 
   nativeBuildInputs = [
