@@ -31,6 +31,8 @@ tmuxPlugins.mkTmuxPlugin {
       --replace-fail 'pane_exists "$pane_candidate"' 'pane_exists "%''${pane_candidate}"' \
       --replace-fail 'pane="$running_candidate"' 'pane="%''${running_candidate}"' \
       --replace-fail 'pane="$done_candidate"' 'pane="%''${done_candidate}"'
+    substituteInPlace scripts/session-dots.sh \
+      --replace-fail 'tmux display-message -p -t "$pane_id"' 'tmux display-message -p -t "%''${pane_id}"'
   '';
   postInstall = ''
     mkdir -p $out/share/agent-indicator/opencode/plugins
