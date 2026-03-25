@@ -10,7 +10,11 @@
   };
 
   config = lib.mkIf config.programs.plannotator.enable {
-    xdg.configFile = lib.mapAttrs' (
+    xdg.configFile = {
+      "opencode/skills/plannotator-compound".source =
+        "${pkgs.plannotator}/share/plannotator/skills/plannotator-compound";
+    }
+    // lib.mapAttrs' (
       name: _:
       lib.nameValuePair "opencode/commands/${name}" {
         source = "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/${name}";
