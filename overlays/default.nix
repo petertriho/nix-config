@@ -21,7 +21,6 @@
     pylint = prev.python3Packages.pylint.overridePythonAttrs {
       dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
     };
-    crystal = prev.crystal_1_18; # TODO: remove when fixed in nixpkgs https://github.com/NixOS/nixpkgs/issues/487193
   };
 
   stable = final: prev: {
