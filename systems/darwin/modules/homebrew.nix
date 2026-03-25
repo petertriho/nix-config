@@ -108,6 +108,7 @@ in
       HOMEBREW_CELLAR = "${HOMEBREW_PREFIX}/Cellar";
       HOMEBREW_REPOSITORY = HOMEBREW_PREFIX;
       HOMEBREW_NO_ANALYTICS = "1";
+      HOMEBREW_DOWNLOAD_CONCURRENCY = "auto";
     };
     systemPath = [
       "${HOMEBREW_PREFIX}/bin"
