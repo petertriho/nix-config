@@ -22,10 +22,10 @@
   xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";
   xdg.configFile."opencode/plugins/opencode-tmux-agent-indicator.js".source =
     "${pkgs.tmuxPlugins.agent-indicator}/share/agent-indicator/opencode/plugins/opencode-tmux-agent-indicator.js";
-  xdg.configFile."opencode/plugins/opencode-tmux-intray.js".source =
-    "${pkgs.tmuxPlugins.intray}/share/intray/opencode/plugins/opencode-tmux-intray.js";
-  xdg.configFile."opencode/plugins/opencode-tmux-intray".source =
-    "${pkgs.tmuxPlugins.intray}/share/intray/opencode/plugins/opencode-tmux-intray";
+  # xdg.configFile."opencode/plugins/opencode-tmux-intray.js".source =
+  #   "${pkgs.tmuxPlugins.intray}/share/intray/opencode/plugins/opencode-tmux-intray.js";
+  # xdg.configFile."opencode/plugins/opencode-tmux-intray".source =
+  #   "${pkgs.tmuxPlugins.intray}/share/intray/opencode/plugins/opencode-tmux-intray";
 
   programs.tmux = {
     enable = true;
@@ -146,12 +146,12 @@
             set -g @agent-indicator-notification-duration '10'
           '';
       }
-      {
-        plugin = intray;
-        extraConfig =
-          # tmux
-          "";
-      }
+      # {
+      #   plugin = intray;
+      #   extraConfig =
+      #     # tmux
+      #     "";
+      # }
     ];
     extraConfig = builtins.readFile ../../dotfiles/tmux/.tmux.conf;
   };
