@@ -8,7 +8,7 @@ let
   cheapModel = "github-copilot/gpt-5-mini";
   defaultModel = "openai/gpt-5.4";
 
-  mcpServers =
+  mcpServerPackages =
     (with pkgs.mcp-servers; [
       # context7-mcp
     ])
@@ -21,7 +21,6 @@ let
     # backlog-md
     beads
     ck
-    codex
     # coding-agent-search
     copilot-language-server
     crush
@@ -91,70 +90,6 @@ let
     };
   };
 
-  sharedMcpConfig = {
-    # atlassian = {
-    #   type = "stdio";
-    #   command = "${pkgs.nodejs}/bin/npx";
-    #   args = [
-    #     "-y"
-    #     "mcp-remote"
-    #     "https://mcp.atlassian.com/v1/sse"
-    #   ];
-    #   disabled = true;
-    # };
-    # ck = {
-    #   type = "stdio";
-    #   command = "ck";
-    #   args = [ "--serve" ];
-    #   disabled = true;
-    # };
-    # context7 = {
-    #   type = "stdio";
-    #   command = "context7-mcp";
-    #   args = [ ];
-    #   disabled = false;
-    # };
-    chunkhound = {
-      type = "stdio";
-      command = "chunkhound";
-      args = [
-        "mcp"
-        "--stdio"
-      ];
-      disabled = false;
-    };
-    # drawio = {
-    #   type = "stdio";
-    #   command = "npx";
-    #   args = [ "@next-ai-drawio/mcp-server@latest" ];
-    #   disabled = false;
-    # };
-    excalidraw = {
-      type = "stdio";
-      command = "excalidraw-mcp";
-      args = [
-        "--stdio"
-      ];
-      disabled = false;
-    };
-    playwriter = {
-      type = "stdio";
-      command = "playwriter";
-      args = [ ];
-      # command = "${pkgs.nodejs}/bin/npx";
-      # args = [
-      #   "playwriter@latest"
-      # ];
-      disabled = false;
-    };
-    # terraform = {
-    #   type = "stdio";
-    #   command = "terraform-mcp-server";
-    #   args = [ ];
-    #   disabled = true;
-    # };
-  };
-
   toOpencodeLsp =
     name: cfg:
     let
@@ -184,23 +119,26 @@ let
     pyright.disabled = true;
   };
 
-  toOpencodeMcp =
-    name: cfg:
-    let
-      baseConfig = {
-        type = "local";
-        command = [ cfg.command ] ++ cfg.args;
-        enabled = !cfg.disabled;
-      };
-    in
-    if cfg ? env then baseConfig // { environment = cfg.env; } else baseConfig;
-  opencodeMcpConfig = lib.mapAttrs toOpencodeMcp sharedMcpConfig;
-
   toCrushLsp = name: cfg: cfg;
   crushLspConfig = lib.mapAttrs toCrushLsp sharedLspConfig;
 
-  toCrushMcp = name: cfg: cfg;
-  crushMcpConfig = lib.mapAttrs toCrushMcp sharedMcpConfig;
+  toCrushMcp =
+    _: server:
+    lib.optionalAttrs (server ? type) { type = server.type; }
+    // lib.optionalAttrs (server ? command) {
+      command = server.command;
+      args = server.args or [ ];
+    }
+    // lib.optionalAttrs (server ? url) {
+      type = server.type or "http";
+      url = server.url;
+    }
+    // lib.optionalAttrs (server ? env) { env = server.env; }
+    // lib.optionalAttrs (server ? headers) { headers = server.headers; }
+    // lib.optionalAttrs (server ? disabled) { disabled = server.disabled; }
+    // lib.optionalAttrs (server ? disabled_tools) { disabled_tools = server.disabled_tools; }
+    // lib.optionalAttrs (server ? timeout) { timeout = server.timeout; };
+  crushMcpConfig = lib.mapAttrs toCrushMcp config.programs.mcp.servers;
 
   crushConfig = builtins.toJSON {
     "$schema" = "https://charm.land/crush.json";
@@ -243,7 +181,7 @@ in
         # goose-cli
         # plandex
       ]
-      ++ mcpServers
+      ++ mcpServerPackages
       ++ llmAgents;
     file = {
       ".gemini/settings.json".source = config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
@@ -262,10 +200,76 @@ in
     };
   };
   programs = {
+    mcp = {
+      enable = true;
+      servers = {
+        # atlassian = {
+        #   url = "https://mcp.atlassian.com/v1/sse";
+        #   type = "sse";
+        #   headers = {
+        #     Authorization = "Bearer {env:ATLASSIAN_API_TOKEN}";
+        #   };
+        #   disabled = true;
+        # };
+        # ck = {
+        #   command = "ck";
+        #   args = [ "--serve" ];
+        #   disabled = true;
+        # };
+        # context7 = {
+        #   command = "context7-mcp";
+        #   args = [ ];
+        #   disabled = false;
+        # };
+        chunkhound = {
+          command = "chunkhound";
+          args = [
+            "mcp"
+            "--stdio"
+          ];
+          disabled = false;
+        };
+        # drawio = {
+        #   command = "npx";
+        #   args = [ "@next-ai-drawio/mcp-server@latest" ];
+        #   disabled = false;
+        # };
+        excalidraw = {
+          command = "excalidraw-mcp";
+          args = [ "--stdio" ];
+          disabled = false;
+        };
+        playwriter = {
+          command = "playwriter";
+          args = [ ];
+          # command = "${pkgs.nodejs}/bin/npx";
+          # args = [
+          #   "playwriter@latest"
+          # ];
+          disabled = false;
+        };
+        # terraform = {
+        #   command = "terraform-mcp-server";
+        #   args = [ ];
+        #   disabled = true;
+        # };
+      };
+    };
+    claude-code = {
+      enable = true;
+      package = pkgs.llm-agents.claude-code;
+      enableMcpIntegration = true;
+    };
+    codex = {
+      enable = true;
+      package = pkgs.llm-agents.codex;
+      enableMcpIntegration = true;
+    };
     opencode = {
       enable = true;
       # package = pkgs.unstable.opencode;
       package = pkgs.llm-agents.opencode;
+      enableMcpIntegration = true;
       settings = {
         theme = "tokyonight";
         autoshare = false;
@@ -273,7 +277,6 @@ in
         # snapshot = false;
         lsp = opencodeLspConfig;
         small_model = cheapModel;
-        mcp = opencodeMcpConfig;
         plugin = [
           "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
