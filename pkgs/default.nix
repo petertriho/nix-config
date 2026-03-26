@@ -16,6 +16,7 @@ with pkgs;
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   models = callPackage ./models { };
+  playwriter = callPackage ./playwriter { };
   pinchtab = callPackage ./pinchtab { };
   plannotator = callPackage ./plannotator { };
   pybetter = callPackage ./pybetter { inherit pkgs; };

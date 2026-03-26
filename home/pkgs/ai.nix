@@ -137,14 +137,16 @@ let
       ];
       disabled = false;
     };
-    # playwriter = {
-    #   type = "stdio";
-    #   command = "${pkgs.nodejs}/bin/npx";
-    #   args = [
-    #     "playwriter@latest"
-    #   ];
-    #   disabled = false;
-    # };
+    playwriter = {
+      type = "stdio";
+      command = "playwriter";
+      args = [ ];
+      # command = "${pkgs.nodejs}/bin/npx";
+      # args = [
+      #   "playwriter@latest"
+      # ];
+      disabled = false;
+    };
     # terraform = {
     #   type = "stdio";
     #   command = "terraform-mcp-server";
@@ -230,7 +232,8 @@ in
         ilmari
         models
         nodejs
-        pinchtab
+        # pinchtab
+        playwriter
         python3
         tmuxai
         tmuxcc
@@ -326,7 +329,8 @@ in
   };
   xdg.configFile = {
     "crush/crush.json".text = crushConfig;
-    "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
+    # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
+    "opencode/skills/playwriter".source = "${pkgs.playwriter}/share/playwriter/skills/playwriter";
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
