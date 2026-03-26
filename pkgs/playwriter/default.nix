@@ -62,9 +62,9 @@ stdenv.mkDerivation (finalAttrs: {
     cp playwriter/src/skill.md "$workspace/playwriter/src/"
 
     makeWrapper ${nodejs}/bin/node "$out/bin/playwriter" \
-      --add-flags "$workspace/playwriter/bin.js"
+        --add-flags "$workspace/playwriter/bin.js"
 
-    cp -r skills/playwriter "$out/share/playwriter/"
+    cp -r skills "$out/share/playwriter/"
 
     runHook postInstall
   '';
