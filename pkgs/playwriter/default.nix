@@ -40,6 +40,8 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildPhase = ''
     runHook preBuild
+    node playwright/utils/generate_injected.js
+    node playwright/packages/playwright-core/build.mjs
     pnpm --filter playwriter build
     runHook postBuild
   '';
