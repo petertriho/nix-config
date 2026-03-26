@@ -19,6 +19,7 @@ NC='\033[0m' # No Color
 
 # Packages to skip during automatic updates
 SKIP_PACKAGES=(
+    "plannotator"
     "vim-custom"
 )
 

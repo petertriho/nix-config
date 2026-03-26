@@ -10,11 +10,11 @@ buildGoModule rec {
   src = fetchFromGitHub {
     owner = "josepdcs";
     repo = "kubectl-prof";
-    rev = "54fcf0ff391ed37f9cc510b829e82137f7ed69c4";
-    hash = "sha256-AxTW5CzxoawfuAt0L/rVu/V/tIrA33eL3heaFHMEzHI=";
+    rev = "21c6c80d355ced16df60d832e318a7ab80d602d9";
+    hash = "sha256-bZtPTrviHg9zmMqQ65VxcE1JpqXlXxBf2Medu8qoU0I=";
   };
 
-  vendorHash = "sha256-FdMq38VpwldwPNgdD9mKL3gdAfRkcBt5WRozBwJsJcE=";
+  vendorHash = "sha256-ftJnXZaQISVsjwAwDAaQO6C8U2+D3GFxHHUEvN8Z+C4=";
 
   subPackages = [ "cmd/cli" ];
 

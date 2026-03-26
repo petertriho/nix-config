@@ -12,7 +12,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "playwriter";
-  version = "0.0.91-unstable-2026-03-26";
+  version = "playwriter@0.0.89-unstable-2026-03-24";
 
   src = fetchFromGitHub {
     owner = "remorses";
