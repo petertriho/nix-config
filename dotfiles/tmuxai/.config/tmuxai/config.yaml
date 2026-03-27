@@ -5,6 +5,9 @@ models:
     base_url: https://llm.chutes.ai/v1
     api_key: "${TMUXAI_CHUTES_API_KEY}"
     model: "${TMUXAI_CHUTES_MODEL}"
+  github-copilot:
+    provider: github-copilot
+    model: "${TMUXAI_GITHUB_COPILOT_MODEL}"
   openrouter:
     provider: openrouter
     base_url: https://openrouter.ai/api/v1

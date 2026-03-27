@@ -22,6 +22,7 @@ let
     beads
     ck
     # coding-agent-search
+    copilot-cli
     copilot-language-server
     crush
     gemini-cli
