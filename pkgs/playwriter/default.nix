@@ -12,14 +12,14 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "playwriter";
-  version = "playwriter@0.0.89-unstable-2026-03-24";
+  version = "playwriter@0.0.89-unstable-2026-03-26";
 
   src = fetchFromGitHub {
     owner = "remorses";
     repo = "playwriter";
-    rev = "0b75e829b49ce98b099372e34258fe0849355302";
+    rev = "bef44d343ae771b021da4d4c384c1d2e344707ad";
     fetchSubmodules = true;
-    hash = "sha256-ecL2IXt+WZBMiUH+KEfN5ookgD793c4oy9pV7ktBndw=";
+    hash = "sha256-epm2NH8uEjXr1UexlH/lgtz2bvs9DTDBhty1wGOmN8E=";
   };
 
   nativeBuildInputs = [
@@ -38,11 +38,20 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-bwmkLsQcKaEKBTfpL29gYJyfv1V4V9ZhNaoMWGwfZ4Q=";
   };
 
+  postPatch = ''
+    substituteInPlace extension/package.json \
+      --replace-fail " && tsx scripts/download-prism.ts" ""
+    substituteInPlace extension/src/welcome.html \
+      --replace-fail '<script src="prism.min.js"></script>' "" \
+      --replace-fail '<script src="prism-bash.min.js"></script>' ""
+  '';
+
   buildPhase = ''
     runHook preBuild
     node playwright/utils/generate_injected.js
     node playwright/packages/playwright-core/build.mjs
     pnpm --filter playwriter build
+
     runHook postBuild
   '';
 

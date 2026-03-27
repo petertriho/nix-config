@@ -6,13 +6,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "agency-agents";
-  version = "0-unstable-2026-03-15";
+  version = "0-unstable-2026-03-27";
 
   src = fetchFromGitHub {
     owner = "msitarzewski";
     repo = "agency-agents";
-    rev = "6254154899f510eb4a4de10561fecfc1f32ff17f";
-    sha256 = "sha256-kjpQZo3S8E0bYOhkMqOzOr1V133yTZzAMC/eQqwA84Y=";
+    rev = "4feb0cd736dd0e2e9830cd54dfc99770621bed90";
+    sha256 = "sha256-xvZHXUDh8sD+EW+jxnF3C/AP6Rea4GFmx4Ox/B/SR9s=";
   };
 
   nativeBuildInputs = [ bash ];
