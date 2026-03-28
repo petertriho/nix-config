@@ -262,7 +262,6 @@ in
       enableMcpIntegration = true;
       pluginDirs = [
         "${pkgs.plannotator}/share/plannotator/apps/hook"
-        "${pkgs.superpowers}/share/superpowers"
       ];
     };
     codex = {
