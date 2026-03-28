@@ -1,4 +1,8 @@
-{ lib, pkgs, ... }:
+{
+  lib,
+  pkgs,
+  ...
+}:
 {
   imports = [ ./base.nix ];
   home = {
@@ -16,4 +20,5 @@
       ];
     };
   };
+  programs.claude-code.zai.enable = true;
 }
