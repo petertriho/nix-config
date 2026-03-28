@@ -332,6 +332,7 @@ in
         };
       };
     };
+    impeccable.enable = true;
     plannotator.enable = true;
     superpowers.enable = true;
   };
@@ -360,11 +361,5 @@ in
     lib.nameValuePair "opencode/skills/${name}" {
       source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/${name}";
     }
-  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/skills)
-  // lib.mapAttrs' (
-    name: _:
-    lib.nameValuePair "opencode/skills/impeccable/${name}" {
-      source = "${pkgs.impeccable}/share/impeccable/dist/opencode-prefixed/.opencode/skills/${name}";
-    }
-  ) (builtins.readDir "${pkgs.impeccable}/share/impeccable/dist/opencode-prefixed/.opencode/skills");
+  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/skills);
 }
