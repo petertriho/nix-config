@@ -260,9 +260,6 @@ in
       enable = true;
       package = pkgs.llm-agents.claude-code;
       enableMcpIntegration = true;
-      pluginDirs = [
-        "${pkgs.plannotator}/share/plannotator/apps/hook"
-      ];
     };
     codex = {
       enable = true;
