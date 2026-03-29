@@ -34,66 +34,7 @@ let
     workmux
   ];
 
-  sharedLspConfig = {
-    bashls = {
-      command = "bash-language-server";
-      args = [ "start" ];
-      filetypes = [
-        "sh"
-        "bash"
-      ];
-    };
-    lua-ls = {
-      command = "lua-language-server";
-      args = [ ];
-      filetypes = [ "lua" ];
-    };
-    eslint = {
-      command = "vscode-eslint-language-server";
-      args = [ "--stdio" ];
-      filetypes = [
-        "javascript"
-        "javascriptreact"
-        "typescript"
-        "typescriptreact"
-        "vue"
-        "svelte"
-      ];
-    };
-    nil_ls = {
-      command = "nil";
-      args = [ ];
-      filetypes = [ "nix" ];
-    };
-    pyrefly = {
-      command = "pyrefly";
-      args = [ "lsp" ];
-      filetypes = [
-        "python"
-        "pyi"
-      ];
-    };
-    terraformls = {
-      command = "terraform-ls";
-      args = [
-        "serve"
-      ];
-      filetypes = [
-        "terraform"
-        "tf"
-      ];
-    };
-    vtsls = {
-      command = "vtsls";
-      args = [ "--stdio" ];
-      filetypes = [
-        "javascript"
-        "javascriptreact"
-        "typescript"
-        "typescriptreact"
-      ];
-    };
-  };
+  lspServers = config.programs.lsp.servers;
 
   extensionMap = {
     sh = ".sh";
@@ -121,7 +62,7 @@ let
       command = [ cfg.command ] ++ cfg.args;
       inherit extensions;
     };
-  opencodeLspConfig = lib.mapAttrs toOpencodeLsp sharedLspConfig // {
+  opencodeLspConfig = lib.mapAttrs toOpencodeLsp lspServers // {
     typescript.disabled = true;
     pyright.disabled = true;
   };
@@ -135,10 +76,10 @@ let
       );
     }
     // lib.optionalAttrs (cfg.args != [ ]) { args = cfg.args; };
-  claudeCodeLspConfig = lib.mapAttrs toClaudeCodeLsp sharedLspConfig;
+  claudeCodeLspConfig = lib.mapAttrs toClaudeCodeLsp lspServers;
 
   toCrushLsp = name: cfg: cfg;
-  crushLspConfig = lib.mapAttrs toCrushLsp sharedLspConfig;
+  crushLspConfig = lib.mapAttrs toCrushLsp lspServers;
 
   toCrushMcp =
     _: server:
@@ -209,6 +150,69 @@ in
     };
   };
   programs = {
+    lsp = {
+      enable = true;
+      servers = {
+        bashls = {
+          command = "bash-language-server";
+          args = [ "start" ];
+          filetypes = [
+            "sh"
+            "bash"
+          ];
+        };
+        lua-ls = {
+          command = "lua-language-server";
+          args = [ ];
+          filetypes = [ "lua" ];
+        };
+        eslint = {
+          command = "vscode-eslint-language-server";
+          args = [ "--stdio" ];
+          filetypes = [
+            "javascript"
+            "javascriptreact"
+            "typescript"
+            "typescriptreact"
+            "vue"
+            "svelte"
+          ];
+        };
+        nil_ls = {
+          command = "nil";
+          args = [ ];
+          filetypes = [ "nix" ];
+        };
+        pyrefly = {
+          command = "pyrefly";
+          args = [ "lsp" ];
+          filetypes = [
+            "python"
+            "pyi"
+          ];
+        };
+        terraformls = {
+          command = "terraform-ls";
+          args = [
+            "serve"
+          ];
+          filetypes = [
+            "terraform"
+            "tf"
+          ];
+        };
+        vtsls = {
+          command = "vtsls";
+          args = [ "--stdio" ];
+          filetypes = [
+            "javascript"
+            "javascriptreact"
+            "typescript"
+            "typescriptreact"
+          ];
+        };
+      };
+    };
     mcp = {
       enable = true;
       servers = {
