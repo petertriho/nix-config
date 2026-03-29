@@ -18,7 +18,7 @@
       };
     })
     (lib.mkIf config.programs.claude-code.enable {
-      programs.claude-code.pluginDirs = lib.mkAfter [
+      programs.claude-code.plugins = lib.mkAfter [
         "${pkgs.superpowers}/share/superpowers"
       ];
     })

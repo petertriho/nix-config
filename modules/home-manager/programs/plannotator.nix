@@ -25,7 +25,7 @@
       home.sessionVariables.PLANNOTATOR_ALLOW_SUBAGENTS = "1";
     })
     (lib.mkIf config.programs.claude-code.enable {
-      programs.claude-code.pluginDirs = [
+      programs.claude-code.plugins = [
         "${pkgs.plannotator}/share/plannotator/apps/hook"
       ];
     })

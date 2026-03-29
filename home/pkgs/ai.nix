@@ -91,24 +91,25 @@ let
     };
   };
 
+  extensionMap = {
+    sh = ".sh";
+    bash = ".bash";
+    javascript = ".js";
+    javascriptreact = ".jsx";
+    typescript = ".ts";
+    typescriptreact = ".tsx";
+    vue = ".vue";
+    svelte = ".svelte";
+    python = ".py";
+    pyi = ".pyi";
+    nix = ".nix";
+    terraform = ".tf";
+    tf = ".tfvars";
+  };
+
   toOpencodeLsp =
     name: cfg:
     let
-      extensionMap = {
-        sh = ".sh";
-        bash = ".bash";
-        javascript = ".js";
-        javascriptreact = ".jsx";
-        typescript = ".ts";
-        typescriptreact = ".tsx";
-        vue = ".vue";
-        svelte = ".svelte";
-        python = ".py";
-        pyi = ".pyi";
-        nix = ".nix";
-        terraform = ".tf";
-        tf = ".tfvars";
-      };
       extensions = map (ft: extensionMap.${ft} or ".${ft}") cfg.filetypes;
     in
     {
@@ -119,6 +120,17 @@ let
     typescript.disabled = true;
     pyright.disabled = true;
   };
+
+  toClaudeCodeLsp =
+    name: cfg:
+    {
+      command = cfg.command;
+      extensionToLanguage = lib.listToAttrs (
+        map (ft: lib.nameValuePair (extensionMap.${ft} or ".${ft}") ft) cfg.filetypes
+      );
+    }
+    // lib.optionalAttrs (cfg.args != [ ]) { args = cfg.args; };
+  claudeCodeLspConfig = lib.mapAttrs toClaudeCodeLsp sharedLspConfig;
 
   toCrushLsp = name: cfg: cfg;
   crushLspConfig = lib.mapAttrs toCrushLsp sharedLspConfig;
@@ -252,6 +264,7 @@ in
       enable = true;
       package = pkgs.llm-agents.claude-code;
       enableMcpIntegration = true;
+      lspServers = claudeCodeLspConfig;
     };
     codex = {
       enable = true;
