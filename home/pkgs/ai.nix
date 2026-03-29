@@ -88,7 +88,6 @@ in
 
         python3
         tmuxai
-        tmuxcc
         uipro
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
@@ -299,12 +298,6 @@ in
       source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/${name}";
     }
   ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/agents)
-  # // lib.mapAttrs' (
-  #   name: _:
-  #   lib.nameValuePair "opencode/agents/${name}" {
-  #     source = "${pkgs.agency-agents}/share/agency-agents/integrations/opencode/agents/${name}";
-  #   }
-  # ) (builtins.readDir "${pkgs.agency-agents}/share/agency-agents/integrations/opencode/agents")
   // lib.mapAttrs' (
     name: _:
     lib.nameValuePair "opencode/skills/${name}" {

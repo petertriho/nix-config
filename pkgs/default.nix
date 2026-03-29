@@ -5,7 +5,6 @@
 }:
 with pkgs;
 {
-  agency-agents = callPackage ./agency-agents { };
   excalidraw-mcp = callPackage ./excalidraw-mcp { };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
@@ -23,7 +22,6 @@ with pkgs;
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
   tmuxai = callPackage ./tmuxai { };
-  tmuxcc = callPackage ./tmuxcc { };
   uipro = callPackage ./uipro { };
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
