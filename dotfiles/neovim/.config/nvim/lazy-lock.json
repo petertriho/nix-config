@@ -7,6 +7,7 @@
   "blink.cmp": { "branch": "v1", "commit": "dcde5e7e32b6bae5a7ddf343c1587a8490dbd263" },
   "blink.pairs": { "branch": "main", "commit": "2da33da164fbbf5cf52214fb9e7db1096d55e0dc" },
   "bufjump.nvim": { "branch": "master", "commit": "ae2728a77defbd27e9e5ef64c854fb0813ffba01" },
+  "code-bridge.nvim": { "branch": "main", "commit": "4d9f0205c768fdce0336d16d8b3256af22cc2ddd" },
   "codediff.nvim": { "branch": "main", "commit": "93cd80c56f71af4671388c568a37d4c84c3ddefa" },
   "colorful-menu.nvim": { "branch": "master", "commit": "b51a659459df8d078201aefc995db8175ed55e84" },
   "conform.nvim": { "branch": "master", "commit": "086a40dc7ed8242c03be9f47fbcee68699cc2395" },
