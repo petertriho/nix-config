@@ -1,0 +1,9 @@
+{
+  "model": "opus[1m]",
+  "editorMode": "vim",
+  "statusLine": {
+    "type": "command",
+    "command": "ccstatusline",
+    "padding": 0
+  }
+}
