@@ -15,32 +15,32 @@ return {
         "ReviewGoto",
     },
     keys = {
-        { "<leader>ca", "<CMD>ReviewAddIssue<CR>", desc = "Add comment (cycle type)" },
+        { "<leader>ra", "<CMD>ReviewAddIssue<CR>", desc = "Add comment (cycle type)" },
         {
-            "<leader>cn",
+            "<leader>rn",
             function()
                 require("quickfix-review").cycle_next_comment_type()
             end,
             desc = "Cycle to next type",
         },
         {
-            "<leader>cp",
+            "<leader>rp",
             function()
                 require("quickfix-review").cycle_previous_comment_type()
             end,
             desc = "Cycle to previous type",
         },
-        { "<leader>cd", "<CMD>ReviewDelete<CR>", desc = "Delete comment at cursor" },
-        { "<leader>cv", "<CMD>ReviewView<CR>", desc = "View comment at cursor" },
-        { "<leader>ce", "<CMD>ReviewExport<CR>", desc = "Export to markdown and clipboard" },
-        { "<leader>cc", "<CMD>ReviewClear<CR>", desc = "Clear all comments" },
-        { "<leader>cS", "<CMD>ReviewSummary<CR>", desc = "Show comment summary" },
-        { "<leader>cw", "<CMD>ReviewSave<CR>", desc = "Save review to disk" },
-        { "<leader>cr", "<CMD>ReviewLoad<CR>", desc = "Load review from disk" },
-        { "<leader>co", "<CMD>copen<CR>", desc = "Open quickfix list" },
+        { "<leader>rd", "<CMD>ReviewDelete<CR>", desc = "Delete comment at cursor" },
+        { "<leader>rv", "<CMD>ReviewView<CR>", desc = "View comment at cursor" },
+        { "<leader>re", "<CMD>ReviewExport<CR>", desc = "Export to markdown and clipboard" },
+        { "<leader>rc", "<CMD>ReviewClear<CR>", desc = "Clear all comments" },
+        { "<leader>rS", "<CMD>ReviewSummary<CR>", desc = "Show comment summary" },
+        { "<leader>rw", "<CMD>ReviewSave<CR>", desc = "Save review to disk" },
+        { "<leader>rr", "<CMD>ReviewLoad<CR>", desc = "Load review from disk" },
+        { "<leader>ro", "<CMD>copen<CR>", desc = "Open quickfix list" },
         { "]r", "<CMD>ReviewNext<CR>", desc = "Next comment" },
         { "[r", "<CMD>ReviewPrev<CR>", desc = "Previous comment" },
-        { "<leader>cg", "<CMD>ReviewGoto<CR>", desc = "Jump to real file from diff" },
+        { "<leader>rg", "<CMD>ReviewGoto<CR>", desc = "Jump to real file from diff" },
     },
     opts = {
         keymaps = {

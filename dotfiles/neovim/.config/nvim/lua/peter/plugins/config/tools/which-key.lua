@@ -34,7 +34,8 @@ return {
                 { "<leader>h", group = "hierarchy" },
                 { "<leader>i", group = "insert" },
                 { "<leader>m", group = "mole" },
-                { "<leader>r", group = "rulebook" },
+                { "<leader>r", group = "review" },
+                { "<leader>R", group = "rulebook" },
             },
             -- vim-abolish
             {

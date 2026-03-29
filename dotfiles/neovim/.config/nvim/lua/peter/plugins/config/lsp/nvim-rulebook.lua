@@ -3,28 +3,28 @@ return {
     event = { "User LazyLoadFile", "VeryLazy" },
     keys = {
         {
-            "<leader>ri",
+            "<leader>Ri",
             function()
                 require("rulebook").ignoreRule()
             end,
             desc = "Ignore rule",
         },
         {
-            "<leader>rl",
+            "<leader>Rl",
             function()
                 require("rulebook").lookupRule()
             end,
             desc = "Lookup rule",
         },
         {
-            "<leader>ry",
+            "<leader>Ry",
             function()
                 require("rulebook").yankDiagnosticCode()
             end,
             desc = "Yank diagnostic code",
         },
         {
-            "<leader>rf",
+            "<leader>Rf",
             function()
                 require("rulebook").suppressFormatter()
             end,
