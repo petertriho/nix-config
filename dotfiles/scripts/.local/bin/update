@@ -19,8 +19,13 @@ NC='\033[0m' # No Color
 
 # Packages to skip during automatic updates
 SKIP_PACKAGES=(
-    "plannotator"
     "vim-custom"
+)
+
+# Packages that use stable versioning (updated with --version=stable)
+STABLE_PACKAGES=(
+    "plannotator"
+    "playwriter"
 )
 
 # Helper functions for colored output
@@ -351,6 +356,26 @@ function tool:pkgs:update {
             done
             all_items=("${filtered_items[@]}")
         fi
+
+        # Separate stable packages from regular packages
+        local stable_items=()
+        if [[ ${#STABLE_PACKAGES[@]} -gt 0 ]]; then
+            local regular_items=()
+            for item in "${all_items[@]}"; do
+                local is_stable=false
+                for stable_pkg in "${STABLE_PACKAGES[@]}"; do
+                    if [[ $item == "$stable_pkg" ]]; then
+                        is_stable=true
+                        stable_items+=("$item")
+                        break
+                    fi
+                done
+                if [[ $is_stable == false ]]; then
+                    regular_items+=("$item")
+                fi
+            done
+            all_items=("${regular_items[@]}")
+        fi
     fi
 
     failed_items=()
@@ -410,6 +435,34 @@ function tool:pkgs:update {
         tool:pkgs:hashes "nix-update" "${successful_items[@]}"
     else
         echo_warning "No items were successfully updated with nix-update, skipping hash updates"
+    fi
+
+    # Update stable packages with --version=stable
+    if [[ ${#stable_items[@]} -gt 0 ]]; then
+        echo_info "Updating ${#stable_items[@]} stable packages: ${stable_items[*]}"
+        for item in "${stable_items[@]}"; do
+            echo_info "Attempting to update (stable): $item"
+
+            local attr_path="packages.$system.$item"
+
+            if ! nix eval ".#$attr_path" &> /dev/null; then
+                echo_warning "Item $item not found in flake, skipping..."
+                continue
+            fi
+
+            if timeout 300 nix-update --flake --version=stable "$attr_path" &> /dev/null; then
+                echo_success "Successfully updated $item (stable)"
+                successful_items+=("$item")
+            else
+                echo_error "Failed to update $item (stable)"
+                failed_items+=("$item")
+            fi
+        done
+
+        if [[ ${#successful_items[@]} -gt 0 ]]; then
+            echo_info "Updating hashes for stable packages: ${successful_items[*]}"
+            tool:pkgs:hashes "nix-update-stable" "${successful_items[@]}"
+        fi
     fi
 
     # Fallback to fetchgit if any items failed to update with nix-update
