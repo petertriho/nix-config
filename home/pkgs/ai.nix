@@ -24,7 +24,7 @@ let
     # coding-agent-search
     copilot-cli
     copilot-language-server
-    crush
+
     gemini-cli
     openspec
     qmd
@@ -78,46 +78,6 @@ let
     // lib.optionalAttrs (cfg.args != [ ]) { args = cfg.args; };
   claudeCodeLspConfig = lib.mapAttrs toClaudeCodeLsp lspServers;
 
-  toCrushLsp = name: cfg: cfg;
-  crushLspConfig = lib.mapAttrs toCrushLsp lspServers;
-
-  toCrushMcp =
-    _: server:
-    lib.optionalAttrs (server ? type) { type = server.type; }
-    // lib.optionalAttrs (server ? command) {
-      command = server.command;
-      args = server.args or [ ];
-    }
-    // lib.optionalAttrs (server ? url) {
-      type = server.type or "http";
-      url = server.url;
-    }
-    // lib.optionalAttrs (server ? env) { env = server.env; }
-    // lib.optionalAttrs (server ? headers) { headers = server.headers; }
-    // lib.optionalAttrs (server ? disabled) { disabled = server.disabled; }
-    // lib.optionalAttrs (server ? disabled_tools) { disabled_tools = server.disabled_tools; }
-    // lib.optionalAttrs (server ? timeout) { timeout = server.timeout; };
-  crushMcpConfig = lib.mapAttrs toCrushMcp config.programs.mcp.servers;
-
-  crushConfig = builtins.toJSON {
-    "$schema" = "https://charm.land/crush.json";
-    lsp = crushLspConfig;
-    mcp = crushMcpConfig;
-    tools = {
-      ls = {
-        max_depth = 0;
-        max_items = 1000;
-      };
-    };
-    options = {
-      attribution = {
-        trailer_style = "none";
-        generated_with = false;
-      };
-      disable_metrics = true;
-      disabled_tools = [ ];
-    };
-  };
 in
 {
   home = {
@@ -325,13 +285,13 @@ in
       };
     };
     chunkhound.enable = true;
+    crush.enable = true;
     impeccable.enable = true;
     plannotator.enable = true;
     playwriter.enable = true;
     superpowers.enable = true;
   };
   xdg.configFile = {
-    "crush/crush.json".text = crushConfig;
     # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
     "workmux/config.yaml".source =
