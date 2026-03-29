@@ -172,7 +172,7 @@ in
         models
         nodejs
         # pinchtab
-        playwriter
+
         python3
         tmuxai
         tmuxcc
@@ -239,15 +239,6 @@ in
         excalidraw = {
           command = "excalidraw-mcp";
           args = [ "--stdio" ];
-          disabled = false;
-        };
-        playwriter = {
-          command = "playwriter";
-          args = [ ];
-          # command = "${pkgs.nodejs}/bin/npx";
-          # args = [
-          #   "playwriter@latest"
-          # ];
           disabled = false;
         };
         # terraform = {
@@ -330,13 +321,13 @@ in
       };
     };
     impeccable.enable = true;
+    playwriter.enable = true;
     plannotator.enable = true;
     superpowers.enable = true;
   };
   xdg.configFile = {
     "crush/crush.json".text = crushConfig;
     # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
-    "opencode/skills/playwriter".source = "${pkgs.playwriter}/share/playwriter/skills/playwriter";
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";

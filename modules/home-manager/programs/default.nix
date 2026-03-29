@@ -5,5 +5,6 @@
     ./plannotator.nix
     ./superpowers.nix
     ./agent-indicator.nix
+    ./playwriter.nix
   ];
 }
