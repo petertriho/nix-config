@@ -179,7 +179,6 @@ in
       with pkgs;
       [
         # amazon-q-cli
-        chunkhound
         ilmari
         models
         nodejs
@@ -201,15 +200,6 @@ in
       ".gemini/settings.json".source = config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
     };
     sessionVariables = {
-      CHUNKHOUND_LLM_PROVIDER = "opencode-cli";
-      CHUNKHOUND_LLM_UTILITY_MODEL = cheapModel;
-      CHUNKHOUND_LLM_SYNTHESIS_MODEL = defaultModel;
-      CHUNKHOUND_EMBEDDING__PROVIDER = "openai";
-      # CHUNKHOUND_EMBEDDING__API_KEY = "";
-      # CHUNKHOUND_EMBEDDING__BASE_URL = "https://openrouter.ai/api/v1";
-      # CHUNKHOUND_EMBEDDING__MODEL = "qwen/qwen3-embedding-8b";
-      CHUNKHOUND_EMBEDDING__BASE_URL = "https://chutes-qwen-qwen3-embedding-8b.chutes.ai/v1";
-      CHUNKHOUND_EMBEDDING__MODEL = "Qwen/Qwen3-Embedding-8B";
       OPENSPEC_TELEMETRY = 0;
     };
   };
@@ -235,14 +225,6 @@ in
         #   args = [ ];
         #   disabled = false;
         # };
-        chunkhound = {
-          command = "chunkhound";
-          args = [
-            "mcp"
-            "--stdio"
-          ];
-          disabled = false;
-        };
         # drawio = {
         #   command = "npx";
         #   args = [ "@next-ai-drawio/mcp-server@latest" ];
@@ -333,9 +315,10 @@ in
         };
       };
     };
+    chunkhound.enable = true;
     impeccable.enable = true;
-    playwriter.enable = true;
     plannotator.enable = true;
+    playwriter.enable = true;
     superpowers.enable = true;
   };
   xdg.configFile = {
