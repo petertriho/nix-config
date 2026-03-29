@@ -18,10 +18,9 @@
       ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
   };
+  programs.agent-indicator.enable = true;
 
   xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";
-  xdg.configFile."opencode/plugins/opencode-tmux-agent-indicator.js".source =
-    "${pkgs.tmuxPlugins.agent-indicator}/share/agent-indicator/opencode/plugins/opencode-tmux-agent-indicator.js";
   # xdg.configFile."opencode/plugins/opencode-tmux-intray.js".source =
   #   "${pkgs.tmuxPlugins.intray}/share/intray/opencode/plugins/opencode-tmux-intray.js";
   # xdg.configFile."opencode/plugins/opencode-tmux-intray".source =
@@ -136,6 +135,7 @@
             set -g @fuzzback-popup-size "80%"
           '';
       }
+      # TODO: investigate why this needs to be put after sensible (cannot put in the hm module)
       {
         plugin = agent-indicator;
         extraConfig =

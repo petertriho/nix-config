@@ -4,5 +4,6 @@
     ./impeccable.nix
     ./plannotator.nix
     ./superpowers.nix
+    ./agent-indicator.nix
   ];
 }
