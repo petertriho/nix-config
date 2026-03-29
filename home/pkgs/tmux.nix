@@ -9,7 +9,6 @@
     packages = with pkgs; [
       gitmux
       sesh
-      tmuxPlugins.session-wizard
       tmuxPlugins.intray
     ];
     file = {
@@ -59,14 +58,6 @@
           '';
       }
       yank
-      {
-        plugin = session-wizard;
-        extraConfig =
-          # tmux
-          ''
-            set -g @session-wizard 'W'
-          '';
-      }
       {
         plugin = easy-motion;
         extraConfig =

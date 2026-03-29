@@ -146,7 +146,6 @@
       sc = "sesh-connect-fzf";
       sl = "sesh list";
       sv = "source .venv/bin/activate.fish";
-      sw = "session-wizard";
       t = "tmux";
       ta = "tmux attach-session -t";
       task = "./Taskfile";
