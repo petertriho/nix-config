@@ -43,6 +43,11 @@ let
         "bash"
       ];
     };
+    lua-ls = {
+      command = "lua-language-server";
+      args = [ ];
+      filetypes = [ "lua" ];
+    };
     eslint = {
       command = "vscode-eslint-language-server";
       args = [ "--stdio" ];
@@ -101,6 +106,7 @@ let
     svelte = ".svelte";
     python = ".py";
     pyi = ".pyi";
+    lua = ".lua";
     nix = ".nix";
     terraform = ".tf";
     tf = ".tfvars";
