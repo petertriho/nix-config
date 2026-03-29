@@ -540,7 +540,7 @@ return {
             desc = "Find Files All",
         },
         {
-            "<leader>b",
+            "<leader>tb",
             function()
                 require("snacks").picker.buffers()
             end,
