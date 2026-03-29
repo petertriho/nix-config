@@ -9,7 +9,7 @@
     packages = with pkgs; [
       gitmux
       sesh
-      tmuxPlugins.intray
+      # tmuxPlugins.intray
     ];
     file = {
       ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
