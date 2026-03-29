@@ -5,9 +5,6 @@
   ...
 }:
 let
-  cheapModel = "github-copilot/gpt-5-mini";
-  defaultModel = "openai/gpt-5.4";
-
   mcpServerPackages =
     (with pkgs.mcp-servers; [
       # context7-mcp
@@ -77,7 +74,6 @@ let
     }
     // lib.optionalAttrs (cfg.args != [ ]) { args = cfg.args; };
   claudeCodeLspConfig = lib.mapAttrs toClaudeCodeLsp lspServers;
-
 in
 {
   home = {
@@ -233,7 +229,7 @@ in
         autoupdate = false;
         # snapshot = false;
         lsp = opencodeLspConfig;
-        small_model = cheapModel;
+        small_model = "github-copilot/gpt-5-mini";
         plugin = [
           "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
