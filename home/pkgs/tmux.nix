@@ -123,6 +123,7 @@
             set -g @tmux_window_name_shells "${name_shells}"
             set -g @tmux_window_name_substitute_sets "${substitute_sets}"
             set -g @tmux_window_name_custom_icons '{"claude":"󰚩","codex":"󰅪","opencode":"󰆍"}'
+            set -g @tmux_window_name_show_program_args "False"
           '';
       }
       {
