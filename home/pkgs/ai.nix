@@ -185,6 +185,7 @@ in
       ++ mcpServerPackages
       ++ llmAgents;
     file = {
+      ".claude/settings.json".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
       ".gemini/settings.json".source = config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
     };
     sessionVariables = {
