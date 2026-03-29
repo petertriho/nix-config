@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 let
@@ -11,6 +12,11 @@ in
     lib.mkEnableOption "Z.ai Anthropic-compatible endpoint for Claude Code";
 
   config = lib.mkMerge [
+    (lib.mkIf cfg.enable {
+      home.packages = [ pkgs.llm-agents.ccstatusline ];
+      xdg.configFile."ccstatusline/settings.json".source =
+        config.lib.meta.mkDotfilesSymlink "ccstatusline/.config/ccstatusline/settings.json";
+    })
     (lib.mkIf (cfg.enable && cfg.zai.enable) {
       home.sessionVariables = {
         ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic";
