@@ -26,7 +26,6 @@ let
     copilot-language-server
     crush
     gemini-cli
-    openskills
     openspec
     qmd
     # qwen-code
