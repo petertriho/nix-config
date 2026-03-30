@@ -62,6 +62,11 @@
         "id": "2119baac-6b79-4b3b-b45e-df01e12efec3",
         "type": "reset-timer",
         "color": "brightGreen"
+      },
+      {
+        "id": "0ff29fe7-797d-42fd-8e55-52aa2952fa2e",
+        "type": "weekly-reset-timer",
+        "color": "brightBlue"
       }
     ],
     [
