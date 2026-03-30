@@ -60,7 +60,7 @@ let
       inherit extensions;
     };
   opencodeLspConfig = lib.mapAttrs toOpencodeLsp lspServers // {
-    lua-ls.enabled = false;
+    lua-ls.disabled = false;
     pyright.disabled = true;
     typescript.disabled = true;
   };
