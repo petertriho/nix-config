@@ -25,7 +25,7 @@ return {
         -- send context via tmux
         { "<leader>ct", "<CMD>CodeBridgeTmux<CR>", mode = { "n", "v" }, desc = "Send file" },
         { "<leader>ca", "<CMD>CodeBridgeTmuxAll<CR>", mode = { "n", "v" }, desc = "Send all buffers" },
-        { "<leader>ci", "<CMD>CodeBridgeTmuxInteractive<CR>", desc = "Interactive prompt" },
+        { "<leader>ci", "<CMD>CodeBridgeTmuxInteractive<CR>", mode = { "n", "v" }, desc = "Interactive prompt" },
         { "<leader>cA", "<CMD>CodeBridgeTmuxAllInteractive<CR>", desc = "Interactive all buffers" },
         { "<leader>cd", "<CMD>CodeBridgeTmuxDiff<CR>", desc = "Send diff" },
         { "<leader>cD", "<CMD>CodeBridgeTmuxDiffStaged<CR>", desc = "Send staged diff" },
