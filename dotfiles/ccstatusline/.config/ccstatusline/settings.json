@@ -60,6 +60,20 @@
         "id": "48f9eab7-dde1-485a-98cf-b1eee7a5e682",
         "type": "context-bar",
         "color": "brightBlue"
+      },
+      {
+        "id": "2f86d18c-4559-4157-97e2-e870fde35b54",
+        "type": "flex-separator"
+      },
+      {
+        "id": "e51c83f7-9749-40fe-9940-a940df7753dd",
+        "type": "session-usage",
+        "color": "yellow"
+      },
+      {
+        "id": "fa286e4a-46f8-4aa9-945a-3443b06facea",
+        "type": "weekly-usage",
+        "color": "brightRed"
       }
     ]
   ],
