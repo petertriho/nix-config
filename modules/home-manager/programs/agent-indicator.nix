@@ -21,7 +21,7 @@ in
       #       extraConfig =
       #         # tmux
       #         ''
-      #           set -g @agent-indicator-icons 'claude=󰚩,codex=󰅪,opencode=󰆍,default='
+      #           set -g @agent-indicator-icons 'claude=✻,codex=,opencode=󰚩,default=󰆍'
       #           set -g @agent-indicator-notification-enabled 'off'
       #         '';
       #     }
