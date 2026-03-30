@@ -44,6 +44,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
           --ignore-scripts \
           --no-cache \
           --no-progress \
+          --production \
           --os="*"
 
       runHook postBuild
@@ -60,7 +61,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     dontFixup = true;
 
-    outputHash = "sha256-RG634WEPSdhPxEdOpjor+oeWGLAfEjuNJCuWRDHmvLc=";
+    outputHash = "sha256-GpGfxVWnDTjYbgD93X0DJugJJjPF897gp43Nwhygge8=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
