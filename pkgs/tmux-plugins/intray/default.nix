@@ -11,8 +11,8 @@ let
   src = fetchFromGitHub {
     owner = "cristianoliveira";
     repo = "tmux-intray";
-    rev = "4504edfff16b3030911aa21c8d840eadb6ce03fc";
-    hash = "sha256-478rOY6ESsQ9+j3mdcZ7xHubHBxAW2HPRnkB2Y2jdjE=";
+    rev = "d75d269b7a64c267184397a16963f5862b9ec898";
+    hash = "sha256-hsm3cg0bU6ySn6dKNOjTLOeWKoZ8GNaIsaZaEy2xxXU=";
   };
 
   cli = buildGoModule {

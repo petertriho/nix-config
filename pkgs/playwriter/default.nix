@@ -12,14 +12,14 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "playwriter";
-  version = "playwriter@0.0.89";
+  version = "playwriter@0.0.102";
 
   src = fetchFromGitHub {
     owner = "remorses";
     repo = "playwriter";
-    rev = "2d0f01c1c66e46e2805d8d3df38af2656c32bef3";
+    rev = finalAttrs.version;
     fetchSubmodules = true;
-    hash = "sha256-C7HX/I/TL0P1RG4VSps3uUCnmY0/oGHFjrlg8uuFMJo=";
+    hash = "sha256-PhKKVI/zqqNNgHTsGfzAdYn2XY3YMVfJQxNUa4zEFgE=";
   };
 
   nativeBuildInputs = [
@@ -35,15 +35,15 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm_10;
     fetcherVersion = 3;
-    hash = "sha256-J6EvRi0cgVSnqwWw4q2l3VpNoHVhmtoJQgOMCLnB4OM=";
+    hash = "sha256-HKI98nYBXqi7lNyo98LcSXgXAFbwQT23Rq+yRpUO2Rs=";
   };
 
   postPatch = ''
     substituteInPlace extension/package.json \
-      --replace-fail " && tsx scripts/download-prism.ts" ""
+        --replace-fail " && tsx scripts/download-prism.ts" ""
     substituteInPlace extension/src/welcome.html \
-      --replace-fail '<script src="prism.min.js"></script>' "" \
-      --replace-fail '<script src="prism-bash.min.js"></script>' ""
+        --replace-fail '<script src="prism.min.js"></script>' "" \
+        --replace-fail '<script src="prism-bash.min.js"></script>' ""
   '';
 
   buildPhase = ''
