@@ -23,9 +23,12 @@ return {
     },
     keys = {
         -- send context via tmux
-        { "<leader>ct", "<CMD>CodeBridgeTmux<CR>", mode = { "n", "v" }, desc = "Send file" },
-        { "<leader>ca", "<CMD>CodeBridgeTmuxAll<CR>", mode = { "n", "v" }, desc = "Send all buffers" },
-        { "<leader>ci", "<CMD>CodeBridgeTmuxInteractive<CR>", mode = { "n", "v" }, desc = "Interactive prompt" },
+        { "<leader>ct", "<CMD>CodeBridgeTmux<CR>", mode = "n", desc = "Send file" },
+        { "<leader>ct", ":CodeBridgeTmux<CR>", mode = "v", desc = "Send selection" },
+        { "<leader>ca", "<CMD>CodeBridgeTmuxAll<CR>", mode = "n", desc = "Send all buffers" },
+        { "<leader>ca", ":CodeBridgeTmuxAll<CR>", mode = "v", desc = "Send all buffers" },
+        { "<leader>ci", "<CMD>CodeBridgeTmuxInteractive<CR>", mode = "n", desc = "Interactive prompt" },
+        { "<leader>ci", ":CodeBridgeTmuxInteractive<CR>", mode = "v", desc = "Interactive prompt" },
         { "<leader>cA", "<CMD>CodeBridgeTmuxAllInteractive<CR>", desc = "Interactive all buffers" },
         { "<leader>cd", "<CMD>CodeBridgeTmuxDiff<CR>", desc = "Send diff" },
         { "<leader>cD", "<CMD>CodeBridgeTmuxDiffStaged<CR>", desc = "Send staged diff" },
@@ -36,7 +39,8 @@ return {
         { "<leader>cx", "<CMD>CodeBridgeTmuxDiagnosticsErrors<CR>", desc = "Send errors" },
         { "<leader>cX", "<CMD>CodeBridgeTmuxDiagnosticsErrorsAll<CR>", desc = "Send all errors" },
         -- chat interface
-        { "<leader>cq", "<CMD>CodeBridgeQuery<CR>", mode = { "n", "v" }, desc = "Query with context" },
+        { "<leader>cq", "<CMD>CodeBridgeQuery<CR>", mode = "n", desc = "Query with context" },
+        { "<leader>cq", ":CodeBridgeQuery<CR>", mode = "v", desc = "Query with context" },
         { "<leader>cc", "<CMD>CodeBridgeChat<CR>", desc = "Chat" },
         { "<leader>ch", "<CMD>CodeBridgeHide<CR>", desc = "Hide chat" },
         { "<leader>cs", "<CMD>CodeBridgeShow<CR>", desc = "Show chat" },
