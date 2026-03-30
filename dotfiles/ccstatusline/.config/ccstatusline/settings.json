@@ -53,6 +53,15 @@
         "id": "b0cc3bb6-9177-4187-a64e-9ea27443e06a",
         "type": "total-speed",
         "color": "brightMagenta"
+      },
+      {
+        "id": "463585ae-726e-4ae9-817f-43559d74a76f",
+        "type": "flex-separator"
+      },
+      {
+        "id": "2119baac-6b79-4b3b-b45e-df01e12efec3",
+        "type": "reset-timer",
+        "color": "brightGreen"
       }
     ],
     [
