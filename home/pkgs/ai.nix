@@ -60,8 +60,9 @@ let
       inherit extensions;
     };
   opencodeLspConfig = lib.mapAttrs toOpencodeLsp lspServers // {
-    typescript.disabled = true;
+    lua-ls.enabled = false;
     pyright.disabled = true;
+    typescript.disabled = true;
   };
 
   toClaudeCodeLsp =
@@ -116,7 +117,7 @@ in
             "bash"
           ];
         };
-        lua-ls = {
+        lua-lsp = {
           command = "lua-language-server";
           args = [ ];
           filetypes = [ "lua" ];
