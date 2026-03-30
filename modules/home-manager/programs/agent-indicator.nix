@@ -29,16 +29,27 @@ in
       # }
       (lib.mkIf (config.programs.claude-code.enable) {
         programs.claude-code.hooks = {
-          UserPromptSubmit = ''
-            "${agentStateScript}" --agent claude --state off
-            "${agentStateScript}" --agent claude --state running
-          '';
-          PermissionRequest = ''
-            "${agentStateScript}" --agent claude --state needs-input
-          '';
-          Stop = ''
-            "${agentStateScript}" --agent claude --state done
-          '';
+          UserPromptSubmit =
+            #bash
+            ''
+              #!/usr/bin/env bash
+
+              "${agentStateScript}" --agent claude --state off
+              "${agentStateScript}" --agent claude --state running
+            '';
+          PermissionRequest =
+            #bash
+            ''
+              #!/usr/bin/env bash
+
+              "${agentStateScript}" --agent claude --state needs-input
+            '';
+          Stop =
+            #bash
+            ''
+              #!/usr/bin/env bash
+              "${agentStateScript}" --agent claude --state done
+            '';
         };
       })
       (lib.mkIf (config.programs.opencode.enable) {
