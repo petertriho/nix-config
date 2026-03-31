@@ -6,13 +6,13 @@
 
 stdenv.mkDerivation {
   pname = "figlet-fonts";
-  version = "0-unstable-2025-11-23";
+  version = "0-unstable-2026-03-30";
 
   src = fetchFromGitHub {
     owner = "xero";
     repo = "figlet-fonts";
-    rev = "5c250192890856486be8a85085e7915b1b655f3e";
-    sha256 = "0kaxpq2ap4nm5rp7y9jcwgqi3kayq6miv23d0an4dydpry646gf1";
+    rev = "417429ef36ab039cbf192a4424c60aa23fc32de8";
+    sha256 = "sha256-QogGNQ772bcYLOzgO0i6ydbzxjn5jnXNav72vW/SXm8=";
   };
 
   installPhase = ''

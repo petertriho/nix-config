@@ -5,10 +5,10 @@
   fetchurl,
 }:
 let
-  version = "0.16.0";
+  version = "0.16.2";
 
   hashes = {
-    "x86_64-linux" = "sha256-AWAPBFhKZ+sZqyneBgtCi3TsDtaCoo5UGcICBLyPtD4=";
+    "x86_64-linux" = "sha256-/00D85vDiWnNl2vxSyTR4gz8s4QkL8Eb1M5gyUXE/QI=";
     "aarch64-linux" = "";
     "x86_64-darwin" = "";
     "aarch64-darwin" = "sha256-fmjkmu+R9Vb6+nCstn8SSbzGzM5gA0QtR+EoWbVt5q0=";
@@ -36,7 +36,7 @@ stdenvNoCC.mkDerivation {
     owner = "backnotprop";
     repo = "plannotator";
     rev = "v${version}";
-    sha256 = "sha256-LYt9uar8mnMkwMdD7UAtqoLRpYcWkgwUXsQnsc8tVZI=";
+    sha256 = "sha256-tpu2bZX3x5rIFUaCkU1NoMXt+dZvTLipns4sP5Mp1es=";
   };
 
   binary = fetchurl {
