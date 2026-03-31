@@ -210,8 +210,8 @@ in
     };
     claude-code = {
       enable = true;
-      # package = pkgs.llm-agents.claude-code;
-      package = pkgs.claude-custom;
+      package = pkgs.llm-agents.claude-code;
+      # package = pkgs.claude-custom;
       enableMcpIntegration = true;
       lspServers = claudeCodeLspConfig;
     };
