@@ -86,9 +86,9 @@ in
         models
         nodejs
         # pinchtab
-
         python3
         tmuxai
+        tweakcc
         uipro
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
@@ -100,6 +100,7 @@ in
     file = {
       ".claude/settings.json".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
       ".gemini/settings.json".source = config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
+      ".tweakcc/config.json".source = config.lib.meta.mkDotfilesSymlink "tweakcc/.tweakcc/config.json";
     };
     sessionVariables = {
       OPENSPEC_TELEMETRY = 0;
@@ -209,7 +210,8 @@ in
     };
     claude-code = {
       enable = true;
-      package = pkgs.llm-agents.claude-code;
+      # package = pkgs.llm-agents.claude-code;
+      package = pkgs.claude-custom;
       enableMcpIntegration = true;
       lspServers = claudeCodeLspConfig;
     };

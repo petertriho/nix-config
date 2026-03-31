@@ -6,6 +6,13 @@
 with pkgs;
 {
   excalidraw-mcp = callPackage ./excalidraw-mcp { };
+  claude-custom = let
+    tweakcc-pkg = callPackage ./tweakcc { };
+  in callPackage ./claude-custom {
+    claude-code = inputs.llm-agents.packages.${stdenv.hostPlatform.system}.claude-code;
+    tweakccConfig = ../dotfiles/tweakcc/.tweakcc/config.json;
+    tweakcc = tweakcc-pkg;
+  };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
@@ -21,6 +28,7 @@ with pkgs;
   pybetter = callPackage ./pybetter { inherit pkgs; };
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
+  tweakcc = callPackage ./tweakcc { };
   tmuxai = callPackage ./tmuxai { };
   uipro = callPackage ./uipro { };
   vim-custom = callPackage ./vim-custom { };
