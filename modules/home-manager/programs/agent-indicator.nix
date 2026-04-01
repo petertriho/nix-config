@@ -52,6 +52,12 @@ in
             '';
         };
       })
+      (lib.mkIf (config.programs.codex.enable) {
+        programs.codex.settings.notify = [
+          "bash"
+          "${pkgs.tmuxPlugins.agent-indicator}/share/tmux-plugins/agent-indicator/adapters/codex-notify.sh"
+        ];
+      })
       (lib.mkIf (config.programs.opencode.enable) {
         xdg.configFile."opencode/plugins/opencode-tmux-agent-indicator.js".source =
           "${pkgs.tmuxPlugins.agent-indicator}/share/agent-indicator/opencode/plugins/opencode-tmux-agent-indicator.js";

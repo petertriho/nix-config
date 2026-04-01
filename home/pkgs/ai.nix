@@ -219,6 +219,25 @@ in
       enable = true;
       package = pkgs.llm-agents.codex;
       enableMcpIntegration = true;
+      settings = {
+        theme = "ansi";
+        features = {
+          multi_agent = true;
+        };
+        tui = {
+          status_line = [
+            "model-with-reasoning"
+            "context-remaining"
+            "current-dir"
+            "five-hour-limit"
+            "weekly-limit"
+            "context-window-size"
+            "used-tokens"
+            "total-input-tokens"
+            "total-output-tokens"
+          ];
+        };
+      };
     };
     opencode = {
       enable = true;
