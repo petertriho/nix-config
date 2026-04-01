@@ -65,7 +65,7 @@ local python_lsp_capabilities = {
         basedpyright = false,
         pyrefly = true,
         ruff = false,
-        ty = false,
+        ty = true,
     },
     hoverProvider = {
         active = "pyrefly",
