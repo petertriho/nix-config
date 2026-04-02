@@ -21,7 +21,7 @@
       mbake
       nixfmt
       # nodePackages.prettier
-      nodePackages.svgo
+      svgo
       prettierd
       pybetter
       python3Packages.docformatter
