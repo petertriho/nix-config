@@ -311,7 +311,7 @@ in
     };
     chunkhound.enable = true;
     crush.enable = true;
-    impeccable.enable = true;
+    impeccable.enable = false;
     plannotator.enable = true;
     playwriter.enable = true;
     superpowers.enable = true;
