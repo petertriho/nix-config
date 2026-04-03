@@ -17,7 +17,7 @@ in
       xdg.configFile."ccstatusline/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "ccstatusline/.config/ccstatusline/settings.json";
       home.sessionVariables = {
-        CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
+        # CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
         CLAUDE_CODE_NO_FLICKER = 1;
       };
     })
