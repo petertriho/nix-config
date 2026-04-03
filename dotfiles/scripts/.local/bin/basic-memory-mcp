@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ -n "${BASIC_MEMORY_PROJECT:-}" ]]; then
+  exec basic-memory mcp --project "$BASIC_MEMORY_PROJECT"
+else
+  exec basic-memory mcp
+fi

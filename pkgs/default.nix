@@ -5,14 +5,17 @@
 }:
 with pkgs;
 {
+  basic-memory = callPackage ./basic-memory { };
   excalidraw-mcp = callPackage ./excalidraw-mcp { };
-  claude-custom = let
-    tweakcc-pkg = callPackage ./tweakcc { };
-  in callPackage ./claude-custom {
-    claude-code = inputs.llm-agents.packages.${stdenv.hostPlatform.system}.claude-code;
-    tweakccConfig = ../dotfiles/tweakcc/.tweakcc/config.json;
-    tweakcc = tweakcc-pkg;
-  };
+  claude-custom =
+    let
+      tweakcc-pkg = callPackage ./tweakcc { };
+    in
+    callPackage ./claude-custom {
+      claude-code = inputs.llm-agents.packages.${stdenv.hostPlatform.system}.claude-code;
+      tweakccConfig = ../dotfiles/tweakcc/.tweakcc/config.json;
+      tweakcc = tweakcc-pkg;
+    };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };

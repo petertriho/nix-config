@@ -82,6 +82,7 @@ in
       with pkgs;
       [
         # amazon-q-cli
+        basic-memory
         ilmari
         models
         nodejs
@@ -103,6 +104,8 @@ in
       ".tweakcc/config.json".source = config.lib.meta.mkDotfilesSymlink "tweakcc/.tweakcc/config.json";
     };
     sessionVariables = {
+      BASIC_MEMORY_NO_PROMOS = 1;
+      BASIC_MEMORY_FORCE_LOCAL = "true";
       OPENSPEC_TELEMETRY = 0;
     };
   };
@@ -181,6 +184,11 @@ in
         #   };
         #   disabled = true;
         # };
+        basic-memory = {
+          command = "basic-memory-mcp";
+          args = [ ];
+          disabled = false;
+        };
         # ck = {
         #   command = "ck";
         #   args = [ "--serve" ];
@@ -196,11 +204,11 @@ in
         #   args = [ "@next-ai-drawio/mcp-server@latest" ];
         #   disabled = false;
         # };
-        excalidraw = {
-          command = "excalidraw-mcp";
-          args = [ "--stdio" ];
-          disabled = false;
-        };
+        # excalidraw = {
+        #   command = "excalidraw-mcp";
+        #   args = [ "--stdio" ];
+        #   disabled = false;
+        # };
         # terraform = {
         #   command = "terraform-mcp-server";
         #   args = [ ];
