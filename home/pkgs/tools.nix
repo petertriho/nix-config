@@ -12,6 +12,7 @@
     chafa # terminal image viewer
     coreutils # GNU core utilities
     dive # inspect docker images
+    drawio # diagramming tool
     dwt1-shell-color-scripts # shell color scripts collected by dt
     eza # ls replacement
     fd # find replacement
