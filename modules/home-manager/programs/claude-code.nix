@@ -16,6 +16,7 @@ in
       home.packages = [ pkgs.llm-agents.ccstatusline ];
       xdg.configFile."ccstatusline/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "ccstatusline/.config/ccstatusline/settings.json";
+      home.sessionVariables.CLAUDE_CODE_NO_FLICKER = "1";
     })
     (lib.mkIf (cfg.enable && cfg.zai.enable) {
       home.sessionVariables = {
