@@ -121,3 +121,9 @@ keymap("", "<leader>ie", ":!chmod +x %<CR>", { desc = "Executable" })
 keymap("n", "<leader>ip", 'ggVG"+p', { desc = "Put File" })
 keymap("n", "<leader>iy", "<CMD>%y+<CR>", { desc = "Yank File" })
 keymap("x", "<leader>ip", [["_dP]], { desc = "Put_" })
+keymap("n", "<leader>u", function()
+    if not vim.g.loaded_undotree_plugin then
+        vim.cmd.packadd("nvim.undotree")
+    end
+    require("undotree").open()
+end, { desc = "Undotree" })

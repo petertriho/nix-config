@@ -5,6 +5,7 @@ local sidebars = {
     "NvimTree",
     "fugitive",
     "neo-tree",
+    "nvim-undotree",
     "snacks_layout_box",
     "undotree",
 }

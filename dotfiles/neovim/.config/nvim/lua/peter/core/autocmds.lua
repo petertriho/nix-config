@@ -226,5 +226,20 @@ set_augroups({
                 desc = "Start Tailwind CSS LSP",
             },
         },
+        {
+            "FileType",
+            {
+                pattern = "nvim-undotree",
+                callback = function()
+                    vim.keymap.set("n", "q", function()
+                        vim.api.nvim_win_close(0, true)
+                    end, { buffer = true })
+                    vim.schedule(function()
+                        vim.wo.foldenable = false
+                    end)
+                end,
+                desc = "Undotree: q to close, no folding",
+            },
+        },
     },
 })

@@ -6,7 +6,7 @@ return {
         "MundoHide",
     },
     keys = {
-        { "<leader>u", "<CMD>MundoToggle<CR>", desc = "Undotree" },
+        { "<leader>U", "<CMD>MundoToggle<CR>", desc = "Undotree" },
     },
     opts = {
         mirror_graph = true,
