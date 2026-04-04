@@ -281,32 +281,6 @@ in
             model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
           };
         };
-        provider = {
-          acp = {
-            npm = "@ai-sdk/openai-compatible";
-            name = "ACP Agents";
-            models = {
-              "cursor/auto" = {
-                name = "Cursor Auto";
-              };
-              "goose/default" = {
-                name = "Goose Default";
-              };
-              "gemini/pro" = {
-                name = "Gemini Pro";
-              };
-              "gemini/flash" = {
-                name = "Gemini Flash";
-              };
-              "claude/opus" = {
-                name = "Claude Opus";
-              };
-              "claude/sonnet" = {
-                name = "Claude Sonnet";
-              };
-            };
-          };
-        };
       };
     };
     chunkhound.enable = true;
