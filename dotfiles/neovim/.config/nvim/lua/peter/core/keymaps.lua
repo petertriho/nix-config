@@ -79,6 +79,23 @@ keymap("", "H", "^", { desc = "Beginning of Line", remap = true })
 keymap({ "n", "x", "o" }, "M", "%", { desc = "Match Pair", remap = true })
 keymap("", "L", "$", { desc = "End of Line", remap = true })
 
+-- Incremental Selection
+vim.keymap.set({ "x", "o" }, "v", function()
+    if vim.treesitter.get_parser(nil, nil, { error = false }) then
+        require("vim.treesitter._select").select_parent(vim.v.count1)
+    else
+        vim.lsp.buf.selection_range(vim.v.count1)
+    end
+end, { desc = "Select parent (outer) node" })
+
+vim.keymap.set({ "x", "o" }, "V", function()
+    if vim.treesitter.get_parser(nil, nil, { error = false }) then
+        require("vim.treesitter._select").select_child(vim.v.count1)
+    else
+        vim.lsp.buf.selection_range(-vim.v.count1)
+    end
+end, { desc = "Select child (inner) node" })
+
 -- Leader
 vim.g.mapleader = " "
 vim.g.localleader = "\\"
