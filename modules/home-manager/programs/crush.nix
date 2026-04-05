@@ -15,6 +15,7 @@ let
     _: server:
     lib.optionalAttrs (server ? type) { type = server.type; }
     // lib.optionalAttrs (server ? command) {
+      type = "stdio";
       command = server.command;
       args = server.args or [ ];
     }
