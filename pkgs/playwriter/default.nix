@@ -12,14 +12,14 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "playwriter";
-  version = "playwriter@0.0.102";
+  version = "playwriter@0.0.103";
 
   src = fetchFromGitHub {
     owner = "remorses";
     repo = "playwriter";
     rev = finalAttrs.version;
     fetchSubmodules = true;
-    hash = "sha256-PhKKVI/zqqNNgHTsGfzAdYn2XY3YMVfJQxNUa4zEFgE=";
+    hash = "sha256-TuijJ9EMUiSpT1CAP0HSsQDALXtMDv99LaIDas0j6Cg=";
   };
 
   nativeBuildInputs = [
@@ -35,7 +35,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm_10;
     fetcherVersion = 3;
-    hash = "sha256-HKI98nYBXqi7lNyo98LcSXgXAFbwQT23Rq+yRpUO2Rs=";
+    hash = "sha256-mFwyfBpmwjX4CiE5+meLD4K5dYN1NeTvRRmQhGL/0Z0=";
   };
 
   postPatch = ''
@@ -67,6 +67,8 @@ stdenv.mkDerivation (finalAttrs: {
     cp -r playwright/packages/playwright-core "$workspace/playwright/packages/"
     cp extension/package.json "$workspace/extension/"
     cp website/package.json "$workspace/website/"
+    mkdir -p "$workspace/holocron"
+    cp holocron/package.json "$workspace/holocron/"
 
     rm -rf "$workspace/playwriter/src"
     mkdir -p "$workspace/playwriter/src"

@@ -253,7 +253,6 @@ in
       package = pkgs.llm-agents.opencode;
       enableMcpIntegration = true;
       settings = {
-        theme = "tokyonight";
         autoshare = false;
         autoupdate = false;
         # snapshot = false;
@@ -281,6 +280,9 @@ in
             model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
           };
         };
+      };
+      tui = {
+        theme = "tokyonight";
       };
     };
     chunkhound.enable = true;
