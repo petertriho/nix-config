@@ -283,6 +283,9 @@ in
       };
       tui = {
         theme = "tokyonight";
+        plugin = [
+          "oc-tps"
+        ];
       };
     };
     chunkhound.enable = true;
