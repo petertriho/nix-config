@@ -89,7 +89,7 @@ in
         # pinchtab
         python3
         tmuxai
-        tweakcc
+        # tweakcc
         uipro
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
@@ -290,7 +290,7 @@ in
     impeccable.enable = false;
     plannotator.enable = true;
     playwriter.enable = true;
-    superpowers.enable = true;
+    superpowers.enable = false;
   };
   xdg.configFile = {
     # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
