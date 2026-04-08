@@ -293,7 +293,7 @@ in
     impeccable.enable = false;
     plannotator.enable = true;
     playwriter.enable = true;
-    superpowers.enable = false;
+    superpowers.enable = true;
   };
   xdg.configFile = {
     # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
