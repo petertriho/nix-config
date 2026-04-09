@@ -6,13 +6,13 @@
   makeWrapper,
 }:
 let
-  version = "0.0.1-a01-unstable-2026-03-29";
+  version = "0.0.1-a01-unstable-2026-04-09";
 
   src = fetchFromGitHub {
     owner = "cristianoliveira";
     repo = "tmux-intray";
-    rev = "d75d269b7a64c267184397a16963f5862b9ec898";
-    hash = "sha256-hsm3cg0bU6ySn6dKNOjTLOeWKoZ8GNaIsaZaEy2xxXU=";
+    rev = "44d0f5fb9f2812b029c7a4b2c067b205859d59d3";
+    hash = "sha256-Y+fAF4hUbjHlvEU7+UsGlg5kD9PvkfrQ2UBUV8iBWUM=";
   };
 
   cli = buildGoModule {
