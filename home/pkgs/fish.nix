@@ -31,6 +31,7 @@
       ap = "export AWS_PROFILE=(aws-profile)";
       asl = "aws sso login";
       c = "claude";
+      ca = "claude --allow-dangerously-skip-permissions";
       d = "docker";
       dc = "docker compose";
       dcd = "docker compose down --remove-orphans";
