@@ -39,5 +39,6 @@
     "command": "ccstatusline",
     "padding": 0
   },
-  "editorMode": "vim"
+  "editorMode": "vim",
+  "skipDangerousModePermissionPrompt": true
 }
