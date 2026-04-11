@@ -5,16 +5,16 @@
 }:
 rustPlatform.buildRustPackage {
   pname = "ilmari";
-  version = "0.1.4-unstable-2026-03-15";
+  version = "0.1.5-unstable-2026-04-10";
 
   src = fetchFromGitHub {
     owner = "bnomei";
     repo = "ilmari";
-    rev = "95c344da2feba08676e5202d0e9f43986b0888e0";
-    hash = "sha256-rQPbgm/mrhOuEo2nXXSGbf/uwPSsArankMULpfIZN34=";
+    rev = "e3f2254bdfe6ea8a20bfecfbc7d0e6866c74397f";
+    hash = "sha256-EhlDIsKo4kioaRcMnSe+zt5TYuSSrzdUGCBg8rvm+x0=";
   };
 
-  cargoHash = "sha256-vBP6SV5vj6LJABqkYk8FnlNpAdANvwKsWpxnLVf3pM8=";
+  cargoHash = "sha256-bcyu9Wo6MYRUiCd0D78KEyVAoCHqgYforCx7hQ98HGM=";
 
   doCheck = false;
 
