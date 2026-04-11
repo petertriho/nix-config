@@ -1,0 +1,16 @@
+-- vim.o.cmdheight = 0
+
+-- require("vim._core.ui2").enable({
+--     msg = {
+--         target = "msg",
+--         targets = {},
+--         cmd = {
+--             height = 0.5,
+--         },
+--         dialog = {
+--             height = 0.5,
+--         },
+--         msg = { height = 0.3, timeout = 4000 },
+--         pager = { height = 0.8 },
+--     },
+-- })
