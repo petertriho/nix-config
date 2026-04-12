@@ -30,7 +30,7 @@
   "log-highlight.nvim": { "branch": "main", "commit": "ca88628f6dd3b9bb46f9a7401669e24cf7de47a4" },
   "luvit-meta": { "branch": "main", "commit": "cc9b2d412d2fbd30b94a70cfc214c2a3be27a0a2" },
   "marks.nvim": { "branch": "master", "commit": "f353e8c08c50f39e99a9ed474172df7eddd89b72" },
-  "mini.nvim": { "branch": "main", "commit": "69b7433355664cf76898eb86a12a019f39bd86d1" },
+  "mini.nvim": { "branch": "main", "commit": "4182d64727fb4876407af65c181b85428a4a70d1" },
   "mole.nvim": { "branch": "main", "commit": "62af21156f102132aa3aaccf160edaf339ac29af" },
   "namu.nvim": { "branch": "main", "commit": "e7afbdf63a75ace6ccc6202d58a4f6f9ac09db92" },
   "neogit": { "branch": "master", "commit": "e06745228600a585b88726fc9fba44a373c15a47" },
