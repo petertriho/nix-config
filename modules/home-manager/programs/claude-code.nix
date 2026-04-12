@@ -13,14 +13,19 @@ in
 
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
-      home.packages = [ pkgs.llm-agents.ccstatusline ];
+      home = {
+        file.".claude/skills/context7" = {
+          source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/context7";
+        };
+        sessionVariables = {
+          # CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
+          CLAUDE_CODE_NO_FLICKER = 1;
+          ENABLE_CLAUDEAI_MCP_SERVERS = "false";
+        };
+        packages = [ pkgs.llm-agents.ccstatusline ];
+      };
       xdg.configFile."ccstatusline/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "ccstatusline/.config/ccstatusline/settings.json";
-      home.sessionVariables = {
-        # CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
-        CLAUDE_CODE_NO_FLICKER = 1;
-        ENABLE_CLAUDEAI_MCP_SERVERS = "false";
-      };
     })
     (lib.mkIf (cfg.enable && cfg.zai.enable) {
       home.sessionVariables = {
