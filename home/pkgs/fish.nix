@@ -183,7 +183,7 @@
           aa = "arch -arm64";
           af = "afish";
           ax = "arch -x86_64";
-          c = "colima";
+          # c = "colima";
           xf = "xfish";
         }
       else
