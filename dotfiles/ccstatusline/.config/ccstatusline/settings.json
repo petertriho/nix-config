@@ -3,97 +3,99 @@
   "lines": [
     [
       {
-        "id": "1",
-        "type": "vim-mode",
-        "color": "cyan"
-      },
-      {
-        "id": "7",
+        "id": "2ce3f616-5aa1-4ea8-8f0f-0b2fcf16f8cb",
         "type": "model",
-        "color": "magenta"
+        "color": "blue",
+        "rawValue": true
       },
       {
         "id": "7f3db395-e10a-4a15-a0fa-b578e588b29b",
         "type": "session-cost",
-        "color": "yellow"
-      },
-      {
-        "id": "d791cb3e-e507-4f48-82e4-2e18b5ab7a02",
-        "type": "flex-separator",
-        "color": ""
-      },
-      {
-        "id": "ede2d8ed-cf43-4e8e-827c-b94725f7b507",
-        "type": "git-branch",
-        "color": "blue"
-      },
-      {
-        "id": "70547c03-090e-4598-8769-b70e2d1aca18",
-        "type": "git-changes",
-        "color": "red"
-      }
-    ],
-    [
-      {
-        "id": "1bbfa754-36f7-4be4-b385-d8fadc367af0",
-        "type": "tokens-cached",
-        "color": "green"
+        "color": "brightYellow",
+        "rawValue": true
       },
       {
         "id": "ebc6fe98-86c5-4f50-aa53-c3bc3fef3248",
         "type": "tokens-input",
-        "color": "brightCyan"
+        "color": "white",
+        "merge": true
       },
       {
         "id": "10d47007-791a-4cf0-9597-585e0b76948e",
         "type": "tokens-output",
-        "color": "brightYellow"
+        "color": "white",
+        "merge": true
+      },
+      {
+        "id": "1bbfa754-36f7-4be4-b385-d8fadc367af0",
+        "type": "tokens-cached",
+        "color": "white",
+        "merge": true
       },
       {
         "id": "b0cc3bb6-9177-4187-a64e-9ea27443e06a",
         "type": "total-speed",
-        "color": "brightMagenta"
+        "color": "brightRed",
+        "rawValue": true,
+        "merge": true
       },
       {
-        "id": "463585ae-726e-4ae9-817f-43559d74a76f",
+        "id": "25f46c2b-01ed-4926-9da6-e3eb1118f77c",
         "type": "flex-separator"
       },
-      {
-        "id": "2119baac-6b79-4b3b-b45e-df01e12efec3",
-        "type": "reset-timer",
-        "color": "brightGreen"
-      },
-      {
-        "id": "0ff29fe7-797d-42fd-8e55-52aa2952fa2e",
-        "type": "weekly-reset-timer",
-        "color": "brightBlue"
-      }
-    ],
-    [
       {
         "id": "48f9eab7-dde1-485a-98cf-b1eee7a5e682",
         "type": "context-bar",
-        "color": "brightBlue"
-      },
-      {
-        "id": "2f86d18c-4559-4157-97e2-e870fde35b54",
-        "type": "flex-separator"
+        "color": "brightGreen",
+        "rawValue": true,
+        "merge": true,
+        "metadata": {
+          "display": "progress-short"
+        }
       },
       {
         "id": "e51c83f7-9749-40fe-9940-a940df7753dd",
         "type": "session-usage",
-        "color": "yellow"
+        "color": "brightMagenta",
+        "rawValue": false,
+        "metadata": {
+          "display": "progress-short"
+        }
+      },
+      {
+        "id": "2119baac-6b79-4b3b-b45e-df01e12efec3",
+        "type": "reset-timer",
+        "color": "brightMagenta",
+        "rawValue": true,
+        "merge": true,
+        "metadata": {
+          "compact": "true"
+        }
       },
       {
         "id": "fa286e4a-46f8-4aa9-945a-3443b06facea",
         "type": "weekly-usage",
-        "color": "brightRed"
+        "color": "blue",
+        "rawValue": false,
+        "metadata": {
+          "display": "progress-short"
+        }
+      },
+      {
+        "id": "0ff29fe7-797d-42fd-8e55-52aa2952fa2e",
+        "type": "weekly-reset-timer",
+        "color": "brightBlue",
+        "rawValue": true,
+        "metadata": {
+          "display": "time",
+          "compact": "true"
+        }
       }
     ]
   ],
   "flexMode": "full",
   "compactThreshold": 60,
-  "colorLevel": 2,
+  "colorLevel": 1,
   "defaultPadding": " ",
   "inheritSeparatorColors": false,
   "globalBold": false,
@@ -101,14 +103,14 @@
   "powerline": {
     "enabled": false,
     "separators": [
-      ""
+      "█"
     ],
     "separatorInvertBackground": [
       false
     ],
     "startCaps": [],
     "endCaps": [],
-    "theme": "tokyonight",
+    "theme": "nord-aurora",
     "autoAlign": false,
     "continueThemeAcrossLines": false
   }
