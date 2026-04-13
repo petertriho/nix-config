@@ -39,6 +39,7 @@
     "command": "ccstatusline",
     "padding": 0
   },
+  "skipDangerousModePermissionPrompt": true,
   "editorMode": "vim",
-  "skipDangerousModePermissionPrompt": true
+  "includeCoAuthoredBy": false
 }
