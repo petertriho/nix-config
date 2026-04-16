@@ -5,6 +5,7 @@
 }:
 with pkgs;
 {
+  anthropic-skills = callPackage ./anthropic-skills { };
   basic-memory = callPackage ./basic-memory { };
   excalidraw-mcp = callPackage ./excalidraw-mcp { };
   claude-custom =

@@ -1,6 +1,7 @@
 {
   imports = [
     ./agent-indicator.nix
+    ./anthropic-skills.nix
     ./chunkhound.nix
     ./claude-code.nix
     ./crush.nix

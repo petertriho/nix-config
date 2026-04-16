@@ -288,6 +288,12 @@ in
         ];
       };
     };
+    anthropic-skills = {
+      enable = true;
+      skills = [
+        "skill-creator"
+      ];
+    };
     chunkhound.enable = true;
     crush.enable = true;
     impeccable.enable = false;
