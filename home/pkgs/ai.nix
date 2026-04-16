@@ -280,10 +280,16 @@ in
             model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
           };
         };
+        experimental = {
+          quotaToast = {
+            enableToast = false;
+          };
+        };
       };
       tui = {
         theme = "tokyonight";
         plugin = [
+          "@slkiser/opencode-quota"
           "oc-tps"
         ];
       };
