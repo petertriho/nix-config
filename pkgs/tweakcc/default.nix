@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "tweakcc";
-  version = "4.0.11-unstable-2026-04-14";
+  version = "4.0.11-unstable-2026-04-16";
 
   src = fetchFromGitHub {
     owner = "Piebald-AI";
     repo = "tweakcc";
-    rev = "255f67c9757ca1b43e067d07c311aa6ad1da5430";
-    hash = "sha256-UT7U3lZbZ/zhu9WSOfRVKW4PHXSiZYMs7sOaljjLKq4=";
+    rev = "5428f554727d8bdacfb754568874626493c6d6ef";
+    hash = "sha256-hxNsNuNnzr1Pk0FUszqQM3Ld7XPACqLWwI3p2N3XBsY=";
   };
 
   nativeBuildInputs = [
