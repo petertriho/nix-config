@@ -280,6 +280,8 @@ in
         experimental = {
           quotaToast = {
             enableToast = false;
+            formatStyle = "grouped";
+            onlyCurrentModel = true;
           };
         };
       };
