@@ -82,7 +82,6 @@ in
       with pkgs;
       [
         # amazon-q-cli
-        basic-memory
         ilmari
         models
         nodejs
@@ -182,11 +181,6 @@ in
         #   };
         #   disabled = true;
         # };
-        basic-memory = {
-          command = "basic-memory-mcp";
-          args = [ ];
-          disabled = false;
-        };
         # ck = {
         #   command = "ck";
         #   args = [ "--serve" ];
@@ -300,6 +294,7 @@ in
       ];
     };
     chunkhound.enable = true;
+    basic-memory.enable = true;
     crush.enable = true;
     impeccable.enable = false;
     plannotator.enable = true;

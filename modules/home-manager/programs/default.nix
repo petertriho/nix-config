@@ -2,6 +2,7 @@
   imports = [
     ./agent-indicator.nix
     ./anthropic-skills.nix
+    ./basic-memory.nix
     ./chunkhound.nix
     ./claude-code.nix
     ./crush.nix
