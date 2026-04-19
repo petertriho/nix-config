@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "basic-memory-skills";
-  version = "0-unstable-2026-04-19";
+  version = "0-unstable-2026-03-06";
 
   src = fetchFromGitHub {
     owner = "basicmachines-co";
