@@ -293,8 +293,8 @@ in
         "skill-creator"
       ];
     };
-    chunkhound.enable = true;
     basic-memory.enable = true;
+    chunkhound.enable = false;
     crush.enable = true;
     impeccable.enable = false;
     plannotator.enable = true;
