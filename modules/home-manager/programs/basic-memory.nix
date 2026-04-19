@@ -8,7 +8,17 @@ let
   cfg = config.programs.basic-memory;
   skillsDir = "${pkgs.basic-memory-skills}/share/basic-memory-skills";
   skillEntries = builtins.readDir skillsDir;
-  availableSkills = builtins.attrNames (lib.filterAttrs (_: type: type == "directory") skillEntries);
+  availableSkills = builtins.attrNames (
+    lib.filterAttrs (
+      name: type:
+      # Exclude upstream metadata directories that are not actual skills.
+      type == "directory"
+      && !(lib.elem name [
+        ".agents"
+        ".claude"
+      ])
+    ) skillEntries
+  );
   selectedSkills = builtins.listToAttrs (
     map (name: lib.nameValuePair name "${skillsDir}/${name}") availableSkills
   );
