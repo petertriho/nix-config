@@ -11,7 +11,7 @@ let
     "x86_64-linux" = "sha256-IniKb4hU+Sd86B7DmTbsY1c4KLbpKpkXs7hna7KGOrE=";
     "aarch64-linux" = "";
     "x86_64-darwin" = "";
-    "aarch64-darwin" = "sha256-zs/YptOI+Zt7tWcL67u+6JvlF/5Ms51cHbfVZbSdGIc=";
+    "aarch64-darwin" = "sha256-FcAZSL8ttA+GdRYntGJnwTjOrettswlOwxM2xevArLk=";
   };
 
   platform =
