@@ -17,6 +17,7 @@ with pkgs;
   anthropic-skills = callPackage ./anthropic-skills { };
   basic-memory = callPackage ./basic-memory { };
   basic-memory-skills = callPackage ./basic-memory-skills { };
+  excalidraw-edit = callPackage ./excalidraw-edit { };
   excalidraw-mcp = callPackage ./excalidraw-mcp { };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;

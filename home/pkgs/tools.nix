@@ -14,6 +14,7 @@
     dive # inspect docker images
     drawio # diagramming tool
     dwt1-shell-color-scripts # shell color scripts collected by dt
+    excalidraw-edit # edit .excalidraw files locally in your browser
     eza # ls replacement
     fd # find replacement
     figlet # ascii art text generator
