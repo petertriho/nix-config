@@ -3,6 +3,15 @@
   inputs ? { },
   ...
 }:
+let
+  stablePkgs = import inputs.nixpkgs-stable {
+    system = pkgs.stdenv.hostPlatform.system;
+    config = {
+      allowUnfree = true;
+      allowBroken = true;
+    };
+  };
+in
 with pkgs;
 {
   anthropic-skills = callPackage ./anthropic-skills { };
@@ -14,7 +23,9 @@ with pkgs;
   };
   figlet-fonts = callPackage ./figlet-fonts { };
   ilmari = callPackage ./ilmari { };
-  kubectl-prof = callPackage ./kubectl-prof { };
+  kubectl-prof = callPackage ./kubectl-prof {
+    buildGoModule = stablePkgs.buildGo126Module;
+  };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   models = callPackage ./models { };

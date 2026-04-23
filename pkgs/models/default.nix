@@ -3,18 +3,18 @@
   fetchFromGitHub,
   lib,
 }:
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage rec {
   pname = "models";
-  version = "0.11.4-unstable-2026-04-22";
+  version = "0.11.4-unstable-2026-04-23";
 
   src = fetchFromGitHub {
     owner = "arimxyer";
     repo = "models";
-    rev = "531d76d7e4b055524534b7a301eaac8db2d2105f";
-    hash = "sha256-6bjwliEkb13CyMLEGzyE4AW8THNlOqYPgUqiX9WjiyM=";
+    rev = "0b0dd1fdab28f9071c30b8b0c2562f954d08a12c";
+    hash = "sha256-pqa88nDBYRZDaOSvOrNj/9aHXIxPjXhYG89ET1RStxQ=";
   };
 
-  cargoHash = "sha256-qAomuqDkcj/t4LVaRGIeX1+j6MEgv1rSH3JtCTHm2As=";
+  cargoLock.lockFileContents = builtins.readFile "${src}/Cargo.lock";
 
   doCheck = false;
 
