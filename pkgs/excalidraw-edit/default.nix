@@ -10,7 +10,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "excalidraw-edit";
-  version = "0.1.1-unstable-2026-04-23";
+  version = "0.1.1-unstable-2026-04-11";
 
   src = fetchFromGitHub {
     owner = "wh1le";
