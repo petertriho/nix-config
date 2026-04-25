@@ -6,21 +6,48 @@
 }:
 with python3Packages;
 let
+  replacePythonDeps =
+    replacements: deps:
+    let
+      replacementNames = builtins.attrNames replacements;
+      shouldKeep =
+        pkg:
+        let
+          name = if pkg ? pname then pkg.pname else "";
+        in
+        !(builtins.elem name replacementNames);
+      remainingDeps = builtins.filter shouldKeep deps;
+    in
+    (builtins.attrValues replacements) ++ remainingDeps;
+
   py-key-value-aio = python3Packages."py-key-value-aio".overridePythonAttrs (_: rec {
     version = "0.4.4";
     sourceRoot = "py_key_value_aio-${version}";
     doCheck = false;
-    propagatedBuildInputs = [
+    dependencies = [
       aiofile
       anyio
+      beartype
       cachetools
       keyring
+      typing-extensions
     ];
+    propagatedBuildInputs = dependencies;
     src = fetchPypi {
       pname = "py_key_value_aio";
       inherit version;
       hash = "sha256-4wEuYkPtfMCbsFRXvU0DsbpcKxyocACWs5J9t5/7vlU=";
     };
+  });
+
+  pydocket = python3Packages.pydocket.overridePythonAttrs (old: {
+    dependencies = replacePythonDeps {
+      "py-key-value-aio" = py-key-value-aio;
+    } (old.dependencies or [ ]);
+
+    propagatedBuildInputs = replacePythonDeps {
+      "py-key-value-aio" = py-key-value-aio;
+    } (old.propagatedBuildInputs or [ ]);
   });
 
   fastmcp = python3Packages.fastmcp.overridePythonAttrs (old: rec {
@@ -33,11 +60,17 @@ let
       hash = "sha256-ukY65R41f7orr+UTzJfwoGyfMSIOZYSZC32Ly/afBRY=";
     };
 
-    propagatedBuildInputs = [
-      py-key-value-aio
-      watchfiles
-    ]
-    ++ lib.filter (pkg: ((pkg.pname or null) != "py-key-value-aio")) (old.propagatedBuildInputs or [ ]);
+    dependencies = replacePythonDeps {
+      "py-key-value-aio" = py-key-value-aio;
+      inherit pydocket;
+      inherit watchfiles;
+    } (old.dependencies or [ ]);
+
+    propagatedBuildInputs = replacePythonDeps {
+      "py-key-value-aio" = py-key-value-aio;
+      inherit pydocket;
+      inherit watchfiles;
+    } (old.propagatedBuildInputs or [ ]);
   });
 in
 buildPythonApplication rec {

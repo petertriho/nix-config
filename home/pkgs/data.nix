@@ -8,7 +8,7 @@
     fx # JSON viewer
     gron # make JSON greppable
     postgresql # PostgreSQL database server
-    python3Packages.pgcli # PostgreSQL CLI with autocompletion
+    # python3Packages.pgcli # PostgreSQL CLI with autocompletion
     rainfrog # Database TUI
     sqlit-tui # Database TUI
     sqlite # command-line SQLite client

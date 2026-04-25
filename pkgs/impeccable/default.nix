@@ -14,8 +14,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "pbakaus";
     repo = "impeccable";
-    rev = "f5e82162c1c6e6bdc0cd29f287c4446b679b61a5";
-    hash = "sha256-z5Vm84h/noAmSYWPGVfeCk1/jpwiiOSmBPxGienmHng=";
+    rev = "25353448e2e46aa473380a4e136bcd59a2b6699c";
+    hash = "sha256-MzCjoWqOc4ADSjMDW09V524m4uYWlAWrhOPz4X//ZLU=";
   };
 
   node_modules = stdenvNoCC.mkDerivation {
