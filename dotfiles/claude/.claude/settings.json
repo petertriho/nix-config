@@ -1,4 +1,5 @@
 {
+  "includeCoAuthoredBy": false,
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -40,6 +41,5 @@
     "padding": 0
   },
   "skipDangerousModePermissionPrompt": true,
-  "editorMode": "vim",
-  "includeCoAuthoredBy": false
+  "editorMode": "vim"
 }
