@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   ...
@@ -10,6 +11,10 @@
       default_session = {
         command = lib.strings.concatStringsSep " " [
           "${pkgs.tuigreet}/bin/tuigreet"
+          "--sessions"
+          "${config.services.displayManager.sessionData.desktops}/share/wayland-sessions"
+          # "--xsessions"
+          # "${config.services.displayManager.sessionData.desktops}/share/xsessions"
           "--no-xsession-wrapper"
           "--time"
           "--remember"

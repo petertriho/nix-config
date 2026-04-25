@@ -2,63 +2,23 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Io
+import Quickshell.Services.Pipewire
 
 BaseModule {
     id: root
 
-    property real volume: 0
-    property bool isMuted: false
+    property var sink: Pipewire.defaultAudioSink
+    property real volume: sink && sink.audio ? Math.round(sink.audio.volume * 100) : 0
+    property bool isMuted: sink && sink.audio ? sink.audio.muted : false
     property bool isBluetooth: false
     property string deviceType: "default"
-    property string icon: "󰕿"
+    property string icon: isMuted ? "󰖁" : isBluetooth ? "󰂯 " + getVolumeIcon() : getVolumeIcon()
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject thresholdsConfig: parent.thresholdsConfig
     property QtObject stepsConfig: parent.stepsConfig
 
-    Timer {
-        interval: intervalsConfig.volume
-        repeat: true
-        running: true
-        onTriggered: updateVolume()
-    }
-
-    Component.onCompleted: updateVolume()
-
-    Process {
-        id: volumeProcess
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var output = this.text.trim();
-                if (output) {
-                    parseVolumeInfo(output);
-                }
-            }
-        }
-    }
-
-    function updateVolume() {
-        volumeProcess.exec({
-            command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
-        });
-    }
-
-    function parseVolumeInfo(output) {
-        var volumeMatch = output.match(/Volume: ([\d.]+)/);
-        if (volumeMatch) {
-            volume = Math.round(parseFloat(volumeMatch[1]) * 100);
-            updateIcon();
-        }
-    }
-
-    function updateIcon() {
-        if (isMuted) {
-            icon = "󰝟";
-        } else if (isBluetooth) {
-            icon = "󰂯 " + getVolumeIcon();
-        } else {
-            icon = getVolumeIcon();
-        }
+    PwObjectTracker {
+        objects: [Pipewire.defaultAudioSink]
     }
 
     function getVolumeIcon() {

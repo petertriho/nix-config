@@ -9,6 +9,7 @@
       brightnessctl
       grimblast
       hypridle
+      hyprpolkitagent
       pamixer
       playerctl
       qt5.qtwayland
@@ -19,6 +20,20 @@
 
   programs.hyprlock = {
     enable = true;
+  };
+
+  systemd.user.services.hyprpolkitagent = {
+    Unit = {
+      Description = "Hyprland Polkit authentication agent";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+      ConditionEnvironment = "WAYLAND_DISPLAY";
+    };
+    Service = {
+      ExecStart = "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+      Restart = "on-failure";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
   };
 
   services.hypridle = {
@@ -50,25 +65,23 @@
     systemd.enable = false;
     settings = {
       windowrule = [
-        "float, title:^(quickshell-osd)$"
-        "noborder, title:^(quickshell-osd)$"
-        "noshadow, title:^(quickshell-osd)$"
-        "pin, title:^(quickshell-osd)$"
-        "workspace special, title:^(quickshell-osd)$"
-        "opacity 0.0 override, class:^(xwaylandvideobridge)$"
-        "noanim, class:^(xwaylandvideobridge)$"
-        "noinitialfocus, class:^(xwaylandvideobridge)$"
-        "maxsize 1 1, class:^(xwaylandvideobridge)$"
-        "noblur, class:^(xwaylandvideobridge)$"
+        "float on, match:title ^(quickshell-osd)$"
+        "border_size 0, match:title ^(quickshell-osd)$"
+        "no_shadow on, match:title ^(quickshell-osd)$"
+        "pin on, match:title ^(quickshell-osd)$"
+        "workspace special, match:title ^(quickshell-osd)$"
+        "opacity 0.0 override, match:class ^(xwaylandvideobridge)$"
+        "no_anim on, match:class ^(xwaylandvideobridge)$"
+        "no_initial_focus on, match:class ^(xwaylandvideobridge)$"
+        "max_size 1 1, match:class ^(xwaylandvideobridge)$"
+        "no_blur on, match:class ^(xwaylandvideobridge)$"
       ];
 
       animations = {
         enabled = false;
       };
 
-      exec-once = [
-        "waybar"
-      ];
+      exec-once = [ ];
 
       general = {
         gaps_in = 0;

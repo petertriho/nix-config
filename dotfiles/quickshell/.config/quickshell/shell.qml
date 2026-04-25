@@ -5,11 +5,14 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import QtQuick.Dialogs
+import "modules/Bar/workspaces/workspaceHelpers.js" as WorkspaceHelpers
 import "modules/Bar"
 import "modules/ControlOSD"
 
 ShellRoot {
     id: root
+
+    property string compositorName: ""
 
     // Configuration component with colors
     Loader {
@@ -67,6 +70,10 @@ ShellRoot {
     }
 
     Component.onCompleted: {
+        detectCompositorProcess.exec({
+            command: ["sh", "-lc", "env"]
+        });
+
         // Set up periodic updates to sync with actual system state
         updateTimer.start();
     }
@@ -82,59 +89,110 @@ ShellRoot {
         }
     }
 
-    // Global key bindings using Quickshell.Hyprland
-    GlobalShortcut {
-        name: "brightness-up"
-        description: "Increase brightness"
-        appid: "quickshell-osd"
+    function brightnessUp() {
+        brightnessControl.increase(config.steps.brightness);
+        brightnessOsd.show();
+    }
 
-        onPressed: {
-            brightnessControl.increase(config.steps.brightness);
-            brightnessOsd.show();
+    function brightnessDown() {
+        brightnessControl.decrease(config.steps.brightness);
+        brightnessOsd.show();
+    }
+
+    function volumeUp() {
+        volumeControl.increase(config.steps.volume);
+        volumeOsd.show();
+    }
+
+    function volumeDown() {
+        volumeControl.decrease(config.steps.volume);
+        volumeOsd.show();
+    }
+
+    function volumeMute() {
+        volumeControl.toggleMute();
+        volumeOsd.show();
+    }
+
+    Process {
+        id: detectCompositorProcess
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const env = WorkspaceHelpers.parseEnvironmentSnapshot(this.text.trim());
+                root.compositorName = WorkspaceHelpers.detectCompositor(env);
+            }
         }
     }
 
-    GlobalShortcut {
-        name: "brightness-down"
-        description: "Decrease brightness"
-        appid: "quickshell-osd"
+    IpcHandler {
+        target: "quickshell-osd"
 
-        onPressed: {
-            brightnessControl.decrease(config.steps.brightness);
-            brightnessOsd.show();
-        }
+        function brightnessUp(): void { root.brightnessUp(); }
+        function brightnessDown(): void { root.brightnessDown(); }
+        function volumeUp(): void { root.volumeUp(); }
+        function volumeDown(): void { root.volumeDown(); }
+        function volumeMute(): void { root.volumeMute(); }
     }
 
-    GlobalShortcut {
-        name: "volume-up"
-        description: "Increase volume"
-        appid: "quickshell-osd"
-
-        onPressed: {
-            volumeControl.increase(config.steps.volume);
-            volumeOsd.show();
-        }
+    // Hyprland global shortcuts use the compositor protocol; Niri calls the IPC handler above.
+    Loader {
+        active: WorkspaceHelpers.shouldEnableHyprlandGlobalShortcuts(root.compositorName)
+        sourceComponent: hyprlandGlobalShortcuts
     }
 
-    GlobalShortcut {
-        name: "volume-down"
-        description: "Decrease volume"
-        appid: "quickshell-osd"
+    Component {
+        id: hyprlandGlobalShortcuts
 
-        onPressed: {
-            volumeControl.decrease(config.steps.volume);
-            volumeOsd.show();
-        }
-    }
+        Item {
+            GlobalShortcut {
+                name: "brightness-up"
+                description: "Increase brightness"
+                appid: "quickshell-osd"
 
-    GlobalShortcut {
-        name: "volume-mute"
-        description: "Toggle mute"
-        appid: "quickshell-osd"
+                onPressed: {
+                    root.brightnessUp();
+                }
+            }
 
-        onPressed: {
-            volumeControl.toggleMute();
-            volumeOsd.show();
+            GlobalShortcut {
+                name: "brightness-down"
+                description: "Decrease brightness"
+                appid: "quickshell-osd"
+
+                onPressed: {
+                    root.brightnessDown();
+                }
+            }
+
+            GlobalShortcut {
+                name: "volume-up"
+                description: "Increase volume"
+                appid: "quickshell-osd"
+
+                onPressed: {
+                    root.volumeUp();
+                }
+            }
+
+            GlobalShortcut {
+                name: "volume-down"
+                description: "Decrease volume"
+                appid: "quickshell-osd"
+
+                onPressed: {
+                    root.volumeDown();
+                }
+            }
+
+            GlobalShortcut {
+                name: "volume-mute"
+                description: "Toggle mute"
+                appid: "quickshell-osd"
+
+                onPressed: {
+                    root.volumeMute();
+                }
+            }
         }
     }
 }

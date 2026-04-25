@@ -110,7 +110,7 @@ PanelWindow {
                     fontsConfig: root.fontsConfig
                 }
 
-                PulseAudioModule {
+                AudioModule {
                     id: pulseaudio
                     height: parent.height
                     colors: root.colors

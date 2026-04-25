@@ -12,11 +12,14 @@ BaseModule {
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject thresholdsConfig: parent.thresholdsConfig
 
-    Timer {
-        interval: intervalsConfig.backlight
-        repeat: true
+    Process {
+        id: backlightWatchProcess
+        command: ["brightnessctl", "--watch"]
         running: true
-        onTriggered: updateBacklight()
+
+        stdout: SplitParser {
+            onRead: data => parseBacklightInfo(data)
+        }
     }
 
     Component.onCompleted: updateBacklight()
@@ -25,15 +28,19 @@ BaseModule {
         id: backlightProcess
         stdout: StdioCollector {
             onStreamFinished: {
-                var output = this.text.trim();
-                if (output) {
-                    var match = output.match(/(\d+)%/);
-                    if (match) {
-                        brightness = parseInt(match[1]);
-                        updateIcon();
-                    }
-                }
+                parseBacklightInfo(this.text.trim());
             }
+        }
+    }
+
+    function parseBacklightInfo(output) {
+        if (!output)
+            return;
+
+        var match = output.match(/(\d+)%/);
+        if (match) {
+            brightness = parseInt(match[1]);
+            updateIcon();
         }
     }
 
