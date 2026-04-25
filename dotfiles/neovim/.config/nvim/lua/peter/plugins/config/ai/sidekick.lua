@@ -84,7 +84,7 @@ return {
         {
             "<leader>aC",
             function()
-                require("sidekick.cli").toggle({ name = "copilot", focus = true })
+                require("sidekick.cli").toggle({ name = "claude", focus = true })
             end,
             desc = "Copilot",
         },
@@ -101,6 +101,13 @@ return {
                 require("sidekick.cli").toggle({ name = "opencode", focus = true })
             end,
             desc = "Opencode",
+        },
+        {
+            "<leader>aP",
+            function()
+                require("sidekick.cli").toggle({ name = "copilot", focus = true })
+            end,
+            desc = "Copilot",
         },
         {
             "<leader>aR",
