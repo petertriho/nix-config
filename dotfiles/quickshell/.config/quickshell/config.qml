@@ -102,6 +102,7 @@ QtObject {
         "nautilus": "󰉋",
         "org.kde.dolphin": "󰉋",
         "slack": "󰒱",
+        "thunderbird": "󰇮",
         "thunar": "󰉋",
         "wezterm": "󰆍"
     }
