@@ -20,6 +20,9 @@
     };
   };
 
+  # services.gnome.gnome-keyring.enable = true;
+  # security.pam.services.login.enableGnomeKeyring = true;
+
   fonts.packages = with pkgs; [
     nerd-fonts.jetbrains-mono
   ];

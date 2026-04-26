@@ -6,6 +6,7 @@
       cliphist
       fuzzel
       grim
+      networkmanagerapplet
       pamixer
       playerctl
       qt5.qtwayland
@@ -53,6 +54,20 @@
     };
     Service = {
       ExecStart = "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+      Restart = "on-failure";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
+  systemd.user.services.nm-applet = {
+    Unit = {
+      Description = "NetworkManager applet";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+      ConditionEnvironment = "WAYLAND_DISPLAY";
+    };
+    Service = {
+      ExecStart = "${pkgs.networkmanagerapplet}/bin/nm-applet --indicator";
       Restart = "on-failure";
     };
     Install.WantedBy = [ "graphical-session.target" ];
