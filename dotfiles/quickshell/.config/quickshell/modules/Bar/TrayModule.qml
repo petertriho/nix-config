@@ -3,26 +3,54 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 
-BaseModule {
+Rectangle {
     id: root
+    color: "transparent"
+    height: parent.height
+    implicitWidth: chevronRow.implicitWidth + moduleConfig.widthPadding
 
-    // Simple tray placeholder - Quickshell may have specific tray components
-    // This is a basic implementation that can be expanded
-    property int iconCount: 0
-    property QtObject intervalsConfig: parent.intervalsConfig
+    property QtObject colors: parent.colors
+    property QtObject moduleConfig: parent.moduleConfig
+    property QtObject fontsConfig: parent.fontsConfig
 
-    Timer {
-        interval: intervalsConfig.tray
-        repeat: true
-        running: true
-        onTriggered: updateTray()
+    property bool expanded: false
+    property real globalX: 0
+    property QtObject barWindow: null
+
+    signal clicked
+    signal rightClicked
+
+    function updatePosition() {
+        var pos = root.mapToItem(null, 0, 0)
+        root.globalX = pos.x
     }
 
-    Component.onCompleted: updateTray()
+    onXChanged: updatePosition()
+    onWidthChanged: updatePosition()
+    onBarWindowChanged: updatePosition()
+    Component.onCompleted: updatePosition()
 
-    function updateTray() {
-        // This would typically interface with Quickshell's tray system
-        // For now, just show a placeholder
-        text = "📋";
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: function(mouse) {
+            if (mouse.button === Qt.RightButton) root.rightClicked()
+            else {
+                expanded = !expanded
+                root.clicked()
+            }
+        }
+    }
+
+    Row {
+        id: chevronRow
+        anchors.centerIn: parent
+        Text {
+            text: expanded ? "󰅃" : "󰅀"
+            color: root.colors.fg
+            font.family: root.fontsConfig.defaultFamily
+            font.pixelSize: root.fontsConfig.defaultSize
+            anchors.verticalCenter: parent.verticalCenter
+        }
     }
 }

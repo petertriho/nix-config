@@ -90,4 +90,10 @@ BaseModule {
     }
 
     text: icon
+
+    onClicked: {
+        Quickshell.execDetached({
+            command: ["nm-connection-editor"]
+        });
+    }
 }

@@ -3,6 +3,8 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Services.SystemTray
+import Quickshell.Widgets
 
 PanelWindow {
     id: root
@@ -98,6 +100,49 @@ PanelWindow {
         }
     }
 
+    PopupWindow {
+        id: trayPopup
+        visible: tray.expanded
+        anchor.item: tray
+        anchor.edges: Edges.Bottom | Edges.Left
+        implicitWidth: trayRow.width + 16
+        implicitHeight: trayRow.height + 8
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            color: colors.bg
+            border.color: colors.border
+            radius: 4
+
+            Row {
+                id: trayRow
+                anchors.centerIn: parent
+                spacing: 4
+
+                Repeater {
+                    model: SystemTray.items
+                    delegate: IconImage {
+                        implicitSize: fontsConfig.defaultSize + 2
+                        source: modelData.icon
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: function(mouse) {
+                                if (mouse.button === Qt.RightButton) {
+                                    modelData.secondaryActivate(mouse.x, mouse.y)
+                                } else {
+                                    modelData.activate(mouse.x, mouse.y)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Rectangle {
         anchors.fill: parent
         color: colors.bg
@@ -110,7 +155,10 @@ PanelWindow {
             MouseArea {
                 anchors.fill: parent
                 z: -1
-                onClicked: caffeine.showPicker = false
+                onClicked: {
+                    caffeine.showPicker = false
+                    tray.expanded = false
+                }
             }
 
             // Left modules - Workspaces
@@ -142,10 +190,14 @@ PanelWindow {
                 spacing: barConfig.moduleSpacing
                 height: parent.height
 
-                // TrayModule {
-                //     id: tray
-                //     height: parent.height
-                // }
+                TrayModule {
+                    id: tray
+                    height: parent.height
+                    barWindow: root
+                    colors: root.colors
+                    moduleConfig: root.moduleConfig
+                    fontsConfig: root.fontsConfig
+                }
 
                 CaffeineModule {
                     id: caffeine
