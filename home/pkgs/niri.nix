@@ -75,6 +75,8 @@ in
 
       prefer-no-csd = true;
 
+      gestures.hot-corners.enable = false;
+
       screenshot-path = "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png";
 
       binds =
