@@ -1,6 +1,7 @@
 {
   inputs,
   pkgs,
+  config,
   ...
 }:
 {
@@ -19,4 +20,6 @@
     ungoogled-chromium
   ];
   programs.claude-code.zai.enable = true;
+
+  xdg.configFile."mimeapps.list".source = config.lib.meta.mkDotfilesSymlink "mimeapps/.config/mimeapps.list";
 }
