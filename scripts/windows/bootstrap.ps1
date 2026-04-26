@@ -11,7 +11,6 @@
 # Winget
 winget install --source winget --id Ablaze.Floorp
 winget install --source winget --id AltSnap.AltSnap
-winget install --source winget --id Betterbird.Betterbird
 winget install --source winget --id Discord.Discord
 winget install --source winget --id Giorgiotani.Peazip
 winget install --source winget --id Google.Chrome
@@ -19,6 +18,7 @@ winget install --source winget --id InputNet.Helium
 winget install --source winget --id MartiCliment.UniGetUI
 winget install --source winget --id Microsoft.PowerToys
 winget install --source winget --id Mozilla.Firefox
+winget install --source winget --id Mozilla.Thunderbird
 winget install --source winget --id Neovide.Neovide
 winget install --source winget --id Nextcloud.NextcloudDesktop
 winget install --source winget --id Obsidian.Obsidian

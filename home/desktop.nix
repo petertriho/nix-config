@@ -18,6 +18,7 @@
   ];
   home.packages = with pkgs; [
     floorp-bin
+    thunderbird
     ungoogled-chromium
   ];
   programs.claude-code.zai.enable = true;
