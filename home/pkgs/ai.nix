@@ -250,7 +250,7 @@ in
         lsp = opencodeLspConfig;
         small_model = "github-copilot/gpt-5-mini";
         plugin = [
-          "@bastiangx/opencode-unmoji"
+          # "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
           # "@mohak34/opencode-notifier"
           "@slkiser/opencode-quota"
