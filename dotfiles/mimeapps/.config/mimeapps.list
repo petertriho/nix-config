@@ -13,6 +13,7 @@ x-scheme-handler/http=floorp.desktop
 x-scheme-handler/https=floorp.desktop
 x-scheme-handler/mailto=thunderbird.desktop
 x-scheme-handler/mid=thunderbird.desktop
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 
 [Added Associations]
 x-scheme-handler/chrome=floorp.desktop;
