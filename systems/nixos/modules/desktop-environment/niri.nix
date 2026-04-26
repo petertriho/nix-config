@@ -10,4 +10,9 @@
     enable = true;
     package = pkgs.niri-unstable;
   };
+
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+  };
 }

@@ -10,6 +10,7 @@
     inputs.vicinae.homeManagerModules.default
     ./pkgs/alacritty.nix
     ./pkgs/ghostty.nix
+    ./pkgs/wayland-common.nix
     ./pkgs/hyprland.nix
     ./pkgs/niri.nix
     ./pkgs/quickshell.nix

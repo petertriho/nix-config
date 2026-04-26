@@ -42,21 +42,6 @@ in
     inputs.niri.homeModules.niri
   ];
 
-  home = {
-    packages = with pkgs; [
-      brightnessctl
-      grim
-      fuzzel
-      slurp
-      pamixer
-      playerctl
-      qt5.qtwayland
-      qt6.qtwayland
-      wl-clipboard
-    ];
-    sessionVariables.NIXOS_OZONE_WL = "1";
-  };
-
   programs.niri = {
     enable = true;
     package = pkgs.niri-unstable;
