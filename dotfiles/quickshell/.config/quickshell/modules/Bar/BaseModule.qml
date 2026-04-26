@@ -34,8 +34,13 @@ Rectangle {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: root.clicked()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: function(mouse) {
+            if (mouse.button === Qt.RightButton) root.rightClicked()
+            else root.clicked()
+        }
     }
 
     signal clicked
+    signal rightClicked
 }

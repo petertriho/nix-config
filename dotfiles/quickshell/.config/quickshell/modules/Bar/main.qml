@@ -27,6 +27,77 @@ PanelWindow {
     property QtObject fontsConfig
     property var windowIcons
 
+    PopupWindow {
+        id: caffeinePicker
+        visible: caffeine.showPicker
+        anchor.window: root
+        anchor.edges: Edges.Bottom | Edges.Left
+        anchor.rect.x: caffeine.globalX
+        anchor.rect.y: root.height
+        anchor.rect.width: caffeine.width
+        anchor.rect.height: 1
+        implicitWidth: pickerCol.width + 16
+        implicitHeight: pickerCol.height + 8
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            color: colors.bg
+            border.color: colors.border
+            radius: 4
+
+            Column {
+                id: pickerCol
+                anchors.centerIn: parent
+                spacing: 2
+
+                Repeater {
+                    model: [
+                        { label: "15m", value: 15 },
+                        { label: "30m", value: 30 },
+                        { label: "01h", value: 60 },
+                        { label: "02h", value: 120 },
+                        { label: "04h", value: 240 },
+                        { label: "08h", value: 480 }
+                    ]
+
+                    delegate: Rectangle {
+                        width: pickerRow.width
+                        height: pickerRow.height
+                        color: pickerMouse.containsMouse ? colors.bg_highlight : "transparent"
+                        radius: 2
+
+                        Text {
+                            id: pickerRow
+                            text: modelData.label
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize
+                            leftPadding: 8
+                            rightPadding: 8
+                            topPadding: 2
+                            bottomPadding: 2
+                        }
+
+                        MouseArea {
+                            id: pickerMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: caffeine.activateWithDuration(modelData.value)
+                        }
+                    }
+                }
+            }
+        }
+
+        Timer {
+            id: pickerTimer
+            interval: 5000
+            running: caffeine.showPicker
+            onTriggered: caffeine.showPicker = false
+        }
+    }
+
     Rectangle {
         anchors.fill: parent
         color: colors.bg
@@ -35,6 +106,12 @@ PanelWindow {
         Item {
             anchors.fill: parent
             anchors.margins: barConfig.contentMargins
+
+            MouseArea {
+                anchors.fill: parent
+                z: -1
+                onClicked: caffeine.showPicker = false
+            }
 
             // Left modules - Workspaces
             WorkspacesModule {
@@ -69,6 +146,14 @@ PanelWindow {
                 //     id: tray
                 //     height: parent.height
                 // }
+
+                CaffeineModule {
+                    id: caffeine
+                    height: parent.height
+                    colors: root.colors
+                    moduleConfig: root.moduleConfig
+                    fontsConfig: root.fontsConfig
+                }
 
                 CpuModule {
                     id: cpu
