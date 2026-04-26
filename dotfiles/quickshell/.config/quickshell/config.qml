@@ -194,6 +194,17 @@ QtObject {
         readonly property int volume: 5
     }
 
+    // Popups
+    readonly property QtObject popups: QtObject {
+        readonly property int timeoutMs: 5000
+        readonly property int padding: 16
+        readonly property int margin: 8
+        readonly property int cornerRadius: 4
+        readonly property int itemSpacing: 4
+        readonly property int trayIconSize: 0  // 0 = font defaultSize + 2px offset
+        readonly property int trayIconOffset: 2
+    }
+
     // Fonts
     readonly property QtObject fonts: QtObject {
         readonly property string defaultFamily: "JetBrainsMono Nerd Font Propo"

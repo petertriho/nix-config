@@ -27,6 +27,7 @@ PanelWindow {
     property QtObject thresholdsConfig
     property QtObject stepsConfig
     property QtObject fontsConfig
+    property QtObject popupsConfig
     property var windowIcons
 
     PopupWindow {
@@ -38,20 +39,20 @@ PanelWindow {
         anchor.rect.y: root.height
         anchor.rect.width: caffeine.width
         anchor.rect.height: 1
-        implicitWidth: pickerCol.width + 16
-        implicitHeight: pickerCol.height + 8
+        implicitWidth: pickerCol.width + popupsConfig.padding
+        implicitHeight: pickerCol.height + popupsConfig.margin
         color: "transparent"
 
         Rectangle {
             anchors.fill: parent
             color: colors.bg
             border.color: colors.border
-            radius: 4
+            radius: popupsConfig.cornerRadius
 
             Column {
                 id: pickerCol
                 anchors.centerIn: parent
-                spacing: 2
+                spacing: popupsConfig.itemSpacing
 
                 Repeater {
                     model: [
@@ -94,7 +95,7 @@ PanelWindow {
 
         Timer {
             id: pickerTimer
-            interval: 5000
+            interval: popupsConfig.timeoutMs
             running: caffeine.showPicker
             onTriggered: caffeine.showPicker = false
         }
@@ -105,25 +106,32 @@ PanelWindow {
         visible: tray.expanded
         anchor.item: tray
         anchor.edges: Edges.Bottom | Edges.Left
-        implicitWidth: trayRow.width + 16
-        implicitHeight: trayRow.height + 8
+        implicitWidth: trayRow.width + popupsConfig.padding
+        implicitHeight: trayRow.height + popupsConfig.margin
         color: "transparent"
+
+        Timer {
+            id: trayTimer
+            interval: popupsConfig.timeoutMs
+            running: tray.expanded
+            onTriggered: tray.expanded = false
+        }
 
         Rectangle {
             anchors.fill: parent
             color: colors.bg
             border.color: colors.border
-            radius: 4
+            radius: popupsConfig.cornerRadius
 
             Row {
                 id: trayRow
                 anchors.centerIn: parent
-                spacing: 4
+                spacing: popupsConfig.itemSpacing
 
                 Repeater {
                     model: SystemTray.items
                     delegate: IconImage {
-                        implicitSize: fontsConfig.defaultSize + 2
+                        implicitSize: popupsConfig.trayIconSize > 0 ? popupsConfig.trayIconSize : fontsConfig.defaultSize + popupsConfig.trayIconOffset
                         source: modelData.icon
 
                         MouseArea {

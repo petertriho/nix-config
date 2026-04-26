@@ -33,6 +33,7 @@ ShellRoot {
         intervalsConfig: config.intervals
         thresholdsConfig: config.thresholds
         stepsConfig: config.steps
+        popupsConfig: config.popups
         fontsConfig: config.fonts
         windowIcons: config.windowIcons
     }
