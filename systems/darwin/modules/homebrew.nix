@@ -66,7 +66,7 @@ in
       # "nguyenphutrong/tap/quotio"
       "nikitabobko/tap/aerospace"
       "notunes"
-      # "obsidian"
+      "obsidian"
       # "opencode-desktop"
       "opgginc/tap/opencode-bar"
       "orbstack"
