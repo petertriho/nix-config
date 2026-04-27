@@ -1,6 +1,6 @@
 ---
 name: context7
-description: Use the Context7 API to resolve library IDs and fetch current, version-aware docs and code examples for libraries and frameworks.
+description: Resolves Context7 library IDs and fetches current, version-aware library and framework documentation with code examples. Use when a coding task needs accurate docs.
 ---
 
 # Context7 HTTP API
