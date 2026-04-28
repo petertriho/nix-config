@@ -41,5 +41,6 @@
     "padding": 0
   },
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-ansi",
   "editorMode": "vim"
 }
