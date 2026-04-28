@@ -5,7 +5,7 @@
   ];
   home = {
     sessionVariables = {
-      COPILOT_MODEL = "gpt-5-mini";
+      # COPILOT_MODEL = "gpt-5-mini";
     };
   };
 }

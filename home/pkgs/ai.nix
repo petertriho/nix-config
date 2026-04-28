@@ -248,7 +248,7 @@ in
         autoupdate = false;
         # snapshot = false;
         lsp = opencodeLspConfig;
-        small_model = "github-copilot/gpt-5-mini";
+        small_model = "opencode-go/deepseek-v4-flash";
         plugin = [
           # "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
