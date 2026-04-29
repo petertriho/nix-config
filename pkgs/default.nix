@@ -30,6 +30,7 @@ with pkgs;
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   models = callPackage ./models { };
+  open-design = callPackage ./open-design { };
   playwriter = callPackage ./playwriter { };
   pinchtab = callPackage ./pinchtab { };
   plannotator = callPackage ./plannotator { };
