@@ -3,15 +3,16 @@
   stdenv,
   fetchFromGitHub,
   fetchPnpmDeps,
-  pnpm_9,
+  pnpm_10,
   pnpmConfigHook,
-  nodejs_22,
+  nodejs_24,
   node-gyp,
   python3,
   makeWrapper,
+  darwin,
 }:
 let
-  pnpm = pnpm_9.override { nodejs = nodejs_22; };
+  pnpm = pnpm_10.override { nodejs = nodejs_24; };
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
@@ -25,45 +26,40 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   nativeBuildInputs = [
-    nodejs_22
+    nodejs_24
     node-gyp
     pnpmConfigHook
     pnpm
     python3
     makeWrapper
-  ];
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [ darwin.cctools ];
 
   pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-3/fizi7JtC7Xoo192iLiu+f1TkSCSUWyW5A28goj5Zo=";
+    hash = "sha256-rpD2zYIWutbhONr77AqW7xamBR6U2TT3Wd7kFqdhfog=";
   };
-
-  postPatch = ''
-    substituteInPlace daemon/server.js \
-      --replace-fail \
-        "const PROJECT_ROOT = path.resolve(__dirname, '..');" \
-        "const PROJECT_ROOT = path.resolve(__dirname, '..');
-const STATE_ROOT = process.env.OPEN_DESIGN_STATE_DIR ? path.resolve(process.env.OPEN_DESIGN_STATE_DIR) : process.cwd();" \
-      --replace-fail \
-        "const ARTIFACTS_DIR = path.join(PROJECT_ROOT, '.od', 'artifacts');" \
-        "const ARTIFACTS_DIR = path.join(STATE_ROOT, '.od', 'artifacts');" \
-      --replace-fail \
-        "const PROJECTS_DIR = path.join(PROJECT_ROOT, '.od', 'projects');" \
-        "const PROJECTS_DIR = path.join(STATE_ROOT, '.od', 'projects');" \
-      --replace-fail \
-        "const db = openDatabase(PROJECT_ROOT);" \
-        "const db = openDatabase(STATE_ROOT);"
-  '';
 
   buildPhase = ''
     runHook preBuild
-    export npm_config_nodedir=${nodejs_22}
+
+    # Manually rebuild better-sqlite3 native bindings (pnpm rebuild doesn't work in nix builds)
+    export npm_config_nodedir=${nodejs_24}
     pushd node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-    ${nodejs_22}/bin/node ${node-gyp}/lib/node_modules/node-gyp/bin/node-gyp.js rebuild --release
+    ${nodejs_24}/bin/node ${node-gyp}/lib/node_modules/node-gyp/bin/node-gyp.js rebuild --release
     popd
-    pnpm run build
+
+    # Build workspace packages that downstream apps depend on
+    pnpm --filter @open-design/platform run build
+    pnpm --filter @open-design/sidecar-proto run build
+    pnpm --filter @open-design/sidecar run build
+
+    # Build the daemon and the static web export
+    pnpm --filter @open-design/daemon run build
+    pnpm --filter @open-design/web run build
+
     runHook postBuild
   '';
 
@@ -74,18 +70,25 @@ const STATE_ROOT = process.env.OPEN_DESIGN_STATE_DIR ? path.resolve(process.env.
     mkdir -p "$workspace"
 
     cp -r \
+      apps \
       assets \
-      daemon \
       design-systems \
-      dist \
       node_modules \
       package.json \
+      packages \
+      pnpm-workspace.yaml \
       skills \
       templates \
       "$workspace/"
 
-    makeWrapper ${nodejs_22}/bin/node "$out/bin/od" \
-      --add-flags "$workspace/daemon/cli.js"
+    # Remove dangling symlinks to e2e and tools/dev which we don't install
+    rm -f \
+      "$workspace/node_modules/.pnpm/node_modules/@open-design/e2e" \
+      "$workspace/node_modules/@open-design/tools-dev"
+
+    makeWrapper ${nodejs_24}/bin/node "$out/bin/od" \
+      --run 'export OD_DATA_DIR="''${OD_DATA_DIR:-$PWD/.od}"' \
+      --add-flags "$workspace/apps/daemon/dist/cli.js"
 
     runHook postInstall
   '';

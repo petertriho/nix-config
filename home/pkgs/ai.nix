@@ -85,7 +85,7 @@ in
         ilmari
         models
         nodejs
-        # open-design
+        open-design
         # pinchtab
         python3
         tmuxai
