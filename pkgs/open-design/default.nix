@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "0-unstable-2026-04-30";
+  version = "open-design-v0.1.0-beta.6-unstable-2026-05-01";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "bd2e71c7089715219b354aadcc3096072d1a477f";
-    hash = "sha256-D2dETFZ9HwD1C+uYZjBwGA00F0DZGwQ3jyN/m/HY/Po=";
+    rev = "6d268eedded7813d5da9440a544187fcff4e80fb";
+    hash = "sha256-deGMwImmjaFbxA1UOepW2Jk/GmAtA8hjj/QkQYspx04=";
   };
 
   nativeBuildInputs = [
@@ -39,7 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-rpD2zYIWutbhONr77AqW7xamBR6U2TT3Wd7kFqdhfog=";
+    hash = "sha256-+aXODhoOgjnd5WpRoWufwCEVER4xUZHeZKZkmGWHUPo=";
   };
 
   buildPhase = ''
@@ -81,10 +81,11 @@ stdenv.mkDerivation (finalAttrs: {
       templates \
       "$workspace/"
 
-    # Remove dangling symlinks to e2e and tools/dev which we don't install
+    # Remove dangling symlinks to packages we don't install
     rm -f \
       "$workspace/node_modules/.pnpm/node_modules/@open-design/e2e" \
-      "$workspace/node_modules/@open-design/tools-dev"
+      "$workspace/node_modules/@open-design/tools-dev" \
+      "$workspace/node_modules/@open-design/tools-pack"
 
     makeWrapper ${nodejs_24}/bin/node "$out/bin/od" \
       --run 'export OD_DATA_DIR="''${OD_DATA_DIR:-$PWD/.od}"' \
