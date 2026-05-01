@@ -123,7 +123,7 @@
         # Workspace: Focus
         "$mod, N, workspace, e+1"
         "$mod, P, workspace, e-1"
-        "$mod, 0, workspace, previous"
+        "$mod, grave, workspace, previous"
 
         # Workspace: Move Window
         "$mod SHIFT, N, movetoworkspace, e+1"
@@ -155,19 +155,20 @@
       ]
       ++ (
         # Workspaces
-        # Focus: Super + 1-9
-        # Move Window: Super + Shift + 1-9
+        # Focus: Super + 1-0
+        # Move Window: Super + Shift + 1-0
         builtins.concatLists (
           builtins.genList (
             i:
             let
               ws = i + 1;
+              key = if ws == 10 then "0" else toString ws;
             in
             [
-              "$mod, ${toString ws}, workspace, ${toString ws}"
-              "$mod SHIFT, ${toString ws}, movetoworkspace, ${toString ws}"
+              "$mod, ${key}, workspace, ${toString ws}"
+              "$mod SHIFT, ${key}, movetoworkspace, ${toString ws}"
             ]
-          ) 9
+          ) 10
         )
       );
       bindm = [

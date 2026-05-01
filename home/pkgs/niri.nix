@@ -14,7 +14,7 @@ let
         i:
         let
           ws = i + 1;
-          key = toString ws;
+          key = if ws == 10 then "0" else toString ws;
         in
         [
           {
@@ -33,7 +33,7 @@ let
             ];
           }
         ]
-      ) 9
+      ) 10
     )
   );
 in
@@ -86,20 +86,49 @@ in
           # Niri's Mod+left/right mouse move/resize gestures are built in, so no bind is needed.
 
           # System/Hardware Keys
-          "Print".action = niriScreenshotArea;
-          "Ctrl+Print".action.screenshot-screen = { };
-          "Alt+Print".action.screenshot-window = { };
-          "XF86AudioMute".action = niriQuickshellOsd "volumeMute";
-          "XF86AudioLowerVolume".action = niriQuickshellOsd "volumeDown";
-          "XF86AudioRaiseVolume".action = niriQuickshellOsd "volumeUp";
+          "Print".action.screenshot = {
+            show-pointer = false;
+          };
+          "Shift+Print".action = niriScreenshotArea;
+          "Ctrl+Print".action.screenshot-screen = {
+            show-pointer = false;
+          };
+          "Alt+Print".action.screenshot-window = {
+            show-pointer = true;
+          };
+          "XF86AudioMute" = {
+            allow-when-locked = true;
+            action = niriQuickshellOsd "volumeMute";
+          };
+          "XF86AudioLowerVolume" = {
+            allow-when-locked = true;
+            action = niriQuickshellOsd "volumeDown";
+          };
+          "XF86AudioRaiseVolume" = {
+            allow-when-locked = true;
+            action = niriQuickshellOsd "volumeUp";
+          };
           "XF86MonBrightnessDown".action = niriQuickshellOsd "brightnessDown";
           "XF86MonBrightnessUp".action = niriQuickshellOsd "brightnessUp";
-          "XF86AudioPlay".action = spawn "playerctl" "play-pause";
-          "XF86AudioPrev".action = spawn "playerctl" "previous";
-          "XF86AudioNext".action = spawn "playerctl" "next";
+          "XF86AudioPlay" = {
+            allow-when-locked = true;
+            action = spawn "playerctl" "play-pause";
+          };
+          "XF86AudioPrev" = {
+            allow-when-locked = true;
+            action = spawn "playerctl" "previous";
+          };
+          "XF86AudioNext" = {
+            allow-when-locked = true;
+            action = spawn "playerctl" "next";
+          };
 
           # System Actions
-          "Mod+Escape".action = spawn "hyprlock";
+          "Mod+Escape" = {
+            allow-inhibiting = false;
+            action = spawn "hyprlock";
+          };
+          "Mod+Ctrl+Escape".action = toggle-keyboard-shortcuts-inhibit;
           "Mod+Shift+Escape".action = quit;
           "Mod+Shift+Slash".action = show-hotkey-overlay;
           "Mod+O" = {
@@ -108,11 +137,31 @@ in
           };
 
           # Launch
-          "Mod+Space".action = spawn "sh" "-c" "vicinae vicinae://toggle";
-          "Mod+Return".action = spawn "ghostty";
-          "Mod+F".action = spawn "dolphin";
-          "Mod+T".action = spawn "floorp";
-          "Mod+V".action = spawn "sh" "-c" "vicinae vicinae://extensions/vicinae/clipboard/history";
+          "Mod+Space" = {
+            repeat = false;
+            hotkey-overlay.title = "Open Launcher";
+            action = spawn "sh" "-c" "vicinae vicinae://toggle";
+          };
+          "Mod+Return" = {
+            repeat = false;
+            hotkey-overlay.title = "Open Terminal";
+            action = spawn "ghostty";
+          };
+          "Mod+F" = {
+            repeat = false;
+            hotkey-overlay.title = "Open File Manager";
+            action = spawn "dolphin";
+          };
+          "Mod+T" = {
+            repeat = false;
+            hotkey-overlay.title = "Open Browser";
+            action = spawn "floorp";
+          };
+          "Mod+V" = {
+            repeat = false;
+            hotkey-overlay.title = "Clipboard History";
+            action = spawn "sh" "-c" "vicinae vicinae://extensions/vicinae/clipboard/history";
+          };
 
           # Window: Misc
           "Mod+Tab".action = focus-column-right-or-first;
@@ -126,7 +175,11 @@ in
           "Mod+Shift+C".action = center-window;
 
           # Niri has no submaps. These keep the useful window-mode actions directly reachable.
-          "Mod+W".action = spawn "sh" "-c" "vicinae vicinae://extensions/vicinae/wm/switch-windows";
+          "Mod+W" = {
+            repeat = false;
+            hotkey-overlay.title = "Switch Windows";
+            action = spawn "sh" "-c" "vicinae vicinae://extensions/vicinae/wm/switch-windows";
+          };
           "Mod+Shift+F".action = toggle-window-floating;
           "Mod+Shift+V".action = switch-focus-between-floating-and-tiling;
           "Mod+BracketLeft".action = consume-or-expel-window-left;
@@ -138,6 +191,7 @@ in
           "Mod+Shift+R".action = switch-preset-column-width-back;
           "Mod+Ctrl+R".action = reset-window-height;
           "Mod+Ctrl+Shift+R".action = switch-preset-window-height;
+          "Mod+Ctrl+O".action = toggle-window-rule-opacity;
           "Mod+Minus".action = set-column-width "-10%";
           "Mod+Equal".action = set-column-width "+10%";
           "Mod+Shift+Minus".action = set-window-height "-10%";
@@ -165,10 +219,22 @@ in
           "Mod+Shift+Up".action = move-window-up;
           "Mod+Shift+Right".action = move-column-right;
 
+          # Scroll Navigation
+          "Mod+WheelScrollDown" = {
+            cooldown-ms = 150;
+            action = focus-workspace-down;
+          };
+          "Mod+WheelScrollUp" = {
+            cooldown-ms = 150;
+            action = focus-workspace-up;
+          };
+          "Mod+WheelScrollRight".action = focus-column-right;
+          "Mod+WheelScrollLeft".action = focus-column-left;
+
           # Workspace: Focus
           "Mod+N".action = focus-workspace-down;
           "Mod+P".action = focus-workspace-up;
-          "Mod+0".action = focus-workspace-previous;
+          "Mod+Grave".action = focus-workspace-previous;
 
           # Workspace: Move Window
           "Mod+Shift+N".action = move-window-to-workspace-down { focus = true; };
@@ -227,6 +293,7 @@ in
           "Mod+Ctrl+Shift+Alt+Down".action = move-workspace-to-monitor-down;
           "Mod+Ctrl+Shift+Alt+Up".action = move-workspace-to-monitor-up;
           "Mod+Ctrl+Shift+Alt+Right".action = move-workspace-to-monitor-right;
+          "Mod+Shift+Alt+M".action = move-workspace-to-monitor-next;
           "Mod+Ctrl+Shift+Alt+N".action = move-workspace-to-monitor-next;
           "Mod+Ctrl+Shift+Alt+P".action = move-workspace-to-monitor-previous;
         }
