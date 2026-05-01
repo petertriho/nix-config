@@ -100,7 +100,7 @@ in
 
           # System Actions
           "Mod+Escape".action = spawn "hyprlock";
-          "Mod+Shift+Escape".action = spawn "uwsm" "stop";
+          "Mod+Shift+Escape".action = quit;
           "Mod+Shift+Slash".action = show-hotkey-overlay;
           "Mod+O" = {
             repeat = false;

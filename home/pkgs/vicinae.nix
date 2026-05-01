@@ -14,6 +14,7 @@
         "power-off".preferences.confirm = false;
         reboot.preferences.confirm = false;
         logout.preferences.confirm = false;
+        logout.preferences.customProgram = "niri msg action quit";
       };
       rootSearch.searchFiles = false;
       telemetry.system_info = false;
