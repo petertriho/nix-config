@@ -118,6 +118,12 @@
       };
 
       nixosConfigurations = {
+        AMD-PC = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
+            modules = [ ./systems/nixos/AMD-PC ];
+          }
+        );
         T480 = nixpkgs.lib.nixosSystem (
           getSystemConfiguration "x86_64-linux"
           // {

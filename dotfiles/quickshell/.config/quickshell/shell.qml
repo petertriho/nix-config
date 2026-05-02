@@ -23,19 +23,27 @@ ShellRoot {
     // Expose config colors for easier access
     property QtObject config: configLoader.item
 
-    // Bar component
-    Bar {
-        id: bar
-        colors: config.colors
-        barConfig: config.bar
-        moduleConfig: config.module
-        workspacesConfig: config.workspaces
-        intervalsConfig: config.intervals
-        thresholdsConfig: config.thresholds
-        stepsConfig: config.steps
-        popupsConfig: config.popups
-        fontsConfig: config.fonts
-        windowIcons: config.windowIcons
+    // Bar components, one per connected screen.
+    Variants {
+        model: Quickshell.screens
+
+        delegate: Component {
+            Bar {
+                required property var modelData
+
+                screen: modelData
+                colors: config.colors
+                barConfig: config.bar
+                moduleConfig: config.module
+                workspacesConfig: config.workspaces
+                intervalsConfig: config.intervals
+                thresholdsConfig: config.thresholds
+                stepsConfig: config.steps
+                popupsConfig: config.popups
+                fontsConfig: config.fonts
+                windowIcons: config.windowIcons
+            }
+        }
     }
 
     // Control components

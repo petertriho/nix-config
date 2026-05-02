@@ -17,7 +17,10 @@
     ./pkgs/vicinae.nix
   ];
   home.packages = with pkgs; [
+    # discord
     floorp-bin
+    nextcloud-client
+    steam
     thunderbird
     ungoogled-chromium
   ];
@@ -38,5 +41,6 @@
     };
   };
 
-  xdg.configFile."mimeapps.list".source = config.lib.meta.mkDotfilesSymlink "mimeapps/.config/mimeapps.list";
+  xdg.configFile."mimeapps.list".source =
+    config.lib.meta.mkDotfilesSymlink "mimeapps/.config/mimeapps.list";
 }

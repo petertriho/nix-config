@@ -97,7 +97,25 @@ function normalizeHyprland(workspaces, activeWorkspaceId, clients, ignoreClasses
 }
 
 function normalizeNiri(workspaces, windows, ignoreClasses, windowIcons) {
+    const outputOrder = [];
+    const outputIndexes = {};
     const sortedWorkspaces = (workspaces || []).slice().sort(function(a, b) {
+        const aOutput = displayName(a.output, "");
+        const bOutput = displayName(b.output, "");
+
+        if (!Object.prototype.hasOwnProperty.call(outputIndexes, aOutput)) {
+            outputIndexes[aOutput] = outputOrder.length;
+            outputOrder.push(aOutput);
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(outputIndexes, bOutput)) {
+            outputIndexes[bOutput] = outputOrder.length;
+            outputOrder.push(bOutput);
+        }
+
+        if (outputIndexes[aOutput] !== outputIndexes[bOutput])
+            return outputIndexes[aOutput] - outputIndexes[bOutput];
+
         return a.idx - b.idx;
     });
     const ignored = ignoreClasses || [];

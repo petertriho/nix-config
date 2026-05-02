@@ -14,6 +14,4 @@
       inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
   };
   security.pam.services.hyprlock = { };
-
-  environment.sessionVariables.NIXOS_OZONE_WSL = "1";
 }
