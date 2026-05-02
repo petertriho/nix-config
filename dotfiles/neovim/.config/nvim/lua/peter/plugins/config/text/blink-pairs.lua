@@ -1,6 +1,11 @@
 return {
     "saghen/blink.pairs",
-    build = "nix run .#build-plugin",
+    build = {
+        "nix build .#default",
+        "mkdir -p target",
+        "rm -rf target/release",
+        "ln -s $(readlink -f result)/target/release target/release",
+    },
     event = "User LazyLoadFile",
     opts = {
         mappings = {
