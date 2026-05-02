@@ -31,7 +31,7 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 keymap("n", "<ESC>", function()
     vim.cmd.nohlsearch()
-    pcall(require("sidekick").clear)
+    -- pcall(require("sidekick").clear)
     pcall(require("snacks").notifier.hide)
 end, {
     desc = "Hide",
@@ -115,6 +115,37 @@ keymap({ "n", "v" }, "<leader>x", [["_d]], { desc = "Delete_" })
 keymap({ "n", "v" }, "<leader>X", [["+d]], { desc = "Delete+" })
 keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
 keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
+
+keymap("n", "<leader>aa", function()
+    local paths = {}
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.bo[bufnr].buflisted and vim.api.nvim_buf_is_loaded(bufnr) then
+            local name = vim.api.nvim_buf_get_name(bufnr)
+            if name ~= "" then
+                local rel = vim.fn.fnamemodify(name, ":.")
+                table.insert(paths, "@" .. rel)
+            end
+        end
+    end
+    local result = table.concat(paths, "\n")
+    vim.fn.setreg("+", result)
+    vim.notify("Copied: " .. #paths .. " buffer path(s)")
+end, { desc = "@buffers" })
+
+keymap("n", "<leader>af", function()
+    local path = vim.fn.expand("%:.")
+    vim.fn.setreg("+", "@" .. path)
+    vim.notify("Copied: @" .. path)
+end, { desc = "@buffer" })
+
+keymap("x", "<leader>av", function()
+    local path = vim.fn.expand("%:.")
+    local start_line = vim.fn.line("'<")
+    local end_line = vim.fn.line("'>")
+    local result = "@" .. path .. "#L" .. start_line .. "-" .. end_line
+    vim.fn.setreg("+", result)
+    vim.notify("Copied: " .. result)
+end, { desc = "@buffer#L1:2" })
 
 keymap("", "<leader>ic", ":!<Up><CR>", { desc = "Last Command" })
 keymap("", "<leader>ie", ":!chmod +x %<CR>", { desc = "Executable" })
