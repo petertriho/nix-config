@@ -309,9 +309,30 @@ in
     chunkhound.enable = false;
     crush.enable = true;
     impeccable.enable = true;
+    mattpocock-skills = {
+      enable = true;
+      skills = {
+        engineering = [
+          "diagnose"
+          "grill-with-docs"
+          "improve-codebase-architecture"
+          "setup-matt-pocock-skills"
+          "tdd"
+          "to-issues"
+          "to-prd"
+          "triage"
+          "zoom-out"
+        ];
+        productivity = [
+          "caveman"
+          "grill-me"
+          "write-a-skill"
+        ];
+      };
+    };
     plannotator.enable = true;
     playwriter.enable = true;
-    superpowers.enable = true;
+    superpowers.enable = false;
   };
   xdg.configFile = {
     # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
