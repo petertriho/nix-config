@@ -29,7 +29,7 @@ return {
             },
             {
                 mode = { "n", "x" },
-                { "<leader>a", group = "ai (sidekick)" },
+                { "<leader>a", group = "ai" },
                 { "<leader>c", group = "code-bridge" },
                 { "<leader>h", group = "hierarchy" },
                 { "<leader>i", group = "insert" },
