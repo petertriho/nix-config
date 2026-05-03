@@ -7,6 +7,7 @@
       fuzzel
       grim
       networkmanagerapplet
+      libnotify
       pamixer
       playerctl
       qt5.qtwayland

@@ -47,7 +47,7 @@
     mcp-servers-nix.url = "github:natsukium/mcp-servers-nix";
     llm-agents.url = "github:numtide/llm-agents.nix";
     nix-auth.url = "github:numtide/nix-auth";
-    nix-flatpak.url = "github:gmodena/nix-flatpak";
+    # nix-flatpak.url = "github:gmodena/nix-flatpak";
     pyproject-nix.url = "github:pyproject-nix/pyproject.nix";
     pyproject-nix.inputs.nixpkgs.follows = "nixpkgs";
     uv2nix = {
