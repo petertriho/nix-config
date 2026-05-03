@@ -1,0 +1,4 @@
+NotificationCard 1.0 NotificationCard.qml
+NotificationCenter 1.0 NotificationCenter.qml
+NotificationManager 1.0 NotificationManager.qml
+NotificationToasts 1.0 NotificationToasts.qml

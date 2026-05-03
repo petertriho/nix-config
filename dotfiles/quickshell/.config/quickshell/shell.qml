@@ -8,6 +8,7 @@ import QtQuick.Dialogs
 import "modules/Bar/workspaces/workspaceHelpers.js" as WorkspaceHelpers
 import "modules/Bar"
 import "modules/ControlOSD"
+import "modules/Notifications"
 
 ShellRoot {
     id: root
@@ -22,6 +23,14 @@ ShellRoot {
 
     // Expose config colors for easier access
     property QtObject config: configLoader.item
+
+    // Notification manager must be declared before Bar since Bar requires it.
+    NotificationManager {
+        id: notifications
+        colors: config.colors
+        fontsConfig: config.fonts
+        notificationsConfig: config.notifications
+    }
 
     // Bar components, one per connected screen.
     Variants {
@@ -42,6 +51,7 @@ ShellRoot {
                 popupsConfig: config.popups
                 fontsConfig: config.fonts
                 windowIcons: config.windowIcons
+                notificationsManager: notifications
             }
         }
     }
@@ -141,6 +151,15 @@ ShellRoot {
         function volumeUp(): void { root.volumeUp(); }
         function volumeDown(): void { root.volumeDown(); }
         function volumeMute(): void { root.volumeMute(); }
+    }
+
+    IpcHandler {
+        target: "quickshell-notifications"
+
+        function toggle(): void { notifications.toggleCenter(); }
+        function show(): void { notifications.showCenter(); }
+        function hide(): void { notifications.hideCenter(); }
+        function clear(): void { notifications.clearAll(); }
     }
 
     // Hyprland global shortcuts use the compositor protocol; Niri calls the IPC handler above.

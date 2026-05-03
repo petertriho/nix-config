@@ -29,6 +29,7 @@ PanelWindow {
     property QtObject fontsConfig
     property QtObject popupsConfig
     property var windowIcons
+    required property var notificationsManager
 
     PopupWindow {
         id: caffeinePicker
@@ -283,6 +284,15 @@ PanelWindow {
                     moduleConfig: root.moduleConfig
                     intervalsConfig: root.intervalsConfig
                     fontsConfig: root.fontsConfig
+                }
+
+                NotificationsModule {
+                    id: notifications
+                    height: parent.height
+                    colors: root.colors
+                    moduleConfig: root.moduleConfig
+                    fontsConfig: root.fontsConfig
+                    notificationsManager: root.notificationsManager
                 }
             }
         }

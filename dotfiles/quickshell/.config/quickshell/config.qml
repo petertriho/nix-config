@@ -205,6 +205,30 @@ QtObject {
         readonly property int trayIconOffset: 2
     }
 
+    // Notifications
+    readonly property QtObject notifications: QtObject {
+        readonly property int topMargin: bar.height + 12
+        readonly property int rightMargin: 12
+        readonly property int bottomMargin: 12
+        readonly property int toastWidth: 360
+        readonly property int drawerWidth: 420
+        readonly property int maxHistory: 50
+        readonly property int maxToasts: 4
+        readonly property int toastTimeoutMs: 6000
+        readonly property int spacing: 8
+        readonly property int cardPadding: 12
+        readonly property int cornerRadius: 10
+        readonly property int iconSize: 42
+        readonly property int summaryFontSize: 14
+        readonly property int appFontSize: 11
+        readonly property int bodyFontSize: 12
+        readonly property int actionFontSize: 11
+        readonly property int toastBodyLines: 3
+        readonly property int centerBodyLines: 5
+        readonly property int headerFontSize: 16
+        readonly property real panelOpacity: 0.96
+    }
+
     // Fonts
     readonly property QtObject fonts: QtObject {
         readonly property string defaultFamily: "JetBrainsMono Nerd Font Propo"
