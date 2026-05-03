@@ -17,8 +17,9 @@
     ./pkgs/vicinae.nix
   ];
   home.packages = with pkgs; [
-    # discord
+    discord
     floorp-bin
+    libreoffice
     nextcloud-client
     steam
     thunderbird

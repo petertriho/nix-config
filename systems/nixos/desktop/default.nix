@@ -1,4 +1,4 @@
-{ ... }:
+{ inputs, ... }:
 {
   imports = [
     ../base.nix
@@ -7,9 +7,23 @@
     ./audio.nix
     ./bootloader.nix
     ./networking.nix
+    inputs.nix-flatpak.nixosModules.nix-flatpak
   ];
-  services.fwupd.enable = true;
-  services.printing.enable = true;
+
+  services = {
+    flatpak = {
+      enable = true;
+      remotes = [
+        {
+          name = "flathub";
+          location = "https://dl.flathub.org/repo/flathub.flatpakrepo";
+        }
+      ];
+      packages = [ ];
+    };
+    fwupd.enable = true;
+    printing.enable = true;
+  };
 
   programs.firefox.enable = true;
 }

@@ -42,6 +42,8 @@ in
     inputs.niri.homeModules.niri
   ];
 
+  home.packages = [ pkgs.xwayland-satellite ];
+
   programs.niri = {
     enable = true;
     package = pkgs.niri-unstable;
@@ -72,6 +74,8 @@ in
       };
 
       # spawn-at-startup = [ { command = [ "waybar" ]; } ];
+
+      "xwayland-satellite".path = "xwayland-satellite";
 
       prefer-no-csd = true;
 
