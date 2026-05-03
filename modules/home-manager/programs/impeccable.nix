@@ -6,38 +6,21 @@
 }:
 let
   cfg = config.programs.impeccable;
-  pkg = pkgs.impeccable;
-
-  opencodeSkills = builtins.readDir "${pkg}/share/impeccable/dist/opencode-prefixed/.opencode/skills";
-  claudeCodeSkills = builtins.readDir "${pkg}/share/impeccable/dist/claude-code-prefixed/.claude/skills";
-  codexSkills = builtins.readDir "${pkg}/share/impeccable/dist/codex-prefixed/.codex/skills";
 in
 {
   options.programs.impeccable.enable = lib.mkEnableOption "impeccable design skills";
 
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
-      # opencode skills
       {
-        xdg.configFile = lib.mapAttrs' (
-          name: _:
-          lib.nameValuePair "opencode/skills/impeccable/${name}" {
-            source = "${pkg}/share/impeccable/dist/opencode-prefixed/.opencode/skills/${name}";
-          }
-        ) opencodeSkills;
+        xdg.configFile."opencode/skills/impeccable".source =
+          "${pkgs.impeccable}/share/impeccable/dist/opencode/.opencode/skills/impeccable";
       }
-      # claude-code skills
       (lib.mkIf config.programs.claude-code.enable {
-        programs.claude-code.skills = lib.mapAttrs' (
-          name: _:
-          lib.nameValuePair name "${pkg}/share/impeccable/dist/claude-code-prefixed/.claude/skills/${name}"
-        ) claudeCodeSkills;
+        programs.claude-code.skills.impeccable = "${pkgs.impeccable}/share/impeccable/dist/claude-code/.claude/skills/impeccable";
       })
-      # codex skills
       (lib.mkIf config.programs.codex.enable {
-        programs.codex.skills = lib.mapAttrs' (
-          name: _: lib.nameValuePair name "${pkg}/share/impeccable/dist/codex-prefixed/.codex/skills/${name}"
-        ) codexSkills;
+        programs.codex.skills.impeccable = "${pkgs.impeccable}/share/impeccable/dist/codex/.codex/skills/impeccable";
       })
     ]
   );

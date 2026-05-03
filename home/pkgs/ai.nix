@@ -308,7 +308,7 @@ in
     basic-memory.enable = true;
     chunkhound.enable = false;
     crush.enable = true;
-    impeccable.enable = false;
+    impeccable.enable = true;
     plannotator.enable = true;
     playwriter.enable = true;
     superpowers.enable = true;
