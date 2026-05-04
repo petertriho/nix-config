@@ -36,6 +36,7 @@ Rectangle {
         onClicked: function(mouse) {
             if (mouse.button === Qt.RightButton) root.rightClicked()
             else {
+                updatePosition()
                 expanded = !expanded
                 root.clicked()
             }

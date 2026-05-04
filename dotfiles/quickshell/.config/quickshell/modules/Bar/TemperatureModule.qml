@@ -12,6 +12,7 @@ BaseModule {
     property bool isCritical: false
     property string tempPath: ""
     property bool showPopup: false
+    property real globalX: 0
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject thresholdsConfig: parent.thresholdsConfig
     property var cpuTempDrivers: ["coretemp", "k10temp"]
@@ -23,7 +24,7 @@ BaseModule {
         onTriggered: updateTemperature()
     }
 
-    Component.onCompleted: findTempPath()
+    Component.onCompleted: { findTempPath(); updatePosition(); }
 
     Process {
         id: findTempPathProcess
@@ -54,13 +55,13 @@ BaseModule {
 
     Timer {
         id: showTimer
-        interval: 400
+        interval: 150
         onTriggered: root.showPopup = true
     }
 
     Timer {
         id: dismissTimer
-        interval: 600
+        interval: 150
         onTriggered: root.showPopup = false
     }
 
@@ -86,6 +87,14 @@ BaseModule {
             dismissTimer.stop()
         }
     }
+
+    function updatePosition() {
+        var pos = root.mapToItem(null, 0, 0)
+        root.globalX = pos.x
+    }
+
+    onXChanged: updatePosition()
+    onWidthChanged: updatePosition()
 
     function findTempPath() {
         var pattern = cpuTempDrivers.join("|");

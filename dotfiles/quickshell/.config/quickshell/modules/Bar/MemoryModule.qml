@@ -14,6 +14,7 @@ BaseModule {
     property real swapTotal: 0
     property real swapUsed: 0
     property bool showPopup: false
+    property real globalX: 0
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject thresholdsConfig: parent.thresholdsConfig
 
@@ -24,7 +25,7 @@ BaseModule {
         onTriggered: updateMemoryUsage()
     }
 
-    Component.onCompleted: updateMemoryUsage()
+    Component.onCompleted: { updateMemoryUsage(); updatePosition(); }
 
     Process {
         id: memoryProcess
@@ -54,13 +55,13 @@ BaseModule {
 
     Timer {
         id: showTimer
-        interval: 400
+        interval: 150
         onTriggered: root.showPopup = true
     }
 
     Timer {
         id: dismissTimer
-        interval: 600
+        interval: 150
         onTriggered: root.showPopup = false
     }
 
@@ -86,6 +87,14 @@ BaseModule {
             dismissTimer.stop()
         }
     }
+
+    function updatePosition() {
+        var pos = root.mapToItem(null, 0, 0)
+        root.globalX = pos.x
+    }
+
+    onXChanged: updatePosition()
+    onWidthChanged: updatePosition()
 
     function updateMemoryUsage() {
         memoryProcess.exec({

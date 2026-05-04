@@ -19,7 +19,6 @@ PanelWindow {
     implicitHeight: barConfig.height
     exclusiveZone: barConfig.exclusiveZone
 
-    // Accept colors from parent (will be set by shell.qml)
     property QtObject colors
     property QtObject barConfig
     property QtObject moduleConfig
@@ -38,9 +37,9 @@ PanelWindow {
         grabFocus: true
         anchor.window: root
         anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: caffeine.globalX
+        anchor.rect.x: caffeine.globalX + (caffeine.width - width) / 2
         anchor.rect.y: root.height
-        anchor.rect.width: caffeine.width
+        anchor.rect.width: 1
         anchor.rect.height: 1
         implicitWidth: pickerCol.width + popupsConfig.padding
         implicitHeight: pickerCol.height + popupsConfig.margin
@@ -119,8 +118,12 @@ PanelWindow {
         id: trayPopup
         visible: false
         grabFocus: true
-        anchor.item: tray
+        anchor.window: root
         anchor.edges: Edges.Bottom | Edges.Left
+        anchor.rect.x: tray.globalX + (tray.width - width) / 2
+        anchor.rect.y: root.height
+        anchor.rect.width: 1
+        anchor.rect.height: 1
         implicitWidth: trayRow.width + popupsConfig.padding
         implicitHeight: trayRow.height + popupsConfig.margin
         color: "transparent"
@@ -207,6 +210,133 @@ PanelWindow {
         }
     }
 
+    PopupWindow {
+        id: cpuPopup
+        visible: cpu.showPopup
+        anchor.window: root
+        anchor.edges: Edges.Bottom | Edges.Left
+        anchor.rect.x: cpu.globalX + (cpu.width - width) / 2
+        anchor.rect.y: root.height
+        anchor.rect.width: 1
+        anchor.rect.height: 1
+        implicitWidth: 260
+        implicitHeight: cpuPopupCol.height + popupsConfig.margin
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            color: colors.bg
+            border.color: colors.border
+            radius: popupsConfig.cornerRadius
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onEntered: cpu.holdPopup()
+                onExited: cpu.releasePopup()
+            }
+
+            Column {
+                id: cpuPopupCol
+                anchors.centerIn: parent
+                spacing: 2
+                padding: 8
+
+                Text { text: "CPU " + Math.round(cpu.cpuUsage) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
+                Text { text: "Load: " + cpu.loadAvg; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
+                Text { text: "Procs: " + cpu.processCount; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
+                Item { width: 1; height: 4 }
+                Repeater {
+                    model: cpu.perCoreUsage
+                    delegate: Row {
+                        spacing: 4
+                        Text { text: "C" + modelData.core; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 22 }
+                        Rectangle { width: Math.max(1, modelData.usage * 1.8); height: 8; color: modelData.usage > 80 ? colors.red : modelData.usage > 50 ? colors.yellow : colors.blue; radius: 2; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: Math.round(modelData.usage) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1 }
+                    }
+                }
+            }
+        }
+    }
+
+    PopupWindow {
+        id: memoryPopup
+        visible: memory.showPopup
+        anchor.window: root
+        anchor.edges: Edges.Bottom | Edges.Left
+        anchor.rect.x: memory.globalX + (memory.width - width) / 2
+        anchor.rect.y: root.height
+        anchor.rect.width: 1
+        anchor.rect.height: 1
+        implicitWidth: 220
+        implicitHeight: memoryPopupCol.height + popupsConfig.margin
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            color: colors.bg
+            border.color: colors.border
+            radius: popupsConfig.cornerRadius
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onEntered: memory.holdPopup()
+                onExited: memory.releasePopup()
+            }
+
+            Column {
+                id: memoryPopupCol
+                anchors.centerIn: parent
+                spacing: 2
+                padding: 8
+
+                Text { text: "Memory"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
+                Text { text: "RAM: " + memory.usedMemory.toFixed(1) + "G / " + memory.totalMemory.toFixed(1) + "G"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
+                Text { text: "Avail: " + memory.availableMemory.toFixed(1) + "G"; color: colors.green; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
+                Text { text: memory.swapTotal > 0 ? "Swap: " + memory.swapUsed.toFixed(1) + "G / " + memory.swapTotal.toFixed(1) + "G" : ""; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
+            }
+        }
+    }
+
+    PopupWindow {
+        id: temperaturePopup
+        visible: temperature.showPopup
+        anchor.window: root
+        anchor.edges: Edges.Bottom | Edges.Left
+        anchor.rect.x: temperature.globalX + (temperature.width - width) / 2
+        anchor.rect.y: root.height
+        anchor.rect.width: 1
+        anchor.rect.height: 1
+        implicitWidth: 180
+        implicitHeight: tempPopupCol.height + popupsConfig.margin
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            color: colors.bg
+            border.color: colors.border
+            radius: popupsConfig.cornerRadius
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onEntered: temperature.holdPopup()
+                onExited: temperature.releasePopup()
+            }
+
+            Column {
+                id: tempPopupCol
+                anchors.centerIn: parent
+                spacing: 2
+                padding: 8
+
+                Text { text: "Temperature"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
+                Text { text: Math.round(temperature.temperature) + "°C"; color: temperature.isCritical ? colors.red : colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize + 4 }
+            }
+        }
+    }
+
     Connections {
         target: tray
         function onExpandedChanged() {
@@ -229,6 +359,9 @@ PanelWindow {
                 onClicked: {
                     caffeine.showPicker = false
                     tray.expanded = false
+                    cpu.showPopup = false
+                    memory.showPopup = false
+                    temperature.showPopup = false
                     if (notificationsManager)
                         notificationsManager.hideCenter()
                 }
@@ -369,6 +502,9 @@ PanelWindow {
             if (event.key === Qt.Key_Escape) {
                 caffeine.showPicker = false
                 tray.expanded = false
+                cpu.showPopup = false
+                memory.showPopup = false
+                temperature.showPopup = false
                 if (notificationsManager)
                     notificationsManager.hideCenter()
                 event.accepted = true

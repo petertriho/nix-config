@@ -15,6 +15,7 @@ BaseModule {
     property var prevCpuTimes: ({})
     property bool hasPrevData: false
     property bool showPopup: false
+    property real globalX: 0
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject thresholdsConfig: parent.thresholdsConfig
 
@@ -25,7 +26,7 @@ BaseModule {
         onTriggered: updateCpu()
     }
 
-    Component.onCompleted: updateCpu()
+    Component.onCompleted: { updateCpu(); updatePosition(); }
 
     Process {
         id: cpuProcess
@@ -49,13 +50,13 @@ BaseModule {
 
     Timer {
         id: showTimer
-        interval: 400
+        interval: 150
         onTriggered: root.showPopup = true
     }
 
     Timer {
         id: dismissTimer
-        interval: 600
+        interval: 150
         onTriggered: root.showPopup = false
     }
 
@@ -127,6 +128,14 @@ BaseModule {
             dismissTimer.stop()
         }
     }
+
+    function updatePosition() {
+        var pos = root.mapToItem(null, 0, 0)
+        root.globalX = pos.x
+    }
+
+    onXChanged: updatePosition()
+    onWidthChanged: updatePosition()
 
     function updateCpu() {
         cpuProcess.exec({ command: ["sh", "-c", "grep '^cpu' /proc/stat"] });
