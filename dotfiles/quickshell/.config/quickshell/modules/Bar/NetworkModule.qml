@@ -35,6 +35,20 @@ BaseModule {
         }
     }
 
+    Process {
+        id: ethernetProcess
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim()) {
+                    connectionType = "ethernet";
+                    essid = "";
+                    signalStrength = 0;
+                    updateIcon();
+                }
+            }
+        }
+    }
+
     function updateNetwork() {
         networkProcess.exec({
             command: ["nmcli", "-g", "IN-USE,SIGNAL,SSID", "dev", "wifi", "list"]
@@ -61,13 +75,16 @@ BaseModule {
                         connectionType = "wifi";
                         essid = ssid;
                         signalStrength = parseInt(signal);
-                        break;
+                        updateIcon();
+                        return;
                     }
                 }
             }
         }
 
-        updateIcon();
+        ethernetProcess.exec({
+            command: ["sh", "-c", "nmcli -t -f TYPE con show --active 2>/dev/null | grep -q 802-3-ethernet && echo connected"]
+        });
     }
 
     function updateIcon() {
