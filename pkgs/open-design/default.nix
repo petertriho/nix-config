@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "open-design-v0.2.0-unstable-2026-05-03";
+  version = "open-design-v0.3.1-beta.4-unstable-2026-05-04";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "648374d8398ef88a6414d24c09d30633acdf509f";
-    hash = "sha256-D4puv/shMGV2wt/lCvQrYjjxSCmx99ARgp1NTd8bCvM=";
+    rev = "c881c0ca34a71b640d4e84085227fe87f1524c2b";
+    hash = "sha256-u5mrXV7JpJ1dT6vqQlaQH3fy66Ukv7y0sS0OFzPYeHg=";
   };
 
   nativeBuildInputs = [
@@ -39,7 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-+aXODhoOgjnd5WpRoWufwCEVER4xUZHeZKZkmGWHUPo=";
+    hash = "sha256-qVf4HwuU/E9EPM09fdmPPblvLlEKr2qyAXQC469ctF0=";
   };
 
   buildPhase = ''
@@ -47,9 +47,12 @@ stdenv.mkDerivation (finalAttrs: {
 
     # Manually rebuild better-sqlite3 native bindings (pnpm rebuild doesn't work in nix builds)
     export npm_config_nodedir=${nodejs_24}
-    pushd node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-    ${nodejs_24}/bin/node ${node-gyp}/lib/node_modules/node-gyp/bin/node-gyp.js rebuild --release
-    popd
+    for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
+      [ -d "$dir" ] || continue
+      pushd "$dir"
+      ${nodejs_24}/bin/node ${node-gyp}/lib/node_modules/node-gyp/bin/node-gyp.js rebuild --release
+      popd
+    done
 
     # Build workspace packages that downstream apps depend on
     pnpm --filter @open-design/platform run build

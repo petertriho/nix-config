@@ -5,13 +5,13 @@
 }:
 buildGoModule rec {
   pname = "pinchtab";
-  version = "0.10.0-unstable-2026-05-02";
+  version = "0.10.0-unstable-2026-05-03";
 
   src = fetchFromGitHub {
     owner = "pinchtab";
     repo = "pinchtab";
-    rev = "4113fd80a8490e58bb881144672f0d31a4b73a4c";
-    sha256 = "sha256-zwDIpogzrNXEo8hL2QISCqNQlNcnTs8a0FupU/hvsdQ=";
+    rev = "de3c8c57f9654c9197ff26e8871a0107c260a8ff";
+    sha256 = "sha256-yV6vwSsZB1W6xH6+lljeDM1HspSLKbXWCkwRAWeZVZg=";
   };
 
   vendorHash = "sha256-VAKkswzho17OkxhB5dCayp4uLvbiU18UcAATyMczUBA=";

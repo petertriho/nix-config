@@ -24,6 +24,7 @@
     steam
     thunderbird
     ungoogled-chromium
+    zathura
   ];
   programs.claude-code.zai.enable = true;
 

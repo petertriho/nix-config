@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "mattpocock-skills";
-  version = "0-unstable-2026-05-04";
+  version = "0-unstable-2026-04-30";
 
   src = fetchFromGitHub {
     owner = "mattpocock";

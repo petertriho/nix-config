@@ -272,13 +272,13 @@ in
             model = "{env:OPENCODE_AGENT_BUILD_MODEL}";
             permission = {
               read = {
-                "/nix/store" = "allow";
+                "/nix/store/*" = "allow";
               };
               glob = {
-                "/nix/store" = "allow";
+                "/nix/store/*" = "allow";
               };
               grep = {
-                "/nix/store" = "allow";
+                "/nix/store/*" = "allow";
               };
             };
           };

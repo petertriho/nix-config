@@ -5,13 +5,13 @@
 }:
 rustPlatform.buildRustPackage rec {
   pname = "models";
-  version = "0.11.4-unstable-2026-05-03";
+  version = "0.11.4-unstable-2026-05-04";
 
   src = fetchFromGitHub {
     owner = "arimxyer";
     repo = "models";
-    rev = "00229327c68b8afb40a1c6c600835e90aa6b20da";
-    hash = "sha256-V4uj9CcWiVuYolqJuuIDSITqROhOjzqDPrT1uSjX35A=";
+    rev = "33fd9bd526ed837b23f91342515fc481735ca96f";
+    hash = "sha256-vr1ugViCvuq0jkxaBOTI6eGaCA3NYvfopZxk0nN2Q64=";
   };
 
   cargoLock.lockFileContents = builtins.readFile "${src}/Cargo.lock";

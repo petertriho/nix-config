@@ -7,7 +7,7 @@
     ./audio.nix
     ./bootloader.nix
     ./networking.nix
-    inputs.nix-flatpak.nixosModules.nix-flatpak
+    # inputs.nix-flatpak.nixosModules.nix-flatpak
   ];
 
   services = {
