@@ -131,18 +131,37 @@ PanelWindow {
 
                 Repeater {
                     model: SystemTray.items
-                    delegate: IconImage {
-                        implicitSize: popupsConfig.trayIconSize > 0 ? popupsConfig.trayIconSize : fontsConfig.defaultSize + popupsConfig.trayIconOffset
-                        source: modelData.icon
+                    delegate: Item {
+                        readonly property int _iconSize: popupsConfig.trayIconSize > 0 ? popupsConfig.trayIconSize : fontsConfig.defaultSize + popupsConfig.trayIconOffset
+                        readonly property int _pad: 8
+                        width: _iconSize + _pad * 2
+                        height: _iconSize + _pad * 2
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 4
+                            color: mouse.containsMouse ? colors.bg_highlight : "transparent"
+                        }
+
+                        IconImage {
+                            id: icon
+                            anchors.centerIn: parent
+                            implicitSize: parent._iconSize
+                            source: modelData.icon
+                        }
 
                         MouseArea {
+                            id: mouse
                             anchors.fill: parent
+                            hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onClicked: function(mouse) {
-                                if (mouse.button === Qt.RightButton) {
-                                    modelData.secondaryActivate(mouse.x, mouse.y)
+                            onClicked: function(mse) {
+                                const ix = mse.x - (width - icon.width) / 2
+                                const iy = mse.y - (height - icon.height) / 2
+                                if (mse.button === Qt.RightButton) {
+                                    modelData.secondaryActivate(ix, iy)
                                 } else {
-                                    modelData.activate(mouse.x, mouse.y)
+                                    modelData.activate(ix, iy)
                                 }
                             }
                         }
