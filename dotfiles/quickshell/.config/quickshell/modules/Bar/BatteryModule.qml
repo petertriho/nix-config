@@ -8,6 +8,7 @@ BaseModule {
     id: root
 
     property var batteries: []
+    property bool hasBattery: false
     property bool hasWarning: false
     property bool hasCritical: false
     property string batteryText: "󰁺 --%"
@@ -69,6 +70,7 @@ BaseModule {
         batteryDevices = devices;
         batteryDataQueue = [];
         currentBatteryIndex = 0;
+        hasBattery = devices.length > 0;
 
         if (devices.length === 0) {
             batteries = [];
@@ -190,6 +192,8 @@ BaseModule {
 
         return icon;
     }
+
+    visible: hasBattery
 
     text: batteryText
 
