@@ -19,6 +19,9 @@ Rectangle {
     property alias horizontalAlignment: content.horizontalAlignment
     property alias verticalAlignment: content.verticalAlignment
 
+    property bool hoverEnabled: false
+    readonly property bool hovered: hoverArea.containsMouse
+
     default property alias children: content.data
 
     Text {
@@ -33,7 +36,9 @@ Rectangle {
     }
 
     MouseArea {
+        id: hoverArea
         anchors.fill: parent
+        hoverEnabled: root.hoverEnabled
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onClicked: function(mouse) {
             if (mouse.button === Qt.RightButton) root.rightClicked()

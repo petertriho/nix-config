@@ -6,10 +6,12 @@ import Quickshell.Io
 
 BaseModule {
     id: root
+    hoverEnabled: true
 
     property real temperature: 0
     property bool isCritical: false
     property string tempPath: ""
+    property bool showPopup: false
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject thresholdsConfig: parent.thresholdsConfig
     property var cpuTempDrivers: ["coretemp", "k10temp"]
@@ -47,6 +49,41 @@ BaseModule {
                     isCritical = temperature >= thresholdsConfig.temperature.critical;
                 }
             }
+        }
+    }
+
+    Timer {
+        id: showTimer
+        interval: 400
+        onTriggered: root.showPopup = true
+    }
+
+    Timer {
+        id: dismissTimer
+        interval: 600
+        onTriggered: root.showPopup = false
+    }
+
+    onHoveredChanged: {
+        if (root.hovered) {
+            dismissTimer.stop()
+            showTimer.restart()
+        } else {
+            showTimer.stop()
+            dismissTimer.restart()
+        }
+    }
+
+    function holdPopup() {
+        dismissTimer.stop()
+        showPopup = true
+    }
+
+    function releasePopup() {
+        if (!root.hovered) {
+            dismissTimer.restart()
+        } else {
+            dismissTimer.stop()
         }
     }
 
