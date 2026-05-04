@@ -9,6 +9,7 @@
       networkmanagerapplet
       libnotify
       pamixer
+      pwvucontrol
       playerctl
       qt5.qtwayland
       qt6.qtwayland
