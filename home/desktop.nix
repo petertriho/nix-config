@@ -16,6 +16,12 @@
     ./pkgs/quickshell.nix
     ./pkgs/vicinae.nix
   ];
+
+  programs.chromium = {
+    enable = true;
+    package = pkgs.ungoogled-chromium;
+  };
+
   home.packages = with pkgs; [
     discord
     floorp-bin
@@ -23,7 +29,6 @@
     nextcloud-client
     steam
     thunderbird
-    ungoogled-chromium
     zathura
   ];
   programs.claude-code.zai.enable = true;
