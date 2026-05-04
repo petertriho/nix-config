@@ -9,6 +9,7 @@ import Quickshell.Widgets
 PanelWindow {
     id: root
     visible: true
+    focusable: true
     color: "transparent"
     anchors {
         top: true
@@ -34,6 +35,7 @@ PanelWindow {
     PopupWindow {
         id: caffeinePicker
         visible: caffeine.showPicker
+        grabFocus: true
         anchor.window: root
         anchor.edges: Edges.Bottom | Edges.Left
         anchor.rect.x: caffeine.globalX
@@ -100,22 +102,45 @@ PanelWindow {
             running: caffeine.showPicker
             onTriggered: caffeine.showPicker = false
         }
+
+        Item {
+            anchors.fill: parent
+            focus: true
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape) {
+                    caffeine.showPicker = false
+                    event.accepted = true
+                }
+            }
+        }
     }
 
     PopupWindow {
         id: trayPopup
-        visible: tray.expanded
+        visible: false
+        grabFocus: true
         anchor.item: tray
         anchor.edges: Edges.Bottom | Edges.Left
         implicitWidth: trayRow.width + popupsConfig.padding
         implicitHeight: trayRow.height + popupsConfig.margin
         color: "transparent"
+        onVisibleChanged: if (!visible) tray.expanded = false
 
         Timer {
             id: trayTimer
             interval: popupsConfig.timeoutMs
             running: tray.expanded
             onTriggered: tray.expanded = false
+        }
+
+        Item {
+            anchors.fill: parent
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape) {
+                    tray.expanded = false
+                    event.accepted = true
+                }
+            }
         }
 
         Rectangle {
@@ -169,6 +194,24 @@ PanelWindow {
                 }
             }
         }
+
+        Item {
+            anchors.fill: parent
+            focus: true
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape) {
+                    tray.expanded = false
+                    event.accepted = true
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: tray
+        function onExpandedChanged() {
+            trayPopup.visible = tray.expanded
+        }
     }
 
     Rectangle {
@@ -186,6 +229,8 @@ PanelWindow {
                 onClicked: {
                     caffeine.showPicker = false
                     tray.expanded = false
+                    if (notificationsManager)
+                        notificationsManager.hideCenter()
                 }
             }
 
@@ -313,6 +358,20 @@ PanelWindow {
                     fontsConfig: root.fontsConfig
                     notificationsManager: root.notificationsManager
                 }
+            }
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        focus: true
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Escape) {
+                caffeine.showPicker = false
+                tray.expanded = false
+                if (notificationsManager)
+                    notificationsManager.hideCenter()
+                event.accepted = true
             }
         }
     }

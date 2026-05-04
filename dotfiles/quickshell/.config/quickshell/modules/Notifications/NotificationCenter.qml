@@ -5,6 +5,7 @@ import Quickshell
 
 PanelWindow {
     id: root
+    focusable: true
 
     required property var centerModel
     required property QtObject colors
@@ -44,6 +45,12 @@ PanelWindow {
         top: notificationsConfig.topMargin
         right: notificationsConfig.rightMargin
         bottom: notificationsConfig.bottomMargin
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        z: -1
+        onClicked: root.closeRequested()
     }
 
     Rectangle {
@@ -147,6 +154,17 @@ PanelWindow {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        focus: true
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Escape) {
+                closeRequested()
+                event.accepted = true
             }
         }
     }
