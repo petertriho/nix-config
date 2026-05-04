@@ -9,7 +9,7 @@ import Quickshell.Widgets
 PanelWindow {
     id: root
     visible: true
-    focusable: true
+    // focusable: true
     color: "transparent"
     anchors {
         top: true
@@ -102,16 +102,6 @@ PanelWindow {
             onTriggered: caffeine.showPicker = false
         }
 
-        Item {
-            anchors.fill: parent
-            focus: true
-            Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_Escape) {
-                    caffeine.showPicker = false
-                    event.accepted = true
-                }
-            }
-        }
     }
 
     PopupWindow {
@@ -134,16 +124,6 @@ PanelWindow {
             interval: popupsConfig.timeoutMs
             running: tray.expanded
             onTriggered: tray.expanded = false
-        }
-
-        Item {
-            anchors.fill: parent
-            Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_Escape) {
-                    tray.expanded = false
-                    event.accepted = true
-                }
-            }
         }
 
         Rectangle {
@@ -198,16 +178,6 @@ PanelWindow {
             }
         }
 
-        Item {
-            anchors.fill: parent
-            focus: true
-            Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_Escape) {
-                    tray.expanded = false
-                    event.accepted = true
-                }
-            }
-        }
     }
 
     PopupWindow {
@@ -495,20 +465,4 @@ PanelWindow {
         }
     }
 
-    Item {
-        anchors.fill: parent
-        focus: true
-        Keys.onPressed: (event) => {
-            if (event.key === Qt.Key_Escape) {
-                caffeine.showPicker = false
-                tray.expanded = false
-                cpu.showPopup = false
-                memory.showPopup = false
-                temperature.showPopup = false
-                if (notificationsManager)
-                    notificationsManager.hideCenter()
-                event.accepted = true
-            }
-        }
-    }
 }
