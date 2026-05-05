@@ -51,7 +51,10 @@ BaseModule {
     Timer {
         id: showTimer
         interval: 150
-        onTriggered: root.showPopup = true
+        onTriggered: {
+            root.updatePosition()
+            root.showPopup = true
+        }
     }
 
     Timer {
