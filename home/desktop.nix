@@ -17,21 +17,35 @@
     ./pkgs/vicinae.nix
   ];
 
-  programs.chromium = {
-    enable = true;
-    package = pkgs.ungoogled-chromium;
-  };
-
   home.packages = with pkgs; [
     discord
-    floorp-bin
     libreoffice
     nextcloud-client
     steam
     thunderbird
     zathura
   ];
-  programs.claude-code.zai.enable = true;
+
+  programs = {
+    betterfox = {
+      enable = true;
+      browserPackage = pkgs.floorp-bin.unwrapped;
+      configs = {
+        userjs = true;
+        securefox = true;
+        peskyfox = true;
+        smoothfox = "natural";
+      };
+      extraPreferences = {
+        "media.ffmpeg.vaapi.enabled" = true;
+      };
+    };
+    chromium = {
+      enable = true;
+      package = pkgs.ungoogled-chromium;
+    };
+    claude-code.zai.enable = true;
+  };
 
   gtk = {
     enable = true;

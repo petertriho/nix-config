@@ -15,6 +15,7 @@ in
 with pkgs;
 {
   anthropic-skills = callPackage ./anthropic-skills { };
+  betterfox = callPackage ./betterfox { };
   basic-memory = callPackage ./basic-memory { };
   basic-memory-skills = callPackage ./basic-memory-skills { };
   excalidraw-edit = callPackage ./excalidraw-edit { };
