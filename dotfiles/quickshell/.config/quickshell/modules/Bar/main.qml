@@ -189,7 +189,7 @@ PanelWindow {
         anchor.rect.y: root.height
         anchor.rect.width: 1
         anchor.rect.height: 1
-        implicitWidth: 260
+        implicitWidth: 420
         implicitHeight: cpuPopupCol.height + popupsConfig.margin
         color: "transparent"
 
@@ -216,13 +216,54 @@ PanelWindow {
                 Text { text: "Load: " + cpu.loadAvg; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
                 Text { text: "Procs: " + cpu.processCount; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
                 Item { width: 1; height: 4 }
+                Row {
+                    width: 380
+                    spacing: 12
+                    Repeater {
+                        model: 2
+                        delegate: Item {
+                            width: 184
+                            height: coreColumn.height
+
+                            Column {
+                                id: coreColumn
+                                width: parent.width
+                                spacing: 2
+                                Repeater {
+                                    model: cpu.coreColumn(index)
+                                    delegate: Row {
+                                        width: 184
+                                        spacing: 4
+                                        Text { text: "C" + modelData.core; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 22 }
+                                        Rectangle {
+                                            width: 120
+                                            height: 8
+                                            color: colors.bg_highlight
+                                            radius: 2
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            Rectangle {
+                                                width: Math.max(1, parent.width * modelData.usage / 100)
+                                                height: parent.height
+                                                color: modelData.usage > 80 ? colors.red : modelData.usage > 50 ? colors.yellow : colors.blue
+                                                radius: parent.radius
+                                            }
+                                        }
+                                        Text { text: Math.round(modelData.usage) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 34 }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Item { width: 1; height: 4 }
+                Text { text: "Top CPU"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
                 Repeater {
-                    model: cpu.perCoreUsage
+                    model: cpu.topCpuApps
                     delegate: Row {
-                        spacing: 4
-                        Text { text: "C" + modelData.core; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 22 }
-                        Rectangle { width: Math.max(1, modelData.usage * 1.8); height: 8; color: modelData.usage > 80 ? colors.red : modelData.usage > 50 ? colors.yellow : colors.blue; radius: 2; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: Math.round(modelData.usage) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1 }
+                        spacing: 6
+                        Text { text: modelData.name; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 190; elide: Text.ElideRight }
+                        Text { text: modelData.usage.toFixed(1) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 50; horizontalAlignment: Text.AlignRight }
                     }
                 }
             }
@@ -238,7 +279,7 @@ PanelWindow {
         anchor.rect.y: root.height
         anchor.rect.width: 1
         anchor.rect.height: 1
-        implicitWidth: 220
+        implicitWidth: 280
         implicitHeight: memoryPopupCol.height + popupsConfig.margin
         color: "transparent"
 
@@ -265,6 +306,16 @@ PanelWindow {
                 Text { text: "RAM: " + memory.usedMemory.toFixed(1) + "G / " + memory.totalMemory.toFixed(1) + "G"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
                 Text { text: "Avail: " + memory.availableMemory.toFixed(1) + "G"; color: colors.green; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
                 Text { text: memory.swapTotal > 0 ? "Swap: " + memory.swapUsed.toFixed(1) + "G / " + memory.swapTotal.toFixed(1) + "G" : ""; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
+                Item { width: 1; height: 4 }
+                Text { text: "Top Memory"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
+                Repeater {
+                    model: memory.topMemoryApps
+                    delegate: Row {
+                        spacing: 6
+                        Text { text: modelData.name; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 170; elide: Text.ElideRight }
+                        Text { text: modelData.memoryMb >= 1024 ? (modelData.memoryMb / 1024).toFixed(1) + "G" : Math.round(modelData.memoryMb) + "M"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 50; horizontalAlignment: Text.AlignRight }
+                    }
+                }
             }
         }
     }

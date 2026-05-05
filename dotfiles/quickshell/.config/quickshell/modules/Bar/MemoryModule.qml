@@ -13,6 +13,7 @@ BaseModule {
     property real availableMemory: 0
     property real swapTotal: 0
     property real swapUsed: 0
+    property var topMemoryApps: []
     property bool showPopup: false
     property real globalX: 0
     property QtObject intervalsConfig: parent.intervalsConfig
@@ -50,6 +51,13 @@ BaseModule {
                     }
                 }
             }
+        }
+    }
+
+    Process {
+        id: topMemoryProcess
+        stdout: StdioCollector {
+            onStreamFinished: parseTopMemoryApps(text.trim())
         }
     }
 
@@ -99,10 +107,33 @@ BaseModule {
     onXChanged: updatePosition()
     onWidthChanged: updatePosition()
 
+    function parseTopMemoryApps(output) {
+        if (!output) {
+            topMemoryApps = [];
+            return;
+        }
+
+        var apps = [];
+        var lines = output.split('\n');
+        for (var i = 0; i < lines.length && apps.length < 5; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+
+            var parts = line.split(/\s+/);
+            if (parts.length < 2) continue;
+
+            var rssMb = parseFloat(parts[parts.length - 1]) / 1024;
+            if (isNaN(rssMb)) continue;
+            apps.push({ name: parts.slice(0, parts.length - 1).join(" "), memoryMb: rssMb });
+        }
+        topMemoryApps = apps;
+    }
+
     function updateMemoryUsage() {
         memoryProcess.exec({
             command: ["free", "-m"]
         });
+        topMemoryProcess.exec({ command: ["sh", "-c", "ps -eo comm=,rss= | awk '{ rss=$NF; name=substr($0,1,length($0)-length($NF)); sub(/[[:space:]]+$/, \"\", name); usage[name] += rss } END { for (name in usage) printf \"%s\\t%.0f\\n\", name, usage[name] }' | sort -t '\t' -k2,2nr | head -n 5"] });
     }
 
     text: "󰾆 " + usedMemory.toFixed(1) + "G"
