@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "open-design-v0.3.1-beta.4-unstable-2026-05-04";
+  version = "open-design-v0.3.1-beta.5-unstable-2026-05-05";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "c881c0ca34a71b640d4e84085227fe87f1524c2b";
-    hash = "sha256-u5mrXV7JpJ1dT6vqQlaQH3fy66Ukv7y0sS0OFzPYeHg=";
+    rev = "c3d9136a0c2b5b118699bc79267a1f0ffef957db";
+    hash = "sha256-lV7si+3CF+NO5t0douUnzKWlHRDGAsP2VMXirqzKqLw=";
   };
 
   nativeBuildInputs = [
@@ -39,7 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-qVf4HwuU/E9EPM09fdmPPblvLlEKr2qyAXQC469ctF0=";
+    hash = "sha256-z6FsL7JIy0wEXDPvQgahlY9JbzV4ssx7K1/+fpS+mGA=";
   };
 
   buildPhase = ''
