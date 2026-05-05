@@ -17,7 +17,7 @@ function Source.new(opts)
 end
 
 function Source:enabled()
-    return vim.bo.filetype == "markdown"
+    return vim.bo.filetype == "markdown" or vim.bo.filetype == "text"
 end
 
 function Source:get_trigger_characters()

@@ -213,6 +213,13 @@ return {
                     "opencode_skills",
                     "opencode_commands",
                 },
+                text = {
+                    inherit_defaults = true,
+                    "path_at",
+                    "opencode_agents",
+                    "opencode_skills",
+                    "opencode_commands",
+                },
                 sql = {
                     inherit_defaults = true,
                     "dadbod_grip",
@@ -240,7 +247,7 @@ return {
                     module = "blink.cmp.sources.path",
                     name = "PathAt",
                     enabled = function()
-                        return vim.bo.filetype == "markdown"
+                        return vim.bo.filetype == "markdown" or vim.bo.filetype == "text"
                     end,
                     opts = {
                         get_cwd = function(_)
@@ -257,7 +264,8 @@ return {
                             return trigger_characters
                         end,
                         get_completions = function(self, context, callback)
-                            if vim.bo[context.bufnr].filetype ~= "markdown" then
+                            local ft = vim.bo[context.bufnr].filetype
+                            if ft ~= "markdown" and ft ~= "text" then
                                 return callback({
                                     is_incomplete_forward = false,
                                     is_incomplete_backward = false,

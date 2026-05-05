@@ -1,5 +1,6 @@
 return {
     "romus204/referencer.nvim",
+    enabled = false,
     event = { "User LazyLoadFile" },
     config = function()
         require("referencer").setup({
