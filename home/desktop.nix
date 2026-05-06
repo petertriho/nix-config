@@ -19,6 +19,7 @@
 
   home.packages = with pkgs; [
     discord
+    jellyfin-mpv-shim
     libreoffice
     nextcloud-client
     steam
