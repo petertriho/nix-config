@@ -1,6 +1,7 @@
 {
   imports = [
     ./agent-indicator.nix
+    ./agents.nix
     ./anthropic-skills.nix
     ./betterfox.nix
     ./basic-memory.nix

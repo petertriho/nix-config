@@ -14,9 +14,9 @@ in
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
       home = {
-        file.".claude/skills/context7" = {
-          source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/context7";
-        };
+        # file.".claude/skills/context7" = {
+        #   source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/context7";
+        # };
         sessionVariables = {
           CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
           # CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;

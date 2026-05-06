@@ -299,6 +299,7 @@ in
         ];
       };
     };
+    agents.skills.enable = true;
     anthropic-skills = {
       enable = true;
       skills = [
@@ -310,7 +311,7 @@ in
     crush.enable = true;
     impeccable.enable = true;
     mattpocock-skills = {
-      enable = true;
+      enable = false;
       skills = {
         engineering = [
           "diagnose"
@@ -339,17 +340,17 @@ in
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
-  }
-  // lib.mapAttrs' (
-    name: _:
-    lib.nameValuePair "opencode/agents/${name}" {
-      source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/${name}";
-    }
-  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/agents)
-  // lib.mapAttrs' (
-    name: _:
-    lib.nameValuePair "opencode/skills/${name}" {
-      source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/${name}";
-    }
-  ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/skills);
+  };
+  # // lib.mapAttrs' (
+  #   name: _:
+  #   lib.nameValuePair "opencode/agents/${name}" {
+  #     source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/agents/${name}";
+  #   }
+  # ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/agents)
+  # // lib.mapAttrs' (
+  #   name: _:
+  #   lib.nameValuePair "opencode/skills/${name}" {
+  #     source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/${name}";
+  #   }
+  # ) (builtins.readDir ../../dotfiles/opencode/.config/opencode/skills);
 }
