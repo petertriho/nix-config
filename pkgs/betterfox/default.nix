@@ -6,7 +6,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "betterfox";
-  version = "unstable-2026-05-02";
+  version = "150.0-unstable-2026-05-03";
 
   src = fetchFromGitHub {
     owner = "yokoffing";

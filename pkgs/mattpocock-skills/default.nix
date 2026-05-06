@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "mattpocock-skills";
-  version = "0-unstable-2026-04-30";
+  version = "0-unstable-2026-05-06";
 
   src = fetchFromGitHub {
     owner = "mattpocock";
     repo = "skills";
-    rev = "b843cb5ea74b1fe5e58a0fc23cddef9e66076fb8";
-    sha256 = "sha256-qOhU5bBnT6kI8c7i0r0IyecrgLJNNPlmQtAb6qWM73Q=";
+    rev = "b27a1a46f80419030e28404ffc8eefb995ea28a5";
+    sha256 = "sha256-y7j1gScBl/dkmUTjw8xqaiHCwNTQdD43GIxumACiGwo=";
   };
 
   dontBuild = true;
