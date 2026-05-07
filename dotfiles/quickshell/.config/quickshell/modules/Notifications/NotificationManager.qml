@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Services.Notifications
+import Quickshell.Io
 
 Item {
     id: root
@@ -69,6 +70,7 @@ Item {
             body: notification.body || "",
             appIcon: notification.appIcon || "",
             image: notification.image || "",
+            desktopEntry: notification.desktopEntry || "",
             actions: notification.actions ? notification.actions.map(function(a) {
                 return {identifier: a.identifier, text: a.text};
             }) : [],
@@ -167,7 +169,17 @@ Item {
             action.invoke();
             if (!notification.resident)
                 removeEntryByKey(entry.key, false);
+        } else {
+            // Fallback: launch the app if no matching action
+            const desktopEntry = entry.desktopEntry || notification.desktopEntry || "";
+            if (desktopEntry.length > 0)
+                launcherProcess.exec({ command: ["gtk-launch", desktopEntry] });
+            removeEntryByKey(entry.key, false);
         }
+    }
+
+    Process {
+        id: launcherProcess
     }
 
     NotificationServer {

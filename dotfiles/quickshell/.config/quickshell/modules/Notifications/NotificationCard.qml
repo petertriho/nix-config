@@ -23,6 +23,24 @@ Rectangle {
     clip: true
     opacity: notificationsConfig.panelOpacity
 
+    MouseArea {
+        anchors.fill: parent
+        z: -1
+        cursorShape: root.actions().length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: {
+            var actions = root.actions();
+            if (actions.length === 0) return;
+            var found = false;
+            for (var i = 0; i < actions.length; i++) {
+                if (actions[i].identifier === "default") {
+                    found = true;
+                    break;
+                }
+            }
+            root.actionRequested(root.entry, found ? "default" : actions[0].identifier);
+        }
+    }
+
     function appName() {
         if (entry && entry.appName && entry.appName.length > 0)
             return entry.appName;
