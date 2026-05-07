@@ -76,7 +76,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "chunkhound";
-  version = "5.0.0-unstable-2026-05-06";
+  version = "0-unstable-2026-05-06";
 
   inherit src;
 

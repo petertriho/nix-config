@@ -4,7 +4,7 @@
 }:
 buildNpmPackage {
   pname = "sort-package-json";
-  version = "3.6.1-unstable-2026-04-28";
+  version = "0-unstable-2026-04-28";
   src = fetchFromGitHub {
     owner = "keithamus";
     repo = "sort-package-json";

@@ -7,7 +7,7 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "impeccable";
-  version = "skill-v3.0.7-unstable-2026-05-04";
+  version = "0-unstable-2026-05-04";
 
   src = fetchFromGitHub {
     owner = "pbakaus";

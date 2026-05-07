@@ -5,7 +5,7 @@
 }:
 buildGoModule rec {
   pname = "tmuxai";
-  version = "2.1.4-unstable-2026-05-05";
+  version = "0-unstable-2026-05-05";
 
   src = fetchFromGitHub {
     owner = "alvinunreal";

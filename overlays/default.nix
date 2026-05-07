@@ -9,6 +9,11 @@
     // {
       fishPlugins = (prev.fishPlugins or { }) // import ../pkgs/fish-plugins { pkgs = final; };
       tmuxPlugins = (prev.tmuxPlugins or { }) // import ../pkgs/tmux-plugins { pkgs = final; };
+      hyprland = (inputs.hyprland.packages.${final.stdenv.hostPlatform.system}.hyprland).overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          sed -i '/install.*hyprland\.conf/,/DESTINATION/d' CMakeLists.txt
+        '';
+      });
       mcp-servers = inputs.mcp-servers-nix.packages.${final.stdenv.hostPlatform.system};
       llm-agents = inputs.llm-agents.packages.${final.stdenv.hostPlatform.system};
       nix-auth = inputs.nix-auth.packages.${final.stdenv.hostPlatform.system}.default;

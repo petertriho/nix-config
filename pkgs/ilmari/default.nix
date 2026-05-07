@@ -5,7 +5,7 @@
 }:
 rustPlatform.buildRustPackage {
   pname = "ilmari";
-  version = "0.1.5-unstable-2026-04-10";
+  version = "0-unstable-2026-04-10";
 
   src = fetchFromGitHub {
     owner = "bnomei";
