@@ -253,8 +253,8 @@ return {
                     autoSearchPaths = true,
                     diagnosticMode = "workspace",
                     useLibraryCodeForTypes = true,
-                    -- typeCheckingMode = "off",
-                    -- ignore = { "*" },
+                    typeCheckingMode = "off",
+                    ignore = { "*" },
                     diagnosticSeverityOverrides = {
                         reportGeneralTypeIssues = "information",
                     },
@@ -606,19 +606,19 @@ return {
     --     end,
     -- },
     -- https://ty.dev/editors/settings
-    ty = {
-        settings = {
-            ty = {
-                inlayHints = {
-                    variableTypes = true,
-                    callArgumentNames = true,
-                },
-            },
-        },
-        on_attach = function(client, bufnr)
-            disable_capabilities_for_server(client)
-        end,
-    },
+    -- ty = {
+    --     settings = {
+    --         ty = {
+    --             inlayHints = {
+    --                 variableTypes = true,
+    --                 callArgumentNames = true,
+    --             },
+    --         },
+    --     },
+    --     on_attach = function(client, bufnr)
+    --         disable_capabilities_for_server(client)
+    --     end,
+    -- },
     typos_lsp = {
         init_options = {
             diagnosticSeverity = "information",
