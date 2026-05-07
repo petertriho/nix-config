@@ -40,7 +40,7 @@
       dotenv-linter
       google-java-format
       hadolint
-      luajitPackages.luacheck
+      luaPackages.luacheck
       markdownlint-cli
       # mypy
       # pylint

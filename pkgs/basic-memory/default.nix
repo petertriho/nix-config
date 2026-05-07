@@ -43,11 +43,11 @@ let
   pydocket = python3Packages.pydocket.overridePythonAttrs (old: {
     dependencies = replacePythonDeps {
       "py-key-value-aio" = py-key-value-aio;
-    } (old.dependencies or [ ]);
+    } (builtins.filter (dep: dep.pname or "" != "lupa") (old.dependencies or [ ]));
 
     propagatedBuildInputs = replacePythonDeps {
       "py-key-value-aio" = py-key-value-aio;
-    } (old.propagatedBuildInputs or [ ]);
+    } (builtins.filter (dep: dep.pname or "" != "lupa") (old.propagatedBuildInputs or [ ]));
   });
 
   fastmcp = python3Packages.fastmcp.overridePythonAttrs (old: rec {
