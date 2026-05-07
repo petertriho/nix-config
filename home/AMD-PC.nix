@@ -1,13 +1,29 @@
-{ ... }:
+{
+  lib,
+  pkgs,
+  ...
+}:
 {
   imports = [
     ./desktop.nix
   ];
   home = {
+    packages = [ pkgs.lg-buddy ];
     sessionVariables = {
       # COPILOT_MODEL = "gpt-5-mini";
     };
   };
+  services.hypridle.settings.listener = lib.mkForce [
+    {
+      timeout = 3600;
+      on-timeout = "loginctl lock-session";
+    }
+    {
+      timeout = 3900;
+      on-timeout = "${pkgs.lg-buddy}/bin/lg-buddy screen-off; ${pkgs.hyprland}/bin/hyprctl dispatch dpms off";
+      on-resume = "${pkgs.hyprland}/bin/hyprctl dispatch dpms on; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
+    }
+  ];
   programs.niri.settings.outputs = {
     "HDMI-A-1" = {
       focus-at-startup = true;

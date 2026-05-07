@@ -1,0 +1,393 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file="${LG_BUDDY_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/lg-buddy/config.env}"
+config_dir="$(dirname "$config_file")"
+key_file="${LG_BUDDY_BSCPYLGTV_KEY_FILE:-$config_dir/.aiopylgtv.sqlite}"
+bscpylgtv_command="${LG_BUDDY_BSCPYLGTV_COMMAND:-bscpylgtvcommand}"
+lg_oui_regex='^(a8:23:fe|fc:f1:52|f8:b9:5a|c4:36:6c|50:c7:bf|40:b0:76):'
+
+read_config_value() {
+  local key="$1"
+
+  if [[ -r "$config_file" ]]; then
+    sed -n "s/^${key}=//p" "$config_file" | tail -n1
+  fi
+}
+
+validate_ip() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+validate_mac() {
+  [[ "$1" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]]
+}
+
+edid_manufacturer() {
+  local -n edid_bytes_ref="$1"
+  local value=$(( (16#${edid_bytes_ref[8]} << 8) | 16#${edid_bytes_ref[9]} ))
+  local char=""
+  local manufacturer=""
+  local shift=""
+
+  for shift in 10 5 0; do
+    printf -v char "\\$(printf '%03o' $(( ((value >> shift) & 31) + 64 )))"
+    manufacturer+="$char"
+  done
+
+  printf '%s\n' "$manufacturer"
+}
+
+edid_monitor_name() {
+  local -n edid_bytes_ref="$1"
+  local offset=""
+  local index=""
+  local byte_value=""
+  local char=""
+  local name=""
+
+  for offset in 54 72 90 108; do
+    if [[ "${edid_bytes_ref[$offset]}" == "00" \
+      && "${edid_bytes_ref[$((offset + 1))]}" == "00" \
+      && "${edid_bytes_ref[$((offset + 2))]}" == "00" \
+      && "${edid_bytes_ref[$((offset + 3))]}" == "fc" ]]; then
+      name=""
+      for index in {5..17}; do
+        byte_value=$((16#${edid_bytes_ref[$((offset + index))]}))
+        if (( byte_value == 10 || byte_value == 0 )); then
+          break
+        fi
+        printf -v char "\\$(printf '%03o' "$byte_value")"
+        name+="$char"
+      done
+      printf '%s\n' "$name"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+edid_hdmi_input() {
+  local -n edid_bytes_ref="$1"
+  local extension_count=$((16#${edid_bytes_ref[126]}))
+  local extension=""
+  local base=""
+  local dtd_offset=""
+  local index=""
+  local header=""
+  local tag=""
+  local length=""
+  local physical_address_hi=""
+  local input_number=""
+
+  for ((extension = 0; extension < extension_count; extension++)); do
+    base=$((128 * (extension + 1)))
+    if [[ "${edid_bytes_ref[$base]:-}" != "02" ]]; then
+      continue
+    fi
+
+    dtd_offset=$((16#${edid_bytes_ref[$((base + 2))]}))
+    if (( dtd_offset == 0 )); then
+      dtd_offset=127
+    fi
+
+    index=$((base + 4))
+    while (( index < base + dtd_offset )); do
+      header=$((16#${edid_bytes_ref[$index]}))
+      tag=$(( (header >> 5) & 7 ))
+      length=$(( header & 31 ))
+
+      if (( tag == 3 && length >= 5 )) \
+        && [[ "${edid_bytes_ref[$((index + 1))]}" == "03" \
+          && "${edid_bytes_ref[$((index + 2))]}" == "0c" \
+          && "${edid_bytes_ref[$((index + 3))]}" == "00" ]]; then
+        physical_address_hi=$((16#${edid_bytes_ref[$((index + 4))]}))
+        input_number=$(( (physical_address_hi >> 4) & 15 ))
+        if (( input_number >= 1 && input_number <= 4 )); then
+          printf 'HDMI_%d\n' "$input_number"
+          return 0
+        fi
+      fi
+
+      index=$((index + 1 + length))
+    done
+  done
+
+  return 1
+}
+
+detect_connected_lg_input() {
+  local status_file=""
+  local connector_dir=""
+  local connector_name=""
+  local edid_file=""
+  local manufacturer=""
+  local monitor_name=""
+  local hdmi_input=""
+  local -a edid_bytes=()
+
+  for status_file in /sys/class/drm/*/status; do
+    connector_dir="${status_file%/status}"
+    connector_name="${connector_dir##*/}"
+    edid_file="${connector_dir}/edid"
+
+    if [[ ! -r "$status_file" || "$(<"$status_file")" != "connected" || ! -r "$edid_file" ]]; then
+      continue
+    fi
+
+    edid_bytes=($(od -An -tx1 -v "$edid_file"))
+    if (( ${#edid_bytes[@]} < 128 )); then
+      continue
+    fi
+
+    manufacturer="$(edid_manufacturer edid_bytes)"
+    monitor_name="$(edid_monitor_name edid_bytes || true)"
+    if [[ "$manufacturer" != "GSM" && "$manufacturer" != "LGD" && "$manufacturer" != "LGE" && "$monitor_name" != *LG* ]]; then
+      continue
+    fi
+
+    if hdmi_input="$(edid_hdmi_input edid_bytes)"; then
+      printf 'Detected connected LG display %s (%s, %s) as %s from EDID HDMI-CEC physical address.\n' \
+        "$connector_name" "$manufacturer" "${monitor_name:-unknown}" "$hdmi_input" >&2
+      printf '%s\n' "$hdmi_input"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+prompt_with_default() {
+  local prompt="$1"
+  local default_value="${2:-}"
+  local reply=""
+
+  if [[ -n "$default_value" ]]; then
+    read -r -p "$prompt [$default_value]: " reply
+    printf '%s\n' "${reply:-$default_value}"
+  else
+    read -r -p "$prompt: " reply
+    printf '%s\n' "$reply"
+  fi
+}
+
+discover_lg_devices() {
+  ip neigh show | awk '/lladdr/ { print $1 " " $5 }' | while read -r ip_addr mac_addr; do
+    mac_addr="$(printf '%s' "$mac_addr" | tr '[:upper:]' '[:lower:]')"
+    if [[ "$mac_addr" =~ $lg_oui_regex ]]; then
+      printf '%s %s\n' "$ip_addr" "$mac_addr"
+    fi
+  done | sort -u
+}
+
+discover_webos_tls_devices() {
+  local ip_addr=""
+  local mac_addr=""
+  local cert_info=""
+
+  ip neigh show | awk '/lladdr/ { print $1 " " $5 }' | while read -r ip_addr mac_addr; do
+    if ! validate_ip "$ip_addr"; then
+      continue
+    fi
+
+    if ! timeout 1 "$BASH" -c "</dev/tcp/$ip_addr/3001" 2>/dev/null; then
+      continue
+    fi
+
+    cert_info="$(
+      timeout 3 openssl s_client -connect "${ip_addr}:3001" -servername "$ip_addr" </dev/null 2>/dev/null \
+        | openssl x509 -noout -subject -issuer 2>/dev/null \
+        || true
+    )"
+
+    if printf '%s\n' "$cert_info" | grep -Eqi 'LG Electronics|LGE TV|webOS'; then
+      mac_addr="$(printf '%s' "$mac_addr" | tr '[:upper:]' '[:lower:]')"
+      printf '%s %s\n' "$ip_addr" "$mac_addr"
+    fi
+  done | sort -u
+}
+
+scan_local_neighbors() {
+  local cidr=""
+  local ip_addr=""
+  local octet_a=""
+  local octet_b=""
+  local octet_c=""
+  local octet_d=""
+  local host=""
+  local candidate_ip=""
+  local active_jobs=0
+  local -a local_cidrs=()
+
+  mapfile -t local_cidrs < <(
+    ip -o -4 addr show scope global up \
+      | awk '$2 !~ /^(docker|br-|veth|virbr|tailscale|zt|wg)/ { print $4 }'
+  )
+
+  if [[ "${#local_cidrs[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  printf 'No LG TV found in the neighbor cache. Scanning local IPv4 /24 neighborhoods...\n' >&2
+
+  for cidr in "${local_cidrs[@]}"; do
+    ip_addr="${cidr%/*}"
+    IFS=. read -r octet_a octet_b octet_c octet_d <<<"$ip_addr"
+
+    if [[ -z "$octet_a" || -z "$octet_b" || -z "$octet_c" || -z "$octet_d" ]]; then
+      continue
+    fi
+
+    for host in {1..254}; do
+      candidate_ip="${octet_a}.${octet_b}.${octet_c}.${host}"
+      if [[ "$candidate_ip" == "$ip_addr" ]]; then
+        continue
+      fi
+
+      ping -n -c 1 -W 1 "$candidate_ip" >/dev/null 2>&1 &
+      active_jobs=$((active_jobs + 1))
+
+      if (( active_jobs >= 64 )); then
+        wait || true
+        active_jobs=0
+      fi
+    done
+  done
+
+  wait || true
+}
+
+choose_discovered_device() {
+  local devices=("$@")
+  local count="${#devices[@]}"
+  local choice=""
+
+  if [[ "$count" -eq 0 ]]; then
+    return 1
+  fi
+
+  if [[ "$count" -eq 1 ]]; then
+    printf 'Found LG device %s\n' "${devices[0]}" >&2
+    printf '%s\n' "${devices[0]}"
+    return 0
+  fi
+
+  printf 'Found multiple LG devices:\n'
+  local i=1
+  for device in "${devices[@]}"; do
+    printf '  %d) %s\n' "$i" "$device"
+    i=$((i + 1))
+  done
+
+  while true; do
+    read -r -p "Select a device number: " choice
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= count )); then
+      printf '%s\n' "${devices[$((choice - 1))]}"
+      return 0
+    fi
+
+    printf 'Please enter a number from 1 to %d.\n' "$count" >&2
+  done
+}
+
+pair_tv() {
+  local output=""
+
+  if [[ "${LG_BUDDY_SKIP_PAIRING:-0}" == "1" ]]; then
+    printf 'Skipping TV pairing because LG_BUDDY_SKIP_PAIRING=1.\n' >&2
+    return 0
+  fi
+
+  printf 'Pairing with LG TV at %s. Accept the pairing prompt on the TV if one appears.\n' "$tv_ip" >&2
+
+  if output="$($bscpylgtv_command -p "$key_file" "$tv_ip" get_input 2>&1)"; then
+    chmod 600 "$key_file" 2>/dev/null || true
+    printf 'LG TV pairing/auth check succeeded. Current TV app/input: %s\n' "$output" >&2
+    return 0
+  fi
+
+  printf 'LG TV pairing/auth check failed. Output:\n%s\n' "$output" >&2
+  printf 'Make sure the TV is awake and accept the WebOS pairing prompt, then rerun lg-buddy-configure.\n' >&2
+  return 1
+}
+
+existing_ip="$(read_config_value tvs_primary_ip || true)"
+existing_ip="${existing_ip:-$(read_config_value tv_ip || true)}"
+existing_mac="$(read_config_value tvs_primary_mac || true)"
+existing_mac="${existing_mac:-$(read_config_value tv_mac || true)}"
+existing_input="$(read_config_value tvs_primary_input || true)"
+existing_input="${existing_input:-$(read_config_value input || true)}"
+
+if [[ -e "$config_file" ]]; then
+  if ! validate_ip "$existing_ip"; then
+    printf 'Existing LG Buddy config %s does not contain a valid TV IP. Not modifying it.\n' "$config_file" >&2
+    exit 1
+  fi
+
+  printf 'Existing LG Buddy config found at %s. Not modifying it.\n' "$config_file" >&2
+  tv_ip="$existing_ip"
+  tv_mac="$existing_mac"
+  tv_input="$existing_input"
+  pair_tv
+  exit 0
+fi
+
+mapfile -t discovered_devices < <(discover_lg_devices)
+if [[ "${#discovered_devices[@]}" -eq 0 ]]; then
+  mapfile -t discovered_devices < <(discover_webos_tls_devices)
+fi
+if [[ "${#discovered_devices[@]}" -eq 0 ]]; then
+  scan_local_neighbors
+  mapfile -t discovered_devices < <(discover_lg_devices)
+fi
+if [[ "${#discovered_devices[@]}" -eq 0 ]]; then
+  mapfile -t discovered_devices < <(discover_webos_tls_devices)
+fi
+
+chosen_device=""
+if chosen_device="$(choose_discovered_device "${discovered_devices[@]}")"; then
+  tv_ip="${chosen_device%% *}"
+  tv_mac="${chosen_device##* }"
+elif validate_ip "$existing_ip" && validate_mac "$existing_mac"; then
+  printf 'No LG TV was discovered. Reusing existing config values %s %s.\n' "$existing_ip" "$existing_mac" >&2
+  tv_ip="$existing_ip"
+  tv_mac="$existing_mac"
+else
+  printf 'Could not discover an LG TV on the local network. Wake the TV, make sure it is on the same LAN, then rerun this script.\n' >&2
+  exit 1
+fi
+
+if tv_input="$(detect_connected_lg_input)"; then
+  :
+elif [[ "$existing_input" =~ ^HDMI_[1-4]$ ]]; then
+  printf 'Could not infer the connected LG HDMI input from EDID. Reusing existing input %s.\n' "$existing_input" >&2
+  tv_input="$existing_input"
+else
+  printf 'Could not infer which LG HDMI input AMD-PC is connected to from local display EDID.\n' >&2
+  exit 1
+fi
+
+mkdir -p "$config_dir"
+chmod 700 "$config_dir"
+
+tmp_file="$(mktemp)"
+cat >"$tmp_file" <<EOF
+# LG Buddy configuration for AMD-PC
+tv_ip=$tv_ip
+tv_mac=$tv_mac
+input=$tv_input
+tvs_primary_ip=$tv_ip
+tvs_primary_mac=$tv_mac
+tvs_primary_input=$tv_input
+screen_backend=auto
+screen_idle_timeout=300
+screen_restore_policy=conservative
+system_sleep_wake_policy=enabled
+EOF
+
+install -m 600 "$tmp_file" "$config_file"
+rm -f "$tmp_file"
+
+printf 'Wrote LG Buddy config to %s\n' "$config_file"
+pair_tv
