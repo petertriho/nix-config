@@ -311,17 +311,12 @@ in
     crush.enable = true;
     impeccable.enable = true;
     mattpocock-skills = {
-      enable = false;
+      enable = true;
       skills = {
         engineering = [
           "diagnose"
-          "grill-with-docs"
           "improve-codebase-architecture"
-          "setup-matt-pocock-skills"
-          "tdd"
-          "to-issues"
-          "to-prd"
-          "triage"
+          "prototype"
           "zoom-out"
         ];
         productivity = [
