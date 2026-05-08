@@ -243,10 +243,14 @@ function tool:pkgs:hashes() {
 
                     # Use a more robust replacement approach
                     # First, try to find and replace the exact hash string
-                    if grep -q "$specified_hash" "$file"; then
+                    if grep -Fq -- "$specified_hash" "$file"; then
                         sed -i.bak "s|$specified_hash|$got_hash|g" "$file"
                         rm -f "$file.bak"
                         echo_success "Successfully updated hash in $file"
+                    elif [[ $specified_hash =~ ^sha256-A{43}=$ ]] && grep -Fq 'hash = "";' "$file"; then
+                        sed -i.bak "0,/hash = \"\";/s|hash = \"\";|hash = \"$got_hash\";|" "$file"
+                        rm -f "$file.bak"
+                        echo_success "Successfully updated empty hash in $file"
                     else
                         echo_warning "Could not find specified hash in $file"
                         echo_info "Searching for similar hashes..."
@@ -315,6 +319,7 @@ function tool:pkgs:update {
 
     # Collect all packages and plugins to update
     local all_items=()
+    local stable_items=()
 
     if [[ ${#target_packages[@]} -gt 0 ]]; then
         all_items=("${target_packages[@]}")
@@ -359,7 +364,6 @@ function tool:pkgs:update {
         fi
 
         # Separate stable packages from regular packages
-        local stable_items=()
         if [[ ${#STABLE_PACKAGES[@]} -gt 0 ]]; then
             local regular_items=()
             for item in "${all_items[@]}"; do

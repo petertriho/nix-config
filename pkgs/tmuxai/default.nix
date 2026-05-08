@@ -6,16 +6,16 @@
 }:
 buildGoModule rec {
   pname = "tmuxai";
-  version = "0-unstable-2026-05-05";
+  version = "0-unstable-2026-05-07";
 
   src = fetchFromGitHub {
     owner = "alvinunreal";
     repo = "tmuxai";
-    rev = "64c69f9e47a82b860b40989c029a5bb781a31e1c";
-    hash = "sha256-UaAvdvQTqjGQ5NM0AuBkUQ64M+EAuy55mB73uktQ/wc=";
+    rev = "25c2fb001876987401866c8215a744281ded3fbc";
+    hash = "sha256-i0SML6CpFim+jMy6uOqZg1uhuy3ngYFscg2if8/3fOI=";
   };
 
-  vendorHash = "sha256-/fp4LR9QLN7mE9Ba7BfStEnrOFdvau5EX3rKxyinJX0=";
+  vendorHash = "sha256-TlP5DlsPL46ityGhje/b8OHDHeWWCxu5K5iu3pyVxog=";
 
   # macOS 26 (Darwin 25) broke /dev/tty inside tmux panes — returns ENXIO
   # because no controlling terminal is assigned. Fall back to a stdin reader

@@ -9,8 +9,8 @@
   ];
 
   wayland.windowManager.hyprland = {
-    enable = true;
-    package = pkgs.hyprland;
+    enable = false;
+    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     systemd.enable = false;
     settings = {
       windowrule = [

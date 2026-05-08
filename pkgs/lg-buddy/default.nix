@@ -56,18 +56,18 @@ let
     zenity
   ];
 in
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage {
   pname = "lg-buddy";
-  version = "1.0.0";
+  version = "0-unstable-2026-05-07";
 
   src = fetchFromGitHub {
     owner = "Staphylococcus";
     repo = "LG_Buddy";
-    rev = "v${version}";
-    hash = "sha256-cantir4QYeCoPOe32S44jB5ZiG6LaCbII41Gn8gdhgk=";
+    rev = "2003f6607e12f1e32db7709774795c94d5cb6865";
+    hash = "sha256-xQEJIvr5BxqenamM9kgsuZYWo04Psf/hQoGkaL7joEc=";
   };
 
-  cargoHash = "sha256-AqFMyZPFz8TaKBd1RuTY4kjEYA/HsxzbXtIX5H3XWPE=";
+  cargoHash = "sha256-FfoOPTiii+aBthRvuR/Ddjy+SmGY53CsLt9UGMHiCic=";
 
   nativeBuildInputs = [ makeWrapper ];
 
