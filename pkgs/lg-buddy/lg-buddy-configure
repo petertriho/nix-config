@@ -23,6 +23,10 @@ validate_mac() {
   [[ "$1" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]]
 }
 
+normalize_mac() {
+  printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
 edid_manufacturer() {
   local -n edid_bytes_ref="$1"
   local value=$(( (16#${edid_bytes_ref[8]} << 8) | 16#${edid_bytes_ref[9]} ))
@@ -174,7 +178,7 @@ prompt_with_default() {
 
 discover_lg_devices() {
   ip neigh show | awk '/lladdr/ { print $1 " " $5 }' | while read -r ip_addr mac_addr; do
-    mac_addr="$(printf '%s' "$mac_addr" | tr '[:upper:]' '[:lower:]')"
+    mac_addr="$(normalize_mac "$mac_addr")"
     if [[ "$mac_addr" =~ $lg_oui_regex ]]; then
       printf '%s %s\n' "$ip_addr" "$mac_addr"
     fi
@@ -202,10 +206,51 @@ discover_webos_tls_devices() {
     )"
 
     if printf '%s\n' "$cert_info" | grep -Eqi 'LG Electronics|LGE TV|webOS'; then
-      mac_addr="$(printf '%s' "$mac_addr" | tr '[:upper:]' '[:lower:]')"
+      mac_addr="$(normalize_mac "$mac_addr")"
       printf '%s %s\n' "$ip_addr" "$mac_addr"
     fi
   done | sort -u
+}
+
+detect_wol_mac_from_tv() {
+  local output=""
+  local device_id_regex="[\"']device_id[\"'][[:space:]]*:[[:space:]]*[\"']([0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2})[\"']"
+  local detected_mac=""
+
+  if ! output="$($bscpylgtv_command -p "$key_file" "$tv_ip" get_software_info 2>&1)"; then
+    printf 'Could not query TV software_info for Wake-on-LAN MAC. Output:\n%s\n' "$output" >&2
+    return 1
+  fi
+
+  if [[ "$output" =~ $device_id_regex ]]; then
+    detected_mac="${BASH_REMATCH[1]}"
+    if validate_mac "$detected_mac"; then
+      normalize_mac "$detected_mac"
+      return 0
+    fi
+  fi
+
+  printf 'TV software_info did not include a valid device_id MAC. Output:\n%s\n' "$output" >&2
+  return 1
+}
+
+update_existing_wol_mac() {
+  local new_mac="$1"
+  local tmp_file=""
+
+  tmp_file="$(mktemp)"
+  awk -v mac="$new_mac" '
+    BEGIN { saw_legacy = 0; saw_primary = 0 }
+    /^tv_mac=/ { print "tv_mac=" mac; saw_legacy = 1; next }
+    /^tvs_primary_mac=/ { print "tvs_primary_mac=" mac; saw_primary = 1; next }
+    { print }
+    END {
+      if (!saw_legacy) print "tv_mac=" mac
+      if (!saw_primary) print "tvs_primary_mac=" mac
+    }
+  ' "$config_file" >"$tmp_file"
+  install -m 600 "$tmp_file" "$config_file"
+  rm -f "$tmp_file"
 }
 
 scan_local_neighbors() {
@@ -325,11 +370,19 @@ if [[ -e "$config_file" ]]; then
     exit 1
   fi
 
-  printf 'Existing LG Buddy config found at %s. Not modifying it.\n' "$config_file" >&2
+  printf 'Existing LG Buddy config found at %s. Checking TV pairing and Wake-on-LAN MAC.\n' "$config_file" >&2
   tv_ip="$existing_ip"
   tv_mac="$existing_mac"
   tv_input="$existing_input"
   pair_tv
+  if detected_wol_mac="$(detect_wol_mac_from_tv)"; then
+    if ! validate_mac "$existing_mac" || [[ "$(normalize_mac "$existing_mac")" != "$detected_wol_mac" ]]; then
+      update_existing_wol_mac "$detected_wol_mac"
+      printf 'Updated LG Buddy Wake-on-LAN MAC to TV device_id %s.\n' "$detected_wol_mac" >&2
+    else
+      printf 'LG Buddy Wake-on-LAN MAC already matches TV device_id %s.\n' "$detected_wol_mac" >&2
+    fi
+  fi
   exit 0
 fi
 
@@ -371,6 +424,14 @@ fi
 mkdir -p "$config_dir"
 chmod 700 "$config_dir"
 
+pair_tv
+if detected_wol_mac="$(detect_wol_mac_from_tv)"; then
+  if [[ "$tv_mac" != "$detected_wol_mac" ]]; then
+    printf 'Using TV device_id %s as Wake-on-LAN MAC instead of neighbor-cache MAC %s.\n' "$detected_wol_mac" "$tv_mac" >&2
+    tv_mac="$detected_wol_mac"
+  fi
+fi
+
 tmp_file="$(mktemp)"
 cat >"$tmp_file" <<EOF
 # LG Buddy configuration for AMD-PC
@@ -390,4 +451,3 @@ install -m 600 "$tmp_file" "$config_file"
 rm -f "$tmp_file"
 
 printf 'Wrote LG Buddy config to %s\n' "$config_file"
-pair_tv

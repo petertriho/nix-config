@@ -12,6 +12,7 @@
   iproute2,
   iputils,
   libnotify,
+  networkmanager,
   openssl,
   systemd,
   zenity,
@@ -88,6 +89,7 @@ rustPlatform.buildRustPackage {
 
     wrapProgram $out/bin/lg-buddy \
       --set-default LG_BUDDY_BSCPYLGTV_COMMAND ${bscpylgtv}/bin/bscpylgtvcommand \
+      --set-default LG_BUDDY_NM_ONLINE ${networkmanager}/bin/nm-online \
       --set-default LG_BUDDY_NOTIFY_SEND ${libnotify}/bin/notify-send \
       --set-default LG_BUDDY_PING ${iputils}/bin/ping \
       --set-default LG_BUDDY_SYSTEMCTL ${systemd}/bin/systemctl \

@@ -21,12 +21,15 @@ in
     "d ${config.homePath}/.config/lg-buddy 0700 ${config.user} users -"
   ];
 
-  systemd.services.LG_Buddy = {
+  systemd.services."lg-buddy" = {
     description = "Controls LG WebOS TV at startup and shutdown";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
-    environment = lgBuddyEnv;
+    restartIfChanged = false;
+    environment = lgBuddyEnv // {
+      LG_BUDDY_STARTUP_RETRY_DELAY_SECS = "20";
+    };
     unitConfig = {
       ConditionPathExists = configFile;
       StartLimitIntervalSec = 30;
@@ -40,7 +43,7 @@ in
     };
   };
 
-  systemd.services.LG_Buddy_lifecycle = {
+  systemd.services."lg-buddy-lifecycle" = {
     description = "LG Buddy system sleep/wake lifecycle monitor";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
@@ -58,7 +61,7 @@ in
   networking.networkmanager.dispatcherScripts = [
     {
       type = "pre-down";
-      source = pkgs.writeShellScript "LG_Buddy_lifecycle" ''
+      source = pkgs.writeShellScript "lg-buddy-lifecycle" ''
         set -eu
 
         if [ "''${2:-}" != "pre-down" ]; then
