@@ -37,6 +37,8 @@ PanelWindow {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: osdConfig.contentMargins
+            anchors.topMargin: 10
+            anchors.bottomMargin: 10
             spacing: osdConfig.contentSpacing
 
             Text {
