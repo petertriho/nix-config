@@ -73,7 +73,7 @@ in
         default-column-width.proportion = 1.0;
       };
 
-      spawn-at-startup = [ { command = [ "discord" ]; } ];
+      spawn-at-startup = [ ];
 
       "xwayland-satellite".path = "xwayland-satellite";
 

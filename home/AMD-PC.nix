@@ -24,22 +24,25 @@
       on-resume = "${pkgs.niri}/bin/niri msg action power-on-monitors; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
     }
   ];
-  programs.niri.settings.outputs = {
-    "HDMI-A-1" = {
-      focus-at-startup = true;
-      position = {
-        x = 0;
-        y = 0;
+  programs.niri = {
+    spawn-at-startup = [ { command = [ "discord" ]; } ];
+    settings.outputs = {
+      "HDMI-A-1" = {
+        focus-at-startup = true;
+        position = {
+          x = 0;
+          y = 0;
+        };
+        scale = 1.25;
       };
-      scale = 1.25;
-    };
-    "DP-2" = {
-      position = {
-        x = 3072;
-        y = 0;
+      "DP-2" = {
+        position = {
+          x = 3072;
+          y = 0;
+        };
+        scale = 2;
+        transform.rotation = 90;
       };
-      scale = 2;
-      transform.rotation = 90;
     };
   };
 }
