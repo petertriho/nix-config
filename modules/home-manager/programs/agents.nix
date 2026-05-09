@@ -16,14 +16,18 @@ in
   };
 
   config = lib.mkIf cfg.skills.enable {
-    home.file = {
-      ".agents/skills".source = config.lib.meta.mkDotfilesSymlink "agents/.agents/skills";
-    }
-    // lib.mapAttrs' (
-      name: _:
-      lib.nameValuePair ".claude/skills/${name}" {
-        source = config.lib.meta.mkDotfilesSymlink "agents/.agents/skills/${name}";
-      }
-    ) availableSkills;
+    home.file =
+      lib.mapAttrs' (
+        name: _:
+        lib.nameValuePair ".agents/skills/${name}" {
+          source = config.lib.meta.mkDotfilesSymlink "agents/.agents/skills/${name}";
+        }
+      ) availableSkills
+      // lib.mapAttrs' (
+        name: _:
+        lib.nameValuePair ".claude/skills/${name}" {
+          source = config.lib.meta.mkDotfilesSymlink "agents/.agents/skills/${name}";
+        }
+      ) availableSkills;
   };
 }
