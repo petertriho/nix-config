@@ -2,6 +2,7 @@
 {
   imports = [
     ./desktop.nix
+    ./pkgs/intel-gpu.nix
   ];
   home = {
     sessionVariables = {
@@ -11,7 +12,6 @@
     };
     packages = with pkgs; [
       cura-appimage
-      intel-gpu-tools
     ];
   };
   wayland.windowManager.hyprland = {

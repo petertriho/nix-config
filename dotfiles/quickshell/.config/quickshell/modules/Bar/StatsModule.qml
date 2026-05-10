@@ -327,7 +327,10 @@ BaseModule {
         if (typeof value === "object") {
             for (var key in value) {
                 var child = value[key]
-                if ((key === "busy" || key === "Busy") && typeof child === "number") values.push(child)
+                if ((key === "busy" || key === "Busy")) {
+                    var num = typeof child === "number" ? child : parseFloat(child)
+                    if (!isNaN(num)) values.push(num)
+                }
                 collectBusyValues(child, values)
             }
         }
@@ -340,7 +343,11 @@ BaseModule {
             collectBusyValues(value, busyValues)
             var usage = 0
             for (var i = 0; i < busyValues.length; i++) usage = Math.max(usage, busyValues[i])
-            clients.push({ name: value.name, pid: String(value.pid), usage: usage, memoryMb: 0 })
+            var memBytes = 0
+            if (value.memory && value.memory.system && value.memory.system.total) {
+                memBytes = parseFloat(value.memory.system.total) || 0
+            }
+            clients.push({ name: value.name, pid: String(value.pid), usage: usage, memoryMb: memBytes / 1048576 })
             return
         }
         for (var key in value) collectIntelClients(value[key], clients)
@@ -349,7 +356,8 @@ BaseModule {
     function parseIntelGpuStats(output) {
         var sections = output.split('\n--temp--\n')
         try {
-            var data = JSON.parse(sections[0].trim())
+            var jsonText = intelGpuJsonText(sections[0])
+            var data = JSON.parse(jsonText)
             var busyValues = []
             collectBusyValues(data.engines || data, busyValues)
             var usage = 0
@@ -366,7 +374,7 @@ BaseModule {
             gpuMemoryUsed = 0
             gpuMemoryTotal = 0
             gpuTemperature = sections.length > 1 ? firstNumberFromText(sections[1]) : 0
-            gpuApps = clients.filter(function(app) { return app.usage > 0 }).slice(0, 5)
+            gpuApps = clients.filter(function(app) { return app.usage > 0 || app.memoryMb > 0 }).sort(function(a, b) { return (b.usage - a.usage) || (b.memoryMb - a.memoryMb) }).slice(0, 5)
             gpuAvailable = true
             gpuStatus = ""
         } catch (err) {
@@ -375,6 +383,23 @@ BaseModule {
             gpuBackends = []
             gpuApps = []
         }
+    }
+
+    function intelGpuJsonText(text) {
+        var output = String(text).trim()
+        if (output.charAt(0) === "[") {
+            var innerStart = output.indexOf("{")
+            if (innerStart < 0) throw new Error("intel_gpu_top returned empty array")
+            return output.substring(innerStart, output.lastIndexOf("}") + 1)
+        }
+        if (output.charAt(0) === "{") return output
+        var start = output.indexOf("{")
+        var end = output.lastIndexOf("}")
+        if (start < 0 || end < start) {
+            var detail = output ? ": " + output.substring(0, 120) : ""
+            throw new Error("intel_gpu_top returned no JSON data" + detail)
+        }
+        return output.substring(start, end + 1)
     }
 
     function parseNvidiaGpuSnapshot(output) {
@@ -410,7 +435,8 @@ BaseModule {
     function parseIntelGpuSnapshot(output) {
         var sections = output.split('\n--temp--\n')
         try {
-            var data = JSON.parse(sections[0].trim())
+            var jsonText = intelGpuJsonText(sections[0])
+            var data = JSON.parse(jsonText)
             var busyValues = []
             collectBusyValues(data.engines || data, busyValues)
             var usage = 0
@@ -478,7 +504,7 @@ BaseModule {
     }
 
     function updateGpu() {
-        var intelCmd = "intel_gpu_top -J -s 1000 -n 1 -o - 2>/dev/null; "
+        var intelCmd = "intel_gpu_top -J -s 1000 -n 1 -o - 2>&1; "
         intelCmd += "printf '\\n--temp--\\n'; for hwmon in /sys/class/hwmon/hwmon*; do name=$(cat \"$hwmon/name\" 2>/dev/null); if [ \"$name\" = i915 ] && [ -f \"$hwmon/temp1_input\" ]; then awk '{ printf \"%.0f\", $1 / 1000 }' \"$hwmon/temp1_input\"; break; fi; done"
         var nvidiaCmd = "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,name --format=csv,noheader,nounits 2>/dev/null; "
         nvidiaCmd += "printf '\\n--apps--\\n'; nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader,nounits 2>/dev/null || true"

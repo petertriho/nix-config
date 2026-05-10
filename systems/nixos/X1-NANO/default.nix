@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, pkgs, ... }:
 {
   imports = [
     ../desktop
@@ -7,6 +7,13 @@
   ];
 
   networking.hostName = "X1-NANO";
+
+  security.wrappers.intel_gpu_top = {
+    source = "${pkgs.intel-gpu-tools}/bin/intel_gpu_top";
+    capabilities = "cap_perfmon+ep";
+    owner = "root";
+    group = "root";
+  };
 
   system.stateVersion = "25.11";
 }

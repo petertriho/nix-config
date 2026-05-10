@@ -2,9 +2,9 @@
 {
   imports = [
     ./desktop.nix
+    ./pkgs/intel-gpu.nix
   ];
   home = {
-    packages = [ pkgs.intel-gpu-tools ];
     sessionVariables = {
       # COPILOT_MODEL = "gpt-5-mini";
     };

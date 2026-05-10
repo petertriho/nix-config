@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, pkgs, ... }:
 {
   imports = [
     ../desktop
@@ -8,6 +8,13 @@
   ];
 
   networking.hostName = "T480";
+
+  security.wrappers.intel_gpu_top = {
+    source = "${pkgs.intel-gpu-tools}/bin/intel_gpu_top";
+    capabilities = "cap_perfmon+ep";
+    owner = "root";
+    group = "root";
+  };
 
   specialisation = {
     powersave.configuration = {
