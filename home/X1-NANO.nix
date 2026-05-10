@@ -1,9 +1,10 @@
-{ ... }:
+{ pkgs, ... }:
 {
   imports = [
     ./desktop.nix
   ];
   home = {
+    packages = [ pkgs.intel-gpu-tools ];
     sessionVariables = {
       # COPILOT_MODEL = "gpt-5-mini";
     };

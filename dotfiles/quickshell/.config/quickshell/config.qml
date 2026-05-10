@@ -161,6 +161,7 @@ QtObject {
         readonly property int clock: 1000
         readonly property int cpu: 2000
         readonly property int memory: 3000
+        readonly property int gpu: 5000
         readonly property int temperature: 5000
         readonly property int backlight: 3000
         readonly property int volume: 2000

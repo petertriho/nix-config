@@ -8,7 +8,10 @@
     ./desktop.nix
   ];
   home = {
-    packages = [ pkgs.lg-buddy ];
+    packages = with pkgs; [
+      amdgpu_top
+      lg-buddy
+    ];
     sessionVariables = {
       # COPILOT_MODEL = "gpt-5-mini";
     };

@@ -11,6 +11,7 @@
     };
     packages = with pkgs; [
       cura-appimage
+      intel-gpu-tools
     ];
   };
   wayland.windowManager.hyprland = {
