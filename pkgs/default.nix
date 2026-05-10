@@ -34,6 +34,7 @@ with pkgs;
   mermaid-ascii = callPackage ./mermaid-ascii { };
   models = callPackage ./models { };
   open-design = callPackage ./open-design { };
+  opencode-multi-auth = callPackage ./opencode-multi-auth { };
   playwriter = callPackage ./playwriter { };
   pinchtab = callPackage ./pinchtab { };
   plannotator = callPackage ./plannotator { };
