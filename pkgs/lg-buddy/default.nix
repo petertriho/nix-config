@@ -64,8 +64,8 @@ rustPlatform.buildRustPackage {
   src = fetchFromGitHub {
     owner = "Staphylococcus";
     repo = "LG_Buddy";
-    rev = "a71980f84f8ae8abd5b8bc6fc4a40d4c2e400b5e";
-    hash = "sha256-KJJm5t61YJCnUAWsGegWkfdXMkTmjvZ1rgAJb5glaic=";
+    rev = "58aca755873682e2043dd112f3ee81f6aa4ec00d";
+    hash = "sha256-p2VNEPJMR9Xr8I0cwcjrC4tLfnDzY7NTUt1Mg+bo0OU=";
   };
 
   cargoHash = "sha256-FfoOPTiii+aBthRvuR/Ddjy+SmGY53CsLt9UGMHiCic=";

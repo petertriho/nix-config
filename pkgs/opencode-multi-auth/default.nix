@@ -6,7 +6,7 @@
 
 buildNpmPackage {
   pname = "opencode-multi-auth";
-  version = "1.4.3-unstable-2026-05-10";
+  version = "0-unstable-2026-04-28";
 
   src = fetchFromGitHub {
     owner = "floze-the-genius";
