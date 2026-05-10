@@ -7,6 +7,29 @@
 let
   configFile = "${config.homePath}/.config/lg-buddy/config.env";
   keyFile = "${config.homePath}/.config/lg-buddy/.aiopylgtv.sqlite";
+  primeNeighbor = pkgs.writeShellScript "lg-buddy-prime-neighbor" ''
+    set -eu
+
+    if [ ! -r ${lib.escapeShellArg configFile} ]; then
+      exit 0
+    fi
+
+    . ${lib.escapeShellArg configFile}
+    tv_ip="''${tvs_primary_ip:-''${tv_ip:-}}"
+    tv_mac="''${tvs_primary_mac:-''${tv_mac:-}}"
+
+    if [ -z "$tv_ip" ] || [ -z "$tv_mac" ]; then
+      exit 0
+    fi
+
+    dev="$(${pkgs.iproute2}/bin/ip route get "$tv_ip" | ${pkgs.gawk}/bin/awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
+    if [ -z "$dev" ]; then
+      exit 0
+    fi
+
+    # Wi-Fi LG TVs may need unicast WOL while asleep, before ARP can resolve.
+    ${pkgs.iproute2}/bin/ip neigh replace "$tv_ip" lladdr "$tv_mac" nud permanent dev "$dev" || true
+  '';
   lgBuddyEnv = {
     LG_BUDDY_BSCPYLGTV_KEY_FILE = keyFile;
     LG_BUDDY_BSCPYLGTV_OWNER_USER = config.user;
@@ -38,6 +61,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
+      ExecStartPre = primeNeighbor;
       ExecStart = "${pkgs.lg-buddy}/bin/lg-buddy startup boot";
       ExecStop = "${pkgs.lg-buddy}/bin/lg-buddy shutdown";
     };

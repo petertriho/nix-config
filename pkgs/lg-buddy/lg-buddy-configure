@@ -212,13 +212,95 @@ discover_webos_tls_devices() {
   done | sort -u
 }
 
+discover_paired_key_devices() {
+  local output=""
+  local ip_addr=""
+  local mac_addr=""
+
+  if [[ ! -r "$key_file" ]]; then
+    return 0
+  fi
+
+  if ! output="$($bscpylgtv_command -p "$key_file" -l 2>/dev/null)"; then
+    return 0
+  fi
+
+  printf '%s\n' "$output" | awk '{ print $1 }' | while read -r ip_addr; do
+    if ! validate_ip "$ip_addr"; then
+      continue
+    fi
+
+    mac_addr="$(ip neigh show "$ip_addr" | awk '/lladdr/ { print $5; exit }')"
+    if validate_mac "$mac_addr"; then
+      printf '%s %s\n' "$ip_addr" "$(normalize_mac "$mac_addr")"
+    else
+      printf '%s unknown\n' "$ip_addr"
+    fi
+  done | sort -u
+}
+
+has_paired_key_for_tv() {
+  local output=""
+
+  if [[ ! -r "$key_file" ]]; then
+    return 1
+  fi
+
+  if ! output="$($bscpylgtv_command -p "$key_file" -l 2>/dev/null)"; then
+    return 1
+  fi
+
+  printf '%s\n' "$output" | awk '{ print $1 }' | grep -Fxq "$tv_ip"
+}
+
+prompt_valid_mac() {
+  local default_value="${1:-}"
+  local mac_addr=""
+
+  if [[ ! -t 0 ]]; then
+    return 1
+  fi
+
+  while true; do
+    mac_addr="$(prompt_with_default "TV Wake-on-LAN MAC address from LGTV Companion or TV network settings" "$default_value")"
+    if validate_mac "$mac_addr"; then
+      normalize_mac "$mac_addr"
+      return 0
+    fi
+
+    printf 'Please enter a valid MAC address like aa:bb:cc:dd:ee:ff.\n' >&2
+  done
+}
+
+prompt_manual_device() {
+  local ip_addr=""
+  local mac_addr=""
+
+  if [[ ! -t 0 ]]; then
+    return 1
+  fi
+
+  printf 'Could not discover an LG TV automatically. Enter the values shown by the TV or LGTV Companion.\n' >&2
+  while true; do
+    ip_addr="$(prompt_with_default "TV IP address" "$existing_ip")"
+    if validate_ip "$ip_addr"; then
+      break
+    fi
+    printf 'Please enter a valid IPv4 address.\n' >&2
+  done
+
+  mac_addr="$(prompt_valid_mac "$existing_mac")"
+
+  printf '%s %s\n' "$ip_addr" "$mac_addr"
+}
+
 detect_wol_mac_from_tv() {
   local output=""
   local device_id_regex="[\"']device_id[\"'][[:space:]]*:[[:space:]]*[\"']([0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2})[\"']"
   local detected_mac=""
 
   if ! output="$($bscpylgtv_command -p "$key_file" "$tv_ip" get_software_info 2>&1)"; then
-    printf 'Could not query TV software_info for Wake-on-LAN MAC. Output:\n%s\n' "$output" >&2
+    printf 'Could not query TV software_info for Wake-on-LAN MAC because WebOS control is unreachable at %s.\n' "$tv_ip" >&2
     return 1
   fi
 
@@ -352,6 +434,10 @@ pair_tv() {
     return 0
   fi
 
+  if has_paired_key_for_tv; then
+    printf 'Existing pairing key found for %s, but WebOS control is currently unreachable. Continuing so config can be recreated.\n' "$tv_ip" >&2
+    return 0
+  fi
   printf 'LG TV pairing/auth check failed. Output:\n%s\n' "$output" >&2
   printf 'Make sure the TV is awake and accept the WebOS pairing prompt, then rerun lg-buddy-configure.\n' >&2
   return 1
@@ -376,11 +462,13 @@ if [[ -e "$config_file" ]]; then
   tv_input="$existing_input"
   pair_tv
   if detected_wol_mac="$(detect_wol_mac_from_tv)"; then
-    if ! validate_mac "$existing_mac" || [[ "$(normalize_mac "$existing_mac")" != "$detected_wol_mac" ]]; then
-      update_existing_wol_mac "$detected_wol_mac"
-      printf 'Updated LG Buddy Wake-on-LAN MAC to TV device_id %s.\n' "$detected_wol_mac" >&2
-    else
+    if validate_mac "$existing_mac" && [[ "$(normalize_mac "$existing_mac")" != "$detected_wol_mac" ]]; then
+      printf 'Keeping configured Wake-on-LAN MAC %s; TV device_id is %s.\n' "$existing_mac" "$detected_wol_mac" >&2
+    elif validate_mac "$existing_mac"; then
       printf 'LG Buddy Wake-on-LAN MAC already matches TV device_id %s.\n' "$detected_wol_mac" >&2
+    else
+      update_existing_wol_mac "$detected_wol_mac"
+      printf 'Updated missing LG Buddy Wake-on-LAN MAC to TV device_id %s.\n' "$detected_wol_mac" >&2
     fi
   fi
   exit 0
@@ -397,15 +485,24 @@ fi
 if [[ "${#discovered_devices[@]}" -eq 0 ]]; then
   mapfile -t discovered_devices < <(discover_webos_tls_devices)
 fi
+if [[ "${#discovered_devices[@]}" -eq 0 ]]; then
+  mapfile -t discovered_devices < <(discover_paired_key_devices)
+fi
 
 chosen_device=""
 if chosen_device="$(choose_discovered_device "${discovered_devices[@]}")"; then
   tv_ip="${chosen_device%% *}"
   tv_mac="${chosen_device##* }"
+  if [[ "$tv_mac" == "unknown" ]]; then
+    tv_mac=""
+  fi
 elif validate_ip "$existing_ip" && validate_mac "$existing_mac"; then
   printf 'No LG TV was discovered. Reusing existing config values %s %s.\n' "$existing_ip" "$existing_mac" >&2
   tv_ip="$existing_ip"
   tv_mac="$existing_mac"
+elif chosen_device="$(prompt_manual_device)"; then
+  tv_ip="${chosen_device%% *}"
+  tv_mac="${chosen_device##* }"
 else
   printf 'Could not discover an LG TV on the local network. Wake the TV, make sure it is on the same LAN, then rerun this script.\n' >&2
   exit 1
@@ -426,10 +523,22 @@ chmod 700 "$config_dir"
 
 pair_tv
 if detected_wol_mac="$(detect_wol_mac_from_tv)"; then
-  if [[ "$tv_mac" != "$detected_wol_mac" ]]; then
-    printf 'Using TV device_id %s as Wake-on-LAN MAC instead of neighbor-cache MAC %s.\n' "$detected_wol_mac" "$tv_mac" >&2
+  if ! validate_mac "$tv_mac"; then
+    printf 'Using TV device_id %s as Wake-on-LAN MAC because no network MAC was discovered.\n' "$detected_wol_mac" >&2
     tv_mac="$detected_wol_mac"
+  elif [[ "$tv_mac" != "$detected_wol_mac" ]]; then
+    printf 'Keeping discovered Wake-on-LAN MAC %s; TV device_id is %s.\n' "$tv_mac" "$detected_wol_mac" >&2
   fi
+fi
+
+if ! validate_mac "$tv_mac" && [[ -t 0 ]]; then
+  printf 'Could not recover the Wake-on-LAN MAC automatically.\n' >&2
+  tv_mac="$(prompt_valid_mac "$existing_mac")"
+fi
+
+if ! validate_mac "$tv_mac"; then
+  printf 'Could not determine a valid Wake-on-LAN MAC for %s. Rerun with the TV network MAC from LGTV Companion.\n' "$tv_ip" >&2
+  exit 1
 fi
 
 tmp_file="$(mktemp)"
