@@ -24,9 +24,9 @@
       on-resume = "${pkgs.niri}/bin/niri msg action power-on-monitors; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
     }
   ];
-  programs.niri = {
+  programs.niri.settings = {
     spawn-at-startup = [ { command = [ "discord" ]; } ];
-    settings.outputs = {
+    outputs = {
       "HDMI-A-1" = {
         focus-at-startup = true;
         position = {
