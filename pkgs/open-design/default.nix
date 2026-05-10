@@ -99,7 +99,7 @@ stdenv.mkDerivation (finalAttrs: {
       "$workspace/node_modules/@open-design/tools-dev" \
       "$workspace/node_modules/@open-design/tools-pack"
 
-    makeWrapper ${nodejs_24}/bin/node "$out/bin/od" \
+    makeWrapper ${nodejs_24}/bin/node "$out/bin/open-design" \
       --run 'export OD_DATA_DIR="''${OD_DATA_DIR:-$PWD/.od}"' \
       --add-flags "$workspace/apps/daemon/dist/cli.js"
 
@@ -110,7 +110,7 @@ stdenv.mkDerivation (finalAttrs: {
     description = "Local-first design product powered by existing code-agent CLIs";
     homepage = "https://github.com/nexu-io/open-design";
     license = licenses.asl20;
-    mainProgram = "od";
+    mainProgram = "open-design";
     maintainers = [ ];
   };
 })
