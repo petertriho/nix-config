@@ -7,28 +7,20 @@
 let
   configFile = "${config.homePath}/.config/lg-buddy/config.env";
   keyFile = "${config.homePath}/.config/lg-buddy/.aiopylgtv.sqlite";
-  primeNeighbor = pkgs.writeShellScript "lg-buddy-prime-neighbor" ''
+  screenStateDir = "/var/lib/lg-buddy";
+  screenOnAtBoot = pkgs.writeShellScript "lg-buddy-screen-on-at-boot" ''
     set -eu
 
-    if [ ! -r ${lib.escapeShellArg configFile} ]; then
-      exit 0
-    fi
+    ${pkgs.coreutils}/bin/install -d -m 0755 ${lib.escapeShellArg screenStateDir}
+    export LG_BUDDY_SESSION_RUNTIME_DIR=${lib.escapeShellArg screenStateDir}
+    ${pkgs.lg-buddy}/bin/lg-buddy screen-on || true
+  '';
+  screenOffAtShutdown = pkgs.writeShellScript "lg-buddy-screen-off-at-shutdown" ''
+    set -eu
 
-    . ${lib.escapeShellArg configFile}
-    tv_ip="''${tvs_primary_ip:-''${tv_ip:-}}"
-    tv_mac="''${tvs_primary_mac:-''${tv_mac:-}}"
-
-    if [ -z "$tv_ip" ] || [ -z "$tv_mac" ]; then
-      exit 0
-    fi
-
-    dev="$(${pkgs.iproute2}/bin/ip route get "$tv_ip" | ${pkgs.gawk}/bin/awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
-    if [ -z "$dev" ]; then
-      exit 0
-    fi
-
-    # Wi-Fi LG TVs may need unicast WOL while asleep, before ARP can resolve.
-    ${pkgs.iproute2}/bin/ip neigh replace "$tv_ip" lladdr "$tv_mac" nud permanent dev "$dev" || true
+    ${pkgs.coreutils}/bin/install -d -m 0755 ${lib.escapeShellArg screenStateDir}
+    export LG_BUDDY_SESSION_RUNTIME_DIR=${lib.escapeShellArg screenStateDir}
+    exec ${pkgs.lg-buddy}/bin/lg-buddy screen-off
   '';
   lgBuddyEnv = {
     LG_BUDDY_BSCPYLGTV_KEY_FILE = keyFile;
@@ -41,18 +33,17 @@ in
 
   systemd.tmpfiles.rules = [
     "d /run/lg_buddy 0755 root root -"
+    "d ${screenStateDir} 0755 root root -"
     "d ${config.homePath}/.config/lg-buddy 0700 ${config.user} users -"
   ];
 
   systemd.services."lg-buddy" = {
-    description = "Controls LG WebOS TV at startup and shutdown";
+    description = "Restores and blanks LG WebOS TV screen";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     restartIfChanged = false;
-    environment = lgBuddyEnv // {
-      LG_BUDDY_STARTUP_RETRY_DELAY_SECS = "20";
-    };
+    environment = lgBuddyEnv;
     unitConfig = {
       ConditionPathExists = configFile;
       StartLimitIntervalSec = 30;
@@ -61,9 +52,8 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStartPre = primeNeighbor;
-      ExecStart = "${pkgs.lg-buddy}/bin/lg-buddy startup boot";
-      ExecStop = "${pkgs.lg-buddy}/bin/lg-buddy shutdown";
+      ExecStart = screenOnAtBoot;
+      ExecStop = screenOffAtShutdown;
     };
   };
 
