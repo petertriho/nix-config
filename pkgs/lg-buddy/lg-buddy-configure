@@ -23,6 +23,15 @@ validate_mac() {
   [[ "$1" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]]
 }
 
+is_locally_administered_mac() {
+  local mac_addr=""
+  local first_octet=""
+
+  mac_addr="$(normalize_mac "$1")"
+  first_octet="${mac_addr%%:*}"
+  (( (16#$first_octet & 2) != 0 ))
+}
+
 normalize_mac() {
   printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]'
 }
@@ -462,10 +471,13 @@ if [[ -e "$config_file" ]]; then
   tv_input="$existing_input"
   pair_tv
   if detected_wol_mac="$(detect_wol_mac_from_tv)"; then
-    if validate_mac "$existing_mac" && [[ "$(normalize_mac "$existing_mac")" != "$detected_wol_mac" ]]; then
-      printf 'Keeping configured Wake-on-LAN MAC %s; TV device_id is %s.\n' "$existing_mac" "$detected_wol_mac" >&2
-    elif validate_mac "$existing_mac"; then
+    if validate_mac "$existing_mac" && [[ "$(normalize_mac "$existing_mac")" == "$detected_wol_mac" ]]; then
       printf 'LG Buddy Wake-on-LAN MAC already matches TV device_id %s.\n' "$detected_wol_mac" >&2
+    elif validate_mac "$existing_mac" && is_locally_administered_mac "$existing_mac"; then
+      update_existing_wol_mac "$detected_wol_mac"
+      printf 'Updated locally administered Wake-on-LAN MAC %s to TV device_id %s.\n' "$existing_mac" "$detected_wol_mac" >&2
+    elif validate_mac "$existing_mac"; then
+      printf 'Keeping configured Wake-on-LAN MAC %s; TV device_id is %s.\n' "$existing_mac" "$detected_wol_mac" >&2
     else
       update_existing_wol_mac "$detected_wol_mac"
       printf 'Updated missing LG Buddy Wake-on-LAN MAC to TV device_id %s.\n' "$detected_wol_mac" >&2
@@ -525,6 +537,9 @@ pair_tv
 if detected_wol_mac="$(detect_wol_mac_from_tv)"; then
   if ! validate_mac "$tv_mac"; then
     printf 'Using TV device_id %s as Wake-on-LAN MAC because no network MAC was discovered.\n' "$detected_wol_mac" >&2
+    tv_mac="$detected_wol_mac"
+  elif [[ "$tv_mac" != "$detected_wol_mac" ]] && is_locally_administered_mac "$tv_mac"; then
+    printf 'Using TV device_id %s as Wake-on-LAN MAC because discovered MAC %s is locally administered.\n' "$detected_wol_mac" "$tv_mac" >&2
     tv_mac="$detected_wol_mac"
   elif [[ "$tv_mac" != "$detected_wol_mac" ]]; then
     printf 'Keeping discovered Wake-on-LAN MAC %s; TV device_id is %s.\n' "$tv_mac" "$detected_wol_mac" >&2

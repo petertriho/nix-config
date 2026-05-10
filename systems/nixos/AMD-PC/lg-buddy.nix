@@ -7,21 +7,6 @@
 let
   configFile = "${config.homePath}/.config/lg-buddy/config.env";
   keyFile = "${config.homePath}/.config/lg-buddy/.aiopylgtv.sqlite";
-  screenStateDir = "/var/lib/lg-buddy";
-  screenOnAtBoot = pkgs.writeShellScript "lg-buddy-screen-on-at-boot" ''
-    set -eu
-
-    ${pkgs.coreutils}/bin/install -d -m 0755 ${lib.escapeShellArg screenStateDir}
-    export LG_BUDDY_SESSION_RUNTIME_DIR=${lib.escapeShellArg screenStateDir}
-    ${pkgs.lg-buddy}/bin/lg-buddy screen-on || true
-  '';
-  screenOffAtShutdown = pkgs.writeShellScript "lg-buddy-screen-off-at-shutdown" ''
-    set -eu
-
-    ${pkgs.coreutils}/bin/install -d -m 0755 ${lib.escapeShellArg screenStateDir}
-    export LG_BUDDY_SESSION_RUNTIME_DIR=${lib.escapeShellArg screenStateDir}
-    exec ${pkgs.lg-buddy}/bin/lg-buddy screen-off
-  '';
   lgBuddyEnv = {
     LG_BUDDY_BSCPYLGTV_KEY_FILE = keyFile;
     LG_BUDDY_BSCPYLGTV_OWNER_USER = config.user;
@@ -33,17 +18,18 @@ in
 
   systemd.tmpfiles.rules = [
     "d /run/lg_buddy 0755 root root -"
-    "d ${screenStateDir} 0755 root root -"
     "d ${config.homePath}/.config/lg-buddy 0700 ${config.user} users -"
   ];
 
   systemd.services."lg-buddy" = {
-    description = "Restores and blanks LG WebOS TV screen";
+    description = "Controls LG WebOS TV at startup and shutdown";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     restartIfChanged = false;
-    environment = lgBuddyEnv;
+    environment = lgBuddyEnv // {
+      LG_BUDDY_STARTUP_RETRY_DELAY_SECS = "20";
+    };
     unitConfig = {
       ConditionPathExists = configFile;
       StartLimitIntervalSec = 30;
@@ -52,8 +38,8 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = screenOnAtBoot;
-      ExecStop = screenOffAtShutdown;
+      ExecStart = "${pkgs.lg-buddy}/bin/lg-buddy startup boot";
+      ExecStop = "${pkgs.lg-buddy}/bin/lg-buddy shutdown";
     };
   };
 
