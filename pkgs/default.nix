@@ -18,6 +18,7 @@ with pkgs;
   betterfox = callPackage ./betterfox { };
   basic-memory = callPackage ./basic-memory { };
   basic-memory-skills = callPackage ./basic-memory-skills { };
+  cpa-manager = callPackage ./cpa-manager { };
   excalidraw-edit = callPackage ./excalidraw-edit { };
   excalidraw-mcp = callPackage ./excalidraw-mcp { };
   chunkhound = callPackage ./chunkhound {

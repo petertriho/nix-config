@@ -10,6 +10,7 @@
     outputs.homeManagerModules.helpers
     outputs.homeManagerModules.programs
     ./pkgs/ai.nix
+    ./pkgs/cli-proxy-api.nix
     ./pkgs/data.nix
     ./pkgs/devops.nix
     ./pkgs/direnv.nix

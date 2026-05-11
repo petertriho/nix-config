@@ -1,0 +1,15 @@
+host: "127.0.0.1"
+port: 8317
+auth-dir: "~/.cli-proxy-api"
+api-keys:
+  - "sk-dummy"
+remote-management:
+  allow-remote: false
+  secret-key: ""
+  disable-control-panel: false
+usage-statistics-enabled: true
+request-retry: 3
+routing:
+  strategy: "round-robin"
+  session-affinity: true
+  session-affinity-ttl: "1h"
