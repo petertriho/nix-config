@@ -307,14 +307,14 @@ return {
     dockerls = {},
     docker_compose_language_service = {},
     -- https://hexdocs.pm/elixir-ls/settings.html
-    elixirls = {
-        cmd = { "elixir-ls" },
-        settings = {
-            elixirLS = {
-                enableInlayHints = true,
-            },
-        },
-    },
+    -- elixirls = {
+    --     cmd = { "elixir-ls" },
+    --     settings = {
+    --         elixirLS = {
+    --             enableInlayHints = true,
+    --         },
+    --     },
+    -- },
     emmet_language_server = {
         filetypes = {
             "css",

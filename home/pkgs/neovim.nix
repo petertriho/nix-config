@@ -56,7 +56,7 @@
       bash-language-server
       docker-compose-language-service
       dockerfile-language-server
-      elixir-ls
+      # elixir-ls
       emmet-language-server
       # expert
       fish-lsp
