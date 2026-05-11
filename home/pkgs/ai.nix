@@ -19,9 +19,8 @@ let
     beads
     ck
     # coding-agent-search
-    copilot-cli
-    copilot-language-server
-
+    # copilot-cli
+    # copilot-language-server
     gemini-cli
     openspec
     qmd
