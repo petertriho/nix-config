@@ -209,6 +209,7 @@ return {
                 markdown = {
                     inherit_defaults = true,
                     "path_at",
+                    "agent_skills",
                     "opencode_agents",
                     "opencode_skills",
                     "opencode_commands",
@@ -216,6 +217,7 @@ return {
                 text = {
                     inherit_defaults = true,
                     "path_at",
+                    "agent_skills",
                     "opencode_agents",
                     "opencode_skills",
                     "opencode_commands",
@@ -303,6 +305,14 @@ return {
                             return self:get_completions(adapted_context, callback)
                         end,
                     },
+                },
+                agent_skills = {
+                    name = "Skills",
+                    module = "opencode-sources.source.opencode_skills",
+                    -- score_offset = 110,
+                    opts = {
+                        root = vim.fn.expand("~/.agents/skills")
+                    }
                 },
                 opencode_agents = {
                     name = "Agents",
