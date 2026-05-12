@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "0-unstable-2026-05-11";
+  version = "0-unstable-2026-05-12";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "f2db5a749c4a5a9064f3d43456848bfdd2acc781";
-    hash = "sha256-TwKOYxErvr4fiRN65TxYbUGRFPOoeXWFO9rC6QkX6fI=";
+    rev = "5ff578dc8dad212c283ae422ea1d687760c6f70a";
+    hash = "sha256-tEahzikYaeQXTQNTk02HKTs8DgS1N5UEKmAzMUZhRfc=";
   };
 
   nativeBuildInputs = [
@@ -97,7 +97,8 @@ stdenv.mkDerivation (finalAttrs: {
     rm -f \
       "$workspace/node_modules/.pnpm/node_modules/@open-design/e2e" \
       "$workspace/node_modules/@open-design/tools-dev" \
-      "$workspace/node_modules/@open-design/tools-pack"
+      "$workspace/node_modules/@open-design/tools-pack" \
+      "$workspace/node_modules/@open-design/tools-pr"
 
     makeWrapper ${nodejs_24}/bin/node "$out/bin/open-design" \
       --run 'export OD_DATA_DIR="''${OD_DATA_DIR:-$PWD/.od}"' \

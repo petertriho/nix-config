@@ -7,7 +7,7 @@
 }:
 
 let
-  version = "1.1.8";
+  version = "0-unstable-2026-05-11";
 
   src = fetchFromGitHub {
     owner = "seakee";
