@@ -99,6 +99,7 @@ in
       ++ llmAgents;
     file = {
       ".claude/settings.json".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
+      # ".codex/config.toml".source = config.lib.meta.mkDotfilesSymlink "codex/.codex/config.toml";
       ".gemini/settings.json".source = config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
     };
     sessionVariables = {
@@ -218,26 +219,26 @@ in
     codex = {
       enable = true;
       package = pkgs.llm-agents.codex;
-      enableMcpIntegration = true;
-      settings = {
-        theme = "ansi";
-        features = {
-          multi_agent = true;
-        };
-        tui = {
-          status_line = [
-            "model-with-reasoning"
-            "context-remaining"
-            "current-dir"
-            "five-hour-limit"
-            "weekly-limit"
-            "context-window-size"
-            "used-tokens"
-            "total-input-tokens"
-            "total-output-tokens"
-          ];
-        };
-      };
+      enableMcpIntegration = false;
+      # settings = {
+      #   theme = "ansi";
+      #   features = {
+      #     multi_agent = true;
+      #   };
+      #   tui = {
+      #     status_line = [
+      #       "model-with-reasoning"
+      #       "context-remaining"
+      #       "current-dir"
+      #       "five-hour-limit"
+      #       "weekly-limit"
+      #       "context-window-size"
+      #       "used-tokens"
+      #       "total-input-tokens"
+      #       "total-output-tokens"
+      #     ];
+      #   };
+      # };
     };
     opencode = {
       enable = true;

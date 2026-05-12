@@ -47,6 +47,7 @@ in
       # "alacritty"
       "antigravity"
       "appcleaner"
+      "codex-app"
       "cyberduck"
       "displaylink"
       # "doll"

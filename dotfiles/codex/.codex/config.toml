@@ -1,0 +1,29 @@
+theme = "ansi"
+
+personality = "pragmatic"
+
+[features]
+multi_agent = true
+
+[mcp_servers.basic-memory]
+args = []
+command = "basic-memory-mcp"
+enabled = true
+
+[mcp_servers.playwriter]
+args = []
+command = "playwriter"
+enabled = true
+
+[tui]
+status_line = [
+    "model-with-reasoning",
+    "context-remaining",
+    "current-dir",
+    "five-hour-limit",
+    "weekly-limit",
+    "context-window-size",
+    "used-tokens",
+    "total-input-tokens",
+    "total-output-tokens",
+]
