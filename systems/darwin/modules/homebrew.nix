@@ -45,7 +45,7 @@ in
     casks = [
       # "aionui"
       # "alacritty"
-      "antigravity"
+      # "antigravity"
       "appcleaner"
       "codex-app"
       "cyberduck"
