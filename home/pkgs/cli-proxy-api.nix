@@ -39,6 +39,9 @@ lib.mkMerge [
 
       file.".cli-proxy-api/config.yaml".source =
         config.lib.meta.mkDotfilesSymlink "cli-proxy-api/.cli-proxy-api/config.yaml";
+
+      file.".config/opencode/plugins/cli-proxy-api-models.js".source =
+        config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/plugins/cli-proxy-api-models.js";
     };
 
     programs.opencode.settings = {
