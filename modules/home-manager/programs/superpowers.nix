@@ -23,11 +23,11 @@
           "${pkgs.superpowers}/share/superpowers"
         ];
       })
-      (lib.mkIf config.programs.codex.enable {
-        programs.codex.skills = {
-          "superpowers" = "${pkgs.superpowers}/share/superpowers/skills";
-        };
-      })
+      # (lib.mkIf config.programs.codex.enable {
+      #   programs.codex.skills = {
+      #     "superpowers" = "${pkgs.superpowers}/share/superpowers/skills";
+      #   };
+      # })
     ]
   );
 }

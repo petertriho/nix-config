@@ -49,9 +49,9 @@ in
       (lib.mkIf config.programs.claude-code.enable {
         programs.claude-code.skills = selectedSkills;
       })
-      (lib.mkIf config.programs.codex.enable {
-        programs.codex.skills = selectedSkills;
-      })
+      # (lib.mkIf config.programs.codex.enable {
+      #   programs.codex.skills = selectedSkills;
+      # })
     ]
   );
 }

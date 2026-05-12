@@ -19,9 +19,9 @@ in
       (lib.mkIf config.programs.claude-code.enable {
         programs.claude-code.skills.impeccable = "${pkgs.impeccable}/share/impeccable/dist/claude-code/.claude/skills/impeccable";
       })
-      (lib.mkIf config.programs.codex.enable {
-        programs.codex.skills.impeccable = "${pkgs.impeccable}/share/impeccable/dist/codex/.codex/skills/impeccable";
-      })
+      # (lib.mkIf config.programs.codex.enable {
+      #   programs.codex.skills.impeccable = "${pkgs.impeccable}/share/impeccable/dist/codex/.codex/skills/impeccable";
+      # })
     ]
   );
 }

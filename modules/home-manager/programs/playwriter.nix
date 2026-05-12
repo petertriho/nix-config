@@ -29,11 +29,11 @@
           playwriter = "${pkgs.playwriter}/share/playwriter/skills/playwriter";
         };
       })
-      (lib.mkIf config.programs.codex.enable {
-        programs.codex.skills = {
-          playwriter = "${pkgs.playwriter}/share/playwriter/skills/playwriter";
-        };
-      })
+      # (lib.mkIf config.programs.codex.enable {
+      #   programs.codex.skills = {
+      #     playwriter = "${pkgs.playwriter}/share/playwriter/skills/playwriter";
+      #   };
+      # })
     ]
   );
 }
