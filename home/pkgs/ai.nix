@@ -328,7 +328,7 @@ in
       };
     };
     plannotator.enable = true;
-    playwriter.enable = true;
+    playwriter.enable = false;
     superpowers.enable = false;
   };
   xdg.configFile = {

@@ -10,11 +10,6 @@ args = []
 command = "basic-memory-mcp"
 enabled = true
 
-[mcp_servers.playwriter]
-args = []
-command = "playwriter"
-enabled = true
-
 [tui]
 status_line = [
     "model-with-reasoning",
