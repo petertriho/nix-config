@@ -13,6 +13,11 @@ PanelWindow {
     required property QtObject notificationsConfig
 
     property bool open: false
+    readonly property int maxPanelHeight: Math.max(1, Screen.height - notificationsConfig.topMargin - notificationsConfig.bottomMargin)
+    readonly property int maxListHeight: Math.max(1, maxPanelHeight - headerRow.implicitHeight - notificationsConfig.spacing - notificationsConfig.cardPadding * 2)
+    readonly property real listHeight: Math.min(listView.contentHeight, maxListHeight)
+    readonly property real emptyHeight: emptyText.implicitHeight + 72
+    readonly property real contentHeight: notificationsConfig.cardPadding * 2 + headerRow.implicitHeight + notificationsConfig.spacing + (modelCount() > 0 ? listHeight : emptyHeight)
 
     signal closeRequested
     signal clearRequested
@@ -33,12 +38,11 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: -1
     implicitWidth: notificationsConfig.drawerWidth
-    implicitHeight: panelColumn.implicitHeight
+    implicitHeight: Math.min(contentHeight, maxPanelHeight)
 
     anchors {
         top: true
         right: true
-        bottom: true
     }
 
     margins {
@@ -68,6 +72,8 @@ PanelWindow {
             spacing: notificationsConfig.spacing
 
             RowLayout {
+                id: headerRow
+
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignTop
 
@@ -114,6 +120,8 @@ PanelWindow {
             }
 
             Text {
+                id: emptyText
+
                 visible: root.modelCount() === 0
                 text: "No notifications"
                 color: colors.comment
@@ -125,10 +133,11 @@ PanelWindow {
                 Layout.topMargin: 32
             }
 
-                ScrollView {
+            ScrollView {
                 visible: root.modelCount() > 0
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: root.listHeight
+                Layout.maximumHeight: root.maxListHeight
                 clip: true
 
                 ListView {
