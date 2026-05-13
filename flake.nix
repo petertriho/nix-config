@@ -125,6 +125,12 @@
             modules = [ ./systems/nixos/AMD-PC ];
           }
         );
+        MBP15-I7 = nixpkgs.lib.nixosSystem (
+          getSystemConfiguration "x86_64-linux"
+          // {
+            modules = [ ./systems/nixos/MBP15-I7 ];
+          }
+        );
         T480 = nixpkgs.lib.nixosSystem (
           getSystemConfiguration "x86_64-linux"
           // {
