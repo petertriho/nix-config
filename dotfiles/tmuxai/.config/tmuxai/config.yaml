@@ -8,6 +8,11 @@ models:
   # github-copilot:
   #   provider: github-copilot
   #   model: "${TMUXAI_GITHUB_COPILOT_MODEL}"
+  cli-proxy-api:
+    provider: openrouter
+    base_url: http://localhost:8317/v1
+    api_key: sk-dummy
+    model: "${TMUXAI_CLI_PROXY_API_MODEL}"
   opencode-go:
     provider: openrouter
     base_url: https://opencode.ai/zen/go/v1

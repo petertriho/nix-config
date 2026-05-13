@@ -13,3 +13,9 @@ routing:
   strategy: "round-robin"
   session-affinity: true
   session-affinity-ttl: "1h"
+redis-usage-queue-retention-seconds: 60
+oauth-excluded-models:
+  codex:
+    - gpt-image-2
+    - gpt-5.3-codex-spark
+    - gpt-5.2
