@@ -8,5 +8,7 @@
 
   networking.hostName = "AMD-PC";
 
+  services.input-remapper.enable = true;
+
   system.stateVersion = "25.11";
 }

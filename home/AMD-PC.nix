@@ -1,4 +1,5 @@
 {
+  config,
   lib,
   pkgs,
   ...
@@ -16,6 +17,10 @@
       # COPILOT_MODEL = "gpt-5-mini";
     };
   };
+  xdg.configFile."input-remapper-2/config.json".source =
+    config.lib.meta.mkDotfilesSymlink "input-remapper-2/config.json";
+  xdg.configFile."input-remapper-2/presets/ELECOM TrackBall Mouse DEFT Pro TrackBall/new preset.json".source =
+    config.lib.meta.mkDotfilesSymlink "input-remapper-2/presets/ELECOM TrackBall Mouse DEFT Pro TrackBall/new preset.json";
   services.hypridle.settings.listener = lib.mkForce [
     {
       timeout = 3600;
@@ -28,6 +33,11 @@
     }
   ];
   programs.niri.settings = {
+    input.trackball = {
+      accel-profile = "adaptive";
+      scroll-method = "on-button-down";
+      scroll-button = 274;
+    };
     spawn-at-startup = [ { command = [ "discord" ]; } ];
     outputs = {
       "HDMI-A-1" = {

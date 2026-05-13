@@ -1,0 +1,6 @@
+{
+    "version": "2.2.0",
+    "autoload": {
+        "ELECOM TrackBall Mouse DEFT Pro TrackBall": "new preset"
+    }
+}
