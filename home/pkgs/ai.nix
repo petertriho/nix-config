@@ -16,7 +16,8 @@ let
   llmAgents = with pkgs.llm-agents; [
     agent-browser
     # backlog-md
-    beads
+    # beads
+    # beads-viewer
     ck
     # coding-agent-search
     # copilot-cli

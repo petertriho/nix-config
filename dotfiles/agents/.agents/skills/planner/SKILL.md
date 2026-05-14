@@ -43,6 +43,11 @@ description: Upgrade rough ideas, partial plans, feature concepts, product brain
 6. Stop the interview when every major branch has been resolved, or the
    user signals enough. Then output the plan.
 
+7. Save the plan.
+   - Choose a concise kebab-case `<plan-name>` based on the goal.
+   - Write the final plan to `.changes/<plan-name>/PLAN.md`.
+   - Create `.changes/<plan-name>/` if it does not already exist.
+
 ## Final Plan Format
 
 Once the interview reaches shared understanding, output the upgraded plan

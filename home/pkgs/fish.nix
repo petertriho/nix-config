@@ -30,6 +30,8 @@
       acs = "aws configure sso";
       ap = "export AWS_PROFILE=(aws-profile)";
       asl = "aws sso login";
+      # b = "bd";
+      # bi = "bd init --stealth";
       c = "claude";
       ca = "claude --allow-dangerously-skip-permissions";
       d = "docker";
@@ -135,6 +137,7 @@
       oc = "opencode";
       ocb = "set -x OPENCODE_AGENT_BUILD_MODEL (models-dev)";
       ocp = "set -x OPENCODE_AGENT_PLAN_MODEL (models-dev)";
+      ops = "openspec";
       opsa = "openspec archive";
       opsas = "openspec archive --skip-specs";
       opsi = "openspec init";
