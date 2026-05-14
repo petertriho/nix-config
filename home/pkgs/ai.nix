@@ -320,6 +320,7 @@ in
           "diagnose"
           "improve-codebase-architecture"
           "prototype"
+          "tdd"
           "zoom-out"
         ];
         productivity = [
