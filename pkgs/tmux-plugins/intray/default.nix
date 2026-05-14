@@ -6,12 +6,12 @@
   makeWrapper,
 }:
 let
-  version = "0-unstable-2026-05-08";
+  version = "0-unstable-2026-05-13";
 
   src = fetchFromGitHub {
     owner = "cristianoliveira";
     repo = "tmux-intray";
-    rev = "0feaaa49e05eb1cc118639e07f5ce15735d0a284";
+    rev = "01b53219f67bdcdecdf9ac106bc12fe8146826ac";
     hash = "sha256-9QM1zl5ifkTdYrOOSGbZlRfmsj3hSdKzW7sShOLChKQ=";
   };
 

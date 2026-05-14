@@ -6,13 +6,13 @@
   nodejs_22,
 }:
 let
-  version = "0-unstable-2026-05-13";
+  version = "0-unstable-2026-05-14";
 
   src = fetchFromGitHub {
     owner = "seakee";
     repo = "CPA-Manager";
-    rev = "cbb4206ffbca62e31c373f1485ea9352707c9e4c";
-    hash = "sha256-7yxotHEnGnxCY8LBVCOlPncolDxe4g06CWvJMiupv+c=";
+    rev = "7b739894fdf1d3d338781fec23b66ff6aba1302a";
+    hash = "sha256-nP+dDTSce6WwbHoVJquz87EIUHsQ7WHg1RLtdyUXuKE=";
   };
 
   frontend = buildNpmPackage {
@@ -22,7 +22,7 @@ let
     nodejs = nodejs_22;
     patches = [ ./package-lock.patch ];
     patchFlags = [ "-p0" ];
-    npmDepsHash = "sha256-0snqFuX8NGVWi9z/QfVF8PSWZzUFMVh6QG7THGfh61I=";
+    npmDepsHash = "sha256-xRgHqP+w7uRCrq0UG+ywHzwK7V3Kf6vLjkHt9RchrNg=";
     npmBuild = "VERSION=v${version} npm run build";
 
     installPhase = ''
