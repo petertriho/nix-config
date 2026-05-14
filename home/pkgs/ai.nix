@@ -267,6 +267,7 @@ in
             permission = {
               edit = {
                 "*" = "deny";
+                ".changes/**" = "allow";
               };
             };
           };
