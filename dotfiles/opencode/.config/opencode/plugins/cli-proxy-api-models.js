@@ -141,9 +141,9 @@ async function loadModels(provider) {
       timeoutMs,
     );
     writeCache(path, models);
-    console.log(
-      `[${PLUGIN_NAME}] Cached ${models.length} models from ${baseURL}`,
-    );
+    // console.log(
+    //   `[${PLUGIN_NAME}] Cached ${models.length} models from ${baseURL}`,
+    // );
     return models;
   } catch (error) {
     const stale = cached && Array.isArray(cached.stale) ? cached.stale : [];
@@ -180,10 +180,10 @@ export const CliProxyApiModels = async () => ({
       else added += 1;
     }
 
-    if (added > 0 || replaced > 0) {
-      console.log(
-        `[${PLUGIN_NAME}] Added ${added} models and replaced ${replaced} models in provider.${providerID}`,
-      );
-    }
+    // if (added > 0 || replaced > 0) {
+    //   console.log(
+    //     `[${PLUGIN_NAME}] Added ${added} models and replaced ${replaced} models in provider.${providerID}`,
+    //   );
+    // }
   },
 });
