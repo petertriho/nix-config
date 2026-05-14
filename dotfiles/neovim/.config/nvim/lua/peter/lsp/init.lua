@@ -539,6 +539,11 @@ local function make_base_config()
 end
 
 M.setup = function()
+    vim.keymap.set("n", "<leader>Le", "<CMD>lsp enable<CR>", { desc = "LSP Enable" })
+    vim.keymap.set("n", "<leader>Ld", "<CMD>lsp disable<CR>", { desc = "LSP Disable" })
+    vim.keymap.set("n", "<leader>Lr", "<CMD>lsp restart<CR>", { desc = "LSP Restart" })
+    vim.keymap.set("n", "<leader>Ls", "<CMD>lsp stop<CR>", { desc = "LSP Stop" })
+
     vim.diagnostic.config({
         virtual_text = {
             suffix = function(diag)

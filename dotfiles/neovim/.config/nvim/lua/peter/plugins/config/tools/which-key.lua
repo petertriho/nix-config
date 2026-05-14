@@ -24,6 +24,7 @@ return {
                 { "<leader>g", group = "git" },
                 { "<leader>G", group = "hunks" },
                 { "<leader>l", group = "lsp" },
+                { "<leader>L", group = "lspc" },
                 { "<leader>n", group = "notif" },
                 { "<leader>t", group = "tools" },
             },
