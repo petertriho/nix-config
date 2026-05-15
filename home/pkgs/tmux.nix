@@ -9,7 +9,6 @@
     packages = with pkgs; [
       gitmux
       sesh
-      # tmuxPlugins.intray
     ];
     file = {
       ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
@@ -20,10 +19,6 @@
   programs.agent-indicator.enable = true;
 
   xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";
-  # xdg.configFile."opencode/plugins/opencode-tmux-intray.js".source =
-  #   "${pkgs.tmuxPlugins.intray}/share/intray/opencode/plugins/opencode-tmux-intray.js";
-  # xdg.configFile."opencode/plugins/opencode-tmux-intray".source =
-  #   "${pkgs.tmuxPlugins.intray}/share/intray/opencode/plugins/opencode-tmux-intray";
 
   programs.tmux = {
     enable = true;
@@ -137,12 +132,6 @@
             set -g @agent-indicator-notification-enabled 'off'
           '';
       }
-      # {
-      #   plugin = intray;
-      #   extraConfig =
-      #     # tmux
-      #     "";
-      # }
     ];
     extraConfig = builtins.readFile ../../dotfiles/tmux/.tmux.conf;
   };
