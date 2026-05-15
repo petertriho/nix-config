@@ -83,7 +83,6 @@ in
       [
         # amazon-q-cli
         ilmari
-        models
         nodejs
         open-design
         # opencode-multi-auth

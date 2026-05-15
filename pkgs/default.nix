@@ -33,7 +33,6 @@ with pkgs;
   mattpocock-skills = callPackage ./mattpocock-skills { };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
-  models = callPackage ./models { };
   open-design = callPackage ./open-design { };
   opencode-multi-auth = callPackage ./opencode-multi-auth { };
   playwriter = callPackage ./playwriter { };
