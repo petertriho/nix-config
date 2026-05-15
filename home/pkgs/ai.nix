@@ -85,7 +85,6 @@ in
         ilmari
         nodejs
         open-design
-        # opencode-multi-auth
         # pinchtab
         python3
         tmuxai
@@ -254,7 +253,6 @@ in
         plugin = [
           # "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
-          # "@guard22/opencode-multi-auth-codex"
           # "@mohak34/opencode-notifier"
           "@slkiser/opencode-quota"
           # "@tarquinen/opencode-dcp"
