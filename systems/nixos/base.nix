@@ -14,6 +14,12 @@
   nix.gc.dates = "weekly";
   nix.settings.auto-optimise-store = true;
 
+  security.sudo.extraConfig = ''
+    Defaults pwfeedback
+    Defaults timestamp_timeout=60
+    Defaults timestamp_type=tty
+  '';
+
   users.users.${config.user} = {
     isNormalUser = true;
     extraGroups = [
