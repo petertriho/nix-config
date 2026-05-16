@@ -14,7 +14,7 @@ let
       # terraform-mcp-server
     ]);
   llmAgents = with pkgs.llm-agents; [
-    agent-browser
+    # agent-browser
     # backlog-md
     # beads
     # beads-viewer

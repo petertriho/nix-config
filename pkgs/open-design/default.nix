@@ -21,8 +21,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "30821f3a731c9fa54f2e06c3b98e474c62827f7c";
-    hash = "sha256-TCXxZO8dlUKaxkII+OqP+C0uQNJSdT3lAPgCYO4ZIm4=";
+    rev = "1896c699a8c4275bd15c3ddc2f0adc1d4f34e361";
+    hash = "sha256-jU3/oQQckCUjXUyjEqhFV/BA5MgFk0c5pqwRR/D8Rxk=";
   };
 
   nativeBuildInputs = [
@@ -39,7 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-6+k8Fgq8Eskwe5S8e/5MgmS3I1Mil9x69aqcz/UpnXw=";
+    hash = "sha256-lROdH5HgKFf3R7DYGbc8n/GrmINwLbfVwC4Xp7SrHN4=";
   };
 
   postPatch = ''
@@ -64,6 +64,9 @@ stdenv.mkDerivation (finalAttrs: {
 
     # Build workspace packages that downstream apps depend on
     pnpm --filter @open-design/contracts run build
+    pnpm --filter @open-design/agui-adapter run build
+    pnpm --filter @open-design/registry-protocol run build
+    pnpm --filter @open-design/plugin-runtime run build
     pnpm --filter @open-design/platform run build
     pnpm --filter @open-design/sidecar-proto run build
     pnpm --filter @open-design/sidecar run build
