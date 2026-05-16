@@ -344,6 +344,22 @@ update_existing_wol_mac() {
   rm -f "$tmp_file"
 }
 
+update_existing_screen_restore_policy() {
+  local tmp_file=""
+
+  tmp_file="$(mktemp)"
+  awk '
+    BEGIN { saw = 0 }
+    /^screen_restore_policy=/ { print "screen_restore_policy=aggressive"; saw = 1; next }
+    { print }
+    END {
+      if (!saw) print "screen_restore_policy=aggressive"
+    }
+  ' "$config_file" >"$tmp_file"
+  install -m 600 "$tmp_file" "$config_file"
+  rm -f "$tmp_file"
+}
+
 scan_local_neighbors() {
   local cidr=""
   local ip_addr=""
@@ -483,6 +499,7 @@ if [[ -e "$config_file" ]]; then
       printf 'Updated missing LG Buddy Wake-on-LAN MAC to TV device_id %s.\n' "$detected_wol_mac" >&2
     fi
   fi
+  update_existing_screen_restore_policy
   exit 0
 fi
 
@@ -567,7 +584,7 @@ tvs_primary_mac=$tv_mac
 tvs_primary_input=$tv_input
 screen_backend=auto
 screen_idle_timeout=300
-screen_restore_policy=conservative
+screen_restore_policy=aggressive
 system_sleep_wake_policy=enabled
 EOF
 
