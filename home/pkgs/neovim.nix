@@ -78,6 +78,7 @@
       taplo
       terraform-ls
       tinymist
+      templ
       tflint
       unstable.ty
       typos-lsp

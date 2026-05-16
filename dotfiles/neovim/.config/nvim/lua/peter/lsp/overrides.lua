@@ -541,7 +541,15 @@ return {
             },
         },
     },
-    tailwindcss = {},
+    tailwindcss = {
+        settings = {
+            tailwindCSS = {
+                includeLanguages = {
+                    templ = "html",
+                },
+            },
+        },
+    },
     taplo = {
         lazy = true,
         filetypes = { "toml" },
@@ -555,6 +563,7 @@ return {
             }))
         end,
     },
+    templ = {},
     terraformls = {},
     -- https://myriad-dreamin.github.io/tinymist/configurations.html
     tinymist = {
