@@ -27,6 +27,7 @@ STABLE_PACKAGES=(
     "basic-memory"
     "plannotator"
     "playwriter"
+    "pybetter"
 )
 
 # Helper functions for colored output
@@ -223,9 +224,12 @@ function tool:pkgs:hashes() {
         echo_info "Updating hashes for ${#changed_files[@]} changed files..."
         for file in "${changed_files[@]}"; do
             echo_info "Checking hashes for $file"
+            hash_check_start=$SECONDS
 
             # Try to build the package and capture any hash mismatches
             build_output=$(timeout 300 nix-build -E "with import <nixpkgs> {}; callPackage ./$file {}" 2>&1 || true)
+            hash_check_duration=$((SECONDS - hash_check_start))
+            echo_info "Hash check for $file took ${hash_check_duration}s"
 
             # Extract hash mismatches and replace them directly
             if echo "$build_output" | grep -q "hash mismatch"; then
@@ -363,24 +367,25 @@ function tool:pkgs:update {
             all_items=("${filtered_items[@]}")
         fi
 
-        # Separate stable packages from regular packages
-        if [[ ${#STABLE_PACKAGES[@]} -gt 0 ]]; then
-            local regular_items=()
-            for item in "${all_items[@]}"; do
-                local is_stable=false
-                for stable_pkg in "${STABLE_PACKAGES[@]}"; do
-                    if [[ $item == "$stable_pkg" ]]; then
-                        is_stable=true
-                        stable_items+=("$item")
-                        break
-                    fi
-                done
-                if [[ $is_stable == false ]]; then
-                    regular_items+=("$item")
+    fi
+
+    # Separate stable packages from regular packages, including explicitly requested items.
+    if [[ ${#STABLE_PACKAGES[@]} -gt 0 ]]; then
+        local regular_items=()
+        for item in "${all_items[@]}"; do
+            local is_stable=false
+            for stable_pkg in "${STABLE_PACKAGES[@]}"; do
+                if [[ $item == "$stable_pkg" ]]; then
+                    is_stable=true
+                    stable_items+=("$item")
+                    break
                 fi
             done
-            all_items=("${regular_items[@]}")
-        fi
+            if [[ $is_stable == false ]]; then
+                regular_items+=("$item")
+            fi
+        done
+        all_items=("${regular_items[@]}")
     fi
 
     failed_items=()
@@ -438,12 +443,13 @@ function tool:pkgs:update {
     if [[ ${#successful_items[@]} -gt 0 ]]; then
         echo_info "Updating hashes for ${#successful_items[@]} successfully updated items: ${successful_items[*]}"
         tool:pkgs:hashes "nix-update" "${successful_items[@]}"
-    else
+    elif [[ ${#all_items[@]} -gt 0 ]]; then
         echo_warning "No items were successfully updated with nix-update, skipping hash updates"
     fi
 
     # Update stable packages with --version=stable
     if [[ ${#stable_items[@]} -gt 0 ]]; then
+        local stable_successful_items=()
         echo_info "Updating ${#stable_items[@]} stable packages: ${stable_items[*]}"
         for item in "${stable_items[@]}"; do
             echo_info "Attempting to update (stable): $item"
@@ -457,16 +463,16 @@ function tool:pkgs:update {
 
             if timeout 300 nix-update --flake --version=stable "$attr_path" &> /dev/null; then
                 echo_success "Successfully updated $item (stable)"
-                successful_items+=("$item")
+                stable_successful_items+=("$item")
             else
                 echo_error "Failed to update $item (stable)"
                 failed_items+=("$item")
             fi
         done
 
-        if [[ ${#successful_items[@]} -gt 0 ]]; then
-            echo_info "Updating hashes for stable packages: ${successful_items[*]}"
-            tool:pkgs:hashes "nix-update-stable" "${successful_items[@]}"
+        if [[ ${#stable_successful_items[@]} -gt 0 ]]; then
+            echo_info "Updating hashes for stable packages: ${stable_successful_items[*]}"
+            tool:pkgs:hashes "nix-update-stable" "${stable_successful_items[@]}"
         fi
     fi
 
