@@ -47,6 +47,40 @@ function echo_error() {
     echo -e "${RED}❌ ${1}${NC}"
 }
 
+function run_and_capture() {
+    local __output_var="$1"
+    shift
+
+    local output
+    local status
+
+    set +e
+    output=$("$@" 2>&1)
+    status=$?
+    set -e
+
+    printf -v "$__output_var" '%s' "$output"
+    return "$status"
+}
+
+function print_command_output() {
+    local output="$1"
+
+    if [[ -n $output ]]; then
+        echo "$output"
+    else
+        echo "(command produced no output)"
+    fi
+}
+
+function print_warnings_and_errors() {
+    local output="$1"
+
+    if [[ -n $output ]] && echo "$output" | grep -Eiq '(^|[[:space:]])(warning|warn|error|failed|traceback|exception)(:|[[:space:]]|$)'; then
+        echo "$output" | grep -Ei '(^|[[:space:]])(warning|warn|error|failed|traceback|exception)(:|[[:space:]]|$)' || true
+    fi
+}
+
 function echo_header() {
     echo -e "${BOLD}${CYAN}🚀 ${1}${NC}"
 }
@@ -294,7 +328,16 @@ function tool:pkgs:fetchgit {
             item_path="${item//\.//}"
             item_dir="pkgs/$item_path"
             if [[ -d $item_dir ]]; then
-                find "$item_dir" -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+                while IFS= read -r -d '' file; do
+                    echo_info "Running update-nix-fetchgit for $item: $file"
+                    local fetchgit_output=""
+                    if run_and_capture fetchgit_output update-nix-fetchgit "$file"; then
+                        print_warnings_and_errors "$fetchgit_output"
+                    else
+                        echo_error "update-nix-fetchgit failed for $item: $file"
+                        print_command_output "$fetchgit_output"
+                    fi
+                done < <(find "$item_dir" -type f -name "*.nix" -print0)
             else
                 echo_warning "Directory $item_dir not found"
             fi
@@ -302,7 +345,16 @@ function tool:pkgs:fetchgit {
     else
         # Run update-nix-fetchgit on all .nix files
         echo_info "Running update-nix-fetchgit on all .nix files..."
-        find pkgs -type f -name "*.nix" -print0 | xargs -0 -I '{}' sh -c 'update-nix-fetchgit {} 2>&1 || true'
+        while IFS= read -r -d '' file; do
+            echo_info "Running update-nix-fetchgit for $file"
+            local fetchgit_output=""
+            if run_and_capture fetchgit_output update-nix-fetchgit "$file"; then
+                print_warnings_and_errors "$fetchgit_output"
+            else
+                echo_error "update-nix-fetchgit failed for $file"
+                print_command_output "$fetchgit_output"
+            fi
+        done < <(find pkgs -type f -name "*.nix" -print0)
     fi
 
     # Update hashes for any changed files
@@ -430,11 +482,14 @@ function tool:pkgs:update {
             fi
         fi
 
-        if timeout 300 nix-update $update_args "$attr_path" &> /dev/null; then
+        update_output=""
+        if run_and_capture update_output timeout 300 nix-update $update_args "$attr_path"; then
             echo_success "Successfully updated $item"
+            print_warnings_and_errors "$update_output"
             successful_items+=("$item")
         else
             echo_error "Failed to update $item"
+            print_command_output "$update_output"
             failed_items+=("$item")
         fi
     done
@@ -461,11 +516,14 @@ function tool:pkgs:update {
                 continue
             fi
 
-            if timeout 300 nix-update --flake --version=stable "$attr_path" &> /dev/null; then
+            update_output=""
+            if run_and_capture update_output timeout 300 nix-update --flake --version=stable "$attr_path"; then
                 echo_success "Successfully updated $item (stable)"
+                print_warnings_and_errors "$update_output"
                 stable_successful_items+=("$item")
             else
                 echo_error "Failed to update $item (stable)"
+                print_command_output "$update_output"
                 failed_items+=("$item")
             fi
         done
