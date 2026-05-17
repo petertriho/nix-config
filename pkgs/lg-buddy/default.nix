@@ -59,13 +59,13 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "lg-buddy";
-  version = "0-unstable-2026-05-09";
+  version = "0-unstable-2026-05-17";
 
   src = fetchFromGitHub {
     owner = "Staphylococcus";
     repo = "LG_Buddy";
-    rev = "58aca755873682e2043dd112f3ee81f6aa4ec00d";
-    hash = "sha256-p2VNEPJMR9Xr8I0cwcjrC4tLfnDzY7NTUt1Mg+bo0OU=";
+    rev = "67a494bbc60daa38524db9bf6aef2f9d57d4ee8c";
+    hash = "sha256-zNsOREhnQlRsuPxKP5UnuLinJjCYTYdpcYDSVMBkjIM=";
   };
 
   cargoHash = "sha256-FfoOPTiii+aBthRvuR/Ddjy+SmGY53CsLt9UGMHiCic=";
