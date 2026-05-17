@@ -103,6 +103,7 @@ buildPythonApplication rec {
     fastmcp
     greenlet
     httpx
+    logfire
     loguru
     markdown-it-py
     mcp
@@ -112,6 +113,7 @@ buildPythonApplication rec {
     nest-asyncio
     openai
     pillow
+    psutil
     pybars3
     pydantic
     pydantic-settings
