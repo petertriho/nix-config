@@ -35,6 +35,12 @@ local get_source_name_text = function(ctx)
     return "[" .. string.upper(ctx.source_name) .. "]"
 end
 
+local has_minuet_env = function()
+    return vim.env.MINUET_OPENAI_COMPATIBLE_API_KEY ~= nil
+        and vim.env.MINUET_OPENAI_COMPATIBLE_END_POINT ~= nil
+        and vim.env.MINUET_OPENAI_COMPATIBLE_MODEL ~= nil
+end
+
 -- Higher number means higher priority
 local LSP_SORT_PRIORITY = {
     ctags_lsp = 1,
@@ -99,6 +105,11 @@ return {
                     --     return
                     -- end
                     -- require("copilot.suggestion").accept()
+                    -- local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
+                    -- if ok and minuet_virtualtext.action.is_visible() then
+                    --     minuet_virtualtext.action.accept()
+                    --     return true
+                    -- end
                 end,
             },
             ["<Tab>"] = {
@@ -200,6 +211,7 @@ return {
                 "snippets",
                 "buffer",
                 "ripgrep",
+                "minuet",
             },
             per_filetype = {
                 lua = {
@@ -244,6 +256,14 @@ return {
                 lsp = {
                     async = true,
                     score_offset = 50,
+                },
+                minuet = {
+                    name = "Minuet",
+                    module = "minuet.blink",
+                    async = true,
+                    timeout_ms = 3000,
+                    score_offset = 50,
+                    enabled = has_minuet_env,
                 },
                 path_at = {
                     module = "blink.cmp.sources.path",

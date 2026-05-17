@@ -32,6 +32,7 @@
   "luvit-meta": { "branch": "main", "commit": "cc9b2d412d2fbd30b94a70cfc214c2a3be27a0a2" },
   "marks.nvim": { "branch": "master", "commit": "f353e8c08c50f39e99a9ed474172df7eddd89b72" },
   "mini.nvim": { "branch": "main", "commit": "18797ed18f347d0d0da27fec28a67979b1207f70" },
+  "minuet-ai.nvim": { "branch": "main", "commit": "449cf6ac16fbc5529f834c10e5fc1be7c75c3ffb" },
   "mole.nvim": { "branch": "main", "commit": "62af21156f102132aa3aaccf160edaf339ac29af" },
   "namu.nvim": { "branch": "main", "commit": "e7afbdf63a75ace6ccc6202d58a4f6f9ac09db92" },
   "neogit": { "branch": "master", "commit": "99326a1310fb2d616b455d2fd16d01bf00682f06" },
