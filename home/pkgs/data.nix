@@ -7,6 +7,7 @@
     python3Packages.faker # fake data generation library
     fx # JSON viewer
     gron # make JSON greppable
+    pgadmin4 # PostgreSQL administration and management GUI
     postgresql # PostgreSQL database server
     # python3Packages.pgcli # PostgreSQL CLI with autocompletion
     rainfrog # Database TUI
