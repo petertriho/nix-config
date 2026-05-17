@@ -78,6 +78,7 @@ return {
         },
         "mikavilpas/blink-ripgrep.nvim",
         -- "fang2hou/blink-copilot",
+        "petertriho/cmp-git"
     },
     init = function()
         vim.g.completion_enabled = true
@@ -206,6 +207,7 @@ return {
         sources = {
             default = {
                 -- "copilot",
+                "git",
                 "lsp",
                 "path",
                 "snippets",
@@ -246,6 +248,11 @@ return {
                 --     score_offset = 150,
                 --     async = true,
                 -- },
+                git = {
+                    name = "git",
+                    module = "cmp_git.blink",
+                    opts = {},
+                },
                 dadbod_grip = { name = "Grip SQL", module = "dadbod-grip.completion.blink" },
                 lazydev = {
                     name = "LazyDev",
@@ -331,8 +338,8 @@ return {
                     module = "opencode-sources.source.opencode_skills",
                     -- score_offset = 110,
                     opts = {
-                        root = vim.fn.expand("~/.agents/skills")
-                    }
+                        root = vim.fn.expand("~/.agents/skills"),
+                    },
                 },
                 opencode_agents = {
                     name = "Agents",
