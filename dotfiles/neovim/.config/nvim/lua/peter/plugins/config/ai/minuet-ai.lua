@@ -3,7 +3,12 @@ local end_point_env = "MINUET_OPENAI_COMPATIBLE_END_POINT"
 local model_env = "MINUET_OPENAI_COMPATIBLE_MODEL"
 
 local has_openai_compatible_env = function()
-    return vim.env[api_key_env] ~= nil and vim.env[end_point_env] ~= nil and vim.env[model_env] ~= nil
+    return vim.env[api_key_env] ~= nil
+        and vim.env[api_key_env] ~= ""
+        and vim.env[end_point_env] ~= nil
+        and vim.env[end_point_env] ~= ""
+        and vim.env[model_env] ~= nil
+        and vim.env[model_env] ~= ""
 end
 
 return {

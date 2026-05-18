@@ -37,8 +37,25 @@ end
 
 local has_minuet_env = function()
     return vim.env.MINUET_OPENAI_COMPATIBLE_API_KEY ~= nil
+        and vim.env.MINUET_OPENAI_COMPATIBLE_API_KEY ~= ""
         and vim.env.MINUET_OPENAI_COMPATIBLE_END_POINT ~= nil
+        and vim.env.MINUET_OPENAI_COMPATIBLE_END_POINT ~= ""
         and vim.env.MINUET_OPENAI_COMPATIBLE_MODEL ~= nil
+        and vim.env.MINUET_OPENAI_COMPATIBLE_MODEL ~= ""
+end
+
+local default_sources = {
+    -- "copilot",
+    "git",
+    "lsp",
+    "path",
+    "snippets",
+    "buffer",
+    "ripgrep",
+}
+
+if has_minuet_env() then
+    table.insert(default_sources, "minuet")
 end
 
 -- Higher number means higher priority
@@ -205,16 +222,7 @@ return {
             preset = "luasnip",
         },
         sources = {
-            default = {
-                -- "copilot",
-                "git",
-                "lsp",
-                "path",
-                "snippets",
-                "buffer",
-                "ripgrep",
-                "minuet",
-            },
+            default = default_sources,
             per_filetype = {
                 lua = {
                     inherit_defaults = true,
