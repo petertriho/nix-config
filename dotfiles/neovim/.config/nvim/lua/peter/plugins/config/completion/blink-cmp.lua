@@ -260,6 +260,7 @@ return {
                     name = "git",
                     module = "cmp_git.blink",
                     opts = {},
+                    async = true,
                 },
                 dadbod_grip = { name = "Grip SQL", module = "dadbod-grip.completion.blink" },
                 lazydev = {
