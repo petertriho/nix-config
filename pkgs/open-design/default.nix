@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "0-unstable-2026-05-18";
+  version = "0-unstable-2026-05-19";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "0101a09b109efc06c3bde4b5240618055127588b";
-    hash = "sha256-j+/0gqt5fop4rGqvqqpvn6R8DWlxHFOiD9fLWL3GW7M=";
+    rev = "555bc5e7ed1ad9e588a270dae125c13756673848";
+    hash = "sha256-HWemKXQi/Pz4OO1GXXK/0O5eZCTA6ii1/t87uMjDDJI=";
   };
 
   nativeBuildInputs = [
@@ -39,7 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-lROdH5HgKFf3R7DYGbc8n/GrmINwLbfVwC4Xp7SrHN4=";
+    hash = "sha256-BqnA3aBPHiy+o04atLF6RCZGJKA24qneuqPzV0WH2G8=";
   };
 
   postPatch = ''
@@ -101,7 +101,8 @@ stdenv.mkDerivation (finalAttrs: {
       "$workspace/node_modules/.pnpm/node_modules/@open-design/e2e" \
       "$workspace/node_modules/@open-design/tools-dev" \
       "$workspace/node_modules/@open-design/tools-pack" \
-      "$workspace/node_modules/@open-design/tools-pr"
+      "$workspace/node_modules/@open-design/tools-pr" \
+      "$workspace/node_modules/@open-design/tools-serve"
 
     makeWrapper ${nodejs_24}/bin/node "$out/bin/open-design" \
       --run 'export OD_DATA_DIR="''${OD_DATA_DIR:-$PWD/.od}"' \
