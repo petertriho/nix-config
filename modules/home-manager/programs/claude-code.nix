@@ -20,6 +20,7 @@ in
         sessionVariables = {
           CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
           # CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
+          CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = 1;
           CLAUDE_CODE_NO_FLICKER = 1;
           ENABLE_CLAUDEAI_MCP_SERVERS = "false";
         };
