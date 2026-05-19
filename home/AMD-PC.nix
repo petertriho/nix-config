@@ -4,6 +4,12 @@
   pkgs,
   ...
 }:
+let
+  inputRemapperAutoload = pkgs.writeShellScript "input-remapper-autoload" ''
+    sleep 3
+    ${pkgs.input-remapper}/bin/input-remapper-control --command autoload
+  '';
+in
 {
   imports = [
     ./desktop.nix
@@ -38,7 +44,10 @@
       scroll-method = "on-button-down";
       scroll-button = 274;
     };
-    spawn-at-startup = [ { command = [ "discord" ]; } ];
+    spawn-at-startup = [
+      { command = [ "discord" ]; }
+      { command = [ "${inputRemapperAutoload}" ]; }
+    ];
     outputs = {
       "HDMI-A-1" = {
         focus-at-startup = true;
