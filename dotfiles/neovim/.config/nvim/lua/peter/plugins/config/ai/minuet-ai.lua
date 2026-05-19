@@ -34,26 +34,27 @@ return {
                 },
             },
         },
-        lsp = {
-            enabled_ft = { "*" },
-            completion = {
-                enable = false,
-            },
-            inline_completion = {
-                enable = true,
-                enabled_auto_trigger_ft = { "*" },
-            },
-        },
-        -- virtualtext = {
-        --     auto_trigger_ft = { "*" },
-        --     keymap = {
-        --         -- accept = nil,
-        --         -- accept_line = nil,
-        --         -- accept_n_lines = nil,
-        --         -- prev = nil,
-        --         -- next = nil,
-        --         -- dismiss = nil,
+        -- lsp = {
+        --     enabled_ft = { "*" },
+        --     completion = {
+        --         enable = false,
+        --     },
+        --     inline_completion = {
+        --         enable = true,
+        --         enabled_auto_trigger_ft = { "*" },
         --     },
         -- },
+        virtualtext = {
+            auto_trigger_ft = { "*" },
+            keymap = {
+                accept = nil,
+                accept_line = nil,
+                accept_n_lines = nil,
+                prev = nil,
+                next = nil,
+                dismiss = nil,
+            },
+            show_on_completion_menu = true,
+        },
     },
 }

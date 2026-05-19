@@ -31,10 +31,10 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 keymap("n", "<ESC>", function()
     vim.cmd.nohlsearch()
-    -- local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
-    -- if ok then
-    --     pcall(minuet_virtualtext.action.dismiss)
-    -- end
+    local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
+    if ok then
+        pcall(minuet_virtualtext.action.dismiss)
+    end
     -- pcall(require("sidekick").clear)
     pcall(require("snacks").notifier.hide)
 end, {

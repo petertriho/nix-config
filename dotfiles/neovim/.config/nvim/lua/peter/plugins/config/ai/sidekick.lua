@@ -7,18 +7,18 @@ return {
         "Sidekick",
     },
     keys = {
-        {
-            "<Tab>",
-            function()
-                if require("sidekick").nes_jump_or_apply() then
-                    return
-                end
-                return "<Tab>"
-            end,
-            desc = "Copilot NES",
-            expr = true,
-            mode = { "n" },
-        },
+        -- {
+        --     "<Tab>",
+        --     function()
+        --         if require("sidekick").nes_jump_or_apply() then
+        --             return
+        --         end
+        --         return "<Tab>"
+        --     end,
+        --     desc = "Copilot NES",
+        --     expr = true,
+        --     mode = { "n" },
+        -- },
         {
             "<C-.>",
             function()

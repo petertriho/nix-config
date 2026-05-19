@@ -114,27 +114,47 @@ return {
             preset = "default",
             ["<C-e>"] = {
                 "hide",
+                -- function()
+                --     local _, result = pcall(vim.lsp.inline_completion.get)
+                --     if not result then
+                --         return
+                --     end
+                --     -- if vim.g.copilot_model == nil then
+                --     --     return
+                --     -- end
+                --     -- require("copilot.suggestion").accept()
+                -- end,
                 function()
-                    local _, result = pcall(vim.lsp.inline_completion.get)
-                    if not result then
-                        return
+                    local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
+                    if ok and minuet_virtualtext.action.is_visible() then
+                        minuet_virtualtext.action.accept()
+                        return true
                     end
-                    -- if vim.g.copilot_model == nil then
-                    --     return
-                    -- end
-                    -- require("copilot.suggestion").accept()
-                    -- local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
-                    -- if ok and minuet_virtualtext.action.is_visible() then
-                    --     minuet_virtualtext.action.accept()
-                    --     return true
-                    -- end
-                end,
+                end
             },
             ["<Tab>"] = {
                 -- function()
                 --     return require("sidekick").nes_jump_or_apply()
                 -- end,
+                function()
+                    local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
+                    if ok and minuet_virtualtext.action.is_visible() then
+                        minuet_virtualtext.action.next()
+                        return true
+                    end
+                end,
                 "snippet_forward",
+                "fallback",
+            },
+            ["<S-Tab>"] = {
+                function()
+                    local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
+                    if ok and minuet_virtualtext.action.is_visible() then
+                        minuet_virtualtext.action.prev()
+                        return true
+                    end
+                end,
+                "snippet_backward",
                 "fallback",
             },
         },
