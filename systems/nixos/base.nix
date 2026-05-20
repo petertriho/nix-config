@@ -23,6 +23,7 @@
   users.users.${config.user} = {
     isNormalUser = true;
     extraGroups = [
+      "dialout"
       "docker"
       "wheel"
     ];
