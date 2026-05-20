@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "0-unstable-2026-05-19";
+  version = "0-unstable-2026-05-20";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "555bc5e7ed1ad9e588a270dae125c13756673848";
-    hash = "sha256-HWemKXQi/Pz4OO1GXXK/0O5eZCTA6ii1/t87uMjDDJI=";
+    rev = "f4b8fbece26d38af97d5faccea70d51cd5232406";
+    hash = "sha256-vzY15aH5iI6Uur7gaCXnlhxpLtXKAFz6psudj1IBXnQ=";
   };
 
   nativeBuildInputs = [
@@ -39,7 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-BqnA3aBPHiy+o04atLF6RCZGJKA24qneuqPzV0WH2G8=";
+    hash = "sha256-TI7gjjF47YIkLblWjG9flG3E1mg310AI5S4uZ+9B2kI=";
   };
 
   postPatch = ''
@@ -68,6 +68,8 @@ stdenv.mkDerivation (finalAttrs: {
     pnpm --filter @open-design/registry-protocol run build
     pnpm --filter @open-design/plugin-runtime run build
     pnpm --filter @open-design/platform run build
+    pnpm --filter @open-design/diagnostics run build
+    pnpm --filter @open-design/host run build
     pnpm --filter @open-design/sidecar-proto run build
     pnpm --filter @open-design/sidecar run build
 
