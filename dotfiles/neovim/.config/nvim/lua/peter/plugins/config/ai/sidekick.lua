@@ -90,13 +90,6 @@ return {
             desc = "Copilot",
         },
         {
-            "<leader>aG",
-            function()
-                require("sidekick.cli").toggle({ name = "gemini", focus = true })
-            end,
-            desc = "Gemini",
-        },
-        {
             "<leader>aO",
             function()
                 require("sidekick.cli").toggle({ name = "opencode", focus = true })

@@ -22,7 +22,6 @@ let
     # coding-agent-search
     # copilot-cli
     # copilot-language-server
-    gemini-cli
     openspec
     qmd
     # qwen-code
@@ -99,7 +98,6 @@ in
     file = {
       ".claude/settings.json".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
       # ".codex/config.toml".source = config.lib.meta.mkDotfilesSymlink "codex/.codex/config.toml";
-      ".gemini/settings.json".source = config.lib.meta.mkDotfilesSymlink "gemini/.gemini/settings.json";
     };
     sessionVariables = {
       BASIC_MEMORY_NO_PROMOS = 1;
