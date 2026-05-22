@@ -25,7 +25,7 @@ Read these bundled files as needed:
 
 2. Build context before judging.
    - Read enough project context to understand intent: README files, architecture notes, decision records, domain glossaries, package/config files, tests, and relevant call sites.
-   - Use broad search or an exploration subagent when available for large codebases, but verify final claims yourself with direct file evidence.
+   - Use broad search or an exploration subagent when available for large codebases, such as opencode's `explore` subagent or Claude Code's `Agent` tool with `subagent_type=Explore`, but verify final claims yourself with direct file evidence.
    - Stay self-contained; do not assume a specific context-file convention or require any companion skill.
 
 3. Trace representative behavior.
