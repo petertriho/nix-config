@@ -271,12 +271,15 @@ in
             permission = {
               external_directory = {
                 "/nix/store/**" = "allow";
+                "~/.understand-anything-plugin/**" = "allow";
               };
               read = {
                 "/nix/store/**" = "allow";
+                "~/.understand-anything-plugin/**" = "allow";
               };
               glob = {
                 "/nix/store/**" = "allow";
+                "~/.understand-anything-plugin/**" = "allow";
               };
             };
           };
@@ -328,6 +331,7 @@ in
     plannotator.enable = true;
     playwriter.enable = false;
     superpowers.enable = false;
+    understand-anything.enable = true;
   };
   xdg.configFile = {
     # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";

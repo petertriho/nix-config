@@ -1,0 +1,48 @@
+diff --git a/understand-anything-plugin/packages/dashboard/vite.config.ts b/understand-anything-plugin/packages/dashboard/vite.config.ts
+index 0fdef36..05a2271 100644
+--- a/understand-anything-plugin/packages/dashboard/vite.config.ts
++++ b/understand-anything-plugin/packages/dashboard/vite.config.ts
+@@ -7,0 +8 @@ import crypto from "crypto";
++import os from "os";
+@@ -13,0 +15,5 @@ const MAX_SOURCE_FILE_BYTES = 1024 * 1024;
++const DASHBOARD_CACHE_DIR = path.join(
++  process.env.XDG_CACHE_HOME || path.join(os.tmpdir(), "understand-anything-cache"),
++  "understand-anything-dashboard",
++  "vite"
++);
+@@ -179,0 +186 @@ export default defineConfig({
++  cacheDir: DASHBOARD_CACHE_DIR,
+diff --git a/understand-anything-plugin/skills/understand-dashboard/SKILL.md b/understand-anything-plugin/skills/understand-dashboard/SKILL.md
+index 44ff8dd..a7d8663 100644
+--- a/understand-anything-plugin/skills/understand-dashboard/SKILL.md
++++ b/understand-anything-plugin/skills/understand-dashboard/SKILL.md
+@@ -71 +71 @@ Start the Understand Anything dashboard to visualize the knowledge graph for the
+-4. Install dependencies and build if needed:
++4. Start the packaged dashboard wrapper. It uses prebuilt dependencies and writable cache directories, so do not run `pnpm install` or `pnpm build` inside the plugin root:
+@@ -73 +73 @@ Start the Understand Anything dashboard to visualize the knowledge graph for the
+-   cd <dashboard-dir> && pnpm install --frozen-lockfile 2>/dev/null || pnpm install
++   understand-anything-dashboard <project-dir>
+@@ -75,10 +75 @@ Start the Understand Anything dashboard to visualize the knowledge graph for the
+-   Then ensure the core package is built (the dashboard depends on it):
+-   ```bash
+-   cd <plugin-root> && pnpm --filter @understand-anything/core build
+-   ```
+-
+-5. Start the Vite dev server pointing at the project's knowledge graph:
+-   ```bash
+-   cd <dashboard-dir> && GRAPH_DIR=<project-dir> npx vite --host 127.0.0.1
+-   ```
+-   Run this in the background so the user can continue working.
++   Run this in the background so the user can continue working. The wrapper sets `GRAPH_DIR` to the project directory and runs the dashboard from the immutable Nix package without writing to it.
+diff --git a/understand-anything-plugin/skills/understand/SKILL.md b/understand-anything-plugin/skills/understand/SKILL.md
+index 9b600aa..e1b0e47 100644
+--- a/understand-anything-plugin/skills/understand/SKILL.md
++++ b/understand-anything-plugin/skills/understand/SKILL.md
+@@ -98 +98,3 @@ Determine whether to run a full analysis or incremental update.
+-     cd "$PLUGIN_ROOT" && (pnpm install --frozen-lockfile 2>/dev/null || pnpm install) && pnpm --filter @understand-anything/core build
++     echo "Error: Understand Anything was packaged without built core artifacts."
++     echo "This plugin root is immutable; do not run pnpm install/build inside it."
++     exit 1
+@@ -102 +104 @@ Determine whether to run a full analysis or incremental update.
+-   If `pnpm` is missing, report to the user: "Install Node.js ≥ 22 and pnpm ≥ 10, then re-run `/understand`."
++   The Nix package ships built artifacts, so `pnpm` is not required for normal `/understand` use.

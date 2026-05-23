@@ -42,6 +42,7 @@ with pkgs;
   superpowers = callPackage ./superpowers { };
   tmuxai = callPackage ./tmuxai { };
   uipro = callPackage ./uipro { };
+  understand-anything = callPackage ./understand-anything { };
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
 }

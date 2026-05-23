@@ -14,5 +14,6 @@
     ./plannotator.nix
     ./playwriter.nix
     ./superpowers.nix
+    ./understand-anything.nix
   ];
 }
