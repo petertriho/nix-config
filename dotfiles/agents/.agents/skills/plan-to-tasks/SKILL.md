@@ -40,8 +40,13 @@ clear scope, dependencies, and acceptance checks.
 4. Slice the work into executable tasks.
    - Prefer outcome-oriented tasks that can be completed and verified
      independently.
+   - Prefer vertical behavior slices that can be implemented and validated one
+     behavior at a time.
    - Split work at real handoff, risk, dependency, or validation boundaries;
      avoid turning every code edit into a separate task.
+   - Do not split "write tests" and "write implementation" into separate
+     horizontal tasks solely for TDD; the implementation skill owns the
+     red-green-refactor loop during execution.
    - Split risky, irreversible, exploratory, migration, or ambiguous work into
      discovery, implementation, and validation tasks as needed.
    - Include dependencies only when a task truly cannot start without another.
@@ -50,8 +55,14 @@ clear scope, dependencies, and acceptance checks.
    - Every implementation task needs an acceptance check that can be observed
      through tests, review, files changed, behavior, logs, metrics, or rollout
      state.
+   - When behavior is involved, prefer acceptance checks through public
+     interfaces or user-visible outcomes rather than private implementation
+     details.
    - Add explicit test, review, migration, rollout, monitoring, or cleanup tasks
      when the plan requires them.
+   - Do not require TDD for every task. Leave the final TDD decision to the
+     implementation skill, which can skip or adapt TDD for docs, config,
+     mechanical refactors, generated files, and discovery work.
 
 6. Save or update the tasks.
    - Write the final tasks to `.changes/<plan-name>/TASKS.md`.
@@ -116,6 +127,8 @@ assumptions or open questions in the final response.
   implementation can start.
 - Do not hide decisions inside task titles; put the decision in `Scope` or
   `Acceptance`.
+- Do not create horizontal TDD batches such as "write all tests" followed by
+  "implement all code" unless the plan explicitly requires that handoff.
 - Prefer fewer, clearer tasks over a large checklist of micro-steps.
 - Aim for a task set that is easy to review in one pass; expand only when risk,
   ownership, dependencies, or validation justify it.
