@@ -42,6 +42,7 @@ with pkgs;
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
   tmuxai = callPackage ./tmuxai { };
+  tokscale = callPackage ./tokscale { };
   uipro = callPackage ./uipro { };
   understand-anything = callPackage ./understand-anything { };
   vim-custom = callPackage ./vim-custom { };

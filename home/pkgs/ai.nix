@@ -87,6 +87,7 @@ in
         # pinchtab
         python3
         tmuxai
+        tokscale
         uipro
         # tiktoken is provided by chunkhound
         # python3Packages.tiktoken

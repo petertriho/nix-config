@@ -159,8 +159,8 @@
       tl = "tmux list-sessions";
       tn = "tmux new-session -s";
       tnz = "tmux-new-zoxide";
-      ts = "bunx tokscale@latest";
-      tst = "bunx tokscale@latest --light --today";
+      ts = "tokscale";
+      tst = "tokscale --light --today";
       upe = "set -x UV_PROJECT_ENVIRONMENT .venv";
       wm = "workmux";
       wma = "workmux add";
