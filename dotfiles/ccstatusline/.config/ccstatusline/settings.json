@@ -91,6 +91,26 @@
           "compact": "true"
         }
       }
+    ],
+    [
+      {
+        "id": "7f952c7e-4c5c-468e-9031-8594630c88b9",
+        "type": "custom-command",
+        "commandPath": "context-mode statusline",
+        "preserveColors": true
+      },
+      {
+        "id": "eac49473-4bcf-4733-8e62-581e21d027e1",
+        "type": "flex-separator"
+      },
+      {
+        "id": "98b2eff1-64ca-4b73-8ab0-599b8bbe34cd",
+        "type": "skills",
+        "color": "red",
+        "metadata": {
+          "mode": "list"
+        }
+      }
     ]
   ],
   "flexMode": "full",
@@ -99,6 +119,7 @@
   "defaultPadding": " ",
   "inheritSeparatorColors": false,
   "globalBold": false,
+  "gitCacheTtlSeconds": 5,
   "minimalistMode": false,
   "powerline": {
     "enabled": false,

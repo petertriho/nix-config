@@ -10,6 +10,15 @@
             "command": "bash \"$HOME/.claude/hooks/UserPromptSubmit\""
           }
         ]
+      },
+      {
+        "_tag": "ccstatusline-managed",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ccstatusline --hook"
+          }
+        ]
       }
     ],
     "PermissionRequest": [
@@ -42,6 +51,18 @@
             "command": "\"$HOME/.claude/hooks/context-mode-cache-heal.mjs\""
           }
         ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "_tag": "ccstatusline-managed",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ccstatusline --hook"
+          }
+        ],
+        "matcher": "Skill"
       }
     ]
   },
