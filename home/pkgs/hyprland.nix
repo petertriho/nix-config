@@ -66,9 +66,9 @@
       "$terminal" = "ghostty";
       "$fileManager" = "dolphin";
       "$menu" = "vicinae vicinae://toggle";
-      "$menuApp" = "vicinae vicinae://extensions/vicinae/applications";
-      "$menuClip" = "vicinae vicinae://extensions/vicinae/clipboard/history";
-      "$menuWin" = "vicinae vicinae://extensions/vicinae/wm/switch-windows";
+      "$menuApp" = "vicinae vicinae://launch/applications";
+      "$menuClip" = "vicinae vicinae://launch/clipboard/history";
+      "$menuWin" = "vicinae vicinae://launch/wm/switch-windows";
 
       bind = [
         # System/Hardware Keys

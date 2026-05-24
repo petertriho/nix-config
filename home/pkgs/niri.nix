@@ -164,7 +164,7 @@ in
           "Mod+V" = {
             repeat = false;
             hotkey-overlay.title = "Clipboard History";
-            action = spawn "sh" "-c" "vicinae vicinae://extensions/vicinae/clipboard/history";
+            action = spawn "sh" "-c" "vicinae vicinae://launch/clipboard/history";
           };
 
           # Window: Misc
@@ -182,7 +182,7 @@ in
           "Mod+W" = {
             repeat = false;
             hotkey-overlay.title = "Switch Windows";
-            action = spawn "sh" "-c" "vicinae vicinae://extensions/vicinae/wm/switch-windows";
+            action = spawn "sh" "-c" "vicinae vicinae://launch/wm/switch-windows";
           };
           "Mod+Shift+F".action = toggle-window-floating;
           "Mod+Shift+V".action = switch-focus-between-floating-and-tiling;
