@@ -10,6 +10,7 @@
       faviconService = "twenty";
       font.size = 11;
       popToRootOnClose = true;
+      providers.applications.preferences.defaultAction = "launch";
       providers.power.entrypoints = {
         "power-off".preferences.confirm = false;
         reboot.preferences.confirm = false;
