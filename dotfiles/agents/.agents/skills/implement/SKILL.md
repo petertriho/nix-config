@@ -1,13 +1,14 @@
 ---
 name: implement
-description: Use this skill whenever the user wants code changed: implement, build, fix a bug, add a feature, make tests pass, execute PLAN.md or TASKS.md, complete implementation tasks, or use TDD/red-green-refactor. It turns direct requests and planning artifacts into working changes with selective TDD. Do not use for pure planning, architecture review, code review, diagnosis, research, or task generation unless the user asks to actually edit code.
+description: Use this skill only when the user explicitly asks to modify files or carry out implementation work now, such as fixing a bug, adding a feature, making tests pass, refactoring code, or completing a specific task from an existing task list. Do not use for planning, plan refinement, task breakdown, architecture review, code review, diagnosis, research, discussion of approaches, or interpreting a plan unless the user clearly asks to edit files now.
+disable-model-invocation: true
 ---
 
 # Implement
 
 Execute implementation work end-to-end. Inputs may be a direct request, bug
-report, issue description, named files, `PLAN.md`, or `TASKS.md`. A task file is
-helpful but never required.
+report, issue description, named files, or a specific task from a task file. A
+task file is helpful but never required.
 
 ## Core Defaults
 
@@ -33,15 +34,20 @@ When the user asks for an implementation without a task file:
 3. Track progress internally or with the host's todo tool when useful.
 4. Do not create `.changes` files or task artifacts unless the user asks.
 
-### PLAN.md
+### Plans
 
-When the user provides `PLAN.md` without `TASKS.md`:
+When the user provides a plan without an explicit request to implement it:
+
+1. Do not treat the plan as implementation approval.
+2. Help clarify scope, risks, or acceptance criteria if asked.
+3. Wait for a clear request to edit files before starting implementation work.
+
+When the user explicitly asks to implement a plan:
 
 1. Read the plan and any files it references.
 2. Implement directly if the scope and acceptance criteria are clear.
 3. If the plan is too broad or ambiguous to execute safely in one implementation
-   pass, convert it into tasks using the local task-generation workflow or skill
-   when available; otherwise ask the user whether to split it first.
+   pass, ask the user whether to split it first.
 
 ### TASKS.md
 
