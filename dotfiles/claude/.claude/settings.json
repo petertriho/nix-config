@@ -33,6 +33,16 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.claude/hooks/context-mode-cache-heal.mjs\""
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
@@ -45,5 +55,8 @@
   "editorMode": "vim",
   "permissions": {
     "defaultMode": "bypassPermissions"
+  },
+  "enabledPlugins": {
+    "context-mode@context-mode": true
   }
 }

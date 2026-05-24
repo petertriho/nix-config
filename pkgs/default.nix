@@ -24,6 +24,7 @@ with pkgs;
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
+  context-mode = callPackage ./context-mode { };
   figlet-fonts = callPackage ./figlet-fonts { };
   ilmari = callPackage ./ilmari { };
   kubectl-prof = callPackage ./kubectl-prof {

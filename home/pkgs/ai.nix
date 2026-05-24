@@ -309,6 +309,7 @@ in
     };
     basic-memory.enable = true;
     chunkhound.enable = false;
+    context-mode.enable = true;
     crush.enable = true;
     impeccable.enable = true;
     mattpocock-skills = {
