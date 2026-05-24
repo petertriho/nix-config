@@ -3,7 +3,7 @@
   imports = [
     ../desktop
     ./hardware-configuration.nix
-    # ./lg-buddy.nix
+    ./lg-buddy.nix
   ];
 
   networking.hostName = "AMD-PC";
