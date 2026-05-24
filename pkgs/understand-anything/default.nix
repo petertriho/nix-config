@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "understand-anything";
-  version = "2.7.4-unstable-2026-05-22";
+  version = "0-unstable-2026-05-24";
 
   src = fetchFromGitHub {
     owner = "Lum1104";
     repo = "Understand-Anything";
-    rev = "f51727526d654541ca64161c2ac510afa58e1ac5";
-    hash = "sha256-yHUoWohos3eLBqJLf8Bs31tOk1GShvMxGIAeDZjFDYM=";
+    rev = "42d70c3f9c2a494efc7c24567655b54c83fcaeb7";
+    hash = "sha256-ca5zDohR1r2URXRthCifRmS9/nXOHtbR7akmbwTR4/o=";
   };
 
   patches = [ ./store-safe-runtime.patch ];
@@ -40,7 +40,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-7jjQzD4arlqmzU4ubhsf0Wr/9W3a/1BBhOJ/Q7Gf6bo=";
+    hash = "sha256-vfDic4PuBC7Y0lqLrK/Ia3uGNoquMuRnC+ZQxdMtnsE=";
   };
 
   preConfigure = ''
