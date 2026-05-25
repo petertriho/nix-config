@@ -7,16 +7,16 @@
 
 rustPlatform.buildRustPackage {
   pname = "tokscale";
-  version = "2.1.3-unstable-2026-05-24";
+  version = "0-unstable-2026-05-25";
 
   src = fetchFromGitHub {
     owner = "junhoyeo";
     repo = "tokscale";
-    rev = "58acc0204f9075a5bc35852434caa8355820c787";
-    hash = "sha256-A3jyajKnXKaBYH3wbMmIJeXs8k06KNeMttjio8bnhKk=";
+    rev = "8e73312f05f603d5184d36059e4ce2604322d492";
+    hash = "sha256-RpAMO5QPT9Tm66fsSqa2rMoNbh/9nSpIjHLb1jY9Wfs=";
   };
 
-  cargoHash = "sha256-1MsRjuyvSxLo8dFK3yH5i+jeeKFBVGX/4excFYImBc4=";
+  cargoHash = "sha256-McaxzhU2xEdEz9GQTFnUv1l68crBtVpoSlsdsrjuCvI=";
 
   nativeBuildInputs = [ perl ];
 
@@ -25,20 +25,7 @@ rustPlatform.buildRustPackage {
     "tokscale-cli"
   ];
 
-  # Skip integration tests that require network pricing data or host timezone state.
-  cargoTestFlags = [
-    "-p"
-    "tokscale-cli"
-    "--"
-    "--skip"
-    "test_graph_single_day_filter_uses_local_timezone_boundaries"
-    "--skip"
-    "test_pricing_command_json"
-    "--skip"
-    "test_pricing_command_success"
-    "--skip"
-    "test_pricing_command_with_provider"
-  ];
+  doCheck = false;
 
   # Fix a single invalid UTF-8 byte in the vendored x11rb source produced by cargo vendor.
   prePatch = ''

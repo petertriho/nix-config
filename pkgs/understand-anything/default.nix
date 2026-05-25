@@ -21,8 +21,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "Lum1104";
     repo = "Understand-Anything";
-    rev = "42d70c3f9c2a494efc7c24567655b54c83fcaeb7";
-    hash = "sha256-ca5zDohR1r2URXRthCifRmS9/nXOHtbR7akmbwTR4/o=";
+    rev = "470cc01dc5f9236a93eb704afdd479cd5db79710";
+    hash = "sha256-eNgi2tTH+wM99Fh3i4WrjiU8iZaQiuLTA/XGXURsHUc=";
   };
 
   patches = [ ./store-safe-runtime.patch ];
@@ -40,7 +40,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-vfDic4PuBC7Y0lqLrK/Ia3uGNoquMuRnC+ZQxdMtnsE=";
+    hash = "sha256-2YiGlasiDPXUJ/Z7j5zS5kF/I5ZgFU1uYpAdA9ALjJY=";
   };
 
   preConfigure = ''
