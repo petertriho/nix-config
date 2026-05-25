@@ -119,10 +119,15 @@ in
             "bash"
           ];
         };
-        lua-lsp = {
-          command = "lua-language-server";
-          args = [ ];
-          filetypes = [ "lua" ];
+        basedpyright = {
+          command = "basedpyright-langserver";
+          args = [
+            "--stdio"
+          ];
+          filetypes = [
+            "python"
+            "pyi"
+          ];
         };
         eslint = {
           command = "vscode-eslint-language-server";
@@ -136,19 +141,24 @@ in
             "svelte"
           ];
         };
+        lua-lsp = {
+          command = "lua-language-server";
+          args = [ ];
+          filetypes = [ "lua" ];
+        };
         nil_ls = {
           command = "nil";
           args = [ ];
           filetypes = [ "nix" ];
         };
-        pyrefly = {
-          command = "pyrefly";
-          args = [ "lsp" ];
-          filetypes = [
-            "python"
-            "pyi"
-          ];
-        };
+        # pyrefly = {
+        #   command = "pyrefly";
+        #   args = [ "lsp" ];
+        #   filetypes = [
+        #     "python"
+        #     "pyi"
+        #   ];
+        # };
         terraformls = {
           command = "terraform-ls";
           args = [
