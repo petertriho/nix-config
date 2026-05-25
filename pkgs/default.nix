@@ -26,7 +26,6 @@ with pkgs;
   };
   context-mode = callPackage ./context-mode { };
   figlet-fonts = callPackage ./figlet-fonts { };
-  ilmari = callPackage ./ilmari { };
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };
@@ -41,7 +40,6 @@ with pkgs;
   pybetter = callPackage ./pybetter { inherit pkgs; };
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
-  tmuxai = callPackage ./tmuxai { };
   tokscale = callPackage ./tokscale { };
   uipro = callPackage ./uipro { };
   understand-anything = callPackage ./understand-anything { };

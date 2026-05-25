@@ -81,7 +81,6 @@ in
       with pkgs;
       [
         # amazon-q-cli
-        ilmari
         nodejs
         open-design
         # pinchtab
