@@ -12,7 +12,6 @@
         ]
       },
       {
-        "_tag": "ccstatusline-managed",
         "hooks": [
           {
             "type": "command",
@@ -55,14 +54,13 @@
     ],
     "PreToolUse": [
       {
-        "_tag": "ccstatusline-managed",
+        "matcher": "Skill",
         "hooks": [
           {
             "type": "command",
             "command": "ccstatusline --hook"
           }
-        ],
-        "matcher": "Skill"
+        ]
       }
     ]
   },
@@ -71,13 +69,14 @@
     "command": "ccstatusline",
     "padding": 0
   },
-  "skipDangerousModePermissionPrompt": true,
-  "theme": "dark-ansi",
-  "editorMode": "vim",
+  "enabledPlugins": {
+    "context-mode@context-mode": true
+  },
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-  "enabledPlugins": {
-    "context-mode@context-mode": true
-  }
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-ansi",
+  "editorMode": "vim"
 }
