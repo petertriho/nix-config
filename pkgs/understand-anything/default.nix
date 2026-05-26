@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "understand-anything";
-  version = "0-unstable-2026-05-24";
+  version = "0-unstable-2026-05-26";
 
   src = fetchFromGitHub {
     owner = "Lum1104";
     repo = "Understand-Anything";
-    rev = "470cc01dc5f9236a93eb704afdd479cd5db79710";
-    hash = "sha256-eNgi2tTH+wM99Fh3i4WrjiU8iZaQiuLTA/XGXURsHUc=";
+    rev = "26edf61856fa476e466bda1814819a266a293c47";
+    hash = "sha256-rLdYR0nUPGH19rvZWYsvHpPSytC/UEA5V68J6oxt72s=";
   };
 
   patches = [ ./store-safe-runtime.patch ];

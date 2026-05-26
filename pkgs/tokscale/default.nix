@@ -7,13 +7,13 @@
 
 rustPlatform.buildRustPackage {
   pname = "tokscale";
-  version = "0-unstable-2026-05-25";
+  version = "0-unstable-2026-05-26";
 
   src = fetchFromGitHub {
     owner = "junhoyeo";
     repo = "tokscale";
-    rev = "8e73312f05f603d5184d36059e4ce2604322d492";
-    hash = "sha256-RpAMO5QPT9Tm66fsSqa2rMoNbh/9nSpIjHLb1jY9Wfs=";
+    rev = "64e278cdc4f55544576f3b42010644cd8ba6aa9d";
+    hash = "sha256-XaBeFqeJtFfhq78Ynb9WT8tlR9bcmXnMe9eVIvPqSHU=";
   };
 
   cargoHash = "sha256-McaxzhU2xEdEz9GQTFnUv1l68crBtVpoSlsdsrjuCvI=";

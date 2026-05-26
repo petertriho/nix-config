@@ -9,14 +9,14 @@
 }:
 buildNpmPackage {
   pname = "vscode-langservers-extracted";
-  version = "unstable-2026-05-14";
+  version = "unstable-2026-05-25";
 
   srcs = [
     (fetchFromGitHub {
       owner = "zed-industries";
       repo = "vscode-langservers-extracted";
-      rev = "60f6220cbbac0ea8a9723e104ee1ae45a1ef9e17";
-      sha256 = "168540h5bkdvc0rirlwxfgl99jl19pb2wq7cbzqzmkn2vjci7gbl";
+      rev = "76ae549afbee1b1ec55e12bb4e561b6f73b340be";
+      sha256 = "0hzvd5g9590c2921bgyl9gi4l534a21r30vd6kx1pbnrw3imc9xs";
     })
   ]
   ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [
