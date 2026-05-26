@@ -253,53 +253,53 @@ in
           "Mod+Ctrl+Shift+P".action = move-workspace-up;
 
           # Monitor: Focus
-          "Mod+Alt+H".action = focus-monitor-left;
-          "Mod+Alt+J".action = focus-monitor-down;
-          "Mod+Alt+K".action = focus-monitor-up;
-          "Mod+Alt+L".action = focus-monitor-right;
-          "Mod+Alt+Left".action = focus-monitor-left;
-          "Mod+Alt+Down".action = focus-monitor-down;
-          "Mod+Alt+Up".action = focus-monitor-up;
-          "Mod+Alt+Right".action = focus-monitor-right;
-          "Mod+Alt+N".action = focus-monitor-next;
-          "Mod+Alt+P".action = focus-monitor-previous;
+          "Alt+H".action = focus-monitor-left;
+          "Alt+J".action = focus-monitor-down;
+          "Alt+K".action = focus-monitor-up;
+          "Alt+L".action = focus-monitor-right;
+          "Alt+Left".action = focus-monitor-left;
+          "Alt+Down".action = focus-monitor-down;
+          "Alt+Up".action = focus-monitor-up;
+          "Alt+Right".action = focus-monitor-right;
+          "Alt+N".action = focus-monitor-next;
+          "Alt+P".action = focus-monitor-previous;
 
           # Monitor: Move Window
-          "Mod+Shift+Alt+H".action = move-window-to-monitor-left;
-          "Mod+Shift+Alt+J".action = move-window-to-monitor-down;
-          "Mod+Shift+Alt+K".action = move-window-to-monitor-up;
-          "Mod+Shift+Alt+L".action = move-window-to-monitor-right;
-          "Mod+Shift+Alt+Left".action = move-window-to-monitor-left;
-          "Mod+Shift+Alt+Down".action = move-window-to-monitor-down;
-          "Mod+Shift+Alt+Up".action = move-window-to-monitor-up;
-          "Mod+Shift+Alt+Right".action = move-window-to-monitor-right;
-          "Mod+Shift+Alt+N".action = move-window-to-monitor-next;
-          "Mod+Shift+Alt+P".action = move-window-to-monitor-previous;
+          "Alt+Shift+H".action = move-window-to-monitor-left;
+          "Alt+Shift+J".action = move-window-to-monitor-down;
+          "Alt+Shift+K".action = move-window-to-monitor-up;
+          "Alt+Shift+L".action = move-window-to-monitor-right;
+          "Alt+Shift+Left".action = move-window-to-monitor-left;
+          "Alt+Shift+Down".action = move-window-to-monitor-down;
+          "Alt+Shift+Up".action = move-window-to-monitor-up;
+          "Alt+Shift+Right".action = move-window-to-monitor-right;
+          "Alt+Shift+N".action = move-window-to-monitor-next;
+          "Alt+Shift+P".action = move-window-to-monitor-previous;
 
           # Monitor: Move Column
-          "Mod+Ctrl+Alt+H".action = move-column-to-monitor-left;
-          "Mod+Ctrl+Alt+J".action = move-column-to-monitor-down;
-          "Mod+Ctrl+Alt+K".action = move-column-to-monitor-up;
-          "Mod+Ctrl+Alt+L".action = move-column-to-monitor-right;
-          "Mod+Ctrl+Alt+Left".action = move-column-to-monitor-left;
-          "Mod+Ctrl+Alt+Down".action = move-column-to-monitor-down;
-          "Mod+Ctrl+Alt+Up".action = move-column-to-monitor-up;
-          "Mod+Ctrl+Alt+Right".action = move-column-to-monitor-right;
-          "Mod+Ctrl+Alt+N".action = move-column-to-monitor-next;
-          "Mod+Ctrl+Alt+P".action = move-column-to-monitor-previous;
+          "Alt+Ctrl+H".action = move-column-to-monitor-left;
+          "Alt+Ctrl+J".action = move-column-to-monitor-down;
+          "Alt+Ctrl+K".action = move-column-to-monitor-up;
+          "Alt+Ctrl+L".action = move-column-to-monitor-right;
+          "Alt+Ctrl+Left".action = move-column-to-monitor-left;
+          "Alt+Ctrl+Down".action = move-column-to-monitor-down;
+          "Alt+Ctrl+Up".action = move-column-to-monitor-up;
+          "Alt+Ctrl+Right".action = move-column-to-monitor-right;
+          "Alt+Ctrl+N".action = move-column-to-monitor-next;
+          "Alt+Ctrl+P".action = move-column-to-monitor-previous;
 
           # Monitor: Move Workspace
-          "Mod+Ctrl+Shift+Alt+H".action = move-workspace-to-monitor-left;
-          "Mod+Ctrl+Shift+Alt+J".action = move-workspace-to-monitor-down;
-          "Mod+Ctrl+Shift+Alt+K".action = move-workspace-to-monitor-up;
-          "Mod+Ctrl+Shift+Alt+L".action = move-workspace-to-monitor-right;
-          "Mod+Ctrl+Shift+Alt+Left".action = move-workspace-to-monitor-left;
-          "Mod+Ctrl+Shift+Alt+Down".action = move-workspace-to-monitor-down;
-          "Mod+Ctrl+Shift+Alt+Up".action = move-workspace-to-monitor-up;
-          "Mod+Ctrl+Shift+Alt+Right".action = move-workspace-to-monitor-right;
-          "Mod+Shift+Alt+M".action = move-workspace-to-monitor-next;
-          "Mod+Ctrl+Shift+Alt+N".action = move-workspace-to-monitor-next;
-          "Mod+Ctrl+Shift+Alt+P".action = move-workspace-to-monitor-previous;
+          "Alt+Ctrl+Shift+H".action = move-workspace-to-monitor-left;
+          "Alt+Ctrl+Shift+J".action = move-workspace-to-monitor-down;
+          "Alt+Ctrl+Shift+K".action = move-workspace-to-monitor-up;
+          "Alt+Ctrl+Shift+L".action = move-workspace-to-monitor-right;
+          "Alt+Ctrl+Shift+Left".action = move-workspace-to-monitor-left;
+          "Alt+Ctrl+Shift+Down".action = move-workspace-to-monitor-down;
+          "Alt+Ctrl+Shift+Up".action = move-workspace-to-monitor-up;
+          "Alt+Ctrl+Shift+Right".action = move-workspace-to-monitor-right;
+          "Alt+Shift+M".action = move-workspace-to-monitor-next;
+          "Alt+Ctrl+Shift+N".action = move-workspace-to-monitor-next;
+          "Alt+Ctrl+Shift+P".action = move-workspace-to-monitor-previous;
         }
         // niriWorkspaceBinds;
     };
