@@ -7,7 +7,7 @@
 
 let
   cfg = config.programs.context-mode;
-  packageRoot = "${cfg.package}/share/context-mode";
+  packageRoot = "${cfg.package}/lib/node_modules/context-mode";
 in
 {
   options.programs.context-mode = {

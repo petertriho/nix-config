@@ -1,34 +1,28 @@
 {
   lib,
-  stdenvNoCC,
-  fetchurl,
-  makeWrapper,
+  buildNpmPackage,
+  fetchFromGitHub,
   nodejs,
 }:
-
-stdenvNoCC.mkDerivation rec {
+buildNpmPackage {
   pname = "context-mode";
-  version = "1.0.146";
+  version = "1.0.151-unstable-2026-05-26";
 
-  src = fetchurl {
-    url = "https://registry.npmjs.org/context-mode/-/context-mode-${version}.tgz";
-    hash = "sha512-9ZxZvg5n2rUiw7XU58jlsBldAcLefc3XhyFxPJC1KoLEuvGM34mvFgpU4SCwX3H6V9POkYwXO/e+KkE4uc2q7g==";
+  src = fetchFromGitHub {
+    owner = "mksglu";
+    repo = "context-mode";
+    rev = "7c7d83647b1c2ef9d1349f0a5116a66e49a5807b";
+    hash = "sha256-4KQzBgqXlrl+c+6bwvg2KnYIde/fIDhay76bT6sMLRU=";
   };
 
-  nativeBuildInputs = [ makeWrapper ];
+  inherit nodejs;
 
-  dontBuild = true;
+  npmDepsHash = "sha256-HVbW9rqOnrMo8qyVAEQDEAOjUtbETc3uTl7u9UjRDqU=";
 
-  installPhase = ''
-    runHook preInstall
-
-    install -d $out/share/context-mode $out/bin
-    cp -r . $out/share/context-mode/
-
-    makeWrapper ${lib.getExe nodejs} $out/bin/context-mode \
-      --add-flags $out/share/context-mode/cli.bundle.mjs
-
-    runHook postInstall
+  postPatch = ''
+    cp ${./package-lock.json} package-lock.json
+    sed -i '/"postinstall": "node scripts\/postinstall.mjs"/d' package.json
+    sed -i 's/^\(    "install:openclaw": .*\),$/\1/' package.json
   '';
 
   meta = with lib; {
