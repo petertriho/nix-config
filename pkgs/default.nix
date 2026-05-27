@@ -40,6 +40,7 @@ with pkgs;
   pybetter = callPackage ./pybetter { inherit pkgs; };
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
+  taste-skill = callPackage ./taste-skill { };
   tokscale = callPackage ./tokscale { };
   uipro = callPackage ./uipro { };
   understand-anything = callPackage ./understand-anything { };

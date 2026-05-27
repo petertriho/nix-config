@@ -346,6 +346,23 @@ in
     plannotator.enable = true;
     playwriter.enable = false;
     superpowers.enable = false;
+    taste-skill = {
+      enable = true;
+      skills = [
+        "taste-skill"
+        "gpt-tasteskill"
+        "image-to-code-skill"
+        "redesign-skill"
+        "soft-skill"
+        "output-skill"
+        "minimalist-skill"
+        "brutalist-skill"
+        "stitch-skill"
+        "imagegen-frontend-web"
+        "imagegen-frontend-mobile"
+        "brandkit"
+      ];
+    };
     understand-anything.enable = true;
   };
   xdg.configFile = {
