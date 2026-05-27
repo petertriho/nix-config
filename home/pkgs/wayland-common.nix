@@ -49,7 +49,7 @@
 
   systemd.user.services.hyprpolkitagent = {
     Unit = {
-      Description = "Hyprland Polkit authentication agent";
+      Description = "Polkit authentication agent";
       PartOf = [ "graphical-session.target" ];
       After = [ "graphical-session.target" ];
       ConditionEnvironment = "WAYLAND_DISPLAY";

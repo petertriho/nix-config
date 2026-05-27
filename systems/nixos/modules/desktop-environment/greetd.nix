@@ -20,8 +20,6 @@
           "--remember"
           "--remember-session"
           "--asterisks"
-          # "--cmd"
-          # "\"uwsm start hyprland-uwsm.desktop\""
         ];
         user = "greeter";
       };

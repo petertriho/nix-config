@@ -9,14 +9,4 @@
       # COPILOT_MODEL = "gpt-5-mini";
     };
   };
-  wayland.windowManager.hyprland = {
-    settings = {
-      monitorv2 = {
-        output = "desc:Chimei Innolux Corporation 0x1301";
-        mode = "preferred";
-        position = "auto";
-        scale = 1.50;
-      };
-    };
-  };
 }

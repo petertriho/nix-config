@@ -86,7 +86,6 @@ in
       binds =
         with niriActions;
         {
-          # Missing Niri parity: Hyprland's custom touchpad gestures are not mirrored here.
           # Niri's Mod+left/right mouse move/resize gestures are built in, so no bind is needed.
 
           # System/Hardware Keys

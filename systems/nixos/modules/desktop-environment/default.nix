@@ -2,7 +2,6 @@
 {
   imports = [
     ./greetd.nix
-    ./hyprland.nix
     ./i18n.nix
     ./niri.nix
   ];
