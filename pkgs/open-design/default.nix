@@ -16,13 +16,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "0-unstable-2026-05-26";
+  version = "0-unstable-2026-05-27";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "b5bf28060b86d34ab2ca1ebbc58a2daa4bc201ac";
-    hash = "sha256-2HfR++G0+q1QhB0DhVpb5ZOO0/XwBuxer6JyAbExjns=";
+    rev = "2540e8a92be976f1bf0ee3ff8c46b8a007843438";
+    hash = "sha256-MIaLStgv1aD5o5Nvw/aBJ9D8btxUelo+LsCyisA5fUw=";
   };
 
   nativeBuildInputs = [
