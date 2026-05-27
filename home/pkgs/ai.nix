@@ -331,7 +331,7 @@ in
       skills = {
         engineering = [
           "diagnose"
-          # "improve-codebase-architecture"
+          "improve-codebase-architecture"
           "prototype"
           # "tdd"
           "zoom-out"
