@@ -43,7 +43,6 @@ with pkgs;
   taste-skill = callPackage ./taste-skill { };
   tokscale = callPackage ./tokscale { };
   uipro = callPackage ./uipro { };
-  understand-anything = callPackage ./understand-anything { };
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
 }
