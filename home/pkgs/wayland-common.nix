@@ -14,7 +14,7 @@
       qt5.qtwayland
       qt6.qtwayland
       slurp
-      wl-clipboard
+      wl-clipboard-rs
       xdg-terminal-exec
     ];
     sessionVariables.NIXOS_OZONE_WL = "1";
