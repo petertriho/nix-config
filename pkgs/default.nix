@@ -38,6 +38,7 @@ with pkgs;
   pinchtab = callPackage ./pinchtab { };
   plannotator = callPackage ./plannotator { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
+  react-doctor = callPackage ./react-doctor { };
   sort-package-json = callPackage ./sort-package-json { };
   superpowers = callPackage ./superpowers { };
   taste-skill = callPackage ./taste-skill { };

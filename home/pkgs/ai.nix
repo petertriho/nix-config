@@ -85,6 +85,7 @@ in
         open-design
         # pinchtab
         python3
+        react-doctor
         tmuxai
         tokscale
         uipro
