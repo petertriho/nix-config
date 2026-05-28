@@ -19,6 +19,12 @@ Files:
 Current shape:
 [What the code does today. Explain any architecture terms in plain language. Name the caller obligations, ordering rules, duplicated knowledge, or ownership boundaries that matter.]
 
+Before:
+[A concise text diagram or prose shape showing the current ownership/call flow. Emphasize what callers or tests must know.]
+
+After:
+[A concise text diagram or prose shape showing the proposed owner and what knowledge moves behind its interface. If the shape is uncertain, say what must be spiked.]
+
 Maintenance cost:
 [Why this shape is costly: duplicated knowledge, behavior spread across too many files, fragile tests, confusing navigation, or hard-to-change behavior.]
 
@@ -47,6 +53,7 @@ Each handoff prompt must include:
 - Objective.
 - Starting files and why they matter.
 - Observed maintenance cost.
+- The current ownership shape and proposed ownership shape.
 - Any architecture terms or assumptions needed to understand the recommendation.
 - Constraints or compatibility concerns.
 - Expected output from the follow-up engineer or agent.
@@ -56,7 +63,7 @@ Each handoff prompt must include:
 Example:
 
 ```text
-Investigate whether order validation should move behind a deeper OrderIntake module.
+Investigate whether order validation should move behind an OrderIntake owner.
 Start with src/orders/create.ts, src/orders/validate.ts, and tests/orders/create.test.ts.
 Observed maintenance cost: three callers duplicate validation ordering and error mapping before calling createOrder.
 Explore whether one interface can own validation, persistence preparation, and error normalization while preserving current create-order behavior.
@@ -72,6 +79,9 @@ After the recommendation briefs, include:
 ## Top Pick
 [The recommendation to explore first and why.]
 
+## Secondary Observations
+- [Optional: lower-payoff signals, supporting observations, or candidates that are real but not first moves]
+
 ## Not Recommended
 - [Tempting refactor] - [why not]
 
@@ -79,13 +89,13 @@ After the recommendation briefs, include:
 - [Area not inspected or evidence not gathered]
 ```
 
-If there are no credible rejected refactors, write `None identified` and explain why. If there are no worthwhile recommendations at all, skip the numbered briefs and explain the evidence that led to that conclusion, then still include `Scope Limits`.
+Omit `Secondary Observations` if it would only pad the report. If there are no credible rejected refactors, write `None identified` and explain why. If there are no worthwhile recommendations at all, skip the numbered briefs and explain the evidence that led to that conclusion, then still include `Scope Limits`.
 
 ## Style
 
 - Keep each brief focused on one improvement.
 - Prefer concrete file evidence over abstract architecture language.
 - Use plain language first. If jargon helps, define it where it appears.
-- Use diagrams only if the user asked for them or the structure is hard to explain in prose.
+- Include a short `Before` and `After` shape for every recommendation. Use text diagrams when they clarify ownership; use prose when the change is simple.
 - Do not include implementation diffs unless the user explicitly asks for code changes.
 - Do not pad the report. Fewer strong briefs are better than a catalog of weak possibilities.
