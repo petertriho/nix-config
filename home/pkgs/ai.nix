@@ -309,6 +309,10 @@ in
           "@ishaksebsib/opencode-tree"
           "@slkiser/opencode-quota"
           "oc-tps"
+          [
+            "vimcode@git+https://github.com/oribarilan/vimcode.git#v0.8.0"
+            { "updateCheck" = false; }
+          ]
         ];
       };
     };
