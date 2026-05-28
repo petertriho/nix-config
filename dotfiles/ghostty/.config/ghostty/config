@@ -14,6 +14,7 @@ font-family = "JetBrainsMono Nerd Font Mono"
 # +cv12: 'u' spur
 # +cv14: '¢$' broken strikes
 font-feature = -calt,-clig,-liga,+zero,+cv06,+cv07,+cv12,+cv14
+keybind = ctrl+enter=unbind
 theme = tokyonight
 window-padding-x = 0
 window-padding-y = 0
