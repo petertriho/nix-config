@@ -26,6 +26,7 @@ with pkgs;
   };
   context-mode = callPackage ./context-mode { };
   figlet-fonts = callPackage ./figlet-fonts { };
+  graphify = callPackage ./graphify { };
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };

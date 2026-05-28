@@ -81,6 +81,7 @@ in
       with pkgs;
       [
         # amazon-q-cli
+        graphify
         nodejs
         open-design
         # pinchtab
