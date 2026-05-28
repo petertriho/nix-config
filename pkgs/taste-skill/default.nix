@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "taste-skill";
-  version = "0-unstable-2026-05-27";
+  version = "0-unstable-2026-05-26";
 
   src = fetchFromGitHub {
     owner = "Leonxlnx";
