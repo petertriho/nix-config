@@ -1,6 +1,20 @@
 return {
     "saghen/blink.pairs",
-    build = "nix run .#build-plugin",
+    dependencies = "saghen/blink.lib",
+    build = [[
+        set -e
+        case "$(uname -s)" in
+            Darwin) lib_ext="dylib" ;;
+            *) lib_ext="so" ;;
+        esac
+        nix build .#blink-pairs
+        lib_dir="${XDG_DATA_HOME:-$HOME/.local/share}/nvim/site/lib"
+        target="$lib_dir/libblink_pairs_parser.$lib_ext.$(git rev-parse --short=7 HEAD)"
+        mkdir -p "$lib_dir"
+        rm -f "$target"
+        cp -L "result/lib/libblink_pairs_parser.$lib_ext" "$target"
+        chmod u+w "$target"
+    ]],
     event = "User LazyLoadFile",
     opts = {
         mappings = {
@@ -8,9 +22,9 @@ return {
             cmdline = true,
             disabled_filetypes = {},
             pairs = {
-                ["("] = { ")", space = false },
-                ["["] = { "]", space = false },
-                ["{"] = { "}", space = false },
+                ["("] = { { "(", ")", space = false } },
+                ["["] = { { "[", "]", space = false } },
+                ["{"] = { { "{", "}", space = false } },
             },
         },
         highlights = {
