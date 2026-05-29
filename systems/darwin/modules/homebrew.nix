@@ -32,8 +32,8 @@ in
       "gromgit/brewtils"
       # "nguyenphutrong/tap"
       "nikitabobko/tap"
-      "opgginc/tap"
-      # "steipete/tap"
+      # "opgginc/tap"
+      "steipete/tap"
     ];
     brews = [
       "gromgit/brewtils/taproom"
@@ -69,10 +69,10 @@ in
       "notunes"
       "obsidian"
       # "opencode-desktop"
-      "opgginc/tap/opencode-bar"
+      # "opgginc/tap/opencode-bar"
       "orbstack"
       "raycast"
-      # "steipete/tap/codexbar"
+      "steipete/tap/codexbar"
       # "wezterm"
       # "airbuddy"
       # "badgeify"
