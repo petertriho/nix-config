@@ -32,6 +32,12 @@ let
 
   crushConfig = builtins.toJSON {
     "$schema" = "https://charm.land/crush.json";
+    providers = {
+      openai = {
+        base_url = "http://127.0.0.1:8317/v1";
+        api_key = "sk-dummy";
+      };
+    };
     lsp = crushLspConfig;
     mcp = crushMcpConfig;
     tools = {
