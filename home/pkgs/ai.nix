@@ -14,17 +14,8 @@ let
       # terraform-mcp-server
     ]);
   llmAgents = with pkgs.llm-agents; [
-    # agent-browser
-    # backlog-md
-    # beads
-    # beads-viewer
-    ck
-    # coding-agent-search
-    # copilot-cli
-    # copilot-language-server
     openspec
     qmd
-    # qwen-code
     rtk
     tuicr
     workmux
