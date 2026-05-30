@@ -11,8 +11,8 @@ let
   src = fetchFromGitHub {
     owner = "seakee";
     repo = "CPA-Manager";
-    rev = "b868b220b58b14c99464121bc454fffa2df7a0fb";
-    hash = "sha256-caegEn/kCof9ZdP9f8gLhssOOqvh2ddBZGoqYxMLOoI=";
+    rev = "c30374153f46f789f9fd33c60fb1e5b064b3d245";
+    hash = "sha256-iX7PiVdh3lThFqwIHTJSp66dk/1SjqcGVW59inX4Pck=";
   };
 
   frontend = buildNpmPackage {

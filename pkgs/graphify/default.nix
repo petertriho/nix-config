@@ -13,8 +13,8 @@ buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "safishamsi";
     repo = "graphify";
-    rev = "fd1aca480f2fe47278131c9b2ef20070c09beb3e";
-    hash = "sha256-jyBZaWIaDoPD/ezKyzul5fdySDz5khC3fsGPMsn5tzc=";
+    rev = "5056c72e67a696863b881b0b7f4de0bdf668c364";
+    hash = "sha256-kmx4CQKWUWJoFrC7F8+uarBmwOCezWVs5uivNetbcl4=";
   };
 
   build-system = [ setuptools ];
