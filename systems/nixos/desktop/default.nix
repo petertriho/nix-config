@@ -5,6 +5,7 @@
     ../modules/desktop-environment
     ../modules/kanata.nix
     ./audio.nix
+    ./bluetooth.nix
     ./bootloader.nix
     ./networking.nix
     # inputs.nix-flatpak.nixosModules.nix-flatpak
