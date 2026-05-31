@@ -4,7 +4,7 @@
   "any-jump.vim": { "branch": "master", "commit": "f95674d9a4251ac02f452d5f1861e4422f4652c7" },
   "atlas.nvim": { "branch": "main", "commit": "f3f5a3e64d8932f290122c014cbbc4d6d3f397ba" },
   "auto-indent.nvim": { "branch": "main", "commit": "46801cf8857d42a20a73c40b0a5d3dfe8b2b6192" },
-  "blink-ripgrep.nvim": { "branch": "main", "commit": "bf211165fa3b1c798b6edbe406d0ded02969b00f" },
+  "blink-ripgrep.nvim": { "branch": "main", "commit": "6d075091ec53d8a63b0b6175ac81a7181b4c656d" },
   "blink.cmp": { "branch": "v1", "commit": "78336bc89ee5365633bcf754d93df01678b5c08f" },
   "blink.lib": { "branch": "main", "commit": "2cb62890cee636fe46722d03b7b2331e54fb3755" },
   "blink.pairs": { "branch": "main", "commit": "44ef9b9eb77cd5dfca471b6f7dc0ee74888626fb" },
