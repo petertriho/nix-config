@@ -4,6 +4,11 @@
     kanata
   ];
 
+  services.udev.extraRules = ''
+    # Allow browser WebHID configurators to open the MAD 68 Pro R.
+    KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="373b", ATTRS{idProduct}=="10d4", MODE="0660", GROUP="users"
+  '';
+
   services.kanata = {
     enable = true;
     keyboards = {
