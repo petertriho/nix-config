@@ -305,6 +305,185 @@ PanelWindow {
         }
     }
 
+    PopupWindow {
+        id: bluetoothPopup
+        visible: bluetooth.showPopup
+        grabFocus: true
+        anchor.window: root
+        anchor.edges: Edges.Bottom | Edges.Left
+        anchor.rect.x: bluetooth.globalX + (bluetooth.width - width) / 2
+        anchor.rect.y: root.height
+        anchor.rect.width: 1
+        anchor.rect.height: 1
+        implicitWidth: 320
+        implicitHeight: bluetoothPopupCol.height + popupMargin
+        color: "transparent"
+        onVisibleChanged: if (!visible) bluetooth.showPopup = false
+        readonly property int popupTimeoutMs: popupsConfig ? popupsConfig.timeoutMs : 5000
+        readonly property int popupPadding: popupsConfig ? popupsConfig.padding : 16
+        readonly property int popupMargin: popupsConfig ? popupsConfig.margin : 8
+        readonly property int popupCornerRadius: popupsConfig ? popupsConfig.cornerRadius : 4
+        readonly property int popupItemSpacing: popupsConfig ? popupsConfig.itemSpacing : 4
+
+        Timer {
+            id: bluetoothTimer
+            interval: bluetoothPopup.popupTimeoutMs
+            running: bluetooth.showPopup
+            onTriggered: bluetooth.showPopup = false
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: colors.bg
+            border.color: colors.border
+            radius: bluetoothPopup.popupCornerRadius
+
+            Column {
+                id: bluetoothPopupCol
+                anchors.centerIn: parent
+                width: parent.width - bluetoothPopup.popupPadding
+                spacing: bluetoothPopup.popupItemSpacing
+
+                Text {
+                    text: "Bluetooth"
+                    color: colors.fg
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    font.bold: true
+                }
+
+                Text {
+                    text: bluetooth.adapterText()
+                    color: bluetooth.enabled ? colors.green : colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    elide: Text.ElideRight
+                    width: parent.width
+                }
+
+                Item { width: 1; height: 4 }
+
+                Text {
+                    text: "Connected"
+                    color: colors.fg
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    font.bold: true
+                    visible: bluetooth.connectedDevices.length > 0
+                }
+
+                Repeater {
+                    model: bluetooth.connectedDevices
+                    delegate: Row {
+                        width: bluetoothPopupCol.width
+                        spacing: 8
+
+                        Text {
+                            text: bluetooth.displayName(modelData)
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize
+                            width: parent.width - 92
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            text: bluetooth.statusText(modelData)
+                            color: colors.blue
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize - 1
+                            width: 84
+                            horizontalAlignment: Text.AlignRight
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
+                Text {
+                    text: "No connected devices"
+                    color: colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    visible: bluetooth.connectedDevices.length === 0
+                }
+
+                Item { width: 1; height: 4 }
+
+                Text {
+                    text: "Paired"
+                    color: colors.fg
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    font.bold: true
+                    visible: bluetooth.pairedDevices.length > 0
+                }
+
+                Repeater {
+                    model: bluetooth.pairedDevices
+                    delegate: Row {
+                        width: bluetoothPopupCol.width
+                        spacing: 8
+
+                        Text {
+                            text: bluetooth.displayName(modelData)
+                            color: modelData.connected ? colors.fg : colors.comment
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize
+                            width: parent.width - 92
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            text: bluetooth.statusText(modelData)
+                            color: modelData.connected ? colors.blue : colors.comment
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize - 1
+                            width: 84
+                            horizontalAlignment: Text.AlignRight
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
+                Text {
+                    text: bluetooth.available ? "No paired devices" : "Bluetooth adapter unavailable"
+                    color: colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    visible: bluetooth.pairedDevices.length === 0
+                }
+
+                Item { width: 1; height: 6 }
+
+                Rectangle {
+                    width: parent.width
+                    height: openBluemanText.height + 8
+                    color: openBluemanMouse.containsMouse ? colors.bg_highlight : "transparent"
+                    radius: 4
+
+                    Text {
+                        id: openBluemanText
+                        anchors.centerIn: parent
+                        text: "Open Blueman"
+                        color: colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize
+                    }
+
+                    MouseArea {
+                        id: openBluemanMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            bluetooth.showPopup = false
+                            Quickshell.execDetached({ command: ["blueman-manager"] })
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Connections {
         target: tray
         function onExpandedChanged() {
@@ -328,6 +507,7 @@ PanelWindow {
                     caffeine.showPicker = false
                     tray.expanded = false
                     stats.showPopup = false
+                    bluetooth.showPopup = false
                     if (notificationsManager)
                         notificationsManager.hideCenter()
                 }
@@ -418,6 +598,15 @@ PanelWindow {
                     intervalsConfig: root.intervalsConfig
                     thresholdsConfig: root.thresholdsConfig
                     fontsConfig: root.fontsConfig
+                }
+
+                BluetoothModule {
+                    id: bluetooth
+                    height: parent.height
+                    colors: root.colors
+                    moduleConfig: root.moduleConfig
+                    fontsConfig: root.fontsConfig
+                    popupsConfig: root.popupsConfig
                 }
 
                 NetworkModule {
