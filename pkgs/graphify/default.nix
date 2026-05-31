@@ -7,14 +7,14 @@
 with python3Packages;
 buildPythonApplication rec {
   pname = "graphify";
-  version = "0-unstable-2026-05-29";
+  version = "0-unstable-2026-05-30";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "safishamsi";
     repo = "graphify";
-    rev = "5056c72e67a696863b881b0b7f4de0bdf668c364";
-    hash = "sha256-kmx4CQKWUWJoFrC7F8+uarBmwOCezWVs5uivNetbcl4=";
+    rev = "0cf596aa8ac724e3ae4558ecc457a65ce19bda7e";
+    hash = "sha256-iZiFxgUCO2TTaF0Hnp9+SI+edj7XKjiFhFrlcfFE9uY=";
   };
 
   build-system = [ setuptools ];
