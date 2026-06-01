@@ -17,7 +17,7 @@
     "ghostty/system".text =
       if pkgs.stdenv.isLinux then
         ''
-          font-size = 12
+          font-size = 11
         ''
       else
         ''
