@@ -192,7 +192,7 @@ function tool:nix {
 function tool:nix:flake {
     echo_header "Updating flake.lock"
     pushd "$NIX_CONFIG_PATH"
-    nix flake update
+    nix flake update --accept-flake-config
     echo_success "Flake.lock updated"
     popd
 }
