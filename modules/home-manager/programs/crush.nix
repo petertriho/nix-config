@@ -35,7 +35,7 @@ let
     providers = {
       openai = {
         base_url = "http://127.0.0.1:8317/v1";
-        api_key = "sk-dummy";
+        api_key = "$CLI_PROXY_API_KEY";
       };
     };
     lsp = crushLspConfig;

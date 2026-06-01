@@ -5,10 +5,12 @@
   ...
 }:
 let
+  cliProxyApiKeyEnvVar = "CLI_PROXY_API_KEY";
+  cliProxyApiKeyDefault = "sk-dummy";
   cliProxyConfig = "${config.home.homeDirectory}/.cli-proxy-api/config.yaml";
 
   cliProxyEnvironment = {
-    MANAGEMENT_PASSWORD = "sk-dummy";
+    ${cliProxyApiKeyEnvVar} = cliProxyApiKeyDefault;
   };
 
   cpaDataDir = "${config.xdg.dataHome}/cpa-manager";
@@ -18,14 +20,22 @@ let
     USAGE_DATA_DIR = cpaDataDir;
     USAGE_DB_PATH = "${cpaDataDir}/usage.sqlite";
     CPA_UPSTREAM_URL = "http://127.0.0.1:8317";
-    CPA_MANAGEMENT_KEY = "sk-dummy";
+    ${cliProxyApiKeyEnvVar} = cliProxyApiKeyDefault;
     USAGE_COLLECTOR_MODE = "auto";
   };
 
   toSystemdEnvironment = lib.mapAttrsToList (name: value: "${name}=${value}");
 
-  cpaManagerLaunchdWrapper = pkgs.writeShellScript "cpa-manager-launchd" ''
+  cliProxyApiLaunchWrapper = pkgs.writeShellScript "cli-proxy-api-launch" ''
+    set -eu
+    export MANAGEMENT_PASSWORD="''${${cliProxyApiKeyEnvVar}:-${cliProxyApiKeyDefault}}"
+    exec ${pkgs.llm-agents.cli-proxy-api}/bin/cli-proxy-api --config ${lib.escapeShellArg cliProxyConfig}
+  '';
+
+  cpaManagerLaunchWrapper = pkgs.writeShellScript "cpa-manager-launch" ''
+    set -eu
     ${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg cpaDataDir}
+    export CPA_MANAGEMENT_KEY="''${${cliProxyApiKeyEnvVar}:-${cliProxyApiKeyDefault}}"
     exec ${pkgs.cpa-manager}/bin/cpa-manager
   '';
 in
@@ -42,12 +52,14 @@ lib.mkMerge [
 
       file.".config/opencode/plugins/cli-proxy-api-models.js".source =
         config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/plugins/cli-proxy-api-models.js";
+
+      sessionVariables.CLI_PROXY_API_KEY = cliProxyApiKeyDefault;
     };
 
     programs.opencode.settings = {
       provider.openai.options = {
         baseURL = "http://127.0.0.1:8317/v1";
-        apiKey = "sk-dummy";
+        apiKey = "{env:${cliProxyApiKeyEnvVar}}";
       };
     };
   }
@@ -63,7 +75,7 @@ lib.mkMerge [
 
       Service = {
         Environment = toSystemdEnvironment cliProxyEnvironment;
-        ExecStart = "${pkgs.llm-agents.cli-proxy-api}/bin/cli-proxy-api --config ${cliProxyConfig}";
+        ExecStart = "${cliProxyApiLaunchWrapper}";
         Restart = "on-failure";
         RestartSec = 5;
       };
@@ -84,7 +96,7 @@ lib.mkMerge [
       Service = {
         Environment = toSystemdEnvironment cpaManagerEnvironment;
         ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${cpaDataDir}";
-        ExecStart = "${pkgs.cpa-manager}/bin/cpa-manager";
+        ExecStart = "${cpaManagerLaunchWrapper}";
         Restart = "on-failure";
         RestartSec = 5;
       };
@@ -95,11 +107,7 @@ lib.mkMerge [
     launchd.agents.cli-proxy-api = {
       enable = true;
       config = {
-        ProgramArguments = [
-          "${pkgs.llm-agents.cli-proxy-api}/bin/cli-proxy-api"
-          "--config"
-          cliProxyConfig
-        ];
+        ProgramArguments = [ "${cliProxyApiLaunchWrapper}" ];
         EnvironmentVariables = cliProxyEnvironment;
         KeepAlive = {
           Crashed = true;
@@ -114,7 +122,7 @@ lib.mkMerge [
     launchd.agents.cpa-manager = {
       enable = true;
       config = {
-        ProgramArguments = [ "${cpaManagerLaunchdWrapper}" ];
+        ProgramArguments = [ "${cpaManagerLaunchWrapper}" ];
         EnvironmentVariables = cpaManagerEnvironment;
         KeepAlive = {
           Crashed = true;
