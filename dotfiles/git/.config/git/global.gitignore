@@ -9,5 +9,6 @@
 .plans
 .scratch
 .tasks
+.workmux.yaml
 .worktrees
 openspec
