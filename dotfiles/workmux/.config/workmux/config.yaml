@@ -9,3 +9,7 @@ files:
   symlink:
     - .changes
     - .plans
+status_icons:
+  working: "󰚩"
+  waiting: "󰍡"
+  done: "󰄬"
