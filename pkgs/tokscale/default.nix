@@ -7,7 +7,7 @@
 
 rustPlatform.buildRustPackage {
   pname = "tokscale";
-  version = "0-unstable-2026-05-31";
+  version = "3.0.0-unstable-2026-05-31";
 
   src = fetchFromGitHub {
     owner = "junhoyeo";

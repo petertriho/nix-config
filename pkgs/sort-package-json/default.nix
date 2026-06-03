@@ -4,12 +4,12 @@
 }:
 buildNpmPackage {
   pname = "sort-package-json";
-  version = "0-unstable-2026-04-28";
+  version = "3.7.0-unstable-2026-06-02";
   src = fetchFromGitHub {
     owner = "keithamus";
     repo = "sort-package-json";
-    rev = "94c39049cf818ca404a17c44a4a7fa8eb7abb087";
-    sha256 = "sha256-0O72r7o9bfy6Tr3Df0TcgEsL0ZfVYtbv6yt1PAltpAA=";
+    rev = "0f2dc7ae10bd1be80b9f0f0fe6801e8edd8f72ee";
+    sha256 = "sha256-uoZqILgsg/aaMA2/tRmUZrM96JkaYp/ga2Xdi03UquU=";
   };
   npmDepsHash = "sha256-YqQXrWUi9+Gf8Ni2qcFy/cl3OOsI255/gt0tMDhqpko=";
   dontNpmBuild = true;

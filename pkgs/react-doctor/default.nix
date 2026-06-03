@@ -13,13 +13,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "react-doctor";
-  version = "0-unstable-2026-06-02";
+  version = "1.1.1-unstable-2026-06-03";
 
   src = fetchFromGitHub {
     owner = "millionco";
     repo = "react-doctor";
-    rev = "8d13ba3f84d0a41d3fed2af1e5a82d9c14de5b67";
-    hash = "sha256-FCDAf2JWMwH2OO1i0oWI0bJbaEozcUMmgzGAjhfIxhk=";
+    rev = "3c05fc4d63993055469e8c8a18f151ba95a3a36e";
+    hash = "sha256-s2QwfQUfQF/+5L5o2745IATh9mJ36fhNnUT3x0pZ2KA=";
   };
 
   nativeBuildInputs = [
@@ -33,7 +33,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-8DJtQ0PRkskpGrpBoCaug+KfNESkLCOuMYSyVmHduEI=";
+    hash = "sha256-iBDqEEyYANt5kUgh+W7MSz4gRlAAXwsQopkK7lc8Qd0=";
   };
 
   buildPhase = ''
