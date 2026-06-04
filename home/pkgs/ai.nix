@@ -74,7 +74,7 @@ in
         # amazon-q-cli
         graphify
         nodejs
-        open-design
+        # open-design
         # pinchtab
         python3
         react-doctor
