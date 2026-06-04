@@ -8,6 +8,10 @@ description: Upgrade rough ideas, partial plans, feature concepts, product brain
 1. Check project context first.
    - Read the relevant parts of the codebase, recent commits, named files,
      and any docs the user pointed at before asking anything.
+   - For large codebases, use broad search or an exploration subagent, such as
+     opencode's `explore` or Claude Code's `Agent` with
+     `subagent_type=Explore`, to find where related code lives and how similar
+     work is already structured; verify final claims with direct file evidence.
    - If a question can be answered by reading the code, read the code
      instead of asking.
    - Skip exploration only for product-only or purely conceptual prompts.
