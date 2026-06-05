@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+die() {
+    printf 'workmux-push: %s\n' "$*" >&2
+    exit 1
+}
+
+running_worktree_names() {
+    workmux list --json \
+        | jq -r '.[] | select(.is_main != true and .is_open == true) | .handle'
+}
+
+pick_tasks_file() {
+    local running_names
+    local tasks_file
+    local plan_dir
+    local worktree_name
+
+    running_names="$(running_worktree_names)"
+
+    fd --type f --hidden --follow --glob TASKS.md --exclude archive .changes \
+        | while IFS= read -r tasks_file; do
+            tasks_file="${tasks_file#./}"
+            plan_dir="${tasks_file%/*}"
+            worktree_name="${plan_dir##*/}"
+
+            if ! grep -Fxq -- "$worktree_name" <<< "$running_names"; then
+                printf '%s\n' "$tasks_file"
+            fi
+        done \
+        | fzf \
+            --prompt 'TASKS.md> ' \
+            --header 'Select a .changes task file' \
+            --preview 'bat --color=always --style=numbers --line-range=:200 -- {}' \
+            --preview-window 'right:60%'
+}
+
+[ -d .changes ] || die "no .changes directory found in current directory"
+
+if ! tasks_file="$(pick_tasks_file)"; then
+    exit 0
+fi
+
+[ -n "$tasks_file" ] || exit 0
+
+plan_dir="${tasks_file%/*}"
+worktree_name="${plan_dir##*/}"
+
+if [ "$plan_dir" = ".changes" ] || [ -z "$worktree_name" ]; then
+    die "TASKS.md must be inside a change subdirectory under .changes"
+fi
+
+workmux add --prompt "/implement @${tasks_file}" "$worktree_name"

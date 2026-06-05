@@ -172,6 +172,8 @@
       wmo = "workmux open";
       wmp = "workmux path";
       wmr = "workmux remove";
+      wpl = "workmux-pull";
+      wps = "workmux-push";
       ysdk = "yarn dlx @yarnpkg/sdks base"; # https://yarnpkg.com/getting-started/editor-sdks#neovim-native-lsp
     }
     // (

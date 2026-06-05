@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+die() {
+    printf 'workmux-pull: %s\n' "$*" >&2
+    exit 1
+}
+
+current_worktree_root() {
+    local root
+
+    root="$(git rev-parse --show-toplevel 2> /dev/null)" \
+        || die "must be run from inside a git worktree"
+
+    cd "$root" && pwd -P
+}
+
+worktree_candidates() {
+    local current_root="$1"
+    local status_json
+
+    status_json="$(workmux status --json --git 2> /dev/null || printf '[]')"
+
+    workmux list --json \
+        | jq -r --arg current_root "$current_root" --argjson statuses "$status_json" '
+            def status_for($handle): first($statuses[]? | select(.worktree == $handle)) // {};
+
+            .[] as $worktree
+            | select($worktree.is_main != true and $worktree.path != $current_root)
+            | (status_for($worktree.handle).git // {}) as $git
+            | select(
+                $worktree.has_uncommitted_changes == true
+                or $git.has_staged == true
+                or $git.has_unstaged == true
+                or $git.has_unmerged_commits == true
+              )
+            | [
+                (if $git.has_staged == true then "staged" else empty end),
+                (if $git.has_unstaged == true then "unstaged" else empty end),
+                (if $git.has_unmerged_commits == true then "unmerged" else empty end)
+              ] as $flags
+            | [
+                $worktree.handle,
+                $worktree.branch,
+                $worktree.path,
+                (if $flags | length > 0 then $flags | join(",") else "dirty" end)
+              ]
+            | @tsv
+        '
+}
+
+pick_worktree() {
+    local current_root="$1"
+
+    worktree_candidates "$current_root" \
+        | fzf \
+            --delimiter=$'\t' \
+            --with-nth=1,2,4,3 \
+            --prompt 'Worktree> ' \
+            --header 'Select a workmux worktree to stage and merge' \
+            --preview 'printf "worktree: {1}\nbranch: {2}\npath: {3}\nstate: {4}\n\n"; git -C {3} status --short --branch; printf "\nUncommitted diff:\n"; git -C {3} diff --stat --color=always HEAD; git -C {3} diff --color=always HEAD -- .' \
+            --preview-window 'right:60%'
+}
+
+archive_tasks_folder() {
+    local worktree_path="$1"
+    local worktree_name="$2"
+    local source_dir="${worktree_path}/.changes/${worktree_name}"
+    local archive_root="${worktree_path}/.changes/archive"
+    local archive_dir="${archive_root}/${worktree_name}"
+
+    if [ ! -f "${source_dir}/TASKS.md" ]; then
+        return 0
+    fi
+
+    if [ -e "$archive_dir" ]; then
+        die "archive destination already exists: $archive_dir"
+    fi
+
+    mkdir -p "$archive_root"
+    mv "$source_dir" "$archive_dir"
+}
+
+stage_worktree_changes() {
+    local worktree_path="$1"
+
+    git -C "$worktree_path" add --all -- .
+}
+
+current_root="$(current_worktree_root)"
+
+if ! selected_worktree="$(pick_worktree "$current_root")"; then
+    exit 0
+fi
+
+[ -n "$selected_worktree" ] || exit 0
+
+IFS=$'\t' read -r worktree_name _branch worktree_path _state <<< "$selected_worktree"
+
+[ -n "$worktree_name" ] || die "selected worktree has no name"
+[ -d "$worktree_path" ] || die "selected worktree path does not exist: $worktree_path"
+
+stage_worktree_changes "$worktree_path"
+workmux merge "$worktree_name"
+archive_tasks_folder "$current_root" "$worktree_name"
