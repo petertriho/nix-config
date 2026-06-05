@@ -13,13 +13,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "react-doctor";
-  version = "1.1.1-unstable-2026-06-04";
+  version = "2.0.1-unstable-2026-06-05";
 
   src = fetchFromGitHub {
     owner = "millionco";
     repo = "react-doctor";
-    rev = "abbb04202ee8e78fc1aaac587a0a844698d5fd27";
-    hash = "sha256-Qzn991Mdj4a3CCvmhPhvBWWe0y5Wg/2bvw9898qhGA4=";
+    rev = "5448962028d9c616ec126751af0c8c405748f7d4";
+    hash = "sha256-1hFeSv4eBTMdxr2NH+yst4U+o5rQYXgt2iC1RQGGXds=";
   };
 
   nativeBuildInputs = [
@@ -33,7 +33,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-i4YLG18mfKkpER2EC+V05zo/Svou7aaq9Ml+Xc+xuGk=";
+    hash = "sha256-lxH9lPzYuBYIDqV0+B++Gyq08Q7khMcQ4PEidWIb6Uc=";
   };
 
   buildPhase = ''
@@ -53,7 +53,7 @@ stdenv.mkDerivation (finalAttrs: {
     workspace="$out/lib/node_modules/react-doctor-workspace"
     mkdir -p "$workspace"
 
-    cp -r node_modules package.json packages pnpm-workspace.yaml "$workspace/"
+    cp -r LICENSE node_modules package.json packages pnpm-workspace.yaml "$workspace/"
 
     makeWrapper ${nodejs}/bin/node "$out/bin/react-doctor" \
       --add-flags "$workspace/packages/react-doctor/bin/react-doctor.js"
