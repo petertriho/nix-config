@@ -1,5 +1,6 @@
 return {
     "wsdjeg/git.nvim",
+    enabled = false,
     dependencies = {
         { "wsdjeg/job.nvim" },
         { "wsdjeg/notify.nvim" },
