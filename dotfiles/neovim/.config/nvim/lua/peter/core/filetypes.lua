@@ -1,5 +1,4 @@
 local sidebars = {
-    "DiffViewFiles",
     "Fyler",
     "NeogitStatus",
     "NvimTree",

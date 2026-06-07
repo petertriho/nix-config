@@ -270,7 +270,6 @@ local TabPages = {
 }
 
 local SIDEBAR_TITLES = {
-    DiffViewFiles = "DIFFVIEW",
     Fyler = "EXPLORER",
     NvimTree = "EXPLORER",
     ["neo-tree"] = "EXPLORER",
