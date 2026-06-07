@@ -21,8 +21,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "47119a6733e6c4f078dd35031fd2516e0c1288e8";
-    hash = "sha256-zPFnzsL+9eZp5bSdZqAr6q4d7tvaCR5QgJcil5iDYkQ=";
+    rev = "b3b5bbeced467e105c5332b300797dfa075cafa4";
+    hash = "sha256-JplJsEDnfH8G0PouFELV6XhIirNp0Zv/hiZmdz8xwSQ=";
   };
 
   nativeBuildInputs = [
