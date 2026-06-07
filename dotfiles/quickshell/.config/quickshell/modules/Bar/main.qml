@@ -513,10 +513,24 @@ PanelWindow {
                 }
             }
 
-            // Left modules - Workspaces
+            // Left modules
+            VicinaeButton {
+                id: applicationsLauncher
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height
+                colors: root.colors
+                moduleConfig: root.moduleConfig
+                fontsConfig: root.fontsConfig
+                icon: "󰀻"
+                url: "vicinae://launch/applications"
+                accentColor: colors.blue
+            }
+
             WorkspacesModule {
                 id: workspaces
-                anchors.left: parent.left
+                anchors.left: applicationsLauncher.right
+                anchors.leftMargin: barConfig.moduleSpacing
                 anchors.verticalCenter: parent.verticalCenter
                 height: parent.height
                 colors: root.colors
@@ -625,6 +639,17 @@ PanelWindow {
                     moduleConfig: root.moduleConfig
                     fontsConfig: root.fontsConfig
                     notificationsManager: root.notificationsManager
+                }
+
+                VicinaeButton {
+                    id: powerManagementLauncher
+                    height: parent.height
+                    colors: root.colors
+                    moduleConfig: root.moduleConfig
+                    fontsConfig: root.fontsConfig
+                    icon: "󰐥"
+                    url: "vicinae://launch/power"
+                    accentColor: colors.red
                 }
             }
         }

@@ -158,14 +158,16 @@ Row {
                     model: workspaceDelegate.icons
                     delegate: Text {
                         required property var modelData
+
                         property string iconText: typeof modelData === "string" ? modelData : (modelData.icon || "")
                         property bool isFocusedIcon: typeof modelData === "object" && !!modelData.focused
+
                         text: iconText
                         color: isFocusedIcon ? root.colors.blue : root.colors.fg
                         font.pixelSize: root.workspacesConfig.iconFontSize
                         font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
                         visible: iconText.length > 0
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
                     }
                 }
             }

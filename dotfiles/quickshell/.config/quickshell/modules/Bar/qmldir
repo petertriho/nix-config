@@ -13,4 +13,5 @@ AudioModule 1.0 AudioModule.qml
 TemperatureModule 1.0 TemperatureModule.qml
 TrayModule 1.0 TrayModule.qml
 NotificationsModule 1.0 NotificationsModule.qml
+VicinaeButton 1.0 VicinaeButton.qml
 WorkspacesModule 1.0 WorkspacesModule.qml

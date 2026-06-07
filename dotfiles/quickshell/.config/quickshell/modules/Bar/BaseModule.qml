@@ -26,8 +26,9 @@ Rectangle {
 
     Text {
         id: content
-        anchors.centerIn: parent
-        anchors.margins: moduleConfig.contentMargins
+        anchors.fill: parent
+        anchors.leftMargin: moduleConfig.contentMargins
+        anchors.rightMargin: moduleConfig.contentMargins
         color: colors.fg
         font.family: fontsConfig.defaultFamily
         font.pixelSize: fontsConfig.defaultSize
