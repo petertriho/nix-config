@@ -17,4 +17,3 @@ redis-usage-queue-retention-seconds: 60
 oauth-excluded-models:
   codex:
     - gpt-5.3-codex-spark
-    - gpt-5.2
