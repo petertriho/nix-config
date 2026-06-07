@@ -39,6 +39,9 @@ scoop bucket add nerd-fonts
 scoop bucket add extras
 sudo scoop install --global JetBrainsMono-NF JetBrainsMono-NF-Mono JetBrainsMono-NF-Propo
 
+# UTC (dual boot with linux)
+reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\TimeZoneInformation" /v RealTimeIsUniversal /d 1 /t REG_DWORD /f
+
 # WSL
 wsl --install --no-distribution
 
