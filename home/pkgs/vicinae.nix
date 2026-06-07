@@ -7,6 +7,7 @@
       autoStart = true;
     };
     settings = {
+      close_on_focus_loss = true;
       faviconService = "twenty";
       font.size = 11;
       popToRootOnClose = true;
