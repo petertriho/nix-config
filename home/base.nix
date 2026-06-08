@@ -22,12 +22,13 @@
     ./pkgs/starship.nix
     ./pkgs/tmux.nix
     ./pkgs/tools.nix
+    ./pkgs/yazi.nix
   ];
 
   home = {
     username = user;
     homeDirectory = homePath;
-    stateVersion = lib.mkDefault "24.05";
+    stateVersion = lib.mkDefault "26.05";
   };
 
   programs.home-manager.enable = true;
