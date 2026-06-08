@@ -1,6 +1,6 @@
 return {
     "tpope/vim-fugitive",
-    -- enabled = false,
+    enabled = false,
     cmd = {
         "G",
         "Gdiffsplit",

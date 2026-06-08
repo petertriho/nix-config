@@ -1,11 +1,10 @@
 return {
     "NeogitOrg/neogit",
-    enabled = false,
     cmd = {
         "Neogit",
     },
     keys = {
-        { "<leader>J", "<CMD>ToggleNeogit<CR>", desc = "Neogit Status" },
+        { "<leader>j", "<CMD>ToggleNeogit<CR>", desc = "Neogit Status" },
     },
     init = function()
         vim.api.nvim_create_user_command("ToggleNeogit", function()
