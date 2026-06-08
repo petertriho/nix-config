@@ -26,7 +26,10 @@ Rectangle {
 
     Text {
         id: content
-        anchors.fill: parent
+        height: parent.height
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
         anchors.leftMargin: moduleConfig.contentMargins
         anchors.rightMargin: moduleConfig.contentMargins
         color: colors.fg

@@ -8,9 +8,10 @@ import Quickshell.Io
 import "workspaces" as WorkspaceBackends
 import "workspaces/workspaceHelpers.js" as WorkspaceHelpers
 
-Row {
+Item {
     id: root
-    spacing: 4
+    implicitWidth: workspaceRow.implicitWidth
+    implicitHeight: root.workspacesConfig.height
 
     // Accept colors from parent
     property var colors
@@ -110,72 +111,79 @@ Row {
         windowIcons: root.windowIcons
     }
 
-    // Repeater for workspace buttons
-    Repeater {
-        id: workspaceRepeater
-        model: root.workspacesData
+    Row {
+        id: workspaceRow
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: root.workspacesConfig.spacing
 
-        delegate: Rectangle {
-            id: workspaceDelegate
-            required property var modelData
+        // Repeater for workspace buttons
+        Repeater {
+            id: workspaceRepeater
+            model: root.workspacesData
 
-            property var icons: {
-                const iconsArray = [];
-                if (modelData && modelData.windowIcons) {
-                    for (let i = 0; i < modelData.windowIcons.length; i++) {
-                        if (modelData.windowIcons[i]) {
-                            iconsArray.push(modelData.windowIcons[i]);
+            delegate: Rectangle {
+                id: workspaceDelegate
+                required property var modelData
+
+                property var icons: {
+                    const iconsArray = [];
+                    if (modelData && modelData.windowIcons) {
+                        for (let i = 0; i < modelData.windowIcons.length; i++) {
+                            if (modelData.windowIcons[i]) {
+                                iconsArray.push(modelData.windowIcons[i]);
+                            }
+                        }
+                    }
+                    return iconsArray;
+                }
+                property string workspaceName: modelData.name || ""
+                property string switchTarget: modelData.switchTarget || workspaceName
+                property bool isActive: modelData.active || false
+
+                width: {
+                    const baseWidth = root.workspacesConfig.baseWidth;
+                    const iconWidth = icons.length > 0 ? icons.length * root.workspacesConfig.iconWidth + root.workspacesConfig.iconPadding : 0;
+                    return Math.max(baseWidth, iconWidth);
+                }
+                height: root.workspacesConfig.height
+                color: isActive ? root.colors.bg_highlight : root.colors.bg_dark
+                radius: 4
+
+                Row {
+                    anchors.centerIn: parent
+                    spacing: root.workspacesConfig.spacing
+
+                    Text {
+                        text: workspaceDelegate.workspaceName
+                        color: root.colors.fg
+                        font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
+                        font.pixelSize: root.workspacesConfig.fontSize
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Repeater {
+                        model: workspaceDelegate.icons
+                        delegate: Text {
+                            required property var modelData
+
+                            property string iconText: typeof modelData === "string" ? modelData : (modelData.icon || "")
+                            property bool isFocusedIcon: typeof modelData === "object" && !!modelData.focused
+
+                            text: iconText
+                            color: isFocusedIcon ? root.colors.blue : root.colors.fg
+                            font.pixelSize: root.workspacesConfig.iconFontSize
+                            font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
+                            visible: iconText.length > 0
+                            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
                         }
                     }
                 }
-                return iconsArray;
-            }
-            property string workspaceName: modelData.name || ""
-            property string switchTarget: modelData.switchTarget || workspaceName
-            property bool isActive: modelData.active || false
 
-            width: {
-                const baseWidth = root.workspacesConfig.baseWidth;
-                const iconWidth = icons.length > 0 ? icons.length * root.workspacesConfig.iconWidth + root.workspacesConfig.iconPadding : 0;
-                return Math.max(baseWidth, iconWidth);
-            }
-            height: root.workspacesConfig.height
-            color: isActive ? root.colors.bg_highlight : root.colors.bg_dark
-            radius: 4
-
-            Row {
-                anchors.centerIn: parent
-                spacing: root.workspacesConfig.spacing
-
-                Text {
-                    text: workspaceDelegate.workspaceName
-                    color: root.colors.fg
-                    font.pixelSize: root.workspacesConfig.fontSize
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Repeater {
-                    model: workspaceDelegate.icons
-                    delegate: Text {
-                        required property var modelData
-
-                        property string iconText: typeof modelData === "string" ? modelData : (modelData.icon || "")
-                        property bool isFocusedIcon: typeof modelData === "object" && !!modelData.focused
-
-                        text: iconText
-                        color: isFocusedIcon ? root.colors.blue : root.colors.fg
-                        font.pixelSize: root.workspacesConfig.iconFontSize
-                        font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
-                        visible: iconText.length > 0
-                        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        root.switchBackendWorkspace(workspaceDelegate.switchTarget);
                     }
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {
-                    root.switchBackendWorkspace(workspaceDelegate.switchTarget);
                 }
             }
         }

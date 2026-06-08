@@ -498,7 +498,8 @@ PanelWindow {
 
         Item {
             anchors.fill: parent
-            anchors.margins: barConfig.contentMargins
+            anchors.leftMargin: barConfig.contentMargins
+            anchors.rightMargin: barConfig.contentMargins
 
             MouseArea {
                 anchors.fill: parent

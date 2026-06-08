@@ -109,8 +109,8 @@ QtObject {
 
     // Bar configuration
     readonly property QtObject bar: QtObject {
-        readonly property int height: 24
-        readonly property int exclusiveZone: 24
+        readonly property int height: 28
+        readonly property int exclusiveZone: 28
         readonly property int contentMargins: 4
         readonly property int moduleSpacing: 4
     }
@@ -233,7 +233,7 @@ QtObject {
     // Fonts
     readonly property QtObject fonts: QtObject {
         readonly property string defaultFamily: "JetBrainsMono Nerd Font Propo"
-        readonly property int defaultSize: 13
+        readonly property int defaultSize: 14
         readonly property int workspaceSize: 12
         readonly property int workspaceIconSize: 12
     }

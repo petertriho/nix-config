@@ -3,22 +3,14 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 
-Rectangle {
+BaseModule {
     id: root
-    color: "transparent"
-    height: parent.height
-    implicitWidth: chevronRow.implicitWidth + moduleConfig.widthPadding
-
-    property QtObject colors: parent.colors
-    property QtObject moduleConfig: parent.moduleConfig
-    property QtObject fontsConfig: parent.fontsConfig
 
     property bool expanded: false
     property real globalX: 0
     property QtObject barWindow: null
 
-    signal clicked
-    signal rightClicked
+    text: expanded ? "󰅃" : "󰅀"
 
     function updatePosition() {
         var pos = root.mapToItem(null, 0, 0)
@@ -30,28 +22,8 @@ Rectangle {
     onBarWindowChanged: updatePosition()
     Component.onCompleted: updatePosition()
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: function(mouse) {
-            if (mouse.button === Qt.RightButton) root.rightClicked()
-            else {
-                updatePosition()
-                expanded = !expanded
-                root.clicked()
-            }
-        }
-    }
-
-    Row {
-        id: chevronRow
-        anchors.centerIn: parent
-        Text {
-            text: expanded ? "󰅃" : "󰅀"
-            color: root.colors.fg
-            font.family: root.fontsConfig.defaultFamily
-            font.pixelSize: root.fontsConfig.defaultSize
-            anchors.verticalCenter: parent.verticalCenter
-        }
+    onClicked: {
+        updatePosition()
+        expanded = !expanded
     }
 }
