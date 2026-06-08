@@ -18,8 +18,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "millionco";
     repo = "react-doctor";
-    rev = "b1a22efdf7b18f2cc8b7af6c0b12173ed3c76d34";
-    hash = "sha256-XKqODVDfx2lE+jWBhvyzqiNO+fULke5l80TvcTMqk18=";
+    rev = "727894ace2e8d5b12d564c57fb7ffd147e39a992";
+    hash = "sha256-7IKhZID3dCy179mZwAWsHZNAu8RDx3ZvOkRNnn+RVWo=";
   };
 
   nativeBuildInputs = [
@@ -33,7 +33,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 3;
-    hash = "sha256-pPz4+Dbt7Koj5LP51h6+Jb0403rV9Y8gVfGwiTZPpto=";
+    hash = "sha256-WUS3aAwVtBi9pFTffivICvoUF0NFypuVlfFx8p0dQgY=";
   };
 
   buildPhase = ''
