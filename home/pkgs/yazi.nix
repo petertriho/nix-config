@@ -111,6 +111,21 @@
           desc = "Show or hide preview pane";
         }
         {
+          on = "\\";
+          run = "plugin split-tabs spl_toggle";
+          desc = "Toggle split tabs mode";
+        }
+        {
+          on = "<Tab>";
+          run = "plugin split-tabs spl_switch_tab";
+          desc = "Switch to the other split pane";
+        }
+        {
+          on = "P";
+          run = "plugin split-tabs spl_preview";
+          desc = "Toggle split-tabs preview pane";
+        }
+        {
           on = [
             "g"
             "i"
@@ -141,6 +156,7 @@
       diff = pkgs.yaziPlugins.diff;
       mount = pkgs.yaziPlugins.mount;
       toggle-pane = pkgs.yaziPlugins.toggle-pane;
+      split-tabs = pkgs.yaziPlugins.split-tabs;
       lazygit = pkgs.yaziPlugins.lazygit;
     };
   };
