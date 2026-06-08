@@ -45,6 +45,7 @@
     television # fuzzy finder tui
     tldr # help pages for command-line tools
     tree # directory listing
+    tuxedo # todo.txt list manager
     typst # typesetting system
     unzip # unzip files
     update-nix-fetchgit # update fetchgit URLs in Nix files
