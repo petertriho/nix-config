@@ -7,13 +7,13 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "impeccable";
-  version = "skill-v3.5.0-unstable-2026-06-06";
+  version = "skill-v3.5.0-unstable-2026-06-09";
 
   src = fetchFromGitHub {
     owner = "pbakaus";
     repo = "impeccable";
-    rev = "1aedbcf538e3fa6694ccbf00294cc18e59ba1f21";
-    hash = "sha256-ZurJEdRM7OEcoXBmZb9vTntueu9VA2qIL4PbnKDsnrY=";
+    rev = "f636bd065a11234bfc7f1b0e0cd9d1ba7a0eb209";
+    hash = "sha256-1bfOzuV/y/eZ6bI6eR+ZZY2IBlDHTD+t681hUUi3+WU=";
   };
 
   nativeBuildInputs = [
@@ -23,7 +23,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   postPatch = ''
     substituteInPlace scripts/lib/zip.js \
-        --replace-fail "import archiver from 'archiver';" ""
+        --replace-fail "import { ZipArchive } from 'archiver';" ""
 
     substituteInPlace scripts/build.js \
         --replace-fail "await createAllZips(DIST_DIR);" "console.log('Skipping ZIP bundle creation for Nix package');"
