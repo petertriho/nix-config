@@ -8,9 +8,6 @@
   nodejs,
   makeWrapper,
 }:
-let
-  pnpm = pnpm_10.override { inherit nodejs; };
-in
 stdenv.mkDerivation (finalAttrs: {
   pname = "react-doctor";
   version = "2.1.0-unstable-2026-06-10";
@@ -25,13 +22,13 @@ stdenv.mkDerivation (finalAttrs: {
   nativeBuildInputs = [
     nodejs
     pnpmConfigHook
-    pnpm
+    pnpm_10
     makeWrapper
   ];
 
   pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
-    inherit pnpm;
+    pnpm = pnpm_10;
     fetcherVersion = 3;
     hash = "sha256-LTc7Qy5RaJZhR/l55ij4h2zx710oaOH3XEP7W4QvVmg=";
   };

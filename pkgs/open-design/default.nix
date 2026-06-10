@@ -11,9 +11,6 @@
   makeWrapper,
   darwin,
 }:
-let
-  pnpm = pnpm_10.override { nodejs = nodejs_24; };
-in
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
   version = "pr-3706-verification-assets-unstable-2026-06-10";
@@ -29,7 +26,7 @@ stdenv.mkDerivation (finalAttrs: {
     nodejs_24
     node-gyp
     pnpmConfigHook
-    pnpm
+    pnpm_10
     python3
     makeWrapper
   ]
@@ -37,7 +34,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
-    inherit pnpm;
+    pnpm = pnpm_10;
     fetcherVersion = 3;
     hash = "sha256-dIa/c69kwX0nYU+w4ADRBfTRlYCJoTmNIgJu3NL/u9E=";
   };
