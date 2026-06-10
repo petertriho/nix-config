@@ -27,6 +27,9 @@ in
       # autoUpdate = true;
       # cleanup = "zap";
       # upgrade = true;
+      extraEnv = {
+        HOMEBREW_NO_REQUIRE_TAP_TRUST = "1";
+      };
     };
     taps = [
       "gromgit/brewtils"
