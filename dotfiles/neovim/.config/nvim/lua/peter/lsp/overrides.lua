@@ -414,6 +414,7 @@ return {
             "--enable-emoji",
             "--enable-footnotes",
             "--no-auto",
+            "--tabs",
         },
     },
     nil_ls = {
