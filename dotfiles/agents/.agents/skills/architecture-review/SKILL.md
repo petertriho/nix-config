@@ -5,7 +5,7 @@ description: Use for architecture review, refactoring-opportunity scans, ownersh
 
 # Architecture Review
 
-Surface codebase improvement opportunities as standalone recommendation briefs. Architecture review is about how knowledge and behavior are distributed: what callers must know, what modules own, what tests can prove, and how easily a future engineer or agent can find the right place to change behavior.
+Surface codebase improvement opportunities as brief, standalone recommendations. Architecture review is about how knowledge and behavior are distributed: what callers must know, what modules own, what tests can prove, and how easily a future engineer or agent can find the right place to change behavior.
 
 Produce a review artifact, not a patch. Do not implement changes, create docs, or produce a full implementation plan unless the user explicitly asks. The useful output is a small set of evidence-backed recommendations another engineer or agent can independently explore.
 
@@ -14,7 +14,7 @@ Produce a review artifact, not a patch. Do not implement changes, create docs, o
 Read these bundled files as needed:
 
 - `references/exploration.md`: how to inspect the codebase and recognize strong candidates.
-- `references/recommendation-briefs.md`: the required output shape and handoff prompt format.
+- `references/output-format.md`: the required output shape and handoff prompt format.
 
 ## Process
 
@@ -52,7 +52,7 @@ Read these bundled files as needed:
    - Prefer deletion, inlining, or moving behavior to an existing owner when that solves the maintenance cost better than adding a new abstraction.
    - Do not recommend broad rewrites from file layout alone. Tie structure to behavior, testability, change safety, or navigation payoff.
 
-7. Produce recommendation briefs, not a full implementation plan, unless the user explicitly asks for planning or code changes.
+7. Produce brief recommendations, not a full implementation plan, unless the user explicitly asks for planning or code changes.
 
 ## Recommendation Standard
 
@@ -81,12 +81,12 @@ Use ownership language in the final recommendation. If terms such as interface, 
 
 ## Output
 
-Use the format in `references/recommendation-briefs.md`.
+Use the format in `references/output-format.md`.
 
 Return:
 
 - A short orientation paragraph naming the reviewed scope.
-- 2-6 recommendation briefs ordered by expected payoff.
+- 2-6 brief recommendations ordered by expected payoff.
 - Optional `Secondary observations` for real but lower-payoff signals that support or contextualize the main recommendations.
 - `Top pick`: the first recommendation to explore and why.
 - `Not recommended`: tempting refactors considered and rejected, or `None identified` with a reason.

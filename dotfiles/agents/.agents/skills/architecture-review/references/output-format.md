@@ -1,10 +1,10 @@
-# Recommendation Briefs
+# Output Format
 
 Recommendations should be concise enough to skim and complete enough for another engineer or agent to continue independently. They must not require the reader to know this skill's vocabulary or read any bundled reference file.
 
 Open with a short orientation paragraph that names the reviewed scope, how much of it was inspected, and whether the recommendations are based on a whole-repo pass, a sampled subsystem pass, or a current-diff pass.
 
-## Brief Template
+## Recommendation Template
 
 Use this template for each recommendation:
 
@@ -73,7 +73,7 @@ Validate by moving caller-level validation tests to the new module interface and
 
 ## Final Sections
 
-After the recommendation briefs, include:
+After the recommendations, include:
 
 ```markdown
 ## Top Pick
@@ -89,13 +89,13 @@ After the recommendation briefs, include:
 - [Area not inspected or evidence not gathered]
 ```
 
-Omit `Secondary Observations` if it would only pad the report. If there are no credible rejected refactors, write `None identified` and explain why. If there are no worthwhile recommendations at all, skip the numbered briefs and explain the evidence that led to that conclusion, then still include `Scope Limits`.
+Omit `Secondary Observations` if it would only pad the report. If there are no credible rejected refactors, write `None identified` and explain why. If there are no worthwhile recommendations at all, skip the numbered recommendations and explain the evidence that led to that conclusion, then still include `Scope Limits`.
 
 ## Style
 
-- Keep each brief focused on one improvement.
+- Keep each recommendation focused on one improvement.
 - Prefer concrete file evidence over abstract architecture language.
 - Use plain language first. If jargon helps, define it where it appears.
 - Include a short `Before` and `After` shape for every recommendation. Use text diagrams when they clarify ownership; use prose when the change is simple.
 - Do not include implementation diffs unless the user explicitly asks for code changes.
-- Do not pad the report. Fewer strong briefs are better than a catalog of weak possibilities.
+- Do not pad the report. Fewer strong recommendations are better than a catalog of weak possibilities.
