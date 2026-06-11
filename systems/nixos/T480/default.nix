@@ -20,11 +20,6 @@
     powersave.configuration = {
       system.nixos.tags = [ "powersave" ];
       disabledModules = [ ./nvidia.nix ];
-      imports = [
-        ../desktop
-        ./hardware-configuration.nix
-        inputs.nixos-hardware.nixosModules.lenovo-thinkpad-t480
-      ];
     };
   };
 
