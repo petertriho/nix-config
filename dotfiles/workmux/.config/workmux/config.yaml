@@ -9,6 +9,8 @@ files:
   symlink:
     - .changes
     - .plans
+    - .venv
+    - node_modules
 status_icons:
   working: "󰚩"
   waiting: "󰍡"
