@@ -13,13 +13,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "open-design";
-  version = "pr-3706-verification-assets-unstable-2026-06-10";
+  version = "pr-3706-verification-assets-unstable-2026-06-11";
 
   src = fetchFromGitHub {
     owner = "nexu-io";
     repo = "open-design";
-    rev = "b034609cdebce538f0aea84876e1376e1bcd7b8f";
-    hash = "sha256-ZePyDOo3WnelAuUAlqnVHeWi07pO7K3S8mhdwbPXn6M=";
+    rev = "716c2f2ad90876aba14606dac1f9096c8f16c928";
+    hash = "sha256-jPOoMDkmJTlWxpYEJYH44dGwXOHDsA1HiXhXvE5uoOE=";
   };
 
   nativeBuildInputs = [
@@ -36,7 +36,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm_10;
     fetcherVersion = 3;
-    hash = "sha256-dIa/c69kwX0nYU+w4ADRBfTRlYCJoTmNIgJu3NL/u9E=";
+    hash = "sha256-nJC2DE8zrVuiaD+1buEYvwhjtHCsF1WKEikT6BCUQs8=";
   };
 
   postPatch = ''

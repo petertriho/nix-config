@@ -75,7 +75,7 @@ let
 in
 buildPythonApplication rec {
   pname = "basic-memory";
-  version = "0.21.6";
+  version = "0.22.0";
   format = "pyproject";
   dontUsePythonCatchConflicts = true;
 
@@ -83,7 +83,7 @@ buildPythonApplication rec {
     owner = "basicmachines-co";
     repo = "basic-memory";
     rev = "v${version}";
-    hash = "sha256-0O70r7+CXsM55dS9kvITZahB47O7bJ5zaklmRs6Qt5o=";
+    hash = "sha256-4150ZjZXqcXxqNSRyL5YgRUYDc2g4S9kitUn9FjJ5I8=";
   };
 
   nativeBuildInputs = [
