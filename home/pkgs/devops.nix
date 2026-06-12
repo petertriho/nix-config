@@ -10,7 +10,7 @@
       kubectl
       kubectl-prof
       kubectx
-      kubernetes-helm
+      # kubernetes-helm
       kubeswitch
       kubevpn
       kubie
