@@ -551,7 +551,7 @@ function tool:brew {
         echo_info "Updating brew formulae..."
         brew update
         echo_info "Upgrading packages..."
-        brew upgrade --greedy
+        brew upgrade --greedy --yes
         echo_success "Homebrew packages updated"
     else
         echo_warning "Homebrew not found, skipping"

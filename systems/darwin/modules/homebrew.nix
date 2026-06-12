@@ -28,6 +28,9 @@ in
       # cleanup = "zap";
       # upgrade = true;
       extraEnv = {
+        HOMEBREW_DOWNLOAD_CONCURRENCY = "auto";
+        HOMEBREW_NO_ANALYTICS = "1";
+        HOMEBREW_NO_ASK = "1";
         HOMEBREW_NO_REQUIRE_TAP_TRUST = "1";
       };
     };
@@ -113,6 +116,7 @@ in
       HOMEBREW_REPOSITORY = HOMEBREW_PREFIX;
       HOMEBREW_DOWNLOAD_CONCURRENCY = "auto";
       HOMEBREW_NO_ANALYTICS = "1";
+      HOMEBREW_NO_ASK = "1";
       HOMEBREW_NO_REQUIRE_TAP_TRUST = "1";
     };
     systemPath = [
