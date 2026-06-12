@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "react-doctor";
-  version = "2.1.0-unstable-2026-06-11";
+  version = "2.1.0-unstable-2026-06-12";
 
   src = fetchFromGitHub {
     owner = "millionco";
     repo = "react-doctor";
-    rev = "a48fb06ffbe7221655e18529fcc954ecae17a22f";
-    hash = "sha256-id4Se8DCDDLgTjfsDnInI1sBnHfi3YiEvJ9xKMYQUcg=";
+    rev = "7c8816575aff26f11b5099c7ef009c4793fe260f";
+    hash = "sha256-in8ooAbHbvk2z6WNCM/NJiIzvsairZFDK1RSjcUAGKU=";
   };
 
   nativeBuildInputs = [
