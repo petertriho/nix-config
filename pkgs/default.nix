@@ -1,17 +1,9 @@
 {
   pkgs ? import <nixpkgs> { },
+  stablePkgs,
   inputs ? { },
   ...
 }:
-let
-  stablePkgs = import inputs.nixpkgs-stable {
-    system = pkgs.stdenv.hostPlatform.system;
-    config = {
-      allowUnfree = true;
-      allowBroken = true;
-    };
-  };
-in
 with pkgs;
 {
   anthropic-skills = callPackage ./anthropic-skills { };

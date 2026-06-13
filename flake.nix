@@ -64,7 +64,6 @@
     inputs@{
       self,
       nixpkgs,
-      nixpkgs-stable,
       nixos-wsl,
       nix-darwin,
       home-manager,
@@ -72,6 +71,7 @@
     }:
     let
       inherit (self) outputs;
+      packageSets = import ./pkgs/package-sets.nix { inherit inputs; };
 
       getSystemConfiguration = system: {
         inherit system;
@@ -84,32 +84,14 @@
       };
     in
     {
-      overlays = import ./overlays { inherit inputs; };
+      inherit packageSets;
+
+      overlays = packageSets.overlays;
       systemModules = import ./modules/system;
       homeManagerModules = import ./modules/home-manager;
 
       # Expose packages for nix-update
-      packages =
-        nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ]
-          (
-            system:
-            let
-              pkgs = import nixpkgs {
-                inherit system;
-                config.allowUnfree = true;
-              };
-            in
-            (import ./pkgs {
-              inherit
-                pkgs
-                inputs
-                ;
-            })
-            // {
-              fish-plugins = import ./pkgs/fish-plugins { inherit pkgs; };
-              tmux-plugins = import ./pkgs/tmux-plugins { inherit pkgs; };
-            }
-          );
+      packages = nixpkgs.lib.genAttrs packageSets.supportedSystems packageSets.packagesFor;
 
       options = {
         user = "peter";
@@ -159,19 +141,7 @@
 
       homeConfigurations = {
         droid = home-manager.lib.homeManagerConfiguration {
-          pkgs = import nixpkgs {
-            system = "aarch64-linux";
-            overlays = with outputs.overlays; [
-              additions
-              modifications
-              stable
-              unstable
-            ];
-            config = {
-              allowUnfree = true;
-              allowBroken = true;
-            };
-          };
+          pkgs = packageSets.pkgsFor "aarch64-linux";
           extraSpecialArgs = {
             inherit
               inputs

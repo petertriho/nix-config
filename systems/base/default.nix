@@ -30,15 +30,7 @@
   };
 
   nixpkgs = {
-    overlays = with outputs.overlays; [
-      additions
-      modifications
-      stable
-      unstable
-    ];
-    config = {
-      allowUnfree = true;
-      allowBroken = true;
-    };
+    overlays = outputs.packageSets.overlayList;
+    config = outputs.packageSets.nixpkgsConfig;
   };
 }
