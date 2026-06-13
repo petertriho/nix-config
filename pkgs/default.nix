@@ -26,6 +26,9 @@ with pkgs;
   };
   context-mode = callPackage ./context-mode { };
   figlet-fonts = callPackage ./figlet-fonts { };
+  headroom = callPackage ./headroom {
+    inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
+  };
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };

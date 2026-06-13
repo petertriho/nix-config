@@ -58,7 +58,7 @@ lib.mkMerge [
 
     programs.opencode.settings = {
       provider.openai.options = {
-        baseURL = "http://127.0.0.1:8317/v1";
+        baseURL = lib.mkDefault "http://127.0.0.1:8317/v1";
         apiKey = "{env:${cliProxyApiKeyEnvVar}}";
       };
     };

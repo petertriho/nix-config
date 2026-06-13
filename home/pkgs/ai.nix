@@ -318,6 +318,15 @@ in
     chunkhound.enable = false;
     context-mode.enable = true;
     crush.enable = true;
+    headroom = {
+      enable = true;
+      proxy = {
+        enable = true;
+        port = 8788;
+      };
+      mcp.enable = false;
+      integrations.cliProxyApi.enable = true;
+    };
     impeccable.enable = true;
     last30days-skill.enable = true;
     mattpocock-skills = {
