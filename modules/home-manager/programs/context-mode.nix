@@ -52,13 +52,17 @@ in
         {
           home.packages = [ cfg.package ];
         }
-        (lib.mkIf config.programs.opencode.enable {
-          xdg.configFile."opencode/node_modules/context-mode".source = packageRoot;
-          programs.opencode.settings.plugin = lib.mkAfter [ "context-mode" ];
-        })
-        (lib.mkIf config.programs.claude-code.enable {
-          programs.claude-code.plugins = lib.mkAfter [ packageRoot ];
-        })
+        {
+          programs.ai.resources = {
+            opencodePlugins = lib.mkAfter [
+              {
+                entry = "context-mode";
+                files."opencode/node_modules/context-mode".source = packageRoot;
+              }
+            ];
+            claudePlugins = lib.mkAfter [ packageRoot ];
+          };
+        }
       ]
     ))
     (lib.mkIf (!cfg.enable && config.programs.claude-code.enable) {

@@ -30,19 +30,7 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      (lib.mkIf config.programs.opencode.enable {
-        xdg.configFile = lib.mapAttrs' (
-          name: path:
-          lib.nameValuePair "opencode/skills/${name}" {
-            source = path;
-          }
-        ) selectedSkills;
-      })
-      (lib.mkIf config.programs.claude-code.enable {
-        programs.claude-code.skills = selectedSkills;
-      })
-    ]
-  );
+  config = lib.mkIf cfg.enable {
+    programs.ai.resources.skills = lib.mapAttrs (_: source: { inherit source; }) selectedSkills;
+  };
 }

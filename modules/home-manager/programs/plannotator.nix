@@ -12,24 +12,26 @@
   config = lib.mkIf config.programs.plannotator.enable (
     lib.mkMerge [
       { home.packages = [ pkgs.plannotator ]; }
+      {
+        programs.ai.resources = {
+          skills.plannotator-compound = {
+            source = "${pkgs.plannotator}/share/plannotator/apps/skills/plannotator-compound";
+            clients.claude-code.enable = false;
+          };
+          opencodePlugins = [ { entry = "@plannotator/opencode"; } ];
+          claudePlugins = [
+            "${pkgs.plannotator}/share/plannotator/apps/hook"
+          ];
+        };
+      }
       (lib.mkIf config.programs.opencode.enable {
-        xdg.configFile = {
-          "opencode/skills/plannotator-compound".source =
-            "${pkgs.plannotator}/share/plannotator/apps/skills/plannotator-compound";
-        }
-        // lib.mapAttrs' (
+        xdg.configFile = lib.mapAttrs' (
           name: _:
           lib.nameValuePair "opencode/commands/${name}" {
             source = "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands/${name}";
           }
         ) (builtins.readDir "${pkgs.plannotator}/share/plannotator/apps/opencode-plugin/commands");
-        programs.opencode.settings.plugin = [ "@plannotator/opencode" ];
         home.sessionVariables.PLANNOTATOR_ALLOW_SUBAGENTS = "1";
-      })
-      (lib.mkIf config.programs.claude-code.enable {
-        programs.claude-code.plugins = [
-          "${pkgs.plannotator}/share/plannotator/apps/hook"
-        ];
       })
     ]
   );

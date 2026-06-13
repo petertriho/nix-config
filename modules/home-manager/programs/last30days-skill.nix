@@ -19,22 +19,13 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
-        home.packages = with pkgs; [
-          nodejs
-          python3
-          yt-dlp
-        ];
-        home.sessionVariables.LAST30DAYS_MEMORY_DIR = cfg.memoryDir;
-      }
-      (lib.mkIf config.programs.opencode.enable {
-        xdg.configFile."opencode/skills/last30days".source = skillDir;
-      })
-      (lib.mkIf config.programs.claude-code.enable {
-        programs.claude-code.skills.last30days = skillDir;
-      })
-    ]
-  );
+  config = lib.mkIf cfg.enable {
+    home.packages = with pkgs; [
+      nodejs
+      python3
+      yt-dlp
+    ];
+    home.sessionVariables.LAST30DAYS_MEMORY_DIR = cfg.memoryDir;
+    programs.ai.resources.skills.last30days.source = skillDir;
+  };
 }
