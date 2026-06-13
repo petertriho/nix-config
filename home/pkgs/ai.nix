@@ -326,6 +326,12 @@ in
       };
       mcp.enable = false;
       integrations.cliProxyApi.enable = true;
+      optimization = {
+        interceptToolResults = true;
+        codeAware = true;
+        compressionStableAfterTurn = 2;
+        staleReadCompressAfterTurns = 3;
+      };
     };
     impeccable.enable = true;
     last30days-skill.enable = true;

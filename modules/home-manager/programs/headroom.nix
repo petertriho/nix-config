@@ -7,11 +7,30 @@
 let
   cfg = config.programs.headroom;
   proxyCfg = cfg.proxy;
+  optimizationCfg = cfg.optimization;
   cliProxyCfg = cfg.integrations.cliProxyApi;
 
   toEnv = lib.mapAttrs (_: value: toString value);
   proxyEnvironment = toEnv proxyCfg.environment;
   toSystemdEnvironment = lib.mapAttrsToList (name: value: "${name}=${value}");
+
+  # Optimization env vars. Applied both to the managed proxy service (so the
+  # long-running `headroom proxy` honours them) and to `home.sessionVariables`
+  # (so `headroom wrap <tool>` inherits them — the wrap subprocess copies the
+  # parent environment into its transient proxy).
+  optimizationEnvironment =
+    (lib.optionalAttrs optimizationCfg.interceptToolResults {
+      HEADROOM_INTERCEPT_ENABLED = "1";
+    })
+    // (lib.optionalAttrs (optimizationCfg.compressionStableAfterTurn > 0) {
+      HEADROOM_COMPRESSION_STABLE_AFTER_TURN = toString optimizationCfg.compressionStableAfterTurn;
+    })
+    // (lib.optionalAttrs (optimizationCfg.staleReadCompressAfterTurns > 0) {
+      HEADROOM_STALE_READ_COMPRESS_AFTER_TURNS = toString optimizationCfg.staleReadCompressAfterTurns;
+    })
+    // (lib.optionalAttrs optimizationCfg.codeAware {
+      HEADROOM_CODE_AWARE_ENABLED = "1";
+    });
 
   proxyUrl = "http://${proxyCfg.host}:${toString proxyCfg.port}";
   mcpProxyUrl = if cfg.mcp.proxyUrl == null then proxyUrl else cfg.mcp.proxyUrl;
@@ -149,6 +168,42 @@ in
         description = "Local cli-proxy-api port used by the launchd startup wait loop.";
       };
     };
+
+    optimization = {
+      interceptToolResults = lib.mkEnableOption ''
+        tool-result interceptors (ast-grep Read outliner, etc.) via
+        HEADROOM_INTERCEPT_ENABLED. Off by default upstream while the feature
+        ships; enables compression of tool results that sit outside the cached
+        prefix.
+      '';
+
+      codeAware = lib.mkEnableOption ''
+        AST-based code-aware compression (tree-sitter) via
+        HEADROOM_CODE_AWARE_ENABLED. Requires the `headroom-ai[code]` extra
+        (tree-sitter-language-pack) in the package; without it the proxy logs a
+        warning and code-aware stays unavailable.
+      '';
+
+      compressionStableAfterTurn = lib.mkOption {
+        type = lib.types.ints.unsigned;
+        default = 0;
+        description = ''
+          Value for HEADROOM_COMPRESSION_STABLE_AFTER_TURN. Headroom stays
+          conservative (no compression) for the first this-many turns of a
+          session before compressing more aggressively. 0 leaves the default.
+        '';
+      };
+
+      staleReadCompressAfterTurns = lib.mkOption {
+        type = lib.types.ints.unsigned;
+        default = 0;
+        description = ''
+          Value for HEADROOM_STALE_READ_COMPRESS_AFTER_TURNS. Read tool results
+          older than this-many turns become eligible for compression. 0 leaves
+          the default.
+        '';
+      };
+    };
   };
 
   config = lib.mkMerge [
@@ -177,7 +232,9 @@ in
 
           home = {
             packages = [ headroomPackage ];
-            sessionVariables.HEADROOM_TELEMETRY = lib.mkDefault "off";
+            sessionVariables = {
+              HEADROOM_TELEMETRY = lib.mkDefault "off";
+            } // optimizationEnvironment;
           };
         }
 
@@ -208,7 +265,7 @@ in
             Install.WantedBy = [ "default.target" ];
 
             Service = {
-              Environment = toSystemdEnvironment proxyEnvironment;
+              Environment = toSystemdEnvironment (proxyEnvironment // optimizationEnvironment);
               ExecStart = "${proxyLaunchWrapper}";
               Restart = "on-failure";
               RestartSec = 5;
@@ -221,7 +278,7 @@ in
             enable = true;
             config = {
               ProgramArguments = [ "${proxyLaunchWrapper}" ];
-              EnvironmentVariables = proxyEnvironment;
+              EnvironmentVariables = proxyEnvironment // optimizationEnvironment;
               KeepAlive = {
                 Crashed = true;
                 SuccessfulExit = false;

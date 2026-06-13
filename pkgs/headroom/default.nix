@@ -65,6 +65,7 @@ let
     headroom-ai = [
       "mcp"
       "proxy"
+      "code"
     ];
   };
 in
