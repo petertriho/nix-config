@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$HOME/.claude/hooks/context-mode-cache-heal.mjs\""
+            "command": "sh -c 'hook=\"$HOME/.claude/hooks/context-mode-cache-heal.mjs\"; if [ -x \"$hook\" ]; then \"$hook\"; fi'"
           }
         ]
       }

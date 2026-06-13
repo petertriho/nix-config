@@ -96,7 +96,7 @@
       {
         "id": "7f952c7e-4c5c-468e-9031-8594630c88b9",
         "type": "custom-command",
-        "commandPath": "context-mode statusline",
+        "commandPath": "sh -c 'if command -v context-mode >/dev/null 2>&1; then context-mode statusline; fi'",
         "preserveColors": true
       },
       {
