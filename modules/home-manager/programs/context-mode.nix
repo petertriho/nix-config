@@ -8,7 +8,7 @@ let
   cfg = config.programs.context-mode;
   packageRoot = "${cfg.package}/lib/node_modules/context-mode";
   disabledClaudePlugin = pkgs.runCommand "claude-code-context-mode-disabled-plugin" { } ''
-    install -Dm644${
+    install -Dm644 ${
       pkgs.writeText "context-mode-disabled-plugin.json" (
         builtins.toJSON {
           name = "context-mode";
@@ -17,7 +17,7 @@ let
         }
       )
     } $out/.claude-plugin/plugin.json
- install -Dm644${
+    install -Dm644 ${
       pkgs.writeText "context-mode-disabled-marketplace.json" (
         builtins.toJSON {
           name = "context-mode";

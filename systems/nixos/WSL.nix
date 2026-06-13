@@ -14,7 +14,6 @@
     enable = true;
     defaultUser = config.user;
   };
-  networking.hostName = "WSL";
 
   environment = {
     systemPackages = with pkgs; [

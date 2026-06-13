@@ -71,17 +71,68 @@
     }:
     let
       inherit (self) outputs;
+      lib = nixpkgs.lib;
       packageSets = import ./pkgs/package-sets.nix { inherit inputs; };
+      rawHosts = import ./hosts.nix;
 
-      getSystemConfiguration = system: {
-        inherit system;
+      defaultHomePath =
+        host:
+        if host ? homePath then
+          host.homePath
+        else if host.platform == "darwin" then
+          "/Users/${host.user}"
+        else
+          "/home/${host.user}";
+
+      normalizeHost =
+        outputName: host:
+        host
+        // {
+          name = host.name or outputName;
+          roles = host.roles or [ ];
+          homePath = defaultHomePath host;
+        };
+
+      hosts = lib.mapAttrs normalizeHost rawHosts;
+      hostsFor = platform: lib.filterAttrs (_: host: host.platform == platform) hosts;
+
+      hostSystemModule = host: {
+        user = lib.mkForce host.user;
+        homePath = lib.mkForce host.homePath;
+        networking.hostName = lib.mkForce host.name;
+      };
+
+      getSystemConfiguration = host: {
+        inherit (host) system;
         specialArgs = {
           inherit
             inputs
             outputs
+            host
             ;
         };
+        modules = [
+          (hostSystemModule host)
+          host.systemModule
+        ];
       };
+
+      getHomeConfiguration =
+        host:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = packageSets.pkgsFor host.system;
+          extraSpecialArgs = {
+            inherit
+              inputs
+              outputs
+              host
+              ;
+            inherit (host) user homePath;
+          };
+          modules = [
+            host.homeModule
+          ];
+        };
     in
     {
       inherit packageSets;
@@ -97,63 +148,14 @@
         user = "peter";
       };
 
-      nixosConfigurations = {
-        AMD-PC = nixpkgs.lib.nixosSystem (
-          getSystemConfiguration "x86_64-linux"
-          // {
-            modules = [ ./systems/nixos/AMD-PC ];
-          }
-        );
-        MBP15-I7 = nixpkgs.lib.nixosSystem (
-          getSystemConfiguration "x86_64-linux"
-          // {
-            modules = [ ./systems/nixos/MBP15-I7 ];
-          }
-        );
-        T480 = nixpkgs.lib.nixosSystem (
-          getSystemConfiguration "x86_64-linux"
-          // {
-            modules = [ ./systems/nixos/T480 ];
-          }
-        );
-        WSL = nixpkgs.lib.nixosSystem (
-          getSystemConfiguration "x86_64-linux"
-          // {
-            modules = [ ./systems/nixos/WSL.nix ];
-          }
-        );
-        X1-NANO = nixpkgs.lib.nixosSystem (
-          getSystemConfiguration "x86_64-linux"
-          // {
-            modules = [ ./systems/nixos/X1-NANO ];
-          }
-        );
-      };
+      nixosConfigurations = lib.mapAttrs (
+        _: host: nixpkgs.lib.nixosSystem (getSystemConfiguration host)
+      ) (hostsFor "nixos");
 
-      darwinConfigurations = {
-        MBP14-M1 = nix-darwin.lib.darwinSystem (
-          getSystemConfiguration "aarch64-darwin"
-          // {
-            modules = [ ./systems/darwin/MBP14-M1.nix ];
-          }
-        );
-      };
+      darwinConfigurations = lib.mapAttrs (
+        _: host: nix-darwin.lib.darwinSystem (getSystemConfiguration host)
+      ) (hostsFor "darwin");
 
-      homeConfigurations = {
-        droid = home-manager.lib.homeManagerConfiguration {
-          pkgs = packageSets.pkgsFor "aarch64-linux";
-          extraSpecialArgs = {
-            inherit
-              inputs
-              outputs
-              ;
-            user = "droid";
-            homePath = "/home/droid";
-          };
-          modules = [
-            ./home/droid.nix
-          ];
-        };
-      };
+      homeConfigurations = lib.mapAttrs (_: host: getHomeConfiguration host) (hostsFor "home-manager");
     };
 }

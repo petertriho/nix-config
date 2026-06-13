@@ -49,16 +49,16 @@ let
       };
 
     modifications = final: prev: {
-      commitmsgfmt = prev.commitmsgfmt.overrideAttrs (_: {
-        doCheck = false;
-      });
-      direnv =
-        if final.stdenv.hostPlatform.isDarwin then
-          prev.direnv.overrideAttrs (_: {
-            doCheck = false;
-          })
-        else
-          prev.direnv;
+      # commitmsgfmt = prev.commitmsgfmt.overrideAttrs (_: {
+      #   doCheck = false;
+      # });
+      # direnv =
+      #   if final.stdenv.hostPlatform.isDarwin then
+      #     prev.direnv.overrideAttrs (_: {
+      #       doCheck = false;
+      #     })
+      #   else
+      #     prev.direnv;
       pylint = prev.python3Packages.pylint.overridePythonAttrs {
         dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
       };
