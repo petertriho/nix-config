@@ -29,6 +29,7 @@ with pkgs;
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };
+  last30days-skill = callPackage ./last30days-skill { };
   lg-buddy = callPackage ./lg-buddy { };
   mattpocock-skills = callPackage ./mattpocock-skills { };
   impeccable = callPackage ./impeccable { };

@@ -10,6 +10,7 @@
     ./context-mode.nix
     ./crush.nix
     ./impeccable.nix
+    ./last30days-skill.nix
     ./lsp.nix
     ./mattpocock-skills.nix
     ./plannotator.nix

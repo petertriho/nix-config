@@ -319,6 +319,7 @@ in
     context-mode.enable = true;
     crush.enable = true;
     impeccable.enable = true;
+    last30days-skill.enable = true;
     mattpocock-skills = {
       enable = true;
       skills = {
