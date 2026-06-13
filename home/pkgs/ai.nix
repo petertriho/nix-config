@@ -16,7 +16,6 @@ let
   llmAgents = with pkgs.llm-agents; [
     openspec
     qmd
-    rtk
     tuicr
     workmux
   ];
@@ -354,6 +353,7 @@ in
     };
     plannotator.enable = true;
     playwriter.enable = false;
+    rtk.enable = true;
     superpowers.enable = false;
     taste-skill = {
       enable = true;

@@ -16,6 +16,7 @@
     ./mattpocock-skills.nix
     ./plannotator.nix
     ./playwriter.nix
+    ./rtk.nix
     ./superpowers.nix
     ./taste-skill.nix
   ];
