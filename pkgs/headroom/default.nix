@@ -11,8 +11,8 @@ let
   src = fetchFromGitHub {
     owner = "chopratejas";
     repo = "headroom";
-    rev = "4f59097045e16b7acf62598a544c40603f444d81";
-    hash = "sha256-VzRft7jkF5xv8AAGbF/9eSrp0mMN/15Y22l/h0DDEVo=";
+    rev = "b51cda10d7769be60b4f696aa8b9e0f22b1a1cf7";
+    hash = "sha256-FwrKVxXonQTKp6EiPRIDMuaXL/Q4s/hXUFRYyBNUnBw=";
   };
 
   workspace = uv2nix.lib.workspace.loadWorkspace {

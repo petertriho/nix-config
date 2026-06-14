@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "last30days-skill";
-  version = "0-unstable-2026-06-06";
+  version = "3.3.0-unstable-2026-06-06";
 
   src = fetchFromGitHub {
     owner = "mvanhorn";
