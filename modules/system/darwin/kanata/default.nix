@@ -6,6 +6,7 @@
 }:
 let
   cfg = config.services.kanata;
+  keymaps = import ../../kanata/keymaps.nix;
   KDK_VER = "6.6.0";
   KDK_PKG = pkgs.fetchurl {
     url = "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v${KDK_VER}/Karabiner-DriverKit-VirtualHIDDevice-${KDK_VER}.pkg";
@@ -21,7 +22,7 @@ in
 
       config = lib.mkOption {
         type = lib.types.str;
-        default = builtins.readFile ./kanata.kbd;
+        default = keymaps.darwin;
       };
     };
   };
