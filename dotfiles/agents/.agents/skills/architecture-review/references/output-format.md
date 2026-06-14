@@ -31,6 +31,9 @@ Maintenance cost:
 Recommendation:
 [The architectural direction. Name the behavior or concept that should own more responsibility. Avoid pretending the final interface is fully designed unless the code makes it obvious.]
 
+Cut / replacement (simplification only):
+[For simplification-focused recommendations only: name what to delete, inline, or replace with standard-library/platform-native behavior. If nothing replaces it, say "Nothing replaces this." Omit this field when it would not apply.]
+
 Why this helps:
 [Explain the concrete benefits for change safety, testing, and engineer/agent navigability. Define any specialized term you use.]
 
@@ -97,5 +100,7 @@ Omit `Secondary Observations` if it would only pad the report. If there are no c
 - Prefer concrete file evidence over abstract architecture language.
 - Use plain language first. If jargon helps, define it where it appears.
 - Include a short `Before` and `After` shape for every recommendation. Use text diagrams when they clarify ownership; use prose when the change is simple.
+- For simplification findings that do not need a full recommendation, put them in `Secondary Observations` as concise `cut -> replacement` notes with file references.
+- Do not add a global net-line score unless the user requested a terse complexity-only review.
 - Do not include implementation diffs unless the user explicitly asks for code changes.
 - Do not pad the report. Fewer strong recommendations are better than a catalog of weak possibilities.

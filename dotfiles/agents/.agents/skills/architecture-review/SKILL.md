@@ -1,11 +1,11 @@
 ---
 name: architecture-review
-description: Use for architecture review, refactoring-opportunity scans, ownership-opportunity discovery, codebase simplification audits, and testability or navigability reviews. Trigger when the user asks to review architecture, improve a codebase, clarify behavior ownership, simplify boundaries, reduce coupling, find shallow modules, identify refactors, discover contract/resource/test seams, or prepare evidence-backed recommendations another engineer or agent can explore; avoid ordinary bug-only reviews unless architecture is the stated focus.
+description: Use for architecture review, refactoring-opportunity scans, ownership-opportunity discovery, codebase simplification audits, over-engineering/deletion reviews with an architecture angle, and testability or navigability reviews. Trigger when the user asks to review architecture, improve a codebase, clarify behavior ownership, simplify boundaries, reduce coupling, find shallow modules, identify refactors, discover contract/resource/test seams, identify what can be deleted, or prepare evidence-backed recommendations another engineer or agent can explore; avoid ordinary bug-only reviews unless architecture is the stated focus.
 ---
 
 # Architecture Review
 
-Surface codebase improvement opportunities as brief, standalone recommendations. Architecture review is about how knowledge and behavior are distributed: what callers must know, what modules own, what tests can prove, and how easily a future engineer or agent can find the right place to change behavior.
+Surface codebase improvement opportunities as brief, standalone recommendations. Architecture review is about how knowledge and behavior are distributed: what callers must know, what modules own, what tests can prove, and how easily a future engineer or agent can find the right place to change behavior. Simpler architecture is often smaller architecture, so use a deletion-first lens before proposing new boundaries.
 
 Produce a review artifact, not a patch. Do not implement changes, create docs, or produce a full implementation plan unless the user explicitly asks. The useful output is a small set of evidence-backed recommendations another engineer or agent can independently explore.
 
@@ -40,19 +40,27 @@ Read these bundled files as needed:
    - Ask what callers and tests must know today that a clearer behavior owner could hide from them. Treat the interface as every fact a caller must know: names, DTOs, invariants, ordering, configuration, error modes, lifecycle rules, and provider quirks.
    - Look for repeated stable names, DTO mappings, registries, runtime registration, fake contexts, or tests that patch private import paths. These often reveal a missing contract module or test seam.
    - Look for domain branching axes repeated across workflows, activities, DTOs, and tests. A mode, status, artifact, partition type, or resource lifecycle may be the real owner even when no file has that name yet.
+   - Run an over-engineering pass before adding any abstraction: look for dead flexibility, unused configuration, one-implementation interfaces, layers with one caller, hand-rolled standard-library behavior, dependencies that duplicate platform-native features, and code that can express the same behavior in fewer moving parts.
    - Apply the deletion test: if deleting a module makes complexity disappear, it may not be useful; if deleting it spreads complexity across callers, it is probably earning its keep.
 
-5. Do a candidate-discovery pass before narrowing.
+5. Apply the simplification lens without changing the review contract.
+   - Treat terse simplification findings as an additive lens, not a replacement output format. Do not switch to one-line complexity-only review or add a global `net: -N lines` score unless the user explicitly asks for that style.
+   - When a candidate is primarily about excess complexity, classify the shape internally as `delete`, `stdlib`, `native`, `yagni`, or `shrink`: remove unused code, use a standard-library function, use a platform-native feature, defer speculative flexibility, or express the same logic more directly.
+   - For each simplification candidate, name what to cut and what replaces it. If nothing should replace it, say so directly.
+   - Do not flag a small smoke test, assert-based self-check, clear adapter for a real external boundary, or narrow interface with a meaningful test substitute as bloat just because it adds lines.
+
+6. Do a candidate-discovery pass before narrowing.
    - List plausible ownership candidates, including weaker ones, before choosing the final recommendations. This prevents the review from stopping at the first correctness issue and missing broader change-locality or caller-burden opportunities.
    - For each candidate, sketch the current ownership shape and the proposed ownership shape in one or two lines. If the `After` shape cannot be described clearly, mark it as a design-spike candidate or drop it.
    - Do not discard a candidate only because current tests catch drift. Ask whether those tests are revealing production knowledge that should live behind a real interface.
 
-6. Filter candidates.
+7. Filter candidates.
    - Recommend only when there is concrete evidence, a plausible migration path, and validation that can prove the refactor safe.
    - Prefer deletion, inlining, or moving behavior to an existing owner when that solves the maintenance cost better than adding a new abstraction.
+   - If a native, standard-library, or inline replacement solves the issue, prefer that over a new project-specific helper or interface.
    - Do not recommend broad rewrites from file layout alone. Tie structure to behavior, testability, change safety, or navigation payoff.
 
-7. Produce brief recommendations, not a full implementation plan, unless the user explicitly asks for planning or code changes.
+8. Produce brief recommendations, not a full implementation plan, unless the user explicitly asks for planning or code changes.
 
 ## Recommendation Standard
 
@@ -66,6 +74,7 @@ A good recommendation is independently usable. It includes:
 - Validation steps that would prove the refactor is safe.
 - Risks, counter-evidence, or constraints that a follow-up planner must consider.
 - A self-contained handoff prompt another engineer or agent can use to continue exploration.
+- For simplification recommendations, a clear cut/replacement statement and, when credible, a rough net-line reduction estimate. Do not make line count the only reason; tie the deletion to reduced caller knowledge, fewer moving parts, or easier change.
 
 The recommendation must make sense without reading this skill or its reference files. Prefer project-specific plain language over architecture jargon. If a specialized term is useful, explain it in the recommendation itself.
 
@@ -92,6 +101,8 @@ Return:
 - `Not recommended`: tempting refactors considered and rejected, or `None identified` with a reason.
 - `Scope limits`: important areas not inspected.
 
+For lower-payoff simplification findings, use `Secondary observations` with concise `cut -> replacement` wording instead of expanding them into full recommendations.
+
 If there are no worthwhile recommendations, say so directly and explain what evidence led to that conclusion.
 
 ## Discipline
@@ -101,6 +112,7 @@ If there are no worthwhile recommendations, say so directly and explain what evi
 - Make every recommendation self-contained; do not assume the reader knows this skill's vocabulary.
 - Separate evidence from inference. It is fine to say what the code suggests, but label uncertainty clearly.
 - Let tests inform architecture. Fragile fakes, import-path patching, and registry completeness tests are often evidence of the current seam shape, not just test cleanup chores.
+- Prefer deleting, inlining, or using standard-library/platform-native features before inventing a new abstraction, unless a real owner or seam would reduce caller knowledge.
 - Do not create or update docs unless the user asks.
 - Do not implement changes during the recommendation pass unless the user explicitly asks.
 - Avoid broad rewrites unless tied to concrete behavior, testability, or navigation payoff.

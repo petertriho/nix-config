@@ -28,6 +28,10 @@ Look for these patterns:
 - Repeated stable names, DTO mappings, registries, fake contexts, runtime registration, or contract-completeness tests that all describe the same operation.
 - A domain branching axis, such as mode, status, partition type, provider, artifact type, or lifecycle state, repeated across workflows, activities, DTOs, and tests.
 - Resource construction scattered across runtime wiring and behavior modules, especially databases, queues, object storage, clocks, secrets, config, or network clients.
+- Hand-rolled behavior that the language, framework, standard library, or platform already provides.
+- Dependencies used for one narrow operation that native APIs can handle with less setup and fewer update/security obligations.
+- One-implementation interfaces, one-caller layers, unused configuration, or speculative extension points that make callers navigate more names without hiding real knowledge.
+- Code whose current shape is longer mainly because it models hypothetical future variation instead of current behavior.
 - Tests that exercise helpers but miss the user-visible behavior that combines them.
 - Tests that need private state, exact ordering, or mocks for every internal step.
 - Tests that patch implementation import paths instead of crossing the same interface production code uses.
@@ -47,6 +51,8 @@ Use these questions to separate real architecture recommendations from style pre
 - **Test surface**: Can important behavior be tested through a stable public interface, or only by mocking internals?
 - **Name fit**: Is there a domain concept in the code or docs that naturally owns the behavior?
 - **Seam reality**: Are there real adapters, substitutes, external dependencies, or caller variations that justify a seam?
+- **Native replacement**: Does the language, framework, standard library, or platform already provide this behavior clearly enough?
+- **YAGNI check**: Is this flexibility used today, or is it making the current system harder to change for a future that has not arrived?
 - **Migration path**: Can the change be staged without rewriting the subsystem at once?
 
 ## Ownership Patterns
@@ -71,6 +77,9 @@ If several leaf workflows or handlers repeat the same outcome rules around diffe
 **Test seam owner**
 Treat fragile tests as evidence. A fake context, import-path patching, or registry drift test can mean the production seam is implicit. The recommendation should explain whether to move behavior behind a clearer production owner, simplify tests, or leave the seam as-is.
 
+**Deletion owner**
+Some complexity has no better owner because it should not exist. When a wrapper, dependency, config layer, or abstract interface does not reduce caller knowledge, hide a volatile dependency, or create a real test seam, recommend deleting or inlining it rather than relocating it.
+
 ## Counter-Signals
 
 Do not recommend a refactor just because one of these is true:
@@ -78,6 +87,8 @@ Do not recommend a refactor just because one of these is true:
 - A file is long, but behavior is cohesive and tests cover it well.
 - A helper is small, but it removes repeated caller knowledge or isolates a volatile dependency.
 - There is only one implementation of an interface, but the interface hides a real external dependency, test substitute, or protocol boundary.
+- A helper or wrapper is short, but it names a real domain operation and prevents duplicated caller knowledge.
+- A small smoke test or assert-based self-check adds lines, but protects the only realistic validation path for the behavior.
 - Names or folders look inconsistent, but no behavior is hard to change or verify.
 - A possible abstraction would make the model cleaner but add migration risk without near-term payoff.
 
