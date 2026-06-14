@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Use this skill only when the user explicitly asks to modify files or carry out implementation work now, such as fixing a bug, adding a feature, making tests pass, refactoring code, or completing a specific task from an existing task list. Do not use for planning, plan refinement, task breakdown, architecture review, code review, diagnosis, research, discussion of approaches, or interpreting a plan unless the user clearly asks to edit files now.
+description: Use this skill only when the user explicitly asks to modify files or carry out implementation work now, such as fixing a bug, adding a feature, making tests pass, refactoring code, or completing a specific task from an existing task list. It drives end-to-end implementation with a smallest-safe-diff bias: inspect context, prefer existing code and native capabilities, avoid speculative abstractions, validate, and report clearly. Do not use for planning, plan refinement, task breakdown, architecture review, code review, diagnosis, research, discussion of approaches, or interpreting a plan unless the user clearly asks to edit files now.
 disable-model-invocation: true
 ---
 
@@ -15,6 +15,9 @@ task file is helpful but never required.
 - Inspect project context before editing. Read named files, nearby code, tests,
   docs, recent commits when useful, and any provided `.changes` artifacts.
 - Prefer the smallest correct change that satisfies the requested behavior.
+- Deletion beats addition when it preserves required behavior. Avoid scaffolding,
+  new dependencies, new config surfaces, and new abstractions unless the current
+  task actually needs them.
 - Preserve existing conventions, public APIs, validation commands, and repo
   workflow unless the user asks to change them.
 - Work autonomously once the behavior is clear. Ask exactly one focused question
@@ -22,6 +25,31 @@ task file is helpful but never required.
   ambiguous acceptance criterion materially changes the implementation.
 - Do not commit changes unless the user explicitly asks.
 - In a shared worktree, never revert or overwrite changes you did not make.
+
+## Implementation Ladder
+
+Before adding new code, stop at the first rung that satisfies the task safely:
+
+1. Remove, rename, or connect existing code instead of creating more code.
+2. Use the language/runtime standard library.
+3. Use native platform features such as browser controls, CSS, database
+   constraints, shell commands, framework conventions, or existing validation.
+4. Use an already-installed dependency when it clearly fits.
+5. Add the smallest local code change.
+6. Add a new dependency, abstraction, service, config surface, or generated
+   scaffold only when the earlier rungs cannot meet the requirement cleanly.
+
+The ladder is a quick decision aid, not a research project. If two approaches
+are similarly small, choose the one with better edge-case behavior. Minimal
+means less code to own, not fragile code.
+
+Never simplify away input validation at trust boundaries, error handling that
+prevents data loss, security controls, accessibility basics, compatibility
+requirements, or anything the user explicitly asked to preserve.
+
+If a deliberate shortcut has a known ceiling, make that ceiling visible with a
+brief code comment or completion-note, including when to replace it. Do not
+comment obvious code just to justify being concise.
 
 ## Input Handling
 
@@ -80,8 +108,15 @@ Skip or adapt TDD when a failing behavior test would be artificial or low value:
 - Generated-file updates.
 - Mechanical renames or migrations with existing test coverage.
 - Pure discovery or diagnosis tasks.
+- Tiny one-line behavior changes where nearby existing tests, typechecks, or a
+  smoke check already prove the behavior and a new test would be ceremony.
 
 When TDD is skipped, still define concrete validation before editing.
+
+Keep tests as small as the implementation slice. Non-trivial logic should leave
+behind one runnable check that fails if the behavior regresses; avoid broad
+fixture suites, private-helper tests, or speculative coverage for behavior not
+being implemented now.
 
 ## TDD Workflow
 
@@ -167,6 +202,7 @@ End with a concise report containing:
 - Whether TDD was used or skipped, and why.
 - Tests and validation commands run.
 - Any task checkboxes updated.
+- Any deliberate simplifications, what was skipped, and when to add it.
 - Blockers, skipped validation, or residual risks.
 
 Do not include speculative next steps unless they naturally follow from a known
