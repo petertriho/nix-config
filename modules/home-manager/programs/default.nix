@@ -10,14 +10,12 @@
     ./claude-code.nix
     ./context-mode.nix
     ./crush.nix
-    ./headroom.nix
     ./impeccable.nix
     ./last30days-skill.nix
     ./lsp.nix
     ./mattpocock-skills.nix
     ./plannotator.nix
     ./playwriter.nix
-    ./rtk.nix
     ./superpowers.nix
     ./taste-skill.nix
   ];

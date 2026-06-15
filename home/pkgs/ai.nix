@@ -257,7 +257,6 @@ in
           # "@mohak34/opencode-notifier"
           "@slkiser/opencode-quota"
           # "@tarquinen/opencode-dcp"
-          # "openrtk"
         ];
         agent = {
           plan = {
@@ -315,23 +314,8 @@ in
     };
     basic-memory.enable = true;
     chunkhound.enable = false;
-    context-mode.enable = false;
+    context-mode.enable = true;
     crush.enable = true;
-    headroom = {
-      enable = true;
-      proxy = {
-        enable = true;
-        port = 8788;
-      };
-      mcp.enable = false;
-      integrations.cliProxyApi.enable = true;
-      optimization = {
-        interceptToolResults = true;
-        codeAware = true;
-        compressionStableAfterTurn = 2;
-        staleReadCompressAfterTurns = 3;
-      };
-    };
     impeccable.enable = true;
     last30days-skill.enable = true;
     mattpocock-skills = {
@@ -353,7 +337,6 @@ in
     };
     plannotator.enable = true;
     playwriter.enable = false;
-    rtk.enable = true;
     superpowers.enable = false;
     taste-skill = {
       enable = true;

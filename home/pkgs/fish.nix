@@ -108,7 +108,6 @@
       gsta = "git stash apply";
       gstp = "git stash pop";
       gsw = "git switch";
-      hwc = "headroom wrap claude";
       gw = "git worktree";
       gwa = "git worktree add";
       gwl = "git worktree list";
