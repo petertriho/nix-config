@@ -62,6 +62,13 @@ Read these bundled files as needed:
 
 8. Produce brief recommendations, not a full implementation plan, unless the user explicitly asks for planning or code changes.
 
+9. Save the review.
+   - Choose a concise kebab-case `<review-name>` based on the reviewed scope or focus (for example `auth-boundary` or `import-pipeline`).
+   - Write the review to `.changes/<review-name>/REVIEW.md`, creating `.changes/<review-name>/` if it does not already exist.
+   - If a related `.changes/<review-name>/` already exists for this work (for example a `PLAN.md` from the planner skill or `TASKS.md` from plan-to-tasks), reuse that directory so the review sits beside the plan and tasks it informs.
+   - If `REVIEW.md` already exists, read it first and update it deliberately rather than blindly overwriting prior findings.
+   - Skip saving only when the prompt was an ordinary bug/security/style review with no architecture angle, where this skill's output format does not apply.
+
 ## Recommendation Standard
 
 A good recommendation is independently usable. It includes:
@@ -90,9 +97,9 @@ Use ownership language in the final recommendation. If terms such as interface, 
 
 ## Output
 
-Use the format in `references/output-format.md`.
+Write the review to `.changes/<review-name>/REVIEW.md` using the format in `references/output-format.md` (see Process step 9 for how to choose `<review-name>` and where the file lives).
 
-Return:
+`REVIEW.md` contains:
 
 - A short orientation paragraph naming the reviewed scope.
 - 2-6 brief recommendations ordered by expected payoff.
@@ -103,7 +110,9 @@ Return:
 
 For lower-payoff simplification findings, use `Secondary observations` with concise `cut -> replacement` wording instead of expanding them into full recommendations.
 
-If there are no worthwhile recommendations, say so directly and explain what evidence led to that conclusion.
+If there are no worthwhile recommendations, say so directly in `REVIEW.md` and explain what evidence led to that conclusion.
+
+After writing `REVIEW.md`, summarize the saved file path, the top pick, and any scope limits in the final response so the user can act without reopening the file.
 
 ## Discipline
 
