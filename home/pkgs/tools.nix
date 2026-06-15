@@ -86,6 +86,7 @@
           "dev"
           "hotfix"
           "main"
+          "*__worktrees"
           "work"
         ];
 
