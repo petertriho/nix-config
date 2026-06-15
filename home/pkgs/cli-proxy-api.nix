@@ -88,7 +88,7 @@ lib.mkMerge [
           "network-online.target"
           "cli-proxy-api.service"
         ];
-        Requires = [ "cli-proxy-api.service" ];
+        Wants = [ "cli-proxy-api.service" ];
       };
 
       Install.WantedBy = [ "default.target" ];
