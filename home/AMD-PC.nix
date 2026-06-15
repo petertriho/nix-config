@@ -38,6 +38,20 @@ in
       on-resume = "${pkgs.niri}/bin/niri msg action power-on-monitors; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
     }
   ];
+  programs.headroom = {
+    enable = true;
+    mcp.enable = true;
+    integrations = {
+      claudeCode.enable = true;
+      cliProxyApi.enable = true;
+    };
+    optimization = {
+      interceptToolResults = true;
+      codeAware = true;
+      compressionStableAfterTurn = 2;
+      staleReadCompressAfterTurns = 2;
+    };
+  };
   programs.niri.settings = {
     input.trackball = {
       accel-profile = "adaptive";

@@ -10,6 +10,7 @@
     ./claude-code.nix
     ./context-mode.nix
     ./crush.nix
+    ./headroom.nix
     ./impeccable.nix
     ./last30days-skill.nix
     ./lsp.nix

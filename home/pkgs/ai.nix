@@ -314,7 +314,7 @@ in
     };
     basic-memory.enable = true;
     chunkhound.enable = false;
-    context-mode.enable = true;
+    context-mode.enable = false;
     crush.enable = true;
     impeccable.enable = true;
     last30days-skill.enable = true;

@@ -1,0 +1,18 @@
+diff --git a/headroom/proxy/server.py b/headroom/proxy/server.py
+index 96c8e01..ef3207b 100644
+--- a/headroom/proxy/server.py
++++ b/headroom/proxy/server.py
+@@ -636,6 +636,13 @@ class HeadroomProxy:
+             CacheAligner(CacheAlignerConfig(enabled=False)),
+             ContentRouter(router_config, observer=self.metrics),
+         ]
++        # The proxy supplies an explicit transform list, so TransformPipeline's
++        # default builder cannot add opt-in tool_result interceptors for us.
++        if os.environ.get("HEADROOM_INTERCEPT_ENABLED"):
++            from headroom.proxy.interceptors import ToolResultInterceptorTransform
++
++            transforms.insert(0, ToolResultInterceptorTransform())
++
+         self._code_aware_status = "lazy" if config.code_aware_enabled else "disabled"
+ 
+         self.anthropic_pipeline = TransformPipeline(

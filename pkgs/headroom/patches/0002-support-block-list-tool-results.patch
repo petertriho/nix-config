@@ -1,0 +1,72 @@
+diff --git a/headroom/cache/compression_cache.py b/headroom/cache/compression_cache.py
+index 3313b1e..6fdfbf4 100644
+--- a/headroom/cache/compression_cache.py
++++ b/headroom/cache/compression_cache.py
+@@ -40,35 +40,61 @@ def _is_tool_result_message(msg: dict) -> bool:
+     return False
+ 
+ 
++def _extract_text_content(content: object) -> str | None:
++    """Extract plain text from string or Anthropic content-block lists."""
++    if isinstance(content, str):
++        return content
++    if isinstance(content, list):
++        parts: list[str] = []
++        for block in content:
++            if isinstance(block, str):
++                parts.append(block)
++            elif isinstance(block, dict):
++                text = block.get("text")
++                if block.get("type") == "text" and isinstance(text, str):
++                    parts.append(text)
++        if parts:
++            return "\n".join(parts)
++    return None
++
++
+ def _extract_tool_result_content(msg: dict) -> str | None:
+     """Extract text content from a tool result message (both formats)."""
+     # OpenAI format
+     if msg.get("role") == "tool":
+         content = msg.get("content")
+-        return content if isinstance(content, str) else None
++        return _extract_text_content(content)
+     # Anthropic format
+     content = msg.get("content")
+     if isinstance(content, list):
+         for block in content:
+             if isinstance(block, dict) and block.get("type") == "tool_result":
+-                inner = block.get("content")
+-                if isinstance(inner, str):
+-                    return inner
++                return _extract_text_content(block.get("content"))
+     return None
+ 
+ 
+ def _swap_tool_result_content(msg: dict, new_content: str) -> dict:
+     """Deep copy msg and replace tool result content with new_content."""
+     new_msg = copy.deepcopy(msg)
+     # OpenAI format
+     if new_msg.get("role") == "tool":
+-        new_msg["content"] = new_content
++        original_content = new_msg.get("content")
++        new_msg["content"] = (
++            [{"type": "text", "text": new_content}]
++            if isinstance(original_content, list)
++            else new_content
++        )
+         return new_msg
+     # Anthropic format
+     content = new_msg.get("content")
+     if isinstance(content, list):
+         for block in content:
+             if isinstance(block, dict) and block.get("type") == "tool_result":
+-                block["content"] = new_content
++                original_content = block.get("content")
++                block["content"] = (
++                    [{"type": "text", "text": new_content}]
++                    if isinstance(original_content, list)
++                    else new_content
++                )
+                 break
+     return new_msg

@@ -1,0 +1,22 @@
+diff --git a/headroom/transforms/content_detector.py b/headroom/transforms/content_detector.py
+index 2d9c56b..6d112df 100644
+--- a/headroom/transforms/content_detector.py
++++ b/headroom/transforms/content_detector.py
+@@ -146,7 +146,7 @@ def detect_content_type(content: str) -> DetectionResult:
+ 
+     # 3. Check for HTML (very distinctive, needs extraction not compression)
+     html_result = _try_detect_html(content)
+-    if html_result and html_result.confidence >= 0.7:
++    if html_result and html_result.confidence >= 0.5:
+         return html_result
+ 
+     # 4. Check for search results (file:line: format)
+@@ -161,7 +161,7 @@ def detect_content_type(content: str) -> DetectionResult:
+ 
+     # 6. Check for source code
+     code_result = _try_detect_code(content)
+-    if code_result and code_result.confidence >= 0.5:
++    if code_result and code_result.confidence >= 0.45:
+         return code_result
+ 
+     # 7. Fallback to plain text
