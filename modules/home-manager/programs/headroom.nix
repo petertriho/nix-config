@@ -26,8 +26,6 @@ let
   claudeUpstreamUrl =
     if claudeCodeCfg.upstreamUrl != null then
       claudeCodeCfg.upstreamUrl
-    else if config.programs.claude-code.zai.enable then
-      "https://api.z.ai/api/anthropic"
     else
       null;
 
@@ -272,9 +270,8 @@ in
             type = lib.types.nullOr lib.types.str;
             default = null;
             description = ''
-              Anthropic-compatible upstream URL for Headroom. Defaults to Z.ai
-              when `programs.claude-code.zai.enable` is true, otherwise Headroom's
-              upstream default.
+              Anthropic-compatible upstream URL for Headroom. Defaults to
+              Headroom's upstream default.
             '';
           };
         };

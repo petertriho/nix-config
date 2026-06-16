@@ -42,7 +42,6 @@ in
     enable = true;
     mcp.enable = true;
     integrations = {
-      claudeCode.enable = true;
       cliProxyApi.enable = true;
     };
     optimization = {
