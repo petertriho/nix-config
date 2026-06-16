@@ -299,7 +299,7 @@ in
           "@slkiser/opencode-quota"
           "oc-tps"
           [
-            "vimcode@git+https://github.com/oribarilan/vimcode.git#v0.8.0"
+            "vimcode@git+https://github.com/oribarilan/vimcode.git#v0.14.0"
             { "updateCheck" = false; }
           ]
         ];
