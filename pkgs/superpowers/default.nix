@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "superpowers";
-  version = "5.1.0-unstable-2026-05-29";
+  version = "5.1.0-unstable-2026-06-15";
 
   src = fetchFromGitHub {
     owner = "obra";
     repo = "superpowers";
-    rev = "6fd4507659784c351abbd2bc264c7162cfd386dc";
-    sha256 = "sha256-P/FD8HTQO+QzvMe3A/B2v2vjs8T6ZmIYH3MPp79dSzo=";
+    rev = "8cf39006140a743dce31ba4046fceab90cc214e6";
+    sha256 = "sha256-sKww11UOOHzZWxcHCprnF2+0pnuuGWIJpDoU7pxzRC4=";
   };
 
   dontBuild = true;

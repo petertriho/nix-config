@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "react-doctor";
-  version = "react-doctor@0.5.5-unstable-2026-06-15";
+  version = "react-doctor@0.5.6-unstable-2026-06-16";
 
   src = fetchFromGitHub {
     owner = "millionco";
     repo = "react-doctor";
-    rev = "cf9e05be8ee1f1781878c28b8342490ec11c176f";
-    hash = "sha256-fu+VTCC8h0mWhiqXUVotADdZmQJt/Yd/O3l8eVA1LfM=";
+    rev = "451beeb28405aa6810946e3311dfc7fb8de74632";
+    hash = "sha256-VYEvdWfjudWZV9EXCsraIP+8khCaDovJJF58ng6WLNA=";
   };
 
   nativeBuildInputs = [
@@ -30,7 +30,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm_10;
     fetcherVersion = 3;
-    hash = "sha256-x+rQausYoay21Z5D8ci5aDTbEVCOIJayX1/pNiy5smw=";
+    hash = "sha256-J1ozVa1ON+RmzhXWYiiR7OQsAHvK4LEr+VCbnPy/eq8=";
   };
 
   buildPhase = ''
