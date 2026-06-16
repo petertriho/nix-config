@@ -42,15 +42,6 @@
             "command": "ccstatusline --hook"
           }
         ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rtk hook claude"
-          }
-        ]
       }
     ],
     "SessionStart": [
