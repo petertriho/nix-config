@@ -72,7 +72,7 @@ in
       [
         # amazon-q-cli
         nodejs
-        open-design
+        # open-design
         # pinchtab
         python3
         react-doctor
