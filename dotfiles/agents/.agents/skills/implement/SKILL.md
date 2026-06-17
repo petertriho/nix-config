@@ -13,7 +13,7 @@ task file is helpful but never required.
 ## Core Defaults
 
 - Inspect project context before editing. Read named files, nearby code, tests,
-  docs, recent commits when useful, and any provided `.changes` artifacts.
+  docs, recent commits when useful, and any provided `.artifacts` artifacts.
 - Prefer the smallest correct change that satisfies the requested behavior.
 - Deletion beats addition when it preserves required behavior. Avoid scaffolding,
   new dependencies, new config surfaces, and new abstractions unless the current
@@ -60,7 +60,7 @@ When the user asks for an implementation without a task file:
 1. Read enough code to understand the current behavior and test setup.
 2. Derive a short transient execution plan.
 3. Track progress internally or with the host's todo tool when useful.
-4. Do not create `.changes` files or task artifacts unless the user asks.
+4. Do not create `.artifacts` files or task artifacts unless the user asks.
 
 ### Plans
 

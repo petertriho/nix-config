@@ -245,7 +245,7 @@ in
             permission = {
               edit = {
                 "*" = "deny";
-                ".changes/**" = "allow";
+                ".artifacts/**" = "allow";
               };
             };
           };

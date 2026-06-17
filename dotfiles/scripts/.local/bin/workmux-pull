@@ -66,8 +66,8 @@ pick_worktree() {
 archive_tasks_folder() {
     local worktree_path="$1"
     local worktree_name="$2"
-    local source_dir="${worktree_path}/.changes/${worktree_name}"
-    local archive_root="${worktree_path}/.changes/archive"
+    local source_dir="${worktree_path}/.artifacts/${worktree_name}"
+    local archive_root="${worktree_path}/.artifacts/archive"
     local archive_dir="${archive_root}/${worktree_name}"
 
     if [ ! -f "${source_dir}/TASKS.md" ]; then

@@ -7,7 +7,7 @@ panes:
     focus: true
 files:
   symlink:
-    - .changes
+    - .artifacts
     - .plans
     - node_modules
 status_icons:

@@ -64,8 +64,8 @@ Read these bundled files as needed:
 
 9. Save the review.
    - Choose a concise kebab-case `<review-name>` based on the reviewed scope or focus (for example `auth-boundary` or `import-pipeline`).
-   - Write the review to `.changes/reviews/<review-name>/REVIEW.md`, creating `.changes/<review-name>/` if it does not already exist.
-   - If a related `.changes/reviews/<review-name>/` already exists for this work (for example a `PLAN.md` from the planner skill or `TASKS.md` from plan-to-tasks), reuse that directory so the review sits beside the plan and tasks it informs.
+   - Write the review to `.artifacts/reviews/<review-name>/REVIEW.md`, creating `.artifacts/<review-name>/` if it does not already exist.
+   - If a related `.artifacts/reviews/<review-name>/` already exists for this work (for example a `PLAN.md` from the planner skill or `TASKS.md` from plan-to-tasks), reuse that directory so the review sits beside the plan and tasks it informs.
    - If `REVIEW.md` already exists, read it first and update it deliberately rather than blindly overwriting prior findings.
    - Skip saving only when the prompt was an ordinary bug/security/style review with no architecture angle, where this skill's output format does not apply.
 
@@ -97,7 +97,7 @@ Use ownership language in the final recommendation. If terms such as interface, 
 
 ## Output
 
-Write the review to `.changes/reviews/<review-name>/REVIEW.md` using the format in `references/output-format.md` (see Process step 9 for how to choose `<review-name>` and where the file lives).
+Write the review to `.artifacts/reviews/<review-name>/REVIEW.md` using the format in `references/output-format.md` (see Process step 9 for how to choose `<review-name>` and where the file lives).
 
 `REVIEW.md` contains:
 

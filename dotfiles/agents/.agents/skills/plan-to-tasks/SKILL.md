@@ -13,8 +13,8 @@ clear scope, dependencies, and acceptance checks.
 
 1. Locate and read the source plan.
    - If the user named a file, read that file before producing tasks.
-   - If the source is `.changes/<plan-name>/PLAN.md`, use the same
-     `.changes/<plan-name>/` directory for the task file.
+   - If the source is `.artifacts/<plan-name>/PLAN.md`, use the same
+     `.artifacts/<plan-name>/` directory for the task file.
    - If the plan is only in the conversation, use the latest complete plan or
      planner output. Do not infer missing requirements from earlier brainstorms
      unless they were carried into the final plan.
@@ -65,17 +65,17 @@ clear scope, dependencies, and acceptance checks.
      mechanical refactors, generated files, and discovery work.
 
 6. Save or update the tasks.
-   - Write the final tasks to `.changes/<plan-name>/TASKS.md`.
-   - Create `.changes/<plan-name>/` if it does not already exist.
+   - Write the final tasks to `.artifacts/<plan-name>/TASKS.md`.
+   - Create `.artifacts/<plan-name>/` if it does not already exist.
    - If `TASKS.md` already exists, read it first and update it deliberately;
      preserve completed checkboxes and user-authored context unless the user
      explicitly asked for replacement.
-   - If no `.changes/<plan-name>/PLAN.md` exists, choose a concise kebab-case
+   - If no `.artifacts/<plan-name>/PLAN.md` exists, choose a concise kebab-case
      `<plan-name>` based on the plan goal.
 
 ## Task Output Format
 
-Use these sections in `.changes/<plan-name>/TASKS.md`:
+Use these sections in `.artifacts/<plan-name>/TASKS.md`:
 
 1. Task Summary
    - One paragraph describing the execution path, important sequencing logic,

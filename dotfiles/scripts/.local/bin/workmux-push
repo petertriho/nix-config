@@ -20,7 +20,7 @@ pick_tasks_file() {
 
     running_names="$(running_worktree_names)"
 
-    fd --type f --hidden --follow --glob TASKS.md --exclude archive .changes \
+    fd --type f --hidden --follow --glob TASKS.md --exclude archive .artifacts \
         | while IFS= read -r tasks_file; do
             tasks_file="${tasks_file#./}"
             plan_dir="${tasks_file%/*}"
@@ -32,12 +32,12 @@ pick_tasks_file() {
         done \
         | fzf \
             --prompt 'TASKS.md> ' \
-            --header 'Select a .changes task file' \
+            --header 'Select a .artifacts task file' \
             --preview 'bat --color=always --style=numbers --line-range=:200 -- {}' \
             --preview-window 'right:60%'
 }
 
-[ -d .changes ] || die "no .changes directory found in current directory"
+[ -d .artifacts ] || die "no .artifacts directory found in current directory"
 
 if ! tasks_file="$(pick_tasks_file)"; then
     exit 0
@@ -48,8 +48,8 @@ fi
 plan_dir="${tasks_file%/*}"
 worktree_name="${plan_dir##*/}"
 
-if [ "$plan_dir" = ".changes" ] || [ -z "$worktree_name" ]; then
-    die "TASKS.md must be inside a change subdirectory under .changes"
+if [ "$plan_dir" = ".artifacts" ] || [ -z "$worktree_name" ]; then
+    die "TASKS.md must be inside a change subdirectory under .artifacts"
 fi
 
 workmux add --prompt "/implement @${tasks_file}" "$worktree_name"
