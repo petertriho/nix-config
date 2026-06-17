@@ -11,22 +11,21 @@
     bun # JavaScript runtime
     chafa # terminal image viewer
     coreutils # GNU core utilities
-    dive # inspect docker images
-    drawio # diagramming tool
+    # dive # inspect docker images
+    # drawio # diagramming tool
     dwt1-shell-color-scripts # shell color scripts collected by dt
-    excalidraw-edit # edit .excalidraw files locally in your browser
     eza # ls replacement
     fd # find replacement
     figlet # ascii art text generator
     fzf # fuzzy finder
     gcc # GNU Compiler Collection
     gnumake # GNU Make
-    glow # markdown viewer
+    # glow # markdown viewer
     grex # regex generator
     parallel # run jobs in parallel
     pokemon-colorscripts # colorful scripts for Pokémon games
-    httpie # user-friendly HTTP client
-    stable.hurl # http client for testing APIs
+    # httpie # user-friendly HTTP client
+    # stable.hurl # http client for testing APIs
     hyperfine # command-line benchmarking tool
     iperf3 # network performance measurement tool
     jq # JSON processor
@@ -43,9 +42,9 @@
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
     television # fuzzy finder tui
-    tldr # help pages for command-line tools
+    # tldr # help pages for command-line tools
     tree # directory listing
-    tuxedo # todo.txt list manager
+    # tuxedo # todo.txt list manager
     typst # typesetting system
     unzip # unzip files
     update-nix-fetchgit # update fetchgit URLs in Nix files

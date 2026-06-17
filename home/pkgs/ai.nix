@@ -10,13 +10,10 @@ let
       # context7-mcp
     ])
     ++ (with pkgs; [
-      excalidraw-mcp
       # terraform-mcp-server
     ]);
   llmAgents = with pkgs.llm-agents; [
     openspec
-    qmd
-    tuicr
     workmux
   ];
 
@@ -73,7 +70,6 @@ in
         # amazon-q-cli
         nodejs
         # open-design
-        # pinchtab
         python3
         react-doctor
         tmuxai
@@ -188,21 +184,6 @@ in
         #   args = [ "--serve" ];
         #   disabled = true;
         # };
-        # context7 = {
-        #   command = "context7-mcp";
-        #   args = [ ];
-        #   disabled = false;
-        # };
-        # drawio = {
-        #   command = "npx";
-        #   args = [ "@next-ai-drawio/mcp-server@latest" ];
-        #   disabled = false;
-        # };
-        # excalidraw = {
-        #   command = "excalidraw-mcp";
-        #   args = [ "--stdio" ];
-        #   disabled = false;
-        # };
         # terraform = {
         #   command = "terraform-mcp-server";
         #   args = [ ];
@@ -217,7 +198,7 @@ in
       lspServers = claudeCodeLspConfig;
     };
     codex = {
-      enable = true;
+      enable = false;
       package = pkgs.llm-agents.codex;
       enableMcpIntegration = false;
       # settings = {
@@ -306,19 +287,18 @@ in
       };
     };
     agents.skills.enable = true;
-    annot.enable = true;
+    annot.enable = false;
     anthropic-skills = {
       enable = true;
       skills = [
         "skill-creator"
       ];
     };
-    basic-memory.enable = true;
+    basic-memory.enable = false;
     chunkhound.enable = false;
     context-mode.enable = true;
-    crush.enable = true;
+    crush.enable = false;
     impeccable.enable = true;
-    last30days-skill.enable = true;
     mattpocock-skills = {
       enable = true;
       skills = {
@@ -336,7 +316,7 @@ in
         ];
       };
     };
-    plannotator.enable = true;
+    plannotator.enable = false;
     playwriter.enable = false;
     superpowers.enable = false;
     taste-skill = {
@@ -358,7 +338,6 @@ in
     };
   };
   xdg.configFile = {
-    # "opencode/skills/pinchtab".source = "${pkgs.pinchtab}/share/pinchtab/skills/pinchtab";
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
     "workmux/config.yaml".source =
       config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";

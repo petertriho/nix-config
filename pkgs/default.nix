@@ -11,8 +11,6 @@ with pkgs;
   basic-memory = callPackage ./basic-memory { };
   basic-memory-skills = callPackage ./basic-memory-skills { };
   cpa-manager = callPackage ./cpa-manager { };
-  excalidraw-edit = callPackage ./excalidraw-edit { };
-  excalidraw-mcp = callPackage ./excalidraw-mcp { };
   chunkhound = callPackage ./chunkhound {
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
@@ -24,14 +22,11 @@ with pkgs;
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };
-  last30days-skill = callPackage ./last30days-skill { };
   lg-buddy = callPackage ./lg-buddy { };
   mattpocock-skills = callPackage ./mattpocock-skills { };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
-  open-design = callPackage ./open-design { };
   playwriter = callPackage ./playwriter { };
-  pinchtab = callPackage ./pinchtab { };
   plannotator = callPackage ./plannotator { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   react-doctor = callPackage ./react-doctor { };
