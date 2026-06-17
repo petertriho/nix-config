@@ -306,6 +306,7 @@ in
       };
     };
     agents.skills.enable = true;
+    annot.enable = true;
     anthropic-skills = {
       enable = true;
       skills = [
@@ -314,7 +315,7 @@ in
     };
     basic-memory.enable = true;
     chunkhound.enable = false;
-    context-mode.enable = false;
+    context-mode.enable = true;
     crush.enable = true;
     impeccable.enable = true;
     last30days-skill.enable = true;

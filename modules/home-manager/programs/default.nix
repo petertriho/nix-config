@@ -3,6 +3,7 @@
     ./agent-indicator.nix
     ./agents.nix
     ./ai-resources.nix
+    ./annot.nix
     ./anthropic-skills.nix
     ./betterfox.nix
     ./basic-memory.nix
