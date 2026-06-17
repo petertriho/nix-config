@@ -35,15 +35,6 @@ local get_source_name_text = function(ctx)
     return "[" .. string.upper(ctx.source_name) .. "]"
 end
 
-local has_minuet_env = function()
-    return vim.env.MINUET_OPENAI_COMPATIBLE_API_KEY ~= nil
-        and vim.env.MINUET_OPENAI_COMPATIBLE_API_KEY ~= ""
-        and vim.env.MINUET_OPENAI_COMPATIBLE_END_POINT ~= nil
-        and vim.env.MINUET_OPENAI_COMPATIBLE_END_POINT ~= ""
-        and vim.env.MINUET_OPENAI_COMPATIBLE_MODEL ~= nil
-        and vim.env.MINUET_OPENAI_COMPATIBLE_MODEL ~= ""
-end
-
 local default_sources = {
     -- "copilot",
     "git",
@@ -53,10 +44,6 @@ local default_sources = {
     "buffer",
     "ripgrep",
 }
-
-if has_minuet_env() then
-    table.insert(default_sources, "minuet")
-end
 
 -- Higher number means higher priority
 local LSP_SORT_PRIORITY = {
@@ -124,36 +111,15 @@ return {
                 --     -- end
                 --     -- require("copilot.suggestion").accept()
                 -- end,
-                function()
-                    local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
-                    if ok and minuet_virtualtext.action.is_visible() then
-                        minuet_virtualtext.action.accept()
-                        return true
-                    end
-                end
             },
             ["<Tab>"] = {
                 -- function()
                 --     return require("sidekick").nes_jump_or_apply()
                 -- end,
-                function()
-                    local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
-                    if ok and minuet_virtualtext.action.is_visible() then
-                        minuet_virtualtext.action.next()
-                        return true
-                    end
-                end,
                 "snippet_forward",
                 "fallback",
             },
             ["<S-Tab>"] = {
-                function()
-                    local ok, minuet_virtualtext = pcall(require, "minuet.virtualtext")
-                    if ok and minuet_virtualtext.action.is_visible() then
-                        minuet_virtualtext.action.prev()
-                        return true
-                    end
-                end,
                 "snippet_backward",
                 "fallback",
             },
