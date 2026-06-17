@@ -11,39 +11,41 @@ Use this template for each recommendation:
 ````markdown
 ## 1. [Action-Oriented Title]
 
-Label: Ready to plan | Needs design spike | Weak signal
+**Label:** Ready to plan | Needs design spike | Weak signal
+**Severity:** Must-have | Should-have | Nice-to-have
+**Complexity:** Low | Medium | High
 
-Files:
+**Files:**
 - `path/to/file.ext:line` - what this location demonstrates
 
-Current shape:
+**Current shape:**
 [What the code does today. Explain any architecture terms in plain language. Name the caller obligations, ordering rules, duplicated knowledge, or ownership boundaries that matter.]
 
-Before:
+**Before:**
 [A concise text diagram or prose shape showing the current ownership/call flow. Emphasize what callers or tests must know.]
 
-After:
+**After:**
 [A concise text diagram or prose shape showing the proposed owner and what knowledge moves behind its interface. If the shape is uncertain, say what must be spiked.]
 
-Maintenance cost:
+**Maintenance cost:**
 [Why this shape is costly: duplicated knowledge, behavior spread across too many files, fragile tests, confusing navigation, or hard-to-change behavior.]
 
-Recommendation:
+**Recommendation:**
 [The architectural direction. Name the behavior or concept that should own more responsibility. Avoid pretending the final interface is fully designed unless the code makes it obvious.]
 
-Cut / replacement (simplification only):
+**Cut / replacement (simplification only):**
 [For simplification-focused recommendations only: name what to delete, inline, or replace with standard-library/platform-native behavior. If nothing replaces it, say "Nothing replaces this." Omit this field when it would not apply.]
 
-Why this helps:
+**Why this helps:**
 [Explain the concrete benefits for change safety, testing, and engineer/agent navigability. Define any specialized term you use.]
 
-Validation:
+**Validation:**
 - [Tests, checks, or behavior that should prove the refactor is safe]
 
-Risks:
+**Risks:**
 - [Compatibility, migration, deployment, counter-evidence, or uncertainty concerns]
 
-Handoff prompt:
+**Handoff prompt:**
 ```text
 [Self-contained prompt for another engineer or agent]
 ```
