@@ -82,7 +82,7 @@ return {
         },
         "mikavilpas/blink-ripgrep.nvim",
         -- "fang2hou/blink-copilot",
-        "petertriho/cmp-git"
+        "petertriho/cmp-git",
     },
     init = function()
         vim.g.completion_enabled = true
@@ -258,14 +258,6 @@ return {
                 lsp = {
                     async = true,
                     score_offset = 50,
-                },
-                minuet = {
-                    name = "Minuet",
-                    module = "minuet.blink",
-                    async = true,
-                    timeout_ms = 3000,
-                    score_offset = 50,
-                    enabled = has_minuet_env,
                 },
                 path_at = {
                     module = "blink.cmp.sources.path",
