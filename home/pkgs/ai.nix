@@ -236,7 +236,7 @@ in
           # "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
           # "@mohak34/opencode-notifier"
-          "@slkiser/opencode-quota"
+          # "@slkiser/opencode-quota"
           # "@tarquinen/opencode-dcp"
         ];
         agent = {
@@ -277,12 +277,8 @@ in
         plugin = [
           "./plugins/skills-sidebar.tsx"
           "@ishaksebsib/opencode-tree"
-          "@slkiser/opencode-quota"
+          # "@slkiser/opencode-quota"
           "oc-tps"
-          [
-            "vimcode@git+https://github.com/oribarilan/vimcode.git#v0.14.0"
-            { "updateCheck" = false; }
-          ]
         ];
       };
     };
