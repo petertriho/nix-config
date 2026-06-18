@@ -14,7 +14,6 @@
     ./headroom.nix
     ./impeccable.nix
     ./lsp.nix
-    ./mattpocock-skills.nix
     ./plannotator.nix
     ./playwriter.nix
     ./superpowers.nix

@@ -295,23 +295,6 @@ in
     context-mode.enable = true;
     crush.enable = false;
     impeccable.enable = true;
-    mattpocock-skills = {
-      enable = true;
-      skills = {
-        engineering = [
-          "diagnose"
-          # "improve-codebase-architecture"
-          "prototype"
-          # "tdd"
-          "zoom-out"
-        ];
-        productivity = [
-          "caveman"
-          # "grill-me"
-          "write-a-skill"
-        ];
-      };
-    };
     plannotator.enable = false;
     playwriter.enable = false;
     superpowers.enable = false;

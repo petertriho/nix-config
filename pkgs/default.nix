@@ -23,7 +23,6 @@ with pkgs;
     buildGoModule = stablePkgs.buildGo126Module;
   };
   lg-buddy = callPackage ./lg-buddy { };
-  mattpocock-skills = callPackage ./mattpocock-skills { };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   playwriter = callPackage ./playwriter { };
