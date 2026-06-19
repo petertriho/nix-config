@@ -22,6 +22,7 @@
     libreoffice
     nextcloud-client
     steam
+    tabularis
     thunderbird
     zathura
   ];
