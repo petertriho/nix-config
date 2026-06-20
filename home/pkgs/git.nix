@@ -19,6 +19,7 @@
       git-lfs
       delta # git diff viewer
       difftastic # structural diff tool
+      llm-agents.hunk
       # jujutsu
       lazygit # git tui
       mergiraf # git merge conflict resolver

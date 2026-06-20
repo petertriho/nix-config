@@ -11,8 +11,8 @@ buildNpmPackage {
   src = fetchFromGitHub {
     owner = "mksglu";
     repo = "context-mode";
-    rev = "014eed045c36e8d43138c2b3465b8dd0318e1171";
-    hash = "sha256-dF4U82mBu//HXxbt56KrMHfaEStiqqprbc6YPgeW/bk=";
+    rev = "16ffdedd17bb14beac9fb62ce158ca41ea03eb0a";
+    hash = "sha256-3VMh+SAfIBTpb9VwwU5hoRmX10I1xdCPkEtlbrxg7Ro=";
   };
 
   inherit nodejs;

@@ -11,8 +11,8 @@ let
   src = fetchFromGitHub {
     owner = "chopratejas";
     repo = "headroom";
-    rev = "9f7f3adfea03710d5e67c4c630b3c8061ff6d161";
-    hash = "sha256-HT1Cnifm/gUcGgvQHF3CvUU6tnc0Uj+sPVc18HUUHDQ=";
+    rev = "f4bd2fe68f0fe8071082380dad0a2eedbfbeb5cd";
+    hash = "sha256-wpsJnIGa0pF/9KnUqMsJ/JQYdqMyyTvZTOd00h6OhLE=";
   };
 
   workspace = uv2nix.lib.workspace.loadWorkspace {
@@ -71,7 +71,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "headroom";
-  version = "0.26.0-unstable-2026-06-19";
+  version = "0.26.0-unstable-2026-06-20";
 
   dontUnpack = true;
   dontBuild = true;
