@@ -115,6 +115,7 @@
       # dependencies
       gcc
       gnumake
+      go
       tree-sitter
     ];
     extraLuaPackages = ps: [

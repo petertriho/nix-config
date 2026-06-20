@@ -57,6 +57,71 @@ local LSP_SORT_PRIORITY = {
     emmet_language_server = 2,
 }
 
+local cursortab_keymaps = {}
+
+local capture_cursortab_keymap = function(name, lhs)
+    if not package.loaded["cursortab"] then
+        return
+    end
+
+    local keymap = vim.fn.maparg(lhs, "i", false, true)
+    if type(keymap) ~= "table" or type(keymap.callback) ~= "function" then
+        return
+    end
+
+    cursortab_keymaps[name] = keymap.callback
+    pcall(vim.keymap.del, "i", lhs)
+end
+
+local capture_cursortab_keymaps = function()
+    capture_cursortab_keymap("accept", "<Tab>")
+    capture_cursortab_keymap("partial_accept", "<S-Tab>")
+    capture_cursortab_keymap("trigger", "<C-e>")
+end
+
+local try_cursortab_accept = function()
+    local ok, cursortab = pcall(require, "cursortab")
+    if ok and cursortab.accept() then
+        return true
+    end
+end
+
+local try_cursortab_keymap = function(name)
+    local callback = cursortab_keymaps[name]
+    if not callback then
+        return
+    end
+
+    local ok, result = pcall(callback)
+    if ok and result == "" then
+        return true
+    end
+end
+
+local trigger_cursortab_completion = function()
+    local callback = cursortab_keymaps.trigger
+    if not callback then
+        return
+    end
+
+    if pcall(callback) then
+        return true
+    end
+end
+
+local hide_blink_then_trigger_cursortab = function(cmp)
+    if cmp.is_visible() then
+        cmp.hide({
+            callback = function()
+                trigger_cursortab_completion()
+            end,
+        })
+        return true
+    end
+
+    return trigger_cursortab_completion()
+end
+
 return {
     "saghen/blink.cmp",
     branch = "v1",
@@ -95,31 +160,27 @@ return {
     end,
     opts = {
         enabled = function()
-            return vim.g.completion_enabled and vim.bo.buftype ~= "prompt" and vim.bo.filetype ~= "bigfile"
+            return vim.g.completion_enabled
+                and vim.b.completion ~= false
+                and vim.bo.buftype ~= "prompt"
+                and vim.bo.filetype ~= "bigfile"
         end,
         keymap = {
             preset = "default",
             ["<C-e>"] = {
-                "hide",
-                -- function()
-                --     local _, result = pcall(vim.lsp.inline_completion.get)
-                --     if not result then
-                --         return
-                --     end
-                --     -- if vim.g.copilot_model == nil then
-                --     --     return
-                --     -- end
-                --     -- require("copilot.suggestion").accept()
-                -- end,
+                hide_blink_then_trigger_cursortab,
             },
             ["<Tab>"] = {
-                -- function()
-                --     return require("sidekick").nes_jump_or_apply()
-                -- end,
+                function()
+                    return try_cursortab_accept()
+                end,
                 "snippet_forward",
                 "fallback",
             },
             ["<S-Tab>"] = {
+                function()
+                    return try_cursortab_keymap("partial_accept")
+                end,
                 "snippet_backward",
                 "fallback",
             },
@@ -398,5 +459,9 @@ return {
             },
         },
     },
+    config = function(_, opts)
+        capture_cursortab_keymaps()
+        require("blink.cmp").setup(opts)
+    end,
     opts_extend = { "sources.default" },
 }
