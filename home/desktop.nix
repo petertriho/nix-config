@@ -39,6 +39,8 @@
       };
       extraPreferences = {
         "media.ffmpeg.vaapi.enabled" = true;
+        "media.hardware-video-decoding.force-enabled" = true;
+        "media.av1.enabled" = false;
       };
     };
     chromium = {
