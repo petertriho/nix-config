@@ -2,8 +2,8 @@ local keymap = vim.keymap.set
 local opts = { noremap = true, silent = true }
 
 -- Buffers: Navigation
-keymap("", "<C-n>", "<CMD>bnext<CR>", {})
-keymap("", "<C-p>", "<CMD>bprev<CR>", {})
+keymap("", "<S-l>", "<CMD>bnext<CR>", {})
+keymap("", "<S-h>", "<CMD>bprev<CR>", {})
 
 -- Windows: Navigation
 keymap("", "<C-j>", "<C-w>j", {})
@@ -15,8 +15,16 @@ keymap("", "<C-\\>", "<C-w>p", {})
 -- Exchange lines
 keymap("n", "]e", ":m .+1<CR>==", { unpack(opts), desc = "Exchange Below" })
 keymap("n", "[e", ":m .-2<CR>==", { unpack(opts), desc = "Exchange Above" })
-keymap("v", "]e", ":m '>+1<CR>gv=gv", { unpack(opts), desc = "Exchange Below" })
-keymap("v", "[e", ":m '<-2<CR>gv=gv", { unpack(opts), desc = "Exchange Above" })
+keymap("x", "]e", ":m '>+1<CR>gv=gv", { unpack(opts), desc = "Exchange Below" })
+keymap("x", "[e", ":m '<-2<CR>gv=gv", { unpack(opts), desc = "Exchange Above" })
+
+-- Diagnostics: next/prev
+keymap("n", "]d", function()
+    vim.diagnostic.jump({ count = 1, float = true })
+end, { desc = "Next Diagnostic" })
+keymap("n", "[d", function()
+    vim.diagnostic.jump({ count = -1, float = true })
+end, { desc = "Prev Diagnostic" })
 
 -- Line Text Objects
 keymap("v", "al", ":<C-u>norm!0v$h<CR>", { unpack(opts), desc = "Outer Line" })
@@ -28,7 +36,6 @@ keymap("o", "il", ":norm vil<CR>", { unpack(opts), desc = "Inner Line" })
 keymap("x", "gv", [[<Esc>/\%V]], {})
 
 -- ESC to turn off hlsearch
--- keymap("n", "<ESC>", "<CMD>nohlsearch<CR>", { desc = "nohl" })
 keymap("n", "<ESC>", function()
     vim.cmd.nohlsearch()
     -- pcall(require("sidekick").clear)
@@ -52,14 +59,14 @@ local function qf_navigate(direction)
     vim.cmd(commands[direction])
 end
 
-keymap("", "qn", function()
+keymap("", "<leader>qn", function()
     qf_navigate("next")
 end, { unpack(opts), desc = "QF Next" })
-keymap("", "qp", function()
+keymap("", "<leader>qp", function()
     qf_navigate("prev")
 end, { unpack(opts), desc = "QF Prev" })
 
-keymap("", "Q", function()
+keymap("", "<leader>qa", function()
     vim.fn.setqflist({}, "a", {
         items = {
             {
@@ -73,11 +80,6 @@ end, { unpack(opts), desc = "QF Add" })
 
 -- Terminal
 keymap("t", "<C-q>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
-
--- H, M, L remap
-keymap("", "H", "^", { desc = "Beginning of Line", remap = true })
-keymap({ "n", "x", "o" }, "M", "%", { desc = "Match Pair", remap = true })
-keymap("", "L", "$", { desc = "End of Line", remap = true })
 
 -- Incremental Selection
 vim.keymap.set({ "x", "o" }, "v", function()
@@ -107,20 +109,14 @@ keymap("", "<leader>\\", "<C-w>v", { desc = "Split Right" })
 keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
 keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
 
-keymap("n", "<leader>rgp", [["+gp]], { desc = "gput+" })
-keymap("n", "<leader>rgP", [["+gP]], { desc = "gPut+" })
-keymap({ "n", "v" }, "<leader>rp", [["+p]], { desc = "put+" })
-keymap({ "n", "v" }, "<leader>rP", [["+P]], { desc = "Put+" })
-keymap({ "n", "v" }, "<leader>rx", [["_d]], { desc = "Delete_" })
-keymap({ "n", "v" }, "<leader>rX", [["+d]], { desc = "Delete+" })
-keymap({ "n", "v" }, "<leader>ry", [["+y]], { desc = "Yank+" })
-keymap("n", "<leader>rY", [["+Y]], { desc = "Yank+ EOL", remap = true })
+-- Clipboard yank/paste
+keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
+keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
+keymap({ "n", "v" }, "<leader>p", [["+p]], { desc = "Put+" })
+keymap({ "n", "v" }, "<leader>P", [["+P]], { desc = "Put+ Before" })
 
-keymap("n", "<leader>rfp", 'ggVG"+p', { desc = "Put File" })
-keymap("n", "<leader>rfy", "<CMD>%y+<CR>", { desc = "Yank File" })
-keymap("x", "<leader>rfp", [["_dP]], { desc = "Put_" })
-
-keymap("n", "<leader>aa", function()
+-- Copy @-prefixed paths (for AI / sharing)
+keymap("n", "<leader>ya", function()
     local paths = {}
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
         if vim.bo[bufnr].buflisted and vim.api.nvim_buf_is_loaded(bufnr) then
@@ -136,13 +132,13 @@ keymap("n", "<leader>aa", function()
     vim.notify("Copied: " .. #paths .. " buffer path(s)")
 end, { desc = "@all" })
 
-keymap("n", "<leader>ab", function()
+keymap("n", "<leader>yb", function()
     local path = vim.fn.expand("%:.")
     vim.fn.setreg("+", "@" .. path)
     vim.notify("Copied: @" .. path)
 end, { desc = "@buffer" })
 
-keymap("x", "<leader>av", function()
+keymap("x", "<leader>yv", function()
     local path = vim.fn.expand("%:.")
     local start_line = vim.fn.line("'<")
     local end_line = vim.fn.line("'>")
@@ -151,9 +147,28 @@ keymap("x", "<leader>av", function()
     vim.notify("Copied: " .. result)
 end, { desc = "@buffer#L1:2" })
 
+-- Code ops
+keymap("n", "<leader>cr", function()
+    vim.lsp.buf.rename()
+end, { desc = "Rename" })
+
+-- Diagnostics
+keymap("n", "<leader>xx", function()
+    vim.diagnostic.setqflist()
+end, { desc = "Diagnostics QF" })
+keymap("n", "<leader>xX", function()
+    vim.diagnostic.setqflist({ bufnr = 0 })
+end, { desc = "Buffer Diagnostics QF" })
+keymap("n", "<leader>xl", function()
+    vim.diagnostic.setloclist()
+end, { desc = "Diagnostics Loclist" })
+
+-- Insert helpers
 keymap("", "<leader>ic", ":!<Up><CR>", { desc = "Last Command" })
 keymap("", "<leader>ie", ":!chmod +x %<CR>", { desc = "Executable" })
-keymap("n", "<leader>u", function()
+
+-- Tools
+keymap("n", "<leader>tu", function()
     if not vim.g.loaded_undotree_plugin then
         vim.cmd.packadd("nvim.undotree")
     end

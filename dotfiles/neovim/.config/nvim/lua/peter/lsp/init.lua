@@ -450,12 +450,6 @@ local function lsp_attach_callback(args)
     buf_keymap("n", "gh", function()
         vim.diagnostic.open_float(0, { scope = "line", source = "always", border = "rounded" })
     end, { desc = "Diagnostic" })
-    buf_keymap("n", "grq", function()
-        vim.diagnostic.setqflist()
-    end, { desc = "QDiagnostics" })
-    buf_keymap("n", "grl", function()
-        vim.diagnostic.setloclist()
-    end, { desc = "LDiagnostics" })
 
     for method, _ in pairs(LSP_METHODS) do
         if client:supports_method(method, bufnr) then

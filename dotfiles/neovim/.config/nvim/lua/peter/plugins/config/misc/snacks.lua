@@ -319,8 +319,8 @@ return {
             },
         })
 
-        snacks.toggle.option("list"):map("<leader>tl")
-        snacks.toggle.option("wrap"):map("<leader>tw")
+        snacks.toggle.option("list"):map("<leader>ul")
+        snacks.toggle.option("wrap"):map("<leader>uw")
 
         vim.api.nvim_create_autocmd("User", {
             pattern = "MiniFilesActionRename",
@@ -331,14 +331,14 @@ return {
     end,
     keys = {
         {
-            "<leader>pa",
+            "<leader>fa",
             function()
                 require("snacks").picker.files({ hidden = true })
             end,
             desc = "Find Files All",
         },
         {
-            "<leader>pb",
+            "<leader>bb",
             function()
                 require("snacks").picker.buffers()
             end,
@@ -352,28 +352,28 @@ return {
         --     desc = "Explorer",
         -- },
         {
-            "<leader>pf",
+            "<leader>ff",
             function()
                 require("snacks").picker.files()
             end,
             desc = "Find Files",
         },
         {
-            "<leader>pj",
+            "<leader>f:",
             function()
                 require("snacks").picker.jumplist()
             end,
-            desc = "Command History",
+            desc = "Jumplist",
         },
         {
-            "<leader>pm",
+            "<leader>f'",
             function()
                 require("snacks").picker.marks()
             end,
             desc = "Marks",
         },
         {
-            "<leader>ps",
+            "<leader>fg",
             function()
                 require("snacks").picker.grep()
             end,
@@ -408,7 +408,7 @@ return {
             desc = "Lazygit",
         },
         {
-            "<leader>gs",
+            "<leader>gS",
             function()
                 require("snacks").picker.git_stash()
             end,
@@ -431,21 +431,21 @@ return {
             desc = "Repo URL",
         },
         {
-            "<leader>t:",
+            "<leader>:",
             function()
                 require("snacks").picker.commands()
             end,
             desc = "Commands",
         },
         {
-            "<leader>th",
+            "<leader>fh",
             function()
                 require("snacks").picker.help()
             end,
             desc = "Help Tags",
         },
         {
-            "<leader>tm",
+            "<leader>fm",
             function()
                 require("snacks").picker.man()
             end,
@@ -459,11 +459,11 @@ return {
             desc = "Notifications",
         },
         {
-            "<leader>to",
+            "<leader>fr",
             function()
                 require("snacks").picker.recent()
             end,
-            desc = "Old Files",
+            desc = "Recent Files",
         },
         {
             "<leader>ld",
@@ -522,7 +522,7 @@ return {
             desc = "Type Definitions",
         },
         {
-            "<leader>s",
+            "<leader>ts",
             function()
                 require("snacks").scratch({
                     file = get_scratch_path() .. "/scratch.md",
@@ -533,21 +533,21 @@ return {
             desc = "Scratch",
         },
         {
-            "<leader>d",
+            "<leader>bd",
             function()
                 require("snacks").bufdelete.delete()
             end,
             desc = "Delete Buffer",
         },
         {
-            "<leader>D",
+            "<leader>ba",
             function()
                 require("snacks").bufdelete.all()
             end,
             desc = "All Buffers",
         },
         {
-            "<leader>,",
+            "<leader>bh",
             function()
                 require("snacks").bufdelete.delete({
                     filter = function(buf)
@@ -558,7 +558,7 @@ return {
             desc = "Hidden Buffers",
         },
         {
-            "<leader>.",
+            "<leader>bo",
             function()
                 require("snacks").bufdelete.other()
             end,
@@ -572,28 +572,28 @@ return {
             desc = "Dashboard",
         },
         {
-            "<leader>ts",
+            "<leader>us",
             function()
                 require("snacks").scratch()
             end,
             desc = "Toggle Scratch Buffer",
         },
         {
-            "<leader>tS",
+            "<leader>uS",
             function()
                 require("snacks").scratch.select()
             end,
             desc = "Select Scratch Buffer",
         },
         {
-            "<leader>tu",
+            "<leader>fu",
             function()
                 require("snacks").picker.undo()
             end,
             desc = "Undo History",
         },
         {
-            "<leader>ty",
+            "<leader>fy",
             function()
                 require("snacks").picker.yanky()
             end,

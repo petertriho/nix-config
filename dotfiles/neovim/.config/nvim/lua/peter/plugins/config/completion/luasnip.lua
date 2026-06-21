@@ -8,6 +8,6 @@ return {
     config = function()
         require("luasnip.loaders.from_vscode").lazy_load()
         require("peter.plugins.snippets").setup()
-        vim.keymap.set("x", "<leader>x", require("luasnip").select_keys, { desc = "Snippet" })
+        vim.keymap.set("x", "<leader>is", require("luasnip").select_keys, { desc = "Snippet" })
     end,
 }

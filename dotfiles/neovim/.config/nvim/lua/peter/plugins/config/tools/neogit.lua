@@ -4,7 +4,7 @@ return {
         "Neogit",
     },
     keys = {
-        { "<leader>j", "<CMD>ToggleNeogit<CR>", desc = "Neogit Status" },
+        { "<leader>gs", "<CMD>ToggleNeogit<CR>", desc = "Neogit Status" },
     },
     init = function()
         vim.api.nvim_create_user_command("ToggleNeogit", function()
