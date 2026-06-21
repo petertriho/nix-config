@@ -34,7 +34,11 @@ return {
                 { "<leader>c", group = "code-bridge" },
                 { "<leader>h", group = "hierarchy" },
                 { "<leader>i", group = "insert" },
+                { "<leader>r", group = "register" },
+                { "<leader>rf", group = "file" },
+                { "<leader>rg", group = "g-cursor" },
                 { "<leader>R", group = "rulebook" },
+                { "<leader>p", group = "project" },
             },
             -- vim-abolish
             {

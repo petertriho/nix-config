@@ -87,7 +87,7 @@ return {
             dashboard = {
                 preset = {
                     keys = {
-                        { icon = " ", key = "e", desc = "New File", action = ":ene | startinsert" },
+                        { icon = " ", key = "n", desc = "New File", action = ":ene | startinsert" },
                         {
                             icon = " ",
                             key = "f",
@@ -331,39 +331,53 @@ return {
     end,
     keys = {
         {
-            "<leader>;",
+            "<leader>pa",
             function()
-                require("snacks").picker.files()
+                require("snacks").picker.files({ hidden = true })
             end,
-            desc = "Find Files",
+            desc = "Find Files All",
+        },
+        {
+            "<leader>pb",
+            function()
+                require("snacks").picker.buffers()
+            end,
+            desc = "Buffers",
         },
         -- {
-        --     "<leader>e",
+        --     "<leader>pe",
         --     function()
         --         require("snacks").picker.explorer()
         --     end,
         --     desc = "Explorer",
         -- },
         {
-            "<leader>'",
+            "<leader>pf",
             function()
-                require("snacks").picker.grep()
+                require("snacks").picker.files()
             end,
-            desc = "Live Grep",
+            desc = "Find Files",
         },
         {
-            "<leader>ln",
+            "<leader>pj",
             function()
-                require("snacks").picker.lsp_symbols()
+                require("snacks").picker.jumplist()
             end,
-            desc = "Dynamic Workspace Symbols",
+            desc = "Command History",
         },
         {
-            "<leader>t'",
+            "<leader>pm",
             function()
                 require("snacks").picker.marks()
             end,
             desc = "Marks",
+        },
+        {
+            "<leader>ps",
+            function()
+                require("snacks").picker.grep()
+            end,
+            desc = "Live Grep",
         },
         {
             "<leader>gb",
@@ -417,20 +431,6 @@ return {
             desc = "Repo URL",
         },
         {
-            "<leader>ta",
-            function()
-                require("snacks").picker.files({ hidden = true })
-            end,
-            desc = "Find Files All",
-        },
-        {
-            "<leader>tb",
-            function()
-                require("snacks").picker.buffers()
-            end,
-            desc = "Buffers",
-        },
-        {
             "<leader>t:",
             function()
                 require("snacks").picker.commands()
@@ -443,13 +443,6 @@ return {
                 require("snacks").picker.help()
             end,
             desc = "Help Tags",
-        },
-        {
-            "<leader>tj",
-            function()
-                require("snacks").picker.jumplist()
-            end,
-            desc = "Command History",
         },
         {
             "<leader>tm",
@@ -492,6 +485,13 @@ return {
                 require("snacks").picker.lsp_implementations()
             end,
             desc = "Implementations",
+        },
+        {
+            "<leader>ln",
+            function()
+                require("snacks").picker.lsp_symbols()
+            end,
+            desc = "Dynamic Workspace Symbols",
         },
         {
             "<leader>lr",
