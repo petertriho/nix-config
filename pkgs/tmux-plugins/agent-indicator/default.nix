@@ -30,9 +30,15 @@ tmuxPlugins.mkTmuxPlugin {
     substituteInPlace scripts/agent-state.sh \
       --replace-fail 'pane_exists "$pane_candidate"' 'pane_exists "%''${pane_candidate}"' \
       --replace-fail 'pane="$running_candidate"' 'pane="%''${running_candidate}"' \
-      --replace-fail 'pane="$done_candidate"' 'pane="%''${done_candidate}"'
+      --replace-fail 'pane="$done_candidate"' 'pane="%''${done_candidate}"' \
+      --replace-fail 'TMUX_AGENT_SESSION_SEEN_''${pane_session}' 'TMUX_AGENT_SESSION_SEEN_''${pane_session//[^a-zA-Z0-9_]/_}'
     substituteInPlace scripts/session-dots.sh \
-      --replace-fail 'tmux display-message -p -t "$pane_id"' 'tmux display-message -p -t "%''${pane_id}"'
+      --replace-fail 'tmux display-message -p -t "$pane_id"' 'tmux display-message -p -t "%''${pane_id}"' \
+      --replace-fail 'attention_sessions["$session"]=1' 'attention_sessions["''${session//[^a-zA-Z0-9_]/_}"]=1' \
+      --replace-fail 'attention_sessions[$session]' 'attention_sessions[''${session//[^a-zA-Z0-9_]/_}]' \
+      --replace-fail 'TMUX_AGENT_SESSION_SEEN_''${session}' 'TMUX_AGENT_SESSION_SEEN_''${session//[^a-zA-Z0-9_]/_}'
+    substituteInPlace scripts/session-changed.sh \
+      --replace-fail 'TMUX_AGENT_SESSION_SEEN_''${prev}' 'TMUX_AGENT_SESSION_SEEN_''${prev//[^a-zA-Z0-9_]/_}'
   '';
   postInstall = ''
     mkdir -p $out/share/agent-indicator/opencode/plugins
