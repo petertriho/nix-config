@@ -201,6 +201,7 @@ let
       environment,
       after ? [ ],
       requires ? [ ],
+      partOf ? [ ],
     }:
     {
       Unit = {
@@ -209,6 +210,9 @@ let
       }
       // lib.optionalAttrs (requires != [ ]) {
         Requires = requires;
+      }
+      // lib.optionalAttrs (partOf != [ ]) {
+        PartOf = partOf;
       };
 
       Install.WantedBy = [ "default.target" ];
@@ -384,6 +388,7 @@ in
           environment = cliServiceEnvironment;
           after = [ "cli-proxy-api.service" ];
           requires = [ "cli-proxy-api.service" ];
+          partOf = [ "cli-proxy-api.service" ];
         };
       })
 
