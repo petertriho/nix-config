@@ -149,8 +149,6 @@ function tool:config {
 function tool:nvim {
     if command -v nvim &> /dev/null; then
         echo_header "Updating neovim plugins"
-        echo_info "Updating TreeSitter parsers..."
-        nvim --headless "+TSUpdateSync" +qa
         echo_info "Syncing Lazy plugins..."
         nvim --headless "+Lazy! sync" +qa
         echo_success "Neovim plugins updated"
