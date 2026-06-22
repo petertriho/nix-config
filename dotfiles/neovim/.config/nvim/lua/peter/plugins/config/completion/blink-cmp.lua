@@ -428,7 +428,7 @@ return {
                         project_root_marker = ".git",
                         fallback_to_regex_highlighting = true,
                         toggles = {
-                            on_off = "<leader>tg",
+                            on_off = "<leader>ug",
                             debug = nil,
                         },
 

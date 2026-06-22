@@ -44,6 +44,37 @@ end, {
     desc = "Hide",
 })
 
+-- Terminal
+keymap("t", "<C-q>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+
+-- Incremental Selection
+vim.keymap.set({ "x", "o" }, "v", function()
+    if vim.treesitter.get_parser(nil, nil, { error = false }) then
+        require("vim.treesitter._select").select_parent(vim.v.count1)
+    else
+        vim.lsp.buf.selection_range(vim.v.count1)
+    end
+end, { desc = "Select parent (outer) node" })
+
+vim.keymap.set({ "x", "o" }, "V", function()
+    if vim.treesitter.get_parser(nil, nil, { error = false }) then
+        require("vim.treesitter._select").select_child(vim.v.count1)
+    else
+        vim.lsp.buf.selection_range(-vim.v.count1)
+    end
+end, { desc = "Select child (inner) node" })
+
+-- Leader
+vim.g.mapleader = " "
+vim.g.localleader = "\\"
+
+keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
+keymap("", "<leader>-", "<C-w>s", { desc = "Split Below" })
+keymap("", "<leader>\\", "<C-w>v", { desc = "Split Right" })
+
+keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
+keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
+
 -- Quickfix
 local function qf_navigate(direction)
     local qf_list = vim.fn.getqflist()
@@ -78,42 +109,12 @@ keymap("", "<leader>qa", function()
     })
 end, { unpack(opts), desc = "QF Add" })
 
--- Terminal
-keymap("t", "<C-q>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
-
--- Incremental Selection
-vim.keymap.set({ "x", "o" }, "v", function()
-    if vim.treesitter.get_parser(nil, nil, { error = false }) then
-        require("vim.treesitter._select").select_parent(vim.v.count1)
-    else
-        vim.lsp.buf.selection_range(vim.v.count1)
-    end
-end, { desc = "Select parent (outer) node" })
-
-vim.keymap.set({ "x", "o" }, "V", function()
-    if vim.treesitter.get_parser(nil, nil, { error = false }) then
-        require("vim.treesitter._select").select_child(vim.v.count1)
-    else
-        vim.lsp.buf.selection_range(-vim.v.count1)
-    end
-end, { desc = "Select child (inner) node" })
-
--- Leader
-vim.g.mapleader = " "
-vim.g.localleader = "\\"
-
-keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
-keymap("", "<leader>-", "<C-w>s", { desc = "Split Below" })
-keymap("", "<leader>\\", "<C-w>v", { desc = "Split Right" })
-
-keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
-keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
 
 -- Clipboard yank/paste
-keymap({ "n", "v" }, "<leader>y", [["+y]], { desc = "Yank+" })
-keymap("n", "<leader>Y", [["+Y]], { desc = "Yank+ EOL", remap = true })
-keymap({ "n", "v" }, "<leader>p", [["+p]], { desc = "Put+" })
-keymap({ "n", "v" }, "<leader>P", [["+P]], { desc = "Put+ Before" })
+keymap({ "n", "v" }, "<leader>yy", [["+y]], { desc = "Yank+" })
+keymap("n", "<leader>yY", [["+Y]], { desc = "Yank+ EOL", remap = true })
+keymap({ "n", "v" }, "<leader>yp", [["+p]], { desc = "Put+" })
+keymap({ "n", "v" }, "<leader>yP", [["+P]], { desc = "Put+ Before" })
 
 -- Copy @-prefixed paths (for AI / sharing)
 keymap("n", "<leader>ya", function()

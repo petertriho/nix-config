@@ -522,7 +522,7 @@ return {
             desc = "Type Definitions",
         },
         {
-            "<leader>ts",
+            "<leader>tg",
             function()
                 require("snacks").scratch({
                     file = get_scratch_path() .. "/scratch.md",
@@ -530,7 +530,7 @@ return {
                     ft = "markdown",
                 })
             end,
-            desc = "Scratch",
+            desc = "Global Scratch",
         },
         {
             "<leader>bd",
@@ -572,14 +572,14 @@ return {
             desc = "Dashboard",
         },
         {
-            "<leader>us",
+            "<leader>ts",
             function()
                 require("snacks").scratch()
             end,
-            desc = "Toggle Scratch Buffer",
+            desc = "Scratch Buffer",
         },
         {
-            "<leader>uS",
+            "<leader>tS",
             function()
                 require("snacks").scratch.select()
             end,
