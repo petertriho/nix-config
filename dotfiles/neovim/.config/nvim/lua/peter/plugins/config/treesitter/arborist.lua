@@ -23,6 +23,7 @@ return {
         arborist.setup({
             install_popular = false,
             update_cadence = "daily",
+            concurrency = 4,
             ensure_installed = ensure_installed,
             ignore = require("peter.core.filetypes").excludes,
         })
