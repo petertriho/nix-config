@@ -28,7 +28,7 @@
         eject
         udisks2
         util-linux
-        wl-clipboard
+        # wl-clipboard
       ];
 
     settings = {
