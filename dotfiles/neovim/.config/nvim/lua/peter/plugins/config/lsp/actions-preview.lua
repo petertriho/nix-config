@@ -14,7 +14,6 @@ return {
         backend = {
             "snacks",
             "minipick",
-            "telescope",
             "nui",
         },
         snacks = {

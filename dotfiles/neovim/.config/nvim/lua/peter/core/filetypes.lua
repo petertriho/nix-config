@@ -51,8 +51,6 @@ local M = {
         "yaml",
     },
     excludes = {
-        "TelescopePrompt",
-        "TelescopeResults",
         "bigfile",
         "blink-cmp-documentation",
         "blink-cmp-menu",

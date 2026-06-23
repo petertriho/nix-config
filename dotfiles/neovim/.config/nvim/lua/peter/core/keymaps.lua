@@ -39,7 +39,6 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- ESC to turn off hlsearch
 keymap("n", "<ESC>", function()
     vim.cmd.nohlsearch()
-    -- pcall(require("sidekick").clear)
     pcall(require("snacks").notifier.hide)
 end, {
     desc = "Hide",

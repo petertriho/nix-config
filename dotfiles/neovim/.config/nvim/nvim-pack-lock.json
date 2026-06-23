@@ -141,10 +141,6 @@
       "rev": "43ea1a0854052e583f647e0b35879f0158a70a78",
       "src": "https://github.com/NeogitOrg/neogit"
     },
-    "nerdy.nvim": {
-      "rev": "8fd18f0075c480b4e0865464dcd4fb7a42c6889e",
-      "src": "https://github.com/2kabhishek/nerdy.nvim"
-    },
     "notify.nvim": {
       "rev": "356a53a66b044395557b16d19ffc722bd0debe8f",
       "src": "https://github.com/wsdjeg/notify.nvim"
