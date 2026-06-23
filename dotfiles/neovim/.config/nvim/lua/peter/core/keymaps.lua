@@ -68,7 +68,7 @@ end, { desc = "Select child (inner) node" })
 vim.g.mapleader = " "
 vim.g.localleader = "\\"
 
--- keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
+keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
 keymap("", "<leader>-", "<C-w>s", { desc = "Split Below" })
 keymap("", "<leader>\\", "<C-w>v", { desc = "Split Right" })
 

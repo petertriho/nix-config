@@ -323,14 +323,14 @@ return {
 	end,
 	keys = {
 		{
-			"<leader>:",
+			"<leader>;",
 			function()
-				require("snacks").picker.files()
+				require("snacks").picker.smart()
 			end,
-			desc = "Find Files",
+			desc = "Smart Find Files",
 		},
 		{
-			"<leader>;",
+			"<leader>:",
 			function()
 				require("snacks").picker.files({ hidden = true })
 			end,
@@ -349,13 +349,6 @@ return {
 				require("snacks").picker.grep()
 			end,
 			desc = "Live Grep",
-		},
-		{
-			"<leader><space>",
-			function()
-				require("snacks").picker.smart()
-			end,
-			desc = "Smart Find Files",
 		},
 		{
 			"<leader>D",
