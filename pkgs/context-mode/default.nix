@@ -6,13 +6,13 @@
 }:
 buildNpmPackage {
   pname = "context-mode";
-  version = "1.0.163-unstable-2026-06-22";
+  version = "1.0.166-unstable-2026-06-23";
 
   src = fetchFromGitHub {
     owner = "mksglu";
     repo = "context-mode";
-    rev = "8f5b2d414d4103ca97568637ff4abcb886753c9e";
-    hash = "sha256-h5dKcDJ8qYzkmZXi4lr7I93ZJ5wD04Yq5EAwGFSxCSw=";
+    rev = "d75b5a7f777b34d19db7ccd2d13ebff85be4e706";
+    hash = "sha256-bROxzp5haWJxhhGoJNKCJ+v1jEs3MoNJ5VQPCD4xIYM=";
   };
 
   inherit nodejs;
@@ -21,8 +21,7 @@ buildNpmPackage {
 
   postPatch = ''
     cp ${./package-lock.json} package-lock.json
-    sed -i '/"postinstall": "node scripts\/postinstall.mjs"/d' package.json
-    sed -i 's/^\(    "install:agy": .*\),$/\1/' package.json
+    node -e "const fs=require('fs');const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));delete pkg.scripts.postinstall;fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n')"
   '';
 
   meta = with lib; {

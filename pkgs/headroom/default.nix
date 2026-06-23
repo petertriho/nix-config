@@ -11,8 +11,8 @@ let
   src = fetchFromGitHub {
     owner = "chopratejas";
     repo = "headroom";
-    rev = "95b2333ee5a3f1cbe512ca04a6563c3572835758";
-    hash = "sha256-059AC105XH6BOnHvQjC3EueUL3Z6t1fD29fHqHkkmX0=";
+    rev = "da1a3973ed79d89617087ec315e77fb82356c03b";
+    hash = "sha256-7Ig+8ObShbM+gD/DedJll1Y5YsEyh7ikpnCCZqVNkDY=";
   };
 
   workspace = uv2nix.lib.workspace.loadWorkspace {
@@ -25,12 +25,6 @@ let
 
   buildOverrides = final: prev: {
     headroom-ai = prev.headroom-ai.overrideAttrs (old: {
-      patches = (old.patches or [ ]) ++ [
-        ./patches/0001-register-tool-result-interceptors-in-proxy.patch
-        ./patches/0002-support-block-list-tool-results.patch
-        ./patches/0003-route-obvious-code-and-html.patch
-      ];
-
       postPatch = (old.postPatch or "") + ''
         substituteInPlace crates/headroom-core/Cargo.toml \
           --replace-fail '"ort-download-binaries-rustls-tls",' '"ort-load-dynamic",'
@@ -71,7 +65,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "headroom";
-  version = "0.27.0-unstable-2026-06-22";
+  version = "0.27.0-unstable-2026-06-23";
 
   dontUnpack = true;
   dontBuild = true;

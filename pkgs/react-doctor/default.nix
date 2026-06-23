@@ -15,8 +15,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "millionco";
     repo = "react-doctor";
-    rev = "970babcb09a597f2d0891b283c2bac7f8afaef1d";
-    hash = "sha256-lvCcfgCDXd0GovElOeEUGt56qfYRzCuwpZ506QamKk4=";
+    rev = "ba2af1b7faa5ef4e1ae39e6c3b786259fba23f1f";
+    hash = "sha256-Z32vxJTDFAxkZ9XaPZ1bOLvYkypWlGM5t2ldRn6Opek=";
   };
 
   nativeBuildInputs = [
