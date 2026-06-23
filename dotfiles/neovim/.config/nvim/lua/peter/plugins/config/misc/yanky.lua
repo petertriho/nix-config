@@ -25,6 +25,9 @@ return {
             ring = {
                 storage = "memory",
             },
+            system_clipboard = {
+                sync_with_ring = false,
+            },
             highlight = {
                 on_put = true,
                 on_yank = true,
