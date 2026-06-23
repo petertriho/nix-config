@@ -431,10 +431,16 @@ local function run_shell_build(spec, command)
 	}):wait()
 
 	if result.stdout and result.stdout ~= "" then
-		print(result.stdout)
+		io.stdout:write(result.stdout)
+		if not result.stdout:match("\n$") then
+			io.stdout:write("\n")
+		end
 	end
 	if result.stderr and result.stderr ~= "" then
 		io.stderr:write(result.stderr)
+		if not result.stderr:match("\n$") then
+			io.stderr:write("\n")
+		end
 	end
 	if result.code ~= 0 then
 		error("Build failed for " .. spec.name .. " with exit code " .. result.code)
@@ -446,7 +452,8 @@ local function run_build(spec)
 		return
 	end
 
-	print("Building " .. spec.name)
+	io.stdout:write("Building " .. spec.name .. "\n")
+	io.stdout:flush()
 	if type(spec.build) == "string" then
 		run_shell_build(spec, spec.build)
 	elseif type(spec.build) == "function" then
@@ -459,9 +466,21 @@ local function run_build(spec)
 	end
 end
 
-function M.run_build_hooks(names)
-	local selected = names and list(names) or vim.tbl_keys(build_hooks)
+function M.build_hook_names()
+	local selected = vim.tbl_keys(build_hooks)
 	table.sort(selected)
+	return selected
+end
+
+function M.print_build_hook_names()
+	for _, name in ipairs(M.build_hook_names()) do
+		io.stdout:write(name .. "\n")
+	end
+	io.stdout:flush()
+end
+
+function M.run_build_hooks(names)
+	local selected = names and list(names) or M.build_hook_names()
 
 	for _, name in ipairs(selected) do
 		local spec = by_name[name] or specs[name]

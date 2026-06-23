@@ -167,12 +167,42 @@ function tool:nvim {
         remove_nvim_lazy_artifacts
         echo_info "Updating vim.pack plugins..."
         nvim --headless "+lua vim.pack.update(nil, { force = true })" +qa
+        printf '\n'
         echo_info "Running neovim plugin build hooks..."
-        nvim --headless "+lua require('peter.plugins.lazypack').run_build_hooks()" +qa
+        run_nvim_build_hooks
         echo_success "Neovim plugins updated"
     else
         echo_warning "Neovim not found, skipping plugin updates"
     fi
+}
+
+function run_nvim_build_hooks {
+    local hooks=()
+    local hook
+    local lua_name
+    local output
+    local status
+
+    mapfile -t hooks < <(nvim --headless "+lua require('peter.plugins.lazypack').print_build_hook_names()" +qa)
+
+    for hook in "${hooks[@]}"; do
+        lua_name=${hook//\\/\\\\}
+        lua_name=${lua_name//\"/\\\"}
+        set +e
+        output=$(nvim --headless "+lua require('peter.plugins.lazypack').run_build_hooks({ \"${lua_name}\" })" +qa 2>&1)
+        status=$?
+        set -e
+
+        if [[ -n $output ]]; then
+            printf '%s\n' "$output"
+        fi
+
+        if [[ $status -eq 139 ]]; then
+            echo_warning "Neovim segfaulted after building ${hook}; continuing"
+        elif [[ $status -ne 0 ]]; then
+            return "$status"
+        fi
+    done
 }
 
 function tool:nvim:clean {
@@ -193,8 +223,9 @@ function tool:nvim:restore {
     if command -v nvim &> /dev/null; then
         echo_header "Restoring neovim plugins"
         nvim --headless "+lua vim.pack.update(nil, { force = true, target = 'lockfile' })" +qa
+        printf '\n'
         echo_info "Running neovim plugin build hooks..."
-        nvim --headless "+lua require('peter.plugins.lazypack').run_build_hooks()" +qa
+        run_nvim_build_hooks
         echo_success "Neovim plugins restored"
     else
         echo_warning "Neovim not found, skipping plugin restore"
