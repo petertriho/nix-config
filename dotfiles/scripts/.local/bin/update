@@ -81,6 +81,21 @@ function print_warnings_and_errors() {
     fi
 }
 
+function remove_nvim_lazy_artifacts() {
+    local nvim_config_path="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+    local nvim_data_path="${XDG_DATA_HOME:-$HOME/.local/share}/nvim"
+    local nvim_state_path="${XDG_STATE_HOME:-$HOME/.local/state}/nvim"
+    local nvim_cache_path="${XDG_CACHE_HOME:-$HOME/.cache}/nvim"
+
+    echo_info "Removing old lazy.nvim artifacts..."
+    rm -rf \
+        "$nvim_data_path/lazy" \
+        "$nvim_state_path/lazy" \
+        "$nvim_cache_path/lazy" \
+        "$nvim_config_path/lazy-lock.json" \
+        "$NIX_CONFIG_PATH/dotfiles/neovim/.config/nvim/lazy-lock.json"
+}
+
 function echo_header() {
     echo -e "${BOLD}${CYAN}🚀 ${1}${NC}"
 }
@@ -149,8 +164,11 @@ function tool:config {
 function tool:nvim {
     if command -v nvim &> /dev/null; then
         echo_header "Updating neovim plugins"
-        echo_info "Syncing Lazy plugins..."
-        nvim --headless "+Lazy! sync" +qa
+        remove_nvim_lazy_artifacts
+        echo_info "Updating vim.pack plugins..."
+        nvim --headless "+lua vim.pack.update(nil, { force = true })" +qa
+        echo_info "Running neovim plugin build hooks..."
+        nvim --headless "+lua require('peter.plugins.lazypack').run_build_hooks()" +qa
         echo_success "Neovim plugins updated"
     else
         echo_warning "Neovim not found, skipping plugin updates"
@@ -158,21 +176,25 @@ function tool:nvim {
 }
 
 function tool:nvim:clean {
+    echo_header "Cleaning neovim plugins"
+    remove_nvim_lazy_artifacts
     if command -v nvim &> /dev/null; then
-        echo_header "Cleaning neovim plugins"
-        nvim --headless "+Lazy! clean" +qa
-        echo_success "Neovim plugins cleaned"
-        # echo_info "Clearing watchman watches..."
-        # watchman watch-del-all # clear watchman watches for nvim plugins
+        echo_info "Removing inactive vim.pack plugins..."
+        nvim --headless "+silent! packdel ++all" +qa
     else
-        echo_warning "Neovim not found, skipping plugin cleanup"
+        echo_warning "Neovim not found, skipping vim.pack cleanup"
     fi
+    echo_success "Neovim plugins cleaned"
+    # echo_info "Clearing watchman watches..."
+    # watchman watch-del-all # clear watchman watches for nvim plugins
 }
 
 function tool:nvim:restore {
     if command -v nvim &> /dev/null; then
         echo_header "Restoring neovim plugins"
-        nvim --headless "+Lazy! restore" +qa
+        nvim --headless "+lua vim.pack.update(nil, { force = true, target = 'lockfile' })" +qa
+        echo_info "Running neovim plugin build hooks..."
+        nvim --headless "+lua require('peter.plugins.lazypack').run_build_hooks()" +qa
         echo_success "Neovim plugins restored"
     else
         echo_warning "Neovim not found, skipping plugin restore"
