@@ -21,7 +21,8 @@ buildNpmPackage {
 
   postPatch = ''
     cp ${./package-lock.json} package-lock.json
-    node -e "const fs=require('fs');const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));delete pkg.scripts.postinstall;fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n')"
+    substituteInPlace package.json \
+      --replace-fail $'",\n    "postinstall": "node scripts/postinstall.mjs"' '"'
   '';
 
   meta = with lib; {
