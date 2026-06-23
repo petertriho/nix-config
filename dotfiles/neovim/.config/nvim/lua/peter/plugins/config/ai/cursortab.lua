@@ -1,7 +1,7 @@
 return {
     "cursortab/cursortab.nvim",
     event = { "InsertEnter" },
-    cond = function()
+    enabled = function()
         return vim.env.MERCURY_AI_TOKEN ~= nil and vim.env.MERCURY_AI_TOKEN ~= ""
     end,
     build = "cd server && go build",
