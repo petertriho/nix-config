@@ -129,7 +129,7 @@ return {
     -- build = 'nix develop --command bash -c "cargo build --release"',
     event = { "CmdlineEnter", "InsertEnter" },
     keys = {
-        { "<leader>lc", "<CMD>ToggleBlinkCmp<CR>", desc = "Completion Toggle" },
+        { "<leader>uc", "<CMD>ToggleBlinkCmp<CR>", desc = "Completion Toggle" },
     },
     dependencies = {
         -- {

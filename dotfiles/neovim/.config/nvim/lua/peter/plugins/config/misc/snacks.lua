@@ -331,11 +331,78 @@ return {
     end,
     keys = {
         {
-            "<leader>fa",
+            "<leader>:",
+            function()
+                require("snacks").picker.files()
+            end,
+            desc = "Find Files",
+        },
+        {
+            "<leader>;",
             function()
                 require("snacks").picker.files({ hidden = true })
             end,
             desc = "Find Files All",
+        },
+        {
+            "<leader>/",
+            function()
+                require("snacks").picker.lines()
+            end,
+            desc = "lines",
+        },
+        {
+            "<leader>'",
+            function()
+                require("snacks").picker.grep()
+            end,
+            desc = "Live Grep",
+        },
+        {
+            "<leader><space>",
+            function()
+                require("snacks").picker.smart()
+            end,
+            desc = "Smart Find Files",
+        },
+        {
+            "<leader>D",
+            function()
+                require("snacks").bufdelete.all()
+            end,
+            desc = "All Buffers",
+        },
+        {
+            "<leader>d",
+            function()
+                require("snacks").bufdelete.delete()
+            end,
+            desc = "Delete Buffer",
+        },
+        {
+            "<leader>,",
+            function()
+                require("snacks").bufdelete.delete({
+                    filter = function(buf)
+                        return vim.fn.bufwinnr(buf) == -1
+                    end,
+                })
+            end,
+            desc = "Hidden Buffers",
+        },
+        {
+            "<leader>.",
+            function()
+                require("snacks").bufdelete.other()
+            end,
+            desc = "Other Buffers",
+        },
+        {
+            "<leader>ba",
+            function()
+                require("snacks").bufdelete.all()
+            end,
+            desc = "All",
         },
         {
             "<leader>bb",
@@ -344,26 +411,65 @@ return {
             end,
             desc = "Buffers",
         },
+        {
+            "<leader>bd",
+            function()
+                require("snacks").bufdelete.delete()
+            end,
+            desc = "Delete",
+        },
+        {
+            "<leader>bg",
+            function()
+                require("snacks").picker.grep_buffers()
+            end,
+            desc = "Grep",
+        },
+        {
+            "<leader>bh",
+            function()
+                require("snacks").bufdelete.delete({
+                    filter = function(buf)
+                        return vim.fn.bufwinnr(buf) == -1
+                    end,
+                })
+            end,
+            desc = "Hidden",
+        },
+        {
+            "<leader>bl",
+            function()
+                require("snacks").picker.lines()
+            end,
+            desc = "lines",
+        },
+        {
+            "<leader>bo",
+            function()
+                require("snacks").bufdelete.other()
+            end,
+            desc = "Other",
+        },
         -- {
-        --     "<leader>pe",
+        --     "<leader>e",
         --     function()
         --         require("snacks").picker.explorer()
         --     end,
         --     desc = "Explorer",
         -- },
         {
-            "<leader>ff",
-            function()
-                require("snacks").picker.files()
-            end,
-            desc = "Find Files",
-        },
-        {
             "<leader>f:",
             function()
-                require("snacks").picker.jumplist()
+                require("snacks").picker.commands()
             end,
-            desc = "Jumplist",
+            desc = "Commands",
+        },
+        {
+            "<leader>f;",
+            function()
+                require("snacks").picker.command_history()
+            end,
+            desc = "Command History",
         },
         {
             "<leader>f'",
@@ -373,11 +479,95 @@ return {
             desc = "Marks",
         },
         {
+            "<leader>f\"",
+            function()
+                require("snacks").picker.registers()
+            end,
+            desc = "Marks",
+        },
+        {
+            "<leader>f/",
+            function()
+                require("snacks").picker.search_history()
+            end,
+            desc = "Search History",
+        },
+        {
+            "<leader>fa",
+            function()
+                require("snacks").picker.files({ hidden = true })
+            end,
+            desc = "Find Files All",
+        },
+        {
+            "<leader>ff",
+            function()
+                require("snacks").picker.files()
+            end,
+            desc = "Find Files",
+        },
+        {
+            "<leader>fj",
+            function()
+                require("snacks").picker.jumps()
+            end,
+            desc = "Jumps",
+        },
+        {
             "<leader>fg",
             function()
                 require("snacks").picker.grep()
             end,
             desc = "Live Grep",
+        },
+        {
+            "<leader>fs",
+            function()
+                require("snacks").picker.smart()
+            end,
+            desc = "Smart Find Files",
+        },
+        {
+            "<leader>fh",
+            function()
+                require("snacks").picker.help()
+            end,
+            desc = "Help Tags",
+        },
+        {
+            "<leader>fi",
+            function()
+                require("snacks").picker.icons()
+            end,
+            desc = "Icons",
+        },
+        {
+            "<leader>fm",
+            function()
+                require("snacks").picker.man()
+            end,
+            desc = "Man Pages",
+        },
+        {
+            "<leader>fr",
+            function()
+                require("snacks").picker.recent()
+            end,
+            desc = "Recent Files",
+        },
+        {
+            "<leader>fu",
+            function()
+                require("snacks").picker.undo()
+            end,
+            desc = "Undo History",
+        },
+        {
+            "<leader>fy",
+            function()
+                require("snacks").picker.yanky()
+            end,
+            desc = "Yank History",
         },
         {
             "<leader>gb",
@@ -392,6 +582,13 @@ return {
                 require("snacks").picker.git_diff()
             end,
             desc = "Diff",
+        },
+        {
+            "<leader>gf",
+            function()
+                require("snacks").picker.git_log_file()
+            end,
+            desc = "Log File",
         },
         {
             "<leader>gl",
@@ -431,39 +628,25 @@ return {
             desc = "Repo URL",
         },
         {
-            "<leader>:",
-            function()
-                require("snacks").picker.commands()
-            end,
-            desc = "Commands",
-        },
-        {
-            "<leader>fh",
-            function()
-                require("snacks").picker.help()
-            end,
-            desc = "Help Tags",
-        },
-        {
-            "<leader>fm",
-            function()
-                require("snacks").picker.man()
-            end,
-            desc = "Man Pages",
-        },
-        {
-            "<leader>nn",
+            "<leader>n",
             function()
                 require("snacks").notifier.show_history()
             end,
             desc = "Notifications",
         },
         {
-            "<leader>fr",
+            "<leader>lci",
             function()
-                require("snacks").picker.recent()
+                require("snacks").picker.lsp_incoming_calls()
             end,
-            desc = "Recent Files",
+            desc = "Incoming",
+        },
+        {
+            "<leader>lci",
+            function()
+                require("snacks").picker.lsp_outgoing_calls()
+            end,
+            desc = "Outgoing",
         },
         {
             "<leader>ld",
@@ -471,6 +654,13 @@ return {
                 require("snacks").picker.lsp_definitions()
             end,
             desc = "Definitions",
+        },
+        {
+            "<leader>lD",
+            function()
+                require("snacks").picker.lsp_declarations()
+            end,
+            desc = "Declarations",
         },
         {
             "<leader>le",
@@ -533,38 +723,6 @@ return {
             desc = "Global Scratch",
         },
         {
-            "<leader>bd",
-            function()
-                require("snacks").bufdelete.delete()
-            end,
-            desc = "Delete Buffer",
-        },
-        {
-            "<leader>ba",
-            function()
-                require("snacks").bufdelete.all()
-            end,
-            desc = "All Buffers",
-        },
-        {
-            "<leader>bh",
-            function()
-                require("snacks").bufdelete.delete({
-                    filter = function(buf)
-                        return vim.fn.bufwinnr(buf) == -1
-                    end,
-                })
-            end,
-            desc = "Hidden Buffers",
-        },
-        {
-            "<leader>bo",
-            function()
-                require("snacks").bufdelete.other()
-            end,
-            desc = "Other Buffers",
-        },
-        {
             "<leader>td",
             function()
                 require("snacks").dashboard()
@@ -584,20 +742,6 @@ return {
                 require("snacks").scratch.select()
             end,
             desc = "Select Scratch Buffer",
-        },
-        {
-            "<leader>fu",
-            function()
-                require("snacks").picker.undo()
-            end,
-            desc = "Undo History",
-        },
-        {
-            "<leader>fy",
-            function()
-                require("snacks").picker.yanky()
-            end,
-            desc = "Yank History",
         },
         {
             "<leader>z",

@@ -2,8 +2,9 @@ local keymap = vim.keymap.set
 local opts = { noremap = true, silent = true }
 
 -- Buffers: Navigation
-keymap("", "<S-l>", "<CMD>bnext<CR>", {})
-keymap("", "<S-h>", "<CMD>bprev<CR>", {})
+keymap("", "<S-l>", "<CMD>bnext<CR>", { desc = "Next Buffer" })
+keymap("", "<S-h>", "<CMD>bprev<CR>", { desc = "Previous Buffer" })
+keymap("", "<S-m>", "<C-^>", { desc = "Alternate Buffer" })
 
 -- Windows: Navigation
 keymap("", "<C-j>", "<C-w>j", {})
@@ -68,12 +69,12 @@ end, { desc = "Select child (inner) node" })
 vim.g.mapleader = " "
 vim.g.localleader = "\\"
 
-keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
+-- keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
 keymap("", "<leader>-", "<C-w>s", { desc = "Split Below" })
 keymap("", "<leader>\\", "<C-w>v", { desc = "Split Right" })
 
-keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
-keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
+-- keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
+-- keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
 
 -- Quickfix
 local function qf_navigate(direction)
@@ -110,14 +111,22 @@ keymap("", "<leader>qa", function()
 end, { unpack(opts), desc = "QF Add" })
 
 
--- Clipboard yank/paste
-keymap({ "n", "v" }, "<leader>yy", [["+y]], { desc = "Yank+" })
-keymap("n", "<leader>yY", [["+Y]], { desc = "Yank+ EOL", remap = true })
-keymap({ "n", "v" }, "<leader>yp", [["+p]], { desc = "Put+" })
-keymap({ "n", "v" }, "<leader>yP", [["+P]], { desc = "Put+ Before" })
+-- Register
+keymap({ "n", "v" }, "<leader>ry", [["+y]], { desc = "Yank+" })
+keymap("n", "<leader>rY", [["+Y]], { desc = "Yank+ EOL", remap = true })
+keymap({ "n", "v" }, "<leader>rp", [["+p]], { desc = "Put+" })
+keymap({ "n", "v" }, "<leader>rP", [["+P]], { desc = "Put+ Before" })
+keymap({ "n", "v" }, "<leader>rd", [["_d]], { desc = "Delete_" })
+keymap({ "n", "v" }, "<leader>rx", [["+d]], { desc = "Delete+" })
+
+keymap("n", "<leader>rg", [["+gp]], { desc = "gput+" })
+keymap("n", "<leader>rG", [["+gP]], { desc = "gPut+" })
+
+keymap("n", "<leader>rf", "<CMD>%y+<CR>", { desc = "Yank File" })
+keymap("n", "<leader>rF", 'ggVG"+p', { desc = "Put File" })
 
 -- Copy @-prefixed paths (for AI / sharing)
-keymap("n", "<leader>ya", function()
+keymap("n", "<leader>ap", function()
     local paths = {}
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
         if vim.bo[bufnr].buflisted and vim.api.nvim_buf_is_loaded(bufnr) then
@@ -133,13 +142,13 @@ keymap("n", "<leader>ya", function()
     vim.notify("Copied: " .. #paths .. " buffer path(s)")
 end, { desc = "@all" })
 
-keymap("n", "<leader>yb", function()
+keymap("n", "<leader>ab", function()
     local path = vim.fn.expand("%:.")
     vim.fn.setreg("+", "@" .. path)
     vim.notify("Copied: @" .. path)
 end, { desc = "@buffer" })
 
-keymap("x", "<leader>yv", function()
+keymap("x", "<leader>av", function()
     local path = vim.fn.expand("%:.")
     local start_line = vim.fn.line("'<")
     local end_line = vim.fn.line("'>")

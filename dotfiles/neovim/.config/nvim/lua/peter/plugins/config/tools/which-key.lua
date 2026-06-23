@@ -24,6 +24,7 @@ return {
                 { "<leader>g", group = "git" },
                 { "<leader>h", group = "hunks" },
                 { "<leader>l", group = "lsp" },
+                { "<leader>lc", group = "calls" },
                 { "<leader>L", group = "lspc" },
                 { "<leader>n", group = "notif" },
                 { "<leader>q", group = "quickfix" },
@@ -40,7 +41,7 @@ return {
                 { "<leader>a", group = "ai" },
                 { "<leader>c", group = "code" },
                 { "<leader>j", group = "jump" },
-                { "<leader>y", group = "yank" },
+                { "<leader>r", group = "register" },
             },
             -- vim-abolish
             {

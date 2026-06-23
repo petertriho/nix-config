@@ -39,14 +39,14 @@ return {
         { "<leader>ax", "<CMD>CodeBridgeTmuxDiagnosticsErrors<CR>", desc = "Send errors" },
         { "<leader>aX", "<CMD>CodeBridgeTmuxDiagnosticsErrorsAll<CR>", desc = "Send all errors" },
         -- chat interface
-        { "<leader>aq", "<CMD>CodeBridgeQuery<CR>", mode = "n", desc = "Query with context" },
-        { "<leader>aq", ":CodeBridgeQuery<CR>", mode = "v", desc = "Query with context" },
-        { "<leader>ac", "<CMD>CodeBridgeChat<CR>", desc = "Chat" },
-        { "<leader>ah", "<CMD>CodeBridgeHide<CR>", desc = "Hide chat" },
-        { "<leader>as", "<CMD>CodeBridgeShow<CR>", desc = "Show chat" },
-        { "<leader>aw", "<CMD>CodeBridgeWipe<CR>", desc = "Wipe chat" },
-        { "<leader>ak", "<CMD>CodeBridgeCancelQuery<CR>", desc = "Cancel query" },
-        { "<leader>ap", "<CMD>CodeBridgeResumePrompt<CR>", desc = "Resume prompt" },
+        -- { "<leader>aq", "<CMD>CodeBridgeQuery<CR>", mode = "n", desc = "Query with context" },
+        -- { "<leader>aq", ":CodeBridgeQuery<CR>", mode = "v", desc = "Query with context" },
+        -- { "<leader>ac", "<CMD>CodeBridgeChat<CR>", desc = "Chat" },
+        -- { "<leader>ah", "<CMD>CodeBridgeHide<CR>", desc = "Hide chat" },
+        -- { "<leader>as", "<CMD>CodeBridgeShow<CR>", desc = "Show chat" },
+        -- { "<leader>aw", "<CMD>CodeBridgeWipe<CR>", desc = "Wipe chat" },
+        -- { "<leader>ak", "<CMD>CodeBridgeCancelQuery<CR>", desc = "Cancel query" },
+        -- { "<leader>ap", "<CMD>CodeBridgeResumePrompt<CR>", desc = "Resume prompt" },
     },
     opts = {
         tmux = {

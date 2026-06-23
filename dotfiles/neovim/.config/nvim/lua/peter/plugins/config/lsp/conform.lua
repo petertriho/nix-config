@@ -36,7 +36,7 @@ return {
     keys = {
         { "<leader>cf", "<CMD>Format<CR>", mode = { "n", "v" }, desc = "Format" },
         { "<leader>cF", "<CMD>SlowFormat<CR>", mode = { "n", "v" }, desc = "Slow Format" },
-        { "<leader>gf", "<CMD>DiffFormat<CR>", mode = { "n", "v" }, desc = "Diff Format" },
+        { "<leader>cd", "<CMD>DiffFormat<CR>", mode = { "n", "v" }, desc = "Diff Format" },
     },
     dependencies = {
         {
