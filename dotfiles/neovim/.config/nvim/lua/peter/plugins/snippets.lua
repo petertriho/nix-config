@@ -64,6 +64,9 @@ M.setup = function()
         s("lazy", {
             t("chore(nvim): update `lazy-lock.json`"),
         }),
+        s("pack", {
+            t("chore(nvim): update `nvim-pack-lock.json`")
+        }),
         s("refs", {
             f(function()
                 return string.format(
