@@ -96,8 +96,8 @@ return {
 						},
 						{
 							icon = " ",
-							key = "s",
-							desc = "Find Text",
+							key = "g",
+							desc = "Grep Text",
 							action = ":lua Snacks.dashboard.pick('live_grep')",
 						},
 						{
@@ -105,24 +105,6 @@ return {
 							key = "r",
 							desc = "Recent Files",
 							action = ":lua Snacks.dashboard.pick('oldfiles')",
-						},
-						{
-							icon = " ",
-							key = "g",
-							desc = "Lazygit",
-							action = ":lua Snacks.lazygit()",
-						},
-						-- {
-						--     icon = " ",
-						--     key = "c",
-						--     desc = "Config",
-						--     action = ":lua Snacks.dashboard.pick('files', {cwd = vim.fn.stdpath('config')})",
-						-- },
-						{
-							icon = " ",
-							key = "u",
-							desc = "Update dashboard",
-							action = ":lua Snacks.dashboard.update()",
 						},
 						{ icon = " ", key = "q", desc = "Quit", action = ":qa" },
 					},
