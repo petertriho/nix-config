@@ -2,6 +2,8 @@ local keymap = vim.keymap.set
 local opts = { noremap = true, silent = true }
 
 -- Buffers: Navigation
+keymap("", "<C-n>", "<CMD>bnext<CR>", { desc = "Next Buffer" })
+keymap("", "<C-p>", "<CMD>bprev<CR>", { desc = "Previous Buffer" })
 keymap("", "<S-l>", "<CMD>bnext<CR>", { desc = "Next Buffer" })
 keymap("", "<S-h>", "<CMD>bprev<CR>", { desc = "Previous Buffer" })
 keymap("", "<S-m>", "<C-^>", { desc = "Alternate Buffer" })
