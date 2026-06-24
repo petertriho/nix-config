@@ -8,10 +8,6 @@ local by_name = {}
 local loaded = {}
 local build_hooks = {}
 
-local main_overrides = {
-	["nvim-hlslens"] = "hlslens",
-}
-
 local function list(value)
 	if value == nil then
 		return {}
@@ -39,6 +35,14 @@ local function source_to_main(src)
 	local name = basename(src)
 	name = name:gsub("%.nvim$", "")
 	return name
+end
+
+-- Normalize a plugin/module name for matching, mirroring lazy.nvim's
+-- `Util.normname`: lowercase, strip a leading `vim-`/`nvim-`, strip a trailing
+-- `.vim`/`.nvim`, drop `.lua`, and remove every non-letter. So both
+-- "nvim-lsp-endhints" and the module "lsp-endhints" collapse to "lspendhints".
+local function normname(name)
+	return (name:lower():gsub("^n?vim%-", ""):gsub("%.n?vim$", ""):gsub("%.lua", ""):gsub("[^a-z]+", ""))
 end
 
 local function source_to_url(src)
@@ -70,6 +74,32 @@ local function spec_enabled(spec)
 	return true
 end
 
+-- Register a spec under its name, merging with any existing entry.
+--
+-- A spec referenced via another plugin's `dependencies` is a bare stub: it
+-- carries identity (src/name/main) but no triggers or config. The dedicated
+-- spec file is authoritative, so a full spec always supersedes a stub --
+-- regardless of which is seen first. Without this, the old
+-- `specs[name] = specs[name] or spec` kept whichever arrived first, silently
+-- dropping the real spec's `event`/`config` when a dependency stub won the race
+-- (e.g. garbage-day depends on nvim-lspconfig, so its stub shadowed the real
+-- nvim-lspconfig spec and `require("peter.lsp").setup()` never ran).
+local function register_spec(spec, is_dependency)
+	local existing = specs[spec.name]
+	if not existing then
+		spec._dep = is_dependency or nil
+		specs[spec.name] = spec
+		return
+	end
+
+	if existing._dep and not is_dependency then
+		for _, dep in ipairs(existing.dependencies or {}) do
+			table.insert(spec.dependencies, dep)
+		end
+		specs[spec.name] = spec
+	end
+end
+
 local function normalize(raw)
 	if type(raw) == "string" then
 		raw = { raw }
@@ -89,7 +119,7 @@ local function normalize(raw)
 		src = src,
 		dir = dir,
 		name = name,
-		main = raw.main or main_overrides[name] or (src and source_to_main(src)) or name,
+		main = raw.main,
 		dependencies = {},
 	})
 
@@ -97,7 +127,7 @@ local function normalize(raw)
 		local normalized = normalize(dep)
 		if normalized then
 			table.insert(spec.dependencies, normalized.name)
-			specs[normalized.name] = specs[normalized.name] or normalized
+			register_spec(normalized, true)
 		end
 	end
 
@@ -137,7 +167,7 @@ local function import_specs(imports)
 			for _, raw_spec in ipairs(raw_specs) do
 				local spec = normalize(raw_spec)
 				if spec then
-					specs[spec.name] = specs[spec.name] or spec
+					register_spec(spec, false)
 				end
 			end
 		end
@@ -210,6 +240,27 @@ local function plugin_dir(spec)
 	return pack_root .. "/opt/" .. spec.name
 end
 
+-- Resolve the module whose `.setup()` should be called, mirroring lazy.nvim's
+-- `get_main`: scan the plugin's top-level `lua/` modules and pick the one whose
+-- normalized name matches the plugin's. This handles repos whose module name
+-- differs from the repo name (e.g. chrisgrieser/nvim-lsp-endhints exposes
+-- `require("lsp-endhints")`). Resolved lazily at load time, when the plugin is
+-- guaranteed to be on disk. Falls back to the source heuristic, then the name.
+local function find_main(spec)
+	local lua = plugin_dir(spec) .. "/lua"
+	if vim.fn.isdirectory(lua) == 1 then
+		local target = normname(spec.name)
+		for _, entry in ipairs(vim.fn.readdir(lua)) do
+			local mod = entry:gsub("%.lua$", "")
+			if normname(mod) == target then
+				return mod
+			end
+		end
+	end
+
+	return (spec.src and source_to_main(spec.src)) or spec.name
+end
+
 local function add_local_dir(spec)
 	if not spec.dir then
 		return
@@ -231,7 +282,7 @@ local function setup_plugin(spec)
 	if type(spec.config) == "function" then
 		spec.config(spec, opts)
 	elseif spec.config == true or opts then
-		require(spec.main).setup(opts or {})
+		require(spec.main or find_main(spec)).setup(opts or {})
 	end
 end
 
