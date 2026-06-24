@@ -183,13 +183,13 @@ function run_nvim_build_hooks {
     local output
     local status
 
-    mapfile -t hooks < <(nvim --headless "+lua require('peter.plugins.lazypack').print_build_hook_names()" +qa)
+    mapfile -t hooks < <(NVIM_BUILD_HOOKS=1 nvim --headless "+lua require('peter.plugins.lazypack').print_build_hook_names()" +qa)
 
     for hook in "${hooks[@]}"; do
         lua_name=${hook//\\/\\\\}
         lua_name=${lua_name//\"/\\\"}
         set +e
-        output=$(nvim --headless "+lua require('peter.plugins.lazypack').run_build_hooks({ \"${lua_name}\" })" +qa 2>&1)
+        output=$(NVIM_BUILD_HOOKS=1 nvim --headless "+lua require('peter.plugins.lazypack').run_build_hooks({ \"${lua_name}\" })" +qa 2>&1)
         status=$?
         set -e
 

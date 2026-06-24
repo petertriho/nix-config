@@ -545,11 +545,19 @@ function M.setup(imports)
 	import_specs(imports)
 
 	local install = {}
-	for _, spec in ipairs(ordered_specs()) do
+	local ordered = ordered_specs()
+	for _, spec in ipairs(ordered) do
 		by_name[spec.name] = spec
 		if spec.build then
 			build_hooks[spec.name] = spec.build
 		end
+	end
+
+	if vim.env.NVIM_BUILD_HOOKS == "1" then
+		return
+	end
+
+	for _, spec in ipairs(ordered) do
 		add_local_dir(spec)
 		local item = pack_spec(spec)
 		if item then
@@ -561,7 +569,7 @@ function M.setup(imports)
 		vim.pack.add(install)
 	end
 
-	for _, spec in ipairs(ordered_specs()) do
+	for _, spec in ipairs(ordered) do
 		if spec.init then
 			spec.init()
 		end
@@ -569,7 +577,7 @@ function M.setup(imports)
 
 	setup_very_lazy()
 
-	for _, spec in ipairs(ordered_specs()) do
+	for _, spec in ipairs(ordered) do
 		if has_lazy_trigger(spec) and spec.lazy ~= false then
 			register_triggers(spec)
 		else
