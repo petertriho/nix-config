@@ -435,13 +435,6 @@ return {
 			end,
 			desc = "Other",
 		},
-		-- {
-		--     "<leader>e",
-		--     function()
-		--         require("snacks").picker.explorer()
-		--     end,
-		--     desc = "Explorer",
-		-- },
 		{
 			"<leader>f:",
 			function()
@@ -483,6 +476,13 @@ return {
 				require("snacks").picker.files({ hidden = true })
 			end,
 			desc = "Find Files All",
+		},
+		{
+		    "<leader>fe",
+		    function()
+		        require("snacks").picker.explorer()
+		    end,
+		    desc = "Explorer",
 		},
 		{
 			"<leader>ff",
