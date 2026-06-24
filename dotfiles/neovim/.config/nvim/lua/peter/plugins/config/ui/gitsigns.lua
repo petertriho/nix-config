@@ -1,6 +1,9 @@
 return {
     "lewis6991/gitsigns.nvim",
     event = "User LazyLoadFile",
+    dependencies = {
+        "petertriho/nvim-scrollbar",
+    },
     keys = {
         { "<leader>gt", "<CMD>Gitsigns toggle_current_line_blame<CR>", desc = "Toggle Blame" },
     },

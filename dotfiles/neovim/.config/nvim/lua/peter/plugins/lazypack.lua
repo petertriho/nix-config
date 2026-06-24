@@ -6,7 +6,11 @@ local group = vim.api.nvim_create_augroup("PeterPack", { clear = true })
 local specs = {}
 local by_name = {}
 local loaded = {}
+local loading = {}
 local build_hooks = {}
+local module_loaders = {}
+local lazy_module_searcher
+local searcher_registered = false
 
 local function list(value)
 	if value == nil then
@@ -240,6 +244,81 @@ local function plugin_dir(spec)
 	return pack_root .. "/opt/" .. spec.name
 end
 
+local function nvim_lib_dir()
+	local lib = vim.fn.fnamemodify(vim.v.progpath, ":p:h:h") .. "/lib"
+	if vim.uv.fs_stat(lib .. "64") then
+		lib = lib .. "64"
+	end
+	return lib .. "/nvim"
+end
+
+local function reset_paths()
+	vim.go.packpath = vim.env.VIMRUNTIME
+	vim.opt.rtp = {
+		config_dir,
+		vim.fn.stdpath("data") .. "/site",
+		vim.env.VIMRUNTIME,
+		nvim_lib_dir(),
+		config_dir .. "/after",
+	}
+end
+
+local function runtime_path_has(dir)
+	dir = vim.fs.normalize(dir)
+	for _, path in ipairs(vim.opt.rtp:get()) do
+		if vim.fs.normalize(path) == dir then
+			return true
+		end
+	end
+	return false
+end
+
+local function prepend_runtime_dir(dir)
+	if not runtime_path_has(dir) then
+		vim.opt.rtp:prepend(dir)
+	end
+end
+
+local function source_runtime_files(dir, patterns)
+	local root = vim.fs.normalize(dir)
+	local sourced = {}
+
+	for _, pattern in ipairs(patterns) do
+		for _, file in ipairs(vim.api.nvim_get_runtime_file(pattern, true)) do
+			local normalized = vim.fs.normalize(file)
+			if not sourced[normalized] and vim.startswith(normalized, root .. "/") then
+				sourced[normalized] = true
+				vim.cmd.source(vim.fn.fnameescape(file))
+			end
+		end
+	end
+end
+
+local function add_plugin_runtime(spec, opts)
+	local dir = plugin_dir(spec)
+	if vim.fn.isdirectory(dir) ~= 1 then
+		if spec.dir then
+			vim.notify("Local plugin directory does not exist: " .. dir, vim.log.levels.WARN)
+		end
+		return
+	end
+
+	prepend_runtime_dir(dir)
+
+	if not opts or opts.plugins ~= false then
+		source_runtime_files(dir, {
+			"plugin/**/*.vim",
+			"plugin/**/*.lua",
+			"ftdetect/*.vim",
+			"ftdetect/*.lua",
+			"after/plugin/**/*.vim",
+			"after/plugin/**/*.lua",
+			"after/ftdetect/*.vim",
+			"after/ftdetect/*.lua",
+		})
+	end
+end
+
 -- Resolve the module whose `.setup()` should be called, mirroring lazy.nvim's
 -- `get_main`: scan the plugin's top-level `lua/` modules and pick the one whose
 -- normalized name matches the plugin's. This handles repos whose module name
@@ -267,7 +346,7 @@ local function add_local_dir(spec)
 	end
 	local dir = expand_path(spec.dir)
 	if vim.fn.isdirectory(dir) == 1 then
-		vim.opt.rtp:prepend(dir)
+		prepend_runtime_dir(dir)
 	else
 		vim.notify("Local plugin directory does not exist: " .. dir, vim.log.levels.WARN)
 	end
@@ -286,24 +365,159 @@ local function setup_plugin(spec)
 	end
 end
 
-function M.load(name)
+local function module_candidates(spec)
+	local candidates = {}
+	local seen = {}
+
+	local function add(module)
+		if type(module) ~= "string" or module == "" or seen[module] then
+			return
+		end
+		seen[module] = true
+		table.insert(candidates, module)
+	end
+
+	if spec.module ~= false then
+		add(spec.main)
+		add(find_main(spec))
+		if spec.src then
+			add(source_to_main(spec.src))
+		end
+		add(spec.name)
+	end
+
+	return candidates
+end
+
+local function resolve_loaded_module(module)
+	local searchers = package.searchers or package.loaders
+	for _, searcher in ipairs(searchers) do
+		if searcher ~= lazy_module_searcher then
+			local loader, param = searcher(module)
+			if type(loader) == "function" then
+				return function(...)
+					if package.loaded[module] == true then
+						package.loaded[module] = nil
+					end
+					return loader(...)
+				end, param
+			end
+		end
+	end
+
+	return "\n\tlazy-loaded plugin for module '" .. module .. "', but the module was not found"
+end
+
+lazy_module_searcher = function(module)
+	local root = module:match("^[^%.]+")
+	local name = module_loaders[module] or module_loaders[root]
+	if not name then
+		return nil
+	end
+	if loading[name] then
+		return nil
+	end
+
+	local module_loading = package.loaded[module] == true
+	if module_loading then
+		package.loaded[module] = nil
+	end
+
+	local ok, err = pcall(M.load, name, { plugins = false })
+	if not ok then
+		if module_loading and package.loaded[module] == nil then
+			package.loaded[module] = true
+		end
+		error(err)
+	end
+
+	if package.loaded[module] ~= nil and package.loaded[module] ~= true then
+		local loaded_module = package.loaded[module]
+		return function()
+			return loaded_module
+		end
+	end
+
+	local loader, param = resolve_loaded_module(module)
+	if type(loader) ~= "function" then
+		return loader
+	end
+
+	if package.loaded[module] == true then
+		package.loaded[module] = nil
+	end
+	local result = loader(module, param)
+	if result ~= nil then
+		package.loaded[module] = result
+	end
+
+	if package.loaded[module] ~= nil and package.loaded[module] ~= true then
+		local loaded_module = package.loaded[module]
+		return function()
+			return loaded_module
+		end
+	end
+
+	return function()
+		return result
+	end
+end
+
+local function register_module_searcher()
+	local searchers = package.searchers or package.loaders
+	for index = #searchers, 1, -1 do
+		if searchers[index] == lazy_module_searcher then
+			table.remove(searchers, index)
+		end
+	end
+	table.insert(searchers, 2, lazy_module_searcher)
+	searcher_registered = true
+end
+
+local function register_module_triggers(spec)
+	for _, module in ipairs(module_candidates(spec)) do
+		module_loaders[module] = spec.name
+	end
+end
+
+local function suspend_module_triggers(spec)
+	local suspended = {}
+	for _, module in ipairs(module_candidates(spec)) do
+		suspended[module] = module_loaders[module]
+		module_loaders[module] = nil
+	end
+	return suspended
+end
+
+local function restore_module_triggers(suspended)
+	for module, name in pairs(suspended) do
+		module_loaders[module] = name
+	end
+end
+
+function M.load(name, opts)
 	local spec = by_name[name] or specs[name]
 	if not spec or loaded[spec.name] then
 		return
 	end
 
 	for _, dep in ipairs(spec.dependencies or {}) do
-		M.load(dep)
-	end
-
-	if spec.dir then
-		add_local_dir(spec)
-	else
-		vim.cmd.packadd(spec.name)
+		M.load(dep, opts)
 	end
 
 	loaded[spec.name] = true
-	setup_plugin(spec)
+	loading[spec.name] = true
+	local suspended = suspend_module_triggers(spec)
+	local ok, err = pcall(function()
+		add_plugin_runtime(spec, opts)
+		setup_plugin(spec)
+	end)
+	restore_module_triggers(suspended)
+	loading[spec.name] = nil
+	if not ok then
+		loaded[spec.name] = nil
+		error(err)
+	end
 end
 
 local function parse_event(event)
@@ -508,11 +722,7 @@ local function run_build(spec)
 	if type(spec.build) == "string" then
 		run_shell_build(spec, spec.build)
 	elseif type(spec.build) == "function" then
-		if spec.dir then
-			add_local_dir(spec)
-		else
-			vim.cmd.packadd(spec.name)
-		end
+		add_plugin_runtime(spec)
 		spec.build()
 	end
 end
@@ -542,6 +752,7 @@ function M.run_build_hooks(names)
 end
 
 function M.setup(imports)
+	reset_paths()
 	import_specs(imports)
 
 	local install = {}
@@ -566,7 +777,7 @@ function M.setup(imports)
 	end
 
 	if #install > 0 then
-		vim.pack.add(install)
+		vim.pack.add(install, { load = function() end })
 	end
 
 	for _, spec in ipairs(ordered) do
@@ -576,9 +787,13 @@ function M.setup(imports)
 	end
 
 	setup_very_lazy()
+	register_module_searcher()
 
 	for _, spec in ipairs(ordered) do
 		if has_lazy_trigger(spec) and spec.lazy ~= false then
+			if spec.lazy == true then
+				register_module_triggers(spec)
+			end
 			register_triggers(spec)
 		else
 			M.load(spec.name)
