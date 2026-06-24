@@ -315,27 +315,6 @@ return {
     --         },
     --     },
     -- },
-    emmet_language_server = {
-        filetypes = {
-            "css",
-            "eruby",
-            "html",
-            "htmldjango",
-            "javascriptreact",
-            "less",
-            "pug",
-            "sass",
-            "scss",
-            "typescriptreact",
-            "htmlangular",
-            -- additional filetypes
-            "javascript",
-            "javascript.jsx",
-            "typescript",
-            "typescript.tsx",
-            "xml",
-        },
-    },
     eslint = {},
     -- expert = {},
     fish_lsp = {},
@@ -428,7 +407,6 @@ return {
             },
         },
     },
-    postgres_lsp = {},
     -- https://pyrefly.org/en/docs/editors/
     pyrefly = {
         init_options = {
@@ -514,34 +492,6 @@ return {
     -- rust_analyzer = {},
     superhtml = {},
     -- https://svelte.dev/docs/language-tools/svelte-for-vs-code#settings
-    svelte = {
-        settings = {
-            svelte = {
-                ["enable-ts-plugin"] = true,
-                plugin = {
-                    svelte = {
-                        inlayHints = {
-                            parameterNames = { enabled = "all" },
-                            parameterTypes = { enabled = true },
-                            variableTypes = { enabled = true },
-                            functionLikeReturnTypes = { enabled = true },
-                            enumMemberValues = { enabled = true },
-                        },
-                    },
-                },
-            },
-            typescript = {
-                inlayHints = {
-                    parameterNames = { enabled = "all" },
-                    parameterTypes = { enabled = true },
-                    variableTypes = { enabled = true },
-                    propertyDeclarationTypes = { enabled = true },
-                    functionLikeReturnTypes = { enabled = true },
-                    enumMemberValues = { enabled = true },
-                },
-            },
-        },
-    },
     tailwindcss = {
         settings = {
             tailwindCSS = {

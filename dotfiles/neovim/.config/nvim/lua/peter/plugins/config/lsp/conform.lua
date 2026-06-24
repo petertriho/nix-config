@@ -150,7 +150,6 @@ return {
             gitcommit = { "commitmsgfmt" },
             graphql = prettier,
             go = { "goimports", "gofmt" },
-            hurl = { "hurlfmt" },
             java = { "google_java_format", lsp_format = "prefer" },
             json = with_prettier_formatter({ "json_repair", "jq", "sort_package_json" }),
             jsonc = with_prettier_formatter({ "json_repair" }),

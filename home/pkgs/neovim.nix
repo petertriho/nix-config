@@ -57,7 +57,6 @@
       docker-compose-language-service
       dockerfile-language-server
       # elixir-ls
-      emmet-language-server
       # expert
       fish-lsp
       gopls
@@ -68,12 +67,10 @@
       mpls
       nil
       # nodePackages.typescript-language-server
-      postgres-language-server
       unstable.pyrefly
       # quick-lint-js
       # rust-analyzer
       superhtml
-      svelte-language-server
       tailwindcss-language-server
       taplo
       terraform-ls
