@@ -11,7 +11,6 @@
     ./claude-code.nix
     ./context-mode.nix
     ./crush.nix
-    ./headroom.nix
     ./impeccable.nix
     ./lsp.nix
     ./plannotator.nix
