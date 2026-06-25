@@ -92,14 +92,14 @@ local function qf_navigate(direction)
     vim.cmd(commands[direction])
 end
 
-keymap("", "<leader>qn", function()
+keymap("", "qn", function()
     qf_navigate("next")
 end, { unpack(opts), desc = "QF Next" })
-keymap("", "<leader>qp", function()
+keymap("", "qp", function()
     qf_navigate("prev")
 end, { unpack(opts), desc = "QF Prev" })
 
-keymap("", "<leader>qa", function()
+keymap("", "Q", function()
     vim.fn.setqflist({}, "a", {
         items = {
             {

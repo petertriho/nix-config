@@ -4,7 +4,7 @@ return {
     keys = {
         {
 
-            "<leader>qq",
+            "qq",
             function()
                 require("quicker").toggle({
                     focus = true,
@@ -15,7 +15,7 @@ return {
         },
         {
 
-            "<leader>ql",
+            "ql",
             function()
                 require("quicker").toggle({
                     loclist = true,
