@@ -211,6 +211,7 @@ function tool:nvim:clean {
     if command -v nvim &> /dev/null; then
         echo_info "Removing inactive vim.pack plugins..."
         nvim --headless "+silent! packdel ++all" +qa
+        printf '\n'
     else
         echo_warning "Neovim not found, skipping vim.pack cleanup"
     fi
