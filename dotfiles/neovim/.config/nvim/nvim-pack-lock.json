@@ -106,7 +106,7 @@
       "src": "https://github.com/nmac427/guess-indent.nvim"
     },
     "guh.nvim": {
-      "rev": "29912d2d7ce04972ff52ddd4aae1929641dff633",
+      "rev": "943779f7cdb0acee203985ad531fb53ff95d9c8e",
       "src": "https://github.com/justinmk/guh.nvim"
     },
     "heirline.nvim": {
@@ -247,7 +247,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "e3a2fc3862fa750603b7067789cb4b90578bcd07",
+      "rev": "322751401046ae2dbbe32eeb31992a5d4fcc8d92",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
