@@ -319,7 +319,7 @@ return {
 			desc = "Find Files All",
 		},
 		{
-			"<leader>/",
+			"<leader>\"",
 			function()
 				require("snacks").picker.lines()
 			end,

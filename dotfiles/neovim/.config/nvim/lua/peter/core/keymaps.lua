@@ -74,8 +74,8 @@ keymap("", "<leader><leader>", "<CMD>update<CR>", { desc = "Update" })
 keymap("", "<leader>-", "<C-w>s", { desc = "Split Below" })
 keymap("", "<leader>\\", "<C-w>v", { desc = "Split Right" })
 
--- keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
--- keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
+keymap("n", "<leader>/", "gcc", { desc = "Comment", remap = true })
+keymap("v", "<leader>/", "gc", { desc = "Comment", remap = true })
 
 -- Quickfix
 local function qf_navigate(direction)
