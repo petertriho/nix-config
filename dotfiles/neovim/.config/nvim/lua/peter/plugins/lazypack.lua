@@ -790,7 +790,9 @@ function M.setup(imports)
 	register_module_searcher()
 
 	for _, spec in ipairs(ordered) do
-		if has_lazy_trigger(spec) and spec.lazy ~= false then
+		if spec._dep then
+			-- Dependency stubs are installed and loaded through their parent specs.
+		elseif has_lazy_trigger(spec) and spec.lazy ~= false then
 			if spec.lazy == true then
 				register_module_triggers(spec)
 			end
