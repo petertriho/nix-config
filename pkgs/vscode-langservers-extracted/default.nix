@@ -48,6 +48,14 @@ buildNpmPackage {
         --out-dir lib/json-language-server/node/
       cp -r ${vscode-extensions.dbaeumer.vscode-eslint}/share/vscode/extensions/dbaeumer.vscode-eslint/server/out \
         lib/eslint-language-server
+
+      # Babel leaves import.meta.url behind while emitting CommonJS requires.
+      # Node 24 then treats these files as ESM and crashes on the first require().
+      substituteInPlace \
+        lib/packages/html/lib/node/htmlServerMain.js \
+        lib/css-language-server/node/cssServerMain.js \
+        lib/json-language-server/node/jsonServerMain.js \
+        --replace-fail "import.meta.url" "__filename"
     '';
 
   installPhase = ''
