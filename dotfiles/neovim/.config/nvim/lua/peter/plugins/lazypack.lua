@@ -1,7 +1,7 @@
 local M = {}
 
 local config_dir = vim.fn.stdpath("config")
-local group = vim.api.nvim_create_augroup("PeterPack", { clear = true })
+local group = vim.api.nvim_create_augroup("LazyPack", { clear = true })
 
 local specs = {}
 local by_name = {}
