@@ -27,7 +27,5 @@ return {
             ensure_installed = ensure_installed,
             ignore = require("peter.core.filetypes").excludes,
         })
-
-        vim.api.nvim_exec_autocmds("User", { pattern = "LoadedNvimTreesitter" })
     end,
 }

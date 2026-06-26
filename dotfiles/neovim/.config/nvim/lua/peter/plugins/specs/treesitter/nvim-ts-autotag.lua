@@ -1,5 +1,5 @@
 return {
     "windwp/nvim-ts-autotag",
-    event = "User LoadedNvimTreesitter",
+    ft = { "html", "javascriptreact", "typescriptreact", "svelte", "templ" },
     config = true,
 }

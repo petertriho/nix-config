@@ -17,24 +17,46 @@ end
 local utils = require("peter.core.utils")
 local filetypes = require("peter.core.filetypes")
 
-local function exec_lazy_load_file(event)
-    vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
+local did_load_nvim_treesitter = false
 
-    -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/plugin.lua#L72
-    if vim.v.vim_did_enter == 1 then
+local function exec_lazy_load_file()
+    vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
+end
+
+local function exec_loaded_nvim_treesitter()
+    if did_load_nvim_treesitter then
         return
     end
 
-    if not utils.file_is_big(event.buf) then
-        local ft = vim.filetype.match({ buf = event.buf })
-        if ft then
-            local lang = vim.treesitter.language.get_lang(ft)
-            if not (lang and pcall(vim.treesitter.start, event.buf, lang)) then
-                vim.bo[event.buf].syntax = ft
-            end
+    did_load_nvim_treesitter = true
+    vim.api.nvim_exec_autocmds("User", { pattern = "LoadedNvimTreesitter" })
+end
 
-            vim.cmd.redraw()
-        end
+local function start_treesitter(event)
+    local buf = event.buf
+
+    if utils.is_excludes_buf(buf) or utils.file_is_big(buf) then
+        return
+    end
+
+    local ft = vim.bo[buf].filetype
+    if ft == "" then
+        ft = vim.filetype.match({ buf = buf })
+    end
+
+    if not ft or ft == "" then
+        return
+    end
+
+    local lang = vim.treesitter.language.get_lang(ft)
+    if lang and pcall(vim.treesitter.start, buf, lang) then
+        exec_loaded_nvim_treesitter()
+    else
+        vim.bo[buf].syntax = ft
+    end
+
+    if vim.v.vim_did_enter == 0 then
+        vim.cmd.redraw()
     end
 end
 
@@ -126,6 +148,14 @@ set_augroups({
                 pattern = "*",
                 callback = exec_lazy_load_file,
                 desc = "Lazy load file",
+            },
+        },
+        {
+            { "BufReadPost", "BufNewFile", "FileType" },
+            {
+                pattern = "*",
+                callback = start_treesitter,
+                desc = "Start Treesitter",
             },
         },
         {
