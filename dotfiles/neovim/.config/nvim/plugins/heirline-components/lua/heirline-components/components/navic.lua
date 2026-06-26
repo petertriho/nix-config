@@ -1,3 +1,5 @@
+local navic = require("nvim-navic")
+
 local config = {
     separator = " ❭ ",
     separator_hl = { fg = "fg_bright" },
@@ -202,7 +204,7 @@ end
 
 return {
     condition = function()
-        return require("nvim-navic").is_available()
+        return navic.is_available()
     end,
     static = {
         type_hl = TYPE_HIGHLIGHTS,
@@ -210,7 +212,7 @@ return {
         dec = decode_position,
     },
     init = function(self)
-        self.navic_data = require("nvim-navic").get_data() or {}
+        self.navic_data = navic.get_data() or {}
         self.data_count = #self.navic_data
     end,
     (function()
