@@ -125,7 +125,17 @@ set_augroups({
             "BufWritePre",
             {
                 pattern = "*",
-                callback = function()
+                callback = function(event)
+                    local buf = event.buf
+                    if
+                        utils.is_excludes_buf(buf)
+                        or not vim.bo[buf].modifiable
+                        or vim.bo[buf].readonly
+                        or utils.file_is_big(buf)
+                    then
+                        return
+                    end
+
                     local view = vim.fn.winsaveview()
 
                     local patterns = {
