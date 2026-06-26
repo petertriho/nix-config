@@ -2,7 +2,7 @@ local utils = require("heirline.utils")
 
 local buflist_cache = {}
 local bufmap_cache = {}
-local basename_counts_cache = {}
+local basename_paths_cache = {}
 
 local get_bufs = function()
     return vim.tbl_filter(function(bufnr)
@@ -16,8 +16,8 @@ vim.api.nvim_create_autocmd({ "VimEnter", "UIEnter", "BufAdd", "BufDelete", "Buf
             for k in pairs(bufmap_cache) do
                 bufmap_cache[k] = nil
             end
-            for k in pairs(basename_counts_cache) do
-                basename_counts_cache[k] = nil
+            for k in pairs(basename_paths_cache) do
+                basename_paths_cache[k] = nil
             end
 
             local buffers = get_bufs()
@@ -28,7 +28,8 @@ vim.api.nvim_create_autocmd({ "VimEnter", "UIEnter", "BufAdd", "BufDelete", "Buf
                 local name = vim.api.nvim_buf_get_name(v)
                 if name ~= "" then
                     local basename = vim.fn.fnamemodify(name, ":t")
-                    basename_counts_cache[basename] = (basename_counts_cache[basename] or 0) + 1
+                    basename_paths_cache[basename] = basename_paths_cache[basename] or {}
+                    table.insert(basename_paths_cache[basename], vim.fn.fnamemodify(name, ":~:."))
                 end
             end
 
@@ -105,7 +106,7 @@ local FileName = {
         self.filename = vim.api.nvim_buf_get_name(self.bufnr)
     end,
     provider = function(self)
-        return require("heirline-components.utils.filename").get_smart_filename(self.filename, basename_counts_cache)
+        return require("heirline-components.utils.filename").get_smart_filename(self.filename, basename_paths_cache)
     end,
     hl = function(self)
         return { bold = self.is_active or self.is_visible }
