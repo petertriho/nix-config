@@ -106,8 +106,7 @@ function M.index(bufnr)
     return bufmap[bufnr]
 end
 
-function M.display_name(bufnr)
-    local filename = vim.api.nvim_buf_get_name(bufnr)
+function M.display_name(filename)
     return filename_utils.get_smart_filename(filename, basename_paths)
 end
 

@@ -41,7 +41,7 @@ local BufIndex = {
 
 local FileName = {
     provider = function(self)
-        return runtime.display_name(self.bufnr)
+        return runtime.display_name(self.filename)
     end,
     hl = function(self)
         return { bold = self.is_active or self.is_visible }
@@ -73,6 +73,9 @@ local FileFlags = {
 }
 
 local FileNameBlock = {
+    init = function(self)
+        self.filename = vim.api.nvim_buf_get_name(self.bufnr)
+    end,
     hl = function(self)
         if self.is_active then
             return {
