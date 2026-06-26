@@ -30,5 +30,10 @@ return {
         reflog_view = {
             kind = "auto",
         },
+        integrations = {
+            codediff = true,
+            snacks = true,
+        },
+        diff_viewer = "codediff",
     },
 }
