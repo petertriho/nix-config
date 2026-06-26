@@ -10,6 +10,7 @@ local loading = {}
 local build_hooks = {}
 local module_loaders = {}
 local lazy_module_searcher
+local rtp_seen = {}
 
 local function list(value)
 	if value == nil then
@@ -249,39 +250,39 @@ end
 
 local function reset_paths()
 	vim.go.packpath = vim.env.VIMRUNTIME
-	vim.opt.rtp = {
+	local paths = {
 		config_dir,
 		vim.fn.stdpath("data") .. "/site",
 		vim.env.VIMRUNTIME,
 		nvim_lib_dir(),
 		config_dir .. "/after",
 	}
-end
-
-local function runtime_path_has(dir)
-	dir = vim.fs.normalize(dir)
-	for _, path in ipairs(vim.opt.rtp:get()) do
-		if vim.fs.normalize(path) == dir then
-			return true
-		end
+	vim.opt.rtp = paths
+	rtp_seen = {}
+	for _, path in ipairs(paths) do
+		rtp_seen[vim.fs.normalize(path)] = true
 	end
-	return false
 end
 
 local function prepend_runtime_dir(dir)
-	if not runtime_path_has(dir) then
+	local normalized = vim.fs.normalize(dir)
+	if not rtp_seen[normalized] then
 		vim.opt.rtp:prepend(dir)
+		rtp_seen[normalized] = true
 	end
 end
 
 local function source_runtime_files(dir, patterns)
 	local root = vim.fs.normalize(dir)
+	local root_prefix = root .. "/"
 	local sourced = {}
 
 	for _, pattern in ipairs(patterns) do
-		for _, file in ipairs(vim.api.nvim_get_runtime_file(pattern, true)) do
+		local files = vim.fn.globpath(root, pattern, true, true)
+		table.sort(files)
+		for _, file in ipairs(files) do
 			local normalized = vim.fs.normalize(file)
-			if not sourced[normalized] and vim.startswith(normalized, root .. "/") then
+			if not sourced[normalized] and vim.startswith(normalized, root_prefix) then
 				sourced[normalized] = true
 				vim.cmd.source(vim.fn.fnameescape(file))
 			end
@@ -347,6 +348,13 @@ local function add_local_dir(spec)
 	end
 end
 
+local function cached_main(spec)
+	if not spec._main then
+		spec._main = find_main(spec)
+	end
+	return spec._main
+end
+
 local function setup_plugin(spec)
 	local opts = spec.opts
 	if type(opts) == "function" then
@@ -356,11 +364,15 @@ local function setup_plugin(spec)
 	if type(spec.config) == "function" then
 		spec.config(spec, opts)
 	elseif spec.config == true or opts then
-		require(spec.main or find_main(spec)).setup(opts or {})
+		require(spec.main or cached_main(spec)).setup(opts or {})
 	end
 end
 
 local function module_candidates(spec)
+	if spec._module_candidates then
+		return spec._module_candidates
+	end
+
 	local candidates = {}
 	local seen = {}
 
@@ -374,13 +386,14 @@ local function module_candidates(spec)
 
 	if spec.module ~= false then
 		add(spec.main)
-		add(find_main(spec))
+		add(cached_main(spec))
 		if spec.src then
 			add(source_to_main(spec.src))
 		end
 		add(spec.name)
 	end
 
+	spec._module_candidates = candidates
 	return candidates
 end
 
