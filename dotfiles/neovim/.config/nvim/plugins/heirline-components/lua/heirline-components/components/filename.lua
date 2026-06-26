@@ -1,4 +1,5 @@
 local filename_utils = require("heirline-components.utils.filename")
+local runtime = require("heirline-components.tabline.runtime")
 
 return {
     flexible = true,
@@ -13,7 +14,7 @@ return {
     },
     {
         provider = function(self)
-            return filename_utils.get_smart_filename(self.filename)
+            return filename_utils.get_smart_filename(self.filename, runtime.basename_paths())
         end,
     },
 }

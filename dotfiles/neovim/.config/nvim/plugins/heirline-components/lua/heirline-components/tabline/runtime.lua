@@ -106,6 +106,10 @@ function M.index(bufnr)
     return bufmap[bufnr]
 end
 
+function M.basename_paths()
+    return basename_paths
+end
+
 function M.display_name(filename)
     return filename_utils.get_smart_filename(filename, basename_paths)
 end
