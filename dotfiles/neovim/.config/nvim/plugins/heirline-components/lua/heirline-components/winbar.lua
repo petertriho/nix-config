@@ -1,5 +1,6 @@
 local conditions = require("heirline.conditions")
 
+local filename = require("heirline-components.utils.filename")
 local Space = require("heirline-components.components.space")
 local TerminalName = require("heirline-components.components.terminalname")
 local FileType = require("heirline-components.components.filetype")
@@ -14,12 +15,8 @@ local ShortFileName = {
     end,
     FileIcon,
     {
-        provider = function(self)
-            local filename = vim.fn.fnamemodify(self.filename, ":t")
-            if filename == "" then
-                return "[No Name]"
-            end
-            return filename
+        provider = function()
+            return filename.short(0)
         end,
         hl = function(self)
             if self.is_active then

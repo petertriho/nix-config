@@ -14,6 +14,7 @@ local Space = require("heirline-components.components.space")
 
 local ViMode = require("heirline-components.components.vimode")
 local FileName = require("heirline-components.components.filename")
+local filename = require("heirline-components.utils.filename")
 local FileNameBlock = require("heirline-components.components.filenameblock")
 local Git = require("heirline-components.components.git")
 local Diagnostics = require("heirline-components.components.diagnostics")
@@ -79,21 +80,7 @@ local InactiveStatusLine = {
 
 local HelpFileName = {
     provider = function()
-        local buftype = vim.bo.buftype
-        if buftype == "nofile" then
-            return "[No File]"
-        elseif buftype == "prompt" then
-            return "[Prompt]"
-        elseif buftype == "help" then
-            return "[Help]"
-        elseif buftype == "quickfix" then
-            return "[Quickfix]"
-        end
-        local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":~:.")
-        if filename == "" then
-            return "[No Name]"
-        end
-        return filename
+        return filename.label(0)
     end,
     hl = { fg = "blue" },
 }

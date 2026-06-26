@@ -1,5 +1,6 @@
 local utils = require("heirline.utils")
 local runtime = require("heirline-components.tabline.runtime")
+local filename = require("heirline-components.utils.filename")
 
 local FileIcon = require("heirline-components.components.fileicon")
 local Space = require("heirline-components.components.space")
@@ -41,7 +42,7 @@ local BufIndex = {
 
 local FileName = {
     provider = function(self)
-        return runtime.display_name(self.filename)
+        return filename.smart(self.bufnr)
     end,
     hl = function(self)
         return { bold = self.is_active or self.is_visible }

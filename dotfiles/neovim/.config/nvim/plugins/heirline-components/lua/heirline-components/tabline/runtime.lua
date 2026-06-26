@@ -1,10 +1,7 @@
-local filename_utils = require("heirline-components.utils.filename")
-
 local M = {}
 
 local buflist = {}
 local bufmap = {}
-local basename_paths = {}
 local picker_labels = {}
 local picker_buf_labels = {}
 
@@ -35,19 +32,11 @@ end
 
 local function refresh(redraw)
     clear(bufmap)
-    clear(basename_paths)
 
     local buffers = get_bufs()
     for i, bufnr in ipairs(buffers) do
         buflist[i] = bufnr
         bufmap[bufnr] = i
-
-        local name = vim.api.nvim_buf_get_name(bufnr)
-        if name ~= "" then
-            local basename = vim.fn.fnamemodify(name, ":t")
-            basename_paths[basename] = basename_paths[basename] or {}
-            table.insert(basename_paths[basename], vim.fn.fnamemodify(name, ":~:."))
-        end
     end
 
     for i = #buffers + 1, #buflist do
@@ -104,14 +93,6 @@ end
 
 function M.index(bufnr)
     return bufmap[bufnr]
-end
-
-function M.basename_paths()
-    return basename_paths
-end
-
-function M.display_name(filename)
-    return filename_utils.get_smart_filename(filename, basename_paths)
 end
 
 function M.switch(bufnr)
