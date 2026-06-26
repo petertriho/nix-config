@@ -533,6 +533,12 @@ local function make_base_config()
 end
 
 M.setup = function()
+    if vim.g.lsp_configured then
+        return
+    end
+
+    vim.g.lsp_configured = true
+
     vim.keymap.set("n", "<leader>Le", "<CMD>lsp enable<CR>", { desc = "LSP Enable" })
     vim.keymap.set("n", "<leader>Ld", "<CMD>lsp disable<CR>", { desc = "LSP Disable" })
     vim.keymap.set("n", "<leader>Lr", "<CMD>lsp restart<CR>", { desc = "LSP Restart" })
@@ -595,8 +601,6 @@ M.setup = function()
             vim.lsp.enable(server, enabled)
         end
     end
-
-    vim.g.lsp_configured = true
 end
 
 return M
