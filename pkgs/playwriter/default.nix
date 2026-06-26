@@ -12,14 +12,14 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "playwriter";
-  version = "playwriter@0.3.1";
+  version = "playwriter@0.4.0";
 
   src = fetchFromGitHub {
     owner = "remorses";
     repo = "playwriter";
     rev = finalAttrs.version;
     fetchSubmodules = true;
-    hash = "sha256-KyDZ315doXtwWEa8mVyKmsiki24OmokygM04yGNpL+Y=";
+    hash = "sha256-NzvnVnpKG8NfNc4s5Uklc2TL7bywzsWGOtPyYEnKZrc=";
   };
 
   nativeBuildInputs = [
@@ -35,7 +35,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm_10;
     fetcherVersion = 3;
-    hash = "sha256-TTv/J50CqUGj3DHAFIviAybRSWBPDe97EUOflnSXxDM=";
+    hash = "sha256-a2b9gCJrA8PcOqTMdxVNxAB94Jjs5gJWdU8IWiCHTR4=";
   };
 
   postPatch = ''
