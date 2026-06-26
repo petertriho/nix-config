@@ -793,9 +793,15 @@ function M.setup(imports)
 		if spec._dep then
 			-- Dependency stubs are installed and loaded through their parent specs.
 		elseif has_lazy_trigger(spec) and spec.lazy ~= false then
-			if spec.lazy == true then
-				register_module_triggers(spec)
-			end
+			-- Register module triggers for every lazy plugin, not just `lazy = true`
+			-- ones. A plugin lazy-loaded by cmd/keys/ft/event can still be pulled in
+			-- when another plugin `require`s one of its submodules -- e.g. neogit's
+			-- `diff_viewer = "codediff"` integration does `require("codediff.core.git")`
+			-- before any CodeDiff command or key has run. Mapping each plugin's main
+			-- module to its spec lets the module searcher load it on demand, matching
+			-- lazy.nvim where any lazy plugin is loadable via require of one of its
+			-- modules (the searcher keys on the root module, so submodules resolve too).
+			register_module_triggers(spec)
 			register_triggers(spec)
 		else
 			M.load(spec.name)
