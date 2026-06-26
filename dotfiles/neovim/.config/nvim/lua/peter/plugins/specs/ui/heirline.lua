@@ -17,6 +17,9 @@ return {
         local conditions = require("heirline.conditions")
         local filetypes = require("peter.core.filetypes")
 
+        local tabline_runtime = require("heirline-components.tabline.runtime")
+        tabline_runtime.setup()
+
         heirline.setup({
             statusline = require("heirline-components.statusline"),
             tabline = require("heirline-components.tabline"),

@@ -1,67 +1,5 @@
 local utils = require("heirline.utils")
-
-local buflist_cache = {}
-local bufmap_cache = {}
-local basename_paths_cache = {}
-
-local get_bufs = function()
-    return vim.tbl_filter(function(bufnr)
-        return vim.api.nvim_get_option_value("buflisted", { buf = bufnr })
-    end, vim.api.nvim_list_bufs())
-end
-
-vim.api.nvim_create_autocmd({ "VimEnter", "UIEnter", "BufAdd", "BufDelete", "BufFilePost", "TabEnter" }, {
-    callback = function()
-        vim.schedule(function()
-            for k in pairs(bufmap_cache) do
-                bufmap_cache[k] = nil
-            end
-            for k in pairs(basename_paths_cache) do
-                basename_paths_cache[k] = nil
-            end
-
-            local buffers = get_bufs()
-            for i, v in ipairs(buffers) do
-                buflist_cache[i] = v
-                bufmap_cache[v] = i
-
-                local name = vim.api.nvim_buf_get_name(v)
-                if name ~= "" then
-                    local basename = vim.fn.fnamemodify(name, ":t")
-                    basename_paths_cache[basename] = basename_paths_cache[basename] or {}
-                    table.insert(basename_paths_cache[basename], vim.fn.fnamemodify(name, ":~:."))
-                end
-            end
-
-            for i = #buffers + 1, #buflist_cache do
-                buflist_cache[i] = nil
-            end
-            --
-            -- if #buflist_cache > 1 then
-            --     vim.o.showtabline = 2
-            -- elseif vim.o.showtabline ~= 1 then
-            --     vim.o.showtabline = 1
-            -- end
-        end)
-    end,
-})
-
-local function switch_to_buffer(index)
-    local bufnr = buflist_cache[index]
-    if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-        vim.api.nvim_win_set_buf(0, bufnr)
-    end
-end
-
-for i = 1, 9 do
-    vim.keymap.set("n", "<leader>" .. i, function()
-        switch_to_buffer(i)
-    end, { desc = "Switch to buffer " .. i })
-end
-
-vim.keymap.set("n", "<leader>0", function()
-    switch_to_buffer(10)
-end, { desc = "Switch to buffer 10" })
+local runtime = require("heirline-components.tabline.runtime")
 
 local FileIcon = require("heirline-components.components.fileicon")
 local Space = require("heirline-components.components.space")
@@ -96,17 +34,14 @@ local Bufnr = {
 
 local BufIndex = {
     provider = function(self)
-        return tostring(bufmap_cache[self.bufnr]) .. ". "
+        return tostring(runtime.index(self.bufnr)) .. ". "
     end,
     hl = "Comment",
 }
 
 local FileName = {
-    init = function(self)
-        self.filename = vim.api.nvim_buf_get_name(self.bufnr)
-    end,
     provider = function(self)
-        return require("heirline-components.utils.filename").get_smart_filename(self.filename, basename_paths_cache)
+        return runtime.display_name(self.bufnr)
     end,
     hl = function(self)
         return { bold = self.is_active or self.is_visible }
@@ -152,10 +87,10 @@ local FileNameBlock = {
         callback = function(_, minwid, _, button)
             if button == "m" then
                 vim.schedule(function()
-                    vim.api.nvim_buf_delete(minwid, { force = false })
+                    runtime.close(minwid)
                 end)
             else
-                vim.api.nvim_win_set_buf(0, minwid)
+                runtime.switch(minwid)
             end
         end,
         minwid = function(self)
@@ -179,8 +114,7 @@ local BufferCloseButton = {
         on_click = {
             callback = function(_, minwid)
                 vim.schedule(function()
-                    vim.api.nvim_buf_delete(minwid, { force = false })
-                    vim.cmd.redrawtabline()
+                    runtime.close(minwid)
                 end)
             end,
             minwid = function(self)
@@ -194,43 +128,16 @@ local BufferCloseButton = {
 
 local BufferPicker = {
     condition = function(self)
-        return self._show_picker
+        return runtime.is_picking()
     end,
     init = function(self)
-        local bufname = vim.api.nvim_buf_get_name(self.bufnr)
-        bufname = vim.fn.fnamemodify(bufname, ":t")
-        local label = bufname:sub(1, 1)
-        local i = 2
-        while self._picker_labels[label] do
-            if i > #bufname then
-                break
-            end
-            label = bufname:sub(i, i)
-            i = i + 1
-        end
-        self._picker_labels[label] = self.bufnr
-        self.label = label
+        self.label = runtime.picker_label(self.bufnr)
     end,
     provider = function(self)
         return " " .. self.label .. " "
     end,
     hl = { fg = "red", bold = true },
 }
-
-vim.keymap.set("n", "gb", function()
-    local tabline = require("heirline").tabline
-    local buflist = tabline._buflist[1]
-    buflist._picker_labels = {}
-    buflist._show_picker = true
-    vim.cmd.redrawtabline()
-    local char = vim.fn.getcharstr()
-    local bufnr = buflist._picker_labels[char]
-    if bufnr then
-        vim.api.nvim_win_set_buf(0, bufnr)
-    end
-    buflist._show_picker = false
-    vim.cmd.redrawtabline()
-end)
 
 local BufferBlock = {
     hl = function(self)
@@ -248,7 +155,7 @@ local BufferLine = utils.make_buflist(
     { provider = " ", hl = { fg = "gray" } },
     { provider = " ", hl = { fg = "gray" } },
     function()
-        return buflist_cache
+        return runtime.buffers()
     end,
     false
 )
