@@ -8,9 +8,9 @@ local config = {
     update_event = "CursorHold",
     ellipsis = "…",
     ellipsis_hl = { fg = "fg_bright" },
-    max_depth = 10,
+    -- max_depth folded into level 1's min_items (inclusive cap 10 -> exclusive 11)
     flexible_levels = {
-        { first = nil, last = nil }, -- Level 1: Full display
+        { first = 1, last = 1, min_items = 11 }, -- Level 1: full up to 10; then 1 + ... + last 1
         { first = 2, last = 2, min_items = 5 }, -- Level 2: first 2 + ... + last 2
         { first = 1, last = 2, min_items = 4 }, -- Level 3: first 1 + ... + last 2
         { first = 1, last = 1, min_items = 3 }, -- Level 4: first 1 + ... + last 1
@@ -117,80 +117,43 @@ local function create_navic_item(data_item, winnr, is_last)
     return item
 end
 
-local function build_navic_children(navic_data, winnr)
+local function build_children(navic_data, winnr, level)
     local children = {}
-    local data_count = #navic_data
+    local count = #navic_data
 
-    if data_count <= config.max_depth then
-        for i, data_item in ipairs(navic_data) do
-            local is_last = (data_count == 1 or i == data_count)
-            local item = create_navic_item(data_item, winnr, is_last)
-            table.insert(children, item)
-        end
-    else
-        local first_item = create_navic_item(navic_data[1], winnr, false)
-        table.insert(children, first_item)
-
-        table.insert(children, create_ellipsis_component())
-        table.insert(children, create_separator_component())
-
-        local last_item = create_navic_item(navic_data[data_count], winnr, true)
-        table.insert(children, last_item)
-    end
-
-    if #children > 0 then
-        table.insert(children, 1, create_separator_component())
-    end
-
-    return children
-end
-
-local function build_flexible_children(navic_data, winnr, level_config)
-    local children = {}
-    local data_count = #navic_data
-
-    if data_count == 0 then
+    if count == 0 then
         return children
     end
 
-    local first_count = level_config.first or 0
-    local last_count = level_config.last or 0
-    local min_items = level_config.min_items or 1
+    local first_n = level.first or 0
+    local last_n = level.last or 0
+    local min_items = level.min_items or 1
 
-    -- If we have fewer items than minimum or can show all without ellipsis
-    if
-        data_count < min_items or (first_count + last_count >= data_count and first_count ~= nil and last_count ~= nil)
-    then
-        for i, data_item in ipairs(navic_data) do
-            local is_last = (i == data_count)
-            local item = create_navic_item(data_item, winnr, is_last)
-            table.insert(children, item)
+    -- Full display when below the floor, or when the request already covers
+    -- the whole list (no items would be hidden).
+    local full = count < min_items or count <= first_n + last_n
+
+    if full then
+        for i = 1, count do
+            table.insert(children, create_navic_item(navic_data[i], winnr, i == count))
         end
     else
-        -- Show first items
-        for i = 1, first_count do
-            if i <= data_count then
-                local item = create_navic_item(navic_data[i], winnr, false)
-                table.insert(children, item)
-            end
+        for i = 1, first_n do
+            table.insert(children, create_navic_item(navic_data[i], winnr, false))
         end
 
-        -- Add ellipsis if we're skipping items
-        if first_count + last_count < data_count and (first_count > 0 or last_count > 0) then
+        if first_n == 0 and last_n == 0 then
             table.insert(children, create_ellipsis_component())
-            if last_count > 0 then
+        else
+            table.insert(children, create_ellipsis_component())
+            if last_n > 0 then
                 table.insert(children, create_separator_component())
             end
-        elseif first_count == 0 and last_count == 0 then
-            table.insert(children, create_ellipsis_component())
         end
 
-        -- Show last items
-        for i = math.max(first_count + 1, data_count - last_count + 1), data_count do
-            if i > first_count then
-                local is_last = (i == data_count)
-                local item = create_navic_item(navic_data[i], winnr, is_last)
-                table.insert(children, item)
+        for i = math.max(first_n + 1, count - last_n + 1), count do
+            if i > first_n then
+                table.insert(children, create_navic_item(navic_data[i], winnr, i == count))
             end
         end
     end
@@ -221,14 +184,7 @@ return {
         for i, level_config in ipairs(config.flexible_levels) do
             table.insert(flexible_components, {
                 init = function(self)
-                    local children
-                    if level_config.first == nil and level_config.last == nil then
-                        -- Full display level
-                        children = build_navic_children(self.navic_data, self.winnr)
-                    else
-                        -- Flexible level
-                        children = build_flexible_children(self.navic_data, self.winnr, level_config)
-                    end
+                    local children = build_children(self.navic_data, self.winnr, level_config)
                     self.child = self:new(children, 1)
                 end,
                 provider = function(self)
