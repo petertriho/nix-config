@@ -34,9 +34,9 @@ return {
     "stevearc/conform.nvim",
     cmd = { "ConformInfo" },
     keys = {
-        { "<leader>cf", "<CMD>Format<CR>", mode = { "n", "v" }, desc = "Format" },
-        { "<leader>cF", "<CMD>SlowFormat<CR>", mode = { "n", "v" }, desc = "Slow Format" },
-        { "<leader>cd", "<CMD>DiffFormat<CR>", mode = { "n", "v" }, desc = "Diff Format" },
+        { "<leader>f", "<CMD>Format<CR>", mode = { "n", "v" }, desc = "Format" },
+        { "<leader>F", "<CMD>SlowFormat<CR>", mode = { "n", "v" }, desc = "Slow Format" },
+        { "<leader>gF", "<CMD>DiffFormat<CR>", mode = { "n", "v" }, desc = "Diff Format" },
     },
     dependencies = {
         {

@@ -30,7 +30,7 @@ return {
                 { "<leader>q", group = "quickfix" },
                 { "<leader>t", group = "tools" },
                 { "<leader>b", group = "buffer" },
-                { "<leader>f", group = "find" },
+                { "<leader>q", group = "query" },
                 { "<leader>u", group = "ui" },
                 { "<leader>x", group = "diagnostics" },
                 { "<leader>i", group = "insert" },
@@ -39,7 +39,6 @@ return {
             {
                 mode = { "n", "x" },
                 { "<leader>a", group = "ai" },
-                { "<leader>c", group = "code" },
                 { "<leader>j", group = "jump" },
                 { "<leader>r", group = "register" },
             },

@@ -158,11 +158,6 @@ keymap("x", "<leader>av", function()
     vim.notify("Copied: " .. result)
 end, { desc = "@buffer#L1:2" })
 
--- Code ops
-keymap("n", "<leader>cr", function()
-    vim.lsp.buf.rename()
-end, { desc = "Rename" })
-
 -- Diagnostics
 keymap("n", "<leader>xx", function()
     vim.diagnostic.setqflist()

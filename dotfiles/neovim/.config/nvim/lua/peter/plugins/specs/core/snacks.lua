@@ -418,119 +418,119 @@ return {
 			desc = "Other",
 		},
 		{
-			"<leader>f:",
+			"<leader>q:",
 			function()
 				require("snacks").picker.commands()
 			end,
 			desc = "Commands",
 		},
 		{
-			"<leader>f;",
+			"<leader>q;",
 			function()
 				require("snacks").picker.command_history()
 			end,
 			desc = "Command History",
 		},
 		{
-			"<leader>f'",
+			"<leader>q'",
 			function()
 				require("snacks").picker.marks()
 			end,
 			desc = "Marks",
 		},
 		{
-			'<leader>f"',
+			'<leader>q"',
 			function()
 				require("snacks").picker.registers()
 			end,
 			desc = "Marks",
 		},
 		{
-			"<leader>f/",
+			"<leader>q/",
 			function()
 				require("snacks").picker.search_history()
 			end,
 			desc = "Search History",
 		},
 		{
-			"<leader>fa",
+			"<leader>qa",
 			function()
 				require("snacks").picker.files({ hidden = true })
 			end,
 			desc = "Find Files All",
 		},
 		{
-		    "<leader>fe",
+		    "<leader>qe",
 		    function()
 		        require("snacks").picker.explorer()
 		    end,
 		    desc = "Explorer",
 		},
 		{
-			"<leader>ff",
+			"<leader>qf",
 			function()
 				require("snacks").picker.files()
 			end,
 			desc = "Find Files",
 		},
 		{
-			"<leader>fj",
+			"<leader>qj",
 			function()
 				require("snacks").picker.jumps()
 			end,
 			desc = "Jumps",
 		},
 		{
-			"<leader>fg",
+			"<leader>qg",
 			function()
 				require("snacks").picker.grep()
 			end,
 			desc = "Live Grep",
 		},
 		{
-			"<leader>fs",
+			"<leader>qs",
 			function()
 				require("snacks").picker.smart()
 			end,
 			desc = "Smart Find Files",
 		},
 		{
-			"<leader>fh",
+			"<leader>qh",
 			function()
 				require("snacks").picker.help()
 			end,
 			desc = "Help Tags",
 		},
 		{
-			"<leader>fi",
+			"<leader>qi",
 			function()
 				require("snacks").picker.icons()
 			end,
 			desc = "Icons",
 		},
 		{
-			"<leader>fm",
+			"<leader>qm",
 			function()
 				require("snacks").picker.man()
 			end,
 			desc = "Man Pages",
 		},
 		{
-			"<leader>fr",
+			"<leader>qr",
 			function()
 				require("snacks").picker.recent()
 			end,
 			desc = "Recent Files",
 		},
 		{
-			"<leader>fu",
+			"<leader>qu",
 			function()
 				require("snacks").picker.undo()
 			end,
 			desc = "Undo History",
 		},
 		{
-			"<leader>fy",
+			"<leader>qy",
 			function()
 				require("snacks").picker.yanky()
 			end,
