@@ -17,11 +17,11 @@ local FileFormat = {
 
 local TabStyle = {
     provider = function(self)
-        local tab_style = vim.api.nvim_get_option_value("expandtab", { buf = self.bufnr }) and "●" or "󰌒"
-        local tab = vim.api.nvim_get_option_value("shiftwidth", { buf = self.bufnr })
+        local tab_style = vim.bo[self.bufnr].expandtab and "●" or "󰌒"
+        local tab = vim.bo[self.bufnr].shiftwidth
 
         if tab == 0 then
-            tab = vim.api.nvim_get_option_value("tabstop", { buf = self.bufnr })
+            tab = vim.bo[self.bufnr].tabstop
         end
 
         return tab_style .. " " .. tab
