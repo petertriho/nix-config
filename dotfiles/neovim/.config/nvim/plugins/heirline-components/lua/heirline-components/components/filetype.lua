@@ -4,6 +4,8 @@ local schema_companion_supported_filetypes = {
     YAML = true,
 }
 
+local devicons = require("nvim-web-devicons")
+
 return {
     init = function(self)
         self.bufnr = vim.api.nvim_get_current_buf()
@@ -19,23 +21,15 @@ return {
             end
         end
 
-        self.icon_str, self.icon_hlname =
-            require("nvim-web-devicons").get_icon(self.filename, self.extension, { default = true })
+        self.icon_str, self.icon_color =
+            devicons.get_icon_color(self.filename, self.extension, { default = true })
     end,
     {
         provider = function(self)
             return self.icon_str
         end,
         hl = function(self)
-            local icon_fg = vim.api.nvim_get_hl(0, { name = self.icon_hlname }).fg
-
-            if icon_fg then
-                return {
-                    fg = string.format("#%06x", icon_fg),
-                }
-            end
-
-            return {}
+            return { fg = self.icon_color }
         end,
     },
     {
