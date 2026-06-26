@@ -111,7 +111,6 @@ keymap("", "Q", function()
     })
 end, { unpack(opts), desc = "QF Add" })
 
-
 -- Register
 keymap({ "n", "v" }, "<leader>ry", [["+y]], { desc = "Yank+" })
 keymap("n", "<leader>rY", [["+Y]], { desc = "Yank+ EOL", remap = true })

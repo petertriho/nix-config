@@ -118,7 +118,7 @@ return {
             mappings = {
                 go_in = "<CR>",
                 go_out = "<BS>",
-                reset = "<Space>"
+                reset = "<Space>",
             },
             options = {
                 use_as_default_explorer = false,

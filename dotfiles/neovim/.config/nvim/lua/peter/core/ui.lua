@@ -56,7 +56,7 @@ if not messages.notify_msg_show_override then
                 vim.notify(text, error_kinds[kind] and vim.log.levels.ERROR or vim.log.levels.INFO, {
                     id = id ~= 0 and ("ui2:" .. tostring(id)) or nil,
                     replace = replace_last and id ~= 0 and ("ui2:" .. tostring(id)) or nil,
-                    title = kind == "lua_print" and "Lua" or "Message"
+                    title = kind == "lua_print" and "Lua" or "Message",
                 })
             end
 
