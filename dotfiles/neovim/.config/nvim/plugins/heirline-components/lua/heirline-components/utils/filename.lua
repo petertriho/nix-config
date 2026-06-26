@@ -35,13 +35,18 @@ local function abbreviate_path(path)
     return table.concat(abbreviated, "/")
 end
 
-function M.get_smart_filename(filename)
+function M.get_smart_filename(filename, basename_counts)
     if filename == "" then
         return "[No Name]"
     end
 
     local basename = vim.fn.fnamemodify(filename, ":t")
-    local is_duplicate = has_duplicate_basename(basename)
+    local is_duplicate
+    if basename_counts then
+        is_duplicate = (basename_counts[basename] or 0) > 1
+    else
+        is_duplicate = has_duplicate_basename(basename)
+    end
 
     if is_duplicate then
         local relative_path = vim.fn.fnamemodify(filename, ":~:.")
