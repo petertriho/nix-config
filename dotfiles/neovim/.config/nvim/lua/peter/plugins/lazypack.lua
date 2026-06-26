@@ -10,7 +10,6 @@ local loading = {}
 local build_hooks = {}
 local module_loaders = {}
 local lazy_module_searcher
-local searcher_registered = false
 
 local function list(value)
 	if value == nil then
@@ -20,10 +19,6 @@ local function list(value)
 		return value
 	end
 	return { value }
-end
-
-local function is_array(value)
-	return type(value) == "table" and (value[1] ~= nil or next(value) == nil)
 end
 
 local function basename(src)
@@ -471,7 +466,6 @@ local function register_module_searcher()
 		end
 	end
 	table.insert(searchers, 2, lazy_module_searcher)
-	searcher_registered = true
 end
 
 local function register_module_triggers(spec)
