@@ -9,10 +9,11 @@ return {
         self.warn_icon = diagnostic_signs_text[vim.diagnostic.severity.WARN]
         self.error_icon = diagnostic_signs_text[vim.diagnostic.severity.ERROR]
 
-        self.info = #vim.diagnostic.get(0, { severity = vim.diagnostic.severity.INFO })
-        self.hints = #vim.diagnostic.get(0, { severity = vim.diagnostic.severity.HINT })
-        self.warnings = #vim.diagnostic.get(0, { severity = vim.diagnostic.severity.WARN })
-        self.errors = #vim.diagnostic.get(0, { severity = vim.diagnostic.severity.ERROR })
+        local counts = vim.diagnostic.count(0)
+        self.info = counts[vim.diagnostic.severity.INFO] or 0
+        self.hints = counts[vim.diagnostic.severity.HINT] or 0
+        self.warnings = counts[vim.diagnostic.severity.WARN] or 0
+        self.errors = counts[vim.diagnostic.severity.ERROR] or 0
     end,
     {
         provider = function(self)
