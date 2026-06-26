@@ -11,16 +11,20 @@ local Source = {}
 Source.__index = Source
 
 function Source.new(opts)
+    opts = opts or {}
+
     return setmetatable({
-        root = (opts and opts.root) or vim.fn.expand("~/.config/opencode/skills"),
+        root = opts.root or vim.fn.expand("~/.config/opencode/skills"),
+        cache_ttl_ms = opts.cache_ttl_ms,
+        doc_max_bytes = opts.doc_max_bytes,
     }, Source)
 end
 
-function Source:enabled()
+function Source.enabled()
     return vim.bo.filetype == "markdown" or vim.bo.filetype == "text"
 end
 
-function Source:get_trigger_characters()
+function Source.get_trigger_characters()
     return { "/" }
 end
 
@@ -31,15 +35,20 @@ function Source:get_completions(ctx, callback)
         return
     end
 
-    callback({
-        items = catalog.make_items(catalog.list_skill_names(self.root), ctx, match, kinds.Text),
-        is_incomplete_backward = false,
-        is_incomplete_forward = false,
-    })
+    return catalog.get_completions({
+        root = self.root,
+        strategy = "skill",
+        ctx = ctx,
+        match = match,
+        kind = kinds.Text,
+        cache_ttl_ms = self.cache_ttl_ms,
+    }, callback)
 end
 
 function Source:resolve(item, callback)
-    catalog.resolve(item, self.root, "skill", callback)
+    return catalog.resolve(item, self.root, "skill", callback, {
+        doc_max_bytes = self.doc_max_bytes,
+    })
 end
 
 return Source

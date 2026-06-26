@@ -1,16 +1,27 @@
 local M = {}
 
-local function scandir(root)
-    local handle = vim.uv.fs_scandir(root)
-    if not handle then
-        return function()
-            return nil
-        end
-    end
+local uv = vim.uv
 
-    return function()
-        return vim.uv.fs_scandir_next(handle)
+local DEFAULT_CACHE_TTL_MS = 60000
+local DEFAULT_DOC_MAX_BYTES = 65536
+local TRUNCATION_NOTE = "\n\n_Documentation truncated for completion preview._"
+
+local caches = {}
+
+local function now_ms()
+    return uv.hrtime() / 1000000
+end
+
+local function joinpath(root, name)
+    if root:sub(-1) == "/" then
+        return root .. name
     end
+    return root .. "/" .. name
+end
+
+local function basename(path)
+    local trimmed = path:gsub("/+$", "")
+    return trimmed:match("([^/]+)$") or trimmed
 end
 
 local function relpath(root, path)
@@ -22,77 +33,290 @@ local function relpath(root, path)
     return path
 end
 
-function M.strip_extension(name)
-    return (name:gsub("%.[^.]+$", ""))
+local function sorted_labels(path_by_label)
+    local labels = {}
+    for label in pairs(path_by_label) do
+        table.insert(labels, label)
+    end
+    table.sort(labels)
+    return labels
 end
 
-function M.list_file_basenames(root)
-    local seen = {}
+local function normalize_opts(opts)
+    opts = opts or {}
 
-    for entry, entry_type in scandir(root) do
-        local is_file = entry_type == "file"
-        if not is_file and entry_type == "link" then
-            local stat = vim.uv.fs_stat(vim.fs.joinpath(root, entry))
-            is_file = stat and stat.type == "file"
+    return {
+        cache_ttl_ms = tonumber(opts.cache_ttl_ms) or DEFAULT_CACHE_TTL_MS,
+        doc_max_bytes = tonumber(opts.doc_max_bytes) or DEFAULT_DOC_MAX_BYTES,
+    }
+end
+
+local function cache_key(root, strategy)
+    return strategy .. "\0" .. root
+end
+
+local function get_cache(root, strategy)
+    local key = cache_key(root, strategy)
+    local cache = caches[key]
+    if cache then
+        return cache
+    end
+
+    cache = {
+        root = root,
+        strategy = strategy,
+        labels = nil,
+        path_by_label = {},
+        doc_by_path = {},
+        scanned_at = 0,
+        refreshing = false,
+        generation = 0,
+        waiters = {},
+    }
+    caches[key] = cache
+    return cache
+end
+
+local function finish_scan(path_by_label)
+    return {
+        labels = sorted_labels(path_by_label),
+        path_by_label = path_by_label,
+    }
+end
+
+local function scan_file_root(root, done)
+    uv.fs_scandir(root, function(_, handle)
+        local pending = 1
+        local path_by_label = {}
+
+        local function add_file(entry)
+            local label = M.strip_extension(entry)
+            if label == "" then
+                return
+            end
+
+            local path = joinpath(root, entry)
+            if not path_by_label[label] or path < path_by_label[label] then
+                path_by_label[label] = path
+            end
         end
 
-        if is_file then
-            local basename = M.strip_extension(entry)
-            if basename ~= "" then
-                seen[basename] = true
+        local function complete_one()
+            pending = pending - 1
+            if pending == 0 then
+                done(finish_scan(path_by_label))
             end
+        end
+
+        if handle then
+            while true do
+                local entry, entry_type = uv.fs_scandir_next(handle)
+                if not entry then
+                    break
+                end
+
+                if entry_type == "file" then
+                    add_file(entry)
+                elseif entry_type == "link" then
+                    pending = pending + 1
+                    local path = joinpath(root, entry)
+                    uv.fs_stat(path, function(_, stat)
+                        if stat and stat.type == "file" then
+                            add_file(entry)
+                        end
+                        complete_one()
+                    end)
+                end
+            end
+        end
+
+        complete_one()
+    end)
+end
+
+local function scan_skill_root(root, done)
+    local pending = 0
+    local completed = false
+    local visited = {}
+    local path_by_label = {}
+    local rel_by_label = {}
+
+    local function maybe_done()
+        if pending == 0 and not completed then
+            completed = true
+            done(finish_scan(path_by_label))
         end
     end
 
-    local names = vim.tbl_keys(seen)
-    table.sort(names)
-    return names
-end
+    local function complete_one()
+        pending = pending - 1
+        maybe_done()
+    end
 
-function M.list_skill_names(root)
-    local by_label = {}
-    local visited = {}
+    local function record_skill(logical_path)
+        local label = basename(logical_path)
+        local current_rel = relpath(root, logical_path)
+        local existing_rel = rel_by_label[label]
+        if not existing_rel or current_rel < existing_rel then
+            rel_by_label[label] = current_rel
+            path_by_label[label] = joinpath(logical_path, "SKILL.md")
+        end
+    end
 
     local function walk(logical_path)
-        local stat = vim.uv.fs_stat(logical_path)
-        if not stat or stat.type ~= "directory" then
-            return
-        end
-
-        local real_path = vim.uv.fs_realpath(logical_path) or logical_path
-        if visited[real_path] then
-            return
-        end
-        visited[real_path] = true
-
-        if vim.uv.fs_stat(vim.fs.joinpath(logical_path, "SKILL.md")) then
-            local label = vim.fs.basename(logical_path)
-            local current_rel = relpath(root, logical_path)
-            local existing = by_label[label]
-            if not existing or current_rel < existing.rel then
-                by_label[label] = {
-                    label = label,
-                    rel = current_rel,
-                }
+        pending = pending + 1
+        uv.fs_stat(logical_path, function(_, stat)
+            if not stat or stat.type ~= "directory" then
+                complete_one()
+                return
             end
-        end
 
-        for child in scandir(logical_path) do
-            local child_path = vim.fs.joinpath(logical_path, child)
-            local child_stat = vim.uv.fs_stat(child_path)
-            if child_stat and child_stat.type == "directory" then
-                walk(child_path)
-            end
-        end
+            uv.fs_realpath(logical_path, function(_, real_path)
+                real_path = real_path or logical_path
+                if visited[real_path] then
+                    complete_one()
+                    return
+                end
+                visited[real_path] = true
+
+                pending = pending + 1
+                uv.fs_stat(joinpath(logical_path, "SKILL.md"), function(_, skill_stat)
+                    if skill_stat and skill_stat.type == "file" then
+                        record_skill(logical_path)
+                    end
+                    complete_one()
+                end)
+
+                pending = pending + 1
+                uv.fs_scandir(logical_path, function(_, handle)
+                    if handle then
+                        while true do
+                            local child, child_type = uv.fs_scandir_next(handle)
+                            if not child then
+                                break
+                            end
+
+                            if child_type == "directory" or child_type == "link" then
+                                local child_path = joinpath(logical_path, child)
+                                pending = pending + 1
+                                uv.fs_stat(child_path, function(_, child_stat)
+                                    if child_stat and child_stat.type == "directory" then
+                                        walk(child_path)
+                                    end
+                                    complete_one()
+                                end)
+                            end
+                        end
+                    end
+
+                    complete_one()
+                end)
+
+                complete_one()
+            end)
+        end)
     end
 
     walk(root)
+end
 
-    local names = vim.tbl_map(function(item)
-        return item.label
-    end, vim.tbl_values(by_label))
-    table.sort(names)
-    return names
+local SCANNERS = {
+    file = scan_file_root,
+    skill = scan_skill_root,
+}
+
+local function complete_refresh(cache, generation, result)
+    vim.schedule(function()
+        if cache.generation ~= generation then
+            return
+        end
+
+        cache.refreshing = false
+        cache.labels = result.labels
+        cache.path_by_label = result.path_by_label
+        cache.doc_by_path = {}
+        cache.scanned_at = now_ms()
+
+        local waiters = cache.waiters
+        cache.waiters = {}
+        for _, waiter in ipairs(waiters) do
+            waiter(cache)
+        end
+    end)
+end
+
+local function refresh_cache(cache)
+    if cache.refreshing then
+        return
+    end
+
+    local scanner = SCANNERS[cache.strategy]
+    if not scanner then
+        return
+    end
+
+    cache.refreshing = true
+    cache.generation = cache.generation + 1
+    local generation = cache.generation
+
+    scanner(cache.root, function(result)
+        complete_refresh(cache, generation, result)
+    end)
+end
+
+local function is_stale(cache, cache_ttl_ms)
+    return not cache.labels or cache.scanned_at == 0 or (now_ms() - cache.scanned_at) > cache_ttl_ms
+end
+
+local function filter_labels(labels, token, exclude)
+    local filtered = {}
+    local lowered_token = token:lower()
+
+    for _, label in ipairs(labels or {}) do
+        if not exclude or not exclude[label] then
+            if lowered_token == "" or label:lower():find(lowered_token, 1, true) then
+                table.insert(filtered, label)
+            end
+        end
+    end
+
+    return filtered
+end
+
+local function result_for(labels, path_by_label, ctx, match, kind)
+    return {
+        items = M.make_items(labels, ctx, match, kind, path_by_label),
+        is_incomplete_backward = true,
+        is_incomplete_forward = true,
+    }
+end
+
+local function callback_result(callback, labels, path_by_label, ctx, match, kind)
+    callback(result_for(labels, path_by_label, ctx, match, kind))
+end
+
+local function item_path(item, root, strategy)
+    if item.data and item.data.opencode_path then
+        return item.data.opencode_path
+    end
+
+    local cache = caches[cache_key(root, strategy)]
+    if cache then
+        return cache.path_by_label[item.label]
+    end
+
+    return nil
+end
+
+local function assign_documentation(item, value)
+    item.documentation = {
+        kind = "markdown",
+        value = value,
+    }
+end
+
+function M.strip_extension(name)
+    return (name:gsub("%.[^.]+$", ""))
 end
 
 function M.match_trigger(line, cursor_col, trigger)
@@ -122,117 +346,163 @@ function M.match_trigger(line, cursor_col, trigger)
     }
 end
 
-function M.make_items(names, ctx, match, kind)
+function M.make_items(labels, ctx, match, kind, path_by_label)
     local items = {}
     local line = (ctx.cursor and ctx.cursor[1] or 1) - 1
 
-    for _, name in ipairs(names) do
-        table.insert(items, {
-            label = name,
+    for _, label in ipairs(labels) do
+        local item = {
+            label = label,
             kind = kind,
             textEdit = {
-                newText = name,
+                newText = label,
                 range = {
                     start = { line = line, character = match.start_col },
                     ["end"] = { line = line, character = match.end_col },
                 },
             },
-        })
+        }
+
+        local path = path_by_label and path_by_label[label]
+        if path then
+            item.data = {
+                opencode_path = path,
+            }
+        end
+
+        table.insert(items, item)
     end
 
     return items
 end
 
-local RESOLVE_STRATEGIES = {
-    file = function(root, label)
-        for entry, entry_type in scandir(root) do
-            local is_file = entry_type == "file"
-            if not is_file and entry_type == "link" then
-                local stat = vim.uv.fs_stat(vim.fs.joinpath(root, entry))
-                is_file = stat and stat.type == "file"
-            end
+function M.get_completions(params, callback)
+    local opts = normalize_opts(params)
+    local cache = get_cache(params.root, params.strategy)
+    local canceled = false
+    local sent_labels = {}
+    local had_cache = cache.labels ~= nil
 
-            if is_file then
-                local basename = M.strip_extension(entry)
-                if basename == label then
-                    return vim.fs.joinpath(root, entry)
-                end
-            end
+    if had_cache then
+        local labels = filter_labels(cache.labels, params.match.token, nil)
+        for _, label in ipairs(labels) do
+            sent_labels[label] = true
         end
-        return nil
-    end,
-
-    skill = function(root, label)
-        local visited = {}
-
-        local function walk(logical_path)
-            local stat = vim.uv.fs_stat(logical_path)
-            if not stat or stat.type ~= "directory" then
-                return nil
-            end
-
-            local real_path = vim.uv.fs_realpath(logical_path) or logical_path
-            if visited[real_path] then
-                return nil
-            end
-            visited[real_path] = true
-
-            if vim.fs.basename(logical_path) == label then
-                local skill_md = vim.fs.joinpath(logical_path, "SKILL.md")
-                if vim.uv.fs_stat(skill_md) then
-                    return skill_md
-                end
-            end
-
-            for child in scandir(logical_path) do
-                local child_path = vim.fs.joinpath(logical_path, child)
-                local child_stat = vim.uv.fs_stat(child_path)
-                if child_stat and child_stat.type == "directory" then
-                    local result = walk(child_path)
-                    if result then
-                        return result
-                    end
-                end
-            end
-
-            return nil
-        end
-
-        return walk(root)
-    end,
-}
-
-local function read_file_content(path)
-    local file = io.open(path, "r")
-    if not file then
-        return nil
+        callback_result(callback, labels, cache.path_by_label, params.ctx, params.match, params.kind)
     end
-    local content = file:read("*a")
-    file:close()
-    return content
+
+    if is_stale(cache, opts.cache_ttl_ms) then
+        table.insert(cache.waiters, function(refreshed_cache)
+            if canceled then
+                return
+            end
+
+            if not refreshed_cache then
+                if not had_cache then
+                    callback_result(callback, {}, {}, params.ctx, params.match, params.kind)
+                end
+                return
+            end
+
+            local exclude = had_cache and sent_labels or nil
+            local labels = filter_labels(refreshed_cache.labels, params.match.token, exclude)
+            if #labels > 0 or not had_cache then
+                callback_result(callback, labels, refreshed_cache.path_by_label, params.ctx, params.match, params.kind)
+            end
+        end)
+
+        refresh_cache(cache)
+    elseif not had_cache then
+        callback_result(callback, {}, {}, params.ctx, params.match, params.kind)
+    end
+
+    return function()
+        canceled = true
+    end
 end
 
-function M.resolve(item, root, strategy, callback)
-    local finder = RESOLVE_STRATEGIES[strategy]
-    if not finder then
-        callback(item)
-        return
-    end
-
-    local path = finder(root, item.label)
+function M.resolve(item, root, strategy, callback, opts)
+    opts = normalize_opts(opts)
+    local cache = get_cache(root, strategy)
+    local path = item_path(item, root, strategy)
     if not path then
         callback(item)
-        return
+        return nil
     end
 
-    local content = read_file_content(path)
-    if content then
-        item.documentation = {
-            kind = "markdown",
-            value = content,
-        }
+    local cached_doc = cache.doc_by_path[path]
+    if cached_doc then
+        assign_documentation(item, cached_doc)
+        callback(item)
+        return nil
     end
-    callback(item)
+
+    local canceled = false
+    local max_bytes = math.max(0, opts.doc_max_bytes)
+
+    uv.fs_open(path, "r", 438, function(open_err, fd)
+        if open_err or not fd then
+            if not canceled then
+                vim.schedule(function()
+                    if canceled then
+                        return
+                    end
+
+                    callback(item)
+                end)
+            end
+            return
+        end
+
+        uv.fs_read(fd, max_bytes + 1, 0, function(read_err, data)
+            uv.fs_close(fd, function()
+                if canceled then
+                    return
+                end
+
+                vim.schedule(function()
+                    if canceled then
+                        return
+                    end
+
+                    if read_err or not data then
+                        callback(item)
+                        return
+                    end
+
+                    local value = data
+                    if #value > max_bytes then
+                        value = value:sub(1, max_bytes) .. TRUNCATION_NOTE
+                    end
+
+                    cache.doc_by_path[path] = value
+                    assign_documentation(item, value)
+                    callback(item)
+                end)
+            end)
+        end)
+    end)
+
+    return function()
+        canceled = true
+    end
+end
+
+function M.clear_cache(root)
+    for key, cache in pairs(caches) do
+        if not root or cache.root == root then
+            cache.generation = cache.generation + 1
+            local waiters = cache.waiters
+            cache.waiters = {}
+            caches[key] = nil
+
+            for _, waiter in ipairs(waiters) do
+                vim.schedule(function()
+                    waiter(nil)
+                end)
+            end
+        end
+    end
 end
 
 return M

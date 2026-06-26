@@ -157,6 +157,16 @@ return {
         end
 
         vim.api.nvim_create_user_command("ToggleBlinkCmp", toggle_completion, {})
+        vim.api.nvim_create_user_command("OpencodeSourcesRefresh", function()
+            local ok, catalog = pcall(require, "opencode-sources.catalog")
+            if not ok then
+                vim.notify("opencode-sources catalog is not available", vim.log.levels.WARN)
+                return
+            end
+
+            catalog.clear_cache()
+            vim.notify("Opencode completion source cache cleared")
+        end, {})
     end,
     opts = {
         enabled = function()
@@ -379,6 +389,7 @@ return {
                 agent_skills = {
                     name = "Skills",
                     module = "opencode-sources.source.opencode_skills",
+                    async = true,
                     -- score_offset = 110,
                     opts = {
                         root = vim.fn.expand("~/.agents/skills"),
@@ -387,16 +398,19 @@ return {
                 opencode_agents = {
                     name = "Agents",
                     module = "opencode-sources.source.opencode_agents",
+                    async = true,
                     -- score_offset = 120,
                 },
                 opencode_skills = {
                     name = "Skills",
                     module = "opencode-sources.source.opencode_skills",
+                    async = true,
                     -- score_offset = 110,
                 },
                 opencode_commands = {
                     name = "Commands",
                     module = "opencode-sources.source.opencode_commands",
+                    async = true,
                     -- score_offset = 105,
                 },
                 buffer = {
