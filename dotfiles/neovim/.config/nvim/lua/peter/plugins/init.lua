@@ -6,6 +6,8 @@ require("peter.plugins.lazypack").setup({
 	{ import = "peter.plugins.specs.syntax" },
 	{ import = "peter.plugins.specs.treesitter" },
 	{ import = "peter.plugins.specs.text" },
+	{ import = "peter.plugins.specs.navigation" },
+	{ import = "peter.plugins.specs.git" },
 	{ import = "peter.plugins.specs.tools" },
-	{ import = "peter.plugins.specs.misc" },
+	{ import = "peter.plugins.specs.core" },
 })
