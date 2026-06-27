@@ -109,6 +109,7 @@
   "enabledPlugins": {
     "context-mode@context-mode": true
   },
+  "effortLevel": "xhigh",
   "permissions": {
     "defaultMode": "bypassPermissions"
   },

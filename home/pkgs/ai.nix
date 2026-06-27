@@ -83,7 +83,6 @@ in
       ++ mcpServerPackages
       ++ llmAgents;
     file = {
-      ".claude/settings.json".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
       ".config/opencode/plugins/skills-sidebar.tsx".source =
         config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/plugins/skills-sidebar.tsx";
       # ".codex/config.toml".source = config.lib.meta.mkDotfilesSymlink "codex/.codex/config.toml";
