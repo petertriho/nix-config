@@ -114,6 +114,22 @@ return {
                     { section = "header" },
                     { section = "keys", gap = 1, padding = 1 },
                     { icon = " ", title = "Recent Files", section = "recent_files", indent = 2, padding = 1 },
+                    {
+                        icon = " ",
+                        title = "Git Status",
+                        section = "terminal",
+                        key = "s",
+                        desc = "Git Status",
+                        action = ":ToggleNeogit",
+                        enabled = function()
+                            return snacks.git.get_root() ~= nil
+                        end,
+                        cmd = "git -c color.status=always status --short --branch --renames",
+                        height = 10,
+                        padding = 1,
+                        ttl = 5 * 60,
+                        indent = 3,
+                    },
                     -- right
                     -- {
                     --     pane = 2,
