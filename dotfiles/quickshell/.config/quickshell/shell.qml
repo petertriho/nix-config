@@ -146,20 +146,38 @@ ShellRoot {
     IpcHandler {
         target: "quickshell-osd"
 
-        function brightnessUp(): void { root.brightnessUp(); }
-        function brightnessDown(): void { root.brightnessDown(); }
-        function volumeUp(): void { root.volumeUp(); }
-        function volumeDown(): void { root.volumeDown(); }
-        function volumeMute(): void { root.volumeMute(); }
+        function brightnessUp(): void {
+            root.brightnessUp();
+        }
+        function brightnessDown(): void {
+            root.brightnessDown();
+        }
+        function volumeUp(): void {
+            root.volumeUp();
+        }
+        function volumeDown(): void {
+            root.volumeDown();
+        }
+        function volumeMute(): void {
+            root.volumeMute();
+        }
     }
 
     IpcHandler {
         target: "quickshell-notifications"
 
-        function toggle(): void { notifications.toggleCenter(); }
-        function show(): void { notifications.showCenter(); }
-        function hide(): void { notifications.hideCenter(); }
-        function clear(): void { notifications.clearAll(); }
+        function toggle(): void {
+            notifications.toggleCenter();
+        }
+        function show(): void {
+            notifications.showCenter();
+        }
+        function hide(): void {
+            notifications.hideCenter();
+        }
+        function clear(): void {
+            notifications.clearAll();
+        }
     }
 
     // Hyprland global shortcuts use the compositor protocol; Niri calls the IPC handler above.

@@ -14,8 +14,9 @@ BaseModule {
 
     onClicked: {
         if (url.length === 0)
-            return
-
-        Quickshell.execDetached({ command: ["vicinae", url] })
+            return;
+        Quickshell.execDetached({
+            command: ["vicinae", url]
+        });
     }
 }

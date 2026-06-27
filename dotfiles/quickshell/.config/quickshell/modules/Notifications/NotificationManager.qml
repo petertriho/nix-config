@@ -13,11 +13,11 @@ Item {
     property var notificationMap: ({})
     property bool centerVisible: false
 
-    readonly property var persistentNotifications: notifications.filter(function(entry) {
+    readonly property var persistentNotifications: notifications.filter(function (entry) {
         return !entry.transient;
     })
     readonly property int notificationCount: persistentNotifications.length
-    readonly property var visibleToasts: notifications.filter(function(entry) {
+    readonly property var visibleToasts: notifications.filter(function (entry) {
         return entry.toastVisible;
     }).slice(0, notificationsConfig.maxToasts)
 
@@ -36,7 +36,7 @@ Item {
     function addNotification(notification) {
         const next = notifications.slice();
         const appName = notification.appName || "";
-        const existingIndex = next.findIndex(function(entry) {
+        const existingIndex = next.findIndex(function (entry) {
             return entry.appName === appName && entry.notificationId === notification.id;
         });
         const key = appName + ":" + notification.id + ":" + Date.now();
@@ -51,7 +51,7 @@ Item {
                 oldNotification.tracked = false;
         }
 
-        notification.closed.connect(function() {
+        notification.closed.connect(function () {
             root.removeEntryByKey(key, false);
         });
 
@@ -59,8 +59,11 @@ Item {
 
         let timeoutMs = notificationsConfig.toastTimeoutMs;
         const et = notification.expireTimeout;
-        if (et === 0) timeoutMs = -1; // never expire
-        else if (et > 0) timeoutMs = et;
+        if (et === 0)
+            timeoutMs = -1;
+            // never expire
+        else if (et > 0)
+            timeoutMs = et;
 
         next.unshift({
             key: key,
@@ -71,8 +74,11 @@ Item {
             appIcon: notification.appIcon || "",
             image: notification.image || "",
             desktopEntry: notification.desktopEntry || "",
-            actions: notification.actions ? notification.actions.map(function(a) {
-                return {identifier: a.identifier, text: a.text};
+            actions: notification.actions ? notification.actions.map(function (a) {
+                return {
+                    identifier: a.identifier,
+                    text: a.text
+                };
             }) : [],
             transient: notification.transient,
             resident: notification.resident,
@@ -95,7 +101,7 @@ Item {
 
     function updateEntry(entry, mutator) {
         const next = notifications.slice();
-        const index = next.findIndex(function(candidate) {
+        const index = next.findIndex(function (candidate) {
             return candidate.key === entry.key;
         });
 
@@ -117,7 +123,7 @@ Item {
             return;
         }
 
-        updateEntry(entry, function(copy) {
+        updateEntry(entry, function (copy) {
             copy.toastVisible = false;
         });
     }
@@ -128,10 +134,14 @@ Item {
 
     function removeEntryByKey(key, closeRemote) {
         // Guard against double-remove and infinite recursion from closed signal
-        if (!notificationMap[key]) return;
-        if (!notifications.some(function(c) { return c.key === key; })) return;
+        if (!notificationMap[key])
+            return;
+        if (!notifications.some(function (c) {
+            return c.key === key;
+        }))
+            return;
 
-        const next = notifications.filter(function(candidate) {
+        const next = notifications.filter(function (candidate) {
             return candidate.key !== key;
         });
 
@@ -147,7 +157,7 @@ Item {
     }
 
     function clearAll() {
-        notifications.forEach(function(entry) {
+        notifications.forEach(function (entry) {
             const notification = notificationMap[entry.key];
             if (notification)
                 notification.dismiss();
@@ -162,7 +172,7 @@ Item {
             removeEntryByKey(entry.key, false);
             return;
         }
-        const action = notification.actions.find(function(a) {
+        const action = notification.actions.find(function (a) {
             return a.identifier === actionIdentifier;
         });
         if (action) {
@@ -173,7 +183,9 @@ Item {
             // Fallback: launch the app if no matching action
             const desktopEntry = entry.desktopEntry || notification.desktopEntry || "";
             if (desktopEntry.length > 0)
-                launcherProcess.exec({ command: ["gtk-launch", desktopEntry] });
+                launcherProcess.exec({
+                    command: ["gtk-launch", desktopEntry]
+                });
             removeEntryByKey(entry.key, false);
         }
     }
@@ -190,7 +202,7 @@ Item {
         persistenceSupported: true
         keepOnReload: true
 
-        onNotification: function(notification) {
+        onNotification: function (notification) {
             notification.tracked = true;
             root.addNotification(notification);
         }
@@ -201,9 +213,15 @@ Item {
         colors: root.colors
         fontsConfig: root.fontsConfig
         notificationsConfig: root.notificationsConfig
-        onHideToastRequested: function(entry) { root.hideToast(entry); }
-        onDismissRequested: function(entry) { root.removeEntry(entry, true); }
-        onActionRequested: function(entry, actionIdentifier) { root.invokeAction(entry, actionIdentifier); }
+        onHideToastRequested: function (entry) {
+            root.hideToast(entry);
+        }
+        onDismissRequested: function (entry) {
+            root.removeEntry(entry, true);
+        }
+        onActionRequested: function (entry, actionIdentifier) {
+            root.invokeAction(entry, actionIdentifier);
+        }
     }
 
     NotificationCenter {
@@ -214,7 +232,11 @@ Item {
         notificationsConfig: root.notificationsConfig
         onCloseRequested: root.hideCenter()
         onClearRequested: root.clearAll()
-        onDismissRequested: function(entry) { root.removeEntry(entry, true); }
-        onActionRequested: function(entry, actionIdentifier) { root.invokeAction(entry, actionIdentifier); }
+        onDismissRequested: function (entry) {
+            root.removeEntry(entry, true);
+        }
+        onActionRequested: function (entry, actionIdentifier) {
+            root.invokeAction(entry, actionIdentifier);
+        }
     }
 }

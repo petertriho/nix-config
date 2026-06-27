@@ -158,8 +158,12 @@ PanelWindow {
                             fontsConfig: root.fontsConfig
                             notificationsConfig: root.notificationsConfig
                             inCenter: true
-                            onDismissRequested: function(entry) { root.dismissRequested(entry); }
-                            onActionRequested: function(entry, actionIdentifier) { root.actionRequested(entry, actionIdentifier); }
+                            onDismissRequested: function (entry) {
+                                root.dismissRequested(entry);
+                            }
+                            onActionRequested: function (entry, actionIdentifier) {
+                                root.actionRequested(entry, actionIdentifier);
+                            }
                         }
                     }
                 }

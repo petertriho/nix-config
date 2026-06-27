@@ -20,11 +20,7 @@ Item {
     property var windowIcons
     property string compositorName: ""
     property bool unsupportedCompositorLogged: false
-    property var workspacesData: root.compositorName === "hyprland"
-        ? hyprlandBackend.workspacesData
-        : root.compositorName === "niri"
-            ? niriBackend.workspacesData
-            : []
+    property var workspacesData: root.compositorName === "hyprland" ? hyprlandBackend.workspacesData : root.compositorName === "niri" ? niriBackend.workspacesData : []
 
     function logUnsupportedCompositor() {
         if (root.unsupportedCompositorLogged)

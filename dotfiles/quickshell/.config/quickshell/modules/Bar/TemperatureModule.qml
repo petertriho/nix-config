@@ -24,7 +24,10 @@ BaseModule {
         onTriggered: updateTemperature()
     }
 
-    Component.onCompleted: { findTempPath(); updatePosition(); }
+    Component.onCompleted: {
+        findTempPath();
+        updatePosition();
+    }
 
     Process {
         id: findTempPathProcess
@@ -57,8 +60,8 @@ BaseModule {
         id: showTimer
         interval: 150
         onTriggered: {
-            root.updatePosition()
-            root.showPopup = true
+            root.updatePosition();
+            root.showPopup = true;
         }
     }
 
@@ -70,30 +73,30 @@ BaseModule {
 
     onHoveredChanged: {
         if (root.hovered) {
-            dismissTimer.stop()
-            showTimer.restart()
+            dismissTimer.stop();
+            showTimer.restart();
         } else {
-            showTimer.stop()
-            dismissTimer.restart()
+            showTimer.stop();
+            dismissTimer.restart();
         }
     }
 
     function holdPopup() {
-        dismissTimer.stop()
-        showPopup = true
+        dismissTimer.stop();
+        showPopup = true;
     }
 
     function releasePopup() {
         if (!root.hovered) {
-            dismissTimer.restart()
+            dismissTimer.restart();
         } else {
-            dismissTimer.stop()
+            dismissTimer.stop();
         }
     }
 
     function updatePosition() {
-        var pos = root.mapToItem(null, 0, 0)
-        root.globalX = pos.x
+        var pos = root.mapToItem(null, 0, 0);
+        root.globalX = pos.x;
     }
 
     onXChanged: updatePosition()
@@ -106,7 +109,9 @@ BaseModule {
         cmd += "if echo \"$name\" | grep -qE '^(" + pattern + ")$' && ";
         cmd += "[ -f \"$hwmon/temp1_input\" ]; then ";
         cmd += "echo \"$hwmon/temp1_input\"; break; fi; done";
-        findTempPathProcess.exec({ command: ["bash", "-c", cmd] });
+        findTempPathProcess.exec({
+            command: ["bash", "-c", cmd]
+        });
     }
 
     function updateTemperature() {

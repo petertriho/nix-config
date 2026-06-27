@@ -13,8 +13,8 @@ BaseModule {
     text: expanded ? "󰅃" : "󰅀"
 
     function updatePosition() {
-        var pos = root.mapToItem(null, 0, 0)
-        root.globalX = pos.x
+        var pos = root.mapToItem(null, 0, 0);
+        root.globalX = pos.x;
     }
 
     onXChanged: updatePosition()
@@ -23,7 +23,7 @@ BaseModule {
     Component.onCompleted: updatePosition()
 
     onClicked: {
-        updatePosition()
-        expanded = !expanded
+        updatePosition();
+        expanded = !expanded;
     }
 }

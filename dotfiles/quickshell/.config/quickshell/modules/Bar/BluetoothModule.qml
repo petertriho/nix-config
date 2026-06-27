@@ -9,8 +9,12 @@ BaseModule {
 
     property var adapter: Bluetooth.defaultAdapter
     property var devices: Bluetooth.devices.values
-    property var connectedDevices: devices.filter(function(device) { return device.connected; })
-    property var pairedDevices: devices.filter(function(device) { return (device.paired || device.bonded) && !device.connected; })
+    property var connectedDevices: devices.filter(function (device) {
+        return device.connected;
+    })
+    property var pairedDevices: devices.filter(function (device) {
+        return (device.paired || device.bonded) && !device.connected;
+    })
     property bool available: adapter != null
     property bool enabled: available && adapter.enabled
     property bool showPopup: false
@@ -23,8 +27,8 @@ BaseModule {
     textColor: !available || !enabled ? colors.comment : connectedDevices.length > 0 ? colors.blue : colors.fg
 
     function updatePosition() {
-        var pos = root.mapToItem(null, 0, 0)
-        root.globalX = pos.x
+        var pos = root.mapToItem(null, 0, 0);
+        root.globalX = pos.x;
     }
 
     function displayName(device) {
@@ -58,7 +62,7 @@ BaseModule {
     Component.onCompleted: updatePosition()
 
     onClicked: {
-        updatePosition()
-        showPopup = !showPopup
+        updatePosition();
+        showPopup = !showPopup;
     }
 }

@@ -44,9 +44,11 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: root.hoverEnabled
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: function(mouse) {
-            if (mouse.button === Qt.RightButton) root.rightClicked()
-            else root.clicked()
+        onClicked: function (mouse) {
+            if (mouse.button === Qt.RightButton)
+                root.rightClicked();
+            else
+                root.clicked();
         }
     }
 

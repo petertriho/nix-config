@@ -17,12 +17,7 @@ Item {
     property var cachedWindows: []
 
     function rebuild() {
-        root.workspacesData = WorkspaceHelpers.normalizeNiri(
-            root.cachedWorkspaces,
-            root.cachedWindows,
-            root.ignoreClasses,
-            root.windowIcons || ({})
-        );
+        root.workspacesData = WorkspaceHelpers.normalizeNiri(root.cachedWorkspaces, root.cachedWindows, root.ignoreClasses, root.windowIcons || ({}));
     }
 
     function parseJson(label, output, onSuccess) {
@@ -37,23 +32,31 @@ Item {
     }
 
     function refresh() {
-        workspacesProcess.exec({ command: ["niri", "msg", "-j", "workspaces"] });
-        windowsProcess.exec({ command: ["niri", "msg", "-j", "windows"] });
+        workspacesProcess.exec({
+            command: ["niri", "msg", "-j", "workspaces"]
+        });
+        windowsProcess.exec({
+            command: ["niri", "msg", "-j", "windows"]
+        });
     }
 
     function refreshActive() {
-        workspacesProcess.exec({ command: ["niri", "msg", "-j", "workspaces"] });
+        workspacesProcess.exec({
+            command: ["niri", "msg", "-j", "workspaces"]
+        });
     }
 
     function switchWorkspace(target) {
-        switchWorkspaceProcess.exec({ command: ["niri", "msg", "action", "focus-workspace", target] });
+        switchWorkspaceProcess.exec({
+            command: ["niri", "msg", "action", "focus-workspace", target]
+        });
     }
 
     Process {
         id: workspacesProcess
         stdout: StdioCollector {
             onStreamFinished: {
-                root.parseJson("workspaces", this.text.trim(), function(data) {
+                root.parseJson("workspaces", this.text.trim(), function (data) {
                     root.cachedWorkspaces = data;
                     root.rebuild();
                 });
@@ -65,7 +68,7 @@ Item {
         id: windowsProcess
         stdout: StdioCollector {
             onStreamFinished: {
-                root.parseJson("windows", this.text.trim(), function(data) {
+                root.parseJson("windows", this.text.trim(), function (data) {
                     root.cachedWindows = data;
                     root.rebuild();
                 });

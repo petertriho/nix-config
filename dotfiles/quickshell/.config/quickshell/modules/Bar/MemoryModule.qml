@@ -26,14 +26,18 @@ BaseModule {
         onTriggered: updateMemoryUsage()
     }
 
-    Component.onCompleted: { updateMemoryUsage(); updatePosition(); }
+    Component.onCompleted: {
+        updateMemoryUsage();
+        updatePosition();
+    }
 
     Process {
         id: memoryProcess
         stdout: StdioCollector {
             onStreamFinished: {
                 var output = this.text.trim();
-                if (!output) return;
+                if (!output)
+                    return;
                 var lines = output.split('\n');
                 for (var i = 0; i < lines.length; i++) {
                     var parts = lines[i].split(/\s+/);
@@ -65,8 +69,8 @@ BaseModule {
         id: showTimer
         interval: 150
         onTriggered: {
-            root.updatePosition()
-            root.showPopup = true
+            root.updatePosition();
+            root.showPopup = true;
         }
     }
 
@@ -78,30 +82,30 @@ BaseModule {
 
     onHoveredChanged: {
         if (root.hovered) {
-            dismissTimer.stop()
-            showTimer.restart()
+            dismissTimer.stop();
+            showTimer.restart();
         } else {
-            showTimer.stop()
-            dismissTimer.restart()
+            showTimer.stop();
+            dismissTimer.restart();
         }
     }
 
     function holdPopup() {
-        dismissTimer.stop()
-        showPopup = true
+        dismissTimer.stop();
+        showPopup = true;
     }
 
     function releasePopup() {
         if (!root.hovered) {
-            dismissTimer.restart()
+            dismissTimer.restart();
         } else {
-            dismissTimer.stop()
+            dismissTimer.stop();
         }
     }
 
     function updatePosition() {
-        var pos = root.mapToItem(null, 0, 0)
-        root.globalX = pos.x
+        var pos = root.mapToItem(null, 0, 0);
+        root.globalX = pos.x;
     }
 
     onXChanged: updatePosition()
@@ -117,14 +121,20 @@ BaseModule {
         var lines = output.split('\n');
         for (var i = 0; i < lines.length && apps.length < 5; i++) {
             var line = lines[i].trim();
-            if (!line) continue;
+            if (!line)
+                continue;
 
             var parts = line.split(/\s+/);
-            if (parts.length < 2) continue;
+            if (parts.length < 2)
+                continue;
 
             var rssMb = parseFloat(parts[parts.length - 1]) / 1024;
-            if (isNaN(rssMb)) continue;
-            apps.push({ name: parts.slice(0, parts.length - 1).join(" "), memoryMb: rssMb });
+            if (isNaN(rssMb))
+                continue;
+            apps.push({
+                name: parts.slice(0, parts.length - 1).join(" "),
+                memoryMb: rssMb
+            });
         }
         topMemoryApps = apps;
     }
@@ -133,7 +143,9 @@ BaseModule {
         memoryProcess.exec({
             command: ["free", "-m"]
         });
-        topMemoryProcess.exec({ command: ["sh", "-c", "ps -eo comm=,rss= | awk '{ rss=$NF; name=substr($0,1,length($0)-length($NF)); sub(/[[:space:]]+$/, \"\", name); usage[name] += rss } END { for (name in usage) printf \"%s\\t%.0f\\n\", name, usage[name] }' | sort -t '\t' -k2,2nr | head -n 5"] });
+        topMemoryProcess.exec({
+            command: ["sh", "-c", "ps -eo comm=,rss= | awk '{ rss=$NF; name=substr($0,1,length($0)-length($NF)); sub(/[[:space:]]+$/, \"\", name); usage[name] += rss } END { for (name in usage) printf \"%s\\t%.0f\\n\", name, usage[name] }' | sort -t '\t' -k2,2nr | head -n 5"]
+        });
     }
 
     text: "󰾆 " + usedMemory.toFixed(1) + "G"

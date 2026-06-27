@@ -29,7 +29,8 @@ Rectangle {
         cursorShape: root.actions().length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: {
             var actions = root.actions();
-            if (actions.length === 0) return;
+            if (actions.length === 0)
+                return;
             var found = false;
             for (var i = 0; i < actions.length; i++) {
                 if (actions[i].identifier === "default") {

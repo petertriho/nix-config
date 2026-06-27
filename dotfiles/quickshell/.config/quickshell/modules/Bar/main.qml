@@ -58,12 +58,30 @@ PanelWindow {
 
                 Repeater {
                     model: [
-                        { label: "15m", value: 15 },
-                        { label: "30m", value: 30 },
-                        { label: "01h", value: 60 },
-                        { label: "02h", value: 120 },
-                        { label: "04h", value: 240 },
-                        { label: "08h", value: 480 }
+                        {
+                            label: "15m",
+                            value: 15
+                        },
+                        {
+                            label: "30m",
+                            value: 30
+                        },
+                        {
+                            label: "01h",
+                            value: 60
+                        },
+                        {
+                            label: "02h",
+                            value: 120
+                        },
+                        {
+                            label: "04h",
+                            value: 240
+                        },
+                        {
+                            label: "08h",
+                            value: 480
+                        }
                     ]
 
                     delegate: Rectangle {
@@ -101,7 +119,6 @@ PanelWindow {
             running: caffeine.showPicker
             onTriggered: caffeine.showPicker = false
         }
-
     }
 
     PopupWindow {
@@ -117,7 +134,8 @@ PanelWindow {
         implicitWidth: trayRow.width + popupsConfig.padding
         implicitHeight: trayRow.height + popupsConfig.margin
         color: "transparent"
-        onVisibleChanged: if (!visible) tray.expanded = false
+        onVisibleChanged: if (!visible)
+            tray.expanded = false
 
         Timer {
             id: trayTimer
@@ -163,13 +181,13 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onClicked: function(mse) {
-                                const ix = mse.x - (width - icon.width) / 2
-                                const iy = mse.y - (height - icon.height) / 2
+                            onClicked: function (mse) {
+                                const ix = mse.x - (width - icon.width) / 2;
+                                const iy = mse.y - (height - icon.height) / 2;
                                 if (mse.button === Qt.RightButton) {
-                                    modelData.secondaryActivate(ix, iy)
+                                    modelData.secondaryActivate(ix, iy);
                                 } else {
-                                    modelData.activate(ix, iy)
+                                    modelData.activate(ix, iy);
                                 }
                             }
                         }
@@ -177,7 +195,6 @@ PanelWindow {
                 }
             }
         }
-
     }
 
     PopupWindow {
@@ -189,9 +206,12 @@ PanelWindow {
         anchor.rect.y: root.height
         anchor.rect.width: 1
         anchor.rect.height: 1
-        implicitWidth: 430
-        implicitHeight: statsPopupCol.height + popupsConfig.margin
+        implicitWidth: 440
+        implicitHeight: statsPopupCol.height + popupsConfig.padding
         color: "transparent"
+
+        readonly property int contentW: implicitWidth - popupsConfig.padding * 2
+        readonly property int valueW: 64
 
         Rectangle {
             anchors.fill: parent
@@ -209,96 +229,424 @@ PanelWindow {
             Column {
                 id: statsPopupCol
                 anchors.centerIn: parent
-                spacing: 2
-                padding: 8
+                width: statsPopup.contentW
+                spacing: 3
 
-                Text { text: "CPU " + Math.round(stats.cpuUsage) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
-                Text { text: "Load: " + stats.loadAvg; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
-                Text { text: "Procs: " + stats.processCount; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
+                // ---------- CPU ----------
+                Text {
+                    width: statsPopup.contentW
+                    text: "<span style=\"color:" + colors.blue + "\">●</span>&nbsp;&nbsp;CPU"
+                    textFormat: Text.RichText
+                    color: colors.fg
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    font.bold: true
+                }
                 Row {
-                    width: 380
+                    width: statsPopup.contentW
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Load"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: stats.loadAvg
+                        color: colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Row {
+                    width: statsPopup.contentW
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Processes"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: stats.processCount
+                        color: colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Row {
+                    width: statsPopup.contentW
                     spacing: 12
                     Repeater {
                         model: 2
-                        delegate: Item {
-                            width: 184
-                            height: coreColumn.height
-
-                            Column {
-                                id: coreColumn
-                                width: parent.width
-                                spacing: 2
-                                Repeater {
-                                    model: stats.coreColumn(index)
-                                    delegate: Row {
-                                        width: 184
-                                        spacing: 4
-                                        Text { text: "C" + modelData.core; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 22 }
+                        delegate: Column {
+                            width: (statsPopup.contentW - 12) / 2
+                            spacing: 2
+                            Repeater {
+                                model: stats.coreColumn(index)
+                                delegate: Row {
+                                    width: parent.width
+                                    spacing: 4
+                                    Text {
+                                        text: "C" + modelData.core
+                                        color: colors.comment
+                                        font.family: fontsConfig.defaultFamily
+                                        font.pixelSize: fontsConfig.defaultSize - 1
+                                        width: 26
+                                    }
+                                    Rectangle {
+                                        width: parent.width - 26 - 34 - 8
+                                        height: 8
+                                        radius: 2
+                                        color: colors.bg_highlight
+                                        anchors.verticalCenter: parent.verticalCenter
                                         Rectangle {
-                                            width: 120
-                                            height: 8
-                                            color: colors.bg_highlight
-                                            radius: 2
-                                            anchors.verticalCenter: parent.verticalCenter
-
-                                            Rectangle {
-                                                width: Math.max(1, parent.width * modelData.usage / 100)
-                                                height: parent.height
-                                                color: modelData.usage > 80 ? colors.red : modelData.usage > 50 ? colors.yellow : colors.blue
-                                                radius: parent.radius
-                                            }
+                                            width: Math.max(1, parent.width * modelData.usage / 100)
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: modelData.usage > 80 ? colors.red : modelData.usage > 50 ? colors.yellow : colors.blue
                                         }
-                                        Text { text: Math.round(modelData.usage) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 34 }
+                                    }
+                                    Text {
+                                        text: Math.round(modelData.usage) + "%"
+                                        color: colors.fg
+                                        font.family: fontsConfig.defaultFamily
+                                        font.pixelSize: fontsConfig.defaultSize - 1
+                                        width: 34
+                                        horizontalAlignment: Text.AlignRight
                                     }
                                 }
                             }
                         }
                     }
                 }
-                Text { text: "Top CPU"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
+                Text {
+                    width: statsPopup.contentW
+                    text: "Top processes"
+                    color: colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize - 2
+                    topPadding: 2
+                }
                 Repeater {
                     model: stats.topCpuApps
-                    delegate: Row {
-                        spacing: 6
-                        Text { text: modelData.name; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 190; elide: Text.ElideRight }
-                        Text { text: modelData.usage.toFixed(1) + "%"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 50; horizontalAlignment: Text.AlignRight }
+                    delegate: Item {
+                        width: statsPopup.contentW
+                        height: cpuName.implicitHeight
+                        Text {
+                            id: cpuName
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.rightMargin: statsPopup.valueW + 8
+                            text: modelData.name
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize - 1
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            anchors.right: parent.right
+                            width: statsPopup.valueW
+                            text: modelData.usage.toFixed(1) + "%"
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize - 1
+                            horizontalAlignment: Text.AlignRight
+                        }
                     }
                 }
 
-                Item { width: 1; height: 6 }
-                Text { text: "Memory"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
-                Text { text: "RAM: " + stats.usedMemory.toFixed(1) + "G / " + stats.totalMemory.toFixed(1) + "G"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
-                Text { text: "Avail: " + stats.availableMemory.toFixed(1) + "G"; color: colors.green; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
-                Text { text: stats.swapTotal > 0 ? "Swap: " + stats.swapUsed.toFixed(1) + "G / " + stats.swapTotal.toFixed(1) + "G" : ""; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
-                Text { text: "Top Memory"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
+                Rectangle {
+                    width: statsPopup.contentW
+                    height: 1
+                    color: colors.bg_highlight
+                }
+
+                // ---------- Memory ----------
+                Text {
+                    width: statsPopup.contentW
+                    text: "<span style=\"color:" + colors.green + "\">●</span>&nbsp;&nbsp;Memory"
+                    textFormat: Text.RichText
+                    color: colors.fg
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    font.bold: true
+                }
+                Row {
+                    width: statsPopup.contentW
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Used"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: stats.usedMemory.toFixed(1) + "G / " + stats.totalMemory.toFixed(1) + "G"
+                        color: colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Row {
+                    width: statsPopup.contentW
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Available"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: stats.availableMemory.toFixed(1) + "G"
+                        color: colors.green
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Row {
+                    width: statsPopup.contentW
+                    visible: stats.swapTotal > 0
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Swap"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: stats.swapUsed.toFixed(1) + "G / " + stats.swapTotal.toFixed(1) + "G"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Text {
+                    width: statsPopup.contentW
+                    text: "Top memory"
+                    color: colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize - 2
+                    topPadding: 2
+                }
                 Repeater {
                     model: stats.topMemoryApps
-                    delegate: Row {
-                        spacing: 6
-                        Text { text: modelData.name; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 170; elide: Text.ElideRight }
-                        Text { text: stats.formatMemoryMb(modelData.memoryMb); color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 50; horizontalAlignment: Text.AlignRight }
+                    delegate: Item {
+                        width: statsPopup.contentW
+                        height: memName.implicitHeight
+                        Text {
+                            id: memName
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.rightMargin: statsPopup.valueW + 8
+                            text: modelData.name
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize - 1
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            anchors.right: parent.right
+                            width: statsPopup.valueW
+                            text: stats.formatMemoryMb(modelData.memoryMb)
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize - 1
+                            horizontalAlignment: Text.AlignRight
+                        }
                     }
                 }
 
-                Item { width: 1; height: 6 }
-                Text { text: "Temperature"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
-                Text { text: Math.round(stats.temperature) + "°C"; color: stats.isCritical ? colors.red : colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize + 2 }
+                Rectangle {
+                    width: statsPopup.contentW
+                    height: 1
+                    color: colors.bg_highlight
+                }
 
-                Item { width: 1; height: 6 }
-                Text { text: stats.gpuAvailable ? "GPU (" + stats.gpuBackend + ")" : "GPU"; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
-                Text { text: stats.gpuAvailable ? stats.gpuName : stats.gpuStatus; color: stats.gpuAvailable ? colors.comment : colors.yellow; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; width: 390; elide: Text.ElideRight }
-                Text { text: stats.gpuAvailable && stats.gpuBackends.length > 1 ? stats.gpuStatus : ""; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
-                Text { text: stats.gpuAvailable ? "Usage: " + Math.round(stats.gpuUsage) + "%  Temp: " + Math.round(stats.gpuTemperature) + "°C" : ""; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
-                Text { text: stats.gpuAvailable && stats.gpuMemoryTotal > 0 ? "VRAM: " + stats.formatMemoryMb(stats.gpuMemoryUsed) + " / " + stats.formatMemoryMb(stats.gpuMemoryTotal) : ""; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize }
-                Text { text: stats.gpuAvailable ? "GPU Apps" : ""; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize; font.bold: true }
-                Text { text: stats.gpuAvailable && stats.gpuApps.length === 0 ? "No process data" : ""; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1 }
+                // ---------- Temperature ----------
+                Text {
+                    width: statsPopup.contentW
+                    text: "<span style=\"color:" + (stats.isCritical ? colors.red : colors.warning) + "\">●</span>&nbsp;&nbsp;Temperature"
+                    textFormat: Text.RichText
+                    color: colors.fg
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    font.bold: true
+                }
+                Row {
+                    width: statsPopup.contentW
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Package"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: Math.round(stats.temperature) + "°C"
+                        color: stats.isCritical ? colors.red : colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize
+                        font.bold: true
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+
+                Rectangle {
+                    width: statsPopup.contentW
+                    height: 1
+                    color: colors.bg_highlight
+                }
+
+                // ---------- GPU ----------
+                Text {
+                    width: statsPopup.contentW
+                    text: "<span style=\"color:" + colors.magenta + "\">●</span>&nbsp;&nbsp;GPU"
+                    textFormat: Text.RichText
+                    color: colors.fg
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize
+                    font.bold: true
+                }
+                Text {
+                    width: statsPopup.contentW
+                    visible: !stats.gpuAvailable
+                    text: stats.gpuStatus
+                    color: colors.warning
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize - 1
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    width: statsPopup.contentW
+                    visible: stats.gpuAvailable
+                    text: stats.gpuName
+                    color: colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize - 1
+                    elide: Text.ElideRight
+                }
+                Row {
+                    width: statsPopup.contentW
+                    visible: stats.gpuAvailable
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Usage"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: Math.round(stats.gpuUsage) + "%"
+                        color: colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Row {
+                    width: statsPopup.contentW
+                    visible: stats.gpuAvailable
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "VRAM"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: stats.gpuMemoryTotal > 0 ? stats.formatMemoryMb(stats.gpuMemoryUsed) + " / " + stats.formatMemoryMb(stats.gpuMemoryTotal) : "—"
+                        color: colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Row {
+                    width: statsPopup.contentW
+                    visible: stats.gpuAvailable
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: "Temperature"
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                    }
+                    Text {
+                        width: statsPopup.contentW * 0.5
+                        text: Math.round(stats.gpuTemperature) + "°C"
+                        color: colors.fg
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: fontsConfig.defaultSize - 1
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+                Text {
+                    width: statsPopup.contentW
+                    visible: stats.gpuAvailable
+                    text: "Processes"
+                    color: colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize - 2
+                    topPadding: 2
+                }
+                Text {
+                    width: statsPopup.contentW
+                    visible: stats.gpuAvailable && stats.gpuApps.length === 0
+                    text: "No process data"
+                    color: colors.comment
+                    font.family: fontsConfig.defaultFamily
+                    font.pixelSize: fontsConfig.defaultSize - 1
+                }
                 Repeater {
                     model: stats.gpuApps
-                    delegate: Row {
-                        spacing: 6
-                        Text { text: modelData.name; color: colors.comment; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 190; elide: Text.ElideRight }
-                        Text { text: modelData.usage > 0 ? modelData.usage.toFixed(1) + "%" : ""; color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 50; horizontalAlignment: Text.AlignRight }
-                        Text { text: stats.formatMemoryMb(modelData.memoryMb); color: colors.fg; font.family: fontsConfig.defaultFamily; font.pixelSize: fontsConfig.defaultSize - 1; width: 50; horizontalAlignment: Text.AlignRight }
+                    delegate: Item {
+                        width: statsPopup.contentW
+                        height: gpuName.implicitHeight
+                        Text {
+                            id: gpuName
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.rightMargin: statsPopup.valueW * 2 + 18
+                            text: modelData.name
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize - 1
+                            elide: Text.ElideRight
+                        }
+                        Row {
+                            anchors.right: parent.right
+                            spacing: 10
+                            Text {
+                                text: modelData.usage > 0 ? modelData.usage.toFixed(1) + "%" : "—"
+                                color: colors.fg
+                                font.family: fontsConfig.defaultFamily
+                                font.pixelSize: fontsConfig.defaultSize - 1
+                                width: statsPopup.valueW
+                                horizontalAlignment: Text.AlignRight
+                            }
+                            Text {
+                                text: stats.formatMemoryMb(modelData.memoryMb)
+                                color: colors.fg
+                                font.family: fontsConfig.defaultFamily
+                                font.pixelSize: fontsConfig.defaultSize - 1
+                                width: statsPopup.valueW
+                                horizontalAlignment: Text.AlignRight
+                            }
+                        }
                     }
                 }
             }
@@ -318,7 +666,8 @@ PanelWindow {
         implicitWidth: 320
         implicitHeight: bluetoothPopupCol.height + popupMargin
         color: "transparent"
-        onVisibleChanged: if (!visible) bluetooth.showPopup = false
+        onVisibleChanged: if (!visible)
+            bluetooth.showPopup = false
         readonly property int popupTimeoutMs: popupsConfig ? popupsConfig.timeoutMs : 5000
         readonly property int popupPadding: popupsConfig ? popupsConfig.padding : 16
         readonly property int popupMargin: popupsConfig ? popupsConfig.margin : 8
@@ -361,7 +710,10 @@ PanelWindow {
                     width: parent.width
                 }
 
-                Item { width: 1; height: 4 }
+                Item {
+                    width: 1
+                    height: 4
+                }
 
                 Text {
                     text: "Connected"
@@ -407,7 +759,10 @@ PanelWindow {
                     visible: bluetooth.connectedDevices.length === 0
                 }
 
-                Item { width: 1; height: 4 }
+                Item {
+                    width: 1
+                    height: 4
+                }
 
                 Text {
                     text: "Paired"
@@ -453,7 +808,10 @@ PanelWindow {
                     visible: bluetooth.pairedDevices.length === 0
                 }
 
-                Item { width: 1; height: 6 }
+                Item {
+                    width: 1
+                    height: 6
+                }
 
                 Rectangle {
                     width: parent.width
@@ -475,8 +833,10 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
-                            bluetooth.showPopup = false
-                            Quickshell.execDetached({ command: ["blueman-manager"] })
+                            bluetooth.showPopup = false;
+                            Quickshell.execDetached({
+                                command: ["blueman-manager"]
+                            });
                         }
                     }
                 }
@@ -487,7 +847,7 @@ PanelWindow {
     Connections {
         target: tray
         function onExpandedChanged() {
-            trayPopup.visible = tray.expanded
+            trayPopup.visible = tray.expanded;
         }
     }
 
@@ -505,12 +865,12 @@ PanelWindow {
                 anchors.fill: parent
                 z: -1
                 onClicked: {
-                    caffeine.showPicker = false
-                    tray.expanded = false
-                    stats.showPopup = false
-                    bluetooth.showPopup = false
+                    caffeine.showPicker = false;
+                    tray.expanded = false;
+                    stats.showPopup = false;
+                    bluetooth.showPopup = false;
                     if (notificationsManager)
-                        notificationsManager.hideCenter()
+                        notificationsManager.hideCenter();
                 }
             }
 
@@ -655,5 +1015,4 @@ PanelWindow {
             }
         }
     }
-
 }
