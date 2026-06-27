@@ -539,6 +539,27 @@ M.setup = function()
 
     vim.g.lsp_configured = true
 
+    -- Workaround for a Neovim bug in the built-in semantic-tokens engine:
+    -- STHighlighter's LspNotify autocmd routes every client's didOpen/didChange
+    -- to send_request()/reset(), but clients without semantic-token support
+    -- (e.g. harper_ls, typos_lsp) never get on_attach(), so client_state[id]
+    -- is nil and reset_timer() crashes ("attempt to index local 'state'").
+    -- No-op those calls for clients that don't participate in semantic tokens.
+    -- Upstream still unfixed as of nightly 4de7038; remove once patched.
+    local semantic_tokens = require("vim.lsp.semantic_tokens")
+    local STHighlighter = semantic_tokens.__STHighlighter
+    if STHighlighter then
+        for _, method in ipairs({ "reset_timer", "reset" }) do
+            local original = STHighlighter[method]
+            STHighlighter[method] = function(self, client_id)
+                if not self.client_state[client_id] then
+                    return
+                end
+                return original(self, client_id)
+            end
+        end
+    end
+
     vim.keymap.set("n", "<leader>Le", "<CMD>lsp enable<CR>", { desc = "LSP Enable" })
     vim.keymap.set("n", "<leader>Ld", "<CMD>lsp disable<CR>", { desc = "LSP Disable" })
     vim.keymap.set("n", "<leader>Lr", "<CMD>lsp restart<CR>", { desc = "LSP Restart" })
