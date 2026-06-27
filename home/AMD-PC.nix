@@ -13,6 +13,7 @@ in
 {
   imports = [
     ./desktop.nix
+    ./pkgs/gaming.nix
   ];
   home = {
     packages = with pkgs; [
