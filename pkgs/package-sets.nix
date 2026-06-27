@@ -59,6 +59,15 @@ let
       #     })
       #   else
       #     prev.direnv;
+      pythonPackagesExtensions = prev.pythonPackagesExtensions or [ ] ++ [
+        (_final: prev': {
+          mpv = prev'.mpv.overridePythonAttrs (_: {
+            # Tests spin up a real mpv that needs a writable fontconfig
+            # cache, which the Nix sandbox does not provide.
+            doCheck = false;
+          });
+        })
+      ];
       pylint = prev.python3Packages.pylint.overridePythonAttrs {
         dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
       };
