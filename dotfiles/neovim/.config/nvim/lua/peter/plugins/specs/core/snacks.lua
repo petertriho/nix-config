@@ -126,9 +126,9 @@ return {
                         end,
                         cmd = "git -c color.status=always status --short --branch --renames",
                         height = 10,
+                        indent = 1,
                         padding = 1,
                         ttl = 5 * 60,
-                        indent = 3,
                     },
                     -- right
                     -- {
