@@ -7,6 +7,7 @@ import Quickshell.Hyprland
 import QtQuick.Dialogs
 import "modules/Bar/workspaces/workspaceHelpers.js" as WorkspaceHelpers
 import "modules/Bar"
+import "modules/CodexBar"
 import "modules/ControlOSD"
 import "modules/Notifications"
 
@@ -32,6 +33,18 @@ ShellRoot {
         notificationsConfig: config.notifications
     }
 
+    // CodexBar usage service (one instance; owns the polling process + panel).
+    // NOTE: id is `codexBarSvc`, not `codexBarService` — the Bar exposes a
+    // property of that name, and `codexBarService: codexBarService` in the
+    // delegate would resolve to the Bar's own (null) property instead of this
+    // id. Distinct names avoid the QML shadowing footgun.
+    CodexBarService {
+        id: codexBarSvc
+        colors: config.colors
+        fontsConfig: config.fonts
+        codexbarConfig: config.codexbar
+    }
+
     // Bar components, one per connected screen.
     Variants {
         model: Quickshell.screens
@@ -52,6 +65,7 @@ ShellRoot {
                 fontsConfig: config.fonts
                 windowIcons: config.windowIcons
                 notificationsManager: notifications
+                codexBarService: codexBarSvc
             }
         }
     }

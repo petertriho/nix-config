@@ -30,6 +30,7 @@ PanelWindow {
     property QtObject popupsConfig
     property var windowIcons
     required property var notificationsManager
+    property var codexBarService
 
     PopupWindow {
         id: caffeinePicker
@@ -1126,6 +1127,8 @@ PanelWindow {
                     clock.showPopup = false;
                     if (notificationsManager)
                         notificationsManager.hideCenter();
+                    if (codexBarService)
+                        codexBarService.hidePanel();
                 }
             }
 
@@ -1247,6 +1250,15 @@ PanelWindow {
                     moduleConfig: root.moduleConfig
                     intervalsConfig: root.intervalsConfig
                     fontsConfig: root.fontsConfig
+                }
+
+                CodexBarModule {
+                    id: codexbar
+                    height: parent.height
+                    colors: root.colors
+                    moduleConfig: root.moduleConfig
+                    fontsConfig: root.fontsConfig
+                    codexBarService: root.codexBarService
                 }
 
                 NotificationsModule {

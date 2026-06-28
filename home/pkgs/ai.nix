@@ -85,7 +85,7 @@ in
     file = {
       ".config/opencode/plugins/skills-sidebar.tsx".source =
         config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/plugins/skills-sidebar.tsx";
-      # ".codex/config.toml".source = config.lib.meta.mkDotfilesSymlink "codex/.codex/config.toml";
+      ".codex/config.toml".source = config.lib.meta.mkDotfilesSymlink "codex/.codex/config.toml";
     };
     sessionVariables = {
       BASIC_MEMORY_NO_PROMOS = 1;
@@ -197,7 +197,7 @@ in
       lspServers = claudeCodeLspConfig;
     };
     codex = {
-      enable = false;
+      enable = true;
       package = pkgs.llm-agents.codex;
       enableMcpIntegration = false;
       # settings = {

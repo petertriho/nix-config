@@ -237,4 +237,23 @@ QtObject {
         readonly property int workspaceSize: 12
         readonly property int workspaceIconSize: 12
     }
+
+    // CodexBar widget (see modules/CodexBar). CodexBar owns all provider/auth/
+    // API-key state; these are display-layer knobs only. Provider setup: see
+    // modules/CodexBar/SETUP.md.
+    readonly property QtObject codexbar: QtObject {
+        // "codexbar" relies on PATH (home.packages). Set an absolute path if the
+        // Quickshell systemd unit can't resolve it at runtime.
+        readonly property string codexbarPath: "codexbar"
+        readonly property int refreshIntervalSec: 90
+        // Providers to poll. codexbar's `--provider all` crashes (upstream bug), so
+        // the service polls each of these separately and merges.
+        readonly property var providers: ["codex", "zai", "openrouter"]
+        // Non-secret z.ai quota-endpoint override (codexbar reads it as an env var).
+        // "" = codexbar's default, which is the Global/Singapore (api.z.ai) endpoint
+        // and already returns the coding-plan quota (verified) — no override needed.
+        // Set this ONLY for the China-mainland (BigModel) version:
+        //   https://open.bigmodel.cn/api/coding/paas/v4
+        readonly property string zAiQuotaUrl: ""
+    }
 }
