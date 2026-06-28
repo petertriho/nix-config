@@ -3,8 +3,9 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
+import "../Common"
 
-PanelWindow {
+OverlayPanel {
     id: root
 
     required property var centerModel
@@ -12,7 +13,6 @@ PanelWindow {
     required property QtObject fontsConfig
     required property QtObject notificationsConfig
 
-    property bool open: false
     property real clock
     readonly property int maxPanelHeight: Math.max(1, Screen.height - notificationsConfig.topMargin - notificationsConfig.bottomMargin)
     readonly property int maxListHeight: Math.max(1, maxPanelHeight - headerRow.implicitHeight - notificationsConfig.spacing - notificationsConfig.cardPadding * 2)
@@ -20,15 +20,9 @@ PanelWindow {
     readonly property real emptyHeight: emptyText.implicitHeight + 72
     readonly property real contentHeight: notificationsConfig.cardPadding * 2 + headerRow.implicitHeight + notificationsConfig.spacing + (modelCount() > 0 ? listHeight : emptyHeight)
 
-    signal closeRequested
     signal clearRequested
     signal dismissRequested(var entry)
     signal actionRequested(var entry, string actionIdentifier)
-
-    // Exclusive keyboard focus only while open, so Esc/keys are delivered the moment the
-    // center appears (OnDemand would only grant focus after a click). Released on close.
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    onVisibleChanged: if (visible) keyHandler.forceActiveFocus()
 
     function modelCount() {
         if (!root.centerModel)
@@ -40,38 +34,16 @@ PanelWindow {
         return 0;
     }
 
-    visible: open || drawerRect.opacity > 0
-    color: "transparent"
-    exclusiveZone: -1
-    // Full-screen modal overlay above the bar and apps. The backdrop (keyHandler) fills the
-    // screen and closes on any outside click; the drawer sits top-right on top of it.
-    WlrLayershell.layer: WlrLayer.Overlay
-
-    anchors {
-        top: true
-        bottom: true
-        left: true
-        right: true
-    }
-
-    MouseArea {
-        id: keyHandler
-        focus: true
-        anchors.fill: parent
-        z: -1
-        Keys.onEscapePressed: root.closeRequested()
-        Keys.onPressed: function (event) {
-            // Mod (Super) combos reach us via exclusive focus while the center is open.
-            // Mod+B closes (completing the toggle); Mod+Shift+B clears all (and closes).
-            if (event.key === Qt.Key_B && (event.modifiers & Qt.MetaModifier)) {
-                if (event.modifiers & Qt.ShiftModifier)
-                    root.clearRequested();
-                else
-                    root.closeRequested();
-                event.accepted = true;
-            }
+    // Mod (Super) combos reach the overlay via exclusive focus while the center is open.
+    // Mod+B closes (completing the toggle); Mod+Shift+B clears all (and closes).
+    onKeyPressed: function (event) {
+        if (event.key === Qt.Key_B && (event.modifiers & Qt.MetaModifier)) {
+            if (event.modifiers & Qt.ShiftModifier)
+                root.clearRequested();
+            else
+                root.closeRequested();
+            event.accepted = true;
         }
-        onClicked: root.closeRequested()
     }
 
     Rectangle {

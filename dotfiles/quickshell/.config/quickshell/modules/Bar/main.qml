@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Services.SystemTray
 import Quickshell.Widgets
+import "../Common"
 
 PanelWindow {
     id: root
@@ -257,35 +258,35 @@ PanelWindow {
         }
     }
 
-    PopupWindow {
+    OverlayPanel {
         id: statsPopup
-        visible: stats.showPopup
-        anchor.window: root
-        anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: rightRow.hiddenIds.indexOf("stats") >= 0
-            ? tray.globalX + (tray.width - width) / 2
-            : stats.globalX + (stats.width - width) / 2
-        anchor.rect.y: root.height
-        anchor.rect.width: 1
-        anchor.rect.height: 1
-        implicitWidth: 440
-        implicitHeight: statsPopupCol.height + popupsConfig.padding
-        color: "transparent"
+        screen: root.screen
+        open: stats.showPopup
+        onCloseRequested: stats.showPopup = false
 
-        readonly property int contentW: implicitWidth - popupsConfig.padding * 2
+        readonly property int contentW: 440 - popupsConfig.padding * 2
         readonly property int valueW: 64
 
         Rectangle {
-            anchors.fill: parent
+            id: statsCard
+            width: 440
+            height: statsPopupCol.height + popupsConfig.padding
+            x: rightRow.hiddenIds.indexOf("stats") >= 0
+                ? tray.globalX + (tray.width - width) / 2
+                : stats.globalX + (stats.width - width) / 2
+            y: root.height + 4
             color: colors.bg
             border.color: colors.border
             radius: popupsConfig.cornerRadius
+            opacity: statsPopup.open ? 1.0 : 0.0
+            scale: statsPopup.open ? 1.0 : 0.98
+            transformOrigin: Item.Top
 
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                onEntered: stats.holdPopup()
-                onExited: stats.releasePopup()
+            Behavior on opacity {
+                NumberAnimation { duration: 180 }
+            }
+            Behavior on scale {
+                NumberAnimation { duration: 180 }
             }
 
             Column {
@@ -1185,7 +1186,6 @@ PanelWindow {
                 onClicked: {
                     caffeine.showPicker = false;
                     tray.expanded = false;
-                    stats.showPopup = false;
                     bluetooth.showPopup = false;
                     clock.showPopup = false;
                     if (notificationsManager)

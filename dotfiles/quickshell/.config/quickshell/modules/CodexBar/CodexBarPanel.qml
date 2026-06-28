@@ -3,13 +3,14 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
+import "../Common"
 
 // CodexBarPanel — full-screen overlay (mirrors NotificationCenter.qml) listing
 // every normalized usage row. Quota rows (Codex/z.ai) render a primary (5h) and
 // secondary (weekly/monthly) UsageMeter, each with its own reset countdown, plus
 // any free Codex reset credits; cost rows (OpenRouter) render a credits-used
 // meter + balance/total/used; error rows show a clean message. Footer = Refresh.
-PanelWindow {
+OverlayPanel {
     id: root
 
     required property var usageModel
@@ -18,8 +19,6 @@ PanelWindow {
     required property QtObject colors
     required property QtObject fontsConfig
 
-    property bool open: false
-    signal closeRequested
     signal refreshRequested
 
     readonly property int drawerWidth: 420
@@ -37,31 +36,6 @@ PanelWindow {
     readonly property int maxPanelHeight: Math.max(160, Screen.height - root.topMargin - root.bottomMargin)
     readonly property int maxListHeight: Math.max(120, root.maxPanelHeight - 104)
     readonly property real listHeight: usageModel.count > 0 ? Math.min(listView.contentHeight, root.maxListHeight) : 0
-
-    visible: root.open || drawer.opacity > 0
-    color: "transparent"
-    exclusiveZone: -1
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    onVisibleChanged: if (visible)
-        backdrop.forceActiveFocus()
-
-    anchors {
-        top: true
-        bottom: true
-        left: true
-        right: true
-    }
-
-    // Backdrop: click outside or Esc closes.
-    MouseArea {
-        id: backdrop
-        anchors.fill: parent
-        z: -1
-        focus: true
-        Keys.onEscapePressed: root.closeRequested()
-        onClicked: root.closeRequested()
-    }
 
     Rectangle {
         id: drawer

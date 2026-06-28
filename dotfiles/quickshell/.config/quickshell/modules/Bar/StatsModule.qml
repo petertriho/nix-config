@@ -6,7 +6,6 @@ import Quickshell.Io
 
 BaseModule {
     id: root
-    hoverEnabled: true
 
     property real cpuUsage: 0
     property var perCoreUsage: []
@@ -223,28 +222,9 @@ BaseModule {
         });
     }
 
-    Timer {
-        id: showTimer
-        interval: 150
-        onTriggered: {
-            root.updatePosition();
-            root.showPopup = true;
-        }
-    }
-    Timer {
-        id: dismissTimer
-        interval: 150
-        onTriggered: root.showPopup = false
-    }
-
-    onHoveredChanged: {
-        if (root.hovered) {
-            dismissTimer.stop();
-            showTimer.restart();
-        } else {
-            showTimer.stop();
-            dismissTimer.restart();
-        }
+    onClicked: {
+        root.updatePosition();
+        root.showPopup = !root.showPopup;
     }
 
     function parseCpuStats(output) {
@@ -668,16 +648,6 @@ BaseModule {
         return mb >= 1024 ? (mb / 1024).toFixed(1) + "G" : Math.round(mb) + "M";
     }
 
-    function holdPopup() {
-        dismissTimer.stop();
-        showPopup = true;
-    }
-    function releasePopup() {
-        if (!root.hovered)
-            dismissTimer.restart();
-        else
-            dismissTimer.stop();
-    }
     function updatePosition() {
         var pos = root.mapToItem(null, 0, 0);
         root.globalX = pos.x;
