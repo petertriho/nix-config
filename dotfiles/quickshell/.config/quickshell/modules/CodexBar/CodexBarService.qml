@@ -21,12 +21,13 @@ Item {
     // Highest-percent quota row (cost/error excluded); null until we have data.
     property var mostCriticalRow: null
     property bool busy: false
+    // Wall-clock time of the last refresh that produced data (panel footer).
+    property string lastUpdated: ""
 
     property bool panelOpen: false
 
     function togglePanel() {
         root.panelOpen = !root.panelOpen;
-        console.warn("[CBDBG] togglePanel -> " + root.panelOpen);
     }
     function showPanel() {
         root.panelOpen = true;
@@ -64,23 +65,21 @@ Item {
     }
 
     function refresh() {
-        console.warn("[CBDBG] refresh start busy=" + root.busy + " cfg=" + (codexbarConfig ? "ok" : "NULL"));
         if (root.busy)
             return;
         root.busy = true;
-        var cmd = root.buildCommand();
-        console.warn("[CBDBG] exec cmd=" + JSON.stringify(cmd));
         usageProc.exec({
-            "command": cmd
+            "command": root.buildCommand()
         });
     }
 
     function applyParsed(parsed) {
-        console.warn("[CBDBG] applyParsed rows=" + (parsed.rows ? parsed.rows.length : 0) + " mostCritical=" + (parsed.mostCritical ? parsed.mostCritical.provider : "null"));
         usageModel.clear();
         for (var i = 0; parsed.rows && i < parsed.rows.length; i++)
             usageModel.append(parsed.rows[i]);
         root.mostCriticalRow = parsed.mostCritical || null;
+        if (parsed.rows && parsed.rows.length > 0)
+            root.lastUpdated = Qt.formatDateTime(new Date(), "HH:mm");
         root.busy = false;
     }
 
@@ -90,7 +89,6 @@ Item {
         id: usageProc
         stdout: StdioCollector {
             onStreamFinished: {
-                console.warn("[CBDBG] streamFinished len=" + (this.text ? this.text.length : 0) + " head=" + JSON.stringify((this.text || "").slice(0, 80)));
                 root.applyParsed(CodexBar.parseProviders(this.text));
             }
         }
@@ -105,7 +103,6 @@ Item {
     }
 
     Component.onCompleted: {
-        console.warn("[CBDBG] service onCompleted; codexbarConfig=" + (codexbarConfig ? "ok" : "NULL") + " mostCriticalRow=" + (root.mostCriticalRow ? "set" : "null"));
         root.refresh();
     }
 
@@ -114,6 +111,8 @@ Item {
         usageModel: usageModel
         mostCriticalRow: root.mostCriticalRow
         busy: root.busy
+        lastUpdated: root.lastUpdated
+        refreshIntervalSec: codexbarConfig.refreshIntervalSec
         colors: root.colors
         fontsConfig: root.fontsConfig
         onCloseRequested: root.hidePanel()

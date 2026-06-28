@@ -78,18 +78,22 @@ PanelWindow {
         id: drawerRect
         width: notificationsConfig.drawerWidth
         height: Math.min(root.contentHeight, root.maxPanelHeight)
-        x: root.width - width - notificationsConfig.rightMargin + (open ? 0 : 24)
+        x: root.width - width - notificationsConfig.rightMargin
         y: notificationsConfig.topMargin
         color: colors.bg
         border.color: colors.border
         radius: notificationsConfig.cornerRadius
         clip: true
         opacity: open ? notificationsConfig.panelOpacity : 0
+        // Popover settle: fade + slight scale from the top-right corner. Avoids the
+        // horizontal slide (which depended on root.width and traveled across-screen).
+        scale: open ? 1.0 : 0.97
+        transformOrigin: Item.TopRight
 
         Behavior on opacity {
             NumberAnimation { duration: 180; easing.type: open ? Easing.OutCubic : Easing.InCubic }
         }
-        Behavior on x {
+        Behavior on scale {
             NumberAnimation { duration: 180; easing.type: open ? Easing.OutCubic : Easing.InCubic }
         }
 

@@ -23,13 +23,21 @@ PanelWindow {
 
     readonly property int drawerWidth: 420
     readonly property int padding: 12
+    // Footer: last-updated time + auto-refresh cadence.
+    property string lastUpdated: ""
+    property int refreshIntervalSec: 300
+    // The bar owns the top strip (config.bar.height = 28). Drop the drawer just
+    // below it so the panel never overlaps the bar (mirrors notifications.topMargin).
+    readonly property int barHeight: 28
+    readonly property int bottomMargin: 12
+    readonly property int topMargin: root.barHeight + 12
     // A ListView has no intrinsic height, so size it explicitly (mirrors
     // NotificationCenter.qml) — Layout.fillHeight alone yields 0 and hides rows.
-    readonly property int maxPanelHeight: Screen.height - 24
-    readonly property int maxListHeight: Math.max(120, root.maxPanelHeight - 80)
+    readonly property int maxPanelHeight: Math.max(160, Screen.height - root.topMargin - root.bottomMargin)
+    readonly property int maxListHeight: Math.max(120, root.maxPanelHeight - 104)
     readonly property real listHeight: usageModel.count > 0 ? Math.min(listView.contentHeight, root.maxListHeight) : 0
 
-    visible: open
+    visible: root.open || drawer.opacity > 0
     color: "transparent"
     exclusiveZone: -1
     WlrLayershell.layer: WlrLayer.Overlay
@@ -67,18 +75,24 @@ PanelWindow {
     Rectangle {
         id: drawer
         width: root.drawerWidth
-        height: Math.min(column.implicitHeight + root.padding * 2, Screen.height - 24)
-        x: root.width - width - 12 + (root.open ? 0 : 24)
-        y: 12
+        height: Math.min(column.implicitHeight + root.padding * 2, root.maxPanelHeight)
+        x: root.width - width - 12
+        y: root.topMargin
         radius: 10
         color: colors.bg
         border.color: colors.border
 
-        Behavior on x {
-            NumberAnimation {
-                duration: 160
-                easing.type: open ? Easing.OutCubic : Easing.InCubic
-            }
+        // Popover settle: fade + slight scale from the top-right corner. Avoids the
+        // horizontal slide (which depended on root.width and traveled across-screen).
+        opacity: root.open ? 1.0 : 0.0
+        scale: root.open ? 1.0 : 0.97
+        transformOrigin: Item.TopRight
+
+        Behavior on opacity {
+            NumberAnimation { duration: 180; easing.type: root.open ? Easing.OutCubic : Easing.InCubic }
+        }
+        Behavior on scale {
+            NumberAnimation { duration: 180; easing.type: root.open ? Easing.OutCubic : Easing.InCubic }
         }
 
         ColumnLayout {
@@ -275,6 +289,18 @@ PanelWindow {
                         }
                     }
                 }
+            }
+
+            // Footer: last-updated time + auto-refresh cadence.
+            Text {
+                Layout.fillWidth: true
+                visible: usageModel.count > 0
+                text: "Updated " + (root.lastUpdated.length > 0 ? root.lastUpdated : "—")
+                      + "  ·  auto " + Math.max(1, Math.round(root.refreshIntervalSec / 60)) + "m"
+                color: colors.comment
+                font.family: fontsConfig.defaultFamily
+                font.pixelSize: fontsConfig.defaultSize - 2
+                horizontalAlignment: Text.AlignRight
             }
         }
     }

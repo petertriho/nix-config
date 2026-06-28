@@ -245,7 +245,7 @@ QtObject {
         // "codexbar" relies on PATH (home.packages). Set an absolute path if the
         // Quickshell systemd unit can't resolve it at runtime.
         readonly property string codexbarPath: "codexbar"
-        readonly property int refreshIntervalSec: 90
+        readonly property int refreshIntervalSec: 300
         // Providers to poll. codexbar's `--provider all` crashes (upstream bug), so
         // the service polls each of these separately and merges.
         readonly property var providers: ["codex", "zai", "openrouter"]

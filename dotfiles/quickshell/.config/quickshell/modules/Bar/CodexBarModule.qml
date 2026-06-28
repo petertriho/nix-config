@@ -12,21 +12,20 @@ BaseModule {
 
     readonly property var critical: codexBarService ? codexBarService.mostCriticalRow : null
 
-    Component.onCompleted: console.warn("[CBDBG] module ready service=" + (codexBarService ? "ok" : "NULL") + " mc=" + (codexBarService && codexBarService.mostCriticalRow ? codexBarService.mostCriticalRow.provider : "null"))
-    onCriticalChanged: console.warn("[CBDBG] critical -> " + (critical ? (critical.provider + "@" + critical.percent) : "null"))
+    // nf-md-robot — distinct from the CPU module's chip icon; signals "AI usage".
+    readonly property string icon: "󰚩"
 
     text: {
         if (!critical)
-            return "󰚥 —";
+            return root.icon + " —";
         var pct = critical.percent;
         if (pct < 0 || pct === undefined || isNaN(pct))
-            return "󰚥";
-        return "󰚥 " + Math.round(pct) + "%";
+            return root.icon;
+        return root.icon + " " + Math.round(pct) + "%";
     }
     textColor: codexBarService ? codexBarService.bandColor(critical ? critical.percent : -1) : colors.fg
 
     onClicked: {
-        console.warn("[CBDBG] module click service=" + (codexBarService ? "ok" : "NULL"));
         if (codexBarService)
             codexBarService.togglePanel();
     }
