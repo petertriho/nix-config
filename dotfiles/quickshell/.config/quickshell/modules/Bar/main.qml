@@ -38,7 +38,9 @@ PanelWindow {
         grabFocus: true
         anchor.window: root
         anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: caffeine.globalX + (caffeine.width - width) / 2
+        anchor.rect.x: rightRow.hiddenIds.indexOf("caffeine") >= 0
+            ? tray.globalX + (tray.width - width) / 2
+            : caffeine.globalX + (caffeine.width - width) / 2
         anchor.rect.y: root.height
         anchor.rect.width: 1
         anchor.rect.height: 1
@@ -132,8 +134,8 @@ PanelWindow {
         anchor.rect.y: root.height
         anchor.rect.width: 1
         anchor.rect.height: 1
-        implicitWidth: trayRow.width + popupsConfig.padding
-        implicitHeight: trayRow.height + popupsConfig.margin
+        implicitWidth: trayPopupCol.width + popupsConfig.padding
+        implicitHeight: trayPopupCol.height + popupsConfig.margin
         color: "transparent"
         onVisibleChanged: if (!visible)
             tray.expanded = false
@@ -151,45 +153,102 @@ PanelWindow {
             border.color: colors.border
             radius: popupsConfig.cornerRadius
 
-            Row {
-                id: trayRow
+            Column {
+                id: trayPopupCol
                 anchors.centerIn: parent
                 spacing: popupsConfig.itemSpacing
 
-                Repeater {
-                    model: SystemTray.items
-                    delegate: Item {
-                        readonly property int _iconSize: popupsConfig.trayIconSize > 0 ? popupsConfig.trayIconSize : fontsConfig.defaultSize + popupsConfig.trayIconOffset
-                        readonly property int _pad: 8
-                        width: _iconSize + _pad * 2
-                        height: _iconSize + _pad * 2
+                Row {
+                    id: trayRow
+                    spacing: popupsConfig.itemSpacing
 
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 4
-                            color: mouse.containsMouse ? colors.bg_highlight : "transparent"
-                        }
+                    Repeater {
+                        model: SystemTray.items
+                        delegate: Item {
+                            readonly property int _iconSize: popupsConfig.trayIconSize > 0 ? popupsConfig.trayIconSize : fontsConfig.defaultSize + popupsConfig.trayIconOffset
+                            readonly property int _pad: 8
+                            width: _iconSize + _pad * 2
+                            height: _iconSize + _pad * 2
 
-                        IconImage {
-                            id: icon
-                            anchors.centerIn: parent
-                            implicitSize: parent._iconSize
-                            source: modelData.icon
-                        }
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 4
+                                color: mouse.containsMouse ? colors.bg_highlight : "transparent"
+                            }
 
-                        MouseArea {
-                            id: mouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onClicked: function (mse) {
-                                const ix = mse.x - (width - icon.width) / 2;
-                                const iy = mse.y - (height - icon.height) / 2;
-                                if (mse.button === Qt.RightButton) {
-                                    modelData.secondaryActivate(ix, iy);
-                                } else {
-                                    modelData.activate(ix, iy);
+                            IconImage {
+                                id: icon
+                                anchors.centerIn: parent
+                                implicitSize: parent._iconSize
+                                source: modelData.icon
+                            }
+
+                            MouseArea {
+                                id: mouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onClicked: function (mse) {
+                                    const ix = mse.x - (width - icon.width) / 2;
+                                    const iy = mse.y - (height - icon.height) / 2;
+                                    if (mse.button === Qt.RightButton) {
+                                        modelData.secondaryActivate(ix, iy);
+                                    } else {
+                                        modelData.activate(ix, iy);
+                                    }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Overflow: right-side bar modules hidden to make room for
+                // the centered clock, reachable here via their normal click
+                // action. Nothing hidden → the row is not rendered.
+                Row {
+                    spacing: popupsConfig.itemSpacing
+                    visible: rightRow.hiddenIds.length > 0
+
+                    Repeater {
+                        model: rightRow.hiddenIds
+                        delegate: Item {
+                            readonly property var _mod: rightRow.idMap[modelData]
+                            width: ovContent.width + 16
+                            height: fontsConfig.defaultSize + 12
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 4
+                                color: ovMouse.containsMouse ? colors.bg_highlight : "transparent"
+                            }
+
+                            Row {
+                                id: ovContent
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 8
+                                spacing: 6
+
+                                Text {
+                                    text: _mod ? _mod.text : ""
+                                    color: colors.fg
+                                    font.family: fontsConfig.defaultFamily
+                                    font.pixelSize: fontsConfig.defaultSize
+                                }
+
+                                Text {
+                                    text: rightRow.overflowNames[modelData] || modelData
+                                    color: colors.fg
+                                    font.family: fontsConfig.defaultFamily
+                                    font.pixelSize: fontsConfig.defaultSize
+                                }
+                            }
+
+                            MouseArea {
+                                id: ovMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: if (_mod) _mod.clicked()
                             }
                         }
                     }
@@ -203,7 +262,9 @@ PanelWindow {
         visible: stats.showPopup
         anchor.window: root
         anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: stats.globalX + (stats.width - width) / 2
+        anchor.rect.x: rightRow.hiddenIds.indexOf("stats") >= 0
+            ? tray.globalX + (tray.width - width) / 2
+            : stats.globalX + (stats.width - width) / 2
         anchor.rect.y: root.height
         anchor.rect.width: 1
         anchor.rect.height: 1
@@ -660,7 +721,9 @@ PanelWindow {
         grabFocus: true
         anchor.window: root
         anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: bluetooth.globalX + (bluetooth.width - width) / 2
+        anchor.rect.x: rightRow.hiddenIds.indexOf("bluetooth") >= 0
+            ? tray.globalX + (tray.width - width) / 2
+            : bluetooth.globalX + (bluetooth.width - width) / 2
         anchor.rect.y: root.height
         anchor.rect.width: 1
         anchor.rect.height: 1
@@ -1171,10 +1234,70 @@ PanelWindow {
 
             // Right modules
             Row {
+                id: rightRow
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: barConfig.moduleSpacing
                 height: parent.height
+
+                // config key → module object. Keep in sync with the valid-key
+                // list in config.qml's bar.rightHidePriority comment.
+                // ("audio" key → pulseaudio id; "power" → powerManagementLauncher.)
+                readonly property var idMap: ({
+                    "tray": tray, "caffeine": caffeine, "stats": stats,
+                    "backlight": backlight, "audio": pulseaudio, "battery": battery,
+                    "bluetooth": bluetooth, "network": network, "codexbar": codexbar,
+                    "notifications": notifications, "power": powerManagementLauncher
+                })
+                // Display name shown for a module in the tray overflow.
+                readonly property var overflowNames: ({
+                    "stats": "Stats", "codexbar": "Codex", "caffeine": "Caffeine",
+                    "backlight": "Brightness", "battery": "Battery",
+                    "bluetooth": "Bluetooth", "audio": "Audio", "network": "Network"
+                })
+                // Width used for the fit calculation. Modules set implicitWidth
+                // via BaseModule; fall back to .width for anything that doesn't.
+                function widthOf(it) {
+                    return (it && it.implicitWidth > 0) ? it.implicitWidth : (it ? it.width : 0);
+                }
+                // Prefix of rightHidePriority that must hide for the visible
+                // modules to fit the space left of the centered clock. Pure
+                // function of module implicitWidths + clock.x + clockGap:
+                // hiding a module does not change its implicitWidth, so the
+                // hiddenIds binding cannot oscillate.
+                function computeHiddenIds() {
+                    var prio = barConfig.rightHidePriority || [];
+                    // clock.x isn't laid out yet (startup) → hide nothing.
+                    // (Once laid out clock.x > 0; the loop below returns all
+                    // of prio if even hiding everything can't fit.)
+                    if (clock.x <= 0)
+                        return [];
+                    var budget = clock.x - barConfig.clockGap;
+                    var listed = {};
+                    for (var i = 0; i < prio.length; i++)
+                        listed[prio[i]] = true;
+                    // never-hidden (unlisted) modules always reserve their width
+                    var rw = 0, rn = 0;
+                    for (var k in idMap)
+                        if (!listed[k]) {
+                            rw += widthOf(idMap[k]);
+                            rn++;
+                        }
+                    for (var c = 0; c <= prio.length; c++) {
+                        var w = rw, n = rn;
+                        for (var j = c; j < prio.length; j++) {
+                            var it = idMap[prio[j]];
+                            if (it) {
+                                w += widthOf(it);
+                                n++;
+                            }
+                        }
+                        if (w + Math.max(0, n - 1) * barConfig.moduleSpacing <= budget)
+                            return prio.slice(0, c);
+                    }
+                    return prio.slice();
+                }
+                readonly property var hiddenIds: computeHiddenIds()
 
                 TrayModule {
                     id: tray
@@ -1187,6 +1310,7 @@ PanelWindow {
 
                 CaffeineModule {
                     id: caffeine
+                    visible: rightRow.hiddenIds.indexOf("caffeine") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig
@@ -1195,6 +1319,7 @@ PanelWindow {
 
                 StatsModule {
                     id: stats
+                    visible: rightRow.hiddenIds.indexOf("stats") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig
@@ -1205,6 +1330,7 @@ PanelWindow {
 
                 BacklightModule {
                     id: backlight
+                    visible: rightRow.hiddenIds.indexOf("backlight") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig
@@ -1215,6 +1341,7 @@ PanelWindow {
 
                 AudioModule {
                     id: pulseaudio
+                    visible: rightRow.hiddenIds.indexOf("audio") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig
@@ -1226,6 +1353,7 @@ PanelWindow {
 
                 BatteryModule {
                     id: battery
+                    visible: battery.hasBattery && rightRow.hiddenIds.indexOf("battery") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig
@@ -1236,6 +1364,7 @@ PanelWindow {
 
                 BluetoothModule {
                     id: bluetooth
+                    visible: rightRow.hiddenIds.indexOf("bluetooth") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig
@@ -1254,6 +1383,7 @@ PanelWindow {
 
                 CodexBarModule {
                     id: codexbar
+                    visible: rightRow.hiddenIds.indexOf("codexbar") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig

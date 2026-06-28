@@ -113,6 +113,17 @@ QtObject {
         readonly property int exclusiveZone: 28
         readonly property int contentMargins: 4
         readonly property int moduleSpacing: 4
+
+        // Right-side modules hidden first→last when the right Row would
+        // overlap the centered clock. Order = hide order; any module NOT
+        // listed is always shown. Hidden modules reappear inside the tray
+        // popup. `tray` is always shown (it hosts the overflow).
+        // Valid keys: tray, caffeine, stats, backlight, audio, battery,
+        // bluetooth, network, codexbar, notifications, power. The `audio`
+        // key maps to the `pulseaudio` module id; `power` →
+        // powerManagementLauncher.
+        readonly property var rightHidePriority: ["stats", "codexbar", "caffeine", "bluetooth", "backlight", "audio", "battery"]        // Min gap (px) kept between the right Row and the clock before hiding.
+        readonly property int clockGap: moduleSpacing * 2
     }
 
     // Module configuration
