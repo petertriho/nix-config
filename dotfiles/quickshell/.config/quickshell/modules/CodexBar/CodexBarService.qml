@@ -20,6 +20,12 @@ Item {
 
     // Highest-percent quota row (cost/error excluded); null until we have data.
     property var mostCriticalRow: null
+    // Latched true the first poll that returns any real (non-error) row — i.e.
+    // at least one provider has credentials and answered. The bar segment hides
+    // while false (mirrors BatteryModule hiding when upower finds no battery).
+    // Latched rather than re-evaluated so a transient post-setup error doesn't
+    // make the segment flicker off.
+    property bool configured: false
     property bool busy: false
     // Wall-clock time of the last refresh that produced data (panel footer).
     property string lastUpdated: ""
@@ -78,6 +84,15 @@ Item {
         for (var i = 0; parsed.rows && i < parsed.rows.length; i++)
             usageModel.append(parsed.rows[i]);
         root.mostCriticalRow = parsed.mostCritical || null;
+        // Latch configured on the first real row (see property comment above).
+        if (!root.configured && parsed.rows) {
+            for (var j = 0; j < parsed.rows.length; j++) {
+                if (parsed.rows[j].kind !== "error") {
+                    root.configured = true;
+                    break;
+                }
+            }
+        }
         if (parsed.rows && parsed.rows.length > 0)
             root.lastUpdated = Qt.formatDateTime(new Date(), "HH:mm");
         root.busy = false;

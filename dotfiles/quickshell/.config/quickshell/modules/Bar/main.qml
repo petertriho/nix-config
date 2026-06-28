@@ -1383,7 +1383,7 @@ PanelWindow {
 
                 CodexBarModule {
                     id: codexbar
-                    visible: rightRow.hiddenIds.indexOf("codexbar") < 0
+                    visible: codexbar.configured && rightRow.hiddenIds.indexOf("codexbar") < 0
                     height: parent.height
                     colors: root.colors
                     moduleConfig: root.moduleConfig

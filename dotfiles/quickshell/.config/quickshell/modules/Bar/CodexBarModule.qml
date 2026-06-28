@@ -12,6 +12,11 @@ BaseModule {
 
     readonly property var critical: codexBarService ? codexBarService.mostCriticalRow : null
 
+    // True once codexbar has returned any real data this session (the service
+    // latches it). While false the segment is hidden — mirrors BatteryModule's
+    // hasBattery hiding when there is no battery.
+    readonly property bool configured: codexBarService ? codexBarService.configured : false
+
     // nf-md-robot — distinct from the CPU module's chip icon; signals "AI usage".
     readonly property string icon: "󰚩"
 
