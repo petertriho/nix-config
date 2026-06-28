@@ -11,6 +11,7 @@ Rectangle {
     required property QtObject notificationsConfig
 
     property bool inCenter: false
+    property real clock
 
     signal dismissRequested(var entry)
     signal actionRequested(var entry, string actionIdentifier)
@@ -46,6 +47,21 @@ Rectangle {
         if (entry && entry.appName && entry.appName.length > 0)
             return entry.appName;
         return "Notification";
+    }
+
+    function relativeTime(createdAtMs, nowMs) {
+        if (!createdAtMs)
+            return "";
+        var diffMs = Math.max(0, nowMs - createdAtMs);
+        var minutes = Math.floor(diffMs / 60000);
+        if (minutes < 1)
+            return "now";
+        if (minutes < 60)
+            return minutes + "m";
+        var hours = Math.floor(minutes / 60);
+        if (hours < 24)
+            return hours + "h";
+        return Math.floor(hours / 24) + "d";
     }
 
     function summary() {
@@ -93,13 +109,26 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 3
 
-                Text {
-                    text: root.appName()
-                    color: colors.blue
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: notificationsConfig.appFontSize
-                    elide: Text.ElideRight
+                RowLayout {
                     Layout.fillWidth: true
+                    spacing: 6
+
+                    Text {
+                        text: root.appName()
+                        color: colors.blue
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: notificationsConfig.appFontSize
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        text: root.relativeTime(entry.createdAt, clock)
+                        color: colors.comment
+                        font.family: fontsConfig.defaultFamily
+                        font.pixelSize: notificationsConfig.appFontSize
+                        Layout.alignment: Qt.AlignVCenter
+                    }
                 }
 
                 Text {

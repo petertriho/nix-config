@@ -2,10 +2,10 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Wayland
 
 PanelWindow {
     id: root
-    focusable: true
 
     required property var centerModel
     required property QtObject colors
@@ -13,6 +13,7 @@ PanelWindow {
     required property QtObject notificationsConfig
 
     property bool open: false
+    property real clock
     readonly property int maxPanelHeight: Math.max(1, Screen.height - notificationsConfig.topMargin - notificationsConfig.bottomMargin)
     readonly property int maxListHeight: Math.max(1, maxPanelHeight - headerRow.implicitHeight - notificationsConfig.spacing - notificationsConfig.cardPadding * 2)
     readonly property real listHeight: Math.min(listView.contentHeight, maxListHeight)
@@ -24,6 +25,11 @@ PanelWindow {
     signal dismissRequested(var entry)
     signal actionRequested(var entry, string actionIdentifier)
 
+    // Exclusive keyboard focus only while open, so Esc/keys are delivered the moment the
+    // center appears (OnDemand would only grant focus after a click). Released on close.
+    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    onVisibleChanged: if (visible) keyHandler.forceActiveFocus()
+
     function modelCount() {
         if (!root.centerModel)
             return 0;
@@ -34,36 +40,58 @@ PanelWindow {
         return 0;
     }
 
-    visible: open
+    visible: open || drawerRect.opacity > 0
     color: "transparent"
     exclusiveZone: -1
-    implicitWidth: notificationsConfig.drawerWidth
-    implicitHeight: Math.min(contentHeight, maxPanelHeight)
+    // Full-screen modal overlay above the bar and apps. The backdrop (keyHandler) fills the
+    // screen and closes on any outside click; the drawer sits top-right on top of it.
+    WlrLayershell.layer: WlrLayer.Overlay
 
     anchors {
         top: true
+        bottom: true
+        left: true
         right: true
     }
 
-    margins {
-        top: notificationsConfig.topMargin
-        right: notificationsConfig.rightMargin
-        bottom: notificationsConfig.bottomMargin
-    }
-
     MouseArea {
+        id: keyHandler
+        focus: true
         anchors.fill: parent
         z: -1
+        Keys.onEscapePressed: root.closeRequested()
+        Keys.onPressed: function (event) {
+            // Mod (Super) combos reach us via exclusive focus while the center is open.
+            // Mod+B closes (completing the toggle); Mod+Shift+B clears all (and closes).
+            if (event.key === Qt.Key_B && (event.modifiers & Qt.MetaModifier)) {
+                if (event.modifiers & Qt.ShiftModifier)
+                    root.clearRequested();
+                else
+                    root.closeRequested();
+                event.accepted = true;
+            }
+        }
         onClicked: root.closeRequested()
     }
 
     Rectangle {
-        anchors.fill: parent
+        id: drawerRect
+        width: notificationsConfig.drawerWidth
+        height: Math.min(root.contentHeight, root.maxPanelHeight)
+        x: root.width - width - notificationsConfig.rightMargin + (open ? 0 : 24)
+        y: notificationsConfig.topMargin
         color: colors.bg
         border.color: colors.border
         radius: notificationsConfig.cornerRadius
         clip: true
-        opacity: notificationsConfig.panelOpacity
+        opacity: open ? notificationsConfig.panelOpacity : 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: 180; easing.type: open ? Easing.OutCubic : Easing.InCubic }
+        }
+        Behavior on x {
+            NumberAnimation { duration: 180; easing.type: open ? Easing.OutCubic : Easing.InCubic }
+        }
 
         ColumnLayout {
             id: panelColumn
@@ -88,7 +116,7 @@ PanelWindow {
                 }
 
                 Text {
-                    text: root.modelCount() > 0 ? "Clear" : ""
+                    text: root.modelCount() > 0 ? "󰆳 Clear" : ""
                     visible: text.length > 0
                     color: clearMouse.containsMouse ? colors.red : colors.comment
                     font.family: fontsConfig.defaultFamily
@@ -158,6 +186,7 @@ PanelWindow {
                             fontsConfig: root.fontsConfig
                             notificationsConfig: root.notificationsConfig
                             inCenter: true
+                            clock: root.clock
                             onDismissRequested: function (entry) {
                                 root.dismissRequested(entry);
                             }
@@ -171,7 +200,11 @@ PanelWindow {
         }
     }
 
-    Item {
-        anchors.fill: parent
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.visible
+        triggeredOnStart: true
+        onTriggered: root.clock = Date.now()
     }
 }

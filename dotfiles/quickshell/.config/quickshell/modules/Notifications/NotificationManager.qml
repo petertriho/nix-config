@@ -18,7 +18,7 @@ Item {
     })
     readonly property int notificationCount: persistentNotifications.length
     readonly property var visibleToasts: notifications.filter(function (entry) {
-        return entry.toastVisible;
+        return entry.toastVisible && !root.centerVisible;
     }).slice(0, notificationsConfig.maxToasts)
 
     function toggleCenter() {
@@ -164,6 +164,8 @@ Item {
         });
         notificationMap = {};
         notifications = [];
+        if (root.centerVisible)
+            root.hideCenter();
     }
 
     function invokeAction(entry, actionIdentifier) {

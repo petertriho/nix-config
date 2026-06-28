@@ -9,6 +9,8 @@ PanelWindow {
     required property QtObject fontsConfig
     required property QtObject notificationsConfig
 
+    property real clock
+
     readonly property int resolvedToastWidth: notificationsConfig ? notificationsConfig.toastWidth : 360
     readonly property int resolvedTopMargin: notificationsConfig ? notificationsConfig.topMargin : 36
     readonly property int resolvedRightMargin: notificationsConfig ? notificationsConfig.rightMargin : 12
@@ -23,7 +25,7 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: -1
     implicitWidth: resolvedToastWidth
-    implicitHeight: toastColumn.implicitHeight
+    implicitHeight: toastList.height
 
     anchors {
         top: true
@@ -45,35 +47,53 @@ PanelWindow {
         return 0;
     }
 
-    Column {
-        id: toastColumn
+    ListView {
+        id: toastList
         width: resolvedToastWidth
+        height: contentHeight
         spacing: resolvedSpacing
+        interactive: false
+        model: toastModel
 
-        Repeater {
-            model: toastModel
+        delegate: Item {
+            required property var modelData
+            width: resolvedToastWidth
+            height: card.implicitHeight
 
-            delegate: Item {
-                required property var modelData
-                width: resolvedToastWidth
-                height: card.implicitHeight
-
-                NotificationCard {
-                    id: card
-                    anchors.fill: parent
-                    entry: modelData
-                    colors: root.colors
-                    fontsConfig: root.fontsConfig
-                    notificationsConfig: root.notificationsConfig
-                    inCenter: false
-                    onDismissRequested: function (entry) {
-                        root.dismissRequested(entry);
-                    }
-                    onActionRequested: function (entry, actionIdentifier) {
-                        root.actionRequested(entry, actionIdentifier);
-                    }
+            NotificationCard {
+                id: card
+                anchors.fill: parent
+                entry: modelData
+                colors: root.colors
+                fontsConfig: root.fontsConfig
+                notificationsConfig: root.notificationsConfig
+                inCenter: false
+                clock: root.clock
+                onDismissRequested: function (entry) {
+                    root.dismissRequested(entry);
+                }
+                onActionRequested: function (entry, actionIdentifier) {
+                    root.actionRequested(entry, actionIdentifier);
                 }
             }
+        }
+
+        add: Transition {
+            ParallelAnimation {
+                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 180; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "scale"; from: 0.9; to: 1; duration: 180; easing.type: Easing.OutCubic }
+            }
+        }
+
+        remove: Transition {
+            ParallelAnimation {
+                NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 180; easing.type: Easing.InCubic }
+                NumberAnimation { property: "scale"; from: 1; to: 0.9; duration: 180; easing.type: Easing.InCubic }
+            }
+        }
+
+        displaced: Transition {
+            NumberAnimation { property: "y"; duration: 180; easing.type: Easing.OutCubic }
         }
     }
 
@@ -91,5 +111,13 @@ PanelWindow {
                 }
             }
         }
+    }
+
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.visible
+        triggeredOnStart: true
+        onTriggered: root.clock = Date.now()
     }
 }
