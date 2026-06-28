@@ -7,6 +7,7 @@
 let
   niriActions = config.lib.niri.actions;
   niriQuickshellOsd = command: niriActions.spawn "quickshell" "ipc" "call" "quickshell-osd" command;
+  niriQuickshellNotifications = command: niriActions.spawn "quickshell" "ipc" "call" "quickshell-notifications" command;
   niriScreenshotArea = niriActions.spawn "sh" "-c" ''grim -g "$(slurp)" - | wl-copy'';
   niriWorkspaceBinds = builtins.listToAttrs (
     builtins.concatLists (
@@ -137,6 +138,11 @@ in
           "Mod+O" = {
             repeat = false;
             action = toggle-overview;
+          };
+          "Mod+B" = {
+            repeat = false;
+            hotkey-overlay.title = "Toggle Notification Center";
+            action = niriQuickshellNotifications "toggle";
           };
 
           # Launch
