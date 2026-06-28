@@ -147,7 +147,7 @@ PanelWindow {
             Text {
                 visible: usageModel.count === 0
                 text: root.busy ? "Fetching…" : "No usage data yet.\nConfigure a provider: codexbar config enable --provider <name>"
-                color: colors.comment
+                color: colors.fg
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: fontsConfig.defaultSize
                 wrapMode: Text.WordWrap
@@ -242,7 +242,7 @@ PanelWindow {
                                 text: (model.creditsBalance.length > 0 && model.creditsTotal.length > 0)
                                     ? model.creditsBalance + " of " + model.creditsTotal
                                     : (model.creditsBalance || model.cost || "—")
-                                color: colors.comment
+                                color: colors.fg
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize - 2
                                 Layout.fillWidth: true
@@ -252,7 +252,7 @@ PanelWindow {
                             Text {
                                 visible: model.creditsUsed.length > 0
                                 text: model.creditsUsed
-                                color: colors.comment
+                                color: colors.fg
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize - 2
                             }
@@ -263,7 +263,7 @@ PanelWindow {
                             Layout.fillWidth: true
                             visible: model.kind === "error"
                             text: model.message
-                            color: colors.comment
+                            color: colors.fg
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             wrapMode: Text.WordWrap

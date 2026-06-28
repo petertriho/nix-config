@@ -35,7 +35,7 @@ ColumnLayout {
 
         Text {
             text: root.labelText
-            color: colors.comment
+            color: colors.fg
             font.family: fontsConfig.defaultFamily
             font.pixelSize: fontsConfig.defaultSize - 1
             elide: Text.ElideRight

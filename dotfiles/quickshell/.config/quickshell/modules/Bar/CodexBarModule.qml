@@ -30,10 +30,10 @@ BaseModule {
     }
     textColor: {
         if (!critical)
-            return colors.comment;
+            return colors.fg;
         var pct = critical.percent;
         if (pct < 0 || pct === undefined || isNaN(pct))
-            return colors.comment;
+            return colors.fg;
         if (pct >= 90)
             return colors.red;
         if (pct >= 70)
