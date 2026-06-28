@@ -23,7 +23,18 @@ BaseModule {
             return root.icon;
         return root.icon + " " + Math.round(pct) + "%";
     }
-    textColor: codexBarService ? codexBarService.bandColor(critical ? critical.percent : -1) : colors.fg
+    textColor: {
+        if (!critical)
+            return colors.comment;
+        var pct = critical.percent;
+        if (pct < 0 || pct === undefined || isNaN(pct))
+            return colors.comment;
+        if (pct >= 90)
+            return colors.red;
+        if (pct >= 70)
+            return colors.yellow;
+        return colors.fg;
+    }
 
     onClicked: {
         if (codexBarService)

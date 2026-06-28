@@ -5,9 +5,10 @@ import Quickshell
 import Quickshell.Wayland
 
 // CodexBarPanel — full-screen overlay (mirrors NotificationCenter.qml) listing
-// every normalized usage row: quota rows (Codex/z.ai) show primary % + secondary
-// % + reset countdown with a colored meter; cost rows (OpenRouter) show spend;
-// error rows show a clean message. Footer has a manual Refresh button.
+// every normalized usage row. Quota rows (Codex/z.ai) render a primary (5h) and
+// secondary (weekly/monthly) UsageMeter, each with its own reset countdown, plus
+// any free Codex reset credits; cost rows (OpenRouter) render a credits-used
+// meter + balance/total/used; error rows show a clean message. Footer = Refresh.
 PanelWindow {
     id: root
 
@@ -50,16 +51,6 @@ PanelWindow {
         bottom: true
         left: true
         right: true
-    }
-
-    function bandColor(percent) {
-        if (percent < 0 || isNaN(percent))
-            return colors.comment;
-        if (percent >= 90)
-            return colors.red;
-        if (percent >= 70)
-            return colors.yellow;
-        return colors.green;
     }
 
     // Backdrop: click outside or Esc closes.
@@ -183,81 +174,88 @@ PanelWindow {
                         id: delegateCol
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        spacing: 3
+                        spacing: 6
 
-                        // Label + value
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Text {
-                                text: model.label || model.provider
-                                color: colors.fg
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
-                            }
-
-                            Text {
-                                visible: model.kind === "quota"
-                                text: model.percent >= 0 ? Math.round(model.percent) + "%" : "—"
-                                color: root.bandColor(model.percent)
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize
-                                font.bold: true
-                            }
-
-                            Text {
-                                visible: model.kind === "cost"
-                                text: model.cost || "—"
-                                color: colors.green
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize
-                                font.bold: true
-                            }
-
-                            Text {
-                                visible: model.kind === "error"
-                                text: "—"
-                                color: colors.comment
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize
-                            }
-                        }
-
-                        // Window label + secondary % (quota only)
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: model.kind === "quota"
-                            spacing: 8
-
-                            Text {
-                                text: model.windowLabel
-                                color: colors.comment
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize - 1
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-
-                            Text {
-                                visible: model.secondaryPercent >= 0
-                                text: (model.secondaryLabel || "2nd") + " " + Math.round(model.secondaryPercent) + "%"
-                                color: colors.comment
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize - 1
-                            }
-                        }
-
-                        // Reset countdown (quota only)
+                        // Title: provider · account
                         Text {
                             Layout.fillWidth: true
+                            text: model.label || model.provider
+                            color: colors.fg
+                            font.family: fontsConfig.defaultFamily
+                            font.pixelSize: fontsConfig.defaultSize
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
+
+                        // Primary (5h) meter — quota rows
+                        UsageMeter {
+                            Layout.fillWidth: true
                             visible: model.kind === "quota"
-                            text: "resets " + model.resetShort + "  ·  " + model.resetFull
+                            labelText: model.windowLabel
+                            percent: model.percent
+                            resetShort: model.resetShort
+                            resetFull: model.resetFull
+                            colors: root.colors
+                            fontsConfig: root.fontsConfig
+                        }
+
+                        // Secondary (weekly/monthly) meter — quota rows
+                        UsageMeter {
+                            Layout.fillWidth: true
+                            visible: model.kind === "quota" && model.secondaryPercent >= 0
+                            labelText: model.secondaryLabel.length > 0 ? model.secondaryLabel : "2nd window"
+                            percent: model.secondaryPercent
+                            resetShort: model.secondaryResetShort
+                            resetFull: model.secondaryResetFull
+                            colors: root.colors
+                            fontsConfig: root.fontsConfig
+                        }
+
+                        // Codex free rate-limit reset credits (quota rows only)
+                        Text {
+                            Layout.fillWidth: true
+                            visible: model.kind === "quota" && model.resetCredits > 0
+                            text: model.resetCredits + " reset credits available"
                             color: colors.comment
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 2
+                        }
+
+                        // Credits-used meter — cost rows (OpenRouter)
+                        UsageMeter {
+                            Layout.fillWidth: true
+                            visible: model.kind === "cost"
+                            labelText: "Credits"
+                            percent: model.percent
+                            showReset: false
+                            colors: root.colors
+                            fontsConfig: root.fontsConfig
+                        }
+
+                        // Balance / total / used figures — cost rows
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: model.kind === "cost"
+                            spacing: 8
+
+                            Text {
+                                text: (model.creditsBalance.length > 0 && model.creditsTotal.length > 0)
+                                    ? model.creditsBalance + " of " + model.creditsTotal
+                                    : (model.creditsBalance || model.cost || "—")
+                                color: colors.comment
+                                font.family: fontsConfig.defaultFamily
+                                font.pixelSize: fontsConfig.defaultSize - 2
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                visible: model.creditsUsed.length > 0
+                                text: model.creditsUsed
+                                color: colors.comment
+                                font.family: fontsConfig.defaultFamily
+                                font.pixelSize: fontsConfig.defaultSize - 2
+                            }
                         }
 
                         // Error message
@@ -270,22 +268,6 @@ PanelWindow {
                             font.pixelSize: fontsConfig.defaultSize - 1
                             wrapMode: Text.WordWrap
                             elide: Text.ElideRight
-                        }
-
-                        // Meter bar (quota only)
-                        Rectangle {
-                            Layout.fillWidth: true
-                            visible: model.kind === "quota"
-                            Layout.preferredHeight: 4
-                            radius: 2
-                            color: colors.bg_highlight
-
-                            Rectangle {
-                                width: parent.width * (model.percent < 0 ? 0 : Math.min(100, model.percent)) / 100
-                                height: parent.height
-                                radius: parent.radius
-                                color: root.bandColor(model.percent)
-                            }
                         }
                     }
                 }

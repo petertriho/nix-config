@@ -12,8 +12,11 @@
 //       usage.primary / usage.secondary = { usedPercent, windowMinutes, resetsAt, resetDescription }
 //     So Codex and z.ai share one mapper. (The docs' data.limits[]/TOKENS_LIMIT
 //     describe the raw BigModel API; codexbar normalizes them away.)
-//   - OpenRouter is cost-only under usage.openRouterUsage (balance/credits) and
-//     is never picked as "most critical".
+//   - OpenRouter is a cost row under usage.openRouterUsage (balance /
+//     totalCredits / totalUsage + usedPercent). It now renders a credits-used
+//     meter, but is still never picked as "most critical".
+//   - Codex also carries usage.codexResetCredits.availableCount (free rate-limit
+//     resets); surfaced as an info line on quota rows.
 //
 // Pure functions only (no QML globals). `now` is injectable for testing; it
 // defaults to Date.now() so the service can call parseAll(output) directly.
@@ -124,11 +127,20 @@ function emptyRow() {
         account: "",
         label: "",
         percent: -1,
-        secondaryPercent: -1,
         windowLabel: "",
-        secondaryLabel: "",
         resetShort: "—",
         resetFull: "—",
+        // Secondary usage window (Codex weekly / z.ai monthly). -1/blank if none.
+        secondaryPercent: -1,
+        secondaryLabel: "",
+        secondaryResetShort: "—",
+        secondaryResetFull: "—",
+        // OpenRouter credit figures (cost rows only); blank otherwise.
+        creditsBalance: "",
+        creditsTotal: "",
+        creditsUsed: "",
+        // Codex free rate-limit reset credits available (>0 => show a line).
+        resetCredits: -1,
         cost: "",
         message: ""
     };
@@ -153,6 +165,9 @@ function quotaRow(provider, account, primary, secondary, now) {
     var resetMs = parseResetTime(primary && primary.resetsAt);
     row.resetShort = relativeReset(resetMs, now);
     row.resetFull = absoluteReset(resetMs);
+    var secondaryResetMs = parseResetTime(secondary && secondary.resetsAt);
+    row.secondaryResetShort = relativeReset(secondaryResetMs, now);
+    row.secondaryResetFull = absoluteReset(secondaryResetMs);
     return row;
 }
 
@@ -186,18 +201,36 @@ function mapQuota(item, provider, now) {
     var account = usage.accountEmail
         || (usage.identity && usage.identity.accountEmail)
         || "";
-    return quotaRow(provider, account, usage.primary, usage.secondary || {}, now);
+    var row = quotaRow(provider, account, usage.primary, usage.secondary || {}, now);
+    // Codex grants free rate-limit reset credits; surface the count when > 0.
+    var credits = usage.codexResetCredits && usage.codexResetCredits.availableCount;
+    if (typeof credits === "number" && credits > 0)
+        row.resetCredits = credits;
+    return row;
 }
 
-// OpenRouter: balance/credits under usage.openRouterUsage. Cost row, never most-critical.
+// OpenRouter: credits-as-dollars under usage.openRouterUsage
+// (balance / totalCredits / totalUsage + usedPercent). Cost row with a
+// credits-used meter; still never picked as most-critical.
 function mapOpenRouter(item) {
     var u = item && item.usage && item.usage.openRouterUsage;
     if (!u)
         return null;
+    var row = emptyRow();
+    row.kind = "cost";
+    row.provider = "openrouter";
+    var account = (item.usage.identity && item.usage.identity.accountEmail) || "";
+    row.account = account;
+    row.label = providerLabel("openrouter") + (account ? " · " + account : "");
     var balance = Number(u.balance);
-    return costRow("openrouter",
-        (item.usage.identity && item.usage.identity.accountEmail) || "",
-        !isNaN(balance) ? "Balance $" + balance.toFixed(2) : "—");
+    var total = Number(u.totalCredits);
+    var used = Number(u.totalUsage);
+    row.percent = clampPercent(Number(u.usedPercent));
+    row.creditsBalance = !isNaN(balance) ? "$" + balance.toFixed(2) : "";
+    row.creditsTotal = !isNaN(total) ? "$" + total.toFixed(2) : "";
+    row.creditsUsed = !isNaN(used) ? "$" + used.toFixed(2) + " used" : "";
+    row.cost = !isNaN(balance) ? "Balance $" + balance.toFixed(2) : "—";
+    return row;
 }
 
 function mapProvider(item, now) {
