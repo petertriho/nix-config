@@ -132,6 +132,7 @@ Item {
         busy: root.busy
         lastUpdated: root.lastUpdated
         refreshIntervalSec: codexbarConfig.refreshIntervalSec
+        topMargin: codexbarConfig.topMargin
         colors: root.colors
         fontsConfig: root.fontsConfig
         onCloseRequested: root.hidePanel()

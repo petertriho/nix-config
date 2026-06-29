@@ -26,11 +26,10 @@ OverlayPanel {
     // Footer: last-updated time + auto-refresh cadence.
     property string lastUpdated: ""
     property int refreshIntervalSec: 300
-    // The bar owns the top strip (config.bar.height = 28). Drop the drawer just
-    // below it so the panel never overlaps the bar (mirrors notifications.topMargin).
-    readonly property int barHeight: 28
+    // The drawer drops just below the bar (config.codexbar.topMargin =
+    // bar.height + 12, mirroring notifications.topMargin) so it never overlaps it.
+    required property int topMargin
     readonly property int bottomMargin: 12
-    readonly property int topMargin: root.barHeight + 12
     // A ListView has no intrinsic height, so size it explicitly (mirrors
     // NotificationCenter.qml) — Layout.fillHeight alone yields 0 and hides rows.
     readonly property int maxPanelHeight: Math.max(160, Screen.height - root.topMargin - root.bottomMargin)

@@ -257,5 +257,8 @@ QtObject {
         // Quickshell systemd unit can't resolve it at runtime.
         readonly property string codexbarPath: "codexbar"
         readonly property int refreshIntervalSec: 300
+        // Drop the panel just below the bar so it never overlaps it (mirrors
+        // notifications.topMargin). Single source of truth: tracks bar.height.
+        readonly property int topMargin: bar.height + 12
     }
 }
