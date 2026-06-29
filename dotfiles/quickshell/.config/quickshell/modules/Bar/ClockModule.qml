@@ -7,12 +7,9 @@ BaseModule {
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject popupsConfig: parent.popupsConfig
 
-    hoverEnabled: true
-
     // Calendar popup state
     property bool showPopup: false
     property real globalX: 0
-    property bool popupHeld: false
 
     // Month currently in view (0-indexed month)
     property int viewYear: new Date().getFullYear()
@@ -68,28 +65,6 @@ BaseModule {
         onTriggered: updateTime()
     }
 
-    // Delayed open on hover so quick mouse-overs don't trigger the popup
-    Timer {
-        id: openDelay
-        interval: 250
-        repeat: false
-        onTriggered: {
-            if (root.hovered)
-                root.showPopup = true;
-        }
-    }
-
-    // Close timer: runs while the popup is visible and not actively held
-    // (pointer over the clock or the popup). Short interval so leaving the
-    // area dismisses it promptly.
-    Timer {
-        id: closeTimer
-        interval: 100
-        repeat: false
-        running: root.showPopup && !root.popupHeld
-        onTriggered: root.showPopup = false
-    }
-
     Component.onCompleted: updateTime()
 
     function updateTime() {
@@ -131,23 +106,9 @@ BaseModule {
         root.viewMonth = root._todayMonth;
     }
 
-    function holdPopup() {
-        root.popupHeld = true;
-    }
-
-    function releasePopup() {
-        root.popupHeld = false;
-    }
-
-    onHoveredChanged: {
-        if (root.hovered) {
-            updatePosition();
-            openDelay.restart();
-            root.popupHeld = true;
-        } else {
-            openDelay.stop();
-            root.popupHeld = false;
-        }
+    onClicked: {
+        updatePosition();
+        showPopup = !showPopup;
     }
 
     onXChanged: updatePosition()

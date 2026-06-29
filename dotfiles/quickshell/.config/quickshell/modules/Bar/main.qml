@@ -33,6 +33,14 @@ PanelWindow {
     required property var notificationsManager
     property var codexBarService
 
+    // Clamp a popup drawer's x so a wide drawer centered on a right-edge
+    // module can't overflow the screen. OverlayPanel drawers are plain
+    // Rectangles on a full-screen surface, so nothing else repositions them
+    // (unlike the old PopupWindows, which the compositor clamped to the output).
+    function clampPopupX(centeredX, popupWidth) {
+        return Math.max(8, Math.min(centeredX, root.width - popupWidth - 8));
+    }
+
     PopupWindow {
         id: caffeinePicker
         visible: caffeine.showPicker
@@ -125,34 +133,31 @@ PanelWindow {
         }
     }
 
-    PopupWindow {
+    OverlayPanel {
         id: trayPopup
-        visible: false
-        grabFocus: true
-        anchor.window: root
-        anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: tray.globalX + (tray.width - width) / 2
-        anchor.rect.y: root.height
-        anchor.rect.width: 1
-        anchor.rect.height: 1
-        implicitWidth: trayPopupCol.width + popupsConfig.padding
-        implicitHeight: trayPopupCol.height + popupsConfig.margin
-        color: "transparent"
-        onVisibleChanged: if (!visible)
-            tray.expanded = false
-
-        Timer {
-            id: trayTimer
-            interval: popupsConfig.timeoutMs
-            running: tray.expanded
-            onTriggered: tray.expanded = false
-        }
+        screen: root.screen
+        open: tray.expanded
+        onCloseRequested: tray.expanded = false
 
         Rectangle {
-            anchors.fill: parent
+            id: trayCard
+            width: trayPopupCol.width + (popupsConfig ? popupsConfig.padding : 0)
+            height: trayPopupCol.height + (popupsConfig ? popupsConfig.margin : 0)
+            x: root.clampPopupX(tray.globalX + (tray.width - width) / 2, width)
+            y: root.height + 4
             color: colors.bg
             border.color: colors.border
             radius: popupsConfig.cornerRadius
+            opacity: trayPopup.open ? 1.0 : 0.0
+            scale: trayPopup.open ? 1.0 : 0.98
+            transformOrigin: Item.Top
+
+            Behavior on opacity {
+                NumberAnimation { duration: 180 }
+            }
+            Behavior on scale {
+                NumberAnimation { duration: 180 }
+            }
 
             Column {
                 id: trayPopupCol
@@ -270,10 +275,10 @@ PanelWindow {
         Rectangle {
             id: statsCard
             width: 440
-            height: statsPopupCol.height + popupsConfig.padding
-            x: rightRow.hiddenIds.indexOf("stats") >= 0
+            height: statsPopupCol.height + (popupsConfig ? popupsConfig.padding : 0)
+            x: root.clampPopupX(rightRow.hiddenIds && rightRow.hiddenIds.indexOf("stats") >= 0
                 ? tray.globalX + (tray.width - width) / 2
-                : stats.globalX + (stats.width - width) / 2
+                : stats.globalX + (stats.width - width) / 2, width)
             y: root.height + 4
             color: colors.bg
             border.color: colors.border
@@ -716,41 +721,38 @@ PanelWindow {
         }
     }
 
-    PopupWindow {
+    OverlayPanel {
         id: bluetoothPopup
-        visible: bluetooth.showPopup
-        grabFocus: true
-        anchor.window: root
-        anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: rightRow.hiddenIds.indexOf("bluetooth") >= 0
-            ? tray.globalX + (tray.width - width) / 2
-            : bluetooth.globalX + (bluetooth.width - width) / 2
-        anchor.rect.y: root.height
-        anchor.rect.width: 1
-        anchor.rect.height: 1
-        implicitWidth: 320
-        implicitHeight: bluetoothPopupCol.height + popupMargin
-        color: "transparent"
-        onVisibleChanged: if (!visible)
-            bluetooth.showPopup = false
-        readonly property int popupTimeoutMs: popupsConfig ? popupsConfig.timeoutMs : 5000
+        screen: root.screen
+        open: bluetooth.showPopup
+        onCloseRequested: bluetooth.showPopup = false
+
         readonly property int popupPadding: popupsConfig ? popupsConfig.padding : 16
         readonly property int popupMargin: popupsConfig ? popupsConfig.margin : 8
         readonly property int popupCornerRadius: popupsConfig ? popupsConfig.cornerRadius : 4
         readonly property int popupItemSpacing: popupsConfig ? popupsConfig.itemSpacing : 4
 
-        Timer {
-            id: bluetoothTimer
-            interval: bluetoothPopup.popupTimeoutMs
-            running: bluetooth.showPopup
-            onTriggered: bluetooth.showPopup = false
-        }
-
         Rectangle {
-            anchors.fill: parent
+            id: bluetoothCard
+            width: 320
+            height: bluetoothPopupCol.height + bluetoothPopup.popupMargin
+            x: root.clampPopupX(rightRow.hiddenIds && rightRow.hiddenIds.indexOf("bluetooth") >= 0
+                ? tray.globalX + (tray.width - width) / 2
+                : bluetooth.globalX + (bluetooth.width - width) / 2, width)
+            y: root.height + 4
             color: colors.bg
             border.color: colors.border
             radius: bluetoothPopup.popupCornerRadius
+            opacity: bluetoothPopup.open ? 1.0 : 0.0
+            scale: bluetoothPopup.open ? 1.0 : 0.98
+            transformOrigin: Item.Top
+
+            Behavior on opacity {
+                NumberAnimation { duration: 180 }
+            }
+            Behavior on scale {
+                NumberAnimation { duration: 180 }
+            }
 
             Column {
                 id: bluetoothPopupCol
@@ -909,27 +911,31 @@ PanelWindow {
         }
     }
 
-    PopupWindow {
+    OverlayPanel {
         id: calendarPopup
-        visible: clock.showPopup
-        anchor.window: root
-        anchor.edges: Edges.Bottom | Edges.Left
-        anchor.rect.x: clock.globalX + (clock.width - width) / 2
-        anchor.rect.y: root.height
-        anchor.rect.width: 1
-        anchor.rect.height: 1
-        implicitWidth: calendarCol.width + popupsConfig.padding
-        implicitHeight: calendarCol.height + popupsConfig.margin
-        color: "transparent"
-        onVisibleChanged: if (!visible)
-            clock.showPopup = false
+        screen: root.screen
+        open: clock.showPopup
+        onCloseRequested: clock.showPopup = false
 
         Rectangle {
             id: calendarBg
-            anchors.fill: parent
+            width: calendarCol.width + (popupsConfig ? popupsConfig.padding : 0)
+            height: calendarCol.height + (popupsConfig ? popupsConfig.margin : 0)
+            x: root.clampPopupX(clock.globalX + (clock.width - width) / 2, width)
+            y: root.height + 4
             color: colors.bg
             border.color: colors.border
             radius: popupsConfig.cornerRadius
+            opacity: calendarPopup.open ? 1.0 : 0.0
+            scale: calendarPopup.open ? 1.0 : 0.98
+            transformOrigin: Item.Top
+
+            Behavior on opacity {
+                NumberAnimation { duration: 180 }
+            }
+            Behavior on scale {
+                NumberAnimation { duration: 180 }
+            }
 
             // Single hover-only overlay on top of the whole popup.
             // acceptedButtons: NoButton lets clicks fall through to the
@@ -944,9 +950,7 @@ PanelWindow {
                 hoverEnabled: true
                 acceptedButtons: Qt.NoButton
                 z: 1000
-                onEntered: clock.holdPopup()
                 onExited: {
-                    clock.releasePopup();
                     calendarBg.hoveredCellIndex = -1;
                     calendarBg.prevHovered = false;
                     calendarBg.nextHovered = false;
@@ -1160,13 +1164,6 @@ PanelWindow {
                     }
                 }
             }
-        }
-    }
-
-    Connections {
-        target: tray
-        function onExpandedChanged() {
-            trayPopup.visible = tray.expanded;
         }
     }
 

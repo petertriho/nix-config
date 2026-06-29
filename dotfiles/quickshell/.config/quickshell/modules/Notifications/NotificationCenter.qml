@@ -48,10 +48,10 @@ OverlayPanel {
 
     Rectangle {
         id: drawerRect
-        width: notificationsConfig.drawerWidth
+        width: notificationsConfig ? notificationsConfig.drawerWidth : 0
         height: Math.min(root.contentHeight, root.maxPanelHeight)
-        x: root.width - width - notificationsConfig.rightMargin
-        y: notificationsConfig.topMargin
+        x: root.width - width - (notificationsConfig ? notificationsConfig.rightMargin : 0)
+        y: notificationsConfig ? notificationsConfig.topMargin : 0
         color: colors.bg
         border.color: colors.border
         radius: notificationsConfig.cornerRadius
