@@ -25,7 +25,7 @@ in
     };
     onActivation = {
       # autoUpdate = true;
-      # cleanup = "zap";
+      cleanup = "zap";
       # upgrade = true;
       extraEnv = {
         HOMEBREW_DOWNLOAD_CONCURRENCY = "auto";
@@ -54,7 +54,7 @@ in
       # "alacritty"
       # "antigravity"
       "appcleaner"
-      "codex-app"
+      # "codex-app"
       "cyberduck"
       "displaylink"
       # "doll"
