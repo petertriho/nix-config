@@ -135,6 +135,7 @@ Item {
                 property string workspaceName: modelData.name || ""
                 property string switchTarget: modelData.switchTarget || workspaceName
                 property bool isActive: modelData.active || false
+                property bool hovered: false
 
                 width: {
                     const baseWidth = root.workspacesConfig.baseWidth;
@@ -142,7 +143,7 @@ Item {
                     return Math.max(baseWidth, iconWidth);
                 }
                 height: root.workspacesConfig.height
-                color: isActive ? root.colors.bg_highlight : root.colors.bg_dark
+                color: isActive || hovered ? root.colors.bg_highlight : root.colors.bg_dark
                 radius: 4
 
                 Row {
@@ -177,6 +178,8 @@ Item {
 
                 MouseArea {
                     anchors.fill: parent
+                    hoverEnabled: true
+                    onContainsMouseChanged: workspaceDelegate.hovered = containsMouse
                     onClicked: {
                         root.switchBackendWorkspace(workspaceDelegate.switchTarget);
                     }

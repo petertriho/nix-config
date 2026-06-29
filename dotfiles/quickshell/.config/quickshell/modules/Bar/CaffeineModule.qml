@@ -6,6 +6,7 @@ import Quickshell.Io
 BaseModule {
     id: root
 
+    hoverHighlight: true
     property bool active: false
     property int remainingSeconds: 0
     property bool showPicker: false

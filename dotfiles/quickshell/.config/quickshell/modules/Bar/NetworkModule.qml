@@ -7,6 +7,7 @@ import Quickshell.Io
 BaseModule {
     id: root
 
+    hoverHighlight: true
     property string connectionType: "disconnected"
     property string essid: ""
     property real signalStrength: 0

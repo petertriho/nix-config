@@ -6,6 +6,7 @@ import Quickshell
 BaseModule {
     id: root
 
+    hoverHighlight: true
     property bool expanded: false
     property real globalX: 0
     property QtObject barWindow: null

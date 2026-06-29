@@ -7,6 +7,7 @@ import Quickshell.Io
 BaseModule {
     id: root
 
+    hoverHighlight: true
     property real brightness: 0
     property string icon: "󰃞"
     property QtObject intervalsConfig: parent.intervalsConfig

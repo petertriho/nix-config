@@ -7,6 +7,7 @@ import Quickshell.Services.Pipewire
 BaseModule {
     id: root
 
+    hoverHighlight: true
     property var sink: Pipewire.defaultAudioSink
     property real volume: sink && sink.audio ? Math.round(sink.audio.volume * 100) : 0
     property bool isMuted: sink && sink.audio ? sink.audio.muted : false

@@ -4,7 +4,13 @@ import QtQuick.Controls
 
 Rectangle {
     id: root
-    color: "transparent"
+    radius: 4
+    // Clickable bar modules opt into a hover background that mirrors the
+    // tray-icon highlight (`colors.bg_highlight`). `hoverHighlight` is
+    // deliberately decoupled from `hoverEnabled`: some modules track hover for
+    // other reasons (accent text color, hover-to-open detail popups) without
+    // being clickable, and must not light up as if they were.
+    color: root.hoverHighlight && hoverArea.containsMouse ? colors.bg_highlight : "transparent"
     height: parent.height
     implicitWidth: content.implicitWidth + moduleConfig.widthPadding
 
@@ -20,6 +26,7 @@ Rectangle {
     property alias verticalAlignment: content.verticalAlignment
 
     property bool hoverEnabled: false
+    property bool hoverHighlight: false
     readonly property bool hovered: hoverArea.containsMouse
 
     default property alias children: content.data
@@ -42,7 +49,7 @@ Rectangle {
     MouseArea {
         id: hoverArea
         anchors.fill: parent
-        hoverEnabled: root.hoverEnabled
+        hoverEnabled: root.hoverEnabled || root.hoverHighlight
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onClicked: function (mouse) {
             if (mouse.button === Qt.RightButton)

@@ -9,6 +9,7 @@ BaseModule {
     property string accentColor: ""
 
     hoverEnabled: true
+    hoverHighlight: true
     text: icon
     textColor: hovered && accentColor.length > 0 ? accentColor : colors.fg
 

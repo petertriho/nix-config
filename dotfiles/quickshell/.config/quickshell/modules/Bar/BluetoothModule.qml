@@ -23,6 +23,7 @@ BaseModule {
     property string icon: !available ? "󰂲" : !enabled ? "󰂲" : connectedDevices.length > 0 ? "󰂱" : "󰂯"
 
     hoverEnabled: true
+    hoverHighlight: true
     text: icon
     textColor: !available || !enabled ? colors.comment : connectedDevices.length > 0 ? colors.blue : colors.fg
 

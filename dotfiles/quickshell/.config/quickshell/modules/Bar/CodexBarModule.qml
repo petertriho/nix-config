@@ -9,6 +9,7 @@ BaseModule {
     required property var codexBarService
 
     hoverEnabled: true
+    hoverHighlight: true
 
     readonly property var critical: codexBarService ? codexBarService.mostCriticalRow : null
 

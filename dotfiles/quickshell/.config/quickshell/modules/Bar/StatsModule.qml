@@ -7,6 +7,7 @@ import Quickshell.Io
 BaseModule {
     id: root
 
+    hoverHighlight: true
     property real cpuUsage: 0
     property var perCoreUsage: []
     property var topCpuApps: []

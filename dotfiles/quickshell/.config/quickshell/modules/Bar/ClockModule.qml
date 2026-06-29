@@ -4,6 +4,7 @@ import QtQuick.Controls
 
 BaseModule {
     id: root
+    hoverHighlight: true
     property QtObject intervalsConfig: parent.intervalsConfig
     property QtObject popupsConfig: parent.popupsConfig
 

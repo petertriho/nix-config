@@ -3,6 +3,7 @@ import QtQuick
 BaseModule {
     id: root
 
+    hoverHighlight: true
     required property var notificationsManager
 
     property int count: notificationsManager ? notificationsManager.notificationCount : 0
