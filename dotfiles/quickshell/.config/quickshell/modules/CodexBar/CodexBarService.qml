@@ -2,10 +2,12 @@ import QtQuick
 import Quickshell.Io
 import "codexbar.js" as CodexBar
 
-// CodexBarService — polls `codexbar usage --provider all --format json` on a
-// timer and exposes a normalized ListModel + mostCriticalRow for the bar
-// segment + panel. CodexBar owns all provider/auth/API-key state; this is a
-// display layer only.
+// CodexBarService — polls `codexbar usage` (every enabled provider in one call)
+// on a timer, plus — when Codex is among the results — a second
+// `--provider codex --all-accounts` call so both Codex accounts stay visible and
+// grouped. Exposes a normalized ListModel + mostCriticalRow for the bar segment
+// + panel. CodexBar owns all provider/auth/API-key state; this is a display
+// layer only.
 Item {
     id: root
 
@@ -55,19 +57,21 @@ Item {
 
     function buildCommand() {
         var path = (codexbarConfig && codexbarConfig.codexbarPath) || "codexbar";
-        var providers = (codexbarConfig && codexbarConfig.providers) || ["codex", "zai", "openrouter"];
-        var zaiUrl = (codexbarConfig && codexbarConfig.zAiQuotaUrl) || "";
-        // codexbar's `--provider all` crashes (upstream SIGILL), so poll each
-        // provider separately in one shell loop, delimiting chunks for parseProviders.
-        var lines = [];
-        for (var i = 0; i < providers.length; i++) {
-            var p = providers[i];
-            var extra = p === "codex" ? " --all-accounts" : "";
-            var prefix = p === "zai" && zaiUrl.length > 0 ? "Z_AI_QUOTA_URL=" + zaiUrl + " " : "";
-            lines.push("echo __CBCHUNK_" + p + "__; "
-                + prefix + path + " usage --provider " + p + extra + " --format json 2>/dev/null || true");
-        }
-        return ["sh", "-c", lines.join("; ")];
+        // One all-providers call returns every enabled provider. If Codex is
+        // among them, run a second `--all-accounts` call so both Codex accounts
+        // stay visible. The codex chunk is EMITTED FIRST so Codex groups at the
+        // top; the primary account appears in both chunks and is deduped by
+        // parseProviders. (The all-providers call still EXECUTES first — only
+        // the emission order groups Codex.)
+        var script =
+            "OUT1=$(" + path + " usage --format json --pretty 2>/dev/null || true)\n"
+            + "if printf '%s' \"$OUT1\" | grep -qE '\"provider\"[[:space:]]*:[[:space:]]*\"codex\"'; then\n"
+            + "  echo __CBCHUNK_codex__                       # emitted first -> Codex grouped at top\n"
+            + "  " + path + " usage --provider codex --all-accounts --format json --pretty 2>/dev/null || true\n"
+            + "fi\n"
+            + "echo __CBCHUNK_all__\n"
+            + "printf '%s' \"$OUT1\"";
+        return ["sh", "-c", script];
     }
 
     function refresh() {

@@ -307,16 +307,22 @@ function pickMostCritical(rows) {
 
 // parseProviders(output[, now]) -> { rows:[...], mostCritical: row|null }
 //
-// codexbar's `--provider all` crashes (upstream SIGILL), so the service polls
-// each provider separately in one shell loop and delimits each chunk with a
-// `__CBCHUNK_<provider>__` marker line. This splits on those markers, parses
-// each chunk with parseAll, and merges every row into one list.
+// The service makes one all-providers call (`codexbar usage`) plus, when Codex
+// is present, a second `--provider codex --all-accounts` call so both Codex
+// accounts stay visible. The codex chunk is EMITTED FIRST, so both Codex
+// accounts group at the top; the all-providers chunk follows in codexbar's own
+// order (z.ai, OpenRouter, …). Each chunk is delimited by a
+// `__CBCHUNK_<name>__` marker line; this splits on the markers, parses each
+// chunk with parseAll, and merges — keeping the FIRST row seen for any given
+// (provider, account) so the Codex primary account (which appears in both
+// chunks) is not duplicated.
 function parseProviders(output, now) {
     now = now !== undefined ? now : Date.now();
     var merged = { rows: [], mostCritical: null };
     var text = String(output || "");
     if (text.trim() === "")
         return merged;
+    var seen = {};
     var chunks = text.split(/__CBCHUNK_[A-Za-z0-9_.-]+__/);
     for (var i = 0; i < chunks.length; i++) {
         var chunk = chunks[i];
@@ -324,8 +330,14 @@ function parseProviders(output, now) {
             continue;
         var parsed = parseAll(chunk, now);
         if (parsed.rows) {
-            for (var j = 0; j < parsed.rows.length; j++)
-                merged.rows.push(parsed.rows[j]);
+            for (var j = 0; j < parsed.rows.length; j++) {
+                var row = parsed.rows[j];
+                var key = row.provider + "|" + row.account;
+                if (seen[key])
+                    continue;
+                seen[key] = true;
+                merged.rows.push(row);
+            }
         }
     }
     merged.mostCritical = pickMostCritical(merged.rows);

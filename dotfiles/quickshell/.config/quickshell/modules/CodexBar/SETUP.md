@@ -1,7 +1,9 @@
 # CodexBar widget — provider setup
 
 This widget is a **display layer only**: it shells out to
-`codexbar usage --provider all --format json` and parses the result
+`codexbar usage` (every enabled provider in one call) plus, when Codex is among
+the results, a second `codexbar usage --provider codex --all-accounts` call so
+both Codex accounts stay visible and grouped — then parses the result
 (see `codexbar.js`). CodexBar owns **all** provider/auth/API-key state in
 `~/.config/codexbar/config.json`. No secrets ever enter the nix store.
 
@@ -47,10 +49,7 @@ printf '%s' "$Z_AI_API_KEY" | codexbar config set-api-key --provider zai --stdin
 ```
 
 **No endpoint override is needed** — codexbar's default region is Global (`api.z.ai`),
-which already returns the coding-plan quota (5-hour window + monthly). The widget's
-`config.qml` `codexbar.zAiQuotaUrl` is therefore empty by default. Set it **only** for
-the China-mainland (BigModel) version: `https://open.bigmodel.cn/api/coding/paas/v4`
-(the `/api/coding/paas/v4` path 404s on the Global host).
+which already returns the coding-plan quota (5-hour window + monthly).
 
 ## 3. OpenRouter — API key (balance/spend)
 
@@ -64,7 +63,7 @@ auto-selected "most critical" meter, which only considers quota-window providers
 ## Verify
 
 ```sh
-codexbar usage --provider all --format json --pretty
+codexbar usage --format json --pretty
 # expect: Codex quota row(s) (one per account) + z.ai quota row + OpenRouter balance row
 ```
 
