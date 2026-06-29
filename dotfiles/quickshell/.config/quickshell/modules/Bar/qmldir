@@ -6,12 +6,9 @@ BatteryModule 1.0 BatteryModule.qml
 BluetoothModule 1.0 BluetoothModule.qml
 ClockModule 1.0 ClockModule.qml
 CodexBarModule 1.0 CodexBarModule.qml
-CpuModule 1.0 CpuModule.qml
-MemoryModule 1.0 MemoryModule.qml
 StatsModule 1.0 StatsModule.qml
 NetworkModule 1.0 NetworkModule.qml
 AudioModule 1.0 AudioModule.qml
-TemperatureModule 1.0 TemperatureModule.qml
 TrayModule 1.0 TrayModule.qml
 NotificationsModule 1.0 NotificationsModule.qml
 VicinaeButton 1.0 VicinaeButton.qml
