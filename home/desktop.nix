@@ -13,6 +13,7 @@
     ./pkgs/wayland-common.nix
     ./pkgs/niri.nix
     ./pkgs/quickshell.nix
+    ./pkgs/ripgrep-all.nix
     ./pkgs/vicinae.nix
   ];
 

@@ -17,7 +17,6 @@
     ./pkgs/fish.nix
     ./pkgs/git.nix
     ./pkgs/neovim.nix
-    ./pkgs/ripgrep-all.nix
     ./pkgs/scripts.nix
     ./pkgs/starship.nix
     ./pkgs/tmux.nix
