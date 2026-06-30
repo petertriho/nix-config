@@ -291,7 +291,6 @@ in
     };
     basic-memory.enable = false;
     chunkhound.enable = false;
-    context-mode.enable = false;
     crush.enable = false;
     impeccable.enable = true;
     plannotator.enable = false;

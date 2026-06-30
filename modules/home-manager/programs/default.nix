@@ -9,7 +9,6 @@
     ./basic-memory.nix
     ./chunkhound.nix
     ./claude-code.nix
-    ./context-mode.nix
     ./crush.nix
     ./impeccable.nix
     ./lsp.nix

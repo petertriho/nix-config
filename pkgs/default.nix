@@ -15,7 +15,6 @@ with pkgs;
     inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
   };
   codexbar = callPackage ./codexbar { };
-  context-mode = callPackage ./context-mode { };
   figlet-fonts = callPackage ./figlet-fonts { };
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
