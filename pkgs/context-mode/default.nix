@@ -6,13 +6,13 @@
 }:
 buildNpmPackage {
   pname = "context-mode";
-  version = "1.0.168-unstable-2026-06-29";
+  version = "1.0.169-unstable-2026-06-30";
 
   src = fetchFromGitHub {
     owner = "mksglu";
     repo = "context-mode";
-    rev = "608584b4ab57354743a793d16412b77d23bd86ca";
-    hash = "sha256-IWOHwpvBVV3gDmBqUIYe/j5796oh3PzLAzq4Xijvyvc=";
+    rev = "218a4fcf1e9624af94fce4a3e5c93a701f7fa46c";
+    hash = "sha256-jxQ2+bhVuVSLS+RcNlpPpsGFBPrRZ7mZBX5nSRHGgY8=";
   };
 
   inherit nodejs;
