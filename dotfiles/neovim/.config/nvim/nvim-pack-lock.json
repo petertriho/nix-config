@@ -46,15 +46,15 @@
       "src": "https://github.com/petertriho/cmp-git"
     },
     "code-bridge.nvim": {
-      "rev": "e5d6ce8a9667c19bb4f8d4a5cb5509e12f9c744d",
-      "src": "https://github.com/petertriho/code-bridge.nvim"
+      "rev": "6a0b06a941564839b765fa8115d82775ccad8492",
+      "src": "https://github.com/samir-roy/code-bridge.nvim"
     },
     "codediff.nvim": {
       "rev": "7608f3b436ce1f84a4888f75e53079caa981a2e9",
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "colorful-menu.nvim": {
-      "rev": "13f9b7eaa9cd2901b4f8915cfb2483c3be4c8c20",
+      "rev": "196ddf16d5f8fec09ba7f20e6b153aa5188e907b",
       "src": "https://github.com/xzbdmw/colorful-menu.nvim"
     },
     "conform.nvim": {

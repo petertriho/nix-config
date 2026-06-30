@@ -1,5 +1,5 @@
 return {
-    "petertriho/code-bridge.nvim",
+    "samir-roy/code-bridge.nvim",
     cmd = {
         "CodeBridgeTmux",
         "CodeBridgeTmuxAll",
@@ -51,7 +51,7 @@ return {
     opts = {
         tmux = {
             switch_to_target = true,
-            target_mode = "find_process",
+            target_mode = "current_session",
             process_name = {
                 "claude",
                 "opencode",
