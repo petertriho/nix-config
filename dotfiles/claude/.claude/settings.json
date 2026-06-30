@@ -37,10 +37,11 @@
     ],
     "PreToolUse": [
       {
+        "_tag": "ccstatusline-managed",
         "hooks": [
           {
-            "command": "ccstatusline --hook",
-            "type": "command"
+            "type": "command",
+            "command": "ccstatusline --hook"
           }
         ],
         "matcher": "Skill"
@@ -78,16 +79,17 @@
       {
         "hooks": [
           {
-            "command": "ccstatusline --hook",
+            "command": "workmux set-window-status working",
             "type": "command"
           }
         ]
       },
       {
+        "_tag": "ccstatusline-managed",
         "hooks": [
           {
-            "command": "workmux set-window-status working",
-            "type": "command"
+            "type": "command",
+            "command": "ccstatusline --hook"
           }
         ]
       }

@@ -9,6 +9,12 @@
         "rawValue": true
       },
       {
+        "id": "72c7447f-f058-4fd7-827e-d1b102ab2359",
+        "type": "thinking-effort",
+        "color": "brightMagenta",
+        "rawValue": true
+      },
+      {
         "id": "7f3db395-e10a-4a15-a0fa-b578e588b29b",
         "type": "session-cost",
         "color": "brightYellow",
@@ -33,16 +39,27 @@
         "merge": true
       },
       {
-        "id": "b0cc3bb6-9177-4187-a64e-9ea27443e06a",
-        "type": "total-speed",
-        "color": "brightRed",
-        "rawValue": true,
-        "merge": true
-      },
-      {
         "id": "25f46c2b-01ed-4926-9da6-e3eb1118f77c",
         "type": "flex-separator"
       },
+      {
+        "id": "844b7c6a-684d-4208-a387-23a34d804a42",
+        "type": "input-speed",
+        "color": "blue"
+      },
+      {
+        "id": "598af45b-454d-4a41-9344-84db5ca59ce3",
+        "type": "output-speed",
+        "color": "brightGreen"
+      },
+      {
+        "id": "b0cc3bb6-9177-4187-a64e-9ea27443e06a",
+        "type": "total-speed",
+        "color": "brightMagenta",
+        "rawValue": false
+      }
+    ],
+    [
       {
         "id": "48f9eab7-dde1-485a-98cf-b1eee7a5e682",
         "type": "context-bar",
@@ -90,9 +107,7 @@
           "display": "time",
           "compact": "true"
         }
-      }
-    ],
-    [
+      },
       {
         "id": "eac49473-4bcf-4733-8e62-581e21d027e1",
         "type": "flex-separator"
