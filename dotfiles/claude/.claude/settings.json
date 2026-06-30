@@ -1,108 +1,186 @@
 {
-  "includeCoAuthoredBy": false,
+  "editorMode": "vim",
+  "effortLevel": "xhigh",
+  "enabledPlugins": {},
   "hooks": {
     "Notification": [
       {
-        "matcher": "permission_prompt|elicitation_dialog",
         "hooks": [
           {
-            "type": "command",
-            "command": "workmux set-window-status waiting"
+            "command": "workmux set-window-status waiting",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "permission_prompt|elicitation_dialog"
       }
     ],
     "PermissionRequest": [
       {
-        "matcher": "",
         "hooks": [
           {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/PermissionRequest\""
+            "command": "bash \"$HOME/.claude/hooks/PermissionRequest\"",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": ""
       }
     ],
     "PostToolUse": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "workmux set-window-status working"
+            "command": "workmux set-window-status working",
+            "type": "command"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "command": "lean-ctx hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "lean-ctx hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Skill",
         "hooks": [
           {
-            "type": "command",
-            "command": "ccstatusline --hook"
+            "command": "ccstatusline --hook",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Skill"
+      },
+      {
+        "hooks": [
+          {
+            "command": "lean-ctx hook rewrite",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|bash"
+      },
+      {
+        "hooks": [
+          {
+            "command": "lean-ctx hook redirect",
+            "type": "command"
+          }
+        ],
+        "matcher": "Read|read|ReadFile|read_file|View|view|Grep|grep|Search|search|ListFiles|list_files|ListDirectory|list_directory|Glob|glob"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "command": "lean-ctx hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "lean-ctx hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
       }
     ],
     "Stop": [
       {
-        "matcher": "",
         "hooks": [
           {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/Stop\""
+            "command": "bash \"$HOME/.claude/hooks/Stop\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      },
+      {
+        "hooks": [
+          {
+            "command": "workmux set-window-status done",
+            "type": "command"
           }
         ]
       },
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "workmux set-window-status done"
+            "command": "lean-ctx hook observe",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": ".*"
       }
     ],
     "UserPromptSubmit": [
       {
-        "matcher": "",
         "hooks": [
           {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/UserPromptSubmit\""
+            "command": "bash \"$HOME/.claude/hooks/UserPromptSubmit\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      },
+      {
+        "hooks": [
+          {
+            "command": "ccstatusline --hook",
+            "type": "command"
           }
         ]
       },
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "ccstatusline --hook"
+            "command": "workmux set-window-status working",
+            "type": "command"
           }
         ]
       },
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "workmux set-window-status working"
+            "command": "lean-ctx hook observe",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": ".*"
       }
     ]
   },
-  "statusLine": {
-    "type": "command",
-    "command": "ccstatusline",
-    "padding": 0
-  },
-  "enabledPlugins": {},
-  "effortLevel": "xhigh",
+  "includeCoAuthoredBy": false,
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "statusLine": {
+    "command": "ccstatusline",
+    "padding": 0,
+    "type": "command"
+  },
   "theme": "dark-ansi",
-  "editorMode": "vim"
+  "tui": "fullscreen"
 }

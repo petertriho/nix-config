@@ -12,6 +12,7 @@
     ./context-mode.nix
     ./crush.nix
     ./impeccable.nix
+    ./lean-ctx.nix
     ./lsp.nix
     ./plannotator.nix
     ./playwriter.nix
