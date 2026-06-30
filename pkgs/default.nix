@@ -20,7 +20,6 @@ with pkgs;
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };
-  lean-ctx-assets = callPackage ./lean-ctx-assets { lean-ctx = pkgs.llm-agents.lean-ctx; };
   lg-buddy = callPackage ./lg-buddy { };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };

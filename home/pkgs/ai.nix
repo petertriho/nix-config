@@ -294,7 +294,6 @@ in
     context-mode.enable = false;
     crush.enable = false;
     impeccable.enable = true;
-    lean-ctx.enable = true;
     plannotator.enable = false;
     playwriter.enable = false;
     superpowers.enable = false;
