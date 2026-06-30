@@ -44,16 +44,6 @@
         ]
       }
     ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'hook=\"$HOME/.claude/hooks/context-mode-cache-heal.mjs\"; if [ -x \"$hook\" ]; then \"$hook\"; fi'"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "",
@@ -106,9 +96,7 @@
     "command": "ccstatusline",
     "padding": 0
   },
-  "enabledPlugins": {
-    "context-mode@context-mode": true
-  },
+  "enabledPlugins": {},
   "effortLevel": "xhigh",
   "permissions": {
     "defaultMode": "bypassPermissions"
