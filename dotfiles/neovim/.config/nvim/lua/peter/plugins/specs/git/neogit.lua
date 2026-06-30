@@ -8,13 +8,9 @@ return {
     },
     init = function()
         vim.api.nvim_create_user_command("ToggleNeogit", function()
-            local current_ft = vim.bo.filetype
-            if current_ft == "NeogitStatus" then
-                if vim.g.previous_tab then
-                    vim.cmd("tabn " .. vim.g.previous_tab)
-                end
+            if vim.bo.filetype == "NeogitStatus" then
+                require("neogit").close()
             else
-                vim.g.previous_tab = vim.fn.tabpagenr()
                 vim.cmd("Neogit")
             end
         end, { desc = "Neogit Status" })
