@@ -1,7 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
   stablePkgs,
-  inputs ? { },
   ...
 }:
 with pkgs;
@@ -11,9 +10,6 @@ with pkgs;
   basic-memory = callPackage ./basic-memory { };
   basic-memory-skills = callPackage ./basic-memory-skills { };
   cpa-manager = callPackage ./cpa-manager { };
-  chunkhound = callPackage ./chunkhound {
-    inherit (inputs) pyproject-nix uv2nix pyproject-build-systems;
-  };
   codexbar = callPackage ./codexbar { };
   figlet-fonts = callPackage ./figlet-fonts { };
   kubectl-prof = callPackage ./kubectl-prof {

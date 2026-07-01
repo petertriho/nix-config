@@ -304,8 +304,6 @@
     ) (builtins.readDir ../../dotfiles/fish/.config/fish/functions)
     // {
       "vivid".source = config.lib.meta.mkDotfilesSymlink "vivid/.config/vivid";
-      "fish/completions/set-chunkhound-key.fish".source =
-        ../../dotfiles/fish/.config/fish/completions/set-chunkhound-key.fish;
     };
   programs.man.generateCaches = false; # disabled due to slow builds
 }

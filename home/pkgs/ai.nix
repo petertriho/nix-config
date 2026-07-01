@@ -72,10 +72,10 @@ in
         # open-design
         python3
         react-doctor
+        tiktoken
         tmuxai
         tokscale
         uipro
-        # tiktoken is provided by chunkhound
         # python3Packages.tiktoken
         # goose-cli
         # plandex
@@ -290,7 +290,6 @@ in
       ];
     };
     basic-memory.enable = false;
-    chunkhound.enable = false;
     crush.enable = false;
     impeccable.enable = true;
     plannotator.enable = false;

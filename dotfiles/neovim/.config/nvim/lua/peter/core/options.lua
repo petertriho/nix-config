@@ -103,8 +103,6 @@ local function build_wildignore()
     }
 
     local folders = {
-        ".chunkhound", -- ChunkHound cache
-        ".ck", -- ck (semantic code search) cache
         ".devenv", -- Devenv
         ".git", -- Version control
         ".mypy_cache", -- MyPy cache

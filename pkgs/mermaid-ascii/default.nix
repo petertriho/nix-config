@@ -5,7 +5,7 @@
 }:
 buildGoModule rec {
   pname = "mermaid-ascii";
-  version = "1.2.0-unstable-2026-06-25";
+  version = "1.3.0-unstable-2026-06-25";
 
   src = fetchFromGitHub {
     owner = "AlexanderGrooff";
