@@ -13,11 +13,11 @@ models:
     base_url: http://localhost:8317/v1
     api_key: "${CLI_PROXY_API_KEY}"
     model: "${TMUXAI_CLI_PROXY_API_MODEL}"
-  opencode-go:
-    provider: openrouter
-    base_url: https://opencode.ai/zen/go/v1
-    api_key: "${TMUXAI_OPENCODE_GO_API_KEY}"
-    model: "${TMUXAI_OPENCODE_GO_MODEL}"
+  # opencode-go:
+  #   provider: openrouter
+  #   base_url: https://opencode.ai/zen/go/v1
+  #   api_key: "${TMUXAI_OPENCODE_GO_API_KEY}"
+  #   model: "${TMUXAI_OPENCODE_GO_MODEL}"
   openrouter:
     provider: openrouter
     base_url: https://openrouter.ai/api/v1
