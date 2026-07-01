@@ -71,12 +71,11 @@ in
         nodejs
         # open-design
         python3
+        python3Packages.tiktoken
         react-doctor
-        tiktoken
         tmuxai
         tokscale
         uipro
-        # python3Packages.tiktoken
         # goose-cli
         # plandex
       ]
