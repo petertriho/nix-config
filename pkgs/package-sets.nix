@@ -78,11 +78,21 @@ let
             # cache, which the Nix sandbox does not provide.
             doCheck = false;
           });
+          ssort = prev'.ssort.overridePythonAttrs (old: {
+            postPatch = (old.postPatch or "") + ''
+              python scripts/freeze_version.py ${old.version}
+            '';
+          });
         })
       ];
       pylint = prev.python3Packages.pylint.overridePythonAttrs {
         dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
       };
+      tokscale = prev.tokscale.overrideAttrs (old: {
+        checkFlags = (old.checkFlags or [ ]) ++ [
+          "--skip=usage_reset_button_renders_when_credit_available"
+        ];
+      });
       # The unstable Darwin toolchain crashes while linking these packages.
       starship =
         if final.stdenv.hostPlatform.isDarwin then
