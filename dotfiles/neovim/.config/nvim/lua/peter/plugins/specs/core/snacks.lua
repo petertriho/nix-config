@@ -716,7 +716,7 @@ return {
             desc = "Incoming",
         },
         {
-            "<leader>lci",
+            "<leader>lco",
             function()
                 require("snacks").picker.lsp_outgoing_calls()
             end,
