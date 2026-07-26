@@ -73,11 +73,11 @@ let
                 "test_break_pane_no_name_uses_natural_name"
               ];
           });
-          mpv = prev'.mpv.overridePythonAttrs (_: {
-            # Tests spin up a real mpv that needs a writable fontconfig
-            # cache, which the Nix sandbox does not provide.
-            doCheck = false;
-          });
+          # mpv = prev'.mpv.overridePythonAttrs (_: {
+          #   # Tests spin up a real mpv that needs a writable fontconfig
+          #   # cache, which the Nix sandbox does not provide.
+          #   doCheck = false;
+          # });
           ssort = prev'.ssort.overridePythonAttrs (old: {
             postPatch = (old.postPatch or "") + ''
               python scripts/freeze_version.py ${old.version}
@@ -93,14 +93,14 @@ let
           "--skip=usage_reset_button_renders_when_credit_available"
         ];
       });
-      # The unstable Darwin toolchain crashes while linking these packages.
-      starship =
-        if final.stdenv.hostPlatform.isDarwin then
-          prev.starship.override { rustPlatform = final.stable.rustPlatform; }
-        else
-          prev.starship;
-      unar = if final.stdenv.hostPlatform.isDarwin then final.stable.unar else prev.unar;
-      watchexec = if final.stdenv.hostPlatform.isDarwin then final.stable.watchexec else prev.watchexec;
+      # # The unstable Darwin toolchain crashes while linking these packages.
+      # starship =
+      #   if final.stdenv.hostPlatform.isDarwin then
+      #     prev.starship.override { rustPlatform = final.stable.rustPlatform; }
+      #   else
+      #     prev.starship;
+      # unar = if final.stdenv.hostPlatform.isDarwin then final.stable.unar else prev.unar;
+      # watchexec = if final.stdenv.hostPlatform.isDarwin then final.stable.watchexec else prev.watchexec;
     };
 
     stable = final: prev: {
