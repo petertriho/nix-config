@@ -41,6 +41,10 @@
       "rev": "ae2728a77defbd27e9e5ef64c854fb0813ffba01",
       "src": "https://github.com/kwkarlwang/bufjump.nvim"
     },
+    "catppuccin": {
+      "rev": "79e2049a0fdf7ec840f8463fe1d962c94493196b",
+      "src": "https://github.com/catppuccin/nvim"
+    },
     "cmp-git": {
       "rev": "e645f69b93eede43fb644bb1a0b1db3eef1108a3",
       "src": "https://github.com/petertriho/cmp-git"
