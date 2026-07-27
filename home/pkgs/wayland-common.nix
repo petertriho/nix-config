@@ -28,7 +28,7 @@
       general = {
         lock_cmd = "pidof hyprlock || hyprlock";
         before_sleep_cmd = "loginctl lock-session";
-        after_sleep_cmd = "${pkgs.niri}/bin/niri msg action power-on-monitors";
+        after_sleep_cmd = "${pkgs.niri-unstable}/bin/niri msg action power-on-monitors";
       };
 
       listener = [
@@ -38,8 +38,8 @@
         }
         {
           timeout = 330;
-          on-timeout = "${pkgs.niri}/bin/niri msg action power-off-monitors";
-          on-resume = "${pkgs.niri}/bin/niri msg action power-on-monitors";
+          on-timeout = "${pkgs.niri-unstable}/bin/niri msg action power-off-monitors";
+          on-resume = "${pkgs.niri-unstable}/bin/niri msg action power-on-monitors";
         }
       ];
     };

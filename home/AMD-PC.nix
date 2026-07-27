@@ -35,8 +35,8 @@ in
     }
     {
       timeout = 3900;
-      on-timeout = "${pkgs.lg-buddy}/bin/lg-buddy screen-off; ${pkgs.niri}/bin/niri msg action power-off-monitors";
-      on-resume = "${pkgs.niri}/bin/niri msg action power-on-monitors; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
+      on-timeout = "${pkgs.lg-buddy}/bin/lg-buddy screen-off; ${pkgs.niri-unstable}/bin/niri msg action power-off-monitors";
+      on-resume = "${pkgs.niri-unstable}/bin/niri msg action power-on-monitors; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
     }
   ];
   # programs.headroom = {

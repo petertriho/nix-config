@@ -6,12 +6,12 @@
 
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "agent-indicator";
-  version = "0-unstable-2026-07-25";
+  version = "0-unstable-2026-07-26";
   src = fetchFromGitHub {
     owner = "accessd";
     repo = "tmux-agent-indicator";
-    rev = "be4c35324fe79300f1861574113d56126a0baace";
-    hash = "sha256-Cguan8MKnZZa44Eyl958bF/7dk7PGdI/Wc41Qkd0IdM=";
+    rev = "8d2e84b0d76f0494b8851bef5057a536c0ba76c7";
+    hash = "sha256-7Wm1M+yf8hIQGtPSbOyQ84b+yz5DYyGk2//0Fp6TBr8=";
   };
   rtpFilePath = "agent-indicator.tmux";
   postPatch = ''
