@@ -65,14 +65,14 @@ let
       #     prev.direnv;
       pythonPackagesExtensions = prev.pythonPackagesExtensions or [ ] ++ [
         (_final: prev': {
-          libtmux = prev'.libtmux.overridePythonAttrs (old: {
-            disabledTests =
-              (old.disabledTests or [ ])
-              ++ final.lib.optionals final.stdenv.hostPlatform.isDarwin [
-                # Nix's wrapped sleep is identified as coreutils by tmux on Darwin.
-                "test_break_pane_no_name_uses_natural_name"
-              ];
-          });
+          # libtmux = prev'.libtmux.overridePythonAttrs (old: {
+          #   disabledTests =
+          #     (old.disabledTests or [ ])
+          #     ++ final.lib.optionals final.stdenv.hostPlatform.isDarwin [
+          #       # Nix's wrapped sleep is identified as coreutils by tmux on Darwin.
+          #       "test_break_pane_no_name_uses_natural_name"
+          #     ];
+          # });
           # mpv = prev'.mpv.overridePythonAttrs (_: {
           #   # Tests spin up a real mpv that needs a writable fontconfig
           #   # cache, which the Nix sandbox does not provide.
@@ -85,9 +85,9 @@ let
           });
         })
       ];
-      pylint = prev.python3Packages.pylint.overridePythonAttrs {
-        dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
-      };
+      # pylint = prev.python3Packages.pylint.overridePythonAttrs {
+      #   dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
+      # };
       tokscale = prev.tokscale.overrideAttrs (old: {
         checkFlags = (old.checkFlags or [ ]) ++ [
           "--skip=usage_reset_button_renders_when_credit_available"
