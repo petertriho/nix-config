@@ -7,8 +7,6 @@ return {
         vim.o.signcolumn = "no"
     end,
     config = function()
-        local colors = require("peter.plugins.colors")
-
         require("scrollbar").setup({
             float = { placement = { anchor = "NW", gutter = "avoid", gutter_position = "outer" } },
             layout = {
@@ -18,7 +16,6 @@ return {
                 },
             },
             marks = {
-                Search = { highlight = { fg = colors.orange } },
                 GitAdd = { text = "│" },
                 GitChange = { text = "│" },
                 GitDelete = { text = "│" },
