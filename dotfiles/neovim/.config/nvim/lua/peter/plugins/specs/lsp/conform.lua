@@ -220,10 +220,8 @@ return {
             }),
             formatters = {
                 docformatter = {
-                    prepend_args = {
-                        "--black",
-                        "--pre-summary-newline",
-                    },
+                    args = { "--black", "--pre-summary-newline", "-" },
+                    stdin = true,
                 },
                 -- eslint_d = {
                 --     condition = function(ctx)
