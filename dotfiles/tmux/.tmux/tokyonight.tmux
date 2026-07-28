@@ -46,10 +46,16 @@ set -g status-right-style ${none}
 # ----------------------------------------------------------------------------
 status_left_content="#[fg=${tokyo_black},bg=${mode_aware_bg},bold] #{?client_prefix,●,○} #S "
 
+# Date/time is lowest priority: hide the date below 140 columns, the time below 110.
+# The style must stay outside the #{?} branches: unescaped commas (as in
+# #[fg=...,bg=...]) act as branch separators inside conditionals.
+datetime_style="#[fg=${tokyo_fg_sidebar},bg=${tokyo_bg_highlight}]"
+status_datetime="${datetime_style}#{?#{e|>=:#{client_width},140}, %Y-%m-%d ❬ %I:%M %p ,#{?#{e|>=:#{client_width},110}, %I:%M %p ,}}"
+
 status_right_content="#[fg=${tokyo_blue},bg=${tokyo_bg_statusline}] #{prefix_highlight} "\
 "#{agent_session_dots} #{agent_indicator} "\
 "#(gitmux -cfg $HOME/.gitmux.conf '#{pane_current_path}') "\
-"#[fg=${tokyo_fg_sidebar},bg=${tokyo_bg_highlight}] %Y-%m-%d ❬ %I:%M %p "\
+"${status_datetime}"\
 "#[fg=${tokyo_black},bg=${mode_aware_bg},bold] #h "
 
 set -g status-left "${status_left_content}"
