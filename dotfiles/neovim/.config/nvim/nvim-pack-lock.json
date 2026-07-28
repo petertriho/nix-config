@@ -21,7 +21,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "937ffd6b4765a8d8c82833df492d63847a57414c",
+      "rev": "902b63306551427c0669d9d4a46f229360a01740",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -54,7 +54,7 @@
       "src": "https://github.com/samir-roy/code-bridge.nvim"
     },
     "codediff.nvim": {
-      "rev": "1739102d1cc7153ea9f8f7df7d6a6134ebc46111",
+      "rev": "d3eb933df1de9e246186b33f61e40eb7752a92b2",
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "colorful-menu.nvim": {
@@ -130,7 +130,7 @@
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
-      "rev": "57c9f8ee784bcd07141bf7fa958b5c5bb1420de8",
+      "rev": "37e0f22a2345bad1bffe01b31970885882f46275",
       "src": "https://github.com/NeogitOrg/neogit"
     },
     "nui.nvim": {
@@ -175,7 +175,7 @@
       "src": "https://github.com/chrisgrieser/nvim-spider"
     },
     "nvim-tinygit": {
-      "rev": "7cc03bfd73863fc24e1a07e9465d3dba32336b74",
+      "rev": "19da9f0fdb0683fe92cecf1927d2d3efd3d4f8a1",
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
@@ -196,7 +196,7 @@
       "src": "https://github.com/JoosepAlviste/nvim-ts-context-commentstring"
     },
     "nvim-various-textobjs": {
-      "rev": "fed132a88454e52c9691f4751090031944af4a7e",
+      "rev": "604d4c57a5a702c5b25698502713a5f4da6c439e",
       "src": "https://github.com/chrisgrieser/nvim-various-textobjs"
     },
     "nvim-web-devicons": {
@@ -228,7 +228,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "3d2c297f7152208daf4a382ea7123f9e4ebf9da1",
+      "rev": "19e40cef03a380bfb578793a08222826118664dd",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
