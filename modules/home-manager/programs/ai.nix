@@ -66,6 +66,26 @@ let
     clientName:
     lib.concatLists (map (skill: skill.clients.${clientName}.pluginPaths) (lib.attrValues cfg.skills));
 
+  namedPluginPathsFor =
+    clientName:
+    lib.listToAttrs (
+      lib.concatLists (
+        lib.mapAttrsToList (
+          skillName: skill:
+          let
+            pluginPaths = skill.clients.${clientName}.pluginPaths;
+            hasMultiplePlugins = lib.length pluginPaths > 1;
+          in
+          lib.imap0 (
+            index: pluginPath:
+            lib.nameValuePair (
+              if hasMultiplePlugins then "${skillName}-${toString (index + 1)}" else skillName
+            ) pluginPath
+          ) pluginPaths
+        ) cfg.skills
+      )
+    );
+
   commandsFor =
     clientName:
     lib.foldl' (commands: skill: commands // skill.clients.${clientName}.commands) { } (
@@ -387,7 +407,7 @@ in
       programs.claude-code = {
         commands = commandsFor "claude-code";
         lspServers = lib.mapAttrs toClaudeCodeLsp (enabledLspFor "claude-code");
-        plugins = pluginPathsFor "claude-code";
+        plugins = namedPluginPathsFor "claude-code";
       };
     })
 
