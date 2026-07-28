@@ -16,5 +16,6 @@
     ./repowise.nix
     ./superpowers.nix
     ./taste-skill.nix
+    ./workmux.nix
   ];
 }

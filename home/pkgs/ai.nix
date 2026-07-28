@@ -13,7 +13,6 @@ let
     ]);
   llmAgents = with pkgs.llm-agents; [
     openspec
-    workmux
     zat # code outline viewer
   ];
 in
@@ -260,11 +259,10 @@ in
         "brandkit"
       ];
     };
+    workmux.enable = true;
   };
   xdg.configFile = {
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
-    "workmux/config.yaml".source =
-      config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
   };
   # // lib.mapAttrs' (
   #   name: _:
