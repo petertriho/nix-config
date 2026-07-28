@@ -22,6 +22,7 @@ return {
                 MiniDiffAdd = { text = "│" },
                 MiniDiffChange = { text = "│" },
                 MiniDiffDelete = { text = "│" },
+                Search = { highlight = "ScrollbarSearch" }, -- TODO: do not override if already configured
             },
             excluded_filetypes = require("peter.core.filetypes").excludes,
             providers = {
