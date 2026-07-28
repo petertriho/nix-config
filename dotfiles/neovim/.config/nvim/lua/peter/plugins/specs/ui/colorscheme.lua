@@ -33,6 +33,8 @@ local function build_highlights(colors)
 
         SnacksPickerPathHidden = { fg = colors.fg },
 
+        ScrollBarMinimapCursor = { fg = colors.fg, bg = colors.fg },
+        ScrollbarMinimapSearch = { fg = colors.orange },
         ScrollbarSearch = { fg = colors.orange },
 
         TabLine = { fg = colors.fg_gutter, bg = colors.bg_statusline },
