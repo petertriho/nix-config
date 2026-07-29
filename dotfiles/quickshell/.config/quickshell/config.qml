@@ -1,94 +1,14 @@
 import QtQuick
+import Quickshell
 
 QtObject {
     id: root
 
-    // Colors object accessible to all components
-    property QtObject colors: QtObject {
-        readonly property string bg: "#16161e"
-        readonly property string bg_dark: "#16161e"
-        readonly property string bg_dark1: "#0C0E14"
-        readonly property string bg_float: "#16161e"
-        readonly property string bg_highlight: "#292e42"
-        readonly property string bg_popup: "#16161e"
-        readonly property string bg_search: "#3d59a1"
-        readonly property string bg_sidebar: "#16161e"
-        readonly property string bg_statusline: "#16161e"
-        readonly property string bg_visual: "#283457"
-        readonly property string black: "#15161e"
-        readonly property string blue: "#7aa2f7"
-        readonly property string blue0: "#3d59a1"
-        readonly property string blue1: "#2ac3de"
-        readonly property string blue2: "#0db9d7"
-        readonly property string blue5: "#89ddff"
-        readonly property string blue6: "#b4f9f8"
-        readonly property string blue7: "#394b70"
-        readonly property string border: "#15161e"
-        readonly property string border_highlight: "#27a1b9"
-        readonly property string comment: "#565f89"
-        readonly property string cyan: "#7dcfff"
-        readonly property string dark3: "#545c7e"
-        readonly property string dark5: "#737aa2"
-        readonly property string error: "#db4b4b"
-        readonly property string fg: "#a9b1d6"
-        readonly property string fg_dark: "#a9b1d6"
-        readonly property string fg_float: "#c0caf5"
-        readonly property string fg_gutter: "#3b4261"
-        readonly property string fg_sidebar: "#a9b1d6"
-        readonly property string green: "#9ece6a"
-        readonly property string green1: "#73daca"
-        readonly property string green2: "#41a6b5"
-        readonly property string hint: "#1abc9c"
-        readonly property string info: "#0db9d7"
-        readonly property string magenta: "#bb9af7"
-        readonly property string magenta2: "#ff007c"
-        readonly property string none: "NONE"
-        readonly property string orange: "#ff9e64"
-        readonly property string purple: "#9d7cd8"
-        readonly property string red: "#f7768e"
-        readonly property string red1: "#db4b4b"
-        readonly property string teal: "#1abc9c"
-        readonly property string terminal_black: "#414868"
-        readonly property string todo: "#7aa2f7"
-        readonly property string warning: "#e0af68"
-        readonly property string yellow: "#e0af68"
-
-        // Nested objects as properties
-        readonly property QtObject diff: QtObject {
-            readonly property string add: "#20303b"
-            readonly property string change: "#1f2231"
-            readonly property string delete_color: "#37222c"
-            readonly property string text: "#394b70"
-        }
-
-        readonly property QtObject git: QtObject {
-            readonly property string add: "#449dab"
-            readonly property string change: "#6183bb"
-            readonly property string delete_color: "#914c54"
-            readonly property string ignore: "#545c7e"
-        }
-
-        readonly property QtObject terminal: QtObject {
-            readonly property string black: "#15161e"
-            readonly property string black_bright: "#414868"
-            readonly property string blue: "#7aa2f7"
-            readonly property string blue_bright: "#8db0ff"
-            readonly property string cyan: "#7dcfff"
-            readonly property string cyan_bright: "#a4daff"
-            readonly property string green: "#9ece6a"
-            readonly property string green_bright: "#9fe044"
-            readonly property string magenta: "#bb9af7"
-            readonly property string magenta_bright: "#c7a9ff"
-            readonly property string red: "#f7768e"
-            readonly property string red_bright: "#ff899d"
-            readonly property string white: "#a9b1d6"
-            readonly property string white_bright: "#c0caf5"
-            readonly property string yellow: "#e0af68"
-            readonly property string yellow_bright: "#faba4a"
-        }
-
-        readonly property var rainbow: ["#7aa2f7", "#e0af68", "#9ece6a", "#1abc9c", "#bb9af7", "#9d7cd8", "#ff9e64", "#f7768e"]
+    readonly property Loader themeLoader: Loader {
+        source: "file://" + (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/stylix/quickshell-theme.qml"
     }
+    readonly property QtObject theme: themeLoader.item
+    readonly property QtObject colors: theme.colors
 
     // Window class to icon mapping
     property var windowIcons: {
@@ -143,8 +63,8 @@ QtObject {
         readonly property int iconPadding: 12
         readonly property int height: 18
         readonly property int innerSpacing: 4
-        readonly property int fontSize: 12
-        readonly property int iconFontSize: 12
+        readonly property int fontSize: theme.fonts.workspaceSize
+        readonly property int iconFontSize: theme.fonts.workspaceIconSize
         readonly property var ignoreClasses: ["xwaylandvideobridge"]
     }
 
@@ -154,16 +74,16 @@ QtObject {
         readonly property int width: 300
         readonly property int height: 100
         readonly property int cornerRadius: 10
-        readonly property real opacity: 0.9
+        readonly property real opacity: theme.osd.opacity
         readonly property int contentMargins: 20
         readonly property int contentSpacing: 10
-        readonly property int titleFontSize: 16
+        readonly property int titleFontSize: theme.osd.titleFontSize
         readonly property int progressBarHeight: 20
         readonly property int progressBarCornerRadius: 5
         readonly property int progressFillCornerRadius: 5
-        readonly property int valueFontSize: 14
+        readonly property int valueFontSize: theme.osd.valueFontSize
         readonly property int hideInterval: 2000
-        readonly property string mutedProgressColor: "#f38ba8"
+        readonly property string mutedProgressColor: theme.osd.mutedProgressColor
     }
 
     // Update intervals
@@ -237,23 +157,18 @@ QtObject {
         readonly property int cardPadding: 12
         readonly property int cornerRadius: 10
         readonly property int iconSize: 42
-        readonly property int summaryFontSize: 14
-        readonly property int appFontSize: 11
-        readonly property int bodyFontSize: 12
-        readonly property int actionFontSize: 11
+        readonly property int summaryFontSize: theme.notifications.summaryFontSize
+        readonly property int appFontSize: theme.notifications.appFontSize
+        readonly property int bodyFontSize: theme.notifications.bodyFontSize
+        readonly property int actionFontSize: theme.notifications.actionFontSize
         readonly property int toastBodyLines: 3
         readonly property int centerBodyLines: 5
-        readonly property int headerFontSize: 16
-        readonly property real panelOpacity: 0.96
+        readonly property int headerFontSize: theme.notifications.headerFontSize
+        readonly property real panelOpacity: theme.notifications.panelOpacity
     }
 
     // Fonts
-    readonly property QtObject fonts: QtObject {
-        readonly property string defaultFamily: "JetBrainsMono Nerd Font Propo"
-        readonly property int defaultSize: 14
-        readonly property int workspaceSize: 12
-        readonly property int workspaceIconSize: 12
-    }
+    readonly property QtObject fonts: theme.fonts
 
     // CodexBar widget (see modules/CodexBar). CodexBar owns all provider/auth/
     // API-key state; these are display-layer knobs only. Provider setup: see

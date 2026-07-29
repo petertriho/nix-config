@@ -217,7 +217,6 @@ in
         };
       };
       tui = {
-        theme = "tokyonight";
         plugin = [
           "./plugins/skills-sidebar.tsx"
           "@ishaksebsib/opencode-tree"

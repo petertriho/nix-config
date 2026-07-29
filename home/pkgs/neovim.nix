@@ -3,8 +3,13 @@
   config,
   pkgs,
   lib,
+  theme,
   ...
 }:
+let
+  colors = config.lib.stylix.colors.withHashtag;
+  luaString = value: builtins.toJSON value;
+in
 {
   home.packages =
     with pkgs;
@@ -133,5 +138,52 @@
 
   xdg.configFile = {
     "nvim".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim";
+    "stylix/neovim.lua".text = ''
+      return {
+          alias = ${luaString theme},
+          base16 = {
+              base00 = ${luaString colors.base00},
+              base01 = ${luaString colors.base01},
+              base02 = ${luaString colors.base02},
+              base03 = ${luaString colors.base03},
+              base04 = ${luaString colors.base04},
+              base05 = ${luaString colors.base05},
+              base06 = ${luaString colors.base06},
+              base07 = ${luaString colors.base07},
+              base08 = ${luaString colors.base08},
+              base09 = ${luaString colors.base09},
+              base0A = ${luaString colors.base0A},
+              base0B = ${luaString colors.base0B},
+              base0C = ${luaString colors.base0C},
+              base0D = ${luaString colors.base0D},
+              base0E = ${luaString colors.base0E},
+              base0F = ${luaString colors.base0F},
+          },
+          semantic = {
+              blue = ${luaString colors.base0D},
+              yellow = ${luaString colors.base0A},
+              green = ${luaString colors.base0B},
+              teal = ${luaString colors.base0C},
+              magenta = ${luaString colors.base0E},
+              purple = ${luaString colors.base0F},
+              orange = ${luaString colors.base09},
+              red = ${luaString colors.base08},
+              error = ${luaString colors.base08},
+              hint = ${luaString colors.base0C},
+              comment = ${luaString colors.base03},
+              none = "NONE",
+              fg = ${luaString colors.base05},
+              fg_gutter = ${luaString colors.base03},
+              bg_statusline = ${luaString colors.base01},
+              bg = ${luaString colors.base00},
+              bg_visual = ${luaString colors.base02},
+              diff = {
+                  add = ${luaString colors.base0B},
+                  change = ${luaString colors.base0D},
+                  delete = ${luaString colors.base08},
+              },
+          },
+      }
+    '';
   };
 }

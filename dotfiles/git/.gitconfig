@@ -22,7 +22,7 @@
 
 [delta]
     navigate = true
-    syntax-theme = base16
+    syntax-theme = base16-stylix
     true-color = always
 
 [diff]

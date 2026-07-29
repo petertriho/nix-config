@@ -12,6 +12,12 @@ return {
                 enabled = true,
                 width = 5,
                 excluded_filetypes = require("peter.core.filetypes").excludes,
+                float = {
+                    blend = 50,
+                },
+                providers = {
+                    cursor = false,
+                },
             },
             scrollbar = {
                 float = { placement = { anchor = "NW", gutter = "avoid", gutter_position = "outer" } },

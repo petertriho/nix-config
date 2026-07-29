@@ -4,10 +4,11 @@
   lib,
   ...
 }:
+let
+  colors = config.lib.stylix.colors.withHashtag;
+in
 {
   home.packages = with pkgs; [
-    bat # cat replacement with syntax highlighting
-    btop # better htop
     bun # JavaScript runtime
     chafa # terminal image viewer
     coreutils # GNU core utilities
@@ -17,7 +18,6 @@
     eza # ls replacement
     fd # find replacement
     figlet # ascii art text generator
-    fzf # fuzzy finder
     gcc # GNU Compiler Collection
     # glow # markdown viewer
     gnumake # GNU Make
@@ -61,19 +61,6 @@
   home.sessionVariables = {
     FIGLET_FONTDIR = "${pkgs.figlet-fonts}/share/figlet";
     GROFF_NO_SGR = "1"; # fix colored-man-pages plugin colors
-    FZF_DEFAULT_OPTS = lib.strings.concatStringsSep " " [
-      "--ansi"
-      "--border"
-      "--cycle"
-      "--reverse"
-      "--height='80%'"
-      "--bind='ctrl-l:toggle-preview'"
-      "--bind='ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up'"
-      "--bind='alt-a:select-all,alt-d:deselect-all'"
-      "--color='dark'"
-      "--color='border:7,fg:-1,bg:-1,hl:5,fg+:7,bg+:8,hl+:5'"
-      "--color='info:6,prompt:2,pointer:2,marker:3,spinner:1,header:4'"
-    ];
     _ZO_EXCLUDE_DIRS =
       let
         # Helper function to generate both dir and dir/** patterns
@@ -122,7 +109,47 @@
     SEM_NO_TELEMETRY = "1";
   };
 
-  xdg.configFile."bat".source = config.lib.meta.mkDotfilesSymlink "bat/.config/bat";
+  programs = {
+    bat.enable = true;
+    btop.enable = true;
+    fzf = {
+      enable = true;
+      enableFishIntegration = false;
+      defaultOptions = [
+        "--ansi"
+        "--border"
+        "--cycle"
+        "--reverse"
+        "--height=80%"
+        "--bind=ctrl-l:toggle-preview"
+        "--bind=ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up"
+        "--bind=alt-a:select-all,alt-d:deselect-all"
+      ];
+    };
+  };
+
   xdg.configFile."television/config.toml".source =
     config.lib.meta.mkDotfilesSymlink "television/.config/television/config.toml";
+  xdg.configFile."television/themes/stylix.toml".text = ''
+    background = '${colors.base00}'
+    border_fg = '${colors.base03}'
+    text_fg = '${colors.base16}'
+    dimmed_text_fg = '${colors.base05}'
+    input_text_fg = '${colors.base12}'
+    result_count_fg = '${colors.base12}'
+    result_name_fg = '${colors.base16}'
+    result_line_number_fg = '${colors.base13}'
+    result_value_fg = '${colors.base05}'
+    selection_fg = '${colors.base14}'
+    selection_bg = '${colors.base03}'
+    match_fg = '${colors.base12}'
+    preview_title_fg = '${colors.base17}'
+    channel_mode_fg = '${colors.base10}'
+    channel_mode_bg = '${colors.base0B}'
+    remote_control_mode_fg = '${colors.base10}'
+    remote_control_mode_bg = '${colors.base0A}'
+    action_picker_mode_fg = '${colors.base10}'
+    action_picker_mode_bg = '${colors.base0E}'
+    send_to_channel_mode_fg = '${colors.base0C}'
+  '';
 }

@@ -4,7 +4,6 @@
     packages = with pkgs; [
       brightnessctl
       cliphist
-      fuzzel
       grim
       libnotify
       pamixer
@@ -17,6 +16,8 @@
     ];
     sessionVariables.NIXOS_OZONE_WL = "1";
   };
+
+  programs.fuzzel.enable = true;
 
   programs.hyprlock = {
     enable = true;

@@ -9,7 +9,13 @@
   imports = [
     ../base
     inputs.home-manager.nixosModules.home-manager
+    inputs.stylix.nixosModules.stylix
   ];
+
+  stylix.targets = {
+    chromium.enable = false;
+    console.enable = true;
+  };
 
   nix.gc.dates = "weekly";
   nix.settings.auto-optimise-store = true;

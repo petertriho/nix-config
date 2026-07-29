@@ -22,6 +22,10 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    stylix = {
+      url = "github:nix-community/stylix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-wsl.url = "github:nix-community/nixos-wsl";
@@ -138,6 +142,8 @@
         _: host: nix-darwin.lib.darwinSystem (getSystemConfiguration host)
       ) (hostsForOutput "darwinConfigurations");
 
-      homeConfigurations = lib.mapAttrs (_: host: getHomeConfiguration host) (hostsForOutput "homeConfigurations");
+      homeConfigurations = lib.mapAttrs (_: host: getHomeConfiguration host) (
+        hostsForOutput "homeConfigurations"
+      );
     };
 }

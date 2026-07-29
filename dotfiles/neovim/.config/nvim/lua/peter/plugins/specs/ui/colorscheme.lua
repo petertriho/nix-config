@@ -1,8 +1,11 @@
-local theme = "tokyonight"
+local theme_path = vim.fs.joinpath(vim.fn.fnamemodify(vim.fn.stdpath("config"), ":h"), "stylix", "neovim.lua")
+local load_theme, load_error = loadfile(theme_path)
 
-if theme ~= "catppuccin" and theme ~= "tokyonight" then
-    error(('Invalid theme %q; expected "catppuccin" or "tokyonight"'):format(theme))
+if not load_theme then
+    error(("Unable to load generated Neovim theme %s: %s"):format(theme_path, load_error))
 end
+
+local theme = load_theme()
 
 local function build_highlights(colors)
     return {
@@ -105,6 +108,10 @@ return {
         lazy = false,
         priority = 1000,
         config = function()
+            if theme.alias ~= "tokyonight" then
+                return
+            end
+
             require("tokyonight").setup({
                 style = "night",
                 sidebars = require("peter.core.filetypes").sidebars,
@@ -115,10 +122,8 @@ return {
                 end,
                 plugins = { markdown = true, rainbow = true },
             })
-
-            if theme == "tokyonight" then
-                vim.cmd.colorscheme("tokyonight")
-            end
+            vim.cmd.colorscheme("tokyonight")
+            vim.g.colors_name = "tokyonight"
         end,
     },
     {
@@ -127,6 +132,10 @@ return {
         lazy = false,
         priority = 1000,
         config = function()
+            if theme.alias ~= "catppuccin" then
+                return
+            end
+
             require("catppuccin").setup({
                 flavour = "mocha",
                 background = { dark = "mocha" },
@@ -135,9 +144,28 @@ return {
                     return build_highlights(catppuccin_palette(colors))
                 end,
             })
+            vim.cmd.colorscheme("catppuccin-mocha")
+        end,
+    },
+    {
+        dir = vim.fn.stdpath("config"),
+        name = "stylix-colorscheme",
+        dependencies = theme.alias ~= "tokyonight" and theme.alias ~= "catppuccin" and { "nvim-mini/mini.nvim" } or {},
+        lazy = false,
+        priority = 1000,
+        config = function()
+            if theme.alias == "tokyonight" or theme.alias == "catppuccin" then
+                return
+            end
 
-            if theme == "catppuccin" then
-                vim.cmd.colorscheme("catppuccin-mocha")
+            require("mini.base16").setup({
+                palette = theme.base16,
+                use_cterm = true,
+            })
+            vim.g.colors_name = "mini.base16"
+
+            for group, highlight in pairs(build_highlights(theme.semantic)) do
+                vim.api.nvim_set_hl(0, group, highlight)
             end
         end,
     },

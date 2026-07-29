@@ -8,6 +8,7 @@
     ./environment.nix
     ./home-manager.nix
     ./options.nix
+    ./stylix.nix
     outputs.systemModules.shells
   ];
 

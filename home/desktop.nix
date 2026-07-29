@@ -8,6 +8,7 @@
   imports = [
     ./base.nix
     inputs.vicinae.homeManagerModules.default
+    ./stylix-desktop.nix
     ./pkgs/alacritty.nix
     ./pkgs/ghostty.nix
     ./pkgs/wayland-common.nix
@@ -23,7 +24,6 @@
     nextcloud-client
     tabularis
     thunderbird
-    zathura
   ];
 
   programs = {
@@ -52,16 +52,13 @@
   gtk = {
     enable = true;
     gtk2.enable = false;
-    theme = {
-      name = "Adwaita-dark";
-      package = pkgs.gnome-themes-extra;
-    };
-    gtk4.theme = config.gtk.theme;
   };
+
+  programs.zathura.enable = true;
 
   dconf.settings = {
     "org/gnome/desktop/interface" = {
-      color-scheme = "prefer-dark";
+      color-scheme = if config.stylix.polarity == "dark" then "prefer-dark" else "default";
     };
   };
 

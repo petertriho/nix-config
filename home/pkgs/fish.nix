@@ -262,27 +262,27 @@
         );
       in
       grcFunctions;
-    interactiveShellInit = builtins.readFile ../../dotfiles/fish/.config/fish/config.fish;
+    interactiveShellInit = ''
+      ${builtins.readFile ../../dotfiles/fish/.config/fish/config.fish}
+
+      set --global fish_greeting
+      set --global fzf_fish_custom_keybindings
+      set --global fish_key_bindings fish_hybrid_key_bindings
+      set --global fish_cursor_default block
+      set --global fish_cursor_insert line
+      set --global fish_cursor_replace_one underscore
+      set --global fish_cursor_visual block
+    '';
   };
 
   home.packages = with pkgs; [
     grc
-    vivid
   ];
 
-  home.activation.setTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    PATH="${
-      lib.makeBinPath (
-        with pkgs;
-        [
-          fish
-          vivid
-        ]
-      )
-    }:$PATH" run /usr/bin/env fish --no-config ${
-      config.lib.meta.configPath + "/dotfiles/fish/.config/fish/functions/set-theme.fish"
-    }
-  '';
+  programs.vivid = {
+    enable = true;
+    enableFishIntegration = true;
+  };
 
   xdg.configFile =
     lib.mapAttrs' (
@@ -296,9 +296,6 @@
       lib.nameValuePair "fish/functions/${name}" {
         source = config.lib.meta.mkDotfilesSymlink "fish/.config/fish/functions/${name}";
       }
-    ) (builtins.readDir ../../dotfiles/fish/.config/fish/functions)
-    // {
-      "vivid".source = config.lib.meta.mkDotfilesSymlink "vivid/.config/vivid";
-    };
+    ) (builtins.readDir ../../dotfiles/fish/.config/fish/functions);
   programs.man.generateCaches = false; # disabled due to slow builds
 }

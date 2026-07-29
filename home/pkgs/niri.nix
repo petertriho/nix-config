@@ -66,7 +66,7 @@ in
       layout = {
         gaps = 0;
         center-focused-column = "on-overflow";
-        background-color = "#1a1b26";
+        background-color = config.lib.stylix.colors.withHashtag.base00;
         preset-column-widths = [
           { proportion = 0.33333; }
           { proportion = 0.5; }

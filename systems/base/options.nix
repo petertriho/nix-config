@@ -23,5 +23,10 @@
         config.user
       ];
     };
+    theme = mkOption {
+      type = types.str;
+      default = "tokyonight";
+      description = "Theme alias or Base16 scheme slug";
+    };
   };
 }

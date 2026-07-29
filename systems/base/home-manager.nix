@@ -13,7 +13,7 @@
     users.${config.user} = import homeModule;
     extraSpecialArgs = {
       inherit inputs outputs host;
-      inherit (config) user homePath;
+      inherit (config) user homePath theme;
     };
   };
 }

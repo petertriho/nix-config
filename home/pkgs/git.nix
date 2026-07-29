@@ -21,7 +21,6 @@
       difftastic # structural diff tool
       llm-agents.hunk
       # jujutsu
-      lazygit # git tui
       mergiraf # git merge conflict resolver
       # rs-git-fsmonitor
       # watchman
@@ -34,6 +33,11 @@
     # https://github.com/dandavison/delta/issues/359
     # https://github.com/wfxr/forgit/issues/121
     sessionVariables.FORGIT_PAGER = "delta --width \\$\{FZF_PREVIEW_COLUMNS:-$COLUMNS}";
+  };
+
+  programs.lazygit = {
+    enable = true;
+    enableFishIntegration = false;
   };
 
   xdg.configFile = {

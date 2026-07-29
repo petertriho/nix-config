@@ -4,7 +4,76 @@ local config = wezterm.config_builder()
 
 config:set_strict_mode(true)
 
-config.color_scheme = "tokyonight"
+local fallback_theme = {
+    config = {
+        colors = {
+            foreground = "#c0caf5",
+            background = "#1a1b26",
+            cursor_fg = "#1a1b26",
+            cursor_bg = "#c0caf5",
+            cursor_border = "#c0caf5",
+            selection_fg = "#c0caf5",
+            selection_bg = "#33467c",
+            ansi = {
+                "#15161e",
+                "#f7768e",
+                "#9ece6a",
+                "#e0af68",
+                "#7aa2f7",
+                "#bb9af7",
+                "#7dcfff",
+                "#a9b1d6",
+            },
+            brights = {
+                "#414868",
+                "#ff899d",
+                "#9fe044",
+                "#faba4a",
+                "#8db0ff",
+                "#c7a9ff",
+                "#a4daff",
+                "#c0caf5",
+            },
+            tab_bar = {
+                background = "#0E0E14",
+                active_tab = {
+                    bg_color = "#1A1B26",
+                    fg_color = "#C0CAF5",
+                },
+                inactive_tab = {
+                    bg_color = "#13141C",
+                    fg_color = "#565F89",
+                },
+                inactive_tab_hover = {
+                    bg_color = "#1A1B26",
+                    fg_color = "#C0CAF5",
+                },
+                new_tab = {
+                    bg_color = "#13141C",
+                    fg_color = "#565F89",
+                },
+                new_tab_hover = {
+                    bg_color = "#1A1B26",
+                    fg_color = "#C0CAF5",
+                },
+            },
+        },
+        font = wezterm.font("JetBrainsMono Nerd Font Mono"),
+        font_size = wezterm.target_triple == "x86_64-pc-windows-msvc" and 12 or 14,
+        window_background_opacity = 1.0,
+    },
+    active_marker = "#7aa2f7",
+    active_text = "#C0CAF5",
+}
+
+local config_home = os.getenv("XDG_CONFIG_HOME") or wezterm.home_dir .. "/.config"
+local loaded, generated_theme = pcall(dofile, config_home .. "/stylix/wezterm.lua")
+local theme = loaded and type(generated_theme) == "table" and generated_theme or fallback_theme
+
+for key, value in pairs(theme.config) do
+    config[key] = value
+end
+
 config.bold_brightens_ansi_colors = true
 config.harfbuzz_features = {
     -- https://github.com/JetBrains/JetBrainsMono/wiki/OpenType-features#list-of-features
@@ -64,31 +133,6 @@ for i = 1, 9 do
     })
 end
 
-config.colors = {
-    tab_bar = {
-        background = "#0E0E14",
-        active_tab = {
-            bg_color = "#1A1B26",
-            fg_color = "#C0CAF5",
-        },
-        inactive_tab = {
-            bg_color = "#13141C",
-            fg_color = "#565F89",
-        },
-        inactive_tab_hover = {
-            bg_color = "#1A1B26",
-            fg_color = "#C0CAF5",
-        },
-        new_tab = {
-            bg_color = "#13141C",
-            fg_color = "#565F89",
-        },
-        new_tab_hover = {
-            bg_color = "#1A1B26",
-            fg_color = "#C0CAF5",
-        },
-    },
-}
 config.inactive_pane_hsb = {
     saturation = 1,
     brightness = 1,
@@ -106,9 +150,9 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
 
     if tab.is_active then
         return {
-            { Foreground = { Color = "#7aa2f7" } },
+            { Foreground = { Color = theme.active_marker } },
             { Text = "▎" },
-            { Foreground = { Color = "#C0CAF5" } },
+            { Foreground = { Color = theme.active_text } },
             { Text = tab_number .. ": " .. title .. " " },
         }
     end
@@ -118,14 +162,9 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
     }
 end)
 
-config.font = wezterm.font("JetBrainsMono Nerd Font Mono")
-
 if wezterm.target_triple == "x86_64-pc-windows-msvc" then
     config.default_domain = "WSL:NixOS"
-    config.font_size = 12
     config.allow_win32_input_mode = false
-else
-    config.font_size = 14
 end
 
 return config

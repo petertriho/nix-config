@@ -10,6 +10,7 @@
   imports = [
     ../base
     inputs.home-manager.darwinModules.home-manager
+    inputs.stylix.darwinModules.stylix
     outputs.systemModules.darwin
     ./modules/homebrew.nix
     ./modules/system.nix

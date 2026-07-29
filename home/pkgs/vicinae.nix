@@ -10,9 +10,7 @@
       activate_on_single_click = true;
       close_on_focus_loss = true;
       favicon_service = "twenty";
-      font.normal.size = 11;
       launcher_window = {
-        opacity = 1;
         client_side_decorations = {
           enabled = true;
           rounding = 10;
@@ -28,10 +26,6 @@
       };
       search_files_in_root = true;
       telemetry.system_info = false;
-      theme = {
-        light.name = "vicinae-dark";
-        dark.name = "vicinae-dark";
-      };
     };
   };
 }

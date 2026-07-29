@@ -4,6 +4,9 @@
   lib,
   ...
 }:
+let
+  colors = config.lib.stylix.colors.withHashtag;
+in
 {
   home = {
     packages = with pkgs; [
@@ -11,7 +14,18 @@
       sesh
     ];
     file = {
-      ".tmux/tokyonight.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/tokyonight.tmux";
+      ".tmux/stylix.tmux".text = ''
+        stylix_none="NONE"
+        stylix_bg="${colors.base10}"
+        stylix_status_bg="${colors.base01}"
+        stylix_highlight_bg="${colors.base02}"
+        stylix_secondary_fg="${colors.base05}"
+        stylix_accent="${colors.base0D}"
+        stylix_mode="${colors.base0E}"
+        stylix_prefix="${colors.base0A}"
+
+        ${builtins.readFile ../../dotfiles/tmux/.tmux/stylix.tmux}
+      '';
       ".tmux/copy-mode-vi.tmux".source = config.lib.meta.mkDotfilesSymlink "tmux/.tmux/copy-mode-vi.tmux";
       ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
@@ -34,7 +48,7 @@
             set -g prefix C-a
 
             # Theme
-            source-file "~/.tmux/tokyonight.tmux"
+            source-file "~/.tmux/stylix.tmux"
 
             # Sesh
             bind-key -N "Sesh" "g" run-shell "sesh-connect-fzf"
