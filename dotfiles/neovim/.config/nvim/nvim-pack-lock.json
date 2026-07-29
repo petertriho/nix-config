@@ -166,7 +166,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "383602ec4ff1a1b62538a7ccb533c7c0bfbf9f30",
+      "rev": "e3e1eec3fcd2b71a5ea02946496991b801af9529",
       "src": "https://github.com/petertriho/nvim-scrollbar",
       "version": "'refactor/v2'"
     },

@@ -16,7 +16,7 @@ return {
                     blend = 50,
                 },
                 providers = {
-                    cursor = false,
+                    -- cursor = false,
                 },
             },
             scrollbar = {
