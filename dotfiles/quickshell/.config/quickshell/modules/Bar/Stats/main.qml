@@ -749,7 +749,7 @@ BaseModule {
         return parts.join(" ");
     }
 
-    textColor: isCritical ? colors.red : colors.fg
+    textColor: isCritical ? colors.base08 : colors.base05
 
     onRightClicked: {
         Quickshell.execDetached({

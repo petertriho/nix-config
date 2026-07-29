@@ -28,8 +28,8 @@ OverlayHost {
         height: Math.min(preferredHeight, availableHeight)
         x: module ? module.popupX(width) : 0
         y: (barWindow ? barWindow.height : 0) + 4
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
         radius: popupsConfig.cornerRadius
         opacity: calendarPopup.open ? 1.0 : 0.0
         scale: calendarPopup.open ? 1.0 : 0.98
@@ -135,12 +135,12 @@ OverlayHost {
                         id: prevBtn
                         width: calendarBg.__cellSize
                         height: calendarBg.__cellSize
-                        color: calendarBg.prevHovered ? colors.bg_highlight : "transparent"
+                        color: calendarBg.prevHovered ? colors.base02 : "transparent"
                         radius: 4
                         Text {
                             anchors.centerIn: parent
                             text: "‹"
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize + 2
                         }
@@ -158,7 +158,7 @@ OverlayHost {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         text: module.monthLabel
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize
                         font.bold: true
@@ -172,12 +172,12 @@ OverlayHost {
                         id: nextBtn
                         width: calendarBg.__cellSize
                         height: calendarBg.__cellSize
-                        color: calendarBg.nextHovered ? colors.bg_highlight : "transparent"
+                        color: calendarBg.nextHovered ? colors.base02 : "transparent"
                         radius: 4
                         Text {
                             anchors.centerIn: parent
                             text: "›"
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize + 2
                         }
@@ -202,7 +202,7 @@ OverlayHost {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             text: modelData
-                            color: colors.comment
+                            color: colors.base04
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                         }
@@ -229,9 +229,9 @@ OverlayHost {
                                 if (!cell)
                                     return "transparent";
                                 if (cell.isToday)
-                                    return colors.blue;
+                                    return colors.base0D;
                                 if (index === calendarBg.hoveredCellIndex)
-                                    return colors.bg_highlight;
+                                    return colors.base02;
                                 return "transparent";
                             }
 
@@ -240,10 +240,10 @@ OverlayHost {
                                 text: cell ? cell.day : ""
                                 color: {
                                     if (!cell)
-                                        return colors.fg;
+                                        return colors.base05;
                                     if (cell.isToday)
-                                        return colors.bg_dark;
-                                    return cell.inMonth ? colors.fg : colors.dark3;
+                                        return colors.base01;
+                                    return cell.inMonth ? colors.base05 : colors.base04;
                                 }
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize
@@ -268,13 +268,13 @@ OverlayHost {
                     id: todayBtn
                     width: calendarBg.__gridWidth
                     height: todayText.implicitHeight + 8
-                    color: calendarBg.todayHovered ? colors.bg_highlight : "transparent"
+                    color: calendarBg.todayHovered ? colors.base02 : "transparent"
                     radius: 4
                     Text {
                         id: todayText
                         anchors.centerIn: parent
                         text: "Today"
-                        color: colors.blue
+                        color: colors.base0D
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize
                     }

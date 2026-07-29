@@ -6,11 +6,11 @@ Rectangle {
     id: root
     radius: 4
     // Clickable bar modules opt into a hover background that mirrors the
-    // tray-icon highlight (`colors.bg_highlight`). `hoverHighlight` is
+    // tray-icon highlight (`colors.base02`). `hoverHighlight` is
     // deliberately decoupled from `hoverEnabled`: some modules track hover for
     // other reasons (accent text color, hover-to-open detail popups) without
     // being clickable, and must not light up as if they were.
-    color: root.hoverHighlight && hoverArea.containsMouse ? colors.bg_highlight : "transparent"
+    color: root.hoverHighlight && hoverArea.containsMouse ? colors.base02 : "transparent"
     height: parent.height
     implicitWidth: content.implicitWidth + moduleConfig.widthPadding
 
@@ -41,7 +41,7 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         anchors.leftMargin: moduleConfig.contentMargins
         anchors.rightMargin: moduleConfig.contentMargins
-        color: colors.fg
+        color: colors.base05
         font.family: fontsConfig.defaultFamily
         font.pixelSize: fontsConfig.defaultSize
         horizontalAlignment: Text.AlignHCenter

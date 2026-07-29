@@ -20,22 +20,30 @@ in
 
       QtObject {
           readonly property QtObject colors: QtObject {
-              readonly property string bg: "${colors.base01}"
-              readonly property string bg_dark: "${colors.base01}"
-              readonly property string bg_dark1: "${colors.base11}"
-              readonly property string bg_highlight: "${colors.base02}"
-              readonly property string blue: "${colors.base0D}"
-              readonly property string border: "${colors.base10}"
-              readonly property string border_highlight: "${colors.base0C}"
-              readonly property string comment: "${colors.base04}"
-              readonly property string dark3: "${colors.base04}"
-              readonly property string fg: "${colors.base05}"
-              readonly property string fg_float: "${colors.base06}"
-              readonly property string green: "${colors.base0B}"
-              readonly property string magenta: "${colors.base0E}"
-              readonly property string red: "${colors.base08}"
-              readonly property string warning: "${colors.base0A}"
-              readonly property string yellow: "${colors.base0A}"
+              readonly property string base00: "${colors.base00}"
+              readonly property string base01: "${colors.base01}"
+              readonly property string base02: "${colors.base02}"
+              readonly property string base03: "${colors.base03}"
+              readonly property string base04: "${colors.base04}"
+              readonly property string base05: "${colors.base05}"
+              readonly property string base06: "${colors.base06}"
+              readonly property string base07: "${colors.base07}"
+              readonly property string base08: "${colors.base08}"
+              readonly property string base09: "${colors.base09}"
+              readonly property string base0A: "${colors.base0A}"
+              readonly property string base0B: "${colors.base0B}"
+              readonly property string base0C: "${colors.base0C}"
+              readonly property string base0D: "${colors.base0D}"
+              readonly property string base0E: "${colors.base0E}"
+              readonly property string base0F: "${colors.base0F}"
+              readonly property string base10: "${colors.base10}"
+              readonly property string base11: "${colors.base11}"
+              readonly property string base12: "${colors.base12}"
+              readonly property string base13: "${colors.base13}"
+              readonly property string base14: "${colors.base14}"
+              readonly property string base15: "${colors.base15}"
+              readonly property string base16: "${colors.base16}"
+              readonly property string base17: "${colors.base17}"
           }
 
           readonly property QtObject fonts: QtObject {
@@ -49,7 +57,6 @@ in
               readonly property real opacity: 0.9
               readonly property int titleFontSize: 16
               readonly property int valueFontSize: 14
-              readonly property string mutedProgressColor: "${colors.base12}"
           }
 
           readonly property QtObject notifications: QtObject {

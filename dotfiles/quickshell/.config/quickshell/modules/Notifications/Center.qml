@@ -56,8 +56,8 @@ OverlayHost {
         height: Math.min(root.contentHeight, root.maxPanelHeight)
         x: root.width - width - (notificationsConfig ? notificationsConfig.rightMargin : 0)
         y: notificationsConfig ? notificationsConfig.topMargin : 0
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
         radius: notificationsConfig.cornerRadius
         clip: true
         opacity: open ? notificationsConfig.panelOpacity : 0
@@ -87,7 +87,7 @@ OverlayHost {
 
                 Text {
                     text: "Notifications"
-                    color: colors.fg_float
+                    color: colors.base06
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: notificationsConfig.headerFontSize
                     font.bold: true
@@ -98,7 +98,7 @@ OverlayHost {
                 Text {
                     text: root.modelCount() > 0 ? "󰆳 Clear" : ""
                     visible: text.length > 0
-                    color: clearMouse.containsMouse ? colors.red : colors.comment
+                    color: clearMouse.containsMouse ? colors.base08 : colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: notificationsConfig.headerFontSize
                     Layout.alignment: Qt.AlignVCenter
@@ -113,7 +113,7 @@ OverlayHost {
 
                 Text {
                     text: "󰅖"
-                    color: closeMouse.containsMouse ? colors.red : colors.comment
+                    color: closeMouse.containsMouse ? colors.base08 : colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: notificationsConfig.headerFontSize
                     Layout.alignment: Qt.AlignVCenter
@@ -132,7 +132,7 @@ OverlayHost {
 
                 visible: root.modelCount() === 0
                 text: "No notifications"
-                color: colors.comment
+                color: colors.base04
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: notificationsConfig.bodyFontSize
                 Layout.fillWidth: true

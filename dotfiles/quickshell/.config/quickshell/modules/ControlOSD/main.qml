@@ -26,11 +26,11 @@ PanelWindow {
     property real value: 0
     property bool showMute: false
     property bool isMuted: false
-    property color progressColor: colors.green
+    property color progressColor: colors.base0B
 
     Rectangle {
         anchors.fill: parent
-        color: colors.bg
+        color: colors.base01
         radius: osdConfig.cornerRadius
         opacity: osdConfig.opacity
 
@@ -43,7 +43,7 @@ PanelWindow {
 
             Text {
                 text: root.showMute && root.isMuted ? root.title + " (Muted)" : root.title
-                color: root.showMute && root.isMuted ? colors.red : colors.fg
+                color: root.showMute && root.isMuted ? colors.base08 : colors.base05
                 font.pixelSize: osdConfig.titleFontSize
                 Layout.alignment: Qt.AlignHCenter
             }
@@ -54,13 +54,13 @@ PanelWindow {
                 Layout.preferredHeight: osdConfig.progressBarHeight
 
                 background: Rectangle {
-                    color: colors.bg_highlight
+                    color: colors.base02
                     radius: osdConfig.progressBarCornerRadius
                 }
 
                 contentItem: Item {
                     Rectangle {
-                        color: root.showMute && root.isMuted ? osdConfig.mutedProgressColor : root.progressColor
+                        color: root.showMute && root.isMuted ? colors.base12 : root.progressColor
                         radius: osdConfig.progressFillCornerRadius
                         height: parent.height
                         width: parent.width * (root.value / 100)
@@ -70,7 +70,7 @@ PanelWindow {
 
             Text {
                 text: Math.round(root.value) + "%"
-                color: root.showMute && root.isMuted ? colors.red : colors.fg
+                color: root.showMute && root.isMuted ? colors.base08 : colors.base05
                 font.pixelSize: osdConfig.valueFontSize
                 Layout.alignment: Qt.AlignHCenter
             }

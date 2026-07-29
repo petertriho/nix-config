@@ -65,7 +65,7 @@ Item {
                     return Math.max(baseWidth, iconWidth);
                 }
                 height: root.workspacesConfig.height
-                color: isActive || hovered ? root.colors.bg_highlight : root.colors.bg_dark
+                color: isActive || hovered ? root.colors.base02 : root.colors.base01
                 radius: 4
 
                 Row {
@@ -74,7 +74,7 @@ Item {
 
                     Text {
                         text: workspaceDelegate.workspaceName
-                        color: root.colors.fg
+                        color: root.colors.base05
                         font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
                         font.pixelSize: root.workspacesConfig.fontSize
                         anchors.verticalCenter: parent.verticalCenter
@@ -89,7 +89,7 @@ Item {
                             property bool isFocusedIcon: typeof modelData === "object" && !!modelData.focused
 
                             text: iconText
-                            color: isFocusedIcon ? root.colors.blue : root.colors.fg
+                            color: isFocusedIcon ? root.colors.base0D : root.colors.base05
                             font.pixelSize: root.workspacesConfig.iconFontSize
                             font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
                             visible: iconText.length > 0

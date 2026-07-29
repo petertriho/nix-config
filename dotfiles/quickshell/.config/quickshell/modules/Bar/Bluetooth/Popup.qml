@@ -32,8 +32,8 @@ OverlayHost {
         height: Math.min(preferredHeight, availableHeight)
         x: module ? module.popupX(width) : 0
         y: (barWindow ? barWindow.height : 0) + 4
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
         radius: bluetoothPopup.popupCornerRadius
         opacity: bluetoothPopup.open ? 1.0 : 0.0
         scale: bluetoothPopup.open ? 1.0 : 0.98
@@ -69,7 +69,7 @@ OverlayHost {
 
                 Text {
                     text: "Bluetooth"
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -77,7 +77,7 @@ OverlayHost {
 
                 Text {
                     text: module.adapterText()
-                    color: module.enabled ? colors.green : colors.comment
+                    color: module.enabled ? colors.base0B : colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     elide: Text.ElideRight
@@ -91,7 +91,7 @@ OverlayHost {
 
                 Text {
                     text: "Connected"
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -106,7 +106,7 @@ OverlayHost {
 
                         Text {
                             text: module.displayName(modelData)
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize
                             width: parent.width - 92
@@ -115,7 +115,7 @@ OverlayHost {
 
                         Text {
                             text: module.statusText(modelData)
-                            color: colors.blue
+                            color: colors.base0D
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             width: 84
@@ -127,7 +127,7 @@ OverlayHost {
 
                 Text {
                     text: "No connected devices"
-                    color: colors.comment
+                    color: colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     visible: module.connectedDevices.length === 0
@@ -140,7 +140,7 @@ OverlayHost {
 
                 Text {
                     text: "Paired"
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -155,7 +155,7 @@ OverlayHost {
 
                         Text {
                             text: module.displayName(modelData)
-                            color: modelData.connected ? colors.fg : colors.comment
+                            color: modelData.connected ? colors.base05 : colors.base04
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize
                             width: parent.width - 92
@@ -164,7 +164,7 @@ OverlayHost {
 
                         Text {
                             text: module.statusText(modelData)
-                            color: modelData.connected ? colors.blue : colors.comment
+                            color: modelData.connected ? colors.base0D : colors.base04
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             width: 84
@@ -176,7 +176,7 @@ OverlayHost {
 
                 Text {
                     text: module.available ? "No paired devices" : "Bluetooth adapter unavailable"
-                    color: colors.comment
+                    color: colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     visible: module.pairedDevices.length === 0
@@ -190,14 +190,14 @@ OverlayHost {
                 Rectangle {
                     width: parent.width
                     height: openBluemanText.height + 8
-                    color: openBluemanMouse.containsMouse ? colors.bg_highlight : "transparent"
+                    color: openBluemanMouse.containsMouse ? colors.base02 : "transparent"
                     radius: 4
 
                     Text {
                         id: openBluemanText
                         anchors.centerIn: parent
                         text: "Open Bluetooth Settings"
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize
                     }

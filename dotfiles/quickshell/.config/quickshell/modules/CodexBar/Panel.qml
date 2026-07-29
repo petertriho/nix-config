@@ -46,8 +46,8 @@ OverlayHost {
         x: root.width - width - 12
         y: root.topMargin
         radius: 10
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
 
         // Popover settle: fade + slight scale from the top-right corner. Avoids the
         // horizontal slide (which depended on root.width and traveled across-screen).
@@ -75,7 +75,7 @@ OverlayHost {
 
                 Text {
                     text: "Usage"
-                    color: colors.fg_float
+                    color: colors.base06
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize + 2
                     font.bold: true
@@ -84,7 +84,7 @@ OverlayHost {
 
                 Text {
                     text: root.busy ? "󰇦" : "󰑐"
-                    color: refreshMouse.containsMouse ? colors.blue : colors.comment
+                    color: refreshMouse.containsMouse ? colors.base0D : colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     Layout.alignment: Qt.AlignVCenter
@@ -99,7 +99,7 @@ OverlayHost {
 
                 Text {
                     text: "󰅖"
-                    color: closeMouse.containsMouse ? colors.red : colors.comment
+                    color: closeMouse.containsMouse ? colors.base08 : colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     Layout.alignment: Qt.AlignVCenter
@@ -116,14 +116,14 @@ OverlayHost {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                color: colors.bg_highlight
+                color: colors.base02
             }
 
             // Empty state
             Text {
                 visible: usageModel.count === 0
                 text: root.busy ? "Fetching…" : "No usage data yet.\nConfigure a provider: codexbar config enable --provider <name>"
-                color: colors.fg
+                color: colors.base05
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: fontsConfig.defaultSize
                 wrapMode: Text.WordWrap
@@ -156,7 +156,7 @@ OverlayHost {
                         Text {
                             Layout.fillWidth: true
                             text: model.label || model.provider
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize
                             font.bold: true
@@ -192,7 +192,7 @@ OverlayHost {
                             Layout.fillWidth: true
                             visible: model.kind === "quota" && model.resetCredits > 0
                             text: model.resetCredits + " reset credits available"
-                            color: colors.comment
+                            color: colors.base04
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 2
                         }
@@ -218,7 +218,7 @@ OverlayHost {
                                 text: (model.creditsBalance.length > 0 && model.creditsTotal.length > 0)
                                     ? model.creditsBalance + " of " + model.creditsTotal
                                     : (model.creditsBalance || model.cost || "—")
-                                color: colors.fg
+                                color: colors.base05
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize - 2
                                 Layout.fillWidth: true
@@ -228,7 +228,7 @@ OverlayHost {
                             Text {
                                 visible: model.creditsUsed.length > 0
                                 text: model.creditsUsed
-                                color: colors.fg
+                                color: colors.base05
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize - 2
                             }
@@ -239,7 +239,7 @@ OverlayHost {
                             Layout.fillWidth: true
                             visible: model.kind === "error"
                             text: model.message
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             wrapMode: Text.WordWrap
@@ -255,7 +255,7 @@ OverlayHost {
                 visible: usageModel.count > 0
                 text: "Updated " + (root.lastUpdated.length > 0 ? root.lastUpdated : "—")
                       + "  ·  auto " + Math.max(1, Math.round(root.refreshIntervalSec / 60)) + "m"
-                color: colors.comment
+                color: colors.base04
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: fontsConfig.defaultSize - 2
                 horizontalAlignment: Text.AlignRight

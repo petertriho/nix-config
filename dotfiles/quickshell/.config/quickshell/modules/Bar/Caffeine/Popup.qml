@@ -32,8 +32,8 @@ OverlayHost {
         height: Math.min(preferredHeight, availableHeight)
         x: module ? module.popupAnchorX(width) : 0
         y: barWindow ? barWindow.height : 0
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
         radius: caffeinePicker.popupCornerRadius
         opacity: caffeinePicker.open ? 1.0 : 0.0
         scale: caffeinePicker.open ? 1.0 : 0.98
@@ -97,13 +97,13 @@ OverlayHost {
                     delegate: Rectangle {
                         width: pickerRow.width
                         height: pickerRow.height
-                        color: pickerMouse.containsMouse ? colors.bg_highlight : "transparent"
+                        color: pickerMouse.containsMouse ? colors.base02 : "transparent"
                         radius: 2
 
                         Text {
                             id: pickerRow
                             text: modelData.label
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize
                             leftPadding: 8

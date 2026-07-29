@@ -29,10 +29,10 @@ BaseModule {
 
     function usageColor(percent) {
         if (percent >= 90)
-            return colors.red;
+            return colors.base08;
         if (percent >= 70)
-            return colors.yellow;
-        return colors.fg;
+            return colors.base0A;
+        return colors.base05;
     }
 
     function displayPercent(percent) {
@@ -48,15 +48,15 @@ BaseModule {
         var nextPercent = summary.nextPercent;
         var prefix = root.icon;
         if (exhausted > 0)
-            prefix += " " + root.colored(root.exhaustedIcon + exhausted, colors.red) + " ·";
+            prefix += " " + root.colored(root.exhaustedIcon + exhausted, colors.base08) + " ·";
 
         if (nextPercent >= 0 && !isNaN(nextPercent))
             return prefix + " " + root.colored(root.displayPercent(nextPercent), root.usageColor(nextPercent));
         if (exhausted > 0 && summary.allExhausted)
-            return prefix + " " + root.colored("FULL", colors.red);
+            return prefix + " " + root.colored("FULL", colors.base08);
         return prefix + " —";
     }
-    textColor: colors.fg
+    textColor: colors.base05
 
     onClicked: {
         if (codexBarService)

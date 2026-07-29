@@ -11,7 +11,7 @@ BaseModule {
     hoverEnabled: true
     hoverHighlight: true
     text: icon
-    textColor: hovered && accentColor.length > 0 ? accentColor : colors.fg
+    textColor: hovered && accentColor.length > 0 ? accentColor : colors.base05
 
     onClicked: {
         if (url.length === 0)

@@ -18,12 +18,12 @@ ColumnLayout {
 
     function bandColor(p) {
         if (p < 0 || isNaN(p))
-            return colors.comment;
+            return colors.base04;
         if (p >= 90)
-            return colors.red;
+            return colors.base08;
         if (p >= 70)
-            return colors.yellow;
-        return colors.green;
+            return colors.base0A;
+        return colors.base0B;
     }
 
     spacing: 2
@@ -35,7 +35,7 @@ ColumnLayout {
 
         Text {
             text: root.labelText
-            color: colors.fg
+            color: colors.base05
             font.family: fontsConfig.defaultFamily
             font.pixelSize: fontsConfig.defaultSize - 1
             elide: Text.ElideRight
@@ -56,7 +56,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.showReset && root.resetShort !== "—" && root.resetShort.length > 0
         text: "resets " + root.resetShort + "  ·  " + root.resetFull
-        color: colors.comment
+        color: colors.base04
         font.family: fontsConfig.defaultFamily
         font.pixelSize: fontsConfig.defaultSize - 2
     }
@@ -66,7 +66,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredHeight: 4
         radius: 2
-        color: colors.bg_highlight
+        color: colors.base02
 
         Rectangle {
             width: parent.width * (root.percent < 0 ? 0 : Math.min(100, root.percent)) / 100

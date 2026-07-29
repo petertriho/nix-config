@@ -92,7 +92,7 @@ ShellRoot {
         id: brightnessOsd
         title: "Brightness"
         value: brightnessControl.brightness
-        progressColor: config.colors.yellow
+        progressColor: config.colors.base0A
         colors: config.colors
         osdConfig: config.osd
     }
@@ -101,7 +101,7 @@ ShellRoot {
         id: volumeOsd
         title: "Volume"
         value: volumeControl.volume
-        progressColor: config.colors.green
+        progressColor: config.colors.base0B
         showMute: true
         isMuted: volumeControl.muted
         colors: config.colors

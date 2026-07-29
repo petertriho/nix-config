@@ -33,8 +33,8 @@ OverlayHost {
         height: Math.min(preferredHeight, availableHeight)
         x: module ? module.popupX(width) : 0
         y: (barWindow ? barWindow.height : 0) + 4
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
         radius: popupsConfig.cornerRadius
         opacity: trayPopup.open ? 1.0 : 0.0
         scale: trayPopup.open ? 1.0 : 0.98
@@ -82,7 +82,7 @@ OverlayHost {
                             Rectangle {
                                 anchors.fill: parent
                                 radius: 4
-                                color: mouse.containsMouse ? colors.bg_highlight : "transparent"
+                                color: mouse.containsMouse ? colors.base02 : "transparent"
                             }
 
                             IconImage {
@@ -128,7 +128,7 @@ OverlayHost {
                             Rectangle {
                                 anchors.fill: parent
                                 radius: 4
-                                color: ovMouse.containsMouse ? colors.bg_highlight : "transparent"
+                                color: ovMouse.containsMouse ? colors.base02 : "transparent"
                             }
 
                             Row {
@@ -140,14 +140,14 @@ OverlayHost {
 
                                 Text {
                                     text: _mod ? _mod.text : ""
-                                    color: colors.fg
+                                    color: colors.base05
                                     font.family: fontsConfig.defaultFamily
                                     font.pixelSize: fontsConfig.defaultSize
                                 }
 
                                 Text {
                                     text: overflowNames[modelData] || modelData
-                                    color: colors.fg
+                                    color: colors.base05
                                     font.family: fontsConfig.defaultFamily
                                     font.pixelSize: fontsConfig.defaultSize
                                 }

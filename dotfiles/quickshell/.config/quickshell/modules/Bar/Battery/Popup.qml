@@ -31,8 +31,8 @@ OverlayHost {
         height: Math.min(preferredHeight, availableHeight)
         x: module ? module.popupX(width) : 0
         y: (barWindow ? barWindow.height : 0) + 4
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
         radius: batteryPopup.popupCornerRadius
         opacity: batteryPopup.open ? 1.0 : 0.0
         scale: batteryPopup.open ? 1.0 : 0.98
@@ -68,7 +68,7 @@ OverlayHost {
 
                 Text {
                     text: "Battery"
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -87,7 +87,7 @@ OverlayHost {
 
                         Text {
                             text: "Battery " + (modelData.index + 1)
-                            color: colors.comment
+                            color: colors.base04
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             font.bold: true
@@ -99,7 +99,7 @@ OverlayHost {
 
                             Text {
                                 text: modelData.icon + " " + modelData.percentage + "%"
-                                color: modelData.isCritical ? colors.red : (modelData.isWarning ? colors.yellow : colors.fg)
+                                color: modelData.isCritical ? colors.base08 : (modelData.isWarning ? colors.base0A : colors.base05)
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize
                                 width: 92
@@ -107,7 +107,7 @@ OverlayHost {
 
                             Text {
                                 text: modelData.state
-                                color: modelData.isPlugged ? colors.green : colors.fg
+                                color: modelData.isPlugged ? colors.base0B : colors.base05
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize
                                 width: parent.width - 100
@@ -118,7 +118,7 @@ OverlayHost {
                         Text {
                             text: modelData.isCritical ? "Critical" : (modelData.isWarning ? "Warning" : "")
                             visible: text !== ""
-                            color: modelData.isCritical ? colors.red : colors.yellow
+                            color: modelData.isCritical ? colors.base08 : colors.base0A
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                         }
@@ -131,7 +131,7 @@ OverlayHost {
 
                                 Text {
                                     text: modelData.label
-                                    color: colors.comment
+                                    color: colors.base04
                                     font.family: fontsConfig.defaultFamily
                                     font.pixelSize: fontsConfig.defaultSize - 1
                                     width: 112
@@ -140,7 +140,7 @@ OverlayHost {
 
                                 Text {
                                     text: modelData.value
-                                    color: colors.fg
+                                    color: colors.base05
                                     font.family: fontsConfig.defaultFamily
                                     font.pixelSize: fontsConfig.defaultSize - 1
                                     width: parent.width - 120

@@ -34,7 +34,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: colors.bg
+        color: colors.base01
         opacity: 1.0
 
         Item {
@@ -70,7 +70,7 @@ PanelWindow {
                 fontsConfig: root.fontsConfig
                 icon: "󰀻"
                 url: "vicinae://launch/applications"
-                accentColor: colors.blue
+                accentColor: colors.base0D
             }
 
             Workspaces {
@@ -312,7 +312,7 @@ PanelWindow {
                     fontsConfig: root.fontsConfig
                     icon: "󰐥"
                     url: "vicinae://launch/power"
-                    accentColor: colors.red
+                    accentColor: colors.base08
                 }
             }
         }

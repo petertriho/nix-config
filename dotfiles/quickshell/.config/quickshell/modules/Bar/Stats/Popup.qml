@@ -32,8 +32,8 @@ OverlayHost {
         height: Math.min(preferredHeight, availableHeight)
         x: module ? module.popupX(width) : 0
         y: (barWindow ? barWindow.height : 0) + 4
-        color: colors.bg
-        border.color: colors.border
+        color: colors.base01
+        border.color: colors.base10
         radius: statsPopup.popupCornerRadius
         opacity: statsPopup.open ? 1.0 : 0.0
         scale: statsPopup.open ? 1.0 : 0.98
@@ -70,9 +70,9 @@ OverlayHost {
                 // ---------- CPU ----------
                 Text {
                     width: statsPopup.contentW
-                    text: "<span style=\"color:" + colors.blue + "\">●</span>&nbsp;&nbsp;CPU"
+                    text: "<span style=\"color:" + colors.base0D + "\">●</span>&nbsp;&nbsp;CPU"
                     textFormat: Text.RichText
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -82,14 +82,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Load"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: module.loadAvg
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -100,14 +100,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Processes"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: module.processCount
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -128,7 +128,7 @@ OverlayHost {
                                     spacing: 4
                                     Text {
                                         text: "C" + modelData.core
-                                        color: colors.comment
+                                        color: colors.base04
                                         font.family: fontsConfig.defaultFamily
                                         font.pixelSize: fontsConfig.defaultSize - 1
                                         width: 26
@@ -137,18 +137,18 @@ OverlayHost {
                                         width: parent.width - 26 - 34 - 8
                                         height: 8
                                         radius: 2
-                                        color: colors.bg_highlight
+                                        color: colors.base02
                                         anchors.verticalCenter: parent.verticalCenter
                                         Rectangle {
                                             width: Math.max(1, parent.width * modelData.usage / 100)
                                             height: parent.height
                                             radius: parent.radius
-                                            color: modelData.usage > 80 ? colors.red : modelData.usage > 50 ? colors.yellow : colors.blue
+                                            color: modelData.usage > 80 ? colors.base08 : modelData.usage > 50 ? colors.base0A : colors.base0D
                                         }
                                     }
                                     Text {
                                         text: Math.round(modelData.usage) + "%"
-                                        color: colors.fg
+                                        color: colors.base05
                                         font.family: fontsConfig.defaultFamily
                                         font.pixelSize: fontsConfig.defaultSize - 1
                                         width: 34
@@ -162,7 +162,7 @@ OverlayHost {
                 Text {
                     width: statsPopup.contentW
                     text: "Top processes"
-                    color: colors.comment
+                    color: colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 2
                     topPadding: 2
@@ -178,7 +178,7 @@ OverlayHost {
                             anchors.right: parent.right
                             anchors.rightMargin: statsPopup.valueW + 8
                             text: modelData.name
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             elide: Text.ElideRight
@@ -187,7 +187,7 @@ OverlayHost {
                             anchors.right: parent.right
                             width: statsPopup.valueW
                             text: modelData.usage.toFixed(1) + "%"
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             horizontalAlignment: Text.AlignRight
@@ -198,15 +198,15 @@ OverlayHost {
                 Rectangle {
                     width: statsPopup.contentW
                     height: 1
-                    color: colors.bg_highlight
+                    color: colors.base02
                 }
 
                 // ---------- Memory ----------
                 Text {
                     width: statsPopup.contentW
-                    text: "<span style=\"color:" + colors.green + "\">●</span>&nbsp;&nbsp;Memory"
+                    text: "<span style=\"color:" + colors.base0B + "\">●</span>&nbsp;&nbsp;Memory"
                     textFormat: Text.RichText
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -216,14 +216,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Used"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: module.usedMemory.toFixed(1) + "G / " + module.totalMemory.toFixed(1) + "G"
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -234,14 +234,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Available"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: module.availableMemory.toFixed(1) + "G"
-                        color: colors.green
+                        color: colors.base0B
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -253,14 +253,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Swap"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: module.swapUsed.toFixed(1) + "G / " + module.swapTotal.toFixed(1) + "G"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -269,7 +269,7 @@ OverlayHost {
                 Text {
                     width: statsPopup.contentW
                     text: "Top memory"
-                    color: colors.comment
+                    color: colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 2
                     topPadding: 2
@@ -285,7 +285,7 @@ OverlayHost {
                             anchors.right: parent.right
                             anchors.rightMargin: statsPopup.valueW + 8
                             text: modelData.name
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             elide: Text.ElideRight
@@ -294,7 +294,7 @@ OverlayHost {
                             anchors.right: parent.right
                             width: statsPopup.valueW
                             text: module.formatMemoryMb(modelData.memoryMb)
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             horizontalAlignment: Text.AlignRight
@@ -305,15 +305,15 @@ OverlayHost {
                 Rectangle {
                     width: statsPopup.contentW
                     height: 1
-                    color: colors.bg_highlight
+                    color: colors.base02
                 }
 
                 // ---------- Temperature ----------
                 Text {
                     width: statsPopup.contentW
-                    text: "<span style=\"color:" + (module.isCritical ? colors.red : colors.warning) + "\">●</span>&nbsp;&nbsp;Temperature"
+                    text: "<span style=\"color:" + (module.isCritical ? colors.base08 : colors.base0A) + "\">●</span>&nbsp;&nbsp;Temperature"
                     textFormat: Text.RichText
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -323,14 +323,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Package"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: Math.round(module.temperature) + "°C"
-                        color: module.isCritical ? colors.red : colors.fg
+                        color: module.isCritical ? colors.base08 : colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize
                         font.bold: true
@@ -341,15 +341,15 @@ OverlayHost {
                 Rectangle {
                     width: statsPopup.contentW
                     height: 1
-                    color: colors.bg_highlight
+                    color: colors.base02
                 }
 
                 // ---------- GPU ----------
                 Text {
                     width: statsPopup.contentW
-                    text: "<span style=\"color:" + colors.magenta + "\">●</span>&nbsp;&nbsp;GPU"
+                    text: "<span style=\"color:" + colors.base0E + "\">●</span>&nbsp;&nbsp;GPU"
                     textFormat: Text.RichText
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     font.bold: true
@@ -358,7 +358,7 @@ OverlayHost {
                     width: statsPopup.contentW
                     visible: !module.gpuAvailable
                     text: module.gpuStatus
-                    color: colors.warning
+                    color: colors.base0A
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 1
                     wrapMode: Text.WordWrap
@@ -367,7 +367,7 @@ OverlayHost {
                     width: statsPopup.contentW
                     visible: module.gpuAvailable
                     text: module.gpuName
-                    color: colors.comment
+                    color: colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 1
                     elide: Text.ElideRight
@@ -378,14 +378,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Usage"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: Math.round(module.gpuUsage) + "%"
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -397,14 +397,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "VRAM"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: module.gpuMemoryTotal > 0 ? module.formatMemoryMb(module.gpuMemoryUsed) + " / " + module.formatMemoryMb(module.gpuMemoryTotal) : "—"
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -416,14 +416,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Temperature"
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: Math.round(module.gpuTemperature) + "°C"
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -433,7 +433,7 @@ OverlayHost {
                     width: statsPopup.contentW
                     visible: module.gpuAvailable
                     text: "Processes"
-                    color: colors.comment
+                    color: colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 2
                     topPadding: 2
@@ -442,7 +442,7 @@ OverlayHost {
                     width: statsPopup.contentW
                     visible: module.gpuAvailable && module.gpuApps.length === 0
                     text: "No process data"
-                    color: colors.comment
+                    color: colors.base04
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 1
                 }
@@ -457,7 +457,7 @@ OverlayHost {
                             anchors.right: parent.right
                             anchors.rightMargin: statsPopup.valueW * 2 + 18
                             text: modelData.name
-                            color: colors.fg
+                            color: colors.base05
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             elide: Text.ElideRight
@@ -467,7 +467,7 @@ OverlayHost {
                             spacing: 10
                             Text {
                                 text: modelData.usage > 0 ? modelData.usage.toFixed(1) + "%" : "—"
-                                color: colors.fg
+                                color: colors.base05
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize - 1
                                 width: statsPopup.valueW
@@ -475,7 +475,7 @@ OverlayHost {
                             }
                             Text {
                                 text: module.formatMemoryMb(modelData.memoryMb)
-                                color: colors.fg
+                                color: colors.base05
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize - 1
                                 width: statsPopup.valueW

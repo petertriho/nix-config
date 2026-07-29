@@ -384,5 +384,5 @@ BaseModule {
 
     text: batteryText
 
-    textColor: hasCritical ? colors.red : (hasWarning ? colors.yellow : colors.fg)
+    textColor: hasCritical ? colors.base08 : (hasWarning ? colors.base0A : colors.base05)
 }

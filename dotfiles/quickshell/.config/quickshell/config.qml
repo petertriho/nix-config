@@ -83,7 +83,6 @@ QtObject {
         readonly property int progressFillCornerRadius: 5
         readonly property int valueFontSize: theme.osd.valueFontSize
         readonly property int hideInterval: 2000
-        readonly property string mutedProgressColor: theme.osd.mutedProgressColor
     }
 
     // Update intervals

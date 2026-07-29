@@ -18,8 +18,8 @@ Rectangle {
 
     width: inCenter && parent ? parent.width : notificationsConfig.toastWidth
     implicitHeight: cardColumn.implicitHeight + notificationsConfig.cardPadding * 2
-    color: colors.bg
-    border.color: colors.border
+    color: colors.base01
+    border.color: colors.base10
     radius: notificationsConfig.cornerRadius
     clip: true
     opacity: notificationsConfig.panelOpacity
@@ -115,7 +115,7 @@ Rectangle {
 
                     Text {
                         text: root.appName()
-                        color: colors.blue
+                        color: colors.base0D
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: notificationsConfig.appFontSize
                         elide: Text.ElideRight
@@ -124,7 +124,7 @@ Rectangle {
 
                     Text {
                         text: root.relativeTime(entry.createdAt, clock)
-                        color: colors.comment
+                        color: colors.base04
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: notificationsConfig.appFontSize
                         Layout.alignment: Qt.AlignVCenter
@@ -134,7 +134,7 @@ Rectangle {
                 Text {
                     text: root.summary()
                     visible: text.length > 0
-                    color: colors.fg_float
+                    color: colors.base06
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: notificationsConfig.summaryFontSize
                     font.bold: true
@@ -147,7 +147,7 @@ Rectangle {
                 Text {
                     text: root.body()
                     visible: text.length > 0
-                    color: colors.fg
+                    color: colors.base05
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: notificationsConfig.bodyFontSize
                     wrapMode: Text.WordWrap
@@ -159,7 +159,7 @@ Rectangle {
 
             Text {
                 text: "󰅖"
-                color: closeMouse.containsMouse ? colors.red : colors.comment
+                color: closeMouse.containsMouse ? colors.base08 : colors.base04
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: notificationsConfig.summaryFontSize
                 Layout.alignment: Qt.AlignTop
@@ -184,15 +184,15 @@ Rectangle {
                 delegate: Rectangle {
                     height: actionText.implicitHeight + 8
                     width: actionText.implicitWidth + 16
-                    color: actionMouse.containsMouse ? colors.bg_highlight : colors.bg_dark1
-                    border.color: colors.border_highlight
+                    color: actionMouse.containsMouse ? colors.base02 : colors.base11
+                    border.color: colors.base0C
                     radius: 6
 
                     Text {
                         id: actionText
                         anchors.centerIn: parent
                         text: modelData.text
-                        color: colors.fg
+                        color: colors.base05
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: notificationsConfig.actionFontSize
                     }
