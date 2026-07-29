@@ -1,16 +1,10 @@
+{ config, ... }:
 {
-  pkgs,
-  config,
-  ...
-}:
-{
-  home = {
-    packages = with pkgs; [ starship ];
-    sessionVariables = {
-      STARSHIP_CONFIG = "${config.home.homeDirectory}/.config/starship/starship.toml";
-    };
+  programs.starship = {
+    enable = true;
+    configPath = "${config.xdg.configHome}/starship/starship.toml";
+    settings = builtins.fromTOML (
+      builtins.readFile ../../dotfiles/starship/.config/starship/starship.toml
+    );
   };
-
-  xdg.configFile."starship/starship.toml".source =
-    config.lib.meta.mkDotfilesSymlink "starship/.config/starship/starship.toml";
 }
