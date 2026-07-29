@@ -1,9 +1,14 @@
-{ ... }:
+{ config, ... }:
 {
   stylix.targets = {
     bat.enable = true;
     btop.enable = true;
-    fish.enable = true;
+    fish = {
+      enable = true;
+      colors.override = config.lib.stylix.colors.override {
+        base04 = config.lib.stylix.colors.base05;
+      };
+    };
     fzf.enable = true;
     lazygit.enable = true;
     opencode.enable = true;
