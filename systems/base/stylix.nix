@@ -32,7 +32,7 @@ let
     variant = "dark";
     base00 = extractTokyoNightColor "bg";
     base01 = extractTokyoNightColor "bg_dark";
-    base02 = extractTokyoNightColor "bg_visual";
+    base02 = extractTokyoNightColor "bg_highlight";
     base03 = extractTokyoNightColor "comment";
     base04 = extractTokyoNightColor "dark5";
     base05 = extractTokyoNightColor "fg_dark";
