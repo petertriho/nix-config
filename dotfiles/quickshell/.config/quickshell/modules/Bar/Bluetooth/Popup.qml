@@ -77,7 +77,7 @@ OverlayHost {
 
                 Text {
                     text: module.adapterText()
-                    color: module.enabled ? colors.base0B : colors.base04
+                    color: module.enabled ? colors.base0B : colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     elide: Text.ElideRight
@@ -127,7 +127,7 @@ OverlayHost {
 
                 Text {
                     text: "No connected devices"
-                    color: colors.base04
+                    color: colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     visible: module.connectedDevices.length === 0
@@ -155,7 +155,7 @@ OverlayHost {
 
                         Text {
                             text: module.displayName(modelData)
-                            color: modelData.connected ? colors.base05 : colors.base04
+                            color: modelData.connected ? colors.base05 : colors.base03
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize
                             width: parent.width - 92
@@ -164,7 +164,7 @@ OverlayHost {
 
                         Text {
                             text: module.statusText(modelData)
-                            color: modelData.connected ? colors.base0D : colors.base04
+                            color: modelData.connected ? colors.base0D : colors.base03
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             width: 84
@@ -176,7 +176,7 @@ OverlayHost {
 
                 Text {
                     text: module.available ? "No paired devices" : "Bluetooth adapter unavailable"
-                    color: colors.base04
+                    color: colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     visible: module.pairedDevices.length === 0

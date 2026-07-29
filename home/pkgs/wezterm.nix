@@ -60,7 +60,7 @@ in
                           fg_color = ${luaString colors.base03},
                       },
                       inactive_tab_hover = {
-                          bg_color = ${luaString colors.base02},
+                          bg_color = ${luaString colors.base00},
                           fg_color = ${luaString colors.base05},
                       },
                       new_tab = {
@@ -68,7 +68,7 @@ in
                           fg_color = ${luaString colors.base03},
                       },
                       new_tab_hover = {
-                          bg_color = ${luaString colors.base02},
+                          bg_color = ${luaString colors.base00},
                           fg_color = ${luaString colors.base05},
                       },
                   },

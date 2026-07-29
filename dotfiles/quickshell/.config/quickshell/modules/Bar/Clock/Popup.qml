@@ -202,7 +202,7 @@ OverlayHost {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             text: modelData
-                            color: colors.base04
+                            color: colors.base03
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                         }
@@ -243,7 +243,7 @@ OverlayHost {
                                         return colors.base05;
                                     if (cell.isToday)
                                         return colors.base01;
-                                    return cell.inMonth ? colors.base05 : colors.base04;
+                                    return cell.inMonth ? colors.base05 : colors.base03;
                                 }
                                 font.family: fontsConfig.defaultFamily
                                 font.pixelSize: fontsConfig.defaultSize

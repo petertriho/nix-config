@@ -98,7 +98,7 @@ OverlayHost {
                 Text {
                     text: root.modelCount() > 0 ? "󰆳 Clear" : ""
                     visible: text.length > 0
-                    color: clearMouse.containsMouse ? colors.base08 : colors.base04
+                    color: clearMouse.containsMouse ? colors.base08 : colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: notificationsConfig.headerFontSize
                     Layout.alignment: Qt.AlignVCenter
@@ -113,7 +113,7 @@ OverlayHost {
 
                 Text {
                     text: "󰅖"
-                    color: closeMouse.containsMouse ? colors.base08 : colors.base04
+                    color: closeMouse.containsMouse ? colors.base08 : colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: notificationsConfig.headerFontSize
                     Layout.alignment: Qt.AlignVCenter
@@ -132,7 +132,7 @@ OverlayHost {
 
                 visible: root.modelCount() === 0
                 text: "No notifications"
-                color: colors.base04
+                color: colors.base03
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: notificationsConfig.bodyFontSize
                 Layout.fillWidth: true

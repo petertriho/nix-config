@@ -82,7 +82,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Load"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -100,7 +100,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Processes"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -128,7 +128,7 @@ OverlayHost {
                                     spacing: 4
                                     Text {
                                         text: "C" + modelData.core
-                                        color: colors.base04
+                                        color: colors.base03
                                         font.family: fontsConfig.defaultFamily
                                         font.pixelSize: fontsConfig.defaultSize - 1
                                         width: 26
@@ -162,7 +162,7 @@ OverlayHost {
                 Text {
                     width: statsPopup.contentW
                     text: "Top processes"
-                    color: colors.base04
+                    color: colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 2
                     topPadding: 2
@@ -216,7 +216,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Used"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -234,7 +234,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Available"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -253,14 +253,14 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Swap"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: module.swapUsed.toFixed(1) + "G / " + module.swapTotal.toFixed(1) + "G"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                         horizontalAlignment: Text.AlignRight
@@ -269,7 +269,7 @@ OverlayHost {
                 Text {
                     width: statsPopup.contentW
                     text: "Top memory"
-                    color: colors.base04
+                    color: colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 2
                     topPadding: 2
@@ -323,7 +323,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Package"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -367,7 +367,7 @@ OverlayHost {
                     width: statsPopup.contentW
                     visible: module.gpuAvailable
                     text: module.gpuName
-                    color: colors.base04
+                    color: colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 1
                     elide: Text.ElideRight
@@ -378,7 +378,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Usage"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -397,7 +397,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "VRAM"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -416,7 +416,7 @@ OverlayHost {
                     Text {
                         width: statsPopup.contentW * 0.5
                         text: "Temperature"
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: fontsConfig.defaultSize - 1
                     }
@@ -433,7 +433,7 @@ OverlayHost {
                     width: statsPopup.contentW
                     visible: module.gpuAvailable
                     text: "Processes"
-                    color: colors.base04
+                    color: colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 2
                     topPadding: 2
@@ -442,7 +442,7 @@ OverlayHost {
                     width: statsPopup.contentW
                     visible: module.gpuAvailable && module.gpuApps.length === 0
                     text: "No process data"
-                    color: colors.base04
+                    color: colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize - 1
                 }

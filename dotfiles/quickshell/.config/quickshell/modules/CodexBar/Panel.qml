@@ -84,7 +84,7 @@ OverlayHost {
 
                 Text {
                     text: root.busy ? "󰇦" : "󰑐"
-                    color: refreshMouse.containsMouse ? colors.base0D : colors.base04
+                    color: refreshMouse.containsMouse ? colors.base0D : colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     Layout.alignment: Qt.AlignVCenter
@@ -99,7 +99,7 @@ OverlayHost {
 
                 Text {
                     text: "󰅖"
-                    color: closeMouse.containsMouse ? colors.base08 : colors.base04
+                    color: closeMouse.containsMouse ? colors.base08 : colors.base03
                     font.family: fontsConfig.defaultFamily
                     font.pixelSize: fontsConfig.defaultSize
                     Layout.alignment: Qt.AlignVCenter
@@ -192,7 +192,7 @@ OverlayHost {
                             Layout.fillWidth: true
                             visible: model.kind === "quota" && model.resetCredits > 0
                             text: model.resetCredits + " reset credits available"
-                            color: colors.base04
+                            color: colors.base03
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 2
                         }
@@ -255,7 +255,7 @@ OverlayHost {
                 visible: usageModel.count > 0
                 text: "Updated " + (root.lastUpdated.length > 0 ? root.lastUpdated : "—")
                       + "  ·  auto " + Math.max(1, Math.round(root.refreshIntervalSec / 60)) + "m"
-                color: colors.base04
+                color: colors.base03
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: fontsConfig.defaultSize - 2
                 horizontalAlignment: Text.AlignRight

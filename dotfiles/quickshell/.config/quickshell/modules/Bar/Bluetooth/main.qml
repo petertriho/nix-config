@@ -31,7 +31,7 @@ BaseModule {
     hoverEnabled: true
     hoverHighlight: true
     text: icon
-    textColor: !available || !enabled ? colors.base04 : connectedDevices.length > 0 ? colors.base0D : colors.base05
+    textColor: !available || !enabled ? colors.base03 : connectedDevices.length > 0 ? colors.base0D : colors.base05
 
     function displayName(device) {
         if (!device)

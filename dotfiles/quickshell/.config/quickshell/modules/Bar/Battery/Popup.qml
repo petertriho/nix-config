@@ -87,7 +87,7 @@ OverlayHost {
 
                         Text {
                             text: "Battery " + (modelData.index + 1)
-                            color: colors.base04
+                            color: colors.base03
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 1
                             font.bold: true
@@ -131,7 +131,7 @@ OverlayHost {
 
                                 Text {
                                     text: modelData.label
-                                    color: colors.base04
+                                    color: colors.base03
                                     font.family: fontsConfig.defaultFamily
                                     font.pixelSize: fontsConfig.defaultSize - 1
                                     width: 112

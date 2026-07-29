@@ -48,7 +48,7 @@ Item {
     // Map a percent to a config color band (shared by the bar segment + panel).
     function bandColor(percent) {
         if (percent < 0 || isNaN(percent))
-            return colors.base04;
+            return colors.base03;
         if (percent >= 90)
             return colors.base08;
         if (percent >= 70)

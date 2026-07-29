@@ -124,7 +124,7 @@ Rectangle {
 
                     Text {
                         text: root.relativeTime(entry.createdAt, clock)
-                        color: colors.base04
+                        color: colors.base03
                         font.family: fontsConfig.defaultFamily
                         font.pixelSize: notificationsConfig.appFontSize
                         Layout.alignment: Qt.AlignVCenter
@@ -159,7 +159,7 @@ Rectangle {
 
             Text {
                 text: "󰅖"
-                color: closeMouse.containsMouse ? colors.base08 : colors.base04
+                color: closeMouse.containsMouse ? colors.base08 : colors.base03
                 font.family: fontsConfig.defaultFamily
                 font.pixelSize: notificationsConfig.summaryFontSize
                 Layout.alignment: Qt.AlignTop

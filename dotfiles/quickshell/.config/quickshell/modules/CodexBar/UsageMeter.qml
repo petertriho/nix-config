@@ -18,7 +18,7 @@ ColumnLayout {
 
     function bandColor(p) {
         if (p < 0 || isNaN(p))
-            return colors.base04;
+            return colors.base03;
         if (p >= 90)
             return colors.base08;
         if (p >= 70)
@@ -56,7 +56,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.showReset && root.resetShort !== "—" && root.resetShort.length > 0
         text: "resets " + root.resetShort + "  ·  " + root.resetFull
-        color: colors.base04
+        color: colors.base03
         font.family: fontsConfig.defaultFamily
         font.pixelSize: fontsConfig.defaultSize - 2
     }
