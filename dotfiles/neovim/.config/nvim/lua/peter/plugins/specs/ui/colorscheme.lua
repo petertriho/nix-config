@@ -1,11 +1,11 @@
 local theme_path = vim.fs.joinpath(vim.fn.fnamemodify(vim.fn.stdpath("config"), ":h"), "stylix", "neovim.lua")
 local load_theme, load_error = loadfile(theme_path)
 
-if not load_theme then
+if not load_theme and vim.fn.filereadable(theme_path) == 1 then
     error(("Unable to load generated Neovim theme %s: %s"):format(theme_path, load_error))
 end
 
-local theme = load_theme()
+local theme = load_theme and load_theme() or { alias = "tokyonight" }
 
 local function build_highlights(colors)
     return {
