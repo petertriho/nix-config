@@ -35,6 +35,8 @@
     sessionVariables.FORGIT_PAGER = "delta --width \\$\{FZF_PREVIEW_COLUMNS:-$COLUMNS}";
   };
 
+  programs.gitui.enable = true;
+
   programs.lazygit = {
     enable = true;
     enableFishIntegration = false;

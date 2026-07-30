@@ -10,6 +10,7 @@
       };
     };
     fzf.enable = true;
+    gitui.enable = true;
     lazygit.enable = true;
     opencode.enable = true;
     starship.enable = true;
