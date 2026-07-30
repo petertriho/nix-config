@@ -1,5 +1,26 @@
 local theme_path = vim.fs.joinpath(vim.fn.fnamemodify(vim.fn.stdpath("config"), ":h"), "stylix", "neovim.lua")
-local load_theme, load_error = loadfile(theme_path)
+
+-- Compile the generated theme in memory rather than through `loadfile`.
+-- `vim.loader` replaces the global `loadfile` with a byte-compile cache that
+-- validates entries on `(size, mtime)` alone, and this file defeats both halves
+-- of that check: Nix normalizes every store mtime to 1, and the generated table
+-- is fixed-width by construction (each palette entry is a 7-char hex string), so
+-- swapping themes leaves the byte count unchanged whenever the aliases are the
+-- same length. The cache then looks valid and replays the previous theme
+-- forever. `load` is not cached, so it always sees the current generation.
+local function compile_theme(path)
+    local file, open_error = io.open(path, "r")
+    if not file then
+        return nil, open_error
+    end
+
+    local source = file:read("*a")
+    file:close()
+
+    return load(source, "@" .. path)
+end
+
+local load_theme, load_error = compile_theme(theme_path)
 
 if not load_theme and vim.fn.filereadable(theme_path) == 1 then
     error(("Unable to load generated Neovim theme %s: %s"):format(theme_path, load_error))
