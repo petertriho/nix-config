@@ -85,9 +85,21 @@ in
         variant
       else
         throw "theme `${config.theme}` has missing or unsupported variant metadata";
-    fonts.monospace = {
-      package = pkgs.nerd-fonts.jetbrains-mono;
-      name = "JetBrainsMono Nerd Font Mono";
+    fonts = {
+      monospace = {
+        package = pkgs.nerd-fonts.jetbrains-mono;
+        name = "JetBrainsMono Nerd Font Mono";
+      };
+      sansSerif = {
+        package = pkgs.nerd-fonts.jetbrains-mono;
+        name = "JetBrainsMono Nerd Font";
+      };
+      sizes = {
+        applications = 10;
+        desktop = 10;
+        popups = 10;
+        terminal = 10;
+      };
     };
     opacity = {
       desktop = 1.0;
