@@ -26,7 +26,7 @@
   #    root and EFI fileSystems entries for the installed disk. Do not keep the
   #    temporary tmpfs root below for an installed system.
   # 7. After first boot, inspect /dev/dri/by-path and set any Wayland DRM device
-  #    ordering in home/MBP15-I7.nix if Radeon-first selection needs tuning.
+  #    ordering in home/hosts/MBP15-I7.nix if Radeon-first selection needs tuning.
 
   boot.initrd.availableKernelModules = [
     "xhci_pci"

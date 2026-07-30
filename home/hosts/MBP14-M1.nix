@@ -1,7 +1,7 @@
 { ... }:
 {
   imports = [
-    ./darwin.nix
+    ../profiles/darwin.nix
   ];
   home = {
     sessionVariables = {

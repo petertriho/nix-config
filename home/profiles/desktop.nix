@@ -8,14 +8,14 @@
   imports = [
     ./base.nix
     inputs.vicinae.homeManagerModules.default
-    ./pkgs/stylix-desktop.nix
-    ./pkgs/alacritty.nix
-    ./pkgs/ghostty.nix
-    ./pkgs/wayland-common.nix
-    ./pkgs/niri.nix
-    ./pkgs/quickshell.nix
-    ./pkgs/ripgrep-all.nix
-    ./pkgs/vicinae.nix
+    ../programs/stylix-desktop.nix
+    ../programs/alacritty.nix
+    ../programs/ghostty.nix
+    ../programs/wayland-common.nix
+    ../programs/niri.nix
+    ../programs/quickshell.nix
+    ../programs/ripgrep-all.nix
+    ../programs/vicinae.nix
   ];
 
   home.packages = with pkgs; [

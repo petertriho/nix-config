@@ -4,7 +4,7 @@
   ...
 }:
 {
-  imports = [ ./base.nix ];
+  imports = [ ../profiles/base.nix ];
   home = {
     packages = with pkgs; [
       ungoogled-chromium

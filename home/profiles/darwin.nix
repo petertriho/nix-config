@@ -2,10 +2,10 @@
 {
   imports = [
     ./base.nix
-    # ./pkgs/alacritty.nix
-    ./pkgs/ghostty.nix
-    # ./pkgs/colima.nix
-    # ./pkgs/wezterm.nix
+    # ../programs/alacritty.nix
+    ../programs/ghostty.nix
+    # ../programs/colima.nix
+    # ../programs/wezterm.nix
   ];
 
   home.file.".hushlogin".text = "";

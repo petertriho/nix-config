@@ -12,8 +12,8 @@ let
 in
 {
   imports = [
-    ./desktop.nix
-    ./pkgs/gaming.nix
+    ../profiles/desktop.nix
+    ../programs/gaming.nix
   ];
   home = {
     packages = with pkgs; [

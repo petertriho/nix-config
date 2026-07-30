@@ -1,8 +1,8 @@
 { pkgs, ... }:
 {
   imports = [
-    ./desktop.nix
-    ./pkgs/intel-gpu.nix
+    ../profiles/desktop.nix
+    ../programs/intel-gpu.nix
   ];
   home.packages = with pkgs; [
     cura-appimage
