@@ -9,7 +9,7 @@
   imports = [
     outputs.homeManagerModules.helpers
     outputs.homeManagerModules.programs
-    ./stylix.nix
+    ./pkgs/stylix.nix
     ./pkgs/ai.nix
     ./pkgs/cli-proxy-api.nix
     ./pkgs/data.nix

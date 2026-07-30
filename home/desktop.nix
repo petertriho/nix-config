@@ -8,7 +8,7 @@
   imports = [
     ./base.nix
     inputs.vicinae.homeManagerModules.default
-    ./stylix-desktop.nix
+    ./pkgs/stylix-desktop.nix
     ./pkgs/alacritty.nix
     ./pkgs/ghostty.nix
     ./pkgs/wayland-common.nix
