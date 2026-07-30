@@ -7,6 +7,8 @@
 let
   cfg = config.programs.ai;
 
+  jsonFormat = pkgs.formats.json { };
+
   extensionMap = {
     sh = ".sh";
     bash = ".bash";
@@ -117,6 +119,14 @@ let
     // lib.optionalAttrs (server.args != [ ]) { args = server.args; }
     // server.clients."claude-code".settings;
 
+  toPiLsp =
+    _: server:
+    {
+      command = [ server.command ] ++ server.args;
+      extensions = map (ft: extensionMap.${ft} or ".${ft}") server.filetypes;
+    }
+    // server.clients.pi.settings;
+
   cleanMcpServer =
     server:
     lib.filterAttrs (_: value: value != null && value != [ ] && value != { }) (
@@ -208,6 +218,12 @@ let
               default = { };
               description = "Codex rendering settings for this skill.";
             };
+
+            pi = lib.mkOption {
+              type = skillClientType;
+              default = { };
+              description = "Pi rendering settings for this skill.";
+            };
           };
         };
         default = { };
@@ -270,6 +286,12 @@ let
               type = lspClientType;
               default = { };
               description = "Crush rendering settings for this LSP server.";
+            };
+
+            pi = lib.mkOption {
+              type = lspClientType;
+              default = { };
+              description = "Pi rendering settings for this LSP server.";
             };
           };
         };
@@ -418,6 +440,19 @@ in
         plugins = pluginPathsFor "codex";
       };
     })
+
+    (lib.mkIf config.programs.pi-coding-agent.enable (
+      let
+        piConfigDir = config.programs.pi-coding-agent.configDir;
+      in
+      {
+        home.file = skillFilesFor "pi" "${piConfigDir}/skills" // {
+          "${piConfigDir}/pi-lsp.json".source = jsonFormat.generate "pi-lsp.json" (
+            lib.mapAttrs toPiLsp (enabledLspFor "pi")
+          );
+        };
+      }
+    ))
 
     {
       programs.mcp.servers = lib.mapAttrs (_: cleanMcpServer) cfg.mcp;

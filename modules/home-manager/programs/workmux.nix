@@ -26,6 +26,10 @@ in
         xdg.configFile."opencode/plugins/workmux-status.ts".source =
           "${cfg.package.src}/resources/opencode/plugins/workmux-status.ts";
       })
+      (lib.mkIf config.programs.pi-coding-agent.enable {
+        home.file."${config.programs.pi-coding-agent.configDir}/extensions/workmux-status.ts".source =
+          "${cfg.package.src}/.pi/extensions/workmux-status.ts";
+      })
     ]
   );
 }

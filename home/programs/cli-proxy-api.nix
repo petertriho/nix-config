@@ -66,6 +66,11 @@ lib.mkMerge [
     };
   }
 
+  (lib.mkIf config.programs.pi-coding-agent.enable {
+    home.file."${config.programs.pi-coding-agent.configDir}/extensions/cli-proxy-api-models.ts".source =
+      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/cli-proxy-api-models.ts";
+  })
+
   (lib.mkIf pkgs.stdenv.isLinux {
     systemd.user.services.cli-proxy-api = {
       Unit = {

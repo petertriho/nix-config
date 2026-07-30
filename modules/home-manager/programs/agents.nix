@@ -47,6 +47,9 @@ in
               commands.${name} = skillCommands.${name};
             };
             codex.enable = false;
+            # Pi natively scans ~/.agents/skills; rendering these generic
+            # skills into Pi's own skill directory would duplicate them.
+            pi.enable = false;
           };
         }) availableSkills;
       }

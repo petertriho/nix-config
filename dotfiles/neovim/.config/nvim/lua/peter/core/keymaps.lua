@@ -213,7 +213,7 @@ end, { desc = "@buffer#L1:2" })
 
 -- Send current buffer text to an agent pane in the current tmux session.
 keymap("n", "<leader>as", function()
-    local processes = { "claude", "opencode" }
+    local processes = { "claude", "opencode", "pi" }
     local bufnr = vim.api.nvim_get_current_buf()
     local buffer_path = vim.api.nvim_buf_get_name(bufnr)
     local is_ai_prompt_buffer = buffer_path ~= "" and vim.startswith(vim.fn.resolve(buffer_path), ai_prompt_root .. "/")

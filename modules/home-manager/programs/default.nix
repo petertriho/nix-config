@@ -11,6 +11,7 @@
     ./hallmark.nix
     ./impeccable.nix
     ./jscpd.nix
+    ./pi.nix
     ./plannotator.nix
     ./playwriter.nix
     ./repowise.nix

@@ -225,6 +225,10 @@ in
         ];
       };
     };
+    pi-coding-agent = {
+      enable = true;
+      package = pkgs.llm-agents.pi;
+    };
     agents.skills.enable = true;
     annot.enable = false;
     anthropic-skills = {

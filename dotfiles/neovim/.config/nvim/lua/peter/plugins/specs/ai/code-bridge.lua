@@ -55,6 +55,7 @@ return {
             process_name = {
                 "claude",
                 "opencode",
+                "pi",
             },
         },
     },
