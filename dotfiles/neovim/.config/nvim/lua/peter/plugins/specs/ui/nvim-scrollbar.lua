@@ -38,7 +38,6 @@ return {
                 excluded_filetypes = require("peter.core.filetypes").excludes,
                 providers = {
                     mini_diff = true,
-                    cursor = false,
                 },
             },
         })
