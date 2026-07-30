@@ -71,27 +71,28 @@ in
 
         # Git worktree dirs to exclude
         gitDirs = [
+          "*__worktrees"
           "dev"
           "hotfix"
           "main"
-          "*__worktrees"
+          "releases"
           "work"
         ];
 
         # Development directories to exclude
         devDirs = [
-          "node_modules" # Node.js dependencies
           ".git" # Git metadata
-          "target" # Rust/Cargo build
-          "build" # Build artifacts
-          "dist" # Distribution builds
-          "coverage" # Test coverage
-          "__pycache__" # Python bytecode
-          "venv" # Python virtual env
           ".venv" # Python virtual env (hidden)
-          "vendor" # Dependencies
-          "tmp" # Temporary files
+          "__pycache__" # Python bytecode
+          "build" # Build artifacts
+          "coverage" # Test coverage
+          "dist" # Distribution builds
+          "node_modules" # Node.js dependencies
+          "target" # Rust/Cargo build
           "temp" # Temporary files
+          "tmp" # Temporary files
+          "vendor" # Dependencies
+          "venv" # Python virtual env
         ];
 
         allExcludes = lib.concatMap excludeDir (gitDirs ++ devDirs);
