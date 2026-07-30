@@ -30,6 +30,7 @@ let
     scheme = "Tokyo Night";
     author = "folke/tokyonight.nvim";
     variant = "dark";
+    # follows https://github.com/tinted-theming/base24/blob/main/styling.md
     base00 = extractTokyoNightColor "bg";
     base01 = extractTokyoNightColor "bg_dark";
     base02 = extractTokyoNightColor "bg_highlight";
@@ -73,7 +74,7 @@ in
   stylix = {
     enable = true;
     autoEnable = false;
-    base16Scheme = scheme;
+    base16Scheme = scheme; # https://tinted-theming.github.io/tinted-gallery/
     polarity =
       if
         builtins.elem variant [

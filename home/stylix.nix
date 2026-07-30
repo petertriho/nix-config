@@ -14,7 +14,12 @@
     lazygit.enable = true;
     opencode.enable = true;
     starship.enable = true;
-    vivid.enable = true;
+    vivid = {
+      enable = true;
+      colors.override = config.lib.stylix.colors.override {
+        base0F = config.lib.stylix.colors.base0D;
+      };
+    };
     yazi.enable = true;
 
     neovim.enable = false;
