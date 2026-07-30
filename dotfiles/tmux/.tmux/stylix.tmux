@@ -59,9 +59,12 @@ setw -g window-status-style "${stylix_none},fg=${stylix_secondary_fg},bg=${styli
 # Window Status Content
 # ----------------------------------------------------------------------------
 window_status_format="#[default] #I: #W "\
-"#[fg=${stylix_prefix}]#F "
+"#[fg=${stylix_prefix}]#{?window_flags,#F ,}"\
+"#{?@workmux_status,#{@workmux_status} ,}"
 
-window_status_current_format="#[fg=${mode_aware_fg},bg=${stylix_highlight_bg},bold] #I: #W #F "
+window_status_current_format="#[fg=${mode_aware_fg},bg=${stylix_highlight_bg},bold] #I: #W "\
+"#{?window_flags,#F ,}"\
+"#{?@workmux_status,#{@workmux_status} ,}"
 
 setw -g window-status-format "${window_status_format}"
 setw -g window-status-current-format "${window_status_current_format}"

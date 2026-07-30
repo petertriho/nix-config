@@ -11,6 +11,7 @@ files:
     - .plans
     - node_modules
     - docs/superpowers
+status_format: false
 status_icons:
   working: "󰚩"
   waiting: "󰍡"
