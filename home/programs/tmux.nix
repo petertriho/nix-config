@@ -104,6 +104,7 @@ in
               "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
               "(r'/nix/store/\\\\S+/bin/(n?vim?).*', r'\\\\g<1>')"
               "(r'/nix/store/\\\\S+/bin/(.+)', r'\\\\g<1>')"
+              "(r'/nix/store/\\\\S+/libexec/\\\\S+/(.+)', r'\\\\g<1>')"
             ];
             dir_programs = mkStringList "'" [
               "git"
