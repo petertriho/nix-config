@@ -11,6 +11,7 @@
     ./effective-html.nix
     ./hallmark.nix
     ./impeccable.nix
+    ./iris.nix
     ./jscpd.nix
     ./pi.nix
     ./plannotator.nix

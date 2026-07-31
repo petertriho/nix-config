@@ -1,0 +1,76 @@
+diff --git a/scripts/rename_session_windows.py b/scripts/rename_session_windows.py
+index 5896377..5aed8cf 100755
+--- a/scripts/rename_session_windows.py
++++ b/scripts/rename_session_windows.py
+@@ -172,6 +172,7 @@ class Options:
+     shells: List[str] = field(default_factory=lambda: ['bash', 'fish', 'sh', 'zsh'])
+     dir_programs: List[str] = field(default_factory=lambda: ['nvim', 'vim', 'vi', 'git'])
+     ignored_programs: List[str] = field(default_factory=lambda: [])
++    wrapper_programs: List[str] = field(default_factory=lambda: [])
+     ignore_program_diffs: bool = False
+     max_name_len: int = 20
+     use_tilde: bool = False
+@@ -273,13 +274,19 @@ def get_current_program(running_programs: List[bytes], pane: TmuxPane, options:
+         raise ValueError(f'Pane id is none, pane: {pane}')
+ 
+     logging.debug(f"searching for active pane's child with pane_pid={pane.pane_pid}")
++    parent_pid = int(pane.pane_pid)
++    shell_program = None
++    wrapper_found = False
+ 
+-    for program in running_programs:
+-        program = program.split()
++    while True:
++        for process in running_programs:
++            process = process.split()
+ 
+-        # if pid matches parse program
+-        if int(program[0]) == int(pane.pane_pid):
+-            program = program[1:]
++            if len(process) < 3 or int(process[0]) != parent_pid:
++                continue
++
++            child_pid = int(process[1])
++            program = process[2:]
+             program_name = program[0].decode()
+             program_name_stripped = re.sub(USR_BIN_REMOVER[0], USR_BIN_REMOVER[1], program_name)
+             logging.debug(
+@@ -294,18 +301,26 @@ def get_current_program(running_programs: List[bytes], pane: TmuxPane, options:
+                 logging.debug(f'skipping {program_name_stripped}, its ignored')
+                 continue
+ 
+-            # Ignore shells
++            if program_name_stripped in options.wrapper_programs:
++                logging.debug(f'descending through wrapper {program_name_stripped}')
++                parent_pid = child_pid
++                wrapper_found = True
++                break
++
+             if program_name_stripped in options.shells:
+                 shell_program = parse_shell_command(program)
+                 logging.debug(f'its a shell, parsed shell program {shell_program}')
++                if wrapper_found:
++                    parent_pid = child_pid
++                    break
+                 return shell_program
+ 
+             if not options.show_program_args:
+                 return program[0].decode()
+ 
+             return b' '.join(program).decode()
+-
+-    return None
++        else:
++            return shell_program
+ 
+ 
+ def get_program_if_dir(program_line: str, dir_programs: List[str]) -> Optional[str]:
+@@ -346,7 +361,7 @@ def rename_window(server: Server, window_id: str, window_name: str, max_name_len
+ def get_panes_programs(session: Session, options: Options) -> List[Pane]:
+     session_active_panes = get_session_active_panes(session)
+     try:
+-        output_bytes = subprocess.check_output(['ps', '-a', '-oppid,command'])
++        output_bytes = subprocess.check_output(['ps', '-e', '-oppid,pid,command'])
+         all_lines_bytes = output_bytes.splitlines()[1:]
+         running_programs = [line for line in all_lines_bytes if b'<defunct>' not in line]
+         logging.debug(f'running_programs={running_programs}')

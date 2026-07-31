@@ -99,6 +99,7 @@ in
               "sh"
               "zsh"
             ];
+            wrapper_programs = mkStringList "'" [ "iris" ];
             substitute_sets = mkStringList "" [
               "(r'^/etc/profiles/per-user/(.+)/bin/(.+)', r'\\\\g<2>')"
               "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
@@ -123,6 +124,7 @@ in
             set -g @tmux_window_name_ignored_programs "${ignored_programs}"
             set -g @tmux_window_name_shells "${name_shells}"
             set -g @tmux_window_name_substitute_sets "${substitute_sets}"
+            set -g @tmux_window_name_wrapper_programs "${wrapper_programs}"
             set -g @tmux_window_name_custom_icons '{"claude":"✻","codex":"","opencode":"󰚩","pi":"󰏬"}'
             set -g @tmux_window_name_show_program_args "False"
           '';

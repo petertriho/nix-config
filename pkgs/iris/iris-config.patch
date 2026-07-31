@@ -1,0 +1,250 @@
+diff --git a/integration/overlay.go b/integration/overlay.go
+index 0b77fa0..2e375f1 100644
+--- a/integration/overlay.go
++++ b/integration/overlay.go
+@@ -140,18 +140,25 @@ type Theme struct {
+ 	GhostText  lipgloss.Color
+ }
+ 
++func themeColor(environmentVariable, fallback string) lipgloss.Color {
++	if value := os.Getenv(environmentVariable); value != "" {
++		return lipgloss.Color(value)
++	}
++	return lipgloss.Color(fallback)
++}
++
+ var currentTheme = Theme{
+-	Border:     lipgloss.Color("#a277ff"),
+-	Accent:     lipgloss.Color("#61ffca"),
+-	Muted:      lipgloss.Color("#6d6a7f"),
+-	Text:       lipgloss.Color("#edecee"),
+-	TextSel:    lipgloss.Color("#ffffff"),
+-	Match:      lipgloss.Color("#61ffca"),
+-	Desc:       lipgloss.Color("#9692a8"),
+-	DescSel:    lipgloss.Color("#edecee"),
+-	SelBg:      lipgloss.Color("#3d375e"),
+-	ScrollInfo: lipgloss.Color("#a277ff"),
+-	GhostText:  lipgloss.Color("#4B4A4C"),
++	Border:     themeColor("IRIS_THEME_BORDER", "#a277ff"),
++	Accent:     themeColor("IRIS_THEME_ACCENT", "#61ffca"),
++	Muted:      themeColor("IRIS_THEME_MUTED", "#6d6a7f"),
++	Text:       themeColor("IRIS_THEME_TEXT", "#edecee"),
++	TextSel:    themeColor("IRIS_THEME_SELECTED_TEXT", "#ffffff"),
++	Match:      themeColor("IRIS_THEME_MATCH", "#61ffca"),
++	Desc:       themeColor("IRIS_THEME_DESCRIPTION", "#9692a8"),
++	DescSel:    themeColor("IRIS_THEME_SELECTED_DESCRIPTION", "#edecee"),
++	SelBg:      themeColor("IRIS_THEME_SELECTED_BACKGROUND", "#3d375e"),
++	ScrollInfo: themeColor("IRIS_THEME_SCROLL_INFO", "#a277ff"),
++	GhostText:  themeColor("IRIS_THEME_GHOST_TEXT", "#4B4A4C"),
+ }
+ 
+ func SetTheme(t Theme) {
+diff --git a/integration/overlay_test.go b/integration/overlay_test.go
+index 795592e..9767591 100644
+--- a/integration/overlay_test.go
++++ b/integration/overlay_test.go
+@@ -7,6 +7,13 @@ import (
+ 	"github.com/versenilvis/iris/spec"
+ )
+ 
++func TestThemeColorFromEnvironment(t *testing.T) {
++	t.Setenv("IRIS_THEME_TEST", "#123456")
++	if got := string(themeColor("IRIS_THEME_TEST", "#654321")); got != "#123456" {
++		t.Fatalf("expected environment theme color, got %q", got)
++	}
++}
++
+ func TestRenderGhostText_CursorAtEnd(t *testing.T) {
+ 	o := NewOverlay()
+ 	items := []spec.Suggestion{
+diff --git a/internal/ai/client.go b/internal/ai/client.go
+index b627bde..1bedc55 100644
+--- a/internal/ai/client.go
++++ b/internal/ai/client.go
+@@ -68,7 +68,7 @@ func (c *OpenAIClient) Suggest(ctx context.Context, buf string, env EnvSnapshot,
+ 	}
+ 
+ 	reqMap := map[string]any{
+-		"model":       c.cfg.Model,
++		"model":       c.cfg.GetModel(),
+ 		"messages":    messages,
+ 		"max_tokens":  100,
+ 		"temperature": 0.2,
+diff --git a/internal/config/config.go b/internal/config/config.go
+index acb2e24..668d4ba 100644
+--- a/internal/config/config.go
++++ b/internal/config/config.go
+@@ -67,6 +67,7 @@ type KeybindingsConfig struct {
+ 	ToggleMode       string `toml:"toggle-mode"`
+ 	ToggleMenu       string `toml:"toggle-menu"`
+ 	SelectSuggestion string `toml:"select"`
++	AcceptGhost      string `toml:"accept-ghost"`
+ 	NavigateUp       string `toml:"navigate-up"`
+ 	NavigateDown     string `toml:"navigate-down"`
+ }
+@@ -83,6 +84,7 @@ type ProviderConfig struct {
+ 	APIKey           string         `toml:"api_key"`
+ 	APIKeyEnv        string         `toml:"api_key_env"`
+ 	Model            string         `toml:"model"`
++	ModelEnv         string         `toml:"model_env"`
+ 	TimeoutMS        int            `toml:"timeout_ms"`
+ 	ExtraRequestBody map[string]any `toml:"extra_request_body"`
+ }
+@@ -114,6 +116,15 @@ func (p *ProviderConfig) GetAPIKey() string {
+ 	return ""
+ }
+ 
++func (p *ProviderConfig) GetModel() string {
++	if p.ModelEnv != "" {
++		if model := os.Getenv(p.ModelEnv); model != "" {
++			return model
++		}
++	}
++	return p.Model
++}
++
+ type Config struct {
+ 	Core        CoreConfig        `toml:"core"`
+ 	UI          UIConfig          `toml:"ui"`
+@@ -201,6 +212,9 @@ func Load() (*Config, error) {
+ 	if cfg.Keybindings.SelectSuggestion == "" {
+ 		cfg.Keybindings.SelectSuggestion = "tab"
+ 	}
++	if cfg.Keybindings.AcceptGhost == "" {
++		cfg.Keybindings.AcceptGhost = "right"
++	}
+ 	if cfg.Keybindings.NavigateUp == "" {
+ 		cfg.Keybindings.NavigateUp = "up"
+ 	}
+diff --git a/internal/config/config_test.go b/internal/config/config_test.go
+index 4ac1b3f..8ff6514 100644
+--- a/internal/config/config_test.go
++++ b/internal/config/config_test.go
+@@ -27,6 +27,10 @@ func TestDefaultConfigAndState(t *testing.T) {
+ 	if cfg.AI.Providers != nil {
+ 		t.Errorf("expected default providers map to be nil, got %v", cfg.AI.Providers)
+ 	}
++	if cfg.Keybindings.AcceptGhost != "right" {
++		t.Errorf("expected default ghost acceptance key right, got %q", cfg.Keybindings.AcceptGhost)
++	}
+ 
+ 	// test manual provider registration
++	t.Setenv("TEST_MODEL", "environment-model")
+ 	cfg.AI.Provider = "custom"
+ 	cfg.AI.Providers = map[string]ProviderConfig{
+ 		"custom": {
+@@ -37,5 +41,6 @@ func TestDefaultConfigAndState(t *testing.T) {
+ 			APIKey:        "test-key",
+ 			Model:         "test-model",
++			ModelEnv:      "TEST_MODEL",
+ 			TimeoutMS:     1000,
+ 		},
+ 	}
+@@ -49,6 +54,9 @@ func TestDefaultConfigAndState(t *testing.T) {
+ 	if p.GetAPIKey() != "test-key" {
+ 		t.Errorf("expected api key test-key, got %q", p.GetAPIKey())
+ 	}
++	if p.GetModel() != "environment-model" {
++		t.Errorf("expected model environment-model, got %q", p.GetModel())
++	}
+ 	if cfg.AI.SuggestOnEmpty.DebounceMS != 800 {
+ 		t.Errorf("expected debounce 800, got %d", cfg.AI.SuggestOnEmpty.DebounceMS)
+ 	}
+diff --git a/internal/config/defaults.go b/internal/config/defaults.go
+index 93b77bc..3cda7a9 100644
+--- a/internal/config/defaults.go
++++ b/internal/config/defaults.go
+@@ -47,6 +47,7 @@ func DefaultConfig() *Config {
+ 			ToggleMode:       "ctrl+r",
+ 			ToggleMenu:       "shift+tab",
+ 			SelectSuggestion: "tab",
++			AcceptGhost:      "right",
+ 			NavigateUp:       "up",
+ 			NavigateDown:     "down",
+ 		},
+diff --git a/root/config_cmd.go b/root/config_cmd.go
+index e76a934..524c72a 100644
+--- a/root/config_cmd.go
++++ b/root/config_cmd.go
+@@ -103,5 +103,6 @@ toggle-mode = "ctrl+r"
+ toggle-menu = "shift+tab"
+ select = "tab"
++accept-ghost = "right"
+ navigate-up = "up"
+ navigate-down = "down"
+ `
+diff --git a/root/init.go b/root/init.go
+index e7bb857..892a9d5 100644
+--- a/root/init.go
++++ b/root/init.go
+@@ -282,5 +282,6 @@ toggle-mode = "ctrl+r"
+ toggle-menu = "shift+tab"
+ select = "tab"
++accept-ghost = "right"
+ navigate-up = "up"
+ navigate-down = "down"
+ EOF
+diff --git a/root/wrapper.go b/root/wrapper.go
+index e591bc5..a72dc1e 100644
+--- a/root/wrapper.go
++++ b/root/wrapper.go
+@@ -796,6 +796,30 @@ func runWrapper() {
+ 					}
+ 				}
+ 
++				if matched, consumed := config.MatchKey(inputSlice[i:], config.Get().Keybindings.AcceptGhost); matched && config.Get().Keybindings.AcceptGhost != "" {
++					bufferMu.Lock()
++					atEnd := cursorOffset == 0
++					ghostText := ""
++					if !disableGhostText.Load() {
++						ghostText = overlay.GetGhostText(naiveBuffer, atEnd)
++					}
++					bufferMu.Unlock()
++
++					if ghostText != "" {
++						intercepted = true
++						logger.Debugf("Intercepted AcceptGhost (accepted ghost text: %q)", ghostText)
++						bufferMu.Lock()
++						naiveBuffer += ghostText
++						cursorOffset = 0
++						bufferMu.Unlock()
++						overlay.ClearGhostTextState()
++						_, _ = ptmx.Write([]byte(ghostText))
++						shouldOverlayDraw = true
++						i += consumed - 1
++						continue
++					}
++				}
++
+ 				if matched, consumed := config.MatchKey(inputSlice[i:], config.Get().Keybindings.SelectSuggestion); matched && config.Get().Keybindings.SelectSuggestion != "" {
+ 					if overlay.IsVisible() {
+ 						intercepted = true
+@@ -952,28 +976,6 @@ func runWrapper() {
+ 								continue
+ 							}
+ 
+-							bufferMu.Lock()
+-							atEnd := (cursorOffset == 0)
+-							ghostText := ""
+-							if !disableGhostText.Load() {
+-								ghostText = overlay.GetGhostText(naiveBuffer, atEnd)
+-							}
+-							bufferMu.Unlock()
+-
+-							if len(ghostText) > 0 {
+-								intercepted = true
+-								logger.Debugf("Intercepted Right Arrow (accepted ghost text: %q)", ghostText)
+-								bufferMu.Lock()
+-								naiveBuffer += ghostText
+-								cursorOffset = 0
+-								bufferMu.Unlock()
+-								overlay.ClearGhostTextState()
+-								_, _ = ptmx.Write([]byte(ghostText))
+-								shouldOverlayDraw = true
+-								i += 2
+-								continue
+-							}
+-
+ 							bufferMu.Lock()
+ 							if naiveBuffer != "" || overlay.IsVisible() {
+ 								cursorOffset--

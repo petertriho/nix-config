@@ -36,6 +36,6 @@ function ls-on-cd --on-variable PWD
     $ls_cmd --classify
 end
 
-if type --query tv
-    tv init fish | source
-end
+# if type --query tv
+#     tv init fish | source
+# end

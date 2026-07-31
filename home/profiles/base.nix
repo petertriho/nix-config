@@ -32,4 +32,5 @@
   };
 
   programs.home-manager.enable = true;
+  programs.iris.enable = true;
 }
