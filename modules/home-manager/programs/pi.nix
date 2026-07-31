@@ -9,6 +9,10 @@ let
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
 
+  # Rendered nix-declared settings, merged into the mutable settings.json by
+  # the piMutableSettings activation entry below.
+  settingsJson = jsonFormat.generate "pi-coding-agent-settings.json" cfg.settings;
+
   # Every color token required by Pi's theme schema (see theme-schema.json in
   # the Pi package), mapped onto the Stylix base16 palette.
   stylixTheme = {
@@ -105,6 +109,12 @@ in
 {
   # Augments the upstream `programs.pi-coding-agent` module; intentionally
   # declares no local options and no default provider/model/thinking level.
+  #
+  # settings.json is declared here but kept a mutable file: the upstream
+  # module's read-only store symlink is disabled and an activation script
+  # deep-merges the nix keys into the real file on every switch (nix wins on
+  # declared keys). This lets pi persist model/thinking/other runtime settings
+  # itself, which would otherwise fail against a store symlink.
   config = lib.mkIf cfg.enable {
     programs.pi-coding-agent = {
       # npm must be on Pi's wrapped PATH for settings.packages installs.
@@ -122,5 +132,52 @@ in
 
     home.file."${cfg.configDir}/themes/stylix.json".source =
       jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
+
+    # Suppress the upstream module's read-only settings.json symlink; the
+    # activation entry below owns the file instead.
+    home.file."${cfg.configDir}/settings.json".enable = false;
+
+    # Re-assert the nix-declared settings into the mutable settings.json on
+    # every switch. Deep merge with nix winning on declared keys; jq `*`
+    # replaces arrays wholesale, so `packages` stays fully nix-controlled.
+    # Ordered after linkGeneration, which removes the pre-migration symlink.
+    home.activation.piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      piSettingsFile=${lib.escapeShellArg "${cfg.configDir}/settings.json"}
+      piSettingsNix=${settingsJson}
+      piJq=${pkgs.jq}/bin/jq
+
+      # Atomic write: temp file in the same directory + rename, so a running
+      # pi never observes a torn file.
+      function piWriteSettings {
+        local tmp
+        tmp=$(mktemp "$1.tmp.XXXXXX")
+        printf '%s\n' "$2" > "$tmp"
+        mv "$tmp" "$1"
+      }
+
+      # Leftover symlink at the target (linkGeneration normally cleans up the
+      # previous generation's link; belt and braces for the first migration).
+      if [[ -L "$piSettingsFile" ]]; then
+        run rm $VERBOSE_ARG "$piSettingsFile"
+      fi
+
+      run mkdir -p $VERBOSE_ARG "$(dirname "$piSettingsFile")"
+
+      if [[ -f "$piSettingsFile" && ! -L "$piSettingsFile" ]]; then
+        if "$piJq" -e . "$piSettingsFile" > /dev/null 2>&1; then
+          piSettingsMerged=$("$piJq" -s '.[0] * .[1]' "$piSettingsFile" "$piSettingsNix")
+        else
+          warnEcho "$piSettingsFile is not valid JSON; backing it up to $piSettingsFile.bak"
+          run mv $VERBOSE_ARG "$piSettingsFile" "$piSettingsFile.bak"
+          piSettingsMerged=$(cat "$piSettingsNix")
+        fi
+      else
+        piSettingsMerged=$(cat "$piSettingsNix")
+      fi
+
+      run piWriteSettings "$piSettingsFile" "$piSettingsMerged"
+      unset piSettingsFile piSettingsNix piJq piSettingsMerged
+      unset -f piWriteSettings
+    '';
   };
 }
