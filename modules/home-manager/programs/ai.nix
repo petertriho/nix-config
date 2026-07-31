@@ -119,13 +119,33 @@ let
     // lib.optionalAttrs (server.args != [ ]) { args = server.args; }
     // server.clients."claude-code".settings;
 
-  toPiLsp =
-    _: server:
+  # pi-lens CustomServerConfig (clients/lsp/config.ts). `args` is always
+  # emitted: pi-lens defaults a missing `args` to ["--stdio"], which would
+  # break servers that take no arguments (nil, lua-language-server).
+  toPiLensServer =
+    name: server:
     {
-      command = [ server.command ] ++ server.args;
+      inherit name;
+      command = server.command;
+      args = server.args;
       extensions = map (ft: extensionMap.${ft} or ".${ft}") server.filetypes;
     }
     // server.clients.pi.settings;
+
+  # Built-in pi-lens servers whose extensions overlap the servers declared in
+  # programs.ai.lsp. Must track the `id:` values in pi-lens
+  # clients/lsp/server.ts for the version pinned in pi.nix (verified against
+  # 3.8.73); a stale id is silently ignored and the built-in keeps attaching
+  # alongside the custom server. Re-verify on every version bump.
+  piLensDisabledServers = [
+    "bash"
+    "lua"
+    "nix" # nixd
+    "python" # pyright / basedpyright
+    "python-jedi" # built-ins are tried before custom servers; would shadow pyrefly
+    "terraform"
+    "typescript"
+  ];
 
   cleanMcpServer =
     server:
@@ -447,9 +467,13 @@ in
       in
       {
         home.file = skillFilesFor "pi" "${piConfigDir}/skills" // {
-          "${piConfigDir}/pi-lsp.json".source = jsonFormat.generate "pi-lsp.json" (
-            lib.mapAttrs toPiLsp (enabledLspFor "pi")
-          );
+          # Home-relative on purpose: pi-lens finds this via its upward config
+          # walk (.pi-lens/lsp.json) for any project under $HOME. A per-project
+          # .pi-lens.json would shadow it, dropping these servers there.
+          ".pi-lens/lsp.json".source = jsonFormat.generate "pi-lens-lsp.json" {
+            servers = lib.mapAttrs toPiLensServer (enabledLspFor "pi");
+            disabledServers = piLensDisabledServers;
+          };
         };
       }
     ))

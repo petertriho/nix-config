@@ -69,6 +69,10 @@ in
           "vue"
           "svelte"
         ];
+        # pi-lens runs eslint natively (dispatch runner, config-gated) and has
+        # no eslint LSP built-in; as a custom server it would also be tried
+        # before tsgo (first-match, alphabetical), hijacking TS navigation.
+        clients.pi.enable = false;
       };
       lua-lsp = {
         command = "lua-language-server";

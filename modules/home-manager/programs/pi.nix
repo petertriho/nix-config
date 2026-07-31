@@ -117,13 +117,17 @@ in
   # itself, which would otherwise fail against a store symlink.
   config = lib.mkIf cfg.enable {
     programs.pi-coding-agent = {
-      # npm must be on Pi's wrapped PATH for settings.packages installs.
-      extraPackages = [ pkgs.nodejs ];
+      extraPackages = with pkgs; [
+        nodejs
+        ast-grep
+        biome
+        prettier
+      ];
       settings = {
         npmCommand = [ "npm" ];
         packages = [
           "npm:pi-mcp-adapter@2.15.0"
-          "npm:@narumitw/pi-lsp@0.35.0"
+          "npm:pi-lens@3.8.73"
         ]
         ++ lib.optional config.programs.plannotator.enable "npm:@plannotator/pi-extension@0.25.0";
         theme = "stylix";
@@ -132,6 +136,23 @@ in
 
     home.file."${cfg.configDir}/themes/stylix.json".source =
       jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
+
+    home.file.".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
+      format = {
+        enabled = true;
+        mode = "deferred";
+      };
+      autofix.enabled = true;
+      actionableWarnings = {
+        enabled = true;
+        includeLspCodeActions = true;
+        deltaOnly = true;
+        autoFix = {
+          enabled = true;
+          maxFixes = 5;
+        };
+      };
+    };
 
     # Suppress the upstream module's read-only settings.json symlink; the
     # activation entry below owns the file instead.
