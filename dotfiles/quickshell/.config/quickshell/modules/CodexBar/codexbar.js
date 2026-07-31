@@ -8,10 +8,11 @@
 //   - Top-level is an ARRAY of segment objects (one per provider, or one per
 //     Codex account when multi-account). A bare object is tolerated too.
 //   - Each segment: { provider, source, error?:{kind,message,code}, usage?:{...} }
-//   - codexbar NORMALIZES quota providers (Codex, z.ai, ...) into one shape:
-//       usage.primary / usage.secondary = { usedPercent, windowMinutes, resetsAt, resetDescription }
-//     Either window may be null; a secondary-only window is promoted for display.
-//     So Codex and z.ai share one mapper. (The docs' data.limits[]/TOKENS_LIMIT
+//   - codexbar NORMALIZES quota providers (Codex, z.ai, OpenCode Go, ...) into:
+//       usage.primary / usage.secondary / usage.tertiary =
+//           { usedPercent, windowMinutes, resetsAt, resetDescription }
+//     Any window may be null; remaining windows are compacted for display. This
+//     keeps one provider-generic mapper. (The docs' data.limits[]/TOKENS_LIMIT
 //     describe the raw BigModel API; codexbar normalizes them away.)
 //   - OpenRouter is a cost row under usage.openRouterUsage (balance /
 //     totalCredits / totalUsage + usedPercent). It now renders a credits-used
@@ -131,11 +132,15 @@ function emptyRow() {
         windowLabel: "",
         resetShort: "—",
         resetFull: "—",
-        // Secondary usage window (Codex weekly / z.ai monthly). -1/blank if none.
+        // Additional quota windows. -1/blank if absent after compaction.
         secondaryPercent: -1,
         secondaryLabel: "",
         secondaryResetShort: "—",
         secondaryResetFull: "—",
+        tertiaryPercent: -1,
+        tertiaryLabel: "",
+        tertiaryResetShort: "—",
+        tertiaryResetFull: "—",
         // OpenRouter credit figures (cost rows only); blank otherwise.
         creditsBalance: "",
         creditsTotal: "",
@@ -147,7 +152,7 @@ function emptyRow() {
     };
 }
 
-function quotaRow(provider, account, primary, secondary, now) {
+function quotaRow(provider, account, primary, secondary, tertiary, now) {
     var row = emptyRow();
     row.kind = "quota";
     row.provider = provider;
@@ -155,6 +160,7 @@ function quotaRow(provider, account, primary, secondary, now) {
     row.label = providerLabel(provider) + (account ? " · " + account : "");
     row.percent = clampPercent(Number(primary && primary.usedPercent));
     row.secondaryPercent = clampPercent(Number(secondary && secondary.usedPercent));
+    row.tertiaryPercent = clampPercent(Number(tertiary && tertiary.usedPercent));
     // Window label: prefer the minutes (codex 5h/weekly), else the provider's own
     // description (z.ai reports "5 hours window" / "Monthly" with no minutes).
     row.windowLabel = (primary && primary.windowMinutes)
@@ -163,12 +169,18 @@ function quotaRow(provider, account, primary, secondary, now) {
     row.secondaryLabel = (secondary && secondary.windowMinutes)
         ? windowLabel(secondary.windowMinutes)
         : ((secondary && secondary.resetDescription) || "");
+    row.tertiaryLabel = (tertiary && tertiary.windowMinutes)
+        ? windowLabel(tertiary.windowMinutes)
+        : ((tertiary && tertiary.resetDescription) || "");
     var resetMs = parseResetTime(primary && primary.resetsAt);
     row.resetShort = relativeReset(resetMs, now);
     row.resetFull = absoluteReset(resetMs);
     var secondaryResetMs = parseResetTime(secondary && secondary.resetsAt);
     row.secondaryResetShort = relativeReset(secondaryResetMs, now);
     row.secondaryResetFull = absoluteReset(secondaryResetMs);
+    var tertiaryResetMs = parseResetTime(tertiary && tertiary.resetsAt);
+    row.tertiaryResetShort = relativeReset(tertiaryResetMs, now);
+    row.tertiaryResetFull = absoluteReset(tertiaryResetMs);
     return row;
 }
 
@@ -193,20 +205,23 @@ function errorRow(provider, message) {
 
 // --- provider-specific mappers ----------------------------------------------
 
-// codexbar normalizes quota providers (Codex, z.ai, ...) into one shape:
-//   usage.primary / usage.secondary = { usedPercent, windowMinutes, resetsAt, resetDescription }
-// When primary is unavailable, promote secondary so consumers still get one
-// displayable and rankable window without rendering it twice.
+// Compact all available normalized source windows into contiguous display slots
+// so missing earlier windows do not leave gaps or duplicate later windows.
 function mapQuota(item, provider, now) {
     var usage = item && item.usage;
-    if (!usage || (!usage.primary && !usage.secondary))
+    if (!usage || (!usage.primary && !usage.secondary && !usage.tertiary))
         return null;
-    var primary = usage.primary || usage.secondary;
-    var secondary = usage.primary ? usage.secondary : null;
+    var windows = [];
+    if (usage.primary)
+        windows.push(usage.primary);
+    if (usage.secondary)
+        windows.push(usage.secondary);
+    if (usage.tertiary)
+        windows.push(usage.tertiary);
     var account = usage.accountEmail
         || (usage.identity && usage.identity.accountEmail)
         || "";
-    var row = quotaRow(provider, account, primary, secondary || {}, now);
+    var row = quotaRow(provider, account, windows[0] || {}, windows[1] || {}, windows[2] || {}, now);
     // Codex grants free rate-limit reset credits; surface the count when > 0.
     var credits = usage.codexResetCredits && usage.codexResetCredits.availableCount;
     if (typeof credits === "number" && credits > 0)
@@ -298,7 +313,7 @@ function parseAll(output, now) {
 
 function effectiveQuotaPercent(row) {
     var best = -1;
-    var values = [row.percent, row.secondaryPercent];
+    var values = [row.percent, row.secondaryPercent, row.tertiaryPercent];
     for (var i = 0; i < values.length; i++) {
         var value = Number(values[i]);
         if (!isNaN(value) && value >= 0 && value > best)

@@ -63,6 +63,7 @@ auto-selected "most critical" meter, which only considers quota-window providers
 ## 4. OpenCode Go — manual browser cookie
 
 OpenCode Go uses the `auth` or `__Host-auth` session cookie from `opencode.ai`;
+its quota row shows the service's 5-hour, weekly, and 30-day usage windows.
 
 ```json
 {

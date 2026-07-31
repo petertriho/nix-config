@@ -6,10 +6,10 @@ import Quickshell.Wayland
 import "../Common"
 
 // Panel — full-screen overlay (mirrors Center.qml) listing
-// every normalized usage row. Quota rows (Codex/z.ai) render a primary (5h) and
-// secondary (weekly/monthly) UsageMeter, each with its own reset countdown, plus
-// any free Codex reset credits; cost rows (OpenRouter) render a credits-used
-// meter + balance/total/used; error rows show a clean message. Footer = Refresh.
+// every normalized usage row. Quota rows render up to three compacted source
+// windows, each with its own reset countdown, plus any free Codex reset credits;
+// cost rows (OpenRouter) render a credits-used meter + balance/total/used; error
+// rows show a clean message. Footer = Refresh.
 OverlayHost {
     id: root
 
@@ -163,7 +163,7 @@ OverlayHost {
                             elide: Text.ElideRight
                         }
 
-                        // Primary (5h) meter — quota rows
+                        // First available quota window
                         UsageMeter {
                             Layout.fillWidth: true
                             visible: model.kind === "quota"
@@ -175,7 +175,7 @@ OverlayHost {
                             fontsConfig: root.fontsConfig
                         }
 
-                        // Secondary (weekly/monthly) meter — quota rows
+                        // Second available quota window
                         UsageMeter {
                             Layout.fillWidth: true
                             visible: model.kind === "quota" && model.secondaryPercent >= 0
@@ -183,6 +183,18 @@ OverlayHost {
                             percent: model.secondaryPercent
                             resetShort: model.secondaryResetShort
                             resetFull: model.secondaryResetFull
+                            colors: root.colors
+                            fontsConfig: root.fontsConfig
+                        }
+
+                        // Third available quota window
+                        UsageMeter {
+                            Layout.fillWidth: true
+                            visible: model.kind === "quota" && model.tertiaryPercent >= 0
+                            labelText: model.tertiaryLabel.length > 0 ? model.tertiaryLabel : "3rd window"
+                            percent: model.tertiaryPercent
+                            resetShort: model.tertiaryResetShort
+                            resetFull: model.tertiaryResetFull
                             colors: root.colors
                             fontsConfig: root.fontsConfig
                         }
