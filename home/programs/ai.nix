@@ -48,16 +48,16 @@ in
           "bash"
         ];
       };
-      basedpyright = {
-        command = "basedpyright-langserver";
-        args = [
-          "--stdio"
-        ];
-        filetypes = [
-          "python"
-          "pyi"
-        ];
-      };
+      # basedpyright = {
+      #   command = "basedpyright-langserver";
+      #   args = [
+      #     "--stdio"
+      #   ];
+      #   filetypes = [
+      #     "python"
+      #     "pyi"
+      #   ];
+      # };
       eslint = {
         command = "vscode-eslint-language-server";
         args = [ "--stdio" ];
@@ -80,14 +80,14 @@ in
         args = [ ];
         filetypes = [ "nix" ];
       };
-      # pyrefly = {
-      #   command = "pyrefly";
-      #   args = [ "lsp" ];
-      #   filetypes = [
-      #     "python"
-      #     "pyi"
-      #   ];
-      # };
+      pyrefly = {
+        command = "pyrefly";
+        args = [ "lsp" ];
+        filetypes = [
+          "python"
+          "pyi"
+        ];
+      };
       terraformls = {
         command = "terraform-ls";
         args = [
@@ -98,9 +98,12 @@ in
           "tf"
         ];
       };
-      vtsls = {
-        command = "vtsls";
-        args = [ "--stdio" ];
+      tsgo = {
+        command = "tsgo";
+        args = [
+          "--lsp"
+          "--stdio"
+        ];
         filetypes = [
           "javascript"
           "javascriptreact"
@@ -108,6 +111,16 @@ in
           "typescriptreact"
         ];
       };
+      # vtsls = {
+      #   command = "vtsls";
+      #   args = [ "--stdio" ];
+      #   filetypes = [
+      #     "javascript"
+      #     "javascriptreact"
+      #     "typescript"
+      #     "typescriptreact"
+      #   ];
+      # };
     };
     mcp = {
       enable = true;
