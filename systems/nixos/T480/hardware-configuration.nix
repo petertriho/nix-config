@@ -66,7 +66,7 @@
         CPU_MIN_PERF_ON_AC = 0;
         CPU_MAX_PERF_ON_AC = 85;
         CPU_MIN_PERF_ON_BAT = 0;
-        CPU_MAX_PERF_ON_BAT = 45;
+        CPU_MAX_PERF_ON_BAT = 70;
 
         CPU_BOOST_ON_AC = 1;
         CPU_BOOST_ON_BAT = 0;
