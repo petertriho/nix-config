@@ -255,6 +255,7 @@ in
       ];
     };
     crush.enable = false;
+    effective-html.enable = true;
     hallmark.enable = true;
     impeccable.enable = true;
     jscpd.enable = true;

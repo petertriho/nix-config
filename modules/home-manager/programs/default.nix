@@ -8,6 +8,7 @@
     ./betterfox.nix
     ./claude-code.nix
     ./crush.nix
+    ./effective-html.nix
     ./hallmark.nix
     ./impeccable.nix
     ./jscpd.nix
