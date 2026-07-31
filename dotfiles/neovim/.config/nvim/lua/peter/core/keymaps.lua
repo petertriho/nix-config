@@ -224,27 +224,11 @@ keymap("n", "<leader>as", function()
         return
     end
 
-    local panes = vim.fn.system({ "tmux", "list-panes", "-s", "-F", "#{pane_id} #{pane_current_command}" })
-    if vim.v.shell_error ~= 0 then
+    local target, target_error = require("peter.core.tmux").find_pane(processes, "-s")
+    if target_error then
         vim.fn.setreg("+", content)
-        vim.notify("No tmux session, copied buffer to clipboard", vim.log.levels.WARN)
+        vim.notify(target_error .. ", copied buffer to clipboard", vim.log.levels.WARN)
         return
-    end
-
-    local target
-    for line in panes:gmatch("[^\n]+") do
-        local pane_id, command = line:match("^(%S+)%s*(.*)$")
-        if pane_id and command then
-            for _, process in ipairs(processes) do
-                if command:find(process, 1, true) then
-                    target = pane_id
-                    break
-                end
-            end
-        end
-        if target then
-            break
-        end
     end
 
     if not target then
