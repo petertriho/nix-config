@@ -899,7 +899,7 @@ function tool:list {
 }
 
 function tool:help {
-    echo_header "Update Script Help"
+    echo_header "nixcfg Help"
     printf "${BOLD}Usage:${NC} %s [TOOL] [ARGS]\n\n" "$0"
     echo -e "${BOLD}Global Options:${NC}"
     echo "  --host NAME                 Activate the named host target for rebuilds"

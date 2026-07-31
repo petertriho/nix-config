@@ -129,7 +129,7 @@
       ndr = "nix-direnv-reload";
       nfu = "nix flake update";
       nr = "nix run nixpkgs#";
-      nrs = "update nix:rebuild";
+      nrs = "nixcfg nix:rebuild";
       ns = "nix search nixpkgs";
       oc = "opencode";
       ocb = "set -x OPENCODE_AGENT_BUILD_MODEL (models-dev)";
