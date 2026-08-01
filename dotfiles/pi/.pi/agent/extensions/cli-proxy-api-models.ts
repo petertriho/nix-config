@@ -35,253 +35,351 @@ const DEFAULT_CACHE_DAYS = 7;
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_CONTEXT_WINDOW = 128000;
 const DEFAULT_MAX_TOKENS = 16384;
+const CACHE_VERSION = 2;
+
+const THINKING_LEVELS = [
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
 
 // Channels exposed by the proxy management catalog. Models are unioned across
 // channels; the first occurrence of an ID wins (IDs are provider-scoped).
 const MODEL_DEFINITION_CHANNELS = [
-	"codex",
-	"claude",
-	"gemini",
-	"vertex",
-	"aistudio",
-	"kimi",
-	"antigravity",
-	"xai",
+  "codex",
+  "claude",
+  "gemini",
+  "vertex",
+  "aistudio",
+  "kimi",
+  "antigravity",
+  "xai",
 ] as const;
 
 // Heuristic reasoning signal used only when the catalog has no `thinking` block.
 const REASONING_PATTERN = /(thinking|reasoning|gpt-oss|^o[134](?:-|$)|^gpt-5)/i;
 
 type CatalogModel = {
-	id?: string;
-	display_name?: string;
-	name?: string;
-	context_length?: number;
-	inputTokenLimit?: number;
-	max_completion_tokens?: number;
-	outputTokenLimit?: number;
-	thinking?: { levels?: unknown[]; min?: number; max?: number } | null;
+  id?: string;
+  display_name?: string;
+  name?: string;
+  context_length?: number;
+  inputTokenLimit?: number;
+  max_completion_tokens?: number;
+  outputTokenLimit?: number;
+  thinking?: { levels?: unknown[]; min?: number; max?: number } | null;
 };
 
+type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+type ThinkingLevelMap = Partial<Record<ThinkingLevel, string | null>>;
+
 type ResolvedModel = {
-	id: string;
-	name: string;
-	reasoning: boolean;
-	contextWindow: number;
-	maxTokens: number;
+  id: string;
+  name: string;
+  reasoning: boolean;
+  thinkingLevelMap?: ThinkingLevelMap;
+  contextWindow: number;
+  maxTokens: number;
 };
 
 function numberFromEnv(name: string, fallback: number): number {
-	const value = Number(process.env[name]);
-	return Number.isFinite(value) && value > 0 ? value : fallback;
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function positiveNumber(value: number | undefined, fallback: number): number {
-	return typeof value === "number" && value > 0 ? value : fallback;
+  return typeof value === "number" && value > 0 ? value : fallback;
 }
 
 function cachePath(): string {
-	const root = process.env.XDG_CACHE_HOME || join(process.env.HOME || ".", ".cache");
-	return join(root, "pi", `${EXTENSION_NAME}.json`);
+  const root =
+    process.env.XDG_CACHE_HOME || join(process.env.HOME || ".", ".cache");
+  return join(root, "pi", `${EXTENSION_NAME}.json`);
 }
 
 function normalizeModelsURL(baseURL: string): string {
-	const url = new URL(baseURL);
-	url.pathname = url.pathname.replace(/\/$/, "") + "/models";
-	url.search = "";
-	url.hash = "";
-	return url.toString();
+  const url = new URL(baseURL);
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/models`;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
 }
 
 // The management API lives next to /v1 on the same origin (/v0/...). Strip a
 // trailing /v1 from the configured base so reverse-proxied mounts still work.
 function managementURL(baseURL: string, channel: string): string {
-	const url = new URL(baseURL);
-	const base = url.pathname.replace(/\/v1\/?$/, "");
-	const resource = `/v0/management/model-definitions/${encodeURIComponent(channel)}`;
-	url.pathname = (base + resource).replace(/\/{2,}/g, "/");
-	url.search = "";
-	url.hash = "";
-	return url.toString();
+  const url = new URL(baseURL);
+  const base = url.pathname.replace(/\/v1\/?$/, "");
+  const resource = `/v0/management/model-definitions/${encodeURIComponent(channel)}`;
+  url.pathname = (base + resource).replace(/\/{2,}/g, "/");
+  url.search = "";
+  url.hash = "";
+  return url.toString();
 }
 
 function isResolvedModel(value: unknown): value is ResolvedModel {
-	return (
-		!!value &&
-		typeof value === "object" &&
-		typeof (value as ResolvedModel).id === "string" &&
-		typeof (value as ResolvedModel).name === "string" &&
-		typeof (value as ResolvedModel).reasoning === "boolean" &&
-		typeof (value as ResolvedModel).contextWindow === "number" &&
-		typeof (value as ResolvedModel).maxTokens === "number"
-	);
+  return (
+    !!value &&
+    typeof value === "object" &&
+    typeof (value as ResolvedModel).id === "string" &&
+    typeof (value as ResolvedModel).name === "string" &&
+    typeof (value as ResolvedModel).reasoning === "boolean" &&
+    typeof (value as ResolvedModel).contextWindow === "number" &&
+    typeof (value as ResolvedModel).maxTokens === "number"
+  );
 }
 
-function readCache(path: string, maxAgeMs: number): ResolvedModel[] | { stale: ResolvedModel[] } | null {
-	if (!existsSync(path)) return null;
+function readCache(
+  path: string,
+  maxAgeMs: number,
+): ResolvedModel[] | { stale: ResolvedModel[] } | null {
+  if (!existsSync(path)) return null;
 
-	try {
-		const cache = JSON.parse(readFileSync(path, "utf8"));
-		if (!Array.isArray(cache?.models) || typeof cache.updatedAt !== "number") return null;
+  try {
+    const cache = JSON.parse(readFileSync(path, "utf8"));
+    if (
+      cache?.version !== CACHE_VERSION ||
+      !Array.isArray(cache.models) ||
+      typeof cache.updatedAt !== "number"
+    ) {
+      return null;
+    }
 
-		// Reject legacy caches (models stored as bare id strings) or otherwise
-		// malformed entries so discovery re-fetches instead of casting them.
-		const models = cache.models.filter(isResolvedModel);
-		if (models.length === 0) return null;
+    // Reject legacy caches (models stored as bare id strings) or otherwise
+    // malformed entries so discovery re-fetches instead of casting them.
+    const models = cache.models.filter(isResolvedModel);
+    if (models.length === 0) return null;
 
-		const age = Date.now() - cache.updatedAt;
-		if (age >= 0 && age < maxAgeMs) return models;
-		return { stale: models };
-	} catch (error) {
-		console.warn(`[${EXTENSION_NAME}] Failed to read cache: ${(error as Error).message}`);
-		return null;
-	}
+    const age = Date.now() - cache.updatedAt;
+    if (age >= 0 && age < maxAgeMs) return models;
+    return { stale: models };
+  } catch (error) {
+    console.warn(
+      `[${EXTENSION_NAME}] Failed to read cache: ${(error as Error).message}`,
+    );
+    return null;
+  }
 }
 
 function writeCache(path: string, models: ResolvedModel[]): void {
-	try {
-		mkdirSync(dirname(path), { recursive: true });
-		writeFileSync(path, JSON.stringify({ updatedAt: Date.now(), models }, null, 2) + "\n");
-	} catch (error) {
-		console.warn(`[${EXTENSION_NAME}] Failed to write cache: ${(error as Error).message}`);
-	}
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(
+      path,
+      `${JSON.stringify({ version: CACHE_VERSION, updatedAt: Date.now(), models }, null, 2)}\n`,
+    );
+  } catch (error) {
+    console.warn(
+      `[${EXTENSION_NAME}] Failed to write cache: ${(error as Error).message}`,
+    );
+  }
 }
 
-async function fetchJSON(url: string, apiKey: string | undefined, timeoutMs: number): Promise<unknown> {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), timeoutMs);
+async function fetchJSON(
+  url: string,
+  apiKey: string | undefined,
+  timeoutMs: number,
+): Promise<unknown> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-	try {
-		const headers: Record<string, string> = {};
-		if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  try {
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-		const response = await fetch(url, {
-			headers,
-			signal: controller.signal,
-		});
-		if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const response = await fetch(url, {
+      headers,
+      signal: controller.signal,
+    });
+    if (!response.ok)
+      throw new Error(`${response.status} ${response.statusText}`);
 
-		return await response.json();
-	} finally {
-		clearTimeout(timeout);
-	}
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-async function fetchLiveModelIds(modelsURL: string, apiKey: string | undefined, timeoutMs: number): Promise<string[]> {
-	const body = await fetchJSON(modelsURL, apiKey, timeoutMs);
-	if (!body || !Array.isArray((body as { data?: unknown }).data)) {
-		throw new Error("response did not include a data array");
-	}
+async function fetchLiveModelIds(
+  modelsURL: string,
+  apiKey: string | undefined,
+  timeoutMs: number,
+): Promise<string[]> {
+  const body = await fetchJSON(modelsURL, apiKey, timeoutMs);
+  if (!body || !Array.isArray((body as { data?: unknown }).data)) {
+    throw new Error("response did not include a data array");
+  }
 
-	return (body as { data: unknown[] }).data
-		.map((model: unknown) =>
-			model && typeof (model as { id?: unknown }).id === "string" ? (model as { id: string }).id : null,
-		)
-		.filter((id: string | null): id is string => id !== null)
-		.filter((id: string, index: number, ids: string[]) => ids.indexOf(id) === index)
-		.sort();
+  return (body as { data: unknown[] }).data
+    .map((model: unknown) =>
+      model && typeof (model as { id?: unknown }).id === "string"
+        ? (model as { id: string }).id
+        : null,
+    )
+    .filter((id: string | null): id is string => id !== null)
+    .filter(
+      (id: string, index: number, ids: string[]) => ids.indexOf(id) === index,
+    )
+    .sort();
 }
 
 async function fetchCatalog(
-	baseURL: string,
-	apiKey: string | undefined,
-	timeoutMs: number,
+  baseURL: string,
+  apiKey: string | undefined,
+  timeoutMs: number,
 ): Promise<Map<string, CatalogModel>> {
-	const responses = await Promise.all(
-		MODEL_DEFINITION_CHANNELS.map(async (channel) => {
-			try {
-				return await fetchJSON(managementURL(baseURL, channel), apiKey, timeoutMs);
-			} catch {
-				// A missing/disabled channel or transient error must not abort
-				// discovery; metadata simply falls back to heuristics.
-				return null;
-			}
-		}),
-	);
+  const responses = await Promise.all(
+    MODEL_DEFINITION_CHANNELS.map(async (channel) => {
+      try {
+        return await fetchJSON(
+          managementURL(baseURL, channel),
+          apiKey,
+          timeoutMs,
+        );
+      } catch {
+        // A missing/disabled channel or transient error must not abort
+        // discovery; metadata simply falls back to heuristics.
+        return null;
+      }
+    }),
+  );
 
-	const catalog = new Map<string, CatalogModel>();
-	for (const body of responses) {
-		const models = (body as { models?: unknown } | null)?.models;
-		if (!Array.isArray(models)) continue;
-		for (const model of models) {
-			if (!model || typeof (model as CatalogModel).id !== "string") continue;
-			const id = (model as CatalogModel).id as string;
-			if (!catalog.has(id)) catalog.set(id, model as CatalogModel);
-		}
-	}
-	return catalog;
+  const catalog = new Map<string, CatalogModel>();
+  for (const body of responses) {
+    const models = (body as { models?: unknown } | null)?.models;
+    if (!Array.isArray(models)) continue;
+    for (const model of models) {
+      if (!model || typeof (model as CatalogModel).id !== "string") continue;
+      const id = (model as CatalogModel).id as string;
+      if (!catalog.has(id)) catalog.set(id, model as CatalogModel);
+    }
+  }
+  return catalog;
 }
 
-function resolveModel(id: string, meta: CatalogModel | undefined): ResolvedModel {
-	const contextWindow = positiveNumber(
-		meta?.context_length,
-		positiveNumber(meta?.inputTokenLimit, DEFAULT_CONTEXT_WINDOW),
-	);
-	const maxTokens = positiveNumber(
-		meta?.max_completion_tokens,
-		positiveNumber(meta?.outputTokenLimit, DEFAULT_MAX_TOKENS),
-	);
-	const reasoning = meta && meta.thinking ? true : REASONING_PATTERN.test(id);
-	const name = meta?.display_name || meta?.name || id;
+function resolveThinkingLevelMap(
+  thinking: CatalogModel["thinking"],
+): ThinkingLevelMap | undefined {
+  if (!Array.isArray(thinking?.levels)) return undefined;
 
-	return { id, name, reasoning, contextWindow, maxTokens };
+  const supported = new Set(
+    thinking.levels.filter(
+      (level): level is string => typeof level === "string",
+    ),
+  );
+  return Object.fromEntries(
+    THINKING_LEVELS.map((level) => [
+      level,
+      supported.has(level) ? level : null,
+    ]),
+  );
+}
+
+function resolveModel(
+  id: string,
+  meta: CatalogModel | undefined,
+): ResolvedModel {
+  const contextWindow = positiveNumber(
+    meta?.context_length,
+    positiveNumber(meta?.inputTokenLimit, DEFAULT_CONTEXT_WINDOW),
+  );
+  const maxTokens = positiveNumber(
+    meta?.max_completion_tokens,
+    positiveNumber(meta?.outputTokenLimit, DEFAULT_MAX_TOKENS),
+  );
+  const reasoning = meta?.thinking ? true : REASONING_PATTERN.test(id);
+  const thinkingLevelMap = resolveThinkingLevelMap(meta?.thinking);
+  const name = meta?.display_name || meta?.name || id;
+
+  return { id, name, reasoning, thinkingLevelMap, contextWindow, maxTokens };
 }
 
 function isChatModel(id: string): boolean {
-	return !/(^|[-_/])(embedding|embed|rerank|image)([-_/]|$)/i.test(id);
+  return !/(^|[-_/])(embedding|embed|rerank|image)([-_/]|$)/i.test(id);
 }
 
 function modelEntry(model: ResolvedModel) {
-	return {
-		id: model.id,
-		name: model.name,
-		reasoning: model.reasoning,
-		input: ["text" as const],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: model.contextWindow,
-		maxTokens: model.maxTokens,
-	};
+  return {
+    id: model.id,
+    name: model.name,
+    reasoning: model.reasoning,
+    ...(model.thinkingLevelMap
+      ? { thinkingLevelMap: model.thinkingLevelMap }
+      : {}),
+    input: ["text" as const],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: model.contextWindow,
+    maxTokens: model.maxTokens,
+  };
 }
 
 async function loadModels(baseURL: string): Promise<ResolvedModel[]> {
-	const path = cachePath();
-	const cacheDays = numberFromEnv("PI_CLI_PROXY_MODELS_CACHE_DAYS", DEFAULT_CACHE_DAYS);
-	const timeoutMs = numberFromEnv("PI_CLI_PROXY_MODELS_TIMEOUT_MS", DEFAULT_TIMEOUT_MS);
-	const maxAgeMs = cacheDays * 24 * 60 * 60 * 1000;
-	const cached = process.env.PI_CLI_PROXY_MODELS_FORCE_REFRESH === "1" ? null : readCache(path, maxAgeMs);
+  const path = cachePath();
+  const cacheDays = numberFromEnv(
+    "PI_CLI_PROXY_MODELS_CACHE_DAYS",
+    DEFAULT_CACHE_DAYS,
+  );
+  const timeoutMs = numberFromEnv(
+    "PI_CLI_PROXY_MODELS_TIMEOUT_MS",
+    DEFAULT_TIMEOUT_MS,
+  );
+  const maxAgeMs = cacheDays * 24 * 60 * 60 * 1000;
+  const cached =
+    process.env.PI_CLI_PROXY_MODELS_FORCE_REFRESH === "1"
+      ? null
+      : readCache(path, maxAgeMs);
 
-	if (Array.isArray(cached)) return cached;
+  if (Array.isArray(cached)) return cached;
 
-	try {
-		const ids = await fetchLiveModelIds(normalizeModelsURL(baseURL), process.env[API_KEY_ENV_VAR], timeoutMs);
-		const catalog = await fetchCatalog(baseURL, process.env[API_KEY_ENV_VAR], timeoutMs);
-		const resolved = ids.map((id) => resolveModel(id, catalog.get(id)));
-		writeCache(path, resolved);
-		return resolved;
-	} catch (error) {
-		const stale = cached && !Array.isArray(cached) && Array.isArray(cached.stale) ? cached.stale : [];
-		const suffix = stale.length > 0 ? `; using ${stale.length} stale cached models` : "";
-		console.warn(`[${EXTENSION_NAME}] Model discovery failed: ${(error as Error).message}${suffix}`);
-		return stale;
-	}
+  try {
+    const ids = await fetchLiveModelIds(
+      normalizeModelsURL(baseURL),
+      process.env[API_KEY_ENV_VAR],
+      timeoutMs,
+    );
+    const catalog = await fetchCatalog(
+      baseURL,
+      process.env[API_KEY_ENV_VAR],
+      timeoutMs,
+    );
+    const resolved = ids.map((id) => resolveModel(id, catalog.get(id)));
+    writeCache(path, resolved);
+    return resolved;
+  } catch (error) {
+    const stale =
+      cached && !Array.isArray(cached) && Array.isArray(cached.stale)
+        ? cached.stale
+        : [];
+    const suffix =
+      stale.length > 0 ? `; using ${stale.length} stale cached models` : "";
+    console.warn(
+      `[${EXTENSION_NAME}] Model discovery failed: ${(error as Error).message}${suffix}`,
+    );
+    return stale;
+  }
 }
 
 export default async function (pi: ExtensionAPI) {
-	const baseUrl = process.env.PI_CLI_PROXY_BASE_URL || DEFAULT_BASE_URL;
-	const discovered = await loadModels(baseUrl);
-	const models = discovered.filter((model) => isChatModel(model.id)).map(modelEntry);
+  const baseUrl = process.env.PI_CLI_PROXY_BASE_URL || DEFAULT_BASE_URL;
+  const discovered = await loadModels(baseUrl);
+  const models = discovered
+    .filter((model) => isChatModel(model.id))
+    .map(modelEntry);
 
-	// Skip registration entirely when the proxy is unreachable and no cache
-	// exists, leaving all native pi providers usable.
-	if (models.length === 0) return;
+  // Skip registration entirely when the proxy is unreachable and no cache
+  // exists, leaving all native pi providers usable.
+  if (models.length === 0) return;
 
-	pi.registerProvider(PROVIDER_ID, {
-		name: PROVIDER_NAME,
-		baseUrl,
-		// Resolved by pi from the environment at request time; the key is
-		// never written into any generated file.
-		apiKey: `$${API_KEY_ENV_VAR}`,
-		api: "openai-completions",
-		models,
-	});
+  pi.registerProvider(PROVIDER_ID, {
+    name: PROVIDER_NAME,
+    baseUrl,
+    // Resolved by pi from the environment at request time; the key is
+    // never written into any generated file.
+    apiKey: `$${API_KEY_ENV_VAR}`,
+    api: "openai-completions",
+    models,
+  });
 }
