@@ -8,6 +8,12 @@ let
   cfg = config.programs.pi-coding-agent;
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
+  piExtensions = with pkgs.piExtensions; [
+    pi-mcp-adapter
+    pi-atelier
+    pi-lens
+  ];
+  piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
   # Rendered nix-declared settings, merged into the mutable settings.json by
   # the piMutableSettings activation entry below.
@@ -124,12 +130,7 @@ in
         prettier
       ];
       settings = {
-        npmCommand = [ "npm" ];
-        packages = [
-          "npm:pi-mcp-adapter@2.15.0"
-          "npm:pi-lens@3.8.73"
-        ]
-        ++ lib.optional config.programs.plannotator.enable "npm:@plannotator/pi-extension@0.25.0";
+        packages = map piPackageRoot piExtensions;
         theme = "stylix";
       };
     };

@@ -37,6 +37,7 @@ let
 
   customPluginPackages = pkgs: {
     fish-plugins = import ./fish-plugins { inherit pkgs; };
+    pi-extensions = import ./pi-extensions { inherit pkgs; };
     tmux-plugins = import ./tmux-plugins { inherit pkgs; };
   };
 
@@ -46,6 +47,7 @@ let
       customPackages final
       // {
         fishPlugins = (prev.fishPlugins or { }) // import ./fish-plugins { pkgs = final; };
+        piExtensions = (prev.piExtensions or { }) // import ./pi-extensions { pkgs = final; };
         tmuxPlugins = (prev.tmuxPlugins or { }) // import ./tmux-plugins { pkgs = final; };
         mcp-servers = inputs.mcp-servers-nix.packages.${final.stdenv.hostPlatform.system};
         llm-agents = inputs.llm-agents.packages.${final.stdenv.hostPlatform.system};
