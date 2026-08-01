@@ -138,6 +138,9 @@ in
     home.file."${cfg.configDir}/themes/stylix.json".source =
       jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
 
+    home.file."${cfg.configDir}/extensions/pi-editor-frame.ts".source =
+      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-editor-frame.ts";
+
     home.file.".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
       widget.visible = false;
       format = {
