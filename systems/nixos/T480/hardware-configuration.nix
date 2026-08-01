@@ -55,7 +55,7 @@
 
   powerManagement.enable = true;
   services = {
-    thermald.enable = true;
+    thermald.enable = false;
     power-profiles-daemon.enable = false;
     tlp.enable = false;
     # tlp = {
