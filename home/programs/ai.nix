@@ -13,6 +13,7 @@ let
     ]);
   llmAgents = with pkgs.llm-agents; [
     openspec
+    tuicr
     zat # code outline viewer
   ];
 in
