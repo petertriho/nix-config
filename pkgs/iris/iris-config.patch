@@ -188,17 +188,14 @@ diff --git a/root/wrapper.go b/root/wrapper.go
 index e591bc5..a72dc1e 100644
 --- a/root/wrapper.go
 +++ b/root/wrapper.go
-@@ -796,6 +796,30 @@ func runWrapper() {
+@@ -796,6 +796,27 @@ func runWrapper() {
  					}
  				}
  
 +				if matched, consumed := config.MatchKey(inputSlice[i:], config.Get().Keybindings.AcceptGhost); matched && config.Get().Keybindings.AcceptGhost != "" {
 +					bufferMu.Lock()
 +					atEnd := cursorOffset == 0
-+					ghostText := ""
-+					if !disableGhostText.Load() {
-+						ghostText = overlay.GetGhostText(naiveBuffer, atEnd)
-+					}
++					ghostText := overlay.GetGhostText(naiveBuffer, atEnd)
 +					bufferMu.Unlock()
 +
 +					if ghostText != "" {
@@ -219,7 +216,7 @@ index e591bc5..a72dc1e 100644
  				if matched, consumed := config.MatchKey(inputSlice[i:], config.Get().Keybindings.SelectSuggestion); matched && config.Get().Keybindings.SelectSuggestion != "" {
  					if overlay.IsVisible() {
  						intercepted = true
-@@ -952,28 +976,6 @@ func runWrapper() {
+@@ -952,28 +973,6 @@ func runWrapper() {
  								continue
  							}
  
