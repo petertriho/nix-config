@@ -6,6 +6,8 @@
 }:
 let
   cfg = config.programs.iris;
+  configSource = config.lib.meta.mkDotfilesSymlink "iris/.config/iris/config.toml";
+  isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
 in
 {
   options.programs.iris = {
@@ -16,8 +18,13 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    xdg.configFile."iris/config.toml".source =
-      config.lib.meta.mkDotfilesSymlink "iris/.config/iris/config.toml";
+    home.file = lib.mkIf isDarwin {
+      "Library/Application Support/iris/config.toml".source = configSource;
+    };
+
+    xdg.configFile = lib.mkIf (!isDarwin) {
+      "iris/config.toml".source = configSource;
+    };
 
     programs.fish.interactiveShellInit = lib.mkAfter ''
       # tmux can inherit IRIS markers without the corresponding control FD.
