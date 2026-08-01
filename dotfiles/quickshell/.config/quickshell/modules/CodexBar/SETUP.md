@@ -82,7 +82,18 @@ codexbar usage --format json --pretty
 # expect: Codex quota row(s) + z.ai quota + OpenRouter balance + OpenCode Go quota
 ```
 
-The widget polls on the timer in `config.qml` (`codexbar.refreshIntervalSec`, default 90s).
+Eligible quota meters calculate pacing locally from each normalized window's
+`usedPercent`, `windowMinutes`, and `resetsAt` values. The model is linear,
+stateless, and provider-agnostic: it compares usage with the elapsed fraction of
+the current window and projects exhaustion from the average burn rate observed
+since the window began. Windows with missing or inconsistent duration/reset data,
+newly started windows, and depleted windows continue to show the ordinary usage
+meter without pacing details.
+
+Pacing and reset text update only when the widget polls; there is no local
+heartbeat between requests. The cadence is configured in `config.qml` through
+`codexbar.refreshIntervalSec` (currently 300 seconds).
+
 Bump the codexbar version later by changing `version` + the two hashes in
 `pkgs/codexbar/default.nix`; if a provider's JSON shape changed, re-capture it here and
 adjust `codexbar.js`.

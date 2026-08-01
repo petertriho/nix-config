@@ -7,9 +7,9 @@ import "../Common"
 
 // Panel — full-screen overlay (mirrors Center.qml) listing
 // every normalized usage row. Quota rows render up to three compacted source
-// windows, each with its own reset countdown, plus any free Codex reset credits;
-// cost rows (OpenRouter) render a credits-used meter + balance/total/used; error
-// rows show a clean message. Footer = Refresh.
+// windows, each with reset and pacing details plus an expected-usage marker, and
+// any free Codex reset credits. Cost rows (OpenRouter) render a credits-used
+// meter + balance/total/used; error rows show a clean message. Footer = Refresh.
 OverlayHost {
     id: root
 
@@ -171,6 +171,10 @@ OverlayHost {
                             percent: model.percent
                             resetShort: model.resetShort
                             resetFull: model.resetFull
+                            paceExpectedPercent: model.paceExpectedPercent
+                            paceState: model.paceState
+                            paceSummary: model.paceSummary
+                            paceProjection: model.paceProjection
                             colors: root.colors
                             fontsConfig: root.fontsConfig
                         }
@@ -183,6 +187,10 @@ OverlayHost {
                             percent: model.secondaryPercent
                             resetShort: model.secondaryResetShort
                             resetFull: model.secondaryResetFull
+                            paceExpectedPercent: model.secondaryPaceExpectedPercent
+                            paceState: model.secondaryPaceState
+                            paceSummary: model.secondaryPaceSummary
+                            paceProjection: model.secondaryPaceProjection
                             colors: root.colors
                             fontsConfig: root.fontsConfig
                         }
@@ -195,6 +203,10 @@ OverlayHost {
                             percent: model.tertiaryPercent
                             resetShort: model.tertiaryResetShort
                             resetFull: model.tertiaryResetFull
+                            paceExpectedPercent: model.tertiaryPaceExpectedPercent
+                            paceState: model.tertiaryPaceState
+                            paceSummary: model.tertiaryPaceSummary
+                            paceProjection: model.tertiaryPaceProjection
                             colors: root.colors
                             fontsConfig: root.fontsConfig
                         }

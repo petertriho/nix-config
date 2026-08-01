@@ -97,15 +97,85 @@ function relativeReset(resetMs, now) {
     var diff = resetMs - now;
     if (diff <= 0)
         return "resets soon";
-    var mins = Math.round(diff / 60000);
+    return "in " + formatDuration(diff);
+}
+
+function formatDuration(durationMs) {
+    var mins = Math.round(durationMs / 60000);
     if (mins < 60)
-        return "in " + mins + "m";
+        return mins + "m";
     var hours = Math.floor(mins / 60);
     var remMin = mins % 60;
     if (hours < 24)
-        return remMin ? "in " + hours + "h " + remMin + "m" : "in " + hours + "h";
-    var days = Math.round(hours / 24);
-    return "in " + days + "d";
+        return remMin ? hours + "h " + remMin + "m" : hours + "h";
+    return Math.round(hours / 24) + "d";
+}
+
+function unavailablePace() {
+    return {
+        expectedPercent: -1,
+        state: "",
+        summary: "",
+        projection: ""
+    };
+}
+
+function paceForWindow(window, now) {
+    var pace = unavailablePace();
+    if (!window || window.usedPercent === undefined || window.usedPercent === null
+            || window.usedPercent === "")
+        return pace;
+
+    var usedPercent = clampPercent(Number(window.usedPercent));
+    var windowMinutes = Number(window.windowMinutes);
+    var resetMs = parseResetTime(window.resetsAt);
+    now = now !== undefined ? Number(now) : Date.now();
+    if (!isFinite(usedPercent) || usedPercent < 0 || !isFinite(windowMinutes)
+            || windowMinutes <= 0 || !isFinite(resetMs) || !isFinite(now))
+        return pace;
+
+    var durationMs = windowMinutes * 60000;
+    var timeUntilResetMs = resetMs - now;
+    if (!isFinite(durationMs) || durationMs <= 0 || timeUntilResetMs <= 0
+            || timeUntilResetMs > durationMs)
+        return pace;
+
+    var elapsedMs = durationMs - timeUntilResetMs;
+    if (elapsedMs <= 0 && usedPercent > 0)
+        return pace;
+
+    var expectedPercent = elapsedMs / durationMs * 100;
+    if (expectedPercent < 3 || usedPercent >= 100)
+        return pace;
+
+    var deltaPercent = usedPercent - expectedPercent;
+    pace.expectedPercent = expectedPercent;
+    if (Math.abs(deltaPercent) <= 2) {
+        pace.state = "onTrack";
+        pace.summary = "On pace";
+    } else if (deltaPercent < 0) {
+        pace.state = "reserve";
+        pace.summary = Math.round(Math.abs(deltaPercent)) + "% in reserve";
+    } else {
+        pace.state = "deficit";
+        pace.summary = Math.round(deltaPercent) + "% in deficit";
+    }
+
+    if (usedPercent === 0) {
+        pace.projection = "Lasts until reset";
+        return pace;
+    }
+
+    var observedRate = usedPercent / elapsedMs;
+    var timeToEmptyMs = (100 - usedPercent) / observedRate;
+    if (!isFinite(timeToEmptyMs) || now + timeToEmptyMs >= resetMs) {
+        pace.projection = "Lasts until reset";
+        return pace;
+    }
+
+    var prefix = windowMinutes === 300 ? "Projected empty in " : "Runs out in ";
+    pace.projection = prefix + formatDuration(timeToEmptyMs);
+    return pace;
 }
 
 // Absolute short timestamp, e.g. "Jun 28 18:00".
@@ -132,15 +202,27 @@ function emptyRow() {
         windowLabel: "",
         resetShort: "—",
         resetFull: "—",
+        paceExpectedPercent: -1,
+        paceState: "",
+        paceSummary: "",
+        paceProjection: "",
         // Additional quota windows. -1/blank if absent after compaction.
         secondaryPercent: -1,
         secondaryLabel: "",
         secondaryResetShort: "—",
         secondaryResetFull: "—",
+        secondaryPaceExpectedPercent: -1,
+        secondaryPaceState: "",
+        secondaryPaceSummary: "",
+        secondaryPaceProjection: "",
         tertiaryPercent: -1,
         tertiaryLabel: "",
         tertiaryResetShort: "—",
         tertiaryResetFull: "—",
+        tertiaryPaceExpectedPercent: -1,
+        tertiaryPaceState: "",
+        tertiaryPaceSummary: "",
+        tertiaryPaceProjection: "",
         // OpenRouter credit figures (cost rows only); blank otherwise.
         creditsBalance: "",
         creditsTotal: "",
@@ -181,6 +263,21 @@ function quotaRow(provider, account, primary, secondary, tertiary, now) {
     var tertiaryResetMs = parseResetTime(tertiary && tertiary.resetsAt);
     row.tertiaryResetShort = relativeReset(tertiaryResetMs, now);
     row.tertiaryResetFull = absoluteReset(tertiaryResetMs);
+    var primaryPace = paceForWindow(primary, now);
+    row.paceExpectedPercent = primaryPace.expectedPercent;
+    row.paceState = primaryPace.state;
+    row.paceSummary = primaryPace.summary;
+    row.paceProjection = primaryPace.projection;
+    var secondaryPace = paceForWindow(secondary, now);
+    row.secondaryPaceExpectedPercent = secondaryPace.expectedPercent;
+    row.secondaryPaceState = secondaryPace.state;
+    row.secondaryPaceSummary = secondaryPace.summary;
+    row.secondaryPaceProjection = secondaryPace.projection;
+    var tertiaryPace = paceForWindow(tertiary, now);
+    row.tertiaryPaceExpectedPercent = tertiaryPace.expectedPercent;
+    row.tertiaryPaceState = tertiaryPace.state;
+    row.tertiaryPaceSummary = tertiaryPace.summary;
+    row.tertiaryPaceProjection = tertiaryPace.projection;
     return row;
 }
 
