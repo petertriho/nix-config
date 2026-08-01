@@ -33,7 +33,8 @@ index 5896377..5aed8cf 100755
 +            child_pid = int(process[1])
 +            program = process[2:]
              program_name = program[0].decode()
-             program_name_stripped = re.sub(USR_BIN_REMOVER[0], USR_BIN_REMOVER[1], program_name)
+-            program_name_stripped = re.sub(USR_BIN_REMOVER[0], USR_BIN_REMOVER[1], program_name)
++            program_name_stripped = Path(program_name).name
              logging.debug(
 @@ -294,18 +301,26 @@ def get_current_program(running_programs: List[bytes], pane: TmuxPane, options:
                  logging.debug(f'skipping {program_name_stripped}, its ignored')
