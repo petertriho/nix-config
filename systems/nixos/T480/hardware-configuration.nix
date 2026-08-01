@@ -18,7 +18,10 @@
   ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" ];
-  boot.kernelParams = [ "psmouse.synaptics_intertouch=0" ];
+  boot.kernelParams = [
+    "psmouse.synaptics_intertouch=0"
+    "nmi_watchdog=0"
+  ];
   boot.extraModulePackages = [ ];
 
   fileSystems."/" = {
@@ -54,33 +57,58 @@
   services = {
     thermald.enable = true;
     power-profiles-daemon.enable = false;
-    tlp = {
+    tlp.enable = false;
+    # tlp = {
+    #   enable = true;
+    #   settings = {
+    #     CPU_SCALING_GOVERNOR_ON_AC = "ondemand";
+    #     CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+    #
+    #     CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
+    #     CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
+    #
+    #     CPU_MIN_PERF_ON_AC = 0;
+    #     CPU_MAX_PERF_ON_AC = 85;
+    #     CPU_MIN_PERF_ON_BAT = 0;
+    #     CPU_MAX_PERF_ON_BAT = 70;
+    #
+    #     CPU_BOOST_ON_AC = 1;
+    #     CPU_BOOST_ON_BAT = 0;
+    #
+    #     CPU_HWP_DYN_BOOST_ON_AC = 1;
+    #     CPU_HWP_DYN_BOOST_ON_BAT = 0;
+    #
+    #     NMI_WATCHDOG = 0;
+    #
+    #     START_CHARGE_THRESH_BAT0 = 75;
+    #     STOP_CHARGE_THRESH_BAT0 = 80;
+    #
+    #     START_CHARGE_THRESH_BAT1 = 75;
+    #     STOP_CHARGE_THRESH_BAT1 = 80;
+    #   };
+    # };
+
+    auto-cpufreq = {
       enable = true;
       settings = {
-        CPU_SCALING_GOVERNOR_ON_AC = "ondemand";
-        CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+        charger = {
+          governor = "powersave";
+          energy_performance_preference = "balance_performance";
+          energy_perf_bias = "balance_performance";
+          scaling_max_freq = 4200000;
+          turbo = "auto";
+        };
 
-        CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
-        CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
-
-        CPU_MIN_PERF_ON_AC = 0;
-        CPU_MAX_PERF_ON_AC = 85;
-        CPU_MIN_PERF_ON_BAT = 0;
-        CPU_MAX_PERF_ON_BAT = 70;
-
-        CPU_BOOST_ON_AC = 1;
-        CPU_BOOST_ON_BAT = 0;
-
-        CPU_HWP_DYN_BOOST_ON_AC = 1;
-        CPU_HWP_DYN_BOOST_ON_BAT = 0;
-
-        NMI_WATCHDOG = 0;
-
-        START_CHARGE_THRESH_BAT0 = 75;
-        STOP_CHARGE_THRESH_BAT0 = 80;
-
-        START_CHARGE_THRESH_BAT1 = 75;
-        STOP_CHARGE_THRESH_BAT1 = 80;
+        battery = {
+          governor = "powersave";
+          energy_performance_preference = "power";
+          energy_perf_bias = "power";
+          scaling_max_freq = 3400000;
+          turbo = "auto";
+          enable_thresholds = true;
+          start_threshold = 75;
+          stop_threshold = 80;
+        };
       };
     };
     libinput = {
