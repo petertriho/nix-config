@@ -47,7 +47,7 @@ let
       error = "base08";
       warning = "base0A";
       muted = "base04";
-      dim = "base03";
+      dim = "base04";
       text = "base05";
       thinkingText = "base04";
 
@@ -82,7 +82,7 @@ let
       toolDiffContext = "base04";
 
       # Syntax highlighting (classic base16 mapping)
-      syntaxComment = "base03";
+      syntaxComment = "base04";
       syntaxKeyword = "base0E";
       syntaxFunction = "base0D";
       syntaxVariable = "base08";
