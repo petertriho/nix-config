@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-atelier";
-  version = "0.7.0";
+  version = "0.7.0-unstable-2026-07-30";
 
   src = fetchFromGitHub {
     owner = "michaelmjhhhh";

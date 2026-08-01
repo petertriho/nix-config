@@ -6,7 +6,7 @@ index 0b77fa0..2e375f1 100644
  	GhostText  lipgloss.Color
  }
  
-+func themeColor(environmentVariable, fallback string) lipgloss.Color {
++func themeColor(environmentVariable, fallback string) color.Color {
 +	if value := os.Getenv(environmentVariable); value != "" {
 +		return lipgloss.Color(value)
 +	}

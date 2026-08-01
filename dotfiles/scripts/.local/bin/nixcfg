@@ -660,8 +660,8 @@ function tool:pkgs:update {
         local packages=($(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]'))
 
         for package in "${packages[@]}"; do
-            # Check if this is a plugin collection (fish-plugins or tmux-plugins)
-            if [[ $package == "fish-plugins" || $package == "tmux-plugins" ]]; then
+            # Check if this is a plugin collection (fish-plugins, tmux-plugins, pi-extensions)
+            if [[ $package == "fish-plugins" || $package == "tmux-plugins" || $package = "pi-extensions" ]]; then
                 # Get individual plugins from the collection
                 local plugins=($(nix eval --json ".#packages.$system.$package" --apply 'builtins.attrNames' | jq -r '.[]'))
                 for plugin in "${plugins[@]}"; do
