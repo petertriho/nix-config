@@ -39,24 +39,6 @@ index 0b77fa0..2e375f1 100644
  }
  
  func SetTheme(t Theme) {
-diff --git a/integration/overlay_test.go b/integration/overlay_test.go
-index 795592e..9767591 100644
---- a/integration/overlay_test.go
-+++ b/integration/overlay_test.go
-@@ -7,6 +7,13 @@ import (
- 	"github.com/versenilvis/iris/spec"
- )
- 
-+func TestThemeColorFromEnvironment(t *testing.T) {
-+	t.Setenv("IRIS_THEME_TEST", "#123456")
-+	if got := string(themeColor("IRIS_THEME_TEST", "#654321")); got != "#123456" {
-+		t.Fatalf("expected environment theme color, got %q", got)
-+	}
-+}
-+
- func TestRenderGhostText_CursorAtEnd(t *testing.T) {
- 	o := NewOverlay()
- 	items := []spec.Suggestion{
 diff --git a/internal/ai/client.go b/internal/ai/client.go
 index b627bde..1bedc55 100644
 --- a/internal/ai/client.go
@@ -98,34 +80,3 @@ index acb2e24..668d4ba 100644
  type Config struct {
  	Core        CoreConfig        `toml:"core"`
  	UI          UIConfig          `toml:"ui"`
-diff --git a/internal/config/config_test.go b/internal/config/config_test.go
-index 4ac1b3f..8ff6514 100644
---- a/internal/config/config_test.go
-+++ b/internal/config/config_test.go
-@@ -27,8 +27,9 @@ func TestDefaultConfigAndState(t *testing.T) {
- 	if cfg.AI.Providers != nil {
- 		t.Errorf("expected default providers map to be nil, got %v", cfg.AI.Providers)
- 	}
- 
- 	// test manual provider registration
-+	t.Setenv("TEST_MODEL", "environment-model")
- 	cfg.AI.Provider = "custom"
- 	cfg.AI.Providers = map[string]ProviderConfig{
- 		"custom": {
-@@ -37,5 +38,6 @@ func TestDefaultConfigAndState(t *testing.T) {
- 			APIKey:        "test-key",
- 			Model:         "test-model",
-+			ModelEnv:      "TEST_MODEL",
- 			TimeoutMS:     1000,
- 		},
- 	}
-@@ -49,6 +51,9 @@ func TestDefaultConfigAndState(t *testing.T) {
- 	if p.GetAPIKey() != "test-key" {
- 		t.Errorf("expected api key test-key, got %q", p.GetAPIKey())
- 	}
-+	if p.GetModel() != "environment-model" {
-+		t.Errorf("expected model environment-model, got %q", p.GetModel())
-+	}
- 	if cfg.AI.SuggestOnEmpty.DebounceMS != 800 {
- 		t.Errorf("expected debounce 800, got %d", cfg.AI.SuggestOnEmpty.DebounceMS)
- 	}

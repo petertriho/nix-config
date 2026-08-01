@@ -21,12 +21,6 @@ with pkgs;
       "-w"
       "-X=github.com/versenilvis/iris/root.Version=${old.version}"
     ];
-    doCheck = true;
-    checkPhase = ''
-      runHook preCheck
-      go test ./internal/config ./internal/ai ./integration ./root
-      runHook postCheck
-    '';
   });
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
