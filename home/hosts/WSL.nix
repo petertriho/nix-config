@@ -20,5 +20,4 @@
       ];
     };
   };
-  programs.claude-code.zai.enable = true;
 }

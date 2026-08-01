@@ -46,7 +46,6 @@
       enable = true;
       package = pkgs.ungoogled-chromium;
     };
-    claude-code.zai.enable = true;
   };
 
   gtk = {
