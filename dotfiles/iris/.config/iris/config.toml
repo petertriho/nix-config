@@ -3,7 +3,6 @@ check-on-startup = false
 
 [keybindings]
 select = "ctrl+y"
-accept-ghost = "tab"
 navigate-down = "ctrl+n"
 navigate-up = "ctrl+p"
 toggle-menu = "ctrl+space"
