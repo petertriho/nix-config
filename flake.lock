@@ -1,5 +1,26 @@
 {
   "nodes": {
+    "auto-cpufreq": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1785055078,
+        "narHash": "sha256-yaA/YM0SVIDCWOZi12R6qryWmPCI6zIYEHoyK0QdOos=",
+        "owner": "AdnanHodzic",
+        "repo": "auto-cpufreq",
+        "rev": "8552550677ec6bd2528c37697635e1759da2ebd5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "AdnanHodzic",
+        "ref": "v3.1.0",
+        "repo": "auto-cpufreq",
+        "type": "github"
+      }
+    },
     "base16": {
       "inputs": {
         "fromYaml": "fromYaml"
@@ -879,6 +900,7 @@
     },
     "root": {
       "inputs": {
+        "auto-cpufreq": "auto-cpufreq",
         "home-manager": "home-manager",
         "iris": "iris",
         "llm-agents": "llm-agents",

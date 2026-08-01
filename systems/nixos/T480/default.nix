@@ -5,6 +5,9 @@
   ...
 }:
 {
+  nixpkgs.overlays = [ inputs.auto-cpufreq.overlays.default ];
+  systemd.services.auto-cpufreq.path = [ pkgs.gawk ];
+
   imports = [
     ../desktop
     # ./fingerprint.nix

@@ -17,6 +17,7 @@
   ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" ];
+  boot.kernelParams = [ "nmi_watchdog=0" ];
   boot.extraModulePackages = [ ];
 
   fileSystems."/" = {
@@ -49,32 +50,57 @@
 
   powerManagement.enable = true;
   services = {
-    thermald.enable = true;
+    thermald.enable = false;
     power-profiles-daemon.enable = false;
-    tlp = {
+    tlp.enable = false;
+    # tlp = {
+    #   enable = true;
+    #   settings = {
+    #     CPU_SCALING_GOVERNOR_ON_AC = "ondemand";
+    #     CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+    #
+    #     CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
+    #     CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
+    #
+    #     CPU_MIN_PERF_ON_AC = 0;
+    #     CPU_MAX_PERF_ON_AC = 95;
+    #     CPU_MIN_PERF_ON_BAT = 0;
+    #     CPU_MAX_PERF_ON_BAT = 50;
+    #
+    #     CPU_BOOST_ON_AC = 1;
+    #     CPU_BOOST_ON_BAT = 0;
+    #
+    #     CPU_HWP_DYN_BOOST_ON_AC = 1;
+    #     CPU_HWP_DYN_BOOST_ON_BAT = 0;
+    #
+    #     NMI_WATCHDOG = 0;
+    #
+    #     START_CHARGE_THRESH_BAT0 = 75;
+    #     STOP_CHARGE_THRESH_BAT0 = 80;
+    #   };
+    # };
+
+    auto-cpufreq = {
       enable = true;
       settings = {
-        CPU_SCALING_GOVERNOR_ON_AC = "ondemand";
-        CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+        charger = {
+          governor = "powersave";
+          energy_performance_preference = "balance_performance";
+          platform_profile = "balanced";
+          enforce_platform_profile = false;
+          turbo = "auto";
+        };
 
-        CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
-        CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
-
-        CPU_MIN_PERF_ON_AC = 0;
-        CPU_MAX_PERF_ON_AC = 95;
-        CPU_MIN_PERF_ON_BAT = 0;
-        CPU_MAX_PERF_ON_BAT = 50;
-
-        CPU_BOOST_ON_AC = 1;
-        CPU_BOOST_ON_BAT = 0;
-
-        CPU_HWP_DYN_BOOST_ON_AC = 1;
-        CPU_HWP_DYN_BOOST_ON_BAT = 0;
-
-        NMI_WATCHDOG = 0;
-
-        START_CHARGE_THRESH_BAT0 = 75;
-        STOP_CHARGE_THRESH_BAT0 = 80;
+        battery = {
+          governor = "powersave";
+          energy_performance_preference = "balance_power";
+          platform_profile = "low-power";
+          enforce_platform_profile = false;
+          turbo = "auto";
+          enable_thresholds = true;
+          start_threshold = 75;
+          stop_threshold = 80;
+        };
       };
     };
     libinput = {
