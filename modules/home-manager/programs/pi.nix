@@ -9,8 +9,8 @@ let
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
   piExtensions = with pkgs.piExtensions; [
-    pi-mcp-adapter
-    pi-atelier
+    # pi-mcp-adapter
+    # pi-atelier
     pi-lens
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
@@ -139,6 +139,7 @@ in
       jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
 
     home.file.".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
+      widget.visible = false;
       format = {
         enabled = true;
         mode = "deferred";
@@ -153,6 +154,7 @@ in
           maxFixes = 5;
         };
       };
+      contextInjection.enabled = false;
     };
 
     # Suppress the upstream module's read-only settings.json symlink; the
