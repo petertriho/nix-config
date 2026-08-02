@@ -129,6 +129,17 @@ in
         biome
         prettier
       ];
+      keybindings = {
+        "app.model.cycleForward" = [ ];
+        "tui.select.up" = [
+          "up"
+          "ctrl+p"
+        ];
+        "tui.select.down" = [
+          "down"
+          "ctrl+n"
+        ];
+      };
       settings = {
         packages = map piPackageRoot piExtensions;
         theme = "stylix";
