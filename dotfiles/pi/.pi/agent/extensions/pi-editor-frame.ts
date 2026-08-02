@@ -28,6 +28,14 @@ type SessionUsage = {
   cost: number;
 };
 
+type FrameTheme = ExtensionContext["ui"]["theme"];
+type FrameColor = Parameters<FrameTheme["fg"]>[0];
+type ThinkingLevel = ReturnType<ExtensionAPI["getThinkingLevel"]>;
+type BorderPriority = "left" | "right";
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Matches ANSI SGR resets in rendered TUI lines.
+const ANSI_BACKGROUND_RESET_PATTERN = /\x1b\[(?:0|49)?m/g;
+
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString();
   if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
@@ -51,6 +59,93 @@ function formatCwd(cwd: string): string {
 
   if (!isInsideHome) return cwd;
   return relativeToHome === "" ? "~" : `~${sep}${relativeToHome}`;
+}
+
+function span(theme: FrameTheme, color: FrameColor, text: string): string {
+  return theme.fg(color, text);
+}
+
+function separator(theme: FrameTheme, text = " · "): string {
+  return span(theme, "dim", text);
+}
+
+function thinkingLevelText(theme: FrameTheme, level: ThinkingLevel): string {
+  return theme.getThinkingBorderColor(level)(level);
+}
+
+function tailToWidth(text: string, width: number): string {
+  if (width <= 0) return "";
+  if (visibleWidth(text) <= width) return text;
+
+  const graphemes = Array.from(
+    new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text),
+    ({ segment }) => segment,
+  );
+  let tail = "";
+
+  for (let index = graphemes.length - 1; index >= 0; index -= 1) {
+    const candidate = `${graphemes[index]}${tail}`;
+    if (visibleWidth(candidate) > width) break;
+    tail = candidate;
+  }
+
+  return tail;
+}
+
+function compactCwd(cwd: string, width: number): string {
+  if (width <= 0) return "";
+  if (visibleWidth(cwd) <= width) return cwd;
+
+  const homePrefix = cwd.startsWith(`~${sep}`) ? `~${sep}` : "";
+  const rootPrefix = homePrefix === "" && cwd.startsWith(sep) ? sep : "";
+  const parts = cwd.split(sep).filter((part) => part !== "" && part !== "~");
+  const tail = parts.at(-1) ?? cwd;
+  const marker = `${homePrefix || rootPrefix}…${sep}`;
+  const markerWidth = visibleWidth(marker);
+
+  if (markerWidth >= width) {
+    return truncateToWidth(homePrefix ? `${homePrefix}…` : "…", width, "");
+  }
+
+  return `${marker}${tailToWidth(tail, width - markerWidth)}`;
+}
+
+function bottomLeftText(
+  theme: FrameTheme,
+  cwd: string,
+  statuses: string[],
+  width?: number,
+): string {
+  const statusSeparator = separator(theme);
+  const statusText = statuses.join(statusSeparator);
+
+  if (width === undefined) {
+    const suffix = statusText ? `${statusSeparator}${statusText}` : "";
+    return ` ${span(theme, "accent", cwd)}${suffix} `;
+  }
+  if (width <= 0) return "";
+
+  const horizontalPadding = width >= 2 ? 2 : 0;
+  const contentWidth = width - horizontalPadding;
+  const leftPadding = horizontalPadding > 0 ? " " : "";
+  const rightPadding = leftPadding;
+
+  if (!statusText || contentWidth <= visibleWidth(statusSeparator) + 1) {
+    return `${leftPadding}${span(theme, "accent", compactCwd(cwd, contentWidth))}${rightPadding}`;
+  }
+
+  const separatorWidth = visibleWidth(statusSeparator);
+  const statusWidth = visibleWidth(statusText);
+  const cwdWidth = Math.max(1, contentWidth - separatorWidth - statusWidth);
+  const compactedCwd = compactCwd(cwd, cwdWidth);
+  const statusBudget = Math.max(
+    0,
+    contentWidth - visibleWidth(compactedCwd) - separatorWidth,
+  );
+  const compactedStatus = truncateToWidth(statusText, statusBudget, "");
+  const suffix = compactedStatus ? `${statusSeparator}${compactedStatus}` : "";
+
+  return `${leftPadding}${span(theme, "accent", compactedCwd)}${suffix}${rightPadding}`;
 }
 
 function sanitizeStatusText(text: string): string {
@@ -129,15 +224,15 @@ function formatContext(
   const usage = ctx.getContextUsage();
   const contextWindow = usage?.contextWindow ?? model?.contextWindow;
 
-  if (!contextWindow) return { text: "ctx ?", percent: null };
+  if (!contextWindow) return { text: "?", percent: null };
 
   const limit = formatTokens(contextWindow);
   if (!usage || usage.percent === null) {
-    return { text: `ctx ?/${limit}`, percent: null };
+    return { text: `?/${limit}`, percent: null };
   }
 
   return {
-    text: `ctx ${usage.percent.toFixed(1)}%/${limit}`,
+    text: `${usage.percent.toFixed(1)}%/${limit}`,
     percent: usage.percent,
   };
 }
@@ -149,6 +244,8 @@ function fitBorder(
   border: (text: string) => string,
   leftCorner: string,
   rightCorner: string,
+  priority: BorderPriority,
+  truncateLeft?: (width: number) => string,
 ): string {
   if (width <= 0) return "";
   if (width === 1) return border(leftCorner);
@@ -160,17 +257,30 @@ function fitBorder(
   let rightWidth = visibleWidth(rightText);
   let minimumGap = leftWidth > 0 && rightWidth > 0 ? 1 : 0;
 
-  const maximumLeftWidth = Math.max(0, innerWidth - rightWidth - minimumGap);
-  if (leftWidth > maximumLeftWidth) {
-    leftText = truncateToWidth(leftText, maximumLeftWidth, "");
+  const fitLeft = () => {
+    const maximumWidth = Math.max(0, innerWidth - rightWidth - minimumGap);
+    if (leftWidth <= maximumWidth) return;
+    leftText = truncateLeft
+      ? truncateLeft(maximumWidth)
+      : truncateToWidth(leftText, maximumWidth, "");
     leftWidth = visibleWidth(leftText);
-  }
+  };
 
-  minimumGap = leftWidth > 0 && rightWidth > 0 ? 1 : 0;
-  const maximumRightWidth = Math.max(0, innerWidth - leftWidth - minimumGap);
-  if (rightWidth > maximumRightWidth) {
-    rightText = truncateToWidth(rightText, maximumRightWidth, "");
+  const fitRight = () => {
+    const maximumWidth = Math.max(0, innerWidth - leftWidth - minimumGap);
+    if (rightWidth <= maximumWidth) return;
+    rightText = truncateToWidth(rightText, maximumWidth, "");
     rightWidth = visibleWidth(rightText);
+  };
+
+  if (priority === "right") {
+    fitLeft();
+    minimumGap = leftWidth > 0 && rightWidth > 0 ? 1 : 0;
+    fitRight();
+  } else {
+    fitRight();
+    minimumGap = leftWidth > 0 && rightWidth > 0 ? 1 : 0;
+    fitLeft();
   }
 
   const fillWidth = Math.max(0, innerWidth - leftWidth - rightWidth);
@@ -194,6 +304,27 @@ function frameLine(
       : line;
   const padding = " ".repeat(Math.max(0, innerWidth - visibleWidth(content)));
   return `${border(leftEdge)}${content}${padding}${border(rightEdge)}`;
+}
+
+function panelLine(line: string, width: number, theme: FrameTheme): string {
+  if (width <= 0) return "";
+  const selectedBg = theme.getBgAnsi("selectedBg");
+  const preserveBackground = (text: string) =>
+    text.replace(
+      ANSI_BACKGROUND_RESET_PATTERN,
+      (reset) => `${reset}${selectedBg}`,
+    );
+  if (width === 1) {
+    return theme.bg(
+      "selectedBg",
+      preserveBackground(truncateToWidth(line, width, "")),
+    );
+  }
+
+  const contentWidth = width - 2;
+  const content = truncateToWidth(line, contentWidth, "");
+  const padding = " ".repeat(Math.max(0, contentWidth - visibleWidth(content)));
+  return theme.bg("selectedBg", preserveBackground(` ${content}${padding} `));
 }
 
 class EmptyFooter implements Component {
@@ -292,18 +423,20 @@ export default function piEditorFrame(pi: ExtensionAPI): void {
 
       render(width: number): string[] {
         const innerWidth = Math.max(1, width - 2);
+        const border = (text: string) => ctx.ui.theme.fg("border", text);
+        this.borderColor = border;
         const lines = super.render(innerWidth);
         if (lines.length < 2) return lines;
 
         const theme = ctx.ui.theme;
-        const model = activeModel
-          ? `${activeModel.provider}/${activeModel.id}`
-          : "no model";
         const thinking = pi.getThinkingLevel();
         const spinner = isWorking
           ? `${theme.fg("accent", spinnerFrames[spinnerIndex])} `
           : "";
-        const topLeft = ` ${spinner}${theme.fg("muted", `${model} · ${thinking}`)} `;
+        const model = activeModel
+          ? `${span(theme, "accent", activeModel.provider)}${span(theme, "dim", "/")}${span(theme, "text", activeModel.id)}`
+          : span(theme, "muted", "no model");
+        const topLeft = ` ${spinner}${model} `;
 
         const context = formatContext(ctx, activeModel);
         const contextColor =
@@ -311,34 +444,32 @@ export default function piEditorFrame(pi: ExtensionAPI): void {
             ? "error"
             : context.percent !== null && context.percent > 70
               ? "warning"
-              : "muted";
-        const topRight = theme.fg(contextColor, ` ${context.text} `);
+              : "text";
+        const topRight = ` ${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
 
         const statuses = Array.from(
           footerData?.getExtensionStatuses().values() ?? [],
         )
           .map(sanitizeStatusText)
           .filter((status) => visibleWidth(status) > 0);
-        const bottomLeft =
-          statuses.length > 0
-            ? ` ${statuses.join(theme.fg("dim", " · "))} `
-            : theme.fg("muted", ` ${formatCwd(ctx.sessionManager.getCwd())} `);
+        const cwd = formatCwd(ctx.sessionManager.getCwd());
+        const bottomLeft = bottomLeftText(theme, cwd, statuses);
         const usage = computeSessionUsage(ctx);
-        const usageStats = `↑${formatTokens(usage.input)} ↓${formatTokens(usage.output)} R${formatTokens(usage.cacheRead)} W${formatTokens(usage.cacheWrite)}`;
+        const usageStats = [
+          `${span(theme, "accent", "↑")}${span(theme, "text", formatTokens(usage.input))}`,
+          `${span(theme, "success", "↓")}${span(theme, "text", formatTokens(usage.output))}`,
+          `${span(theme, "muted", "R")}${span(theme, "text", formatTokens(usage.cacheRead))}`,
+          `${span(theme, "muted", "W")}${span(theme, "text", formatTokens(usage.cacheWrite))}`,
+        ].join(separator(theme, " "));
         const turnTime =
           isWorking && turnStartedAt !== undefined
-            ? ` · ${formatDuration(Date.now() - turnStartedAt)}`
+            ? `${separator(theme)}${span(theme, "text", formatDuration(Date.now() - turnStartedAt))}`
             : "";
-        const bottomRight = theme.fg(
-          "muted",
-          ` ${usageStats}${turnTime} · $${usage.cost.toFixed(3)} `,
-        );
-        const border = (text: string) => this.borderColor(text);
+        const bottomRight = ` ${usageStats}${turnTime}${separator(theme)}${span(theme, "muted", "$")}${span(theme, "text", usage.cost.toFixed(3))} `;
         const horizontalBorder = border("─").repeat(innerWidth);
         const nativeLines = lines.slice(1);
         let editorLines = nativeLines.slice(0, -1);
         let autocompleteLines: string[] = [];
-        let separatorLine: string | undefined;
 
         if (this.isShowingAutocomplete()) {
           const editorBottomIndex = nativeLines.findIndex(
@@ -355,18 +486,25 @@ export default function piEditorFrame(pi: ExtensionAPI): void {
           ) {
             editorLines = nativeLines.slice(0, editorBottomIndex);
             autocompleteLines = nativeLines.slice(editorBottomIndex + 1);
-            separatorLine = nativeLines[editorBottomIndex];
           }
         }
 
         return [
-          fitBorder(topLeft, topRight, width, border, "╭", "╮"),
-          ...autocompleteLines.map((line) => frameLine(line, width, border)),
-          ...(separatorLine
-            ? [frameLine(separatorLine, width, border, "├", "┤")]
-            : []),
+          ...autocompleteLines.map((line) => panelLine(line, width, theme)),
+          ...(autocompleteLines.length > 0 ? [""] : []),
+          fitBorder(topLeft, topRight, width, border, "╭", "╮", "right"),
           ...editorLines.map((line) => frameLine(line, width, border)),
-          fitBorder(bottomLeft, bottomRight, width, border, "╰", "╯"),
+          fitBorder(
+            bottomLeft,
+            bottomRight,
+            width,
+            border,
+            "╰",
+            "╯",
+            "left",
+            (maximumWidth) =>
+              bottomLeftText(theme, cwd, statuses, maximumWidth),
+          ),
         ];
       }
     }

@@ -46,38 +46,38 @@ let
     colors = {
       # Core UI
       accent = "base0D";
-      border = "base03";
+      border = "base04";
       borderAccent = "base0D";
-      borderMuted = "base02";
+      borderMuted = "base03";
       success = "base0B";
       error = "base08";
       warning = "base0A";
-      muted = "base04";
-      dim = "base04";
-      text = "base05";
-      thinkingText = "base04";
+      muted = "base05";
+      dim = "base05";
+      text = "base06";
+      thinkingText = "base05";
 
       # Backgrounds and message content
       selectedBg = "base02";
-      userMessageBg = "base01";
-      userMessageText = "base05";
+      userMessageBg = "base02";
+      userMessageText = "base07";
       customMessageBg = "base01";
-      customMessageText = "base05";
+      customMessageText = "base06";
       customMessageLabel = "base0E";
       toolPendingBg = "base01";
       toolSuccessBg = "base01";
       toolErrorBg = "base01";
-      toolTitle = "base0D";
+      toolTitle = "base06";
       toolOutput = "base05";
 
       # Markdown
       mdHeading = "base0D";
       mdLink = "base0D";
-      mdLinkUrl = "base04";
+      mdLinkUrl = "base05";
       mdCode = "base0B";
       mdCodeBlock = "base05";
       mdCodeBlockBorder = "base02";
-      mdQuote = "base04";
+      mdQuote = "base05";
       mdQuoteBorder = "base03";
       mdHr = "base03";
       mdListBullet = "base0D";
@@ -85,10 +85,10 @@ let
       # Tool diffs
       toolDiffAdded = "base0B";
       toolDiffRemoved = "base08";
-      toolDiffContext = "base04";
+      toolDiffContext = "base05";
 
       # Syntax highlighting (classic base16 mapping)
-      syntaxComment = "base04";
+      syntaxComment = "base05";
       syntaxKeyword = "base0E";
       syntaxFunction = "base0D";
       syntaxVariable = "base08";
@@ -99,7 +99,7 @@ let
       syntaxPunctuation = "base05";
 
       # Thinking level borders: subtle to hot ramp
-      thinkingOff = "base03";
+      thinkingOff = "base04";
       thinkingMinimal = "base0C";
       thinkingLow = "base0D";
       thinkingMedium = "base0B";
