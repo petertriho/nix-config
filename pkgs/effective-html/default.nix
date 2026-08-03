@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "effective-html";
-  version = "0-unstable-2026-08-01";
+  version = "0-unstable-2026-08-03";
 
   src = fetchFromGitHub {
     owner = "plannotator";
     repo = "effective-html";
-    rev = "926bd52692501499362574223f19cf0f384bf5a5";
-    hash = "sha256-voWTvtH189qLPJ9G4ZR2RtDPjreifk2pj87jFO/dNGU=";
+    rev = "cc1f962d65f497cd4209a83f702e0aaaabec4cee";
+    hash = "sha256-m766NRZ4G1lyogp8WKV9h97g2QoX/LjeLc05zEArS08=";
   };
 
   dontBuild = true;
