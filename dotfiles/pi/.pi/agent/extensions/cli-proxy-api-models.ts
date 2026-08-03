@@ -313,6 +313,15 @@ function modelEntry(model: ResolvedModel) {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: model.contextWindow,
     maxTokens: model.maxTokens,
+    // Prompt-cache compat for the proxy channel (pi-cache-optimizer reads these):
+    // session affinity keeps one pi session pinned to the same upstream (the
+    // proxy runs routing.session-affinity: true); long retention is safe while
+    // only codex/OpenAI upstreams are authed — drop supportsLongCacheRetention
+    // if a non-OpenAI channel 400s on prompt_cache_retention.
+    compat: {
+      sendSessionAffinityHeaders: true,
+      supportsLongCacheRetention: true,
+    },
   };
 }
 

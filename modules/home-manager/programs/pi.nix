@@ -11,6 +11,7 @@ let
   piExtensions = with pkgs.piExtensions; [
     # pi-mcp-adapter
     # pi-atelier
+    pi-cache-optimizer
     pi-lens
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
@@ -154,6 +155,13 @@ in
 
     home.file."${cfg.configDir}/extensions/pi-message-diagnostics.ts".source =
       config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
+
+    # Provider compat overrides only (pi-cache-optimizer recommendations for
+    # the zai/opencode-go gateways) — no credentials, models, or baseUrls; pi
+    # merges these over its built-in provider definitions. Out-of-store
+    # symlink so `/cache-optimizer fix` can still rewrite it at runtime.
+    home.file."${cfg.configDir}/models.json".source =
+      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/models.json";
 
     home.file.".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
       widget.visible = false;

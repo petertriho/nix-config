@@ -1,0 +1,16 @@
+{
+  "providers": {
+    "zai": {
+      "compat": {
+        "sendSessionAffinityHeaders": true,
+        "supportsLongCacheRetention": true
+      }
+    },
+    "opencode-go": {
+      "compat": {
+        "sendSessionAffinityHeaders": true,
+        "supportsLongCacheRetention": true
+      }
+    }
+  }
+}
