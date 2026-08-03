@@ -33,7 +33,7 @@ in
     lsof # list open files
     lstr # tree replacement
     lynx # text-based web browser
-    mermaid-ascii # render mermaid diagrams in terminal
+    # mermaid-ascii # render mermaid diagrams in terminal
     mermaid-cli # render mermaid diagrams
     navi # interactive cheatsheet tool
     nix-auth # nix auth for providers (e.g. GitHub)
