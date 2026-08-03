@@ -125,7 +125,7 @@ in
             set -g @tmux_window_name_shells "${name_shells}"
             set -g @tmux_window_name_substitute_sets "${substitute_sets}"
             set -g @tmux_window_name_wrapper_programs "${wrapper_programs}"
-            set -g @tmux_window_name_custom_icons '{"claude":"✻","codex":"","opencode":"󰚩","pi":"󰏬"}'
+            set -g @tmux_window_name_custom_icons '{"claude":"✻","codex":"","opencode":"󰚩","pi":"󰏿"}'
             set -g @tmux_window_name_show_program_args "False"
           '';
       }
@@ -145,7 +145,7 @@ in
         extraConfig =
           # tmux
           ''
-            set -g @agent-indicator-icons 'claude=✻,codex=,opencode=󰚩,pi=󰏬,default=󰆍'
+            set -g @agent-indicator-icons 'claude=✻,codex=,opencode=󰚩,pi=󰏿,default=󰆍'
             set -g @agent-indicator-notification-enabled 'off'
           '';
       }
