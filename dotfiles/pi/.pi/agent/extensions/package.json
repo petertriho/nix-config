@@ -1,0 +1,16 @@
+{
+  "name": "pi-extensions-dev",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Local dev types for pi extensions. pi injects the runtime packages; these devDependencies exist only for LSP type-checking.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.83.0",
+    "@earendil-works/pi-tui": "^0.83.0",
+    "@earendil-works/pi-ai": "^0.83.0",
+    "typebox": "^1.3.10",
+    "@types/node": "^22.0.0"
+  }
+}
