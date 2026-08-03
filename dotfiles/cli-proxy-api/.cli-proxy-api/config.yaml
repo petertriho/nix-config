@@ -13,5 +13,7 @@ routing:
   strategy: "round-robin"
   session-affinity: true
   session-affinity-ttl: "1h"
+codex:
+  identity-confuse: true
 redis-usage-queue-retention-seconds: 60
 ws-auth: true
