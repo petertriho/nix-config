@@ -6,6 +6,8 @@ import type {
 import type { Component } from "@earendil-works/pi-tui";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
+import { applyOuterMargin } from "./pi-tui-shell.ts";
+
 const ENTRY_TYPE = "pi-message-diagnostics";
 
 type UsageCost = {
@@ -448,17 +450,37 @@ function renderExpanded(
   return lines.map((line) => truncateToWidth(line, availableWidth, ""));
 }
 
+export function renderMessageDiagnostics(
+  data: MessageDiagnosticsEntry,
+  expanded: boolean,
+  theme: Theme,
+  width: number,
+): string[] {
+  const contentWidth = Math.max(0, width - 2);
+  const lines = expanded
+    ? renderExpanded(data, contentWidth, theme)
+    : [renderCollapsed(data, contentWidth, theme)];
+  return applyOuterMargin(lines, width);
+}
+
 class DiagnosticsComponent implements Component {
-  constructor(
-    private readonly data: MessageDiagnosticsEntry,
-    private readonly expanded: boolean,
-    private readonly theme: Theme,
-  ) {}
+  private readonly data: MessageDiagnosticsEntry;
+  private readonly expanded: boolean;
+  private readonly theme: Theme;
+
+  constructor(data: MessageDiagnosticsEntry, expanded: boolean, theme: Theme) {
+    this.data = data;
+    this.expanded = expanded;
+    this.theme = theme;
+  }
 
   render(width: number): string[] {
-    return this.expanded
-      ? renderExpanded(this.data, width, this.theme)
-      : [renderCollapsed(this.data, width, this.theme)];
+    return renderMessageDiagnostics(
+      this.data,
+      this.expanded,
+      this.theme,
+      width,
+    );
   }
 
   invalidate(): void {}

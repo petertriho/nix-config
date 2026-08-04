@@ -142,7 +142,9 @@ in
         ];
       };
       settings = {
+        outputPad = 1;
         packages = map piPackageRoot piExtensions;
+        quietStartup = true;
         theme = "stylix";
       };
     };
@@ -150,8 +152,8 @@ in
     home.file."${cfg.configDir}/themes/stylix.json".source =
       jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
 
-    home.file."${cfg.configDir}/extensions/pi-editor-frame.ts".source =
-      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-editor-frame.ts";
+    home.file."${cfg.configDir}/extensions/pi-tui-shell.ts".source =
+      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
 
     home.file."${cfg.configDir}/extensions/pi-message-diagnostics.ts".source =
       config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
