@@ -21,7 +21,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "7cfcb28e70dd6a4b78ac420a9ab0775df22da5e6",
+      "rev": "b8c9fcae4486cc5a074e96324540513b7a2f90c2",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -150,7 +150,7 @@
       "src": "https://github.com/mfussenegger/nvim-lint"
     },
     "nvim-lsp-endhints": {
-      "rev": "cc11482c988ba0e394b3426ae13d0b97e81a508d",
+      "rev": "3224a1c1b2fe1b067049764a154d4d727425fa6d",
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
@@ -162,7 +162,7 @@
       "src": "https://github.com/SmiteshP/nvim-navic"
     },
     "nvim-rulebook": {
-      "rev": "b1b74264e4db3f1d45c4751bc9f5f645bec670f0",
+      "rev": "0572382adde2eb03bde68da23c2aaac3577f503a",
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
@@ -171,15 +171,15 @@
       "version": "'refactor/v2'"
     },
     "nvim-spider": {
-      "rev": "7f021426d4a615ea8f11cabed434b1f20376abae",
+      "rev": "38f74f733734566bec3b23a9dcf968a5a5559cd6",
       "src": "https://github.com/chrisgrieser/nvim-spider"
     },
     "nvim-tinygit": {
-      "rev": "19da9f0fdb0683fe92cecf1927d2d3efd3d4f8a1",
+      "rev": "ededec9fb84484b20d34b635fdc20e42a35463c7",
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
-      "rev": "4213bd6eabac38b16dd6615002b6243b23cf3bf6",
+      "rev": "b2aadda94b107480c48e548d6db51c6840b7b33c",
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter-textobjects": {
@@ -196,7 +196,7 @@
       "src": "https://github.com/JoosepAlviste/nvim-ts-context-commentstring"
     },
     "nvim-various-textobjs": {
-      "rev": "604d4c57a5a702c5b25698502713a5f4da6c439e",
+      "rev": "dfbf0e9ccab4bad3c87961e1de3c8dc09d8f337a",
       "src": "https://github.com/chrisgrieser/nvim-various-textobjs"
     },
     "nvim-web-devicons": {
@@ -228,7 +228,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "9f98b46e1dd61aeb666989c344d76517df63af55",
+      "rev": "885ecf4fa0ffcd20d052b14701540a451898fb34",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
