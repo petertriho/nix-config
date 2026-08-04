@@ -17,6 +17,11 @@ in
 
   xdg.configFile = {
     "ghostty/config".source = config.lib.meta.mkDotfilesSymlink "ghostty/.config/ghostty/config";
+    "ghostty/keybinds".source = config.lib.meta.mkDotfilesSymlink "ghostty/.config/ghostty/keybinds";
+    # Only wipe the defaults on Linux; macOS defaults (cmd+c, cmd+v, ...) stay.
+    "ghostty/keybinds-clear".text = lib.optionalString pkgs.stdenv.isLinux ''
+      keybind = clear
+    '';
     "stylix/ghostty.conf".text = ''
       foreground = ${colors.base05}
       background = ${colors.base00}
