@@ -9,7 +9,7 @@ return {
     config = function()
         require("scrollbar").setup({
             minimap = {
-                enabled = true,
+                enabled = false,
                 width = 5,
                 excluded_filetypes = require("peter.core.filetypes").excludes,
                 float = {
