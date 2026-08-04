@@ -12,9 +12,8 @@ let
       # terraform-mcp-server
     ]);
   llmAgents = with pkgs.llm-agents; [
-    openspec
-    tuicr
-    zat # code outline viewer
+    # openspec
+    # zat # code outline viewer
   ];
 in
 {

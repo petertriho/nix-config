@@ -19,10 +19,11 @@
       git-lfs
       delta # git diff viewer
       difftastic # structural diff tool
-      llm-agents.hunk
+      # llm-agents.hunk
       # jujutsu
       mergiraf # git merge conflict resolver
       # rs-git-fsmonitor
+      llm-agents.tuicr
       # watchman
     ];
     file = {
