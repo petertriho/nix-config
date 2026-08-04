@@ -11,6 +11,7 @@ let
   piExtensions = with pkgs.piExtensions; [
     # pi-mcp-adapter
     # pi-atelier
+    omp-undo-redo
     pi-cache-optimizer
     pi-lens
   ];
