@@ -75,31 +75,31 @@ let
 in
 buildNpmPackage {
   pname = "pi-lens";
-  version = "3.8.74-unstable-2026-08-02";
+  version = "3.8.74-unstable-2026-08-04";
 
   src = fetchFromGitHub {
     owner = "apmantza";
     repo = "pi-lens";
-    rev = "ddb82fa8f3f5998115652eb3fe7c6f962a3df538";
-    hash = "sha256-CgWxyiuiw8MkkijPoSjvYG9yA900LJyZRZvKcgUjs20=";
+    rev = "7c0360d55e6ccf97108ff6e91863fe8c4df36599";
+    hash = "sha256-/VQEmdfXFYABvSVsLTzlKo05hbJ3mX3G66zPR2TnfjY=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-pqDVeScGN1xTsKCxR3gNoP1sTMa0eyi73yegkZtVTeY=";
+  npmDepsHash = "sha256-Oy4uK2W7FEQGp4ME8sjw+gLtCoCYEI1qlRi4htUxJkA=";
   npmDepsFetcherVersion = 2;
   npmPackFlags = [ "--ignore-scripts" ];
 
   postPatch = ''
     substituteInPlace package-lock.json \
       --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.82.1.tgz",\n\t\t\t"dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.82.1.tgz", "integrity": "sha512-Z3kloziJIE2dmrisRckZX8zDca/gIv9/YdFAzeoqpHiLV2wsni6bL4hInNSjVKLbqT+4kqLIkph2JQLKvSepjg==",\n\t\t\t"dev": true,' \
+        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.83.0.tgz",\n      "dev": true,' \
+        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.83.0.tgz", "integrity": "sha512-RorGp9OH5l3ElpuC5a5ZQ2eWcchZGXflXRzVGkV99y3y6tT+LLNyxoYIdVKvTKWEObwhExeQbTH0fI2tE4iX4g==",\n      "dev": true,' \
       --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.82.1.tgz",\n\t\t\t"dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.82.1.tgz", "integrity": "sha512-3WFYRhEp3lQB3444EhPMBcM7zSaEUE3eJgHOR7s4081NLqbw/FsWilIKWXSua0Gv3sRr7m9xMidR3pPDE7jI/A==",\n\t\t\t"dev": true,' \
+        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.83.0.tgz",\n      "dev": true,' \
+        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.83.0.tgz", "integrity": "sha512-m3IZD4g3er0V8TC9+Vpgw/sjTKqcJlkcIBy/JvsgRubuuik3tAVzyugUg4rVrShIkkOT69mEd34NEqKUIsl6JQ==",\n      "dev": true,' \
       --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.82.1.tgz",\n\t\t\t"dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.82.1.tgz", "integrity": "sha512-9yN8hALfKaxZq7n54EMxqhFCWnMi6LHkraMJ/1YjHiATq75XrI6XDMVppn9EDtiK7Fks8hUe1SDXUTrIvwRWfQ==",\n\t\t\t"dev": true,'
+        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.83.0.tgz",\n      "dev": true,' \
+        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.83.0.tgz", "integrity": "sha512-IoYrb0rORjELmEpNtoCA/U8je3KopMkRAVJRdSzvXRvgb+Huo1gNh8Q5CSZvNOiYtDxJdj2tYZZHZ4B3+IN3hA==",\n      "dev": true,'
   '';
 
   buildPhase = ''

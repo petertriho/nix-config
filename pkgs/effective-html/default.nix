@@ -10,8 +10,8 @@ stdenvNoCC.mkDerivation {
   src = fetchFromGitHub {
     owner = "plannotator";
     repo = "effective-html";
-    rev = "cc1f962d65f497cd4209a83f702e0aaaabec4cee";
-    hash = "sha256-m766NRZ4G1lyogp8WKV9h97g2QoX/LjeLc05zEArS08=";
+    rev = "d95debbaef15af1d201fc6c10c77cf92b524a0d6";
+    hash = "sha256-5j212fdzcLd3yG6cUOpcZPLaLFevlBBqtEyay2tCKXk=";
   };
 
   dontBuild = true;
