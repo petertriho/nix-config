@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 # Claude Code statusline renderer.
 #
-# Layout (single line):
-#   model  effort  ↑in ↓out Rread Wwrite $cost   <flex>
-#   C ctx-bar pct used/total  S session-bar pct reset  W weekly-bar pct reset
+# Layout (single line, dim scaffolding with colored values):
+#   project  model  effort  C ctx-bar pct used/total   <flex>
+#   ↑in ↓out Rread Wwrite $cost  S session-bar pct reset  W weekly-bar pct reset
+#
+# Bars are 8 cells of eighth-block sub-cell fill (64 steps) over a dim ░
+# track; the partial boundary cell is drawn on a gray background so its
+# unfilled remainder doesn't drop to black. The C bar colors by
+# absolute fill (green < 60 <= yellow < 85 <= red). S/W bars mark pace with
+# a thin ▏ tick at the elapsed fraction of their reset window, drawn on a
+# painted background (bar color inside the fill, gray on the track) so its
+# cell never drops to black, and color by used% - elapsed% (green on/behind
+# pace, yellow/red ahead); with no resets_at they fall back to absolute
+# fill colors and no tick. On overflow the C bar collapses
+# to its text form, then the project name drops, then the line truncates
+# with "...".
 #
 # All data comes from the statusline stdin JSON plus one jq pass over the
 # transcript. No network or Keychain access: when rate_limits is absent the
@@ -22,8 +34,8 @@ input=$(cat)
 # One jq call -> unit-separator-joined fields (tabs would collapse on empty
 # fields under IFS splitting). Empty field = widget omitted.
 IFS=$'\037' read -r model effort_state cost ctx_used ctx_total \
-  fh_pct fh_reset sd_pct sd_reset transcript cw_in cw_out < <(
-  jq -r '
+  fh_pct fh_reset sd_pct sd_reset transcript cw_in cw_out project_raw < <(
+    jq -r '
     def num_or_empty: if type == "number" then . else "" end;
     def nn: if type == "number" and . >= 0 then . else 0 end;
     . as $d
@@ -56,10 +68,13 @@ IFS=$'\037' read -r model effort_state cost ctx_used ctx_total \
         (try ($d.rate_limits.seven_day.resets_at | num_or_empty) catch ""),
         ($d.transcript_path? // "" | if type == "string" then . else "" end),
         (try ($cw.total_input_tokens | num_or_empty) catch ""),
-        (try ($cw.total_output_tokens | num_or_empty) catch "")
+        (try ($cw.total_output_tokens | num_or_empty) catch ""),
+        ([(try $d.workspace.project_dir catch null),
+          (try $d.workspace.current_dir catch null), $d.cwd?]
+         | map(select(type == "string" and . != "")) | first // "")
       ]
     | map(tostring) | join("\u001f")' <<<"$input"
-)
+  )
 
 # ------------------------------------------------------- transcript token sums
 # Sums entries with message.usage; when any
@@ -91,6 +106,8 @@ if [[ -n $transcript ]]; then
 fi
 
 # ------------------------------------------------------------------ formatters
+printf -v now '%(%s)T' -1
+
 # One awk pass for everything float-shaped, mirroring the JS rounding exactly:
 # jsround      = Math.round for non-negative values (ties away from zero);
 # tofixed1     = toFixed(1): printf %.1f rounds the double half-to-even, JS
@@ -98,12 +115,18 @@ fi
 #                (the sole dyadic 1-decimal midpoint where even != away, since
 #                x.75 rounds to x.8 either way);
 # fmt_tokens   = token count display (>=1M -> X.XM, >=1000 -> X.Xk).
+# Each bar emits as: full cells, partial-glyph eighth (0-7), tick cell (S/W,
+# '' when resets_at is unknown), ANSI color code, rounded pct, and clamped
+# reset-countdown seconds (S/W).
 IFS=$'\037' read -r cost_text t_in t_out t_read t_write t_cwin t_cwout \
-  ctx_filled ctx_pct ctx_used_f ctx_total_f fh_filled fh_pct1 sd_filled sd_pct1 < <(
-  awk -v cost="$cost" -v ti="$tok_in" -v to="$tok_out" \
-    -v trd="$tok_read" -v twr="$tok_write" \
-    -v cwi="$cw_in" -v cwo="$cw_out" -v cu="$ctx_used" -v ct="$ctx_total" \
-    -v fp="$fh_pct" -v sp="$sd_pct" '
+  ctx_full ctx_part ctx_color ctx_pct ctx_used_f ctx_total_f \
+  fh_full fh_part fh_tick fh_color fh_pct1 fh_rem \
+  sd_full sd_part sd_tick sd_color sd_pct1 sd_rem < <(
+    awk -v cost="$cost" -v ti="$tok_in" -v to="$tok_out" \
+      -v trd="$tok_read" -v twr="$tok_write" \
+      -v cwi="$cw_in" -v cwo="$cw_out" -v cu="$ctx_used" -v ct="$ctx_total" \
+      -v fp="$fh_pct" -v fr="$fh_reset" -v sp="$sd_pct" -v sr="$sd_reset" \
+      -v now="$now" '
     function jsround(v, n) { n = int(v); return (v - n >= 0.5) ? n + 1 : n }
     function tofixed1(v, f) {
       f = v - int(v)
@@ -117,8 +140,40 @@ IFS=$'\037' read -r cost_text t_in t_out t_read t_write t_cwin t_cwout \
       return tofixed1(c / 1000) "k"
     }
     function clamp100(v) { return (v < 0) ? 0 : ((v > 100) ? 100 : v) }
+    function abs_color(p) { return (p >= ABS_RED) ? 31 : ((p >= ABS_YEL) ? 33 : 32) }
+    # usage_bar: B_FULL/B_PART = 64-step fill split into whole cells and a
+    # partial-glyph eighth; when the reset time is known B_TICK marks the
+    # elapsed-time cell and B_COL follows used% - elapsed% pace, otherwise no
+    # tick and absolute fill color; B_REM = countdown clamped to [0, win].
+    function usage_bar(p, reset, win,    rem, steps, elapsed, delta) {
+      B_FULL = B_PART = B_TICK = B_COL = B_PCT = B_REM = ""
+      if (reset != "") {
+        rem = reset - now
+        if (rem < 0) rem = 0
+        if (rem > win) rem = win
+        B_REM = int(rem)
+      }
+      if (p == "") return
+      p = clamp100(p)
+      steps = jsround(p / 100 * 64)
+      B_FULL = int(steps / 8)
+      B_PART = steps % 8
+      B_PCT = jsround(p)
+      if (reset == "") {
+        B_COL = abs_color(p)
+        return
+      }
+      elapsed = (win - B_REM) / win * 100
+      B_TICK = jsround(elapsed / 100 * 8)
+      if (B_TICK > 7) B_TICK = 7
+      delta = p - elapsed
+      B_COL = (delta > PACE_RED) ? 31 : ((delta > PACE_YEL) ? 33 : 32)
+    }
     BEGIN {
       OFS = "\037"
+      ABS_YEL = 60; ABS_RED = 85      # absolute fill thresholds, pct
+      PACE_YEL = 5; PACE_RED = 15     # used% - elapsed% pace deltas
+      FH_WIN = 18000; SD_WIN = 604800 # rate-limit windows, seconds
       cost_text = (cost == "") ? "" : sprintf("$%.2f", cost)
       t_in = (ti == "") ? "" : fmt_tokens(ti, 1)
       t_out = (to == "") ? "" : fmt_tokens(to, 1)
@@ -126,25 +181,54 @@ IFS=$'\037' read -r cost_text t_in t_out t_read t_write t_cwin t_cwout \
       t_write = (twr == "") ? "" : fmt_tokens(twr, 1)
       t_cwin = (cwi == "") ? "" : fmt_tokens(cwi, 1)
       t_cwout = (cwo == "") ? "" : fmt_tokens(cwo, 1)
-      cf = cp = cuf = ctf = ""
+      cfull = cpart = ccol = cp = cuf = ctf = ""
       if (cu != "" && ct != "") {
         p = clamp100(cu / ct * 100)
-        cf = jsround(p / 100 * 8); cp = jsround(p)
+        steps = jsround(p / 100 * 64)
+        cfull = int(steps / 8); cpart = steps % 8
+        ccol = abs_color(p); cp = jsround(p)
         cuf = fmt_tokens(cu, 0); ctf = fmt_tokens(ct, 0)
       }
-      ff = f1 = ""
-      if (fp != "") { p = clamp100(fp); ff = jsround(p / 100 * 8); f1 = jsround(p) }
-      sf = s1 = ""
-      if (sp != "") { p = clamp100(sp); sf = jsround(p / 100 * 8); s1 = jsround(p) }
-      print cost_text, t_in, t_out, t_read, t_write, t_cwin, t_cwout, cf, cp, cuf, ctf, ff, f1, sf, s1
+      usage_bar(fp, fr, FH_WIN)
+      ff = B_FULL; fpart = B_PART; ftick = B_TICK; fcol = B_COL; f1 = B_PCT; frem = B_REM
+      usage_bar(sp, sr, SD_WIN)
+      sf = B_FULL; spart = B_PART; stick = B_TICK; scol = B_COL; s1 = B_PCT; srem = B_REM
+      print cost_text, t_in, t_out, t_read, t_write, t_cwin, t_cwout,
+        cfull, cpart, ccol, cp, cuf, ctf,
+        ff, fpart, ftick, fcol, f1, frem,
+        sf, spart, stick, scol, s1, srem
     }'
-)
+  )
 
-mkbar() { # filled -> BAR (8 glyphs)
-  local i
+mkbar() { # full partial-eighth tick-cell color -> BAR (8 visible cells)
+  local full=$1 part=$2 tick=$3 color=$4 i want glyph cur='' bg
+  local partials='▏▎▍▌▋▊▉'
   BAR=''
   for ((i = 0; i < 8; i++)); do
-    if ((i < $1)); then BAR+='█'; else BAR+='░'; fi
+    if [[ -n $tick ]] && ((i == tick)); then
+      # thin pace tick on a painted background -- bar color inside the
+      # fill, gray on the track -- so the tick cell never drops to black
+      bg=$((i < full || (i == full && part >= 4) ? color + 10 : 100))
+      BAR+="${ESC}[39;${bg}m▏${ESC}[49m"
+      cur=39
+      continue
+    fi
+    if ((i < full)); then
+      want=$color glyph='█'
+    elif ((i == full && part > 0)); then
+      # partial eighth-block on a gray background so the unfilled rest of
+      # the boundary cell doesn't drop to black either
+      BAR+="${ESC}[${color};100m${partials:part-1:1}${ESC}[49m"
+      cur=$color
+      continue
+    else
+      want=90 glyph='░'
+    fi
+    if [[ $want != "$cur" ]]; then
+      BAR+="${ESC}[${want}m"
+      cur=$want
+    fi
+    BAR+=$glyph
   done
 }
 
@@ -164,7 +248,8 @@ fmt_duration() { # seconds -> DUR, compact "XdYhZm" ("0m" floor, zero parts skip
 
 # ------------------------------------------------------------- widget assembly
 # Each element renders as: reset-padded space, colored text, reset-padded space.
-# Visible width = text chars + 2.
+# Visible width = text chars + 2. Multi-color segments pass pre-escaped text
+# with a hand-computed visible length.
 left='' right='' left_len=0 right_len=0
 
 mk_el() { # color-code text -> EL
@@ -181,10 +266,20 @@ add_right() {
   right_len=$((right_len + $3 + 2))
 }
 
+# project (cyan, basename of workspace.project_dir > .current_dir > cwd).
+# Kept out of `left` so the overflow path below can drop it independently.
+proj_el='' proj_len=0
+project=${project_raw%/}
+project=${project##*/}
+if [[ -n $project ]]; then
+  mk_el 36 "$project"
+  proj_el=$EL proj_len=$((${#project} + 2))
+fi
+
 # model (blue, raw)
 [[ -n $model ]] && add_left 34 "$model" ${#model}
 
-# thinking-effort (brightMagenta, raw)
+# thinking-effort (magenta, raw)
 normalize_effort() {
   local v=${1,,}
   case $v in
@@ -201,18 +296,33 @@ if [[ -z $effort ]]; then # stdin had no usable effort: fall back to settings
   effort=$(normalize_effort "$(jq -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)")
   effort=${effort:-default}
 fi
-add_left 95 "$effort" ${#effort}
+add_left 35 "$effort" ${#effort}
 
-# tokens + cost as one single-spaced group: ↑input ↓output Rcache-read
-# Wcache-write $cost. ↑/R blue, ↓/W green, cost brightYellow. With no
+# context bar (dim "C" label, bar/pct/used-value in the bar color, dim "%"
+# and "/total"). Last element of the left cluster but kept out of `left` so
+# the overflow path below can swap in the bar-less text-only variant.
+ctx_el='' ctx_el_len=0 ctx_min_el='' ctx_min_el_len=0
+if [[ -n $ctx_color ]]; then
+  mkbar "$ctx_full" "$ctx_part" '' "$ctx_color"
+  ctx_text="${ESC}[90mC $BAR ${ESC}[${ctx_color}m${ctx_pct}${ESC}[90m% ${ESC}[${ctx_color}m$ctx_used_f${ESC}[90m/$ctx_total_f"
+  mk_el 39 "$ctx_text"
+  ctx_el=$EL ctx_el_len=$((14 + ${#ctx_pct} + ${#ctx_used_f} + ${#ctx_total_f} + 2))
+  ctx_text="${ESC}[90mC ${ESC}[${ctx_color}m${ctx_pct}${ESC}[90m% ${ESC}[${ctx_color}m$ctx_used_f${ESC}[90m/$ctx_total_f"
+  mk_el 39 "$ctx_text"
+  ctx_min_el=$EL ctx_min_el_len=$((5 + ${#ctx_pct} + ${#ctx_used_f} + ${#ctx_total_f} + 2))
+fi
+
+# tokens + cost as one single-spaced group, first element of the right
+# cluster: ↑input ↓output Rcache-read Wcache-write $cost. ↑ cyan, ↓ green,
+# R/W dim prefixes with default-color values, cost yellow. With no
 # transcript_path, fall back to context_window totals for ↑/↓ and omit R/W.
 seg='' seg_len=0
 if [[ -n $t_in ]]; then
-  seg="${ESC}[34m↑$t_in ${ESC}[32m↓$t_out ${ESC}[34mR$t_read ${ESC}[32mW$t_write"
+  seg="${ESC}[36m↑$t_in ${ESC}[32m↓$t_out ${ESC}[90mR${ESC}[39m$t_read ${ESC}[90mW${ESC}[39m$t_write"
   seg_len=$((7 + ${#t_in} + ${#t_out} + ${#t_read} + ${#t_write}))
 else
   if [[ -n $t_cwin ]]; then
-    seg="${ESC}[34m↑$t_cwin"
+    seg="${ESC}[36m↑$t_cwin"
     seg_len=$((1 + ${#t_cwin}))
   fi
   if [[ -n $t_cwout ]]; then
@@ -221,69 +331,42 @@ else
   fi
 fi
 if [[ -n $seg && -n $cost_text ]]; then
-  add_left 37 "$seg ${ESC}[93m$cost_text" $((seg_len + 1 + ${#cost_text}))
+  add_right 39 "$seg ${ESC}[33m$cost_text" $((seg_len + 1 + ${#cost_text}))
 elif [[ -n $seg ]]; then
-  add_left 37 "$seg" "$seg_len"
+  add_right 39 "$seg" "$seg_len"
 elif [[ -n $cost_text ]]; then
-  add_left 93 "$cost_text" ${#cost_text}
+  add_right 33 "$cost_text" ${#cost_text}
 fi
 
-# context-bar (brightGreen, "C" label, slim bar). Renders first in the right
-# cluster but is kept out of `right` so the overflow path below can swap in
-# the bar-less text-only variant.
-ctx_el='' ctx_el_len=0 ctx_min_el='' ctx_min_el_len=0
-if [[ -n $ctx_filled ]]; then
-  mkbar "$ctx_filled"
-  ctx_text="C $BAR ${ctx_pct}% $ctx_used_f/$ctx_total_f"
-  plain=${ctx_text//█/x} plain=${plain//░/x} # bar glyphs display 1 char wide
-  mk_el 92 "$ctx_text"
-  ctx_el=$EL ctx_el_len=$((${#plain} + 2))
-  ctx_text="C ${ctx_pct}% $ctx_used_f/$ctx_total_f"
-  mk_el 92 "$ctx_text"
-  ctx_min_el=$EL ctx_min_el_len=$((${#ctx_text} + 2))
-fi
-
-printf -v now '%(%s)T' -1
-
-# session-usage (brightMagenta, "S" label, slim bar, five_hour countdown attached)
+# session-usage (dim "S" label, five_hour bar, dim countdown attached)
 fh_dur=''
-if [[ -n $fh_reset ]]; then
-  rem=$((${fh_reset%.*} - now))
-  ((rem > 18000)) && rem=18000
-  fmt_duration "$rem"
+if [[ -n $fh_rem ]]; then
+  fmt_duration "$fh_rem"
   fh_dur=$DUR
 fi
-if [[ -n $fh_filled ]]; then
-  mkbar "$fh_filled"
-  s_text="S $BAR ${fh_pct1}%${fh_dur:+ $fh_dur}"
-  plain=${s_text//█/x} plain=${plain//░/x}
-  add_right 95 "$s_text" ${#plain}
+if [[ -n $fh_color ]]; then
+  mkbar "$fh_full" "$fh_part" "$fh_tick" "$fh_color"
+  s_text="${ESC}[90mS $BAR ${ESC}[${fh_color}m${fh_pct1}${ESC}[90m%${fh_dur:+ $fh_dur}"
+  add_right 39 "$s_text" $((12 + ${#fh_pct1} + (${#fh_dur} > 0 ? 1 + ${#fh_dur} : 0)))
 elif [[ -n $fh_dur ]]; then
-  add_right 95 "$fh_dur" ${#fh_dur}
+  add_right 90 "$fh_dur" ${#fh_dur}
 fi
 
-# weekly-usage (blue, "W" label, slim bar, brightBlue seven_day countdown attached)
+# weekly-usage (dim "W" label, seven_day bar, dim countdown attached)
 sd_dur=''
-if [[ -n $sd_reset ]]; then
-  rem=$((${sd_reset%.*} - now))
-  ((rem > 604800)) && rem=604800
-  fmt_duration "$rem"
+if [[ -n $sd_rem ]]; then
+  fmt_duration "$sd_rem"
   sd_dur=$DUR
 fi
-if [[ -n $sd_filled ]]; then
-  mkbar "$sd_filled"
-  w_text="W $BAR ${sd_pct1}%"
-  plain=${w_text//█/x} plain=${plain//░/x}
-  if [[ -n $sd_dur ]]; then
-    add_right 34 "$w_text ${ESC}[94m$sd_dur" $((${#plain} + 1 + ${#sd_dur}))
-  else
-    add_right 34 "$w_text" ${#plain}
-  fi
+if [[ -n $sd_color ]]; then
+  mkbar "$sd_full" "$sd_part" "$sd_tick" "$sd_color"
+  w_text="${ESC}[90mW $BAR ${ESC}[${sd_color}m${sd_pct1}${ESC}[90m%${sd_dur:+ $sd_dur}"
+  add_right 39 "$w_text" $((12 + ${#sd_pct1} + (${#sd_dur} > 0 ? 1 + ${#sd_dur} : 0)))
 elif [[ -n $sd_dur ]]; then
-  add_right 94 "$sd_dur" ${#sd_dur}
+  add_right 90 "$sd_dur" ${#sd_dur}
 fi
 
-[[ -z $left && -z $ctx_el && -z $right ]] && exit 0
+[[ -z $proj_el && -z $left && -z $ctx_el && -z $right ]] && exit 0
 
 # -------------------------------------------------------------- width & flex
 probe_width() { # -> WIDTH ('' when undetectable): env override, tty walk, tput
@@ -328,7 +411,7 @@ truncate_styled() { # styled-line target-visible-chars -> cut + "..."
     if [[ $c == "$ESC" ]]; then
       j=$i
       while ((j < n)) && [[ ${s:j:1} != m ]]; do ((j += 1)); done
-      out+=${s:i:j - i + 1}
+      out+=${s:i:j-i+1}
       i=$((j + 1))
       continue
     fi
@@ -342,21 +425,25 @@ truncate_styled() { # styled-line target-visible-chars -> cut + "..."
 probe_width
 if [[ -n $WIDTH ]]; then
   usable=$((WIDTH - 6)) # flexMode "full"
-  total=$((left_len + ctx_el_len + right_len))
-  if ((total > usable)); then # overflow: drop the context bar, keep its text
+  total=$((proj_len + left_len + ctx_el_len + right_len))
+  if ((total > usable)); then # overflow 1: swap the C bar for its text form
     ctx_el=$ctx_min_el ctx_el_len=$ctx_min_el_len
+    total=$((proj_len + left_len + ctx_el_len + right_len))
+  fi
+  if ((total > usable)); then # overflow 2: drop the project name
+    proj_el='' proj_len=0
     total=$((left_len + ctx_el_len + right_len))
   fi
   gap=$((usable - total))
   ((gap < 0)) && gap=0
   pad=''
   ((gap > 0)) && printf -v pad '%*s' "$gap" ''
-  line="${left}${pad}${ctx_el}${right}"
-  if ((total > usable)); then
+  line="${proj_el}${left}${ctx_el}${pad}${right}"
+  if ((total > usable)); then # overflow 3: truncate with ...
     line=$(truncate_styled "$line" "$usable")
   fi
 else
-  line="${left}${ESC}[90m | ${ESC}[39m${ctx_el}${right}"
+  line="${proj_el}${left}${ctx_el}${ESC}[90m | ${ESC}[39m${right}"
 fi
 
 line="${ESC}[0m${line}"
