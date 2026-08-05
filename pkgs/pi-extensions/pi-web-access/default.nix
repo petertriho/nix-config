@@ -1,0 +1,50 @@
+{
+  lib,
+  buildNpmPackage,
+  fetchFromGitHub,
+  nodejs_24,
+}:
+buildNpmPackage {
+  pname = "pi-web-access";
+  version = "0.18.0-unstable-2026-08-03";
+
+  src = fetchFromGitHub {
+    owner = "nicobailon";
+    repo = "pi-web-access";
+    rev = "fd4dcc2712c5c81ec7549b08097bb01e7bb953b5";
+    hash = "sha256-FeDy4B63H9kyjSCCsmmSRkPJau9lrxweCF2s5cDmHdw=";
+  };
+
+  # Upstream gitignores its lockfile, so a reproducible one is vendored here.
+  # Pi injects the @earendil-works/* peerDependencies at runtime, so the
+  # vendored lockfile + package-no-peers.json were generated with
+  # peerDependencies stripped — this keeps the FOD to the 7 real runtime deps
+  # instead of pulling in the entire LLM/AWS provider trees those peers drag in.
+  # package-no-peers.json is upstream package.json with only that key removed;
+  # the pi.extensions entry point and all other fields are unchanged.
+  postPatch = ''
+    cp ${./package-no-peers.json} package.json
+    cp ${./package-lock.json} package-lock.json
+  '';
+
+  nodejs = nodejs_24;
+  npmDepsHash = "sha256-5UgrTLG9oqZRsFRv9NOvSUAJwBrO7w1Vq5gx9ziRV0w=";
+  npmDepsFetcherVersion = 2;
+
+  # Upstream ships raw .ts (pi.extensions = ["./index.ts"]) with no build
+  # script; Pi loads the TypeScript directly. Only runtime deps are installed.
+  dontNpmBuild = true;
+  npmInstallFlags = [ "--omit=dev" ];
+
+  meta = {
+    description = "Web search, content extraction, and video understanding extension for Pi";
+    homepage = "https://github.com/nicobailon/pi-web-access";
+    license = lib.licenses.mit;
+    platforms = [
+      "x86_64-linux"
+      "aarch64-linux"
+      "x86_64-darwin"
+      "aarch64-darwin"
+    ];
+  };
+}

@@ -14,6 +14,7 @@ let
     omp-undo-redo
     pi-cache-optimizer
     pi-lens
+    pi-web-access
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
