@@ -10,6 +10,7 @@
       gh # github cli
       # gh-dash # github dashboard
       # gh-notify # github notification cli
+      gh-stack # github stacked PRs
       git
       git-gone # git garbage collector
       # git-machete # git branch management
