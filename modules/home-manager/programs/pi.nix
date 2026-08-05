@@ -9,6 +9,7 @@ let
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
   piExtensions = with pkgs.piExtensions; [
+    pi-autoresearch
     # pi-mcp-adapter
     # pi-atelier
     omp-undo-redo

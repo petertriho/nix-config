@@ -5,6 +5,7 @@ let
 in
 {
   omp-undo-redo = callPackage ./omp-undo-redo { };
+  pi-autoresearch = callPackage ./pi-autoresearch { };
   pi-atelier = callPackage ./pi-atelier { };
   pi-blackhole = callPackage ./pi-blackhole { };
   pi-cache-optimizer = callPackage ./pi-cache-optimizer { };
