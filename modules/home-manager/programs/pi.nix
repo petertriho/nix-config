@@ -16,6 +16,9 @@ let
     pi-cache-optimizer
     pi-lens
     pi-web-access
+    rpiv-args
+    rpiv-ask-user-question
+    # rpiv-todo
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
