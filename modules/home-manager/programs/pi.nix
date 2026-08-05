@@ -12,6 +12,7 @@ let
     # pi-mcp-adapter
     # pi-atelier
     omp-undo-redo
+    pi-blackhole
     pi-cache-optimizer
     pi-lens
     pi-web-access
