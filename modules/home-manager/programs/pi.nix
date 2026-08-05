@@ -15,6 +15,7 @@ let
     pi-blackhole
     pi-cache-optimizer
     pi-lens
+    pi-subagents
     pi-web-access
     rpiv-args
     rpiv-ask-user-question
