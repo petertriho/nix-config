@@ -43,17 +43,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ccstatusline --hook"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "",
@@ -90,14 +79,6 @@
             "command": "workmux set-window-status working"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ccstatusline --hook"
-          }
-        ]
       }
     ]
   },
@@ -106,7 +87,7 @@
   "disableArtifact": true,
   "statusLine": {
     "type": "command",
-    "command": "ccstatusline",
+    "command": "claude-statusline",
     "padding": 0
   },
   "enabledPlugins": {},

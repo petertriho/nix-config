@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 let
@@ -22,9 +21,6 @@ in
         CLAUDE_CODE_NO_FLICKER = 1;
         ENABLE_CLAUDEAI_MCP_SERVERS = "false";
       };
-      packages = [ pkgs.llm-agents.ccstatusline ];
     };
-    xdg.configFile."ccstatusline/settings.json".source =
-      config.lib.meta.mkDotfilesSymlink "ccstatusline/.config/ccstatusline/settings.json";
   };
 }

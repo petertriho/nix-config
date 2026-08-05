@@ -1,0 +1,363 @@
+#!/usr/bin/env bash
+# Claude Code statusline renderer.
+#
+# Layout (single line):
+#   model  effort  ↑in ↓out Rread Wwrite $cost   <flex>
+#   C ctx-bar pct used/total  S session-bar pct reset  W weekly-bar pct reset
+#
+# All data comes from the statusline stdin JSON plus one jq pass over the
+# transcript. No network or Keychain access: when rate_limits is absent the
+# usage widgets are omitted.
+set -euo pipefail
+
+# Char-based ${#} / ${s:i:1} for the multibyte bar glyphs. C.UTF-8 exists on
+# both darwin and glibc/nix hosts.
+export LC_ALL=C.UTF-8
+
+ESC=$'\033'
+NBSP=$'\302\240'
+input=$(cat)
+
+# ---------------------------------------------------------------- stdin parse
+# One jq call -> unit-separator-joined fields (tabs would collapse on empty
+# fields under IFS splitting). Empty field = widget omitted.
+IFS=$'\037' read -r model effort_state cost ctx_used ctx_total \
+  fh_pct fh_reset sd_pct sd_reset transcript cw_in cw_out < <(
+  jq -r '
+    def num_or_empty: if type == "number" then . else "" end;
+    def nn: if type == "number" and . >= 0 then . else 0 end;
+    . as $d
+    | ($d.context_window? // null) as $cw
+    | (if ($cw | type) == "object" then $cw else null end) as $cw
+    | (try (if ($cw.context_window_size | type) == "number" and $cw.context_window_size > 0
+            then $cw.context_window_size else "" end) catch "") as $total
+    | (try (
+        if ($cw.current_usage | type) == "object" then
+          (($cw.current_usage.input_tokens | nn)
+           + ($cw.current_usage.cache_creation_input_tokens | nn)
+           + ($cw.current_usage.cache_read_input_tokens | nn))
+        elif ($cw.current_usage | type) == "number" then $cw.current_usage
+        elif ($cw.used_percentage | type) == "number" and $total != "" then
+          ($cw.used_percentage | if . < 0 then 0 else . end) / 100 * $total
+        else "" end) catch "") as $used
+    | [
+        (if ($d.model | type) == "string" then $d.model
+         elif ($d.model | type) == "object" then ($d.model.display_name // $d.model.id // "")
+         else "" end
+         | if . == "" then "" else sub("\\s*\\(.*\\)$"; "") end),
+        (if ($d | has("effort")) and (($d.effort | type) == "object") and ($d.effort | has("level"))
+         then (if ($d.effort.level | type) == "string" then "L\($d.effort.level)" else "default" end)
+         else "fallback" end),
+        (try ($d.cost.total_cost_usd | num_or_empty) catch ""),
+        $used, $total,
+        (try ($d.rate_limits.five_hour.used_percentage | num_or_empty) catch ""),
+        (try ($d.rate_limits.five_hour.resets_at | num_or_empty) catch ""),
+        (try ($d.rate_limits.seven_day.used_percentage | num_or_empty) catch ""),
+        (try ($d.rate_limits.seven_day.resets_at | num_or_empty) catch ""),
+        ($d.transcript_path? // "" | if type == "string" then . else "" end),
+        (try ($cw.total_input_tokens | num_or_empty) catch ""),
+        (try ($cw.total_output_tokens | num_or_empty) catch "")
+      ]
+    | map(tostring) | join("\u001f")' <<<"$input"
+)
+
+# ------------------------------------------------------- transcript token sums
+# Sums entries with message.usage; when any
+# entry carries a stop_reason field, count only entries whose stop_reason is
+# truthy, plus a null-stop_reason entry when it is the last usage entry.
+tok_in='' tok_out='' tok_read='' tok_write=''
+if [[ -n $transcript ]]; then
+  tok_in=0 tok_out=0 tok_read=0 tok_write=0
+  if [[ -r $transcript ]]; then
+    IFS=$'\t' read -r tok_in tok_out tok_read tok_write < <(
+      jq -rnR '
+        [inputs | fromjson? | select(type == "object")
+         | select((.message? | type) == "object" and (.message.usage | type) == "object")
+         | {h: (.message | has("stop_reason")), s: .message.stop_reason, u: .message.usage}] as $e
+        | ($e | length) as $n
+        | (if ($e | map(select(.h)) | length) > 0
+           then [$e | to_entries[]
+                 | select(.value.h and ((.value.s != null and .value.s != "" and .value.s != false)
+                                        or (.value.s == null and .key == $n - 1)))
+                 | .value]
+           else $e end) as $c
+        | [($c | map(.u.input_tokens? // 0) | add // 0),
+           ($c | map(.u.output_tokens? // 0) | add // 0),
+           ($c | map(.u.cache_read_input_tokens? // 0) | add // 0),
+           ($c | map(.u.cache_creation_input_tokens? // 0) | add // 0)]
+        | @tsv' "$transcript" 2>/dev/null
+    ) || { tok_in=0 tok_out=0 tok_read=0 tok_write=0; }
+  fi
+fi
+
+# ------------------------------------------------------------------ formatters
+# One awk pass for everything float-shaped, mirroring the JS rounding exactly:
+# jsround      = Math.round for non-negative values (ties away from zero);
+# tofixed1     = toFixed(1): printf %.1f rounds the double half-to-even, JS
+#                half-away; they only disagree when the double is exactly x.25
+#                (the sole dyadic 1-decimal midpoint where even != away, since
+#                x.75 rounds to x.8 either way);
+# fmt_tokens   = token count display (>=1M -> X.XM, >=1000 -> X.Xk).
+IFS=$'\037' read -r cost_text t_in t_out t_read t_write t_cwin t_cwout \
+  ctx_filled ctx_pct ctx_used_f ctx_total_f fh_filled fh_pct1 sd_filled sd_pct1 < <(
+  awk -v cost="$cost" -v ti="$tok_in" -v to="$tok_out" \
+    -v trd="$tok_read" -v twr="$tok_write" \
+    -v cwi="$cw_in" -v cwo="$cw_out" -v cu="$ctx_used" -v ct="$ctx_total" \
+    -v fp="$fh_pct" -v sp="$sd_pct" '
+    function jsround(v, n) { n = int(v); return (v - n >= 0.5) ? n + 1 : n }
+    function tofixed1(v, f) {
+      f = v - int(v)
+      if (f == 0.25) return sprintf("%d.3", int(v))
+      return sprintf("%.1f", v)
+    }
+    function fmt_tokens(c, d) {
+      if (c >= 1000000 - 500 / (10 ^ d)) return tofixed1(c / 1000000) "M"
+      if (c < 1000) return sprintf("%d", c)
+      if (d == 0) return jsround(c / 1000) "k"
+      return tofixed1(c / 1000) "k"
+    }
+    function clamp100(v) { return (v < 0) ? 0 : ((v > 100) ? 100 : v) }
+    BEGIN {
+      OFS = "\037"
+      cost_text = (cost == "") ? "" : sprintf("$%.2f", cost)
+      t_in = (ti == "") ? "" : fmt_tokens(ti, 1)
+      t_out = (to == "") ? "" : fmt_tokens(to, 1)
+      t_read = (trd == "") ? "" : fmt_tokens(trd, 1)
+      t_write = (twr == "") ? "" : fmt_tokens(twr, 1)
+      t_cwin = (cwi == "") ? "" : fmt_tokens(cwi, 1)
+      t_cwout = (cwo == "") ? "" : fmt_tokens(cwo, 1)
+      cf = cp = cuf = ctf = ""
+      if (cu != "" && ct != "") {
+        p = clamp100(cu / ct * 100)
+        cf = jsround(p / 100 * 8); cp = jsround(p)
+        cuf = fmt_tokens(cu, 0); ctf = fmt_tokens(ct, 0)
+      }
+      ff = f1 = ""
+      if (fp != "") { p = clamp100(fp); ff = jsround(p / 100 * 8); f1 = jsround(p) }
+      sf = s1 = ""
+      if (sp != "") { p = clamp100(sp); sf = jsround(p / 100 * 8); s1 = jsround(p) }
+      print cost_text, t_in, t_out, t_read, t_write, t_cwin, t_cwout, cf, cp, cuf, ctf, ff, f1, sf, s1
+    }'
+)
+
+mkbar() { # filled -> BAR (8 glyphs)
+  local i
+  BAR=''
+  for ((i = 0; i < 8; i++)); do
+    if ((i < $1)); then BAR+='█'; else BAR+='░'; fi
+  done
+}
+
+fmt_duration() { # seconds -> DUR, compact "XdYhZm" ("0m" floor, zero parts skipped)
+  local secs=$1 th d h m
+  ((secs < 0)) && secs=0
+  th=$((secs / 3600))
+  m=$(((secs % 3600) / 60))
+  d=$((th / 24))
+  h=$((th % 24))
+  DUR=''
+  ((d > 0)) && DUR+="${d}d"
+  ((h > 0)) && DUR+="${h}h"
+  ((m > 0)) && DUR+="${m}m"
+  DUR=${DUR:-0m}
+}
+
+# ------------------------------------------------------------- widget assembly
+# Each element renders as: reset-padded space, colored text, reset-padded space.
+# Visible width = text chars + 2.
+left='' right='' left_len=0 right_len=0
+
+mk_el() { # color-code text -> EL
+  EL="${ESC}[0m ${ESC}[0m${ESC}[$1m$2${ESC}[39m${ESC}[0m ${ESC}[0m"
+}
+add_left() { # color-code text text-visible-chars
+  mk_el "$1" "$2"
+  left+=$EL
+  left_len=$((left_len + $3 + 2))
+}
+add_right() {
+  mk_el "$1" "$2"
+  right+=$EL
+  right_len=$((right_len + $3 + 2))
+}
+
+# model (blue, raw)
+[[ -n $model ]] && add_left 34 "$model" ${#model}
+
+# thinking-effort (brightMagenta, raw)
+normalize_effort() {
+  local v=${1,,}
+  case $v in
+    low | medium | high | xhigh | max) printf '%s' "$v" && return ;;
+  esac
+  if [[ $v =~ ^[a-z0-9-]{2,20}$ && $v == *[a-z0-9]* ]]; then printf '%s?' "$v"; fi
+}
+effort=''
+case $effort_state in
+  L*) effort=$(normalize_effort "${effort_state#L}") ;;
+  default) effort=default ;;
+esac
+if [[ -z $effort ]]; then # stdin had no usable effort: fall back to settings
+  effort=$(normalize_effort "$(jq -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)")
+  effort=${effort:-default}
+fi
+add_left 95 "$effort" ${#effort}
+
+# tokens + cost as one single-spaced group: ↑input ↓output Rcache-read
+# Wcache-write $cost. ↑/R blue, ↓/W green, cost brightYellow. With no
+# transcript_path, fall back to context_window totals for ↑/↓ and omit R/W.
+seg='' seg_len=0
+if [[ -n $t_in ]]; then
+  seg="${ESC}[34m↑$t_in ${ESC}[32m↓$t_out ${ESC}[34mR$t_read ${ESC}[32mW$t_write"
+  seg_len=$((7 + ${#t_in} + ${#t_out} + ${#t_read} + ${#t_write}))
+else
+  if [[ -n $t_cwin ]]; then
+    seg="${ESC}[34m↑$t_cwin"
+    seg_len=$((1 + ${#t_cwin}))
+  fi
+  if [[ -n $t_cwout ]]; then
+    seg+="${seg:+ }${ESC}[32m↓$t_cwout"
+    seg_len=$((seg_len + (seg_len > 0 ? 1 : 0) + 1 + ${#t_cwout}))
+  fi
+fi
+if [[ -n $seg && -n $cost_text ]]; then
+  add_left 37 "$seg ${ESC}[93m$cost_text" $((seg_len + 1 + ${#cost_text}))
+elif [[ -n $seg ]]; then
+  add_left 37 "$seg" "$seg_len"
+elif [[ -n $cost_text ]]; then
+  add_left 93 "$cost_text" ${#cost_text}
+fi
+
+# context-bar (brightGreen, "C" label, slim bar). Renders first in the right
+# cluster but is kept out of `right` so the overflow path below can swap in
+# the bar-less text-only variant.
+ctx_el='' ctx_el_len=0 ctx_min_el='' ctx_min_el_len=0
+if [[ -n $ctx_filled ]]; then
+  mkbar "$ctx_filled"
+  ctx_text="C $BAR ${ctx_pct}% $ctx_used_f/$ctx_total_f"
+  plain=${ctx_text//█/x} plain=${plain//░/x} # bar glyphs display 1 char wide
+  mk_el 92 "$ctx_text"
+  ctx_el=$EL ctx_el_len=$((${#plain} + 2))
+  ctx_text="C ${ctx_pct}% $ctx_used_f/$ctx_total_f"
+  mk_el 92 "$ctx_text"
+  ctx_min_el=$EL ctx_min_el_len=$((${#ctx_text} + 2))
+fi
+
+printf -v now '%(%s)T' -1
+
+# session-usage (brightMagenta, "S" label, slim bar, five_hour countdown attached)
+fh_dur=''
+if [[ -n $fh_reset ]]; then
+  rem=$((${fh_reset%.*} - now))
+  ((rem > 18000)) && rem=18000
+  fmt_duration "$rem"
+  fh_dur=$DUR
+fi
+if [[ -n $fh_filled ]]; then
+  mkbar "$fh_filled"
+  s_text="S $BAR ${fh_pct1}%${fh_dur:+ $fh_dur}"
+  plain=${s_text//█/x} plain=${plain//░/x}
+  add_right 95 "$s_text" ${#plain}
+elif [[ -n $fh_dur ]]; then
+  add_right 95 "$fh_dur" ${#fh_dur}
+fi
+
+# weekly-usage (blue, "W" label, slim bar, brightBlue seven_day countdown attached)
+sd_dur=''
+if [[ -n $sd_reset ]]; then
+  rem=$((${sd_reset%.*} - now))
+  ((rem > 604800)) && rem=604800
+  fmt_duration "$rem"
+  sd_dur=$DUR
+fi
+if [[ -n $sd_filled ]]; then
+  mkbar "$sd_filled"
+  w_text="W $BAR ${sd_pct1}%"
+  plain=${w_text//█/x} plain=${plain//░/x}
+  if [[ -n $sd_dur ]]; then
+    add_right 34 "$w_text ${ESC}[94m$sd_dur" $((${#plain} + 1 + ${#sd_dur}))
+  else
+    add_right 34 "$w_text" ${#plain}
+  fi
+elif [[ -n $sd_dur ]]; then
+  add_right 94 "$sd_dur" ${#sd_dur}
+fi
+
+[[ -z $left && -z $ctx_el && -z $right ]] && exit 0
+
+# -------------------------------------------------------------- width & flex
+probe_width() { # -> WIDTH ('' when undetectable): env override, tty walk, tput
+  local w pid ppid tty
+  WIDTH=''
+  w=${CLAUDE_STATUSLINE_WIDTH:-}
+  if [[ $w =~ ^[0-9]+$ ]] && ((w > 0)); then
+    WIDTH=$w
+    return
+  fi
+  pid=$$
+  for _ in 1 2 3 4 5 6 7 8; do
+    ppid=$(ps -o ppid= -p "$pid" 2>/dev/null) || break
+    ppid=${ppid//[$' \t\r\n']/}
+    if ! [[ $ppid =~ ^[0-9]+$ ]] || ((ppid <= 0)); then break; fi
+    pid=$ppid
+    tty=$(ps -o tty= -p "$pid" 2>/dev/null) || tty=''
+    tty=${tty//[$' \t\r\n']/}
+    [[ -n $tty && $tty != '??' && $tty != '?' ]] || continue
+    w=$(stty size <"/dev/$tty" 2>/dev/null) || w=''
+    w=${w##* }
+    if [[ $w =~ ^[0-9]+$ ]] && ((w > 0)); then
+      WIDTH=$w
+      return
+    fi
+  done
+  w=$(tput cols 2>/dev/null) || w=''
+  w=${w//[$' \t\r\n']/}
+  if [[ $w =~ ^[0-9]+$ ]] && ((w > 0)); then WIDTH=$w; fi
+}
+
+truncate_styled() { # styled-line target-visible-chars -> cut + "..."
+  local s=$1 target=$2 out='' width=0 i=0 c j n
+  n=${#s}
+  if ((target <= 3)); then
+    printf '%.*s' "$target" '...'
+    return
+  fi
+  target=$((target - 3))
+  while ((i < n)); do
+    c=${s:i:1}
+    if [[ $c == "$ESC" ]]; then
+      j=$i
+      while ((j < n)) && [[ ${s:j:1} != m ]]; do ((j += 1)); done
+      out+=${s:i:j - i + 1}
+      i=$((j + 1))
+      continue
+    fi
+    ((width >= target)) && break
+    out+=$c
+    ((width += 1, i += 1))
+  done
+  printf '%s...' "$out"
+}
+
+probe_width
+if [[ -n $WIDTH ]]; then
+  usable=$((WIDTH - 6)) # flexMode "full"
+  total=$((left_len + ctx_el_len + right_len))
+  if ((total > usable)); then # overflow: drop the context bar, keep its text
+    ctx_el=$ctx_min_el ctx_el_len=$ctx_min_el_len
+    total=$((left_len + ctx_el_len + right_len))
+  fi
+  gap=$((usable - total))
+  ((gap < 0)) && gap=0
+  pad=''
+  ((gap > 0)) && printf -v pad '%*s' "$gap" ''
+  line="${left}${pad}${ctx_el}${right}"
+  if ((total > usable)); then
+    line=$(truncate_styled "$line" "$usable")
+  fi
+else
+  line="${left}${ESC}[90m | ${ESC}[39m${ctx_el}${right}"
+fi
+
+line="${ESC}[0m${line}"
+printf '%s\n' "${line// /$NBSP}"
