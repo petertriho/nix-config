@@ -71,6 +71,7 @@
       gbu = "git branch --unset-upstream";
       gc = "git commit";
       gcam = "git commit -am";
+      gcf = "git commit --fixup";
       gcl = "git clone";
       gclb = "git-clone-bare";
       gcls = "git-clone-special";
