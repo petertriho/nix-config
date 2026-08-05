@@ -14,6 +14,7 @@ let
     omp-undo-redo
     pi-blackhole
     pi-cache-optimizer
+    pi-dynamic-workflows
     pi-history
     pi-lens
     pi-subagents

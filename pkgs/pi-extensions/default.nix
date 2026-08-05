@@ -8,6 +8,7 @@ in
   pi-atelier = callPackage ./pi-atelier { };
   pi-blackhole = callPackage ./pi-blackhole { };
   pi-cache-optimizer = callPackage ./pi-cache-optimizer { };
+  pi-dynamic-workflows = callPackage ./pi-dynamic-workflows { };
   pi-history = callPackage ./pi-history { };
   pi-lens = callPackage ./pi-lens { };
   pi-mcp-adapter = callPackage ./pi-mcp-adapter { };
