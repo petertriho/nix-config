@@ -16,6 +16,7 @@ let
     pi-cache-optimizer
     pi-lens
     pi-subagents
+    pi-tasks
     pi-web-access
     rpiv-args
     rpiv-ask-user-question

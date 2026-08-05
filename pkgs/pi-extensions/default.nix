@@ -11,6 +11,7 @@ in
   pi-lens = callPackage ./pi-lens { };
   pi-mcp-adapter = callPackage ./pi-mcp-adapter { };
   pi-subagents = callPackage ./pi-subagents { };
+  pi-tasks = callPackage ./pi-tasks { };
   pi-web-access = callPackage ./pi-web-access { };
   rpiv-args = callPackage ./rpiv-args { inherit (rpiv-mono) src version; };
   rpiv-ask-user-question = callPackage ./rpiv-ask-user-question {
