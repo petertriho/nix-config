@@ -85,6 +85,7 @@
       gfr = "git config core.fsmonitor rs-git-fsmonitor";
       gfs = "git config core.fsmonitor true";
       gg = "git-gone";
+      ghs = "gh-stack";
       gl = "begin; set -lx GIT_EXTERNAL_DIFF difft; git log -p --ext-diff; end";
       gm = "git merge";
       gma = "git merge --abort";
