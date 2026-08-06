@@ -6,7 +6,7 @@
 }:
 buildNpmPackage {
   pname = "pi-subagents";
-  version = "0.14.3-unstable-2026-08-05";
+  version = "0.14.3-unstable-2026-07-31";
 
   src = fetchFromGitHub {
     owner = "tintinweb";

@@ -5,7 +5,7 @@
 }:
 stdenv.mkDerivation {
   pname = "pi-history";
-  version = "0.1.5";
+  version = "0.1.5-unstable-2026-07-30";
 
   src = fetchFromGitHub {
     owner = "sagmans";

@@ -68,10 +68,6 @@ let
   };
 in
 {
-  options.programs.crush = {
-    enable = lib.mkEnableOption "crush AI coding agent";
-  };
-
   config = lib.mkIf cfg.enable {
     home.packages = [ pkgs.llm-agents.crush ];
     xdg.configFile."crush/crush.json".text = crushConfig;
