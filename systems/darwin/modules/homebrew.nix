@@ -36,9 +36,7 @@ in
     };
     taps = [
       "gromgit/brewtils"
-      # "nguyenphutrong/tap"
       "nikitabobko/tap"
-      # "opgginc/tap"
       "steipete/tap"
       "TabularisDB/tabularis"
     ];
@@ -47,12 +45,10 @@ in
       "mas"
       "mole"
       "terminal-notifier"
-      # "opencode"
     ];
     casks = [
       # "aionui"
       # "alacritty"
-      # "antigravity"
       "appcleaner"
       # "codex-app"
       "cyberduck"
@@ -71,12 +67,9 @@ in
       "keyboardcleantool"
       "meetingbar"
       "nextcloud"
-      # "nguyenphutrong/tap/quotio"
       "nikitabobko/tap/aerospace"
       "notunes"
       "obsidian"
-      # "opencode-desktop"
-      # "opgginc/tap/opencode-bar"
       "orbstack"
       "raycast"
       "reminders-menubar"
@@ -97,6 +90,7 @@ in
       # "stats"
       # "steermouse"
       # "swish"
+      # "thaw"
       # "vlc"
       # "wooshy"
     ]
