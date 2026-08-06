@@ -5,15 +5,16 @@
 #   project  model  effort  C ctx-bar pct used/total   <flex>
 #   ↑in ↓out Rread Wwrite $cost  S session-bar pct reset  W weekly-bar pct reset
 #
-# Bars are 8 cells of eighth-block sub-cell fill (64 steps) over a dim ░
-# track; the partial boundary cell is drawn on a gray background so its
-# unfilled remainder doesn't drop to black. The C bar colors by
+# Bars are 8 cells of eighth-block sub-cell fill (64 steps) over a painted
+# track. Every unused cell is bare backing (TRACK_BG) -- the plain track, the
+# unfilled remainder of the partial boundary cell, and the pace tick's cell --
+# so the whole unused stretch reads as one flat shade. The C bar colors by
 # absolute fill (green < 60 <= yellow < 85 <= red). S/W bars mark pace with
-# a thin ▏ tick at the elapsed fraction of their reset window, drawn on a
-# painted background (bar color inside the fill, gray on the track) so its
-# cell never drops to black, and color by used% - elapsed% (green on/behind
-# pace, yellow/red ahead); with no resets_at they fall back to absolute
-# fill colors and no tick. On overflow the C bar collapses
+# a thin ▏ tick at the elapsed fraction of their reset window (drawn on the
+# bar color inside the fill, on the track backing outside it) and color by
+# used% - elapsed% (green on/behind pace, yellow/red ahead); with no
+# resets_at they fall back to absolute fill colors and no tick.
+# On overflow the C bar collapses
 # to its text form, then the project name drops, then the line truncates
 # with "...".
 #
@@ -200,36 +201,48 @@ IFS=$'\037' read -r cost_text t_in t_out t_read t_write t_cwin t_cwout \
     }'
   )
 
+# Backing for every unused bar cell, drawn bare. No ░ dither over it: a cell
+# carrying one always reads lighter than the two cells that can't take one --
+# the pace tick's, and the unfilled remainder of the partial boundary cell,
+# both of which show backing alone -- and there is no right-aligned partial
+# block glyph to fix that. Flat is the only uniform option.
+#
+# Bright black: a palette slot, so it follows the theme. It is also the only
+# palette shade lighter than the terminal background -- the 16 colors put black
+# at or near the background itself and offer nothing between the two. For a
+# shade in that gap, a 256-color gray does it at the cost of following the
+# theme: '48;5;237' (#3a3a3a) sits one step above a typical dark background.
+TRACK_BG=100
+
 mkbar() { # full partial-eighth tick-cell color -> BAR (8 visible cells)
-  local full=$1 part=$2 tick=$3 color=$4 i want glyph cur='' bg
+  local full=$1 part=$2 tick=$3 color=$4 i sgr glyph cur=''
   local partials='▏▎▍▌▋▊▉'
   BAR=''
   for ((i = 0; i < 8; i++)); do
+    if ((i < full)); then # filled cell: solid block, no background needed
+      sgr="${color};49" glyph='█'
+    elif ((i == full && part > 0)); then # boundary cell: partial eighth-block
+      sgr="${color};${TRACK_BG}" glyph=${partials:part-1:1}
+    else # unused cell: bare backing
+      sgr="39;${TRACK_BG}" glyph=' '
+    fi
     if [[ -n $tick ]] && ((i == tick)); then
-      # thin pace tick on a painted background -- bar color inside the
-      # fill, gray on the track -- so the tick cell never drops to black
-      bg=$((i < full || (i == full && part >= 4) ? color + 10 : 100))
-      BAR+="${ESC}[39;${bg}m▏${ESC}[49m"
-      cur=39
-      continue
+      # thin pace tick, painted over whatever cell it lands on: bar color
+      # inside the fill, the same backing as the unused cells on the track
+      if ((i < full || (i == full && part >= 4))); then
+        sgr="39;$((color + 10))"
+      else
+        sgr="39;${TRACK_BG}"
+      fi
+      glyph='▏'
     fi
-    if ((i < full)); then
-      want=$color glyph='█'
-    elif ((i == full && part > 0)); then
-      # partial eighth-block on a gray background so the unfilled rest of
-      # the boundary cell doesn't drop to black either
-      BAR+="${ESC}[${color};100m${partials:part-1:1}${ESC}[49m"
-      cur=$color
-      continue
-    else
-      want=90 glyph='░'
-    fi
-    if [[ $want != "$cur" ]]; then
-      BAR+="${ESC}[${want}m"
-      cur=$want
+    if [[ $sgr != "$cur" ]]; then
+      BAR+="${ESC}[${sgr}m"
+      cur=$sgr
     fi
     BAR+=$glyph
   done
+  BAR+="${ESC}[49m" # drop the backing before the caller's next text
 }
 
 fmt_duration() { # seconds -> DUR, compact "XdYhZm" ("0m" floor, zero parts skipped)
@@ -298,16 +311,16 @@ if [[ -z $effort ]]; then # stdin had no usable effort: fall back to settings
 fi
 add_left 35 "$effort" ${#effort}
 
-# context bar (dim "C" label, bar/pct/used-value in the bar color, dim "%"
-# and "/total"). Last element of the left cluster but kept out of `left` so
+# context bar (dim "C" label, bar/pct/"%"/used-value in the bar color, dim
+# "/total"). Last element of the left cluster but kept out of `left` so
 # the overflow path below can swap in the bar-less text-only variant.
 ctx_el='' ctx_el_len=0 ctx_min_el='' ctx_min_el_len=0
 if [[ -n $ctx_color ]]; then
   mkbar "$ctx_full" "$ctx_part" '' "$ctx_color"
-  ctx_text="${ESC}[90mC $BAR ${ESC}[${ctx_color}m${ctx_pct}${ESC}[90m% ${ESC}[${ctx_color}m$ctx_used_f${ESC}[90m/$ctx_total_f"
+  ctx_text="${ESC}[90mC $BAR ${ESC}[${ctx_color}m${ctx_pct}% $ctx_used_f${ESC}[90m/$ctx_total_f"
   mk_el 39 "$ctx_text"
   ctx_el=$EL ctx_el_len=$((14 + ${#ctx_pct} + ${#ctx_used_f} + ${#ctx_total_f} + 2))
-  ctx_text="${ESC}[90mC ${ESC}[${ctx_color}m${ctx_pct}${ESC}[90m% ${ESC}[${ctx_color}m$ctx_used_f${ESC}[90m/$ctx_total_f"
+  ctx_text="${ESC}[90mC ${ESC}[${ctx_color}m${ctx_pct}% $ctx_used_f${ESC}[90m/$ctx_total_f"
   mk_el 39 "$ctx_text"
   ctx_min_el=$EL ctx_min_el_len=$((5 + ${#ctx_pct} + ${#ctx_used_f} + ${#ctx_total_f} + 2))
 fi
@@ -338,7 +351,8 @@ elif [[ -n $cost_text ]]; then
   add_right 33 "$cost_text" ${#cost_text}
 fi
 
-# session-usage (dim "S" label, five_hour bar, dim countdown attached)
+# session-usage (dim "S" label, five_hour bar, pct/"%" in the bar color, dim
+# countdown attached)
 fh_dur=''
 if [[ -n $fh_rem ]]; then
   fmt_duration "$fh_rem"
@@ -346,13 +360,14 @@ if [[ -n $fh_rem ]]; then
 fi
 if [[ -n $fh_color ]]; then
   mkbar "$fh_full" "$fh_part" "$fh_tick" "$fh_color"
-  s_text="${ESC}[90mS $BAR ${ESC}[${fh_color}m${fh_pct1}${ESC}[90m%${fh_dur:+ $fh_dur}"
+  s_text="${ESC}[90mS $BAR ${ESC}[${fh_color}m${fh_pct1}%${fh_dur:+ ${ESC}[90m$fh_dur}"
   add_right 39 "$s_text" $((12 + ${#fh_pct1} + (${#fh_dur} > 0 ? 1 + ${#fh_dur} : 0)))
 elif [[ -n $fh_dur ]]; then
   add_right 90 "$fh_dur" ${#fh_dur}
 fi
 
-# weekly-usage (dim "W" label, seven_day bar, dim countdown attached)
+# weekly-usage (dim "W" label, seven_day bar, pct/"%" in the bar color, dim
+# countdown attached)
 sd_dur=''
 if [[ -n $sd_rem ]]; then
   fmt_duration "$sd_rem"
@@ -360,7 +375,7 @@ if [[ -n $sd_rem ]]; then
 fi
 if [[ -n $sd_color ]]; then
   mkbar "$sd_full" "$sd_part" "$sd_tick" "$sd_color"
-  w_text="${ESC}[90mW $BAR ${ESC}[${sd_color}m${sd_pct1}${ESC}[90m%${sd_dur:+ $sd_dur}"
+  w_text="${ESC}[90mW $BAR ${ESC}[${sd_color}m${sd_pct1}%${sd_dur:+ ${ESC}[90m$sd_dur}"
   add_right 39 "$w_text" $((12 + ${#sd_pct1} + (${#sd_dur} > 0 ? 1 + ${#sd_dur} : 0)))
 elif [[ -n $sd_dur ]]; then
   add_right 90 "$sd_dur" ${#sd_dur}
