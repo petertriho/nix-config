@@ -268,31 +268,53 @@ local function is_stale(cache, cache_ttl_ms)
     return not cache.labels or cache.scanned_at == 0 or (now_ms() - cache.scanned_at) > cache_ttl_ms
 end
 
-local function filter_labels(labels, token, exclude)
+local function active_variants(variants)
+    local active = {}
+    for _, variant in ipairs(variants or { { prefix = "" } }) do
+        if type(variant.when) ~= "function" or variant.when() then
+            table.insert(active, { prefix = variant.prefix or "" })
+        end
+    end
+    return active
+end
+
+local function variant_label(variant, label)
+    return (variant.prefix or "") .. label
+end
+
+local function label_matches(label, active, lowered_token)
+    for _, variant in ipairs(active) do
+        local vlabel = variant_label(variant, label)
+        if lowered_token == "" or vlabel:lower():find(lowered_token, 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
+local function filter_labels(labels, active, token, exclude)
     local filtered = {}
     local lowered_token = token:lower()
 
     for _, label in ipairs(labels or {}) do
-        if not exclude or not exclude[label] then
-            if lowered_token == "" or label:lower():find(lowered_token, 1, true) then
-                table.insert(filtered, label)
-            end
+        if (not exclude or not exclude[label]) and label_matches(label, active, lowered_token) then
+            table.insert(filtered, label)
         end
     end
 
     return filtered
 end
 
-local function result_for(labels, path_by_label, ctx, match, kind)
+local function result_for(labels, path_by_label, ctx, match, kind, active)
     return {
-        items = M.make_items(labels, ctx, match, kind, path_by_label),
+        items = M.make_items(labels, ctx, match, kind, path_by_label, active),
         is_incomplete_backward = true,
         is_incomplete_forward = true,
     }
 end
 
-local function callback_result(callback, labels, path_by_label, ctx, match, kind)
-    callback(result_for(labels, path_by_label, ctx, match, kind))
+local function callback_result(callback, labels, path_by_label, ctx, match, kind, active)
+    callback(result_for(labels, path_by_label, ctx, match, kind, active))
 end
 
 local function item_path(item, root, strategy)
@@ -346,31 +368,39 @@ function M.match_trigger(line, cursor_col, trigger)
     }
 end
 
-function M.make_items(labels, ctx, match, kind, path_by_label)
+function M.make_items(labels, ctx, match, kind, path_by_label, active)
+    active = active or { { prefix = "" } }
     local items = {}
     local line = (ctx.cursor and ctx.cursor[1] or 1) - 1
+    local lowered_token = match.token:lower()
 
     for _, label in ipairs(labels) do
-        local item = {
-            label = label,
-            kind = kind,
-            textEdit = {
-                newText = label,
-                range = {
-                    start = { line = line, character = match.start_col },
-                    ["end"] = { line = line, character = match.end_col },
-                },
-            },
-        }
-
         local path = path_by_label and path_by_label[label]
-        if path then
-            item.data = {
-                opencode_path = path,
-            }
-        end
 
-        table.insert(items, item)
+        for _, variant in ipairs(active) do
+            local vlabel = variant_label(variant, label)
+            if lowered_token == "" or vlabel:lower():find(lowered_token, 1, true) then
+                local item = {
+                    label = vlabel,
+                    kind = kind,
+                    textEdit = {
+                        newText = vlabel,
+                        range = {
+                            start = { line = line, character = match.start_col },
+                            ["end"] = { line = line, character = match.end_col },
+                        },
+                    },
+                }
+
+                if path then
+                    item.data = {
+                        opencode_path = path,
+                    }
+                end
+
+                table.insert(items, item)
+            end
+        end
     end
 
     return items
@@ -379,16 +409,17 @@ end
 function M.get_completions(params, callback)
     local opts = normalize_opts(params)
     local cache = get_cache(params.root, params.strategy)
+    local active = active_variants(params.variants)
     local canceled = false
     local sent_labels = {}
     local had_cache = cache.labels ~= nil
 
     if had_cache then
-        local labels = filter_labels(cache.labels, params.match.token, nil)
+        local labels = filter_labels(cache.labels, active, params.match.token, nil)
         for _, label in ipairs(labels) do
             sent_labels[label] = true
         end
-        callback_result(callback, labels, cache.path_by_label, params.ctx, params.match, params.kind)
+        callback_result(callback, labels, cache.path_by_label, params.ctx, params.match, params.kind, active)
     end
 
     if is_stale(cache, opts.cache_ttl_ms) then
@@ -399,21 +430,29 @@ function M.get_completions(params, callback)
 
             if not refreshed_cache then
                 if not had_cache then
-                    callback_result(callback, {}, {}, params.ctx, params.match, params.kind)
+                    callback_result(callback, {}, {}, params.ctx, params.match, params.kind, active)
                 end
                 return
             end
 
             local exclude = had_cache and sent_labels or nil
-            local labels = filter_labels(refreshed_cache.labels, params.match.token, exclude)
+            local labels = filter_labels(refreshed_cache.labels, active, params.match.token, exclude)
             if #labels > 0 or not had_cache then
-                callback_result(callback, labels, refreshed_cache.path_by_label, params.ctx, params.match, params.kind)
+                callback_result(
+                    callback,
+                    labels,
+                    refreshed_cache.path_by_label,
+                    params.ctx,
+                    params.match,
+                    params.kind,
+                    active
+                )
             end
         end)
 
         refresh_cache(cache)
     elseif not had_cache then
-        callback_result(callback, {}, {}, params.ctx, params.match, params.kind)
+        callback_result(callback, {}, {}, params.ctx, params.match, params.kind, active)
     end
 
     return function()

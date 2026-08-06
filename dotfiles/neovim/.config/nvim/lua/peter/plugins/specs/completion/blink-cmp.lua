@@ -122,6 +122,10 @@ local hide_blink_then_trigger_cursortab = function(cmp)
     return trigger_cursortab_completion()
 end
 
+local function is_pi_prompt()
+    return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":t") == "prompt.md"
+end
+
 return {
     "saghen/blink.cmp",
     branch = "v1",
@@ -138,7 +142,7 @@ return {
         --     opts = {},
         -- },
         {
-            dir = "~/.config/nvim/plugins/opencode-sources",
+            dir = "~/.config/nvim/plugins/ai-sources",
         },
         {
             "xzbdmw/colorful-menu.nvim",
@@ -157,15 +161,15 @@ return {
         end
 
         vim.api.nvim_create_user_command("ToggleBlinkCmp", toggle_completion, {})
-        vim.api.nvim_create_user_command("OpencodeSourcesRefresh", function()
-            local ok, catalog = pcall(require, "opencode-sources.catalog")
+        vim.api.nvim_create_user_command("AISourcesRefresh", function()
+            local ok, catalog = pcall(require, "ai-sources.catalog")
             if not ok then
-                vim.notify("opencode-sources catalog is not available", vim.log.levels.WARN)
+                vim.notify("ai-sources catalog is not available", vim.log.levels.WARN)
                 return
             end
 
             catalog.clear_cache()
-            vim.notify("Opencode completion source cache cleared")
+            vim.notify("AI completion source cache cleared")
         end, {})
     end,
     opts = {
@@ -289,17 +293,19 @@ return {
                     inherit_defaults = true,
                     "path_at",
                     "agent_skills",
-                    "opencode_agents",
-                    "opencode_skills",
-                    "opencode_commands",
+                    "pi_skills",
+                    "oc_agents",
+                    "oc_skills",
+                    "oc_commands",
                 },
                 text = {
                     inherit_defaults = true,
                     "path_at",
                     "agent_skills",
-                    "opencode_agents",
-                    "opencode_skills",
-                    "opencode_commands",
+                    "pi_skills",
+                    "oc_agents",
+                    "oc_skills",
+                    "oc_commands",
                 },
             },
             providers = {
@@ -388,28 +394,46 @@ return {
                 },
                 agent_skills = {
                     name = "Skills",
-                    module = "opencode-sources.source.opencode_skills",
+                    module = "ai-sources.source.skills",
                     async = true,
                     -- score_offset = 110,
                     opts = {
                         root = vim.fn.expand("~/.agents/skills"),
+                        variants = {
+                            {
+                                prefix = "",
+                                when = function()
+                                    return not is_pi_prompt()
+                                end,
+                            },
+                            { prefix = "skill:" },
+                        },
                     },
                 },
-                opencode_agents = {
+                pi_skills = {
+                    name = "Skills",
+                    module = "ai-sources.source.skills",
+                    async = true,
+                    opts = {
+                        root = vim.fn.expand("~/.pi/agent/skills"),
+                        variants = { { prefix = "skill:" } },
+                    },
+                },
+                oc_agents = {
                     name = "Agents",
-                    module = "opencode-sources.source.opencode_agents",
+                    module = "ai-sources.source.agents",
                     async = true,
                     -- score_offset = 120,
                 },
-                opencode_skills = {
+                oc_skills = {
                     name = "Skills",
-                    module = "opencode-sources.source.opencode_skills",
+                    module = "ai-sources.source.skills",
                     async = true,
                     -- score_offset = 110,
                 },
-                opencode_commands = {
+                oc_commands = {
                     name = "Commands",
-                    module = "opencode-sources.source.opencode_commands",
+                    module = "ai-sources.source.commands",
                     async = true,
                     -- score_offset = 105,
                 },

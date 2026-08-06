@@ -1,4 +1,4 @@
-local catalog = require("opencode-sources.catalog")
+local catalog = require("ai-sources.catalog")
 local kinds = require("blink.cmp.types").CompletionItemKind
 
 local EMPTY = {
@@ -14,7 +14,7 @@ function Source.new(opts)
     opts = opts or {}
 
     return setmetatable({
-        root = opts.root or vim.fn.expand("~/.config/opencode/skills"),
+        root = opts.root or vim.fn.expand("~/.config/opencode/agents"),
         cache_ttl_ms = opts.cache_ttl_ms,
         doc_max_bytes = opts.doc_max_bytes,
     }, Source)
@@ -25,11 +25,11 @@ function Source.enabled()
 end
 
 function Source.get_trigger_characters()
-    return { "/" }
+    return { "@" }
 end
 
 function Source:get_completions(ctx, callback)
-    local match = catalog.match_trigger(ctx.line, ctx.cursor[2], "/")
+    local match = catalog.match_trigger(ctx.line, ctx.cursor[2], "@")
     if not match then
         callback(EMPTY)
         return
@@ -37,7 +37,7 @@ function Source:get_completions(ctx, callback)
 
     return catalog.get_completions({
         root = self.root,
-        strategy = "skill",
+        strategy = "file",
         ctx = ctx,
         match = match,
         kind = kinds.Text,
@@ -46,7 +46,7 @@ function Source:get_completions(ctx, callback)
 end
 
 function Source:resolve(item, callback)
-    return catalog.resolve(item, self.root, "skill", callback, {
+    return catalog.resolve(item, self.root, "file", callback, {
         doc_max_bytes = self.doc_max_bytes,
     })
 end
