@@ -1,11 +1,15 @@
-{ ... }:
-{
+{ ... }: {
   imports = [ ./base.nix ];
-  homebrew.casks = [
-    "bartender"
-    "betterdisplay"
-    "jellyfin-media-player"
-  ];
+  homebrew = {
+    brews = [
+      "sane-backends"
+    ];
+    casks = [
+      "bartender"
+      "betterdisplay"
+      "jellyfin-media-player"
+    ];
+  };
 
   system.stateVersion = 5;
 }
