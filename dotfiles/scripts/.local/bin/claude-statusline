@@ -78,9 +78,16 @@ IFS=$'\037' read -r model effort_state cost ctx_used ctx_total \
   )
 
 # ------------------------------------------------------- transcript token sums
-# Sums entries with message.usage; when any
-# entry carries a stop_reason field, count only entries whose stop_reason is
-# truthy, plus a null-stop_reason entry when it is the last usage entry.
+# Sums entries with message.usage, one row per API response. A multi-block
+# assistant message (text + thinking + each tool_use) is written as one line
+# per block, every line repeating the same message.id and the same usage
+# object, so summing raw lines double- or triple-counts most turns -- dedup on
+# that id. Entries without one can't be grouped and fall back to their line
+# index, keeping them distinct rather than collapsing them into a single row.
+#
+# ↑input is the API's input_tokens: the cache-miss slice only, routinely 1-2
+# tokens a turn. The rest of the prompt lands in Rcache-read/Wcache-write, so
+# the three together are the real input.
 tok_in='' tok_out='' tok_read='' tok_write=''
 if [[ -n $transcript ]]; then
   tok_in=0 tok_out=0 tok_read=0 tok_write=0
@@ -88,19 +95,14 @@ if [[ -n $transcript ]]; then
     IFS=$'\t' read -r tok_in tok_out tok_read tok_write < <(
       jq -rnR '
         [inputs | fromjson? | select(type == "object")
-         | select((.message? | type) == "object" and (.message.usage | type) == "object")
-         | {h: (.message | has("stop_reason")), s: .message.stop_reason, u: .message.usage}] as $e
-        | ($e | length) as $n
-        | (if ($e | map(select(.h)) | length) > 0
-           then [$e | to_entries[]
-                 | select(.value.h and ((.value.s != null and .value.s != "" and .value.s != false)
-                                        or (.value.s == null and .key == $n - 1)))
-                 | .value]
-           else $e end) as $c
-        | [($c | map(.u.input_tokens? // 0) | add // 0),
-           ($c | map(.u.output_tokens? // 0) | add // 0),
-           ($c | map(.u.cache_read_input_tokens? // 0) | add // 0),
-           ($c | map(.u.cache_creation_input_tokens? // 0) | add // 0)]
+         | select((.message? | type) == "object" and (.message.usage | type) == "object")]
+        | to_entries
+        | group_by(.value.message.id // "\(.key)")
+        | map(.[0].value.message.usage) as $u
+        | [($u | map(.input_tokens? // 0) | add // 0),
+           ($u | map(.output_tokens? // 0) | add // 0),
+           ($u | map(.cache_read_input_tokens? // 0) | add // 0),
+           ($u | map(.cache_creation_input_tokens? // 0) | add // 0)]
         | @tsv' "$transcript" 2>/dev/null
     ) || { tok_in=0 tok_out=0 tok_read=0 tok_write=0; }
   fi
