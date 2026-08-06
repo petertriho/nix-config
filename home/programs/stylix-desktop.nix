@@ -14,7 +14,7 @@
       flatpakSupport.enable = false;
     };
     hyprlock = {
-      enable = true;
+      enable = false;
       image.enable = false;
     };
     qt = {
