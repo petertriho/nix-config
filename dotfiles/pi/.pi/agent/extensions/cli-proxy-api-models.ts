@@ -313,13 +313,18 @@ function modelEntry(model: ResolvedModel) {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: model.contextWindow,
     maxTokens: model.maxTokens,
-    // Prompt-cache compat for the proxy channel (pi-cache-optimizer reads these):
-    // session affinity keeps one pi session pinned to the same upstream (the
-    // proxy runs routing.session-affinity: true); long retention is safe while
-    // only codex/OpenAI upstreams are authed — drop supportsLongCacheRetention
-    // if a non-OpenAI channel 400s on prompt_cache_retention.
+    // Prompt-cache compat for the proxy channel (pi-cache-optimizer reads
+    // these). Runs over the OpenAI Responses API (native for the Codex
+    // backend, so the proxy near-passthroughs /v1/responses).
+    // sessionAffinityFormat: "openai" pins one pi session to the same upstream
+    // via session_id / x-client-request-id (the proxy runs
+    // routing.session-affinity: true). supportsLongCacheRetention emits
+    // prompt_cache_retention: "24h"; safe while only codex/OpenAI upstreams are
+    // authed — drop it if a non-OpenAI channel 400s on prompt_cache_retention.
+    // If the proxy rejects the underscore in the session_id header, switch to
+    // sessionAffinityFormat: "openai-nosession".
     compat: {
-      sendSessionAffinityHeaders: true,
+      sessionAffinityFormat: "openai",
       supportsLongCacheRetention: true,
     },
   };
@@ -388,7 +393,7 @@ export default async function (pi: ExtensionAPI) {
     // Resolved by pi from the environment at request time; the key is
     // never written into any generated file.
     apiKey: `$${API_KEY_ENV_VAR}`,
-    api: "openai-completions",
+    api: "openai-responses",
     models,
   });
 }
