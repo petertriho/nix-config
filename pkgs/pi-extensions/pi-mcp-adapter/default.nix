@@ -19,23 +19,29 @@ buildNpmPackage {
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-r2q4L+YqDAakrr9crRgEfEqyB+rvCdMZk6A13yZLbGA=";
+  npmDepsHash = "sha256-uR3MQutnIMiaQBhVogjav3TwfeTAoKcRacz360t7DF0=";
   npmDepsFetcherVersion = 2;
 
   dontNpmBuild = true;
   npmInstallFlags = [ "--omit=dev" ];
 
+  # Upstream's lockfile pulls its whole dev tree — @earendil-works/pi-coding-agent
+  # and the AWS/Anthropic/Google provider SDKs it depends on — which was 344 of
+  # the 475 locked packages. fetchNpmDeps prefetches every tarball the lockfile
+  # references and --omit=dev only prunes the *install*, so all 344 were
+  # downloaded and then discarded, leaving the build hostage to unrelated
+  # tooling (an unpublished @biomejs/biome release broke pi-tasks exactly this
+  # way). So the vendored files are upstream's with every dev-only entry pruned,
+  # production pins untouched.
+  #
+  # Stripping them also removes the three @earendil-works/* entries that record
+  # `resolved` with no `integrity` (which panics nixpkgs' lockfile parser), so
+  # the integrity values no longer need patching in by hand. Those are
+  # peerDependencies that pi injects at runtime; they were already dev-flagged
+  # and pruned from the install, so the closure is unchanged.
   postPatch = ''
-    substituteInPlace package-lock.json \
-      --replace-fail \
-        '      "resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.79.10.tgz",' \
-        '      "resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.79.10.tgz", "integrity": "sha512-XKxgdjhcPuyjrthCOFSgfzT3xZ1uBrJ1IMVDxci1to6hIN6BIg9J5iY8q0pGXK1DLgATLP23da+1UyZLwA360Q==",' \
-      --replace-fail \
-        '      "resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.79.10.tgz",' \
-        '      "resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.79.10.tgz", "integrity": "sha512-9jR23tOl0BIUdQMn70Gr72xYBpM7Xgl9Lyv7gAnU1USfkNRuYG/f/edLl+n/Dp/RafDW3JI4DF7y/GhgkORuew==",' \
-      --replace-fail \
-        '      "resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.79.10.tgz",' \
-        '      "resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.79.10.tgz", "integrity": "sha512-FUVOjDn1DVwM1uHD5MNYboXQrXjIDbSt+BQ3py7nQWCY62tKfxgiM1OBMxTcwRWLfSdZHUPpV0hm1loIdUJnPw==",'
+    cp ${./package-no-peers.json} package.json
+    cp ${./package-lock.json} package-lock.json
   '';
 
   nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];

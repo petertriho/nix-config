@@ -20,15 +20,20 @@ buildNpmPackage {
   # vendored lockfile + package-no-peers.json were generated with
   # peerDependencies stripped — this keeps the FOD to the 7 real runtime deps
   # instead of pulling in the entire LLM/AWS provider trees those peers drag in.
-  # package-no-peers.json is upstream package.json with only that key removed;
-  # the pi.extensions entry point and all other fields are unchanged.
+  # devDependencies are stripped too, not just omitted at install time:
+  # fetchNpmDeps prefetches every tarball the lockfile references, and
+  # --omit=dev only prunes the *install*, so typescript/@types/turndown still
+  # had to be downloaded. That makes the build hostage to unrelated tooling —
+  # an unpublished @biomejs/biome release broke pi-tasks exactly this way.
+  # Otherwise package-no-peers.json is upstream package.json unchanged; the
+  # pi.extensions entry point and all other fields are preserved.
   postPatch = ''
     cp ${./package-no-peers.json} package.json
     cp ${./package-lock.json} package-lock.json
   '';
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-5UgrTLG9oqZRsFRv9NOvSUAJwBrO7w1Vq5gx9ziRV0w=";
+  npmDepsHash = "sha256-0JP0jvk0WXVh2O7A0Ip2S5BVxr7pq0R2JKFoGM5mr+E=";
   npmDepsFetcherVersion = 2;
 
   # Upstream ships raw .ts (pi.extensions = ["./index.ts"]) with no build

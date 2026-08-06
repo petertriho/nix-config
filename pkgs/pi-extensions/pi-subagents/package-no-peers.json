@@ -35,12 +35,6 @@
     "lint": "biome check src/ test/",
     "lint:fix": "biome check --fix src/ test/"
   },
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
-    "@types/node": "^25.5.0",
-    "typescript": "^6.0.0",
-    "vitest": "^4.0.18"
-  },
   "pi": {
     "extensions": [
       "./src/index.ts"

@@ -84,12 +84,5 @@
   "license": "MIT",
   "dependencies": {
     "acorn": "^8.16.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.4.16",
-    "fast-check": "^4.8.0",
-    "tsx": "latest",
-    "typebox": "latest",
-    "typescript": "latest"
   }
 }

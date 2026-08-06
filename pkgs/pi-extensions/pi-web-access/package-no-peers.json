@@ -39,10 +39,6 @@
     "banner.png",
     "pi-web-fetch-demo.mp4"
   ],
-  "devDependencies": {
-    "@types/turndown": "^5.0.6",
-    "typescript": "^7.0.2"
-  },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "linkedom": "^0.16.0",

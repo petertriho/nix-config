@@ -19,25 +19,30 @@ buildNpmPackage {
   # (and pi-coding-agent's own nested peers) with `resolved` but no `integrity`,
   # which panics nixpkgs' npm fetcher lockfile parser. Pi injects those peers at
   # runtime, so we vendor a package.json with peerDependencies and the
-  # @earendil-works/* devDeps stripped plus the lockfile regenerated from it
-  # (mirrors pi-subagents / pi-tasks). Dev deps are retained in the lockfile
-  # but pruned at install via --omit=dev.
+  # devDeps stripped plus the lockfile regenerated from it (mirrors
+  # pi-subagents / pi-tasks).
+  #
+  # All devDependencies are stripped, not just omitted at install time:
+  # fetchNpmDeps prefetches every tarball the lockfile references, and
+  # --omit=dev only prunes the *install*. That made the build hostage to
+  # unrelated tooling — it broke outright when tsx 4.23.7 was unpublished from
+  # npm (403 on the tarball). 62 of the 63 locked packages were dev-only.
   postPatch = ''
     cp ${./package-no-peers.json} package.json
     cp ${./package-lock.json} package-lock.json
   '';
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-SjXhC1MPy4MghPb5+FNZDnihdx6ZaoSTVMWnVFbE5vE=";
+  npmDepsHash = "sha256-4+vEahhQw01C9hzZalb6HSW9NHFjmIkL2GPgQ3vACn4=";
   npmDepsFetcherVersion = 2;
 
   # pi.extensions = ["extensions/workflow.ts"]; pi loads the TypeScript directly
   # (the entry imports ../src/index.js, resolved to ../src/index.ts under
   # NodeNext + pi's loader), so the upstream `tsc` build (→ dist/) is never
-  # consumed. Only the single runtime dep (acorn) is installed; biome/tsx/
-  # typescript/fast-check/typebox are pruned via --omit=dev. The
-  # @earendil-works/* peerDependencies are injected by pi at runtime and kept
-  # out of the closure.
+  # consumed. That leaves acorn as the only dep the closure needs; biome/tsx/
+  # typescript/fast-check/typebox are gone from the vendored files entirely
+  # (see postPatch). The @earendil-works/* peerDependencies are injected by pi
+  # at runtime and kept out of the closure.
   dontNpmBuild = true;
   npmInstallFlags = [ "--omit=dev" ];
 

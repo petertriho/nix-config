@@ -20,21 +20,28 @@ buildNpmPackage {
   # which panics nixpkgs' npm fetcher lockfile parser. Pi injects those peers at
   # runtime, so we vendor a package.json with peerDependencies stripped plus the
   # matching lockfile regenerated from it (mirrors pi-subagents / pi-web-access).
-  # Dev deps are retained in the lockfile but pruned at install via --omit=dev.
+  #
+  # devDependencies are stripped from the vendored package.json too, not just
+  # omitted at install time: fetchNpmDeps prefetches every tarball the lockfile
+  # references, and --omit=dev only prunes the *install*, so dev deps still had
+  # to be downloaded. That made the build hostage to unrelated tooling — it
+  # broke when @biomejs/biome 2.5.7 was unpublished from npm (403 on the
+  # tarball). Regenerate both files together with:
+  #   npm install --package-lock-only --ignore-scripts
   postPatch = ''
     cp ${./package-no-peers.json} package.json
     cp ${./package-lock.json} package-lock.json
   '';
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-GLktpIfOd5tL9XvJ0qrYlzEV8DatHAUHZnZmBPPUlUY=";
+  npmDepsHash = "sha256-X75nWsqOYrTz3TXM4cy5J2E00ozIkTCJeg+OoKmWAgs=";
   npmDepsFetcherVersion = 2;
 
   # pi.extensions = ["./src/index.ts"]; pi loads the TypeScript directly, so
-  # the upstream `tsc` build (→ dist/) is never consumed. Only the single
-  # runtime dep (typebox) is installed; biome/typescript/vitest are pruned via
-  # --omit=dev. The @earendil-works/* peerDependencies are injected by pi at
-  # runtime and kept out of the closure.
+  # the upstream `tsc` build (→ dist/) is never consumed. That leaves typebox as
+  # the only dep the closure needs; biome/typescript/vitest are gone from the
+  # vendored package.json entirely (see postPatch). The @earendil-works/*
+  # peerDependencies are injected by pi at runtime and kept out of the closure.
   dontNpmBuild = true;
   npmInstallFlags = [ "--omit=dev" ];
 
