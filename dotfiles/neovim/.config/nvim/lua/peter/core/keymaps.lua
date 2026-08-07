@@ -204,12 +204,16 @@ end, { desc = "@buffer" })
 
 keymap("x", "<leader>av", function()
     local path = vim.fn.expand("%:.")
-    local start_line = vim.fn.line("'<")
-    local end_line = vim.fn.line("'>")
+    -- `'<`/`'>` are only set when visual mode is left, so read the live
+    -- selection endpoints instead: `v` is the anchor, `.` is the cursor.
+    local anchor = vim.fn.line("v")
+    local cursor = vim.fn.line(".")
+    local start_line = math.min(anchor, cursor)
+    local end_line = math.max(anchor, cursor)
     local result = "@" .. path .. "#L" .. start_line .. "-" .. end_line
     vim.fn.setreg("+", result)
     vim.notify("Copied: " .. result)
-end, { desc = "@buffer#L1:2" })
+end, { desc = "@buffer#L1-2" })
 
 -- Send current buffer text to an agent pane in the current tmux session.
 keymap("n", "<leader>as", function()
