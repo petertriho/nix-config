@@ -156,10 +156,26 @@ in
         ];
       };
       settings = {
+        defaultProjectTrust = "always";
+        editorPaddingX = 1;
+        enableInstallTelemetry = false;
         outputPad = 1;
-        packages = map piPackageRoot piExtensions;
+        # pi-cliproxyapi-provider bundles two extension entry points in its
+        # package.json `pi.extensions`: extensions/index.ts (the CLIProxyAPI model
+        # provider) and extensions/tps.ts (the Elapsed/TPS TUI footer + settle
+        # toast). The object form narrows the manifest so only index.ts loads.
+        # https://github.com/router-for-me/pi-cliproxyapi-provider#elapsed-time-and-tps-tui
+        packages =
+          map piPackageRoot (builtins.filter (p: p.pname != "pi-cliproxyapi-provider") piExtensions)
+          ++ [
+            {
+              source = piPackageRoot pkgs.piExtensions.pi-cliproxyapi-provider;
+              extensions = [ "!extensions/tps.ts" ];
+            }
+          ];
         quietStartup = true;
         theme = "stylix";
+        tuiMode = "fullscreen";
       };
     };
     home = {
