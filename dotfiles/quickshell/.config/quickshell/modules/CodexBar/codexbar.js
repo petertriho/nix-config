@@ -4,7 +4,7 @@
 // layer that turns codexbar's `--format json` output into normalized rows for
 // the bar segment + panel. It deliberately does NO provider/auth logic itself.
 //
-// JSON contract (verified against codexbar v0.37.2 with REAL keys):
+// JSON contract (verified against codexbar v0.48.0 with REAL keys):
 //   - Top-level is an ARRAY of segment objects (one per provider, or one per
 //     Codex account when multi-account). A bare object is tolerated too.
 //   - Each segment: { provider, source, error?:{kind,message,code}, usage?:{...} }
@@ -14,9 +14,11 @@
 //     Any window may be null; remaining windows are compacted for display. This
 //     keeps one provider-generic mapper. (The docs' data.limits[]/TOKENS_LIMIT
 //     describe the raw BigModel API; codexbar normalizes them away.)
-//   - OpenRouter is a cost row under usage.openRouterUsage (balance /
-//     totalCredits / totalUsage + usedPercent). It now renders a credits-used
-//     meter, but is still never picked as "most critical".
+//   - OpenRouter is a cost row. codexbar 0.4x+ emits it under usage.details[]
+//     (a "Credits" section with Remaining / Used / "Total added" label-value
+//     rows); older 0.37.x used usage.openRouterUsage (balance / totalCredits /
+//     totalUsage + usedPercent), still accepted as a fallback. Renders a
+//     credits-used meter but is never picked as "most critical".
 //   - Codex also carries usage.codexResetCredits.availableCount (free rate-limit
 //     resets); surfaced as an info line on quota rows.
 //
@@ -326,23 +328,103 @@ function mapQuota(item, provider, now) {
     return row;
 }
 
-// OpenRouter: credits-as-dollars under usage.openRouterUsage
-// (balance / totalCredits / totalUsage + usedPercent). Cost row with a
-// credits-used meter; still never picked as most-critical.
-function mapOpenRouter(item) {
-    var u = item && item.usage && item.usage.openRouterUsage;
-    if (!u)
+// Parse a money-ish string ("$190.95", "9.05", "No limit") into a number;
+// NaN if blank or unparseable. Strips currency/units, keeps the digits.
+function parseMoney(value) {
+    if (value === undefined || value === null)
+        return NaN;
+    var s = String(value).replace(/[^0-9.\-]/g, "");
+    if (s === "" || s === "-" || s === ".")
+        return NaN;
+    var n = Number(s);
+    return isNaN(n) ? NaN : n;
+}
+
+// Find a usage.details[] section whose title matches (case-insensitive).
+function findDetailsSection(details, title) {
+    if (!Array.isArray(details))
         return null;
+    var want = String(title).toLowerCase();
+    for (var i = 0; i < details.length; i++) {
+        var d = details[i];
+        if (d && String(d.title || "").toLowerCase() === want)
+            return d;
+    }
+    return null;
+}
+
+// First row value in a details section whose label matches any of `labels`
+// (case-insensitive). "" if none.
+function detailsRowValue(section, labels) {
+    var rows = section && section.rows;
+    if (!Array.isArray(rows))
+        return "";
+    var targets = Array.isArray(labels) ? labels : [labels];
+    for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || typeof r !== "object")
+            continue;
+        var label = String(r.label || "").toLowerCase();
+        for (var j = 0; j < targets.length; j++) {
+            if (label === String(targets[j]).toLowerCase())
+                return r.value;
+        }
+    }
+    return "";
+}
+
+// OpenRouter: credits-as-dollars cost row. codexbar 0.4x+ ships the figures as
+// label/value rows under usage.details[] ("Credits" section: Remaining / Used /
+// "Total added"); older 0.37.x used usage.openRouterUsage (balance /
+// totalCredits / totalUsage + usedPercent). Both shapes are accepted. Renders a
+// credits-used meter but is never picked as "most critical".
+function mapOpenRouter(item) {
+    var usage = item && item.usage;
+    if (!usage)
+        return null;
+
+    var balance = NaN, total = NaN, used = NaN, usedPercent = NaN;
+
+    // New shape (>= 0.4x): usage.details[]. Pull the "Credits" section.
+    var credits = findDetailsSection(usage.details, "Credits");
+    if (credits) {
+        balance = parseMoney(detailsRowValue(credits, ["Remaining", "Balance"]));
+        used = parseMoney(detailsRowValue(credits, ["Used", "Usage", "Spent"]));
+        total = parseMoney(detailsRowValue(credits,
+            ["Total added", "Total credits", "Total"]));
+    }
+
+    // Legacy shape (0.37.x): usage.openRouterUsage. Only consulted when the new
+    // shape had nothing, so a mixed/partial payload still maps.
+    if (isNaN(balance) && isNaN(total) && isNaN(used)) {
+        var u = usage.openRouterUsage;
+        if (u) {
+            balance = Number(u.balance);
+            total = Number(u.totalCredits);
+            used = Number(u.totalUsage);
+            usedPercent = Number(u.usedPercent);
+        }
+    }
+
+    // Nothing usable -> let parseAll emit a clean "no usage data" error.
+    if (isNaN(balance) && isNaN(total) && isNaN(used) && isNaN(usedPercent))
+        return null;
+
+    // Derive usedPercent locally when the new shape omits it.
+    if (isNaN(usedPercent)) {
+        if (!isNaN(used) && !isNaN(total) && total > 0)
+            usedPercent = used / total * 100;
+        else if (!isNaN(balance) && !isNaN(total) && total > 0)
+            usedPercent = (total - balance) / total * 100;
+    }
+
     var row = emptyRow();
     row.kind = "cost";
     row.provider = "openrouter";
-    var account = (item.usage.identity && item.usage.identity.accountEmail) || "";
+    var account = (usage.identity && usage.identity.accountEmail) || "";
     row.account = account;
     row.label = providerLabel("openrouter") + (account ? " · " + account : "");
-    var balance = Number(u.balance);
-    var total = Number(u.totalCredits);
-    var used = Number(u.totalUsage);
-    row.percent = clampPercent(Number(u.usedPercent));
+    row.percent = clampPercent(usedPercent);
     row.creditsBalance = !isNaN(balance) ? "$" + balance.toFixed(2) : "";
     row.creditsTotal = !isNaN(total) ? "$" + total.toFixed(2) : "";
     row.creditsUsed = !isNaN(used) ? "$" + used.toFixed(2) + " used" : "";
