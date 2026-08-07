@@ -19,6 +19,7 @@ let
     pi-cache-optimizer
     pi-cliproxyapi-provider
     pi-dynamic-workflows
+    pi-hashline-edit-pro
     pi-history
     pi-lens
     # pi-mcp-adapter

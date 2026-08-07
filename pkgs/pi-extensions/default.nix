@@ -17,6 +17,7 @@ in
     piAiRuntime = pi-ai-runtime;
   };
   pi-dynamic-workflows = callPackage ./pi-dynamic-workflows { };
+  pi-hashline-edit-pro = callPackage ./pi-hashline-edit-pro { };
   pi-history = callPackage ./pi-history { };
   pi-lens = callPackage ./pi-lens { };
   pi-mcp-adapter = callPackage ./pi-mcp-adapter { };
