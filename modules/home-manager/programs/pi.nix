@@ -9,21 +9,22 @@ let
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
   piExtensions = with pkgs.piExtensions; [
-    pi-autoresearch
-    # pi-mcp-adapter
-    # pi-atelier
     omp-undo-redo
-    pi-blackhole
+    rpiv-args
+    rpiv-ask-user-question
+    # rpiv-todo
+    # pi-atelier
+    pi-autoresearch
+    # pi-blackhole
     pi-cache-optimizer
     pi-dynamic-workflows
     pi-history
     pi-lens
+    # pi-mcp-adapter
     pi-subagents
     pi-tasks
+    pi-vcc
     pi-web-access
-    rpiv-args
-    rpiv-ask-user-question
-    # rpiv-todo
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 

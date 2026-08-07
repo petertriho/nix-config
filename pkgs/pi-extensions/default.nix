@@ -15,6 +15,7 @@ in
   pi-mcp-adapter = callPackage ./pi-mcp-adapter { };
   pi-subagents = callPackage ./pi-subagents { };
   pi-tasks = callPackage ./pi-tasks { };
+  pi-vcc = callPackage ./pi-vcc { };
   pi-web-access = callPackage ./pi-web-access { };
   rpiv-args = callPackage ./rpiv-args { inherit (rpiv-mono) src version; };
   rpiv-ask-user-question = callPackage ./rpiv-ask-user-question {
