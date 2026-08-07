@@ -162,87 +162,90 @@ in
         theme = "stylix";
       };
     };
+    home = {
+      file = {
+        "${cfg.configDir}/themes/stylix.json".source =
+          jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
 
-    home.file."${cfg.configDir}/themes/stylix.json".source =
-      jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
+        "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
 
-    home.file."${cfg.configDir}/extensions/pi-tui-shell.ts".source =
-      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
+        "${cfg.configDir}/extensions/pi-message-diagnostics.ts".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
 
-    home.file."${cfg.configDir}/extensions/pi-message-diagnostics.ts".source =
-      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
+        # Provider compat overrides only (pi-cache-optimizer recommendations for
+        # the zai/opencode-go gateways) — no credentials, models, or baseUrls; pi
+        # merges these over its built-in provider definitions. Out-of-store
+        # symlink so `/cache-optimizer fix` can still rewrite it at runtime.
+        "${cfg.configDir}/models.json".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/models.json";
 
-    # Provider compat overrides only (pi-cache-optimizer recommendations for
-    # the zai/opencode-go gateways) — no credentials, models, or baseUrls; pi
-    # merges these over its built-in provider definitions. Out-of-store
-    # symlink so `/cache-optimizer fix` can still rewrite it at runtime.
-    home.file."${cfg.configDir}/models.json".source =
-      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/models.json";
-
-    home.file.".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
-      widget.visible = false;
-      format = {
-        enabled = true;
-        mode = "deferred";
-      };
-      autofix.enabled = true;
-      actionableWarnings = {
-        enabled = true;
-        includeLspCodeActions = true;
-        deltaOnly = true;
-        autoFix = {
-          enabled = true;
-          maxFixes = 5;
+        ".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
+          widget.visible = false;
+          format = {
+            enabled = true;
+            mode = "deferred";
+          };
+          autofix.enabled = true;
+          actionableWarnings = {
+            enabled = true;
+            includeLspCodeActions = true;
+            deltaOnly = true;
+            autoFix = {
+              enabled = true;
+              maxFixes = 5;
+            };
+          };
+          contextInjection.enabled = false;
         };
+
+        # Suppress the upstream module's read-only settings.json symlink; the
+        # activation entry below owns the file instead.
+        "${cfg.configDir}/settings.json".enable = false;
       };
-      contextInjection.enabled = false;
-    };
 
-    # Suppress the upstream module's read-only settings.json symlink; the
-    # activation entry below owns the file instead.
-    home.file."${cfg.configDir}/settings.json".enable = false;
+      # Re-assert the nix-declared settings into the mutable settings.json on
+      # every switch. Deep merge with nix winning on declared keys; jq `*`
+      # replaces arrays wholesale, so `packages` stays fully nix-controlled.
+      # Ordered after linkGeneration, which removes the pre-migration symlink.
+      activation.piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        piSettingsFile=${lib.escapeShellArg "${cfg.configDir}/settings.json"}
+        piSettingsNix=${settingsJson}
+        piJq=${pkgs.jq}/bin/jq
 
-    # Re-assert the nix-declared settings into the mutable settings.json on
-    # every switch. Deep merge with nix winning on declared keys; jq `*`
-    # replaces arrays wholesale, so `packages` stays fully nix-controlled.
-    # Ordered after linkGeneration, which removes the pre-migration symlink.
-    home.activation.piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      piSettingsFile=${lib.escapeShellArg "${cfg.configDir}/settings.json"}
-      piSettingsNix=${settingsJson}
-      piJq=${pkgs.jq}/bin/jq
+        # Atomic write: temp file in the same directory + rename, so a running
+        # pi never observes a torn file.
+        function piWriteSettings {
+          local tmp
+          tmp=$(mktemp "$1.tmp.XXXXXX")
+          printf '%s\n' "$2" > "$tmp"
+          mv "$tmp" "$1"
+        }
 
-      # Atomic write: temp file in the same directory + rename, so a running
-      # pi never observes a torn file.
-      function piWriteSettings {
-        local tmp
-        tmp=$(mktemp "$1.tmp.XXXXXX")
-        printf '%s\n' "$2" > "$tmp"
-        mv "$tmp" "$1"
-      }
+        # Leftover symlink at the target (linkGeneration normally cleans up the
+        # previous generation's link; belt and braces for the first migration).
+        if [[ -L "$piSettingsFile" ]]; then
+          run rm $VERBOSE_ARG "$piSettingsFile"
+        fi
 
-      # Leftover symlink at the target (linkGeneration normally cleans up the
-      # previous generation's link; belt and braces for the first migration).
-      if [[ -L "$piSettingsFile" ]]; then
-        run rm $VERBOSE_ARG "$piSettingsFile"
-      fi
+        run mkdir -p $VERBOSE_ARG "$(dirname "$piSettingsFile")"
 
-      run mkdir -p $VERBOSE_ARG "$(dirname "$piSettingsFile")"
-
-      if [[ -f "$piSettingsFile" && ! -L "$piSettingsFile" ]]; then
-        if "$piJq" -e . "$piSettingsFile" > /dev/null 2>&1; then
-          piSettingsMerged=$("$piJq" -s '.[0] * .[1]' "$piSettingsFile" "$piSettingsNix")
+        if [[ -f "$piSettingsFile" && ! -L "$piSettingsFile" ]]; then
+          if "$piJq" -e . "$piSettingsFile" > /dev/null 2>&1; then
+            piSettingsMerged=$("$piJq" -s '.[0] * .[1]' "$piSettingsFile" "$piSettingsNix")
+          else
+            warnEcho "$piSettingsFile is not valid JSON; backing it up to $piSettingsFile.bak"
+            run mv $VERBOSE_ARG "$piSettingsFile" "$piSettingsFile.bak"
+            piSettingsMerged=$(cat "$piSettingsNix")
+          fi
         else
-          warnEcho "$piSettingsFile is not valid JSON; backing it up to $piSettingsFile.bak"
-          run mv $VERBOSE_ARG "$piSettingsFile" "$piSettingsFile.bak"
           piSettingsMerged=$(cat "$piSettingsNix")
         fi
-      else
-        piSettingsMerged=$(cat "$piSettingsNix")
-      fi
 
-      run piWriteSettings "$piSettingsFile" "$piSettingsMerged"
-      unset piSettingsFile piSettingsNix piJq piSettingsMerged
-      unset -f piWriteSettings
-    '';
+        run piWriteSettings "$piSettingsFile" "$piSettingsMerged"
+        unset piSettingsFile piSettingsNix piJq piSettingsMerged
+        unset -f piWriteSettings
+      '';
+    };
   };
 }
