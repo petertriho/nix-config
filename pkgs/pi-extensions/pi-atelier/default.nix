@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-atelier";
-  version = "0.7.0-unstable-2026-08-03";
+  version = "0.7.2-unstable-2026-08-07";
 
   src = fetchFromGitHub {
     owner = "michaelmjhhhh";
     repo = "pi-atelier";
-    rev = "d78f1d113814af4eee6deb9f4418f96cf50c66fa";
-    hash = "sha256-Nap5MJmf3iTJ8CauInmsHQgA5Wwa9NdkI8xr97tu9HA=";
+    rev = "24c133888a75a2e6073113729eaabfed8075045e";
+    hash = "sha256-1l8KbNYbok+KOUI358UYMPWaU5TOkONHFkPPY9/HC2I=";
   };
 
   installPhase = ''

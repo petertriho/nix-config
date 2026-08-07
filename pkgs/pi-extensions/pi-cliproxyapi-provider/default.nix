@@ -6,7 +6,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-cliproxyapi-provider";
-  version = "1.4.13-unstable-2026-08-06";
+  version = "1.4.0-unstable-2026-08-05";
 
   src = fetchFromGitHub {
     owner = "router-for-me";

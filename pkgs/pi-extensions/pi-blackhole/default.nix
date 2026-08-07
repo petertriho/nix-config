@@ -9,20 +9,20 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "pi-blackhole";
-  version = "0.4.3-unstable-2026-08-02";
+  version = "0.4.5-unstable-2026-08-06";
 
   src = fetchFromGitHub {
     owner = "k0valik";
     repo = "pi-blackhole";
-    rev = "2bf8cda11585c21fef2e5c2d9210690d82a2f2ca";
-    hash = "sha256-MBCSviHt6Q53A2uYbANrDnBXk1MlgZHQqwaz+va2tmQ=";
+    rev = "0e9b391729f34cddc5e3949e0b2e87d5f1ebc414";
+    hash = "sha256-J6mqZtTo0hSDEl+dLmGIvpBrMZwlIcaq3v6RiRtvtMs=";
   };
 
   pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm_10;
     fetcherVersion = 3;
-    hash = "sha256-aTK8T1N/6KbtmT8vpOIOoByjRtRVgyMj+ERBVX/PFK0=";
+    hash = "sha256-cVICELuP/9MOXVeBlD2NK7mVarNqZqwHrvggOR+3BDs=";
   };
 
   nativeBuildInputs = [
