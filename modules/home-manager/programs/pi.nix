@@ -15,6 +15,7 @@ let
     # rpiv-todo
     # pi-atelier
     pi-autoresearch
+    pi-agent-browser-native
     # pi-blackhole
     pi-cache-optimizer
     pi-cliproxyapi-provider

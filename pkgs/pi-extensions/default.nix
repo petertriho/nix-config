@@ -9,6 +9,7 @@ let
 in
 {
   omp-undo-redo = callPackage ./omp-undo-redo { };
+  pi-agent-browser-native = callPackage ./pi-agent-browser-native { };
   pi-autoresearch = callPackage ./pi-autoresearch { };
   pi-atelier = callPackage ./pi-atelier { };
   pi-blackhole = callPackage ./pi-blackhole { };
