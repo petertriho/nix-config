@@ -17,6 +17,7 @@ let
     pi-autoresearch
     # pi-blackhole
     pi-cache-optimizer
+    pi-cliproxyapi-provider
     pi-dynamic-workflows
     pi-history
     pi-lens

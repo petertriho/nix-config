@@ -7,6 +7,7 @@
 let
   cliProxyApiKeyEnvVar = "CLI_PROXY_API_KEY";
   cliProxyApiKeyDefault = "sk-dummy";
+  cliProxyApiBaseUrl = "http://127.0.0.1:8317";
   cliProxyConfig = "${config.home.homeDirectory}/.cli-proxy-api/config.yaml";
 
   cliProxyEnvironment = {
@@ -19,7 +20,7 @@ let
     HTTP_ADDR = "127.0.0.1:18317";
     USAGE_DATA_DIR = cpaManagerPlusDataDir;
     USAGE_DB_PATH = "${cpaManagerPlusDataDir}/usage.sqlite";
-    CPA_UPSTREAM_URL = "http://127.0.0.1:8317";
+    CPA_UPSTREAM_URL = cliProxyApiBaseUrl;
     ${cliProxyApiKeyEnvVar} = cliProxyApiKeyDefault;
     USAGE_COLLECTOR_MODE = "auto";
   };
@@ -55,21 +56,26 @@ lib.mkMerge [
       file.".config/opencode/plugins/cli-proxy-api-models.js".source =
         config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/plugins/cli-proxy-api-models.js";
 
-      sessionVariables.CLI_PROXY_API_KEY = cliProxyApiKeyDefault;
+      sessionVariables = {
+        CLI_PROXY_API_KEY = cliProxyApiKeyDefault;
+
+        # Consumed by pkgs.piExtensions.pi-cliproxyapi-provider. Env is the
+        # extension's highest-precedence config source, so it never needs
+        # /login. CLIPROXYAPI_FAST is deliberately left unset: the extension
+        # persists the /fast toggle itself in ~/.pi/agent/cliproxyapi.json, and
+        # declaring it here would override that preference on every startup.
+        CLIPROXYAPI_BASE_URL = cliProxyApiBaseUrl;
+        CLIPROXYAPI_API_KEY = cliProxyApiKeyDefault;
+      };
     };
 
     programs.opencode.settings = {
       provider.openai.options = {
-        baseURL = lib.mkDefault "http://127.0.0.1:8317/v1";
+        baseURL = lib.mkDefault "${cliProxyApiBaseUrl}/v1";
         apiKey = "{env:${cliProxyApiKeyEnvVar}}";
       };
     };
   }
-
-  (lib.mkIf config.programs.pi-coding-agent.enable {
-    home.file."${config.programs.pi-coding-agent.configDir}/extensions/cli-proxy-api-models.ts".source =
-      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/cli-proxy-api-models.ts";
-  })
 
   (lib.mkIf pkgs.stdenv.isLinux {
     systemd.user.services.cli-proxy-api = {
