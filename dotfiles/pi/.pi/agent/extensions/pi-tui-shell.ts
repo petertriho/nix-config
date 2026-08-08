@@ -8,8 +8,25 @@ import {
   type SessionInfo,
   VERSION,
 } from "@earendil-works/pi-coding-agent";
-import type { Component, EditorTheme, TUI } from "@earendil-works/pi-tui";
+import type {
+  AutocompleteProvider,
+  Component,
+  EditorComponent,
+  EditorTheme,
+  Focusable,
+  TUI,
+} from "@earendil-works/pi-tui";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+
+/**
+ * Factory pi stores via `ctx.ui.setEditorComponent`. Not re-exported by the
+ * public packages, so it is mirrored here from pi's `ExtensionUIContext`.
+ */
+type EditorFactory = (
+  tui: TUI,
+  theme: EditorTheme,
+  keybindings: KeybindingsManager,
+) => EditorComponent;
 
 export type ModelInfo = {
   provider: string;
@@ -243,13 +260,38 @@ function compactCwd(cwd: string, width: number): string {
   return `${marker}${tailToWidth(tail, width - markerWidth)}`;
 }
 
+/**
+ * Map a pi-vim `vimState.mode` value to a short display label.
+ *
+ * Duck-typed (no pi-vim import): the caller reads `(inner as any).vimState?.mode`
+ * and passes the raw string here. Unknown/missing modes yield no label.
+ */
+const VIM_MODE_LABELS: Record<string, string> = {
+  normal: "NORMAL",
+  insert: "INSERT",
+  visual: "VISUAL",
+  "visual-line": "VISUAL-LN",
+  replace: "REPLACE",
+  "command-line": "SEARCH",
+};
+
+function vimModeLabel(mode: string | undefined): string | undefined {
+  return mode ? VIM_MODE_LABELS[mode] : undefined;
+}
+
 export function editorBottomLeftText(
   theme: FrameTheme,
   cwd: string,
   width?: number,
+  modeLabel?: string,
 ): string {
+  // Unconstrained: render the full bottom-left, with an optional leftmost
+  // mode label ahead of the cwd (e.g. ` NORMAL · ~/proj `).
   if (width === undefined) {
-    return ` ${span(theme, "accent", cwd)} `;
+    const body = modeLabel
+      ? `${span(theme, "accent", modeLabel)}${separator(theme)}${span(theme, "accent", cwd)}`
+      : span(theme, "accent", cwd);
+    return ` ${body} `;
   }
   if (width <= 0) return "";
 
@@ -257,7 +299,30 @@ export function editorBottomLeftText(
   const contentWidth = width - horizontalPadding;
   const leftPadding = horizontalPadding > 0 ? " " : "";
   const rightPadding = leftPadding;
-  return `${leftPadding}${span(theme, "accent", compactCwd(cwd, contentWidth))}${rightPadding}`;
+
+  if (!modeLabel) {
+    return `${leftPadding}${span(theme, "accent", compactCwd(cwd, contentWidth))}${rightPadding}`;
+  }
+
+  // Preserve the mode label; truncate the cwd first when space is tight.
+  const sep = separator(theme);
+  const modeWidth = visibleWidth(modeLabel);
+  const sepWidth = visibleWidth(sep);
+
+  if (contentWidth <= modeWidth) {
+    // Not enough room for the label plus cwd; show the label truncated to fit.
+    const truncated = truncateToWidth(modeLabel, contentWidth, "");
+    return `${leftPadding}${span(theme, "accent", truncated)}${rightPadding}`;
+  }
+
+  const cwdBudget = contentWidth - modeWidth - sepWidth;
+  if (cwdBudget <= 0) {
+    // Room for the label itself but not label + separator + cwd; show only the
+    // (already-fitting) label rather than overflowing into the separator.
+    return `${leftPadding}${span(theme, "accent", modeLabel)}${rightPadding}`;
+  }
+  const cwdText = compactCwd(cwd, cwdBudget);
+  return `${leftPadding}${span(theme, "accent", modeLabel)}${sep}${span(theme, "accent", cwdText)}${rightPadding}`;
 }
 
 export function editorTopLeftText(
@@ -646,6 +711,12 @@ export type EditorShellRows = {
   bottomLeft: string;
   bottomRight: string;
   fitBottomLeft(width: number): string;
+  /**
+   * When true, keep the wrapped editor's own bottom-border line (framed with
+   * side edges) instead of redrawing the shell's `╰─…─╯` bottom border. Used
+   * to preserve a pi-vim live search prompt drawn on that border.
+   */
+  preserveBottomBorder?: boolean;
 };
 
 export function composeEditorShellRows(input: EditorShellRows): string[] {
@@ -659,6 +730,7 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
     bottomLeft,
     bottomRight,
     fitBottomLeft,
+    preserveBottomBorder = false,
   } = input;
   const border = (text: string) => theme.fg("border", text);
   const nativeWidth = Math.max(1, width - 2);
@@ -666,6 +738,7 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
   const nativeLines = renderedLines.slice(1);
   let editorLines = nativeLines.slice(0, -1);
   let autocompleteLines: string[] = [];
+  let preservedBottomBorder: string | undefined;
 
   if (showingAutocomplete) {
     const editorBottomIndex = nativeLines.findIndex(
@@ -682,24 +755,43 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
     }
   }
 
+  // Preserve the wrapped editor's own bottom-border line (e.g. a live vim
+  // search prompt) instead of redrawing the shell's bottom border. Only when
+  // no autocomplete split consumed that border line.
+  if (preserveBottomBorder && autocompleteLines.length === 0) {
+    preservedBottomBorder = nativeLines[nativeLines.length - 1];
+  }
   return [
     ...autocompleteLines.map((line) => panelLine(line, width, theme)),
     ...(autocompleteLines.length > 0 ? [""] : []),
     fitBorder(topLeft, topRight, width, border, "╭", "╮", "right"),
     ...editorLines.map((line) => frameLine(line, width, border)),
-    fitBorder(
-      bottomLeft,
-      bottomRight,
-      width,
-      border,
-      "╰",
-      "╯",
-      "left",
-      fitBottomLeft,
-    ),
+    preservedBottomBorder !== undefined
+      ? frameLine(preservedBottomBorder, width, border)
+      : fitBorder(
+          bottomLeft,
+          bottomRight,
+          width,
+          border,
+          "╰",
+          "╯",
+          "left",
+          fitBottomLeft,
+        ),
   ];
 }
 
+/**
+ * Marker stamped on the editor factory pi-tui-shell installs, so a later
+ * `resources_discover` re-run (e.g. /reload, when no competing editor
+ * re-registers first) can unwrap to the original inner instead of
+ * double-framing. Module-scoped: the module loads once (jiti caches it), so the
+ * Symbol's identity is stable across extension re-binds and `piTuiShell` calls.
+ */
+const FRAME_TAG = Symbol("pi-tui-shell-frame");
+interface FrameTagPayload {
+  inner: EditorFactory | undefined;
+}
 export default function piTuiShell(pi: ExtensionAPI): void {
   const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   let activeTui: TUI | undefined;
@@ -709,6 +801,249 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   let sessionLoadGeneration = 0;
   let tuiSessionActive = false;
   const lifecycle = createLifecycleController(() => activeTui?.requestRender());
+
+  // ── Editor frame ───────────────────────────────────────────────────────────
+  // pi-tui-shell frames whichever editor is active: the native editor or a
+  // custom one such as pi-vim's VimEditor. `renderEditorFrame` draws the shared
+  // model/context/cwd/usage shell around any inner render output; the two
+  // classes below are the factories' products (native vs. wrapped custom).
+
+  /** Render the shell frame around `innerLines` (already at the inner width). */
+  function renderEditorFrame(opts: {
+    ctx: ExtensionContext;
+    width: number;
+    innerLines: string[];
+    showingAutocomplete: boolean;
+    modeLabel?: string;
+    preserveBottomBorder?: boolean;
+  }): string[] {
+    const {
+      ctx,
+      width,
+      innerLines,
+      showingAutocomplete,
+      modeLabel,
+      preserveBottomBorder,
+    } = opts;
+    const shellWidth = Math.max(1, width - 2);
+    const theme = ctx.ui.theme;
+    const thinking = pi.getThinkingLevel();
+    const topLeft = editorTopLeftText(theme, activeModel);
+
+    const context = formatContext(ctx, activeModel);
+    const contextColor =
+      context.percent !== null && context.percent > 90
+        ? "error"
+        : context.percent !== null && context.percent > 70
+          ? "warning"
+          : "text";
+    const topRight = ` ${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
+
+    const cwd = formatCwd(ctx.sessionManager.getCwd());
+    const bottomLeft = editorBottomLeftText(theme, cwd, undefined, modeLabel);
+    const usage = computeSessionUsage(ctx);
+    const elapsedMs =
+      lifecycle.state !== "ready" && lifecycle.turnStartedAt !== undefined
+        ? Date.now() - lifecycle.turnStartedAt
+        : undefined;
+    const bottomRight = editorBottomRightText(theme, usage, elapsedMs);
+
+    return applyOuterMargin(
+      composeEditorShellRows({
+        theme,
+        width: shellWidth,
+        nativeLines: innerLines,
+        showingAutocomplete,
+        preserveBottomBorder,
+        topLeft,
+        topRight,
+        bottomLeft,
+        bottomRight,
+        fitBottomLeft: (maximumWidth) =>
+          editorBottomLeftText(theme, cwd, maximumWidth, modeLabel),
+      }),
+      width,
+    );
+  }
+
+  /** Native editor: today's framed editor, behavior unchanged. */
+  class NativePiEditorFrame extends CustomEditor {
+    private readonly frameCtx: ExtensionContext;
+
+    constructor(
+      tui: TUI,
+      theme: EditorTheme,
+      keybindings: KeybindingsManager,
+      frameCtx: ExtensionContext,
+    ) {
+      super(tui, theme, keybindings, { paddingX: 0 });
+      this.frameCtx = frameCtx;
+      activeTui = tui;
+    }
+
+    override render(width: number): string[] {
+      const shellWidth = Math.max(1, width - 2);
+      const nativeWidth = Math.max(1, shellWidth - 2);
+      this.borderColor = (text: string) =>
+        this.frameCtx.ui.theme.fg("border", text);
+      const lines = super.render(nativeWidth);
+      if (lines.length < 2) return applyOuterMargin(lines, width);
+      return renderEditorFrame({
+        ctx: this.frameCtx,
+        width,
+        innerLines: lines,
+        showingAutocomplete: this.isShowingAutocomplete(),
+      });
+    }
+  }
+
+  /**
+   * Decorator around any inner editor (e.g. pi-vim's VimEditor). Forwards the
+   * full editor surface so the TUI drives the inner editor directly, and
+   * overrides only `render()` to frame it plus render the vim mode label
+   * bottom-left. App keybindings reach the inner CustomEditor via the forwarded
+   * `actionHandlers`/`on*` surface the TUI wires post-construction.
+   */
+  class FrameWrapper implements EditorComponent, Focusable {
+    private readonly inner: EditorComponent;
+    private readonly frameCtx: ExtensionContext;
+
+    constructor(
+      inner: EditorComponent,
+      frameCtx: ExtensionContext,
+      tui: TUI,
+    ) {
+      this.inner = inner;
+      this.frameCtx = frameCtx;
+      activeTui = tui;
+      // Force padding 0 so the shell frame's border math lines up; do NOT expose
+      // setPaddingX, so the TUI can't re-apply a settings padding afterward.
+      this.inner.setPaddingX?.(0);
+    }
+
+    /**
+     * Focusable surface, forwarded to the inner editor. The TUI focuses the
+     * component it holds (this wrapper) and gates CURSOR_MARKER emission — and
+     * thus hardware-cursor positioning, which pi-vim's insert-mode bar cursor
+     * depends on — on `inner.focused`. Forwarding keeps the marker emitting so
+     * pi-vim's cursor shape/position changes survive the wrap.
+     */
+    get focused(): boolean {
+      return (this.inner as unknown as { focused: boolean }).focused;
+    }
+    set focused(value: boolean) {
+      (this.inner as unknown as { focused: boolean }).focused = value;
+    }
+    render(width: number): string[] {
+      const shellWidth = Math.max(1, width - 2);
+      const nativeWidth = Math.max(1, shellWidth - 2);
+      const border = (text: string) => this.frameCtx.ui.theme.fg("border", text);
+      // Match the inner editor's borders to the shell frame (matters when we
+      // preserve its bottom border, e.g. a live vim search prompt).
+      this.borderColor = border;
+      const mode = (this.inner as { vimState?: { mode?: string } }).vimState?.mode;
+      const innerLines = this.inner.render(nativeWidth);
+      if (innerLines.length < 2) return applyOuterMargin(innerLines, width);
+      return renderEditorFrame({
+        ctx: this.frameCtx,
+        width,
+        innerLines,
+        showingAutocomplete:
+          (this.inner as { isShowingAutocomplete?: () => boolean })
+            .isShowingAutocomplete?.() ?? false,
+        modeLabel: vimModeLabel(mode),
+        preserveBottomBorder: mode === "command-line",
+      });
+    }
+
+    // ── EditorComponent surface, forwarded to the inner editor ───────────────
+    invalidate(): void {
+      this.inner.invalidate();
+    }
+    getText(): string {
+      return this.inner.getText();
+    }
+    setText(text: string): void {
+      this.inner.setText(text);
+    }
+    handleInput(data: string): void {
+      this.inner.handleInput(data);
+    }
+    addToHistory(text: string): void {
+      this.inner.addToHistory?.(text);
+    }
+    insertTextAtCursor(text: string): void {
+      this.inner.insertTextAtCursor?.(text);
+    }
+    getExpandedText(): string {
+      return this.inner.getExpandedText?.() ?? this.inner.getText();
+    }
+    setAutocompleteProvider(provider: AutocompleteProvider): void {
+      this.inner.setAutocompleteProvider?.(provider);
+    }
+    setAutocompleteMaxVisible(maxVisible: number): void {
+      this.inner.setAutocompleteMaxVisible?.(maxVisible);
+    }
+
+    get borderColor() {
+      return this.inner.borderColor;
+    }
+    set borderColor(value: ((str: string) => string) | undefined) {
+      this.inner.borderColor = value;
+    }
+
+    get onSubmit() {
+      return this.inner.onSubmit;
+    }
+    set onSubmit(value: ((text: string) => void) | undefined) {
+      this.inner.onSubmit = value;
+    }
+
+    get onChange() {
+      return this.inner.onChange;
+    }
+    set onChange(value: ((text: string) => void) | undefined) {
+      this.inner.onChange = value;
+    }
+
+    // ── CustomEditor surface the TUI wires post-construction ─────────────────
+    // actionHandlers + the on* handlers. Forwarded so app keybindings (Escape to
+    // abort, Ctrl+D to exit, model cycling, paste-image, extension shortcuts)
+    // reach the inner CustomEditor instead of dying on this wrapper.
+    get actionHandlers() {
+      return (this.inner as unknown as {
+        actionHandlers: Map<string, () => void>;
+      }).actionHandlers;
+    }
+    get onEscape() {
+      return (this.inner as { onEscape?: () => void }).onEscape;
+    }
+    set onEscape(value: (() => void) | undefined) {
+      (this.inner as { onEscape?: () => void }).onEscape = value;
+    }
+    get onCtrlD() {
+      return (this.inner as { onCtrlD?: () => void }).onCtrlD;
+    }
+    set onCtrlD(value: (() => void) | undefined) {
+      (this.inner as { onCtrlD?: () => void }).onCtrlD = value;
+    }
+    get onPasteImage() {
+      return (this.inner as { onPasteImage?: () => void }).onPasteImage;
+    }
+    set onPasteImage(value: (() => void) | undefined) {
+      (this.inner as { onPasteImage?: () => void }).onPasteImage = value;
+    }
+    get onExtensionShortcut() {
+      return (this.inner as {
+        onExtensionShortcut?: (data: string) => boolean;
+      }).onExtensionShortcut;
+    }
+    set onExtensionShortcut(value: ((data: string) => boolean) | undefined) {
+      (this.inner as {
+        onExtensionShortcut?: (data: string) => boolean;
+      }).onExtensionShortcut = value;
+    }
+  }
 
   pi.on("model_select", (event) => {
     activeModel = event.model;
@@ -759,6 +1094,10 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       return;
     }
 
+    // Frame the editor before the first paint to avoid a flash of the un-framed
+    // default editor on startup / new sessions. (Deferred to resources_discover
+    // as well, but that fires after the first paint window — see installFramedEditor.)
+    installFramedEditor(ctx);
     activeTui = undefined;
     lifecycle.reset();
     activeModel = ctx.model;
@@ -813,66 +1152,50 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         activeTui?.requestRender();
       });
 
-    class PiEditorFrame extends CustomEditor {
-      constructor(
-        tui: TUI,
-        theme: EditorTheme,
-        keybindings: KeybindingsManager,
-      ) {
-        super(tui, theme, keybindings, { paddingX: 0 });
-        activeTui = tui;
-      }
+  });
 
-      render(width: number): string[] {
-        const shellWidth = Math.max(1, width - 2);
-        const nativeWidth = Math.max(1, shellWidth - 2);
-        const border = (text: string) => ctx.ui.theme.fg("border", text);
-        this.borderColor = border;
-        const lines = super.render(nativeWidth);
-        if (lines.length < 2) return applyOuterMargin(lines, width);
+  /**
+   * Idempotently install the framed editor factory — wrapping whatever custom
+   * editor is currently registered (e.g. pi-vim), else the native framed
+   * editor. Called from BOTH `session_start` and `resources_discover`.
+   *
+   * Why both: pi paints the editor on a DEFERRED render (`process.nextTick` →
+   * coalesced `setTimeout`), while `session_start` runs synchronously inside
+   * `bindExtensions`'s microtask chain — ahead of that paint. Installing the
+   * frame in `session_start` (not only in `resources_discover`) puts it in
+   * place before the first paint on startup AND before the `renderBeforeBind`
+   * paint on new sessions, so the un-framed default editor never flashes.
+   *
+   * `resources_discover` still re-runs it as the authoritative wrap: it fires
+   * strictly after every extension's `session_start`, so even when a competing
+   * editor (pi-vim) registers AFTER ours and overwrites our frame, it gets
+   * wrapped here. The `FRAME_TAG` keeps both calls idempotent (no double-frame).
+   */
+  function installFramedEditor(ctx: ExtensionContext): void {
+    const current = ctx.ui.getEditorComponent() as
+      | (EditorFactory & { [FRAME_TAG]?: FrameTagPayload })
+      | undefined;
+    // Idempotent re-wrap: if the live factory is one we tagged previously (e.g.
+    // /reload, when no competing editor re-registers first), unwrap to its
+    // inner before re-wrapping so we never frame an already-framed editor.
+    const tag = current?.[FRAME_TAG];
+    const base: EditorFactory | undefined = tag ? tag.inner : current;
+    const factory: EditorFactory = (tui, theme, keybindings) =>
+      base
+        ? new FrameWrapper(base(tui, theme, keybindings), ctx, tui)
+        : new NativePiEditorFrame(tui, theme, keybindings, ctx);
+    (factory as EditorFactory & { [FRAME_TAG]?: FrameTagPayload })[FRAME_TAG] = {
+      inner: base,
+    };
+    ctx.ui.setEditorComponent(factory);
+  }
 
-        const theme = ctx.ui.theme;
-        const thinking = pi.getThinkingLevel();
-        const topLeft = editorTopLeftText(theme, activeModel);
-
-        const context = formatContext(ctx, activeModel);
-        const contextColor =
-          context.percent !== null && context.percent > 90
-            ? "error"
-            : context.percent !== null && context.percent > 70
-              ? "warning"
-              : "text";
-        const topRight = ` ${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
-
-        const cwd = formatCwd(ctx.sessionManager.getCwd());
-        const bottomLeft = editorBottomLeftText(theme, cwd);
-        const usage = computeSessionUsage(ctx);
-        const elapsedMs =
-          lifecycle.state !== "ready" && lifecycle.turnStartedAt !== undefined
-            ? Date.now() - lifecycle.turnStartedAt
-            : undefined;
-        const bottomRight = editorBottomRightText(theme, usage, elapsedMs);
-
-        return applyOuterMargin(
-          composeEditorShellRows({
-            theme,
-            width: shellWidth,
-            nativeLines: lines,
-            showingAutocomplete: this.isShowingAutocomplete(),
-            topLeft,
-            topRight,
-            bottomLeft,
-            bottomRight,
-            fitBottomLeft: (maximumWidth) =>
-              editorBottomLeftText(theme, cwd, maximumWidth),
-          }),
-          width,
-        );
-      }
-    }
-
-    ctx.ui.setEditorComponent(
-      (tui, theme, keybindings) => new PiEditorFrame(tui, theme, keybindings),
-    );
+  // Install the framed editor EARLY in `session_start` (ahead of the first
+  // paint) so the un-framed default editor never flashes on startup / new
+  // sessions, and re-affirm it in `resources_discover` (after every
+  // `session_start`, so any editor that registered after ours is still wrapped).
+  pi.on("resources_discover", (_event, ctx) => {
+    if (!tuiSessionActive) return;
+    installFramedEditor(ctx);
   });
 }
