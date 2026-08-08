@@ -22,13 +22,17 @@ let
     # pi-dynamic-workflows
     pi-fzfp
     pi-hashline-edit-pro
+    # pi-vim must load before pi-history: pi-vim *replaces* the editor (no
+    # preservation of a prior factory), while pi-history *wraps* whatever is
+    # current. If pi-history loads first, pi-vim clobbers its HistoryEditor and
+    # persistent history / Ctrl+R / ghost completion silently stop working.
+    pi-vim
     pi-history
     pi-lens
     # pi-mcp-adapter
     # pi-subagents
     pi-tasks
     pi-vcc
-    pi-vim
     pi-web-access
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";

@@ -941,7 +941,13 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       // Match the inner editor's borders to the shell frame (matters when we
       // preserve its bottom border, e.g. a live vim search prompt).
       this.borderColor = border;
-      const mode = (this.inner as { vimState?: { mode?: string } }).vimState?.mode;
+      // Render hints (vim mode, native autocomplete visibility) live on the
+      // *leaf* editor (e.g. VimEditor), not necessarily on the immediate
+      // `inner` — a transparent wrapper (pi-history's HistoryEditor) between us
+      // and the leaf hides them. Resolve the leaf; keep rendering via `inner`
+      // so the wrapper's own overlays (e.g. pi-history search) are preserved.
+      const leaf = leafEditor(this.inner);
+      const mode = (leaf as { vimState?: { mode?: string } }).vimState?.mode;
       const innerLines = this.inner.render(nativeWidth);
       if (innerLines.length < 2) return applyOuterMargin(innerLines, width);
       return renderEditorFrame({
@@ -949,7 +955,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         width,
         innerLines,
         showingAutocomplete:
-          (this.inner as { isShowingAutocomplete?: () => boolean })
+          (leaf as { isShowingAutocomplete?: () => boolean })
             .isShowingAutocomplete?.() ?? false,
         modeLabel: vimModeLabel(mode),
         preserveBottomBorder: mode === "command-line",
@@ -974,6 +980,24 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     }
     insertTextAtCursor(text: string): void {
       this.inner.insertTextAtCursor?.(text);
+    }
+    // Ghost-completion capability surface: pi-history's HistoryEditor only
+    // enables ghost text when its wrapped editor exposes getLines/getCursor/
+    // insertTextAtCursor (see missingGhostMethodReason). insertTextAtCursor is
+    // already proxied above; expose the other two so the capability check
+    // passes. EditorComponent doesn't declare them, so widen via a cast.
+    getLines(): string[] {
+      const fn = (this.inner as { getLines?(): string[] }).getLines;
+      return fn ? fn.call(this.inner) : this.getText().split("\n");
+    }
+    getCursor(): { line: number; col: number } {
+      const fn = (this.inner as {
+        getCursor?(): { line: number; col: number };
+      }).getCursor;
+      if (fn) return fn.call(this.inner);
+      const lines = this.getLines();
+      const last = Math.max(0, lines.length - 1);
+      return { line: last, col: lines[last]?.length ?? 0 };
     }
     getExpandedText(): string {
       return this.inner.getExpandedText?.() ?? this.inner.getText();
@@ -1094,9 +1118,11 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       return;
     }
 
-    // Frame the editor before the first paint to avoid a flash of the un-framed
-    // default editor on startup / new sessions. (Deferred to resources_discover
-    // as well, but that fires after the first paint window — see installFramedEditor.)
+    // Frame every editor install at install time (closes the un-framed paint
+    // window when a *replacing* editor like pi-vim registers AFTER our pre-frame
+    // — see installEditorInstallInterceptor), then pre-frame the default editor
+    // ahead of the first paint. resources_discover re-affirms both afterward.
+    installEditorInstallInterceptor(ctx);
     installFramedEditor(ctx);
     activeTui = undefined;
     lifecycle.reset();
@@ -1171,6 +1197,94 @@ export default function piTuiShell(pi: ExtensionAPI): void {
    * editor (pi-vim) registers AFTER ours and overwrites our frame, it gets
    * wrapped here. The `FRAME_TAG` keeps both calls idempotent (no double-frame).
    */
+  /**
+   * Walk the `.inner` chain of an editor instance, returning true if any node
+   * is one of our framing editors (`NativePiEditorFrame` / `FrameWrapper`).
+   *
+   * Another extension can install a *transparent* editor wrapper in its own
+   * `session_start` (pi-history's `HistoryEditor` does this) that encloses the
+   * editor we framed in ours. Such a wrapper hides our `FRAME_TAG` (the tag
+   * lives on our factory, not its), so the idempotent unwrap in
+   * `installFramedEditor` can't see it — and naively re-wrapping would stack a
+   * second frame. This inspection lets us detect that case and pass the editor
+   * through unchanged instead.
+   */
+  function chainHasOurFrame(editor: unknown): boolean {
+    let node: unknown = editor;
+    const seen = new Set<unknown>();
+    while (node && typeof node === "object" && !seen.has(node)) {
+      seen.add(node);
+      if (node instanceof NativePiEditorFrame || node instanceof FrameWrapper) {
+        return true;
+      }
+      node = (node as { inner?: unknown } | null)?.inner;
+    }
+    return false;
+  }
+
+  /**
+   * Resolve the *leaf* editor at the bottom of a `.inner` wrapper chain.
+   *
+   * `FrameWrapper` renders the editor it holds and reads two render-time hints
+   * — the vim mode label and native autocomplete visibility — that live on the
+   * leaf editor (e.g. `VimEditor`). When a transparent wrapper such as
+   * pi-history's `HistoryEditor` sits between us and the leaf, those hints are
+   * invisible on the immediate `inner`: `HistoryEditor` has no `vimState`, and
+   * its inherited `isShowingAutocomplete` reports its own (unused) CustomEditor
+   * state rather than the leaf's. Walk to the leaf for those reads.
+   */
+  function leafEditor(editor: unknown): unknown {
+    let node: unknown = editor;
+    const seen = new Set<unknown>();
+    while (node && typeof node === "object" && !seen.has(node)) {
+      seen.add(node);
+      const next = (node as { inner?: unknown } | null)?.inner;
+      if (next === undefined) return node;
+      node = next;
+    }
+    return node;
+  }
+
+  /**
+   * Monkeypatch `ctx.ui.setEditorComponent` so every editor an extension
+   * installs is framed at install time (via `FrameWrapper`, idempotent through
+   * `chainHasOurFrame`).
+   *
+   * Why: an extension that *replaces* the editor in its own `session_start`
+   * (pi-vim) registers an un-framed editor. That editor paints before
+   * `resources_discover` re-frames it (resources_discover fires ~40ms after
+   * that first un-framed paint) — a flash of the old editor. Framing at install
+   * closes the window. It also makes the pi-vim layout match the native one:
+   * pi-history ends up wrapping a *framed* editor (`HistoryEditor(Frame…)`),
+   * exactly as it wraps the framed native editor when pi-vim is absent.
+   *
+   * `getEditorComponent` is left untouched, so pi-history still captures the
+   * (now framed) factory and wraps it. Guarded so repeated `session_start`s
+   * (new sessions) don't stack wrappers on the same `ctx.ui`.
+   */
+  function installEditorInstallInterceptor(ctx: ExtensionContext): void {
+    type SetEditor = ((factory: EditorFactory | undefined) => void) & {
+      __piTuiShellFramed?: boolean;
+    };
+    const ui = ctx.ui as { setEditorComponent: SetEditor };
+    if (ui.setEditorComponent.__piTuiShellFramed) return;
+    const orig = ui.setEditorComponent.bind(ui) as (
+      factory: EditorFactory | undefined,
+    ) => void;
+    const frameFactory = (factory: EditorFactory | undefined) => {
+      if (!factory) return factory;
+      return (tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
+        const inner = factory(tui, theme, keybindings);
+        if (chainHasOurFrame(inner)) return inner;
+        return new FrameWrapper(inner, ctx, tui);
+      };
+    };
+    const wrapped = ((factory: EditorFactory | undefined) =>
+      orig(frameFactory(factory))) as SetEditor;
+    Object.defineProperty(wrapped, "__piTuiShellFramed", { value: true });
+    ui.setEditorComponent = wrapped;
+  }
+
   function installFramedEditor(ctx: ExtensionContext): void {
     const current = ctx.ui.getEditorComponent() as
       | (EditorFactory & { [FRAME_TAG]?: FrameTagPayload })
@@ -1180,10 +1294,17 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     // inner before re-wrapping so we never frame an already-framed editor.
     const tag = current?.[FRAME_TAG];
     const base: EditorFactory | undefined = tag ? tag.inner : current;
-    const factory: EditorFactory = (tui, theme, keybindings) =>
-      base
-        ? new FrameWrapper(base(tui, theme, keybindings), ctx, tui)
-        : new NativePiEditorFrame(tui, theme, keybindings, ctx);
+    const factory: EditorFactory = (tui, theme, keybindings) => {
+      if (!base) return new NativePiEditorFrame(tui, theme, keybindings, ctx);
+      const inner = base(tui, theme, keybindings);
+      // `base` is an untagged factory from another extension (e.g. pi-history's
+      // HistoryEditor). It may already enclose the editor we framed in our
+      // `session_start`; if so, re-wrapping it in a FrameWrapper would draw a
+      // second border. Pass it through unchanged when our frame is already
+      // present in the editor chain.
+      if (chainHasOurFrame(inner)) return inner;
+      return new FrameWrapper(inner, ctx, tui);
+    };
     (factory as EditorFactory & { [FRAME_TAG]?: FrameTagPayload })[FRAME_TAG] = {
       inner: base,
     };

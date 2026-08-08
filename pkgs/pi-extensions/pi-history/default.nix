@@ -16,6 +16,23 @@ stdenv.mkDerivation {
 
   dontBuild = true;
 
+  # Ghost completion works by anchoring on the cursor in the editor's rendered
+  # output. The native editor draws a reverse-video end-of-line cursor cell
+  # (CURSOR_AT_END_RENDER = "\x1b[7m \x1b[0m"); pi-vim in insert mode instead
+  # strips that cell and drives a hardware bar cursor, leaving only the
+  # zero-width CURSOR_MARKER anchor behind — so upstream pi-history's
+  # findGhostTarget finds nothing and disables ghost. ghost-cursor-marker.patch
+  # teaches findGhostTarget/renderGhost to fall back to the CURSOR_MARKER anchor
+  # (rendering the suggestion as dim text right at the hardware cursor), which
+  # restores ghost completion under pi-vim with no change to vim's cursor.
+  patches = [
+    ./ghost-cursor-marker.patch
+  ];
+
+  postPatch = ''
+    substituteInPlace src/history-editor.ts \
+      --replace-fail "this.options.onGhostUnavailable?.(reason);" "/* ghost-unavailable notification suppressed: incompatible with framed modal editors */"
+  '';
   # pi-history ships raw TypeScript (pi.extensions = ["./index.ts"]) that pi
   # loads directly, and its only imports are the @earendil-works/* packages pi
   # injects as peerDependencies at runtime. It therefore has zero runtime

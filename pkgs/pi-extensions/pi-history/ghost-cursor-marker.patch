@@ -1,0 +1,77 @@
+--- a/src/history-editor.ts	2026-08-09 00:47:54.198337768 +1000
++++ b/src/history-editor.ts	2026-08-09 00:47:54.198618128 +1000
+@@ -16,6 +16,7 @@
+ 	type TUI,
+ 	truncateToWidth,
+ 	visibleWidth,
++	CURSOR_MARKER,
+ } from "@earendil-works/pi-tui";
+ 
+ import type { GhostDegradationReason } from "./diagnostics.ts";
+@@ -291,6 +292,23 @@
+ 		const target = this.findGhostTarget(lines);
+ 		if (!target) return lines;
+ 
++		if (target.kind === "marker") {
++			// Hardware-cursor editor (e.g. pi-vim): the reverse-video cursor cell
++			// is stripped, but CURSOR_MARKER (zero-width) remains. Render the
++			// ghost as dim text immediately after the marker so it sits right at
++			// the hardware cursor — no cursor cell to replace, no +1 padding.
++			const beforeGhost = target.line.slice(0, target.cursorStart);
++			const afterCursor = target.line.slice(target.cursorStart);
++			const remainingWidth = Math.max(0, width - visibleWidth(beforeGhost));
++			if (remainingWidth === 0) return lines;
++			const visibleGhost = truncateToWidth(renderedSuffix, remainingWidth, "");
++			if (!visibleGhost) return lines;
++			const nextLines = [...lines];
++			nextLines[target.index] =
++				`${beforeGhost}${ANSI_DIM}${visibleGhost}${ANSI_RESET}${afterCursor}`;
++			return nextLines;
++		}
++
+ 		// Ghost text owns the cursor cell: slice the typed text up to the cursor
+ 		// block and drop the block so its first grapheme can render inside it
+ 		// (see renderGhostLine). Without this the suggestion lands one column
+@@ -344,20 +362,29 @@
+ 
+ 	private findGhostTarget(
+ 		lines: string[],
+-	): { index: number; line: string; cursorStart: number } | undefined {
+-		const index = lines.findIndex((line) => line.includes(CURSOR_AT_END_RENDER));
+-		if (index < 0) {
+-			this.disableGhost("missing_render_seam");
+-			return undefined;
++	): { index: number; line: string; cursorStart: number; kind: "seam" | "marker" } | undefined {
++		// Native editors draw the cursor as a reverse-video cell at the end of
++		// the typed text. Anchor the ghost there.
++		const seamIndex = lines.findIndex((line) => line.includes(CURSOR_AT_END_RENDER));
++		if (seamIndex >= 0) {
++			const line = lines[seamIndex]!;
++			return { index: seamIndex, line, cursorStart: line.indexOf(CURSOR_AT_END_RENDER), kind: "seam" };
++		}
++		// Hardware-cursor editors (e.g. pi-vim in insert mode) strip that cell
++		// and rely on a terminal cursor shape, but the zero-width CURSOR_MARKER
++		// anchor survives. Anchor the ghost right after it.
++		const markerIndex = lines.findIndex((line) => line.includes(CURSOR_MARKER));
++		if (markerIndex >= 0) {
++			const line = lines[markerIndex]!;
++			return {
++				index: markerIndex,
++				line,
++				cursorStart: line.indexOf(CURSOR_MARKER) + CURSOR_MARKER.length,
++				kind: "marker",
++			};
+ 		}
+-		const line = lines[index];
+-		return line
+-			? {
+-					index,
+-					line,
+-					cursorStart: line.indexOf(CURSOR_AT_END_RENDER),
+-				}
+-			: undefined;
++		this.disableGhost("missing_render_seam");
++		return undefined;
+ 	}
+ 
+ 	private disableGhost(reason: GhostDegradationReason): void {
