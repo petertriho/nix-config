@@ -6,7 +6,7 @@
   llm-agents,
 }:
 let
-  version = "0.84.0";
+  version = "0.84.1";
   piVersion = llm-agents.pi.version;
 in
 assert lib.assertMsg (version == piVersion) ''
@@ -32,7 +32,7 @@ buildNpmPackage {
   '';
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-I67GafTZ4I/VTG1wpi5FJReWd9XTNtxtHErQgBUyVFo=";
+  npmDepsHash = "sha256-KuJhlYj2ymHsKISf0XjU6O+Z1a5AFpnlGHrDiuZ9aUo=";
   npmDepsFetcherVersion = 2;
 
   dontNpmBuild = true;

@@ -1,8 +1,8 @@
 {
   "name": "pi-ai-runtime",
-  "version": "0.84.0",
+  "version": "0.84.1",
   "private": true,
   "dependencies": {
-    "@earendil-works/pi-ai": "0.84.0"
+    "@earendil-works/pi-ai": "0.84.1"
   }
 }
