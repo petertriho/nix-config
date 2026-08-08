@@ -30,7 +30,7 @@ let
     pi-history
     pi-lens
     # pi-mcp-adapter
-    # pi-subagents
+    pi-subagents
     pi-tasks
     pi-vcc
     pi-web-access
