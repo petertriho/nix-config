@@ -167,6 +167,7 @@ in
         "tui.altScreen.previousPrompt" = [
           "ctrl+shift+u"
         ];
+        "app.message.dequeue" = [ "ctrl+q" ];
       };
       settings = {
         defaultProjectTrust = "always";
