@@ -275,8 +275,27 @@ const VIM_MODE_LABELS: Record<string, string> = {
   "command-line": "SEARCH",
 };
 
+/**
+ * Per-mode semantic theme color for the vim mode label, mirroring heirline's
+ * vimode.lua mode→hue convention (blue/green/purple/yellow/red) via pi theme
+ * tokens. Pi has no general-purpose purple, so visual mode borrows
+ * `customMessageLabel` — the only token reliably purple in both themes.
+ */
+const VIM_MODE_COLORS: Record<string, FrameColor> = {
+  normal: "accent",
+  insert: "success",
+  visual: "customMessageLabel",
+  "visual-line": "customMessageLabel",
+  replace: "error",
+  "command-line": "warning",
+};
+
 function vimModeLabel(mode: string | undefined): string | undefined {
   return mode ? VIM_MODE_LABELS[mode] : undefined;
+}
+
+function vimModeColor(mode: string | undefined): FrameColor {
+  return (mode && VIM_MODE_COLORS[mode]) || "accent";
 }
 
 export function editorBottomLeftText(
@@ -284,12 +303,13 @@ export function editorBottomLeftText(
   cwd: string,
   width?: number,
   modeLabel?: string,
+  modeColor: FrameColor = "accent",
 ): string {
   // Unconstrained: render the full bottom-left, with an optional leftmost
   // mode label ahead of the cwd (e.g. ` NORMAL · ~/proj `).
   if (width === undefined) {
     const body = modeLabel
-      ? `${span(theme, "accent", modeLabel)}${separator(theme)}${span(theme, "accent", cwd)}`
+      ? `${span(theme, modeColor, modeLabel)}${separator(theme)}${span(theme, "accent", cwd)}`
       : span(theme, "accent", cwd);
     return ` ${body} `;
   }
@@ -312,17 +332,17 @@ export function editorBottomLeftText(
   if (contentWidth <= modeWidth) {
     // Not enough room for the label plus cwd; show the label truncated to fit.
     const truncated = truncateToWidth(modeLabel, contentWidth, "");
-    return `${leftPadding}${span(theme, "accent", truncated)}${rightPadding}`;
+    return `${leftPadding}${span(theme, modeColor, truncated)}${rightPadding}`;
   }
 
   const cwdBudget = contentWidth - modeWidth - sepWidth;
   if (cwdBudget <= 0) {
     // Room for the label itself but not label + separator + cwd; show only the
     // (already-fitting) label rather than overflowing into the separator.
-    return `${leftPadding}${span(theme, "accent", modeLabel)}${rightPadding}`;
+    return `${leftPadding}${span(theme, modeColor, modeLabel)}${rightPadding}`;
   }
   const cwdText = compactCwd(cwd, cwdBudget);
-  return `${leftPadding}${span(theme, "accent", modeLabel)}${sep}${span(theme, "accent", cwdText)}${rightPadding}`;
+  return `${leftPadding}${span(theme, modeColor, modeLabel)}${sep}${span(theme, "accent", cwdText)}${rightPadding}`;
 }
 
 export function editorTopLeftText(
@@ -815,6 +835,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     innerLines: string[];
     showingAutocomplete: boolean;
     modeLabel?: string;
+    modeColor?: FrameColor;
     preserveBottomBorder?: boolean;
   }): string[] {
     const {
@@ -823,6 +844,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       innerLines,
       showingAutocomplete,
       modeLabel,
+      modeColor,
       preserveBottomBorder,
     } = opts;
     const shellWidth = Math.max(1, width - 2);
@@ -840,7 +862,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     const topRight = ` ${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
 
     const cwd = formatCwd(ctx.sessionManager.getCwd());
-    const bottomLeft = editorBottomLeftText(theme, cwd, undefined, modeLabel);
+    const bottomLeft = editorBottomLeftText(theme, cwd, undefined, modeLabel, modeColor);
     const usage = computeSessionUsage(ctx);
     const elapsedMs =
       lifecycle.state !== "ready" && lifecycle.turnStartedAt !== undefined
@@ -860,7 +882,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         bottomLeft,
         bottomRight,
         fitBottomLeft: (maximumWidth) =>
-          editorBottomLeftText(theme, cwd, maximumWidth, modeLabel),
+          editorBottomLeftText(theme, cwd, maximumWidth, modeLabel, modeColor),
       }),
       width,
     );
@@ -958,6 +980,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
           (leaf as { isShowingAutocomplete?: () => boolean })
             .isShowingAutocomplete?.() ?? false,
         modeLabel: vimModeLabel(mode),
+        modeColor: vimModeColor(mode),
         preserveBottomBorder: mode === "command-line",
       });
     }
