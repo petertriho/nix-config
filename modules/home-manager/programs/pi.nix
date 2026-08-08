@@ -155,6 +155,18 @@ in
           "down"
           "ctrl+n"
         ];
+        "tui.altScreen.halfPageDown" = [
+          "ctrl+alt+d"
+        ];
+        "tui.altScreen.halfPageUp" = [
+          "ctrl+alt+u"
+        ];
+        "tui.altScreen.nextPrompt" = [
+          "ctrl+shift+d"
+        ];
+        "tui.altScreen.previousPrompt" = [
+          "ctrl+shift+u"
+        ];
       };
       settings = {
         defaultProjectTrust = "always";
