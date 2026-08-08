@@ -19,13 +19,13 @@ let
     # pi-blackhole
     pi-cache-optimizer
     pi-cliproxyapi-provider
-    pi-dynamic-workflows
+    # pi-dynamic-workflows
     pi-fzfp
     pi-hashline-edit-pro
     pi-history
     pi-lens
     # pi-mcp-adapter
-    pi-subagents
+    # pi-subagents
     pi-tasks
     pi-vcc
     pi-vim
