@@ -382,7 +382,7 @@ function renderStatusFooterContent(
   statuses: Iterable<string>,
   width: number,
 ): string[] {
-  if (width <= 0) return ["", ""];
+  if (width <= 0) return [""];
 
   const stateText =
     lifecycle === "ready"
@@ -391,7 +391,7 @@ function renderStatusFooterContent(
   const fittedState = truncateToWidth(stateText, width, "");
   const statusSeparator = separator(theme);
   const statusText = Array.from(statuses)
-    .map(sanitizeStatusText)
+    .map((s) => sanitizeStatusText(s).replace(/^\s*·\s*/, ""))
     .filter((status) => visibleWidth(status) > 0)
     .join(statusSeparator);
   const statusBudget =
@@ -400,7 +400,7 @@ function renderStatusFooterContent(
     statusBudget > 0 ? truncateToWidth(statusText, statusBudget, "") : "";
   const suffix = fittedStatus ? `${statusSeparator}${fittedStatus}` : "";
 
-  return [`${fittedState}${suffix}`, ""];
+  return [`${fittedState}${suffix}`];
 }
 
 export function renderStatusFooter(
