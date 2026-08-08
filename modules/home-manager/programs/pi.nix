@@ -20,6 +20,7 @@ let
     pi-cache-optimizer
     pi-cliproxyapi-provider
     pi-dynamic-workflows
+    pi-fzfp
     pi-hashline-edit-pro
     pi-history
     pi-lens
@@ -27,6 +28,7 @@ let
     pi-subagents
     pi-tasks
     pi-vcc
+    pi-vim
     pi-web-access
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";

@@ -18,6 +18,7 @@ in
     piAiRuntime = pi-ai-runtime;
   };
   pi-dynamic-workflows = callPackage ./pi-dynamic-workflows { };
+  pi-fzfp = callPackage ./pi-fzfp { };
   pi-hashline-edit-pro = callPackage ./pi-hashline-edit-pro { };
   pi-history = callPackage ./pi-history { };
   pi-lens = callPackage ./pi-lens { };
@@ -25,6 +26,7 @@ in
   pi-subagents = callPackage ./pi-subagents { };
   pi-tasks = callPackage ./pi-tasks { };
   pi-vcc = callPackage ./pi-vcc { };
+  pi-vim = callPackage ./pi-vim { };
   pi-web-access = callPackage ./pi-web-access { };
   rpiv-args = callPackage ./rpiv-args { inherit (rpiv-mono) src version; };
   rpiv-ask-user-question = callPackage ./rpiv-ask-user-question {
