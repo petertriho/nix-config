@@ -727,12 +727,12 @@ function formatContext(
   if (!contextWindow) return { text: "?", percent: null };
 
   const limit = formatTokens(contextWindow);
-  if (!usage || usage.percent === null) {
+  if (!usage || usage.tokens === null) {
     return { text: `?/${limit}`, percent: null };
   }
 
   return {
-    text: `${usage.percent.toFixed(1)}%/${limit}`,
+    text: `${formatTokens(usage.tokens)}/${limit}`,
     percent: usage.percent,
   };
 }
