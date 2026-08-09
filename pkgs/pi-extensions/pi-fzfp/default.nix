@@ -5,7 +5,7 @@
 }:
 stdenv.mkDerivation {
   pname = "pi-fzfp";
-  version = "2.5.0-unstable-2026-06-19";
+  version = "0-unstable-2026-06-19";
 
   src = fetchFromGitHub {
     owner = "burneikis";

@@ -5,7 +5,7 @@
 }:
 stdenv.mkDerivation {
   pname = "pi-vim";
-  version = "1.7.0-unstable-2026-08-04";
+  version = "0-unstable-2026-08-04";
 
   src = fetchFromGitHub {
     owner = "burneikis";
