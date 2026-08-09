@@ -4,8 +4,8 @@ import {
   type ExtensionAPI,
   type ExtensionContext,
   type KeybindingsManager,
-  SessionManager,
   type SessionInfo,
+  SessionManager,
   VERSION,
 } from "@earendil-works/pi-coding-agent";
 import type {
@@ -47,6 +47,19 @@ export type SessionUsage = {
   cost: number;
 };
 
+export type SessionAccounting = {
+  usage: SessionUsage;
+  context: ContextDisplay;
+};
+
+export type SessionAccountingCache = {
+  read(
+    ctx: ExtensionContext,
+    model: ModelInfo | undefined,
+  ): SessionAccounting;
+  invalidate(): void;
+};
+
 export type ShellTheme = ExtensionContext["ui"]["theme"];
 type FrameTheme = ShellTheme;
 type FrameColor = Parameters<FrameTheme["fg"]>[0];
@@ -76,7 +89,7 @@ export type LifecycleController = {
 
 export type DashboardSession = {
   title: string;
-  age: string;
+  modified: Date;
   messageCount: number;
 };
 
@@ -84,7 +97,17 @@ export type DashboardData = {
   version: string;
   recentSessions: DashboardSession[];
   sessionsLoading: boolean;
+  now?: number;
 };
+
+export type SessionListing = {
+  list(
+    cwd: string,
+    sessionDir?: string,
+  ): Promise<SessionInfo[]>;
+};
+
+const RECENT_SESSION_LIMIT = 3;
 
 export function formatSessionAge(date: Date, now = Date.now()): string {
   const elapsedMs = Math.max(0, now - date.getTime());
@@ -101,19 +124,31 @@ export function formatSessionAge(date: Date, now = Date.now()): string {
 }
 
 function recentDashboardSessions(
-  sessions: SessionInfo[],
+  sessions: readonly SessionInfo[],
   currentSessionFile: string | undefined,
 ): DashboardSession[] {
   return sessions
     .filter((session) => session.path !== currentSessionFile)
-    .slice(0, 3)
+    .slice(0, RECENT_SESSION_LIMIT)
     .map((session) => ({
       title:
-        sanitizeStatusText(session.name ?? session.firstMessage) ||
+        sanitizePlainTerminalText(session.name ?? session.firstMessage) ||
         "Untitled session",
-      age: formatSessionAge(session.modified),
+      modified: session.modified,
       messageCount: session.messageCount,
     }));
+}
+
+export async function loadRecentDashboardSessions(
+  sessionListing: SessionListing,
+  cwd: string,
+  sessionDir: string | undefined,
+  currentSessionFile: string | undefined,
+): Promise<DashboardSession[]> {
+  return recentDashboardSessions(
+    await sessionListing.list(cwd, sessionDir),
+    currentSessionFile,
+  );
 }
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: Matches ANSI SGR resets in rendered TUI lines.
@@ -350,7 +385,11 @@ export function editorTopLeftText(
   model: ModelInfo | undefined,
 ): string {
   const identity = model
-    ? `${span(theme, "accent", model.provider)}${span(theme, "dim", "/")}${span(theme, "text", model.id)}`
+    ? `${span(theme, "accent", sanitizePlainTerminalText(model.provider))}${span(
+        theme,
+        "dim",
+        "/",
+      )}${span(theme, "text", sanitizePlainTerminalText(model.id))}`
     : span(theme, "muted", "no model");
   return ` ${identity} `;
 }
@@ -373,11 +412,32 @@ export function editorBottomRightText(
   return ` ${usageStats}${turnTime}${separator(theme)}${span(theme, "muted", "$")}${span(theme, "text", usage.cost.toFixed(3))} `;
 }
 
-function sanitizeStatusText(text: string): string {
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Matches ANSI SGR sequences in extension status text.
+const SAFE_SGR_PATTERN = /\x1b\[[0-9;:]*m/g;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Removes terminal control bytes from untrusted display text.
+const TERMINAL_CONTROL_PATTERN = /[\x00-\x1f\x7f]/g;
+const SGR_PLACEHOLDER_PATTERN = /\uE000(\d+)\uE001/g;
+
+/** Strip terminal controls from untrusted text while keeping printable content. */
+export function sanitizePlainTerminalText(text: string): string {
   return text
-    .replace(/[\r\n\t]/g, " ")
+    .replace(TERMINAL_CONTROL_PATTERN, " ")
     .replace(/ +/g, " ")
     .trim();
+}
+
+/** Preserve extension-supplied SGR colors, but neutralize all other controls. */
+function sanitizeStatusText(text: string): string {
+  const sgrSequences: string[] = [];
+  const protectedText = text.replace(SAFE_SGR_PATTERN, (sequence) => {
+    const placeholder = `\uE000${sgrSequences.length}\uE001`;
+    sgrSequences.push(sequence);
+    return placeholder;
+  });
+  return sanitizePlainTerminalText(protectedText).replace(
+    SGR_PLACEHOLDER_PATTERN,
+    (_placeholder, index: string) => sgrSequences[Number(index)] ?? "",
+  );
 }
 
 export function applyOuterMargin(lines: string[], width: number): string[] {
@@ -473,14 +533,15 @@ function renderDashboardContent(
                     index === data.recentSessions.length - 1 ? "└" : "│",
                   );
             const count = `${session.messageCount} ${session.messageCount === 1 ? "msg" : "msgs"}`;
-            const metadata = `${session.age} · ${count}`;
+            const age = formatSessionAge(session.modified, data.now ?? Date.now());
+            const metadata = `${age} · ${count}`;
             const metadataWidth = visibleWidth(metadata);
             const titleWidth = Math.max(
               0,
               contentWidth - visibleWidth(marker) - metadataWidth - 4,
             );
             const title = truncateToWidth(
-              sanitizeStatusText(session.title),
+              sanitizePlainTerminalText(session.title),
               titleWidth,
               "",
             );
@@ -541,11 +602,54 @@ export function createDashboardComponent(
   theme: ShellTheme,
   getData: () => DashboardData,
 ): Component {
+  let cache:
+    | {
+        width: number;
+        version: string;
+        sessionsLoading: boolean;
+        sessionsKey: string;
+        lines: string[];
+      }
+    | undefined;
+
   return {
     render(width: number): string[] {
-      return renderDashboard(theme, getData(), width);
+      const data = getData();
+      const now = data.now ?? Date.now();
+      const sessionsKey = data.recentSessions
+        .map(
+          (session) =>
+            [
+              session.title,
+              session.modified.getTime(),
+              session.messageCount,
+              formatSessionAge(session.modified, now),
+            ].join("\u0000"),
+        )
+        .join("\u0001");
+
+      if (
+        cache?.width === width &&
+        cache.version === data.version &&
+        cache.sessionsLoading === data.sessionsLoading &&
+        cache.sessionsKey === sessionsKey
+      ) {
+        return cache.lines;
+      }
+
+      const lines = renderDashboard(theme, { ...data, now }, width);
+      cache = {
+        width,
+        version: data.version,
+        sessionsLoading: data.sessionsLoading,
+        sessionsKey,
+        lines,
+      };
+      return lines;
     },
-    invalidate(): void {},
+    invalidate(): void {
+      cache = undefined;
+    },
   };
 }
 
@@ -628,6 +732,26 @@ function formatContext(
   return {
     text: `${usage.percent.toFixed(1)}%/${limit}`,
     percent: usage.percent,
+  };
+}
+
+export function createSessionAccountingCache(): SessionAccountingCache {
+  let cached: SessionAccounting | undefined;
+
+  return {
+    read(
+      ctx: ExtensionContext,
+      model: ModelInfo | undefined,
+    ): SessionAccounting {
+      cached ??= {
+        usage: computeSessionUsage(ctx),
+        context: formatContext(ctx, model),
+      };
+      return cached;
+    },
+    invalidate(): void {
+      cached = undefined;
+    },
   };
 }
 
@@ -721,6 +845,20 @@ function panelLine(line: string, width: number, theme: FrameTheme): string {
   return theme.bg("selectedBg", preserveBackground(` ${content}${padding} `));
 }
 
+function isEditorBorderLine(
+  line: string | undefined,
+  horizontalBorder: string,
+  scrollDirection: "↑" | "↓",
+  width: number,
+): boolean {
+  return (
+    line === horizontalBorder ||
+    (line?.includes(scrollDirection) === true &&
+      line.includes(" more ") &&
+      visibleWidth(line) === width)
+  );
+}
+
 export type EditorShellRows = {
   theme: FrameTheme;
   width: number;
@@ -755,18 +893,17 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
   const border = (text: string) => theme.fg("border", text);
   const nativeWidth = Math.max(1, width - 2);
   const horizontalBorder = border("─").repeat(nativeWidth);
-  const nativeLines = renderedLines.slice(1);
-  let editorLines = nativeLines.slice(0, -1);
+  const hasNativeBorders =
+    renderedLines.length >= 2 &&
+    isEditorBorderLine(renderedLines[0], horizontalBorder, "↑", nativeWidth);
+  const nativeLines = hasNativeBorders ? renderedLines.slice(1) : renderedLines;
+  let editorLines = hasNativeBorders ? nativeLines.slice(0, -1) : nativeLines;
   let autocompleteLines: string[] = [];
   let preservedBottomBorder: string | undefined;
 
-  if (showingAutocomplete) {
-    const editorBottomIndex = nativeLines.findIndex(
-      (line) =>
-        line === horizontalBorder ||
-        (line.includes("↓") &&
-          line.includes(" more ") &&
-          visibleWidth(line) === nativeWidth),
+  if (showingAutocomplete && hasNativeBorders) {
+    const editorBottomIndex = nativeLines.findIndex((line) =>
+      isEditorBorderLine(line, horizontalBorder, "↓", nativeWidth),
     );
 
     if (editorBottomIndex >= 0 && editorBottomIndex < nativeLines.length - 1) {
@@ -778,8 +915,12 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
   // Preserve the wrapped editor's own bottom-border line (e.g. a live vim
   // search prompt) instead of redrawing the shell's bottom border. Only when
   // no autocomplete split consumed that border line.
-  if (preserveBottomBorder && autocompleteLines.length === 0) {
-    preservedBottomBorder = nativeLines[nativeLines.length - 1];
+  if (
+    hasNativeBorders &&
+    preserveBottomBorder &&
+    autocompleteLines.length === 0
+  ) {
+    preservedBottomBorder = nativeLines.at(-1);
   }
   return [
     ...autocompleteLines.map((line) => panelLine(line, width, theme)),
@@ -802,16 +943,27 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
 }
 
 /**
- * Marker stamped on the editor factory pi-tui-shell installs, so a later
- * `resources_discover` re-run (e.g. /reload, when no competing editor
- * re-registers first) can unwrap to the original inner instead of
- * double-framing. Module-scoped: the module loads once (jiti caches it), so the
- * Symbol's identity is stable across extension re-binds and `piTuiShell` calls.
+ * Global symbols survive jiti hot reloads, unlike module-local Symbol() values.
+ * The frame tag exposes the logical inner factory; the interceptor tag retains
+ * the original UI setter so a new extension generation can recover safely.
  */
-const FRAME_TAG = Symbol("pi-tui-shell-frame");
+const FRAME_TAG = Symbol.for("pi-tui-shell-frame");
+const EDITOR_INTERCEPTOR_TAG = Symbol.for("pi-tui-shell-editor-interceptor");
+
+type SetEditor = (factory: EditorFactory | undefined) => void;
+type TaggedEditorFactory = EditorFactory & { [FRAME_TAG]?: FrameTagPayload };
+type InterceptedSetEditor = SetEditor & {
+  [EDITOR_INTERCEPTOR_TAG]?: EditorInterceptorPayload;
+};
+
 interface FrameTagPayload {
   inner: EditorFactory | undefined;
 }
+
+interface EditorInterceptorPayload {
+  original: SetEditor;
+}
+
 export default function piTuiShell(pi: ExtensionAPI): void {
   const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   let activeTui: TUI | undefined;
@@ -820,7 +972,9 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   let sessionsLoading = false;
   let sessionLoadGeneration = 0;
   let tuiSessionActive = false;
+  let restoreEditorInstallInterceptor: (() => void) | undefined;
   const lifecycle = createLifecycleController(() => activeTui?.requestRender());
+  const accounting = createSessionAccountingCache();
 
   // ── Editor frame ───────────────────────────────────────────────────────────
   // pi-tui-shell frames whichever editor is active: the native editor or a
@@ -852,7 +1006,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     const thinking = pi.getThinkingLevel();
     const topLeft = editorTopLeftText(theme, activeModel);
 
-    const context = formatContext(ctx, activeModel);
+    const { context, usage } = accounting.read(ctx, activeModel);
     const contextColor =
       context.percent !== null && context.percent > 90
         ? "error"
@@ -861,9 +1015,10 @@ export default function piTuiShell(pi: ExtensionAPI): void {
           : "text";
     const topRight = ` ${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
 
-    const cwd = formatCwd(ctx.sessionManager.getCwd());
+    const cwd = sanitizePlainTerminalText(
+      formatCwd(ctx.sessionManager.getCwd()),
+    );
     const bottomLeft = editorBottomLeftText(theme, cwd, undefined, modeLabel, modeColor);
-    const usage = computeSessionUsage(ctx);
     const elapsedMs =
       lifecycle.state !== "ready" && lifecycle.turnStartedAt !== undefined
         ? Date.now() - lifecycle.turnStartedAt
@@ -955,6 +1110,12 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     }
     set focused(value: boolean) {
       (this.inner as unknown as { focused: boolean }).focused = value;
+    }
+    get wantsKeyRelease(): boolean | undefined {
+      return this.inner.wantsKeyRelease;
+    }
+    set wantsKeyRelease(value: boolean | undefined) {
+      this.inner.wantsKeyRelease = value;
     }
     render(width: number): string[] {
       const shellWidth = Math.max(1, width - 2);
@@ -1094,11 +1255,28 @@ export default function piTuiShell(pi: ExtensionAPI): void {
 
   pi.on("model_select", (event) => {
     activeModel = event.model;
+    accounting.invalidate();
     activeTui?.requestRender();
   });
 
   pi.on("thinking_level_select", () => {
     activeTui?.requestRender();
+  });
+
+  pi.on("message_end", () => {
+    accounting.invalidate();
+  });
+
+  pi.on("turn_end", () => {
+    accounting.invalidate();
+  });
+
+  pi.on("session_compact", () => {
+    accounting.invalidate();
+  });
+
+  pi.on("session_tree", () => {
+    accounting.invalidate();
   });
 
   pi.on("agent_start", (_event, ctx) => {
@@ -1110,6 +1288,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   pi.on("agent_end", (_event, ctx) => {
     if (!tuiSessionActive) return;
     activeModel = ctx.model;
+    accounting.invalidate();
     lifecycle.end();
   });
 
@@ -1120,18 +1299,22 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   });
 
   pi.on("session_shutdown", () => {
+    restoreEditorInstallInterceptor?.();
     tuiSessionActive = false;
     sessionLoadGeneration += 1;
     activeTui = undefined;
     lifecycle.reset();
+    accounting.invalidate();
     activeModel = undefined;
     recentSessions = [];
     sessionsLoading = false;
   });
 
   pi.on("session_start", (_event, ctx) => {
+    accounting.invalidate();
     tuiSessionActive = ctx.mode === "tui";
     if (!tuiSessionActive) {
+      restoreEditorInstallInterceptor?.();
       sessionLoadGeneration += 1;
       activeTui = undefined;
       lifecycle.reset();
@@ -1183,12 +1366,17 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     );
     const sessionDir = ctx.sessionManager.getSessionDir() || undefined;
     const currentSessionFile = ctx.sessionManager.getSessionFile();
-    void SessionManager.list(ctx.sessionManager.getCwd(), sessionDir)
+    void loadRecentDashboardSessions(
+      SessionManager,
+      ctx.sessionManager.getCwd(),
+      sessionDir,
+      currentSessionFile,
+    )
       .then((sessions) => {
         if (!tuiSessionActive || sessionLoadGeneration !== loadGeneration) {
           return;
         }
-        recentSessions = recentDashboardSessions(sessions, currentSessionFile);
+        recentSessions = sessions;
         sessionsLoading = false;
         activeTui?.requestRender();
       })
@@ -1285,53 +1473,49 @@ export default function piTuiShell(pi: ExtensionAPI): void {
    * (now framed) factory and wraps it. Guarded so repeated `session_start`s
    * (new sessions) don't stack wrappers on the same `ctx.ui`.
    */
+  function createFramedEditorFactory(
+    candidate: EditorFactory | undefined,
+    ctx: ExtensionContext,
+  ): TaggedEditorFactory {
+    const base =
+      (candidate as TaggedEditorFactory | undefined)?.[FRAME_TAG]?.inner ??
+      candidate;
+    const factory: TaggedEditorFactory = (tui, theme, keybindings) => {
+      if (!base) return new NativePiEditorFrame(tui, theme, keybindings, ctx);
+      const inner = base(tui, theme, keybindings);
+      if (chainHasOurFrame(inner)) return inner;
+      return new FrameWrapper(inner, ctx, tui);
+    };
+    factory[FRAME_TAG] = { inner: base };
+    return factory;
+  }
+
   function installEditorInstallInterceptor(ctx: ExtensionContext): void {
-    type SetEditor = ((factory: EditorFactory | undefined) => void) & {
-      __piTuiShellFramed?: boolean;
-    };
-    const ui = ctx.ui as { setEditorComponent: SetEditor };
-    if (ui.setEditorComponent.__piTuiShellFramed) return;
-    const orig = ui.setEditorComponent.bind(ui) as (
-      factory: EditorFactory | undefined,
-    ) => void;
-    const frameFactory = (factory: EditorFactory | undefined) => {
-      if (!factory) return factory;
-      return (tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
-        const inner = factory(tui, theme, keybindings);
-        if (chainHasOurFrame(inner)) return inner;
-        return new FrameWrapper(inner, ctx, tui);
-      };
-    };
-    const wrapped = ((factory: EditorFactory | undefined) =>
-      orig(frameFactory(factory))) as SetEditor;
-    Object.defineProperty(wrapped, "__piTuiShellFramed", { value: true });
+    restoreEditorInstallInterceptor?.();
+
+    const ui = ctx.ui as { setEditorComponent: InterceptedSetEditor };
+    const currentSetter = ui.setEditorComponent;
+    const previousInterceptor = currentSetter[EDITOR_INTERCEPTOR_TAG];
+    const original = previousInterceptor?.original ?? currentSetter;
+    const wrapped = ((factory: EditorFactory | undefined) => {
+      original(createFramedEditorFactory(factory, ctx));
+    }) as InterceptedSetEditor;
+    wrapped[EDITOR_INTERCEPTOR_TAG] = { original };
     ui.setEditorComponent = wrapped;
+
+    restoreEditorInstallInterceptor = () => {
+      if (ui.setEditorComponent === wrapped) {
+        ui.setEditorComponent = original as InterceptedSetEditor;
+      }
+      restoreEditorInstallInterceptor = undefined;
+    };
   }
 
   function installFramedEditor(ctx: ExtensionContext): void {
     const current = ctx.ui.getEditorComponent() as
-      | (EditorFactory & { [FRAME_TAG]?: FrameTagPayload })
+      | TaggedEditorFactory
       | undefined;
-    // Idempotent re-wrap: if the live factory is one we tagged previously (e.g.
-    // /reload, when no competing editor re-registers first), unwrap to its
-    // inner before re-wrapping so we never frame an already-framed editor.
-    const tag = current?.[FRAME_TAG];
-    const base: EditorFactory | undefined = tag ? tag.inner : current;
-    const factory: EditorFactory = (tui, theme, keybindings) => {
-      if (!base) return new NativePiEditorFrame(tui, theme, keybindings, ctx);
-      const inner = base(tui, theme, keybindings);
-      // `base` is an untagged factory from another extension (e.g. pi-history's
-      // HistoryEditor). It may already enclose the editor we framed in our
-      // `session_start`; if so, re-wrapping it in a FrameWrapper would draw a
-      // second border. Pass it through unchanged when our frame is already
-      // present in the editor chain.
-      if (chainHasOurFrame(inner)) return inner;
-      return new FrameWrapper(inner, ctx, tui);
-    };
-    (factory as EditorFactory & { [FRAME_TAG]?: FrameTagPayload })[FRAME_TAG] = {
-      inner: base,
-    };
-    ctx.ui.setEditorComponent(factory);
+    ctx.ui.setEditorComponent(current?.[FRAME_TAG]?.inner ?? current);
   }
 
   // Install the framed editor EARLY in `session_start` (ahead of the first
