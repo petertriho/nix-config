@@ -4,11 +4,10 @@ import {
   type ExtensionAPI,
   type ExtensionContext,
   type KeybindingsManager,
-  type SessionInfo,
-  SessionManager,
   VERSION,
 } from "@earendil-works/pi-coding-agent";
 import type {
+  AutocompleteItem,
   AutocompleteProvider,
   Component,
   EditorComponent,
@@ -16,7 +15,11 @@ import type {
   Focusable,
   TUI,
 } from "@earendil-works/pi-tui";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import {
+  stripTerminalSequences,
+  truncateToWidth,
+  visibleWidth,
+} from "@earendil-works/pi-tui";
 
 /**
  * Factory pi stores via `ctx.ui.setEditorComponent`. Not re-exported by the
@@ -87,68 +90,73 @@ export type LifecycleController = {
   reset(): void;
 };
 
-export type DashboardSession = {
-  title: string;
-  modified: Date;
-  messageCount: number;
+export type DashboardCommand = {
+  name: string;
+  description?: string;
 };
 
 export type DashboardData = {
   version: string;
-  recentSessions: DashboardSession[];
-  sessionsLoading: boolean;
-  now?: number;
+  commands: DashboardCommand[];
+  commandsLoading: boolean;
 };
 
-export type SessionListing = {
-  list(
-    cwd: string,
-    sessionDir?: string,
-  ): Promise<SessionInfo[]>;
-};
+const DASHBOARD_COMMAND_LIMIT = 4;
 
-const RECENT_SESSION_LIMIT = 3;
+type RandomSource = () => number;
 
-export function formatSessionAge(date: Date, now = Date.now()): string {
-  const elapsedMs = Math.max(0, now - date.getTime());
-  const minutes = Math.floor(elapsedMs / 60_000);
-  const hours = Math.floor(elapsedMs / 3_600_000);
-  const days = Math.floor(elapsedMs / 86_400_000);
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  if (days < 7) return `${days}d`;
-  if (days < 30) return `${Math.floor(days / 7)}w`;
-  if (days < 365) return `${Math.floor(days / 30)}mo`;
-  return `${Math.floor(days / 365)}y`;
+function normalizeAutocompleteCommand(
+  item: AutocompleteItem,
+): DashboardCommand | undefined {
+  const name = sanitizePlainTerminalText(item.value)
+    .replace(/^\/+/, "")
+    .trim();
+  if (!name) return undefined;
+  const description = sanitizePlainTerminalText(item.description ?? "").trim();
+  return {
+    name,
+    ...(description ? { description } : {}),
+  };
 }
 
-function recentDashboardSessions(
-  sessions: readonly SessionInfo[],
-  currentSessionFile: string | undefined,
-): DashboardSession[] {
-  return sessions
-    .filter((session) => session.path !== currentSessionFile)
-    .slice(0, RECENT_SESSION_LIMIT)
-    .map((session) => ({
-      title:
-        sanitizePlainTerminalText(session.name ?? session.firstMessage) ||
-        "Untitled session",
-      modified: session.modified,
-      messageCount: session.messageCount,
-    }));
+export async function discoverDashboardCommands(
+  provider: AutocompleteProvider,
+  signal = new AbortController().signal,
+): Promise<DashboardCommand[]> {
+  const suggestions = await provider.getSuggestions(["/"], 0, 1, { signal });
+  if (!suggestions) return [];
+
+  const commands: DashboardCommand[] = [];
+  const seen = new Set<string>();
+  for (const item of suggestions.items) {
+    const command = normalizeAutocompleteCommand(item);
+    if (!command || seen.has(command.name)) continue;
+    seen.add(command.name);
+    commands.push(command);
+  }
+  return commands;
 }
 
-export async function loadRecentDashboardSessions(
-  sessionListing: SessionListing,
-  cwd: string,
-  sessionDir: string | undefined,
-  currentSessionFile: string | undefined,
-): Promise<DashboardSession[]> {
-  return recentDashboardSessions(
-    await sessionListing.list(cwd, sessionDir),
-    currentSessionFile,
-  );
+export function sampleDashboardCommands(
+  commands: readonly DashboardCommand[],
+  limit = DASHBOARD_COMMAND_LIMIT,
+  random: RandomSource = Math.random,
+): DashboardCommand[] {
+  const pool = [...commands];
+  const count = Math.min(pool.length, Math.max(0, Math.floor(limit)));
+  for (let index = 0; index < count; index += 1) {
+    const value = random();
+    const draw = Number.isFinite(value)
+      ? Math.max(0, Math.min(1 - Number.EPSILON, value))
+      : 0;
+    const selected = index + Math.floor(draw * (pool.length - index));
+    const currentCommand = pool[index];
+    const selectedCommand = pool[selected];
+    if (!currentCommand || !selectedCommand) break;
+    pool[index] = selectedCommand;
+    pool[selected] = currentCommand;
+  }
+  return pool.slice(0, count);
 }
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: Matches ANSI SGR resets in rendered TUI lines.
@@ -420,7 +428,7 @@ const SGR_PLACEHOLDER_PATTERN = /\uE000(\d+)\uE001/g;
 
 /** Strip terminal controls from untrusted text while keeping printable content. */
 export function sanitizePlainTerminalText(text: string): string {
-  return text
+  return stripTerminalSequences(text)
     .replace(TERMINAL_CONTROL_PATTERN, " ")
     .replace(/ +/g, " ")
     .trim();
@@ -519,55 +527,57 @@ function renderDashboardContent(
   logoRows.push(span(theme, "dim", `v${data.version}`));
 
   const contentRows = (contentWidth: number) => {
-    const recentRows = data.sessionsLoading
-      ? [span(theme, "muted", "Loading recent sessions…")]
-      : data.recentSessions.length === 0
-        ? [span(theme, "muted", "No recent sessions yet")]
-        : data.recentSessions.map((session, index) => {
-            const marker =
-              index === 0
-                ? span(theme, "accent", "●")
-                : span(
-                    theme,
-                    "dim",
-                    index === data.recentSessions.length - 1 ? "└" : "│",
-                  );
-            const count = `${session.messageCount} ${session.messageCount === 1 ? "msg" : "msgs"}`;
-            const age = formatSessionAge(session.modified, data.now ?? Date.now());
-            const metadata = `${age} · ${count}`;
-            const metadataWidth = visibleWidth(metadata);
-            const titleWidth = Math.max(
-              0,
-              contentWidth - visibleWidth(marker) - metadataWidth - 4,
-            );
-            const title = truncateToWidth(
-              sanitizePlainTerminalText(session.title),
-              titleWidth,
-              "",
-            );
-            const styledTitle = span(
-              theme,
-              index === 0 ? "accent" : "text",
-              title,
-            );
-            const padding = " ".repeat(
-              Math.max(
-                2,
-                contentWidth -
-                  visibleWidth(marker) -
-                  visibleWidth(title) -
-                  metadataWidth -
-                  1,
-              ),
-            );
-            return `${marker} ${styledTitle}${padding}${span(theme, "dim", metadata)}`;
-          });
+    let commandRows: string[];
+    if (data.commandsLoading) {
+      commandRows = [span(theme, "muted", "Discovering commands…")];
+    } else if (data.commands.length === 0) {
+      commandRows = [span(theme, "muted", "Type / to browse commands")];
+    } else {
+      const names = data.commands.map(
+        (command) => `/${sanitizePlainTerminalText(command.name)}`,
+      );
+      const nameColumnWidth = Math.min(
+        Math.max(...names.map(visibleWidth)),
+        Math.max(0, Math.floor(contentWidth * 0.45)),
+      );
+      commandRows = data.commands.map((command, index) => {
+        let marker: string;
+        if (index === 0) {
+          marker = span(theme, "accent", "●");
+        } else {
+          const connector =
+            index === data.commands.length - 1 ? "└" : "│";
+          marker = span(theme, "dim", connector);
+        }
+        const name = truncateToWidth(
+          `/${sanitizePlainTerminalText(command.name)}`,
+          nameColumnWidth,
+          "",
+        );
+        const descriptionWidth = Math.max(
+          0,
+          contentWidth - visibleWidth(marker) - nameColumnWidth - 3,
+        );
+        const description = truncateToWidth(
+          sanitizePlainTerminalText(command.description ?? ""),
+          descriptionWidth,
+          "",
+        );
+        const padding = description
+          ? " ".repeat(
+              Math.max(2, nameColumnWidth - visibleWidth(name) + 2),
+            )
+          : "";
+        const styledName = span(
+          theme,
+          index === 0 ? "accent" : "text",
+          name,
+        );
+        return `${marker} ${styledName}${padding}${span(theme, "dim", description)}`;
+      });
+    }
 
-    return [
-      span(theme, "muted", "recent sessions"),
-      ...recentRows,
-      `${span(theme, "accent", "/resume")} ${span(theme, "dim", "open a session")}`,
-    ];
+    return [span(theme, "muted", "try a command"), ...commandRows];
   };
 
   if (width >= 50) {
@@ -576,7 +586,8 @@ function renderDashboardContent(
     const rowsContent = contentRows(availableContentWidth);
     const rowCount = Math.max(logoRows.length, rowsContent.length);
     const rows = Array.from({ length: rowCount }, (_, index) => {
-      const logo = logoRows[index] ?? " ".repeat(logoWidth);
+      const logoText = logoRows[index] ?? "";
+      const logo = `${logoText}${" ".repeat(Math.max(0, logoWidth - visibleWidth(logoText)))}`;
       const content = rowsContent[index] ?? "";
       return fit(`${logo}${content ? "   " : ""}${content}`);
     });
@@ -606,8 +617,8 @@ export function createDashboardComponent(
     | {
         width: number;
         version: string;
-        sessionsLoading: boolean;
-        sessionsKey: string;
+        commandsLoading: boolean;
+        commandsKey: string;
         lines: string[];
       }
     | undefined;
@@ -615,34 +626,25 @@ export function createDashboardComponent(
   return {
     render(width: number): string[] {
       const data = getData();
-      const now = data.now ?? Date.now();
-      const sessionsKey = data.recentSessions
-        .map(
-          (session) =>
-            [
-              session.title,
-              session.modified.getTime(),
-              session.messageCount,
-              formatSessionAge(session.modified, now),
-            ].join("\u0000"),
-        )
+      const commandsKey = data.commands
+        .map((command) => `${command.name}\u0000${command.description ?? ""}`)
         .join("\u0001");
 
       if (
         cache?.width === width &&
         cache.version === data.version &&
-        cache.sessionsLoading === data.sessionsLoading &&
-        cache.sessionsKey === sessionsKey
+        cache.commandsLoading === data.commandsLoading &&
+        cache.commandsKey === commandsKey
       ) {
         return cache.lines;
       }
 
-      const lines = renderDashboard(theme, { ...data, now }, width);
+      const lines = renderDashboard(theme, data, width);
       cache = {
         width,
         version: data.version,
-        sessionsLoading: data.sessionsLoading,
-        sessionsKey,
+        commandsLoading: data.commandsLoading,
+        commandsKey,
         lines,
       };
       return lines;
@@ -968,9 +970,11 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   let activeTui: TUI | undefined;
   let activeModel: ModelInfo | undefined;
-  let recentSessions: DashboardSession[] = [];
-  let sessionsLoading = false;
-  let sessionLoadGeneration = 0;
+  let dashboardCommands: DashboardCommand[] = [];
+  let commandsLoading = false;
+  let commandPoolKey = "";
+  let dashboardGeneration = 0;
+  let commandDiscoveryAbort: AbortController | undefined;
   let tuiSessionActive = false;
   let restoreEditorInstallInterceptor: (() => void) | undefined;
   const lifecycle = createLifecycleController(() => activeTui?.requestRender());
@@ -1253,6 +1257,52 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     }
   }
 
+  function installCommandDiscovery(
+    ctx: ExtensionContext,
+    generation: number,
+  ): void {
+    const controller = commandDiscoveryAbort;
+    if (!controller) return;
+
+    ctx.ui.addAutocompleteProvider((provider) => {
+      void discoverDashboardCommands(provider, controller.signal)
+        .then((commands) => {
+          if (
+            controller.signal.aborted ||
+            !tuiSessionActive ||
+            dashboardGeneration !== generation
+          ) {
+            return;
+          }
+          const poolKey = commands
+            .map(
+              (command) => `${command.name}\u0000${command.description ?? ""}`,
+            )
+            .join("\u0001");
+          if (poolKey !== commandPoolKey) {
+            dashboardCommands = sampleDashboardCommands(commands);
+            commandPoolKey = poolKey;
+          }
+          commandsLoading = false;
+          activeTui?.requestRender();
+        })
+        .catch(() => {
+          if (
+            controller.signal.aborted ||
+            !tuiSessionActive ||
+            dashboardGeneration !== generation
+          ) {
+            return;
+          }
+          dashboardCommands = [];
+          commandPoolKey = "";
+          commandsLoading = false;
+          activeTui?.requestRender();
+        });
+      return provider;
+    });
+  }
+
   pi.on("model_select", (event) => {
     activeModel = event.model;
     accounting.invalidate();
@@ -1300,14 +1350,17 @@ export default function piTuiShell(pi: ExtensionAPI): void {
 
   pi.on("session_shutdown", () => {
     restoreEditorInstallInterceptor?.();
+    commandDiscoveryAbort?.abort();
+    commandDiscoveryAbort = undefined;
     tuiSessionActive = false;
-    sessionLoadGeneration += 1;
+    dashboardGeneration += 1;
     activeTui = undefined;
     lifecycle.reset();
     accounting.invalidate();
     activeModel = undefined;
-    recentSessions = [];
-    sessionsLoading = false;
+    dashboardCommands = [];
+    commandPoolKey = "";
+    commandsLoading = false;
   });
 
   pi.on("session_start", (_event, ctx) => {
@@ -1315,12 +1368,15 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     tuiSessionActive = ctx.mode === "tui";
     if (!tuiSessionActive) {
       restoreEditorInstallInterceptor?.();
-      sessionLoadGeneration += 1;
+      commandDiscoveryAbort?.abort();
+      commandDiscoveryAbort = undefined;
+      dashboardGeneration += 1;
       activeTui = undefined;
       lifecycle.reset();
       activeModel = undefined;
-      recentSessions = [];
-      sessionsLoading = false;
+      dashboardCommands = [];
+      commandPoolKey = "";
+      commandsLoading = false;
       return;
     }
 
@@ -1333,10 +1389,14 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     activeTui = undefined;
     lifecycle.reset();
     activeModel = ctx.model;
-    recentSessions = [];
-    sessionsLoading = true;
-    const loadGeneration = sessionLoadGeneration + 1;
-    sessionLoadGeneration = loadGeneration;
+    commandDiscoveryAbort?.abort();
+    dashboardCommands = [];
+    commandPoolKey = "";
+    commandsLoading = true;
+    dashboardGeneration += 1;
+    const generation = dashboardGeneration;
+    commandDiscoveryAbort = new AbortController();
+    installCommandDiscovery(ctx, generation);
     ctx.ui.setWorkingVisible(false);
     ctx.ui.setFooter((tui, theme, provider) => {
       activeTui = tui;
@@ -1360,35 +1420,10 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     ctx.ui.setHeader((_tui, theme) =>
       createDashboardComponent(theme, () => ({
         version: VERSION,
-        recentSessions,
-        sessionsLoading,
+        commands: dashboardCommands,
+        commandsLoading,
       })),
     );
-    const sessionDir = ctx.sessionManager.getSessionDir() || undefined;
-    const currentSessionFile = ctx.sessionManager.getSessionFile();
-    void loadRecentDashboardSessions(
-      SessionManager,
-      ctx.sessionManager.getCwd(),
-      sessionDir,
-      currentSessionFile,
-    )
-      .then((sessions) => {
-        if (!tuiSessionActive || sessionLoadGeneration !== loadGeneration) {
-          return;
-        }
-        recentSessions = sessions;
-        sessionsLoading = false;
-        activeTui?.requestRender();
-      })
-      .catch(() => {
-        if (!tuiSessionActive || sessionLoadGeneration !== loadGeneration) {
-          return;
-        }
-        recentSessions = [];
-        sessionsLoading = false;
-        activeTui?.requestRender();
-      });
-
   });
 
   /**
