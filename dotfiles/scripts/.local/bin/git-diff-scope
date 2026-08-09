@@ -1,0 +1,460 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+from pathlib import Path
+
+# Bump when removing or renaming output fields consumed by the skills.
+SCHEMA_VERSION = 1
+HUNK_HEADER = re.compile(rb"^@@ -\d+(?:,\d+)? \+(?P<start>\d+)(?:,(?P<count>\d+))? @@")
+
+
+class ScopeError(Exception):
+    def __init__(self, code, message, details=None):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.details = details or {}
+
+
+def run(command, cwd, *, input_bytes=None, check=True):
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        input=input_bytes,
+        capture_output=True,
+        check=False,
+    )
+    if check and result.returncode != 0:
+        message = result.stderr.decode("utf-8", "replace").strip()
+        raise ScopeError(
+            "git_failed",
+            message or f"command exited with status {result.returncode}",
+            {"command": command, "exit_status": result.returncode},
+        )
+    return result
+
+
+def git(root, *arguments, literal=False, check=True, input_bytes=None):
+    command = ["git"]
+    if literal:
+        command.append("--literal-pathspecs")
+    command.extend(arguments)
+    return run(command, root, input_bytes=input_bytes, check=check)
+
+
+def text(value):
+    return value.decode("utf-8", "surrogateescape")
+
+
+def discover_root(cwd):
+    result = run(["git", "rev-parse", "--show-toplevel"], cwd, check=False)
+    if result.returncode != 0:
+        raise ScopeError(
+            "not_repository", "current directory is not in a Git repository"
+        )
+    return Path(os.fsdecode(result.stdout.rstrip(b"\n"))).absolute()
+
+
+def head_baseline(root):
+    head = git(root, "rev-parse", "--verify", "HEAD", check=False)
+    if head.returncode == 0:
+        return {
+            "label": "HEAD",
+            "oid": head.stdout.decode("ascii").strip(),
+            "unborn_head": False,
+        }
+    empty_tree = git(
+        root,
+        "hash-object",
+        "-t",
+        "tree",
+        "--stdin",
+        input_bytes=b"",
+    )
+    return {
+        "label": "<empty-tree>",
+        "oid": empty_tree.stdout.decode("ascii").strip(),
+        "unborn_head": True,
+    }
+
+
+def ref_baseline(root, ref):
+    result = git(
+        root,
+        "rev-parse",
+        "--verify",
+        "--end-of-options",
+        f"{ref}^{{commit}}",
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ScopeError("invalid_ref", f"invalid commit ref: {ref}", {"ref": ref})
+    return {
+        "label": ref,
+        "oid": result.stdout.decode("ascii").strip(),
+        "unborn_head": False,
+    }
+
+
+def normalize_paths(cwd, root, paths):
+    root_text = os.path.abspath(root)
+    normalized = []
+    for path in paths:
+        absolute = os.path.abspath(os.path.join(cwd, path))
+        try:
+            inside = os.path.commonpath([root_text, absolute]) == root_text
+        except ValueError:
+            inside = False
+        if not inside:
+            raise ScopeError(
+                "path_outside_repository",
+                f"path is outside the repository: {path}",
+                {"path": path},
+            )
+        normalized.append(os.path.relpath(absolute, root_text))
+    return normalized
+
+
+def parse_status(payload):
+    tokens = payload.split(b"\0")
+    if tokens and not tokens[-1]:
+        tokens.pop()
+    entries = []
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        index += 1
+        if not token:
+            raise ScopeError("invalid_git_output", "empty status token in Git output")
+        status = chr(token[0])
+        score = int(token[1:]) if token[1:].isdigit() else None
+        if status in {"R", "C"}:
+            if index + 1 >= len(tokens):
+                raise ScopeError(
+                    "invalid_git_output",
+                    f"status {text(token)} did not contain two paths",
+                )
+            old_path = os.fsdecode(tokens[index])
+            path = os.fsdecode(tokens[index + 1])
+            index += 2
+        else:
+            if index >= len(tokens):
+                raise ScopeError(
+                    "invalid_git_output",
+                    f"status {text(token)} did not contain a path",
+                )
+            old_path = None
+            path = os.fsdecode(tokens[index])
+            index += 1
+        entries.append(
+            {
+                "status": status,
+                "score": score,
+                "old_path": old_path,
+                "path": path,
+            }
+        )
+    return entries
+
+
+def changed_ranges(patch):
+    ranges = []
+    for line in patch.splitlines():
+        match = HUNK_HEADER.match(line)
+        if not match:
+            continue
+        count = int(match.group("count") or b"1")
+        if count:
+            ranges.append({"start": int(match.group("start")), "count": count})
+    return ranges
+
+
+def index_metadata(root, path):
+    output = git(root, "ls-files", "-s", "-z", "--", path, literal=True).stdout
+    for record in output.split(b"\0"):
+        if not record:
+            continue
+        try:
+            header, _ = record.split(b"\t", 1)
+            mode, oid, stage = header.split(b" ", 2)
+        except ValueError as error:
+            raise ScopeError(
+                "invalid_git_output",
+                f"could not parse index metadata for {path}",
+            ) from error
+        if stage == b"0":
+            return mode.decode("ascii"), oid.decode("ascii")
+    return None, None
+
+
+def type_from_mode(mode):
+    if mode == "120000":
+        return "symlink"
+    if mode == "160000":
+        return "submodule"
+    if mode and mode.startswith("100"):
+        return "regular"
+    return "missing" if mode is None else "other"
+
+
+def worktree_type(root, path):
+    try:
+        mode = os.lstat(os.path.join(root, path)).st_mode
+    except FileNotFoundError:
+        return "missing"
+    if stat.S_ISLNK(mode):
+        return "symlink"
+    if stat.S_ISREG(mode):
+        return "regular"
+    if stat.S_ISDIR(mode):
+        return "directory"
+    return "other"
+
+
+def path_metadata(root, path, scope_kind, untracked):
+    if untracked:
+        return worktree_type(root, path), None, None
+    mode, blob_oid = index_metadata(root, path)
+    if mode == "160000":
+        path_type = "submodule"
+    elif scope_kind == "staged":
+        path_type = type_from_mode(mode)
+    else:
+        path_type = worktree_type(root, path)
+    return path_type, mode, blob_oid
+
+
+def diff(root, scope_kind, baseline_oid, context, paths):
+    arguments = ["diff"]
+    if scope_kind == "staged":
+        arguments.append("--cached")
+    arguments.extend(
+        [
+            f"--unified={context}",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--find-renames",
+            "--find-copies",
+            baseline_oid,
+            "--",
+            *paths,
+        ]
+    )
+    return git(root, *arguments, literal=True).stdout
+
+
+def status_entries(root, scope_kind, baseline_oid, paths):
+    arguments = ["diff"]
+    if scope_kind == "staged":
+        arguments.append("--cached")
+    arguments.extend(
+        [
+            "--name-status",
+            "-z",
+            "--find-renames",
+            "--find-copies",
+            baseline_oid,
+            "--",
+            *paths,
+        ]
+    )
+    return parse_status(git(root, *arguments, literal=True).stdout)
+
+
+def untracked_entries(root, scope_kind, paths):
+    if scope_kind != "default" and not paths:
+        return []
+    output = git(
+        root,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
+        "--",
+        *paths,
+        literal=True,
+    ).stdout
+    return [
+        {"status": "?", "score": None, "old_path": None, "path": os.fsdecode(path)}
+        for path in output.split(b"\0")
+        if path
+    ]
+
+
+def enrich_entry(root, scope_kind, baseline_oid, patch_context, entry):
+    untracked = entry["status"] == "?"
+    patch_paths = [entry["path"]]
+    if entry["old_path"] is not None:
+        patch_paths.insert(0, entry["old_path"])
+
+    if untracked:
+        patch = b""
+        range_patch = b""
+    else:
+        patch = diff(root, scope_kind, baseline_oid, patch_context, patch_paths)
+        range_patch = (
+            patch
+            if patch_context == 0
+            else diff(root, scope_kind, baseline_oid, 0, patch_paths)
+        )
+
+    path_type, mode, blob_oid = path_metadata(
+        root,
+        entry["path"],
+        scope_kind,
+        untracked,
+    )
+    unstaged = b""
+    if scope_kind == "staged" and not untracked:
+        unstaged = git(
+            root,
+            "diff",
+            "--unified=0",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--",
+            entry["path"],
+            literal=True,
+        ).stdout
+
+    return {
+        **entry,
+        "type": path_type,
+        "mode": mode,
+        "blob_oid": blob_oid,
+        "patch": text(patch),
+        "ranges": changed_ranges(range_patch),
+        "unstaged_patch": text(unstaged),
+    }
+
+
+def path_matches(path, request):
+    return request == "." or path == request or path.startswith(f"{request}{os.sep}")
+
+
+def requested_without_diff(root, requested_paths, entries):
+    missing = []
+    for request in requested_paths:
+        matched = any(
+            path_matches(entry["path"], request)
+            or (
+                entry["old_path"] is not None
+                and path_matches(entry["old_path"], request)
+            )
+            for entry in entries
+        )
+        if matched:
+            continue
+        missing.append(
+            {
+                "path": request,
+                "exists": worktree_type(root, request) != "missing",
+                "tracked": bool(
+                    git(root, "ls-files", "-z", "--", request, literal=True).stdout
+                ),
+            }
+        )
+    return missing
+
+
+def resolve(arguments):
+    cwd = os.path.abspath(os.getcwd())
+    root = discover_root(cwd)
+    paths = normalize_paths(cwd, root, arguments.paths)
+    if arguments.ref is not None:
+        scope_kind = "ref"
+        baseline = ref_baseline(root, arguments.ref)
+    else:
+        scope_kind = "staged" if arguments.staged else "default"
+        baseline = head_baseline(root)
+
+    raw_entries = status_entries(root, scope_kind, baseline["oid"], paths)
+    known_paths = {entry["path"] for entry in raw_entries}
+    raw_entries.extend(
+        entry
+        for entry in untracked_entries(root, scope_kind, paths)
+        if entry["path"] not in known_paths
+    )
+    entries = [
+        enrich_entry(root, scope_kind, baseline["oid"], arguments.patch_context, entry)
+        for entry in raw_entries
+    ]
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "repository_root": os.fspath(root),
+        "scope": {
+            "kind": scope_kind,
+            "baseline": baseline,
+            "requested_paths": paths,
+            "patch_context": arguments.patch_context,
+        },
+        "entries": entries,
+        "requested_without_diff": requested_without_diff(root, paths, entries),
+    }
+
+
+def parser():
+    result = argparse.ArgumentParser(
+        prog="git diff-scope",
+        description="Resolve a safe Git diff scope and emit structured JSON.",
+    )
+    modes = result.add_mutually_exclusive_group()
+    modes.add_argument("--staged", action="store_true", help="inspect index changes")
+    modes.add_argument("--ref", help="compare the working tree with a commit ref")
+    result.add_argument(
+        "--patch-context",
+        type=int,
+        default=3,
+        metavar="LINES",
+        help="unified context lines included in each patch (default: 3)",
+    )
+    result.add_argument("--pretty", action="store_true", help="pretty-print JSON")
+    result.add_argument("--version", action="version", version="git-diff-scope 1")
+    result.add_argument("paths", nargs="*", help="literal paths, usually after --")
+    return result
+
+
+def write_json(payload, stream, pretty):
+    json.dump(
+        payload,
+        stream,
+        ensure_ascii=True,
+        indent=2 if pretty else None,
+        sort_keys=pretty,
+    )
+    stream.write("\n")
+
+
+def main():
+    argument_parser = parser()
+    arguments = argument_parser.parse_args()
+    if arguments.patch_context < 0:
+        argument_parser.error("--patch-context must be non-negative")
+    try:
+        payload = resolve(arguments)
+    except ScopeError as error:
+        write_json(
+            {
+                "schema_version": SCHEMA_VERSION,
+                "error": {
+                    "code": error.code,
+                    "message": error.message,
+                    "details": error.details,
+                },
+            },
+            sys.stderr,
+            arguments.pretty,
+        )
+        return 1
+    write_json(payload, sys.stdout, arguments.pretty)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
