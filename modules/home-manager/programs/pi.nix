@@ -41,6 +41,12 @@ let
   # the piMutableSettings activation entry below.
   settingsJson = jsonFormat.generate "pi-coding-agent-settings.json" cfg.settings;
 
+  outputStyleIsValid = cfg.outputStyle == null || builtins.hasAttr cfg.outputStyle cfg.outputStyles;
+  selectedOutputStyle =
+    if cfg.outputStyle != null && outputStyleIsValid then cfg.outputStyles.${cfg.outputStyle} else null;
+  mkOutputStyleEntry =
+    content: if lib.hm.strings.isPathLike content then { source = content; } else { text = content; };
+
   # Every color token required by Pi's theme schema (see theme-schema.json in
   # the Pi package), mapped onto the Stylix base16 palette.
   stylixTheme = {
@@ -135,16 +141,64 @@ let
   };
 in
 {
-  # Augments the upstream `programs.pi-coding-agent` module; intentionally
-  # declares no local options and no default provider/model/thinking level.
+  # Augments the upstream `programs.pi-coding-agent` module with local
+  # output-style options. It declares no default provider, model, or thinking level.
   #
   # settings.json is declared here but kept a mutable file: the upstream
   # module's read-only store symlink is disabled and an activation script
   # deep-merges the nix keys into the real file on every switch (nix wins on
   # declared keys). This lets pi persist model/thinking/other runtime settings
   # itself, which would otherwise fail against a store symlink.
+  options.programs.pi-coding-agent = {
+    outputStyles = lib.mkOption {
+      type = with lib.types; attrsOf (either lines path);
+      default = { };
+      example = lib.literalExpression ''
+        {
+          concise = ./output-styles/concise.md;
+          terse = "Use concise prose.";
+        }
+      '';
+      description = ''
+        Named output styles for Pi Coding Agent. Each value is inline content or
+        a path to a file. The selected style is written to
+        {file}`APPEND_SYSTEM.md` inside
+        {option}`programs.pi-coding-agent.configDir`.
+      '';
+    };
+
+    outputStyle = lib.mkOption {
+      type = with lib.types; nullOr str;
+      default = null;
+      example = "ste";
+      description = ''
+        Name of the output style to append to Pi's system prompt. Set this to
+        `null` to leave {file}`APPEND_SYSTEM.md` unmanaged.
+      '';
+    };
+  };
+
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = outputStyleIsValid;
+        message = ''
+          programs.pi-coding-agent.outputStyle is "${cfg.outputStyle}", but no matching
+          entry exists in programs.pi-coding-agent.outputStyles. Available styles: ${
+            let
+              names = lib.attrNames cfg.outputStyles;
+            in
+            if names == [ ] then "(none)" else lib.concatStringsSep ", " names
+          }
+        '';
+      }
+    ];
+
     programs.pi-coding-agent = {
+      outputStyles.ste = lib.mkDefault (
+        config.lib.meta.mkDotfilesSymlink "agents/.agents/output-styles/ste.md"
+      );
+      outputStyle = lib.mkDefault "ste";
       extraPackages = with pkgs; [
         nodejs
         ast-grep
@@ -200,6 +254,10 @@ in
     };
     home = {
       file = {
+        # Pi supports one global append prompt. The selected output style owns it.
+        "${cfg.configDir}/APPEND_SYSTEM.md" = lib.mkIf (selectedOutputStyle != null) (
+          mkOutputStyleEntry selectedOutputStyle
+        );
         "${cfg.configDir}/themes/stylix.json".source =
           jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
 

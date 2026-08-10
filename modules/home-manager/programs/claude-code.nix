@@ -8,6 +8,8 @@ let
 in
 {
   config = lib.mkIf cfg.enable {
+    programs.claude-code.outputStyles.ste = config.lib.meta.mkDotfilesSymlink "agents/.agents/output-styles/ste.md";
+
     home = {
       # file.".claude/skills/context7" = {
       #   source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/context7";

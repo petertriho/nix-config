@@ -4,6 +4,7 @@
     "pr": ""
   },
   "includeCoAuthoredBy": false,
+  "outputStyle": "ste",
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
