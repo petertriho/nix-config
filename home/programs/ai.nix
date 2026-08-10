@@ -4,17 +4,63 @@
   ...
 }:
 let
-  mcpServerPackages =
-    (with pkgs.mcp-servers; [
-      # context7-mcp
-    ])
-    ++ (with pkgs; [
-      # terraform-mcp-server
-    ]);
+  mcpServerPackages = [
+    # pkgs.mcp-servers.context7-mcp
+    # pkgs.terraform-mcp-server
+  ];
   llmAgents = with pkgs.llm-agents; [
+    nono
     # openspec
     # zat # code outline viewer
   ];
+  jsonFormat = pkgs.formats.json { };
+  nonoPackage = pkgs.llm-agents.nono;
+  nonoProfiles = {
+    claude-nixcfg = {
+      extends = "nolabs-ai/claude";
+      meta = {
+        name = "claude-nixcfg";
+        description = "Claude profile with read access to out-of-store Nix configuration targets";
+      };
+      filesystem.read_file = [
+        "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"
+        "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
+      ];
+    };
+    pi-nixcfg = {
+      extends = "nolabs-ai/pi";
+      meta = {
+        name = "pi-nixcfg";
+        description = "Pi profile with minimal access to out-of-store Nix configuration targets";
+      };
+      filesystem = {
+        read = [
+          "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions"
+          "$HOME/.nix-config/dotfiles/agents/.agents/skills"
+        ];
+        read_file = [
+          "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
+        ];
+        allow_file = [
+          "$HOME/.nix-config/dotfiles/pi/.pi/agent/models.json"
+        ];
+      };
+    };
+    opencode-nixcfg = {
+      extends = "nolabs-ai/opencode";
+      meta = {
+        name = "opencode-nixcfg";
+        description = "OpenCode profile with read access to out-of-store Nix configuration targets";
+      };
+      filesystem.read = [
+        "$HOME/.nix-config/dotfiles/opencode/.config/opencode/plugins"
+        "$HOME/.nix-config/dotfiles/agents/.agents/skills"
+      ];
+    };
+  };
+  nonoFishCompletion = pkgs.runCommand "nono.fish" { } ''
+    HOME="$TMPDIR" ${nonoPackage}/bin/nono completion fish > "$out"
+  '';
 in
 {
   home = {
@@ -284,6 +330,13 @@ in
     workmux.enable = true;
   };
   xdg.configFile = {
+    # These profiles grant the tracked targets of out-of-store agent symlinks.
+    "nono/profiles/claude-nixcfg.json".source =
+      jsonFormat.generate "claude-nixcfg.json" nonoProfiles.claude-nixcfg;
+    "nono/profiles/pi-nixcfg.json".source = jsonFormat.generate "pi-nixcfg.json" nonoProfiles.pi-nixcfg;
+    "nono/profiles/opencode-nixcfg.json".source =
+      jsonFormat.generate "opencode-nixcfg.json" nonoProfiles.opencode-nixcfg;
+    "fish/completions/nono.fish".source = nonoFishCompletion;
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
   };
   # // lib.mapAttrs' (

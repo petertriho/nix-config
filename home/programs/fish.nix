@@ -34,6 +34,7 @@
       # bi = "bd init --stealth";
       c = "claude";
       ca = "claude --allow-dangerously-skip-permissions";
+      cn = "nono-agent-run claude-nixcfg claude";
       d = "docker";
       dc = "docker compose";
       dcd = "docker compose down --remove-orphans";
@@ -130,11 +131,18 @@
       ndh = "nix-direnv-helper";
       ndr = "nix-direnv-reload";
       nfu = "nix flake update";
+      nna = "nono attach";
+      nni = "nono inspect";
+      nnl = "nono logs";
+      nns = "nono stop";
+      nnu = "nono update";
+      nps = "nono ps";
       nr = "nix run nixpkgs#";
       nrs = "nixcfg nix:rebuild";
       ns = "nix search nixpkgs";
       oc = "opencode";
       ocb = "set -x OPENCODE_AGENT_BUILD_MODEL (models-dev)";
+      ocn = "nono-agent-run opencode-nixcfg opencode";
       ocp = "set -x OPENCODE_AGENT_PLAN_MODEL (models-dev)";
       ops = "openspec";
       opsa = "openspec archive";
@@ -142,6 +150,7 @@
       opsi = "openspec init";
       opsl = "openspec list";
       opsv = "openspec view";
+      pin = "nono-agent-run pi-nixcfg pi";
       pv = "python -m venv .venv";
       rand = "openssl rand -base64 16";
       rmf = "rm -rf";

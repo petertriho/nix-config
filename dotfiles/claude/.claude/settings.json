@@ -91,7 +91,9 @@
     "command": "claude-statusline",
     "padding": 0
   },
-  "enabledPlugins": {},
+  "enabledPlugins": {
+    "nono@nolabs-ai": true
+  },
   "effortLevel": "xhigh",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
