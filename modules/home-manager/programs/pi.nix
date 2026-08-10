@@ -21,7 +21,7 @@ let
     pi-cliproxyapi-provider
     # pi-dynamic-workflows
     pi-fzfp
-    pi-hashline-edit-pro
+    # pi-hashline-edit-pro
     # pi-vim must load before pi-history: pi-vim *replaces* the editor (no
     # preservation of a prior factory), while pi-history *wraps* whatever is
     # current. If pi-history loads first, pi-vim clobbers its HistoryEditor and
