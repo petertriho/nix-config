@@ -8,8 +8,8 @@
 let
   version = "0.49.1";
 
-  # Official prebuilt static-musl Linux tarballs (v0.37.2). Static-musl → no
-  # dynamic lib deps, so no patchelf/runtimeDeps; only a CA-bundle wrapper for
+  # Official prebuilt static-musl Linux tarballs. Static-musl → no dynamic lib
+  # deps, so no patchelf/runtimeDeps; only a CA-bundle wrapper for
   # TLS (codexbar makes HTTPS calls for OAuth/quota APIs). Swift source build is
   # blocked in nixpkgs (stuck at Swift 5.10; Package.swift requires 6.2), so we
   # fetch the upstream binary instead.
@@ -37,13 +37,16 @@ stdenv.mkDerivation {
   installPhase = ''
     runHook preInstall
     mkdir -p $out/bin
-    # Tarball ships `CodexBarCLI` (+ a `codexbar` symlink + VERSION). Install the
-    # real binary as `codexbar` so the name is deterministic regardless of the symlink.
+    # Install the real binary as `codexbar` so the name is deterministic
+    # regardless of the archive's symlink. Provider plugins added in 0.49.0
+    # load from the SwiftPM resource bundle beside the executable.
     install -Dm555 CodexBarCLI $out/bin/codexbar
+    cp -R CodexBar_CodexBarCore.bundle $out/bin/
     # Static-musl TLS needs a CA bundle on NixOS; point the common cert env vars at cacert.
     wrapProgram $out/bin/codexbar \
       --set SSL_CERT_FILE "${cacert}/etc/ssl/certs/ca-bundle.crt" \
       --set NIX_SSL_CERT_FILE "${cacert}/etc/ssl/certs/ca-bundle.crt"
+    CODEXBAR_RESOURCE_SMOKE=1 $out/bin/codexbar | grep -Fx CODEXBAR_RESOURCE_SMOKE_OK
     runHook postInstall
   '';
 
