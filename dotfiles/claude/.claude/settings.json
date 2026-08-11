@@ -4,7 +4,6 @@
     "pr": ""
   },
   "includeCoAuthoredBy": false,
-  "outputStyle": "ste",
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
@@ -86,6 +85,7 @@
   "disableAgentView": true,
   "disableRemoteControl": true,
   "disableArtifact": true,
+  "enableWorkflows": false,
   "statusLine": {
     "type": "command",
     "command": "claude-statusline",
@@ -94,10 +94,12 @@
   "enabledPlugins": {
     "nono@nolabs-ai": true
   },
+  "outputStyle": "ste",
   "effortLevel": "xhigh",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-ansi",
   "editorMode": "vim",
-  "remoteControlAtStartup": false
+  "remoteControlAtStartup": false,
+  "workflowKeywordTriggerEnabled": false
 }
