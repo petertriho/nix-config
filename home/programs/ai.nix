@@ -253,21 +253,21 @@ in
         "$HOME/.nix-config/dotfiles/opencode/.config/opencode/plugins"
       ];
       profiles = {
-        claude-nixcfg = {
+        claude-nix = {
           agent = "claude";
-          extends = "nolabs-ai/claude";
+          extends = "nono-claude-base";
           description = "Claude profile with read access to out-of-store Nix configuration targets";
           abbr = "cn";
         };
-        pi-nixcfg = {
+        pi-nix = {
           agent = "pi";
-          extends = "nolabs-ai/pi";
+          extends = "nono-pi-base";
           description = "Pi profile with minimal access to out-of-store Nix configuration targets";
           abbr = "pin";
         };
-        opencode-nixcfg = {
+        opencode-nix = {
           agent = "opencode";
-          extends = "nolabs-ai/opencode";
+          extends = "nono-opencode-base";
           description = "OpenCode profile with read access to out-of-store Nix configuration targets";
           abbr = "ocn";
         };

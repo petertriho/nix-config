@@ -28,6 +28,7 @@ with pkgs;
   lg-buddy = callPackage ./lg-buddy { };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
+  nono-packs = callPackage ./nono-packs { };
   playwriter = callPackage ./playwriter { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   python-validity = callPackage ./python-validity { };

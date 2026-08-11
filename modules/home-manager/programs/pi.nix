@@ -38,9 +38,10 @@ let
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
   # Rendered nix-declared settings, merged into the mutable settings.json by
-  # the piMutableSettings activation entry below.
+  # the piMutableSettings activation entry below. The nono Pi pack is loaded
+  # straight from the Nix store output (see programs.nono.agentPacksPackage),
+  # so no mutable nono package directory is discovered at activation time.
   settingsJson = jsonFormat.generate "pi-coding-agent-settings.json" cfg.settings;
-  nonoPiPackageDir = "${config.xdg.configHome}/nono/packages/nolabs-ai/pi";
 
   outputStyleIsValid = cfg.outputStyle == null || builtins.hasAttr cfg.outputStyle cfg.outputStyles;
   selectedOutputStyle =
@@ -54,10 +55,7 @@ let
     content:
     let
       src =
-        if lib.hm.strings.isPathLike content then
-          content
-        else
-          pkgs.writeText "pi-output-style.md" content;
+        if lib.hm.strings.isPathLike content then content else pkgs.writeText "pi-output-style.md" content;
     in
     pkgs.runCommand "pi-append-system-prompt.md" { } ''
       awk '
@@ -276,6 +274,11 @@ in
               source = piPackageRoot pkgs.piExtensions.pi-cliproxyapi-provider;
               extensions = [ "!extensions/tps.ts" ];
             }
+            # The nono Pi pack (extension + skill) from the pinned
+            # nono-packs derivation. Declared, not registry-discovered.
+            {
+              source = "${config.programs.nono.agentPacksPackage}/share/nono-packs/packs/pi";
+            }
           ];
         quietStartup = true;
         theme = "stylix";
@@ -330,14 +333,13 @@ in
 
       # Re-assert the nix-declared settings into the mutable settings.json on
       # every switch. Deep merge with nix winning on declared keys; jq `*`
-      # replaces arrays wholesale, so `packages` stays nix-controlled except
-      # for the official nono Pi pack while its mutable pack directory exists.
+      # replaces arrays wholesale, so `packages` is fully nix-controlled
+      # (the nono Pi pack is now part of the declaration, not appended).
       # Ordered after linkGeneration, which removes the pre-migration symlink.
       activation.piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         piSettingsFile=${lib.escapeShellArg "${cfg.configDir}/settings.json"}
         piSettingsNix=${settingsJson}
         piJq=${pkgs.jq}/bin/jq
-        nonoPiPackageDir=${lib.escapeShellArg nonoPiPackageDir}
 
         # Atomic write: temp file in the same directory + rename, so a running
         # pi never observes a torn file.
@@ -368,17 +370,8 @@ in
           piSettingsMerged=$(cat "$piSettingsNix")
         fi
 
-        if [[ -d "$nonoPiPackageDir" ]]; then
-          piSettingsMerged=$(printf '%s\n' "$piSettingsMerged" | "$piJq" --arg source "$nonoPiPackageDir" '
-            .packages = (
-              [(.packages // [])[] | select(type != "object" or .source? != $source)]
-              + [{ source: $source }]
-            )
-          ')
-        fi
-
         run piWriteSettings "$piSettingsFile" "$piSettingsMerged"
-        unset piSettingsFile piSettingsNix piJq piSettingsMerged nonoPiPackageDir
+        unset piSettingsFile piSettingsNix piJq piSettingsMerged
         unset -f piWriteSettings
       '';
     };

@@ -91,9 +91,6 @@
     "command": "claude-statusline",
     "padding": 0
   },
-  "enabledPlugins": {
-    "nono@nolabs-ai": true
-  },
   "outputStyle": "ste",
   "effortLevel": "xhigh",
   "tui": "fullscreen",
