@@ -24,5 +24,12 @@ in
         ENABLE_CLAUDEAI_MCP_SERVERS = "false";
       };
     };
+
+    # Both files above are out-of-store symlinks; the sandbox resolves through
+    # to the tracked target, so it needs the target granted as well.
+    programs.nono.agentFilesystem.claude.read_file = [
+      "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"
+      "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
+    ];
   };
 }

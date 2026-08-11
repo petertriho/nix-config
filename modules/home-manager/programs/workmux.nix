@@ -21,6 +21,15 @@ in
         home.packages = [ cfg.package ];
         xdg.configFile."workmux/config.yaml".source =
           config.lib.meta.mkDotfilesSymlink "workmux/.config/workmux/config.yaml";
+
+        # Every harness runs workmux status hooks, so these grants are shared.
+        # The state dir is appended to on each hook; the config is an
+        # out-of-store symlink that no agent profile would otherwise reach, and
+        # a denied read is silent — workmux just falls back to its defaults.
+        programs.nono.sharedFilesystem = {
+          allow = [ "$HOME/.local/state/workmux" ];
+          read_file = [ "$HOME/.config/workmux/config.yaml" ];
+        };
       }
       (lib.mkIf config.programs.opencode.enable {
         xdg.configFile."opencode/plugins/workmux-status.ts".source =

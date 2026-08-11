@@ -99,7 +99,10 @@ in
               "sh"
               "zsh"
             ];
-            wrapper_programs = mkStringList "'" [ "iris" ];
+            wrapper_programs = mkStringList "'" [
+              "iris"
+              "nono"
+            ];
             substitute_sets = mkStringList "" [
               "(r'^/etc/profiles/per-user/(.+)/bin/(.+)', r'\\\\g<2>')"
               "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
@@ -115,6 +118,7 @@ in
             ];
             ignored_programs = mkStringList "'" [
               "kubie"
+              "log"
             ];
           in
           # tmux

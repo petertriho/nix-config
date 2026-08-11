@@ -217,6 +217,15 @@ in
       }
     ];
 
+    # The out-of-store extension symlinks below resolve to these targets, so the
+    # sandbox needs them granted. `models.json` stays writable because
+    # `/cache-optimizer fix` rewrites it at runtime. The output style needs no
+    # grant: `stripFrontmatter` copies it into the store at build time.
+    programs.nono.agentFilesystem.pi = {
+      read = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions" ];
+      allow_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/models.json" ];
+    };
+
     programs.pi-coding-agent = {
       outputStyles.ste = lib.mkDefault ../../../dotfiles/agents/.agents/output-styles/ste.md;
       outputStyle = lib.mkDefault "ste";

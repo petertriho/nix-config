@@ -22,5 +22,8 @@ function nono-agent-run --description "Run an agent with a guarded nono profile"
         return 1
     end
 
-    command nono run --profile "$profile" --allow-cwd -- "$agent" $agent_args
+    # Profiles are Home Manager symlinks into the store; answering nono's save
+    # prompt would replace one with a mutable copy carrying the widened grant.
+    command nono run --profile "$profile" --allow-cwd \
+        --suppress-save-prompt "$physical_home" -- "$agent" $agent_args
 end

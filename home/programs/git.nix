@@ -53,4 +53,17 @@
       config.lib.meta.mkDotfilesSymlink "git/.config/git/global.gitignore";
     "gh/config.yml".source = config.lib.meta.mkDotfilesSymlink "gh/.config/gh/config.yml";
   };
+
+  # `~/.gitconfig` includes files from this directory, so an unreadable entry
+  # aborts every git invocation rather than degrading. Both paths are required:
+  # a directory grant does not follow the out-of-store symlinks inside it, so
+  # the link directory only buys traversal and the tracked directory holds the
+  # contents. Granting directories rather than files also covers the
+  # host-specific identity that `home/hosts` drops in here.
+  # `~/.gittemplates` is a link to a whole directory, so it resolves on its own.
+  programs.nono.sharedFilesystem.read = [
+    "$HOME/.config/git"
+    "$HOME/.nix-config/dotfiles/git/.config/git"
+    "$HOME/.gittemplates"
+  ];
 }

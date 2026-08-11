@@ -39,6 +39,12 @@ in
           }
         ) availableSkills;
 
+        # Pi and OpenCode read `~/.agents/skills` natively; each entry is an
+        # out-of-store symlink, so the sandbox needs the tracked target.
+        programs.nono.agentFilesystem = lib.genAttrs [ "pi" "opencode" ] (_: {
+          read = [ "$HOME/.nix-config/dotfiles/agents/.agents/skills" ];
+        });
+
         programs.ai.skills = lib.mapAttrs (name: _: {
           source = skillsDir + "/${name}";
           clients = {

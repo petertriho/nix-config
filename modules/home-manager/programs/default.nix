@@ -14,6 +14,7 @@
     ./impeccable.nix
     ./iris.nix
     ./jscpd.nix
+    ./nono.nix
     ./pi.nix
     ./plannotator.nix
     ./playwriter.nix
