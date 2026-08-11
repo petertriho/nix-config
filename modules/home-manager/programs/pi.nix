@@ -45,8 +45,29 @@ let
   outputStyleIsValid = cfg.outputStyle == null || builtins.hasAttr cfg.outputStyle cfg.outputStyles;
   selectedOutputStyle =
     if cfg.outputStyle != null && outputStyleIsValid then cfg.outputStyles.${cfg.outputStyle} else null;
-  mkOutputStyleEntry =
-    content: if lib.hm.strings.isPathLike content then { source = content; } else { text = content; };
+  # Pi injects APPEND_SYSTEM.md into the system prompt verbatim, but styles
+  # shared with Claude Code start with a YAML frontmatter block that only
+  # Claude Code parses. Strip a leading frontmatter block at build time; this
+  # requires path values to be in-store so the build can read them and
+  # rebuilds trigger on content changes (out-of-store symlinks do neither).
+  stripFrontmatter =
+    content:
+    let
+      src =
+        if lib.hm.strings.isPathLike content then
+          content
+        else
+          pkgs.writeText "pi-output-style.md" content;
+    in
+    pkgs.runCommand "pi-append-system-prompt.md" { } ''
+      awk '
+        NR == 1 && $0 == "---" { fm = 1; next }
+        fm == 1 { if ($0 == "---") fm = 2; next }
+        fm == 2 && !body && $0 == "" { next }
+        { body = 1; print }
+      ' ${src} > $out
+    '';
+  mkOutputStyleEntry = content: { source = stripFrontmatter content; };
 
   # Every color token required by Pi's theme schema (see theme-schema.json in
   # the Pi package), mapped onto the Stylix base16 palette.
@@ -162,9 +183,10 @@ in
       '';
       description = ''
         Named output styles for Pi Coding Agent. Each value is inline content or
-        a path to a file. The selected style is written to
+        an in-store path to a file. The selected style is written to
         {file}`APPEND_SYSTEM.md` inside
-        {option}`programs.pi-coding-agent.configDir`.
+        {option}`programs.pi-coding-agent.configDir`, with any leading YAML
+        frontmatter block (Claude Code output style metadata) stripped.
       '';
     };
 
@@ -196,9 +218,7 @@ in
     ];
 
     programs.pi-coding-agent = {
-      outputStyles.ste = lib.mkDefault (
-        config.lib.meta.mkDotfilesSymlink "agents/.agents/output-styles/ste.md"
-      );
+      outputStyles.ste = lib.mkDefault ../../../dotfiles/agents/.agents/output-styles/ste.md;
       outputStyle = lib.mkDefault "ste";
       extraPackages = with pkgs; [
         nodejs
