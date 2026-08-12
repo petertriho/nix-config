@@ -127,7 +127,7 @@ in
     ];
     nomods = [
       "esc f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12"
-      "caps a s d f j k l ;"
+      "@cap a s d f j k l ;"
       "fn"
     ];
     extraLayers = [
