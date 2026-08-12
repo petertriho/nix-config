@@ -28,6 +28,8 @@ with pkgs;
   lg-buddy = callPackage ./lg-buddy { };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
+  multica = callPackage ./multica { };
+  multica-selfhost = callPackage ./multica-selfhost { };
   nono-packs = callPackage ./nono-packs { };
   playwriter = callPackage ./playwriter { };
   pybetter = callPackage ./pybetter { inherit pkgs; };

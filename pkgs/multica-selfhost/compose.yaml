@@ -1,0 +1,58 @@
+name: multica
+
+services:
+  postgres:
+    image: "@postgresImage@"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: multica
+      POSTGRES_USER: multica
+      POSTGRES_PASSWORD: multica-local-only-database-password
+    volumes:
+      - multica_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U multica -d multica
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: "@backendImage@"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: >-
+        postgres://multica:multica-local-only-database-password@postgres:5432/multica?sslmode=disable
+      PORT: "8080"
+      JWT_SECRET: multica-local-only-jwt-secret-7adf30218f1e4dd3a0874054d1de8b6c
+      APP_ENV: development
+      MULTICA_DEV_VERIFICATION_CODE: "888888"
+      FRONTEND_ORIGIN: http://localhost:3000
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      MULTICA_APP_URL: http://localhost:3000
+      ALLOW_SIGNUP: "true"
+    volumes:
+      - multica_backend_uploads:/app/data/uploads
+    ports:
+      - 127.0.0.1:8080:8080
+
+  frontend:
+    image: "@frontendImage@"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      HOSTNAME: 0.0.0.0
+      REMOTE_API_URL: http://backend:8080
+    ports:
+      - 127.0.0.1:3000:3000
+
+volumes:
+  multica_pgdata:
+    name: multica_pgdata
+  multica_backend_uploads:
+    name: multica_backend_uploads

@@ -19,6 +19,8 @@ in
     packages = with pkgs; [
       amdgpu_top
       lg-buddy
+      multica
+      multica-selfhost
     ];
     sessionVariables = {
       # COPILOT_MODEL = "gpt-5-mini";

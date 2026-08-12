@@ -1,0 +1,944 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly PROJECT_NAME="multica"
+readonly DESIRED_VERSION="@version@"
+readonly DESIRED_TAG="@tag@"
+readonly COMPOSE_FILE="@composeFile@"
+readonly POSTGRES_IMAGE="@postgresImage@"
+readonly BACKEND_IMAGE="@backendImage@"
+readonly FRONTEND_IMAGE="@frontendImage@"
+readonly POSTGRES_VOLUME="multica_pgdata"
+readonly UPLOADS_VOLUME="multica_backend_uploads"
+readonly BACKEND_URL="http://127.0.0.1:8080"
+readonly FRONTEND_URL="http://127.0.0.1:3000"
+readonly VERIFICATION_CODE="888888"
+readonly DOCKER_BIN="${MULTICA_SELFHOST_DOCKER:-docker}"
+readonly DOCKER_COMPOSE_BIN="${MULTICA_SELFHOST_DOCKER_COMPOSE:-docker-compose}"
+readonly MULTICA_BIN="${MULTICA_SELFHOST_MULTICA:-multica}"
+readonly CURL_BIN="${MULTICA_SELFHOST_CURL:-@curl@}"
+readonly DATE_BIN="${MULTICA_SELFHOST_DATE:-@date@}"
+readonly HOSTNAME_BIN="${MULTICA_SELFHOST_HOSTNAME:-@hostname@}"
+readonly JQ_BIN="${MULTICA_SELFHOST_JQ:-@jq@}"
+readonly MKDIR_BIN="${MULTICA_SELFHOST_MKDIR:-@mkdir@}"
+readonly MKTEMP_BIN="${MULTICA_SELFHOST_MKTEMP:-@mktemp@}"
+readonly MV_BIN="${MULTICA_SELFHOST_MV:-@mv@}"
+readonly PG_RESTORE_BIN="${MULTICA_SELFHOST_PG_RESTORE:-@pgRestore@}"
+readonly RM_BIN="${MULTICA_SELFHOST_RM:-@rm@}"
+readonly SHA256SUM_BIN="${MULTICA_SELFHOST_SHA256SUM:-@sha256sum@}"
+readonly SLEEP_BIN="${MULTICA_SELFHOST_SLEEP:-@sleep@}"
+readonly TAR_BIN="${MULTICA_SELFHOST_TAR:-@tar@}"
+readonly SUDO_BIN="${MULTICA_SELFHOST_SUDO:-sudo}"
+readonly SYSTEMCTL_BIN="${MULTICA_SELFHOST_SYSTEMCTL:-systemctl}"
+readonly ORB_BIN="${MULTICA_SELFHOST_ORB:-orb}"
+readonly WAIT_SECONDS="${MULTICA_SELFHOST_WAIT_SECONDS:-60}"
+
+COMPOSE_KIND=""
+HOST_OS=""
+LAST_BACKUP_PATH=""
+BACKUP_TEMP_PATH=""
+BACKUP_POSTGRES_STARTED=false
+BACKUP_PROJECT_HAD_CONTAINERS=false
+RESTORE_SOURCE_PATH=""
+
+log() {
+  printf '%s\n' "$*"
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+command_available() {
+  if [[ $1 == */* ]]; then
+    [[ -x $1 ]]
+  else
+    command -v "$1" >/dev/null 2>&1
+  fi
+}
+
+detect_os() {
+  local kernel="${MULTICA_SELFHOST_OS:-}"
+
+  if [[ -z $kernel ]]; then
+    kernel=$(uname -s)
+  fi
+
+  case "$kernel" in
+    Linux)
+      HOST_OS="linux"
+      ;;
+    Darwin)
+      HOST_OS="darwin"
+      ;;
+    *)
+      die "unsupported operating system: $kernel"
+      ;;
+  esac
+}
+
+default_backup_directory() {
+  detect_os
+  if [[ $HOST_OS == "darwin" ]]; then
+    printf '%s\n' "$HOME/Library/Application Support/Multica Selfhost/backups"
+  else
+    printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/multica-selfhost/backups"
+  fi
+}
+
+detect_compose() {
+  if command_available "$DOCKER_BIN" && "$DOCKER_BIN" compose version >/dev/null 2>&1; then
+    COMPOSE_KIND="plugin"
+    return 0
+  fi
+
+  if command_available "$DOCKER_COMPOSE_BIN" && "$DOCKER_COMPOSE_BIN" version >/dev/null 2>&1; then
+    COMPOSE_KIND="standalone"
+    return 0
+  fi
+
+  return 1
+}
+
+compose() {
+  if [[ -z $COMPOSE_KIND ]]; then
+    detect_compose || die "Docker Compose is unavailable; install the docker compose plugin or docker-compose"
+  fi
+
+  if [[ $COMPOSE_KIND == "plugin" ]]; then
+    "$DOCKER_BIN" compose --project-name "$PROJECT_NAME" --file "$COMPOSE_FILE" "$@"
+  else
+    "$DOCKER_COMPOSE_BIN" --project-name "$PROJECT_NAME" --file "$COMPOSE_FILE" "$@"
+  fi
+}
+
+engine_is_ready() {
+  command_available "$DOCKER_BIN" && "$DOCKER_BIN" info >/dev/null 2>&1
+}
+
+wait_for_engine() {
+  local elapsed=0
+
+  while ((elapsed < WAIT_SECONDS)); do
+    if engine_is_ready; then
+      return 0
+    fi
+    "$SLEEP_BIN" 1
+    elapsed=$((elapsed + 1))
+  done
+
+  if [[ $HOST_OS == "darwin" ]]; then
+    die "OrbStack did not make Docker ready within ${WAIT_SECONDS}s; run 'orb status' and 'docker context show'"
+  fi
+
+  die "Docker did not become ready within ${WAIT_SECONDS}s; run 'systemctl status docker.service' and check Docker socket access"
+}
+
+ensure_engine() {
+  detect_os
+
+  if engine_is_ready; then
+    return 0
+  fi
+
+  if [[ $HOST_OS == "darwin" ]]; then
+    command_available "$ORB_BIN" || die "OrbStack command not found: $ORB_BIN"
+    log "Starting OrbStack..."
+    "$ORB_BIN" start
+  else
+    command_available "$SUDO_BIN" || die "sudo command not found: $SUDO_BIN"
+    command_available "$SYSTEMCTL_BIN" || die "systemctl command not found: $SYSTEMCTL_BIN"
+    log "Starting Docker..."
+    "$SUDO_BIN" "$SYSTEMCTL_BIN" start docker.service
+  fi
+
+  wait_for_engine
+}
+
+current_context() {
+  if ! command_available "$DOCKER_BIN"; then
+    printf '%s\n' "unavailable"
+    return 0
+  fi
+
+  "$DOCKER_BIN" context show 2>/dev/null || printf '%s\n' "unknown"
+}
+
+current_context_endpoint() {
+  local context
+  context=$(current_context)
+
+  if [[ $context == "unavailable" || $context == "unknown" ]]; then
+    printf '%s\n' "unknown"
+    return 0
+  fi
+
+  "$DOCKER_BIN" context inspect "$context" \
+    --format '{{ .Endpoints.docker.Host }}' 2>/dev/null || printf '%s\n' "unknown"
+}
+
+context_is_local() {
+  local endpoint
+  endpoint=$(current_context_endpoint)
+  [[ $endpoint == unix://* || $endpoint == npipe://* ]]
+}
+
+require_safe_local_context() {
+  local context endpoint
+  context=$(current_context)
+  endpoint=$(current_context_endpoint)
+
+  if ! context_is_local; then
+    die "Docker context '$context' uses '$endpoint'; destructive operations require a local Unix or named-pipe context"
+  fi
+}
+
+cli_version() {
+  if ! command_available "$MULTICA_BIN"; then
+    printf '%s\n' "unavailable"
+    return 0
+  fi
+
+  "$MULTICA_BIN" version 2>/dev/null | head -n 1 || printf '%s\n' "unknown"
+}
+
+latest_backup() {
+  local backup_dir
+  backup_dir=$(default_backup_directory)
+
+  if [[ ! -d $backup_dir ]]; then
+    printf '%s\n' "none"
+    return 0
+  fi
+
+  find "$backup_dir" -mindepth 1 -maxdepth 1 -type d \
+    ! -name '.*' ! -name '*.restart-failure' -print 2>/dev/null \
+    | LC_ALL=C sort \
+    | tail -n 1 \
+    || true
+}
+
+probe_url() {
+  local url="$1"
+  if "$CURL_BIN" --silent --show-error --fail --max-time 2 "$url" >/dev/null 2>&1; then
+    printf '%s\n' "ready"
+  else
+    printf '%s\n' "unavailable"
+  fi
+}
+
+multica_local() {
+  MULTICA_SERVER_URL="$BACKEND_URL" \
+    MULTICA_APP_URL="$FRONTEND_URL" \
+    "$MULTICA_BIN" "$@"
+}
+
+auth_is_valid() {
+  local output
+
+  command_available "$MULTICA_BIN" || return 1
+  output=$(multica_local auth status 2>&1) || return 1
+  grep -q '^Server:' <<<"$output" && grep -q '^User:' <<<"$output"
+}
+
+daemon_is_running() {
+  local output
+
+  command_available "$MULTICA_BIN" || return 1
+  output=$(multica_local daemon status --output json 2>/dev/null) || return 1
+  "$JQ_BIN" -e '.status == "running"' <<<"$output" >/dev/null
+}
+
+show_multica_state() {
+  if ! command_available "$MULTICA_BIN"; then
+    log "CLI authentication: unavailable"
+    log "Native daemon: unavailable"
+    return 0
+  fi
+
+  if auth_is_valid; then
+    log "CLI authentication: authenticated"
+  else
+    log "CLI authentication: not authenticated"
+  fi
+
+  if daemon_is_running; then
+    log "Native daemon: running"
+  else
+    log "Native daemon: stopped"
+  fi
+}
+
+show_volume_state() {
+  local volume
+  for volume in "$POSTGRES_VOLUME" "$UPLOADS_VOLUME"; do
+    if "$DOCKER_BIN" volume inspect "$volume" >/dev/null 2>&1; then
+      log "Volume $volume: present"
+    else
+      log "Volume $volume: absent"
+    fi
+  done
+}
+
+image_is_present() {
+  "$DOCKER_BIN" image inspect "$1" >/dev/null 2>&1
+}
+
+pull_missing_images() {
+  local service image
+  while [[ $# -gt 0 ]]; do
+    service="$1"
+    image="$2"
+    shift 2
+
+    if image_is_present "$image"; then
+      log "Image present: $image"
+    else
+      log "Pulling missing image: $image"
+      compose pull "$service"
+    fi
+  done
+}
+
+wait_for_url() {
+  local label="$1"
+  local url="$2"
+  local elapsed=0
+
+  while ((elapsed < WAIT_SECONDS)); do
+    if "$CURL_BIN" --silent --show-error --fail --max-time 2 "$url" >/dev/null 2>&1; then
+      log "$label is ready: $url"
+      return 0
+    fi
+    "$SLEEP_BIN" 1
+    elapsed=$((elapsed + 1))
+  done
+
+  warn "$label did not become ready within ${WAIT_SECONDS}s: $url"
+  return 1
+}
+
+wait_for_stack() {
+  wait_for_url "Backend" "$BACKEND_URL/readyz" &&
+    wait_for_url "Frontend" "$FRONTEND_URL"
+}
+
+start_daemon() {
+  command_available "$MULTICA_BIN" || die "Multica CLI is unavailable: $MULTICA_BIN"
+
+  if daemon_is_running; then
+    log "Native Multica daemon is already running"
+    return 0
+  fi
+
+  multica_local daemon start --no-auto-update --no-auto-reload
+  daemon_is_running || die "Multica daemon did not report a running state after startup"
+  log "Native Multica daemon started"
+}
+
+stop_daemon() {
+  if ! command_available "$MULTICA_BIN" || ! daemon_is_running; then
+    return 0
+  fi
+
+  multica_local daemon stop
+  log "Native Multica daemon stopped"
+}
+
+configure_local_cli() {
+  command_available "$MULTICA_BIN" || die "Multica CLI is unavailable: $MULTICA_BIN"
+  "$MULTICA_BIN" config set server_url "$BACKEND_URL"
+  "$MULTICA_BIN" config set app_url "$FRONTEND_URL"
+  "$MULTICA_BIN" config set disable_auto_update true
+  "$MULTICA_BIN" config set disable_auto_reload true
+}
+
+command_start() {
+  ensure_engine
+  detect_compose || die "Docker Compose is unavailable"
+  pull_missing_images \
+    postgres "$POSTGRES_IMAGE" \
+    backend "$BACKEND_IMAGE" \
+    frontend "$FRONTEND_IMAGE"
+
+  compose up -d
+  if ! wait_for_stack; then
+    compose ps -a >&2 || true
+    die "Multica started but did not become ready; inspect 'multica-selfhost logs'"
+  fi
+
+  if auth_is_valid; then
+    start_daemon
+    log "Multica is ready at $FRONTEND_URL"
+  else
+    log "Multica server is ready, but the native CLI is not authenticated."
+    log "Open $FRONTEND_URL and use verification code $VERIFICATION_CODE."
+    log "Then run: multica-selfhost login"
+  fi
+}
+
+command_stop() {
+  stop_daemon
+
+  if ! engine_is_ready; then
+    log "Multica server is already stopped; the container engine was not started"
+    return 0
+  fi
+
+  detect_compose || die "Docker Compose is unavailable"
+  compose down
+  log "Multica containers stopped; named volumes and the container engine were preserved"
+}
+
+command_logs() {
+  local service="${1:-}"
+
+  if [[ -n $service ]]; then
+    case "$service" in
+      postgres | backend | frontend) ;;
+      *) die "logs service must be postgres, backend, or frontend" ;;
+    esac
+  fi
+
+  ensure_engine
+  detect_compose || die "Docker Compose is unavailable"
+  log "Native daemon logs: multica daemon logs"
+
+  if [[ -n $service ]]; then
+    compose logs --follow "$service"
+  else
+    compose logs --follow
+  fi
+}
+
+command_login() {
+  ensure_engine
+  detect_compose || die "Docker Compose is unavailable"
+
+  if ! wait_for_stack; then
+    die "Multica is not ready; run 'multica-selfhost start' before login"
+  fi
+
+  configure_local_cli
+  multica_local login
+  auth_is_valid || die "Multica login completed without a valid local authentication state"
+  start_daemon
+  log "Login succeeded and the native Multica daemon is running"
+}
+
+service_is_running() {
+  [[ -n $(compose ps --status running -q "$1") ]]
+}
+
+wait_for_postgres() {
+  local elapsed=0
+
+  while ((elapsed < WAIT_SECONDS)); do
+    if compose exec -T postgres pg_isready -U multica -d multica >/dev/null 2>&1; then
+      return 0
+    fi
+    "$SLEEP_BIN" 1
+    elapsed=$((elapsed + 1))
+  done
+
+  return 1
+}
+
+validate_database_dump() {
+  "$PG_RESTORE_BIN" --list "$1" >/dev/null
+}
+
+validate_uploads_archive() {
+  "$TAR_BIN" -tzf "$1" >/dev/null
+}
+
+validate_backup_checksums() {
+  local backup_path="$1"
+  (
+    cd "$backup_path"
+    "$SHA256SUM_BIN" --check SHA256SUMS >/dev/null
+  )
+}
+
+validate_backup_directory() {
+  local backup_path="$1"
+  local required database_hash uploads_hash
+
+  [[ -d $backup_path ]] || return 1
+  for required in database.dump uploads.tar.gz metadata.json SHA256SUMS; do
+    [[ -f $backup_path/$required ]] || return 1
+  done
+
+  validate_backup_checksums "$backup_path" || return 1
+  read -r database_hash _ < <("$SHA256SUM_BIN" "$backup_path/database.dump")
+  read -r uploads_hash _ < <("$SHA256SUM_BIN" "$backup_path/uploads.tar.gz")
+  # The jq program uses jq variables, not shell interpolation.
+  # shellcheck disable=SC2016
+  "$JQ_BIN" -e \
+    --arg postgresVolume "$POSTGRES_VOLUME" \
+    --arg uploadsVolume "$UPLOADS_VOLUME" \
+    --arg databaseHash "$database_hash" \
+    --arg uploadsHash "$uploads_hash" \
+    '(.version | type == "string" and length > 0)
+      and (.project | type == "string" and length > 0)
+      and (.host | type == "string" and length > 0)
+      and (.operatingSystem | type == "string" and length > 0)
+      and (.dockerContext | type == "string" and length > 0)
+      and (.createdAt | type == "string" and length > 0)
+      and .volumes.postgres == $postgresVolume
+      and .volumes.uploads == $uploadsVolume
+      and .files["database.dump"].sha256 == $databaseHash
+      and .files["uploads.tar.gz"].sha256 == $uploadsHash' \
+    "$backup_path/metadata.json" >/dev/null || return 1
+  validate_database_dump "$backup_path/database.dump" || return 1
+  validate_uploads_archive "$backup_path/uploads.tar.gz"
+}
+
+restore_backup_stack_state() {
+  if [[ $BACKUP_POSTGRES_STARTED != true ]]; then
+    return 0
+  fi
+
+  if [[ $BACKUP_PROJECT_HAD_CONTAINERS == true ]]; then
+    compose stop postgres >/dev/null 2>&1 || true
+  else
+    compose down >/dev/null 2>&1 || true
+  fi
+  BACKUP_POSTGRES_STARTED=false
+}
+
+cleanup_backup_operation() {
+  local exit_code=$?
+  restore_backup_stack_state
+  if [[ -n $BACKUP_TEMP_PATH && -d $BACKUP_TEMP_PATH ]]; then
+    "$RM_BIN" -rf "$BACKUP_TEMP_PATH"
+  fi
+  return "$exit_code"
+}
+
+perform_backup() {
+  local parent_directory="$1"
+  local timestamp creation_time final_path
+  local database_hash uploads_hash context host_name
+
+  ensure_engine
+  detect_compose || die "Docker Compose is unavailable"
+  require_safe_local_context
+
+  "$MKDIR_BIN" -p "$parent_directory"
+  timestamp=$("$DATE_BIN" -u +%Y%m%dT%H%M%SZ)
+  creation_time=$("$DATE_BIN" -u +%Y-%m-%dT%H:%M:%SZ)
+  final_path="$parent_directory/${timestamp}-${DESIRED_TAG}"
+  [[ ! -e $final_path ]] || die "backup path already exists: $final_path"
+
+  BACKUP_TEMP_PATH=$("$MKTEMP_BIN" -d "$parent_directory/.${timestamp}-${DESIRED_TAG}.tmp.XXXXXX")
+  BACKUP_PROJECT_HAD_CONTAINERS=false
+  BACKUP_POSTGRES_STARTED=false
+  if [[ -n $(compose ps -aq) ]]; then
+    BACKUP_PROJECT_HAD_CONTAINERS=true
+  fi
+  trap cleanup_backup_operation EXIT INT TERM
+
+  if ! service_is_running postgres; then
+    pull_missing_images postgres "$POSTGRES_IMAGE"
+    compose up -d postgres
+    BACKUP_POSTGRES_STARTED=true
+  fi
+
+  wait_for_postgres || die "PostgreSQL did not become ready for backup within ${WAIT_SECONDS}s"
+
+  compose exec -T postgres \
+    pg_dump --username multica --dbname multica --format=custom \
+    >"$BACKUP_TEMP_PATH/database.dump"
+
+  pull_missing_images backend "$BACKEND_IMAGE"
+  "$DOCKER_BIN" run --rm \
+    --volume "$UPLOADS_VOLUME:/data:ro" \
+    --entrypoint tar \
+    "$BACKEND_IMAGE" \
+    -czf - -C /data . \
+    >"$BACKUP_TEMP_PATH/uploads.tar.gz"
+
+  validate_database_dump "$BACKUP_TEMP_PATH/database.dump" || die "PostgreSQL dump validation failed"
+  validate_uploads_archive "$BACKUP_TEMP_PATH/uploads.tar.gz" || die "uploads archive validation failed"
+
+  read -r database_hash _ < <("$SHA256SUM_BIN" "$BACKUP_TEMP_PATH/database.dump")
+  read -r uploads_hash _ < <("$SHA256SUM_BIN" "$BACKUP_TEMP_PATH/uploads.tar.gz")
+  context=$(current_context)
+  host_name=$("$HOSTNAME_BIN")
+  detect_os
+
+  # The jq program uses jq variables, not shell interpolation.
+  # shellcheck disable=SC2016
+  "$JQ_BIN" -n \
+    --arg version "$DESIRED_TAG" \
+    --arg project "$PROJECT_NAME" \
+    --arg host "$host_name" \
+    --arg operatingSystem "$HOST_OS" \
+    --arg dockerContext "$context" \
+    --arg createdAt "$creation_time" \
+    --arg postgresVolume "$POSTGRES_VOLUME" \
+    --arg uploadsVolume "$UPLOADS_VOLUME" \
+    --arg databaseSha256 "$database_hash" \
+    --arg uploadsSha256 "$uploads_hash" \
+    '{
+      version: $version,
+      project: $project,
+      host: $host,
+      operatingSystem: $operatingSystem,
+      dockerContext: $dockerContext,
+      createdAt: $createdAt,
+      volumes: {
+        postgres: $postgresVolume,
+        uploads: $uploadsVolume
+      },
+      files: {
+        "database.dump": { sha256: $databaseSha256 },
+        "uploads.tar.gz": { sha256: $uploadsSha256 }
+      }
+    }' >"$BACKUP_TEMP_PATH/metadata.json.tmp"
+  "$MV_BIN" "$BACKUP_TEMP_PATH/metadata.json.tmp" "$BACKUP_TEMP_PATH/metadata.json"
+
+  (
+    cd "$BACKUP_TEMP_PATH"
+    "$SHA256SUM_BIN" database.dump uploads.tar.gz metadata.json >SHA256SUMS.tmp
+    "$MV_BIN" SHA256SUMS.tmp SHA256SUMS
+  )
+
+  validate_backup_checksums "$BACKUP_TEMP_PATH" || die "backup checksum validation failed"
+  restore_backup_stack_state
+  "$MV_BIN" "$BACKUP_TEMP_PATH" "$final_path"
+  BACKUP_TEMP_PATH=""
+  trap - EXIT INT TERM
+  LAST_BACKUP_PATH="$final_path"
+}
+
+command_backup() {
+  local parent_directory="${1:-}"
+
+  if [[ -z $parent_directory ]]; then
+    parent_directory=$(default_backup_directory)
+  fi
+
+  perform_backup "$parent_directory"
+  log "Backup created and verified: $LAST_BACKUP_PATH"
+}
+
+restart_failure() {
+  local reason="$1"
+  local diagnostics_path="${LAST_BACKUP_PATH}.restart-failure"
+
+  "$MKDIR_BIN" -p "$diagnostics_path"
+  compose ps -a >"$diagnostics_path/status.txt" 2>&1 || true
+  compose logs --no-color --tail 200 >"$diagnostics_path/logs.txt" 2>&1 || true
+  compose down >/dev/null 2>&1 || true
+
+  warn "$reason"
+  warn "The unhealthy Compose project was stopped without deleting volumes."
+  warn "Backup preserved at: $LAST_BACKUP_PATH"
+  warn "Diagnostics saved at: $diagnostics_path"
+  warn "Inspect with: multica-selfhost logs"
+  warn "Restore manually with: multica-selfhost restore '$LAST_BACKUP_PATH' --force"
+  exit 1
+}
+
+command_restart() {
+  local backup_directory
+
+  ensure_engine
+  detect_compose || die "Docker Compose is unavailable"
+  require_safe_local_context
+  backup_directory=$(default_backup_directory)
+
+  perform_backup "$backup_directory" ||
+    die "pre-restart backup failed; pinned images were not pulled and the stack was not recreated"
+  log "Pre-restart backup created and verified: $LAST_BACKUP_PATH"
+  stop_daemon
+
+  log "Pulling all pinned images for $DESIRED_TAG"
+  if ! compose pull postgres backend frontend; then
+    if auth_is_valid && wait_for_stack; then
+      start_daemon || true
+    fi
+    die "image pull failed; existing containers and backup were preserved at $LAST_BACKUP_PATH"
+  fi
+
+  if ! compose up -d --force-recreate; then
+    restart_failure "Compose recreation failed for $DESIRED_TAG"
+  fi
+
+  if ! wait_for_stack; then
+    restart_failure "Multica $DESIRED_TAG failed readiness checks"
+  fi
+
+  if auth_is_valid; then
+    start_daemon
+  else
+    log "The server is ready, but the native CLI is not authenticated. Run: multica-selfhost login"
+  fi
+
+  log "Desired Multica version: $DESIRED_TAG"
+  log "Active Compose images:"
+  compose images
+}
+
+restore_is_forced() {
+  [[ $1 == true ]]
+}
+
+show_restore_summary() {
+  local backup_path="$1"
+  local current_context="$2"
+  local backup_version created_at backup_context
+
+  backup_version=$("$JQ_BIN" -r '.version' "$backup_path/metadata.json")
+  created_at=$("$JQ_BIN" -r '.createdAt' "$backup_path/metadata.json")
+  backup_context=$("$JQ_BIN" -r '.dockerContext' "$backup_path/metadata.json")
+
+  log "Restore source: $backup_path"
+  log "Backup version: $backup_version"
+  log "Backup timestamp: $created_at"
+  log "Backup Docker context: $backup_context"
+  log "Current Docker context: $current_context"
+  log "Compose project: $PROJECT_NAME"
+  log "Target volumes: $POSTGRES_VOLUME, $UPLOADS_VOLUME"
+}
+
+stdin_is_tty() {
+  [[ -t 0 ]]
+}
+
+confirm_restore() {
+  local answer
+
+  stdin_is_tty || die "restore is noninteractive; rerun with --force"
+  printf 'Type RESTORE to replace the Multica database and uploads: '
+  IFS= read -r answer || die "restore confirmation could not be read"
+  [[ $answer == RESTORE ]] || die "restore cancelled"
+}
+
+prepare_restore() {
+  local backup_path="$1"
+  local force="$2"
+  local current_context backup_context backup_project
+
+  [[ -d $backup_path ]] || die "backup directory does not exist: $backup_path"
+  backup_path=$(cd "$backup_path" && pwd -P)
+  validate_backup_directory "$backup_path" || die "backup validation failed; no changes were made"
+
+  ensure_engine
+  detect_compose || die "Docker Compose is unavailable"
+  require_safe_local_context
+  current_context=$(current_context)
+  backup_context=$("$JQ_BIN" -r '.dockerContext' "$backup_path/metadata.json")
+  backup_project=$("$JQ_BIN" -r '.project' "$backup_path/metadata.json")
+  show_restore_summary "$backup_path" "$current_context"
+
+  if [[ $backup_project != "$PROJECT_NAME" ]]; then
+    if ! restore_is_forced "$force"; then
+      die "backup project '$backup_project' does not match '$PROJECT_NAME'; review and rerun with --force"
+    fi
+    warn "forcing restore from project '$backup_project' into '$PROJECT_NAME'"
+  fi
+
+  if [[ $backup_context != "$current_context" ]]; then
+    if ! restore_is_forced "$force"; then
+      die "backup Docker context '$backup_context' does not match '$current_context'; review and rerun with --force"
+    fi
+    warn "forcing restore across Docker contexts"
+  fi
+
+  if ! restore_is_forced "$force"; then
+    confirm_restore
+  fi
+
+  RESTORE_SOURCE_PATH="$backup_path"
+}
+
+command_restore() {
+  local source_path="$1"
+  local force="$2"
+  local backup_path safety_parent safety_path
+
+  prepare_restore "$source_path" "$force"
+  backup_path="$RESTORE_SOURCE_PATH"
+  safety_parent=$(default_backup_directory)
+  perform_backup "$safety_parent" || die "pre-restore safety backup failed; restore was not started"
+  safety_path="$LAST_BACKUP_PATH"
+  log "Pre-restore safety backup created and verified: $safety_path"
+
+  stop_daemon
+  compose stop backend frontend
+  compose up -d postgres
+  wait_for_postgres || die "PostgreSQL did not become ready for restore within ${WAIT_SECONDS}s"
+
+  compose exec -T postgres dropdb --if-exists --username multica multica
+  compose exec -T postgres createdb --username multica --owner multica multica
+  compose exec -T postgres \
+    pg_restore --username multica --dbname multica --no-owner --clean --if-exists \
+    <"$backup_path/database.dump"
+
+  pull_missing_images backend "$BACKEND_IMAGE"
+  "$DOCKER_BIN" run --rm \
+    --volume "$UPLOADS_VOLUME:/data" \
+    --entrypoint sh \
+    "$BACKEND_IMAGE" \
+    -c 'find /data -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +'
+  "$DOCKER_BIN" run --rm --interactive \
+    --volume "$UPLOADS_VOLUME:/data" \
+    --entrypoint tar \
+    "$BACKEND_IMAGE" \
+    -xzf - -C /data \
+    <"$backup_path/uploads.tar.gz"
+
+  compose up -d
+  wait_for_stack || die "restored stack did not become ready; safety backup is at $safety_path"
+
+  if auth_is_valid; then
+    start_daemon
+  fi
+
+  log "Restore completed from: $backup_path"
+  log "Pre-restore safety backup: $safety_path"
+}
+
+command_version() {
+  log "Desired Multica version: $DESIRED_TAG"
+  log "Version number: $DESIRED_VERSION"
+  log "Native CLI: $(cli_version)"
+  log "Backend image: $BACKEND_IMAGE"
+  log "Frontend image: $FRONTEND_IMAGE"
+  log "PostgreSQL image: $POSTGRES_IMAGE"
+}
+
+command_status() {
+  local backup_dir context endpoint latest
+
+  detect_os
+  backup_dir=$(default_backup_directory)
+  latest=$(latest_backup)
+  context=$(current_context)
+  endpoint=$(current_context_endpoint)
+
+  log "Desired Multica version: $DESIRED_TAG"
+  log "Native CLI: $(cli_version)"
+  log "Operating system: $HOST_OS"
+  log "Docker context: $context"
+  log "Docker endpoint: $endpoint"
+
+  if ! engine_is_ready; then
+    log "Docker engine: stopped or unavailable"
+    log "Compose project: stopped"
+    log "Backend: unavailable ($BACKEND_URL/readyz)"
+    log "Frontend: unavailable ($FRONTEND_URL)"
+    show_multica_state
+    log "Default backup directory: $backup_dir"
+    log "Latest backup: $latest"
+    return 0
+  fi
+
+  log "Docker engine: running"
+  if context_is_local; then
+    log "Docker context safety: local"
+  else
+    warn "Docker context is not local; restore and other destructive operations will be refused"
+    log "Docker context safety: unsafe"
+  fi
+
+  if detect_compose; then
+    log "Compose command: $COMPOSE_KIND"
+    log "Compose project:"
+    compose ps -a || true
+  else
+    log "Compose command: unavailable"
+    log "Compose project: unknown"
+  fi
+
+  log "Backend: $(probe_url "$BACKEND_URL/readyz") ($BACKEND_URL/readyz)"
+  log "Frontend: $(probe_url "$FRONTEND_URL") ($FRONTEND_URL)"
+  show_volume_state
+  show_multica_state
+  log "Default backup directory: $backup_dir"
+  log "Latest backup: $latest"
+}
+
+usage() {
+  cat <<'EOF'
+Usage: multica-selfhost <command> [arguments]
+
+Commands:
+  start      Start the engine, server stack, and authenticated native daemon
+  stop       Stop the daemon and server stack without deleting volumes
+  restart    Back up, pull pinned images, and converge the Compose stack
+  logs [service]
+             Follow all Compose logs or one of postgres, backend, or frontend
+  login      Configure local URLs, authenticate, and start the native daemon
+  backup [destination]
+             Create an atomic verified database and uploads backup
+  restore <backup-directory> [--force]
+             Validate, safety-backup, and restore the database and uploads
+  version    Show the Nix-pinned version and image references
+  status     Show engine, Compose, endpoint, volume, authentication, and daemon state
+EOF
+}
+
+main() {
+  local command="${1:-}"
+
+  case "$command" in
+    start)
+      [[ $# -eq 1 ]] || die "start does not accept arguments"
+      command_start
+      ;;
+    stop)
+      [[ $# -eq 1 ]] || die "stop does not accept arguments"
+      command_stop
+      ;;
+    restart)
+      [[ $# -eq 1 ]] || die "restart does not accept arguments"
+      command_restart
+      ;;
+    logs)
+      [[ $# -le 2 ]] || die "logs accepts at most one service"
+      command_logs "${2:-}"
+      ;;
+    login)
+      [[ $# -eq 1 ]] || die "login does not accept arguments"
+      command_login
+      ;;
+    backup)
+      [[ $# -le 2 ]] || die "backup accepts at most one destination"
+      command_backup "${2:-}"
+      ;;
+    restore)
+      [[ $# -ge 2 && $# -le 3 ]] || die "restore requires a backup directory and optional --force"
+      if [[ $# -eq 3 && $3 != --force ]]; then
+        die "restore accepts only --force as its optional argument"
+      fi
+      command_restore "$2" "$([[ ${3:-} == --force ]] && printf true || printf false)"
+      ;;
+    version)
+      [[ $# -eq 1 ]] || die "version does not accept arguments"
+      command_version
+      ;;
+    status)
+      [[ $# -eq 1 ]] || die "status does not accept arguments"
+      command_status
+      ;;
+    -h | --help | help | "")
+      usage
+      ;;
+    *)
+      die "unknown command: $command"
+      ;;
+  esac
+}
+
+if [[ ${MULTICA_SELFHOST_SOURCE_ONLY:-0} != "1" ]]; then
+  main "$@"
+fi
