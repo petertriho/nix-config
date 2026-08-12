@@ -9,13 +9,13 @@
 }:
 buildNpmPackage {
   pname = "pi-mcp-adapter";
-  version = "2.22.0-unstable-2026-08-11";
+  version = "2.23.0-unstable-2026-08-12";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "852a12fa27b42c53d1d455c5937b9101d71af48a";
-    hash = "sha256-SlyMftKbFIKdVaKuPtwXHtcbaDaQoPPlFWJ7BnAtwcg=";
+    rev = "02d73532be33f431d514363c9d3e145a9f61a44c";
+    hash = "sha256-+6sCJZRmt2EUJCQ3BvLoW7szOc6gDiJh3BsNudDUqiY=";
   };
 
   nodejs = nodejs_24;

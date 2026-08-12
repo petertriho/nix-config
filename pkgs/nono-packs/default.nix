@@ -34,7 +34,7 @@ let
 in
 stdenvNoCC.mkDerivation {
   pname = "nono-packs";
-  version = "0-unstable-2026-07-31";
+  version = "antigravity-v0.3.2-unstable-2026-07-31";
 
   inherit src;
 
