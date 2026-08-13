@@ -21,7 +21,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "dee4e92c4af349dd4bf5ca63b0df16dcdb8c5246",
+      "rev": "a9559dbb3426dae8e126902eea0a01de4e8f8676",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -146,7 +146,7 @@
       "src": "https://github.com/brenoprata10/nvim-highlight-colors"
     },
     "nvim-lint": {
-      "rev": "a219b2c9e5b4765e5c845aba119dad55806fcaf1",
+      "rev": "9b99aad869102ac01775187abd8d49017b148612",
       "src": "https://github.com/mfussenegger/nvim-lint"
     },
     "nvim-lsp-endhints": {
@@ -154,7 +154,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "4267d26e60323a45e18f8e7a63a964cc8f53ca4e",
+      "rev": "d2011e1dd0c27569c551f16b688d86029ae015c9",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -175,7 +175,7 @@
       "src": "https://github.com/chrisgrieser/nvim-spider"
     },
     "nvim-tinygit": {
-      "rev": "ededec9fb84484b20d34b635fdc20e42a35463c7",
+      "rev": "25c0010222602b7319f24f3601f0016aa5a759b4",
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
@@ -228,7 +228,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "c8170f9628265f5a01510182703bab9125ef15d8",
+      "rev": "6bcdcb22f02b43b990b650b3ab40c65aa193c3f8",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
