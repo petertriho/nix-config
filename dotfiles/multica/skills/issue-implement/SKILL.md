@@ -24,6 +24,9 @@ source of truth: its plan sections define scope and its `## Tasks` checklist
    the issue identifier: `agent/<identifier-lowercase>-<short-slug>` (for
    example `agent/abc-12-schema-validation`). All work happens on this
    branch.
+5. Set up the nix dev environment for the repo per the `nix-dev-env` skill
+   before running project commands, and run every project command through
+   it.
 
 ## Core Defaults
 
