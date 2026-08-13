@@ -407,9 +407,9 @@ return {
         {
             "<leader>;",
             function()
-                require("snacks").picker.smart()
+                require("snacks").picker.files()
             end,
-            desc = "Smart Find Files",
+            desc = "Find Files",
         },
         {
             "<leader>:",
