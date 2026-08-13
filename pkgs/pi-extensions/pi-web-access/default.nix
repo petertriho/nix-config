@@ -11,8 +11,8 @@ buildNpmPackage {
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-web-access";
-    rev = "22713b7e639952cb05e703be0b747bab534b6b6a";
-    hash = "sha256-NIDGFElQHNgVlRhuVWH3pZ+VS00TDgjvqhc23IPd7YE=";
+    rev = "6041a073f1804527bfa15d18f84530c68e633d1b";
+    hash = "sha256-ERN6UNfNMQ+o2dyfQhjJohHe1vi50Z4lrjBlMOOy+IY=";
   };
 
   # Upstream gitignores its lockfile, so a reproducible one is vendored here.
