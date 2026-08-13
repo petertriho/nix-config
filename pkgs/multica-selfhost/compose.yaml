@@ -31,14 +31,14 @@ services:
       JWT_SECRET: multica-local-only-jwt-secret-7adf30218f1e4dd3a0874054d1de8b6c
       APP_ENV: development
       MULTICA_DEV_VERIFICATION_CODE: "888888"
-      FRONTEND_ORIGIN: http://localhost:3000
-      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-      MULTICA_APP_URL: http://localhost:3000
+      FRONTEND_ORIGIN: http://localhost:23000
+      CORS_ALLOWED_ORIGINS: http://localhost:23000,http://127.0.0.1:23000
+      MULTICA_APP_URL: http://localhost:23000
       ALLOW_SIGNUP: "true"
     volumes:
       - multica_backend_uploads:/app/data/uploads
     ports:
-      - 127.0.0.1:8080:8080
+      - 127.0.0.1:28080:8080
 
   frontend:
     image: "@frontendImage@"
@@ -49,7 +49,7 @@ services:
       HOSTNAME: 0.0.0.0
       REMOTE_API_URL: http://backend:8080
     ports:
-      - 127.0.0.1:3000:3000
+      - 127.0.0.1:23000:3000
 
 volumes:
   multica_pgdata:

@@ -56,7 +56,7 @@ case "$*" in
   version) printf '%s\n' 'multica 0.4.24 (test)' ;;
   'auth status')
     if [[ ${MOCK_AUTH:-0} == 1 ]]; then
-      printf '%s\n' 'Server: http://127.0.0.1:8080' 'User: Test User (test@example.com)'
+      printf '%s\n' 'Server: http://127.0.0.1:28080' 'User: Test User (test@example.com)'
     else
       printf '%s\n' 'Not authenticated.'
     fi
@@ -178,8 +178,8 @@ refute_log 'logs --follow'
 
 reset_state
 env "${common_env[@]}" MOCK_AUTH=1 MOCK_READY=1 "$helper" login >"$work/login.out"
-expect_log 'config set server_url http://127.0.0.1:8080'
-expect_log 'config set app_url http://127.0.0.1:3000'
+expect_log 'config set server_url http://127.0.0.1:28080'
+expect_log 'config set app_url http://127.0.0.1:23000'
 expect_log 'config set disable_auto_update true'
 expect_log 'config set disable_auto_reload true'
 expect_log 'multica login'
