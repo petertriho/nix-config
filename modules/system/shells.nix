@@ -22,7 +22,7 @@ let
     '';
 in
 {
-  programs.bash.interactiveShellInit = lib.mkIf pkgs.stdenv.isLinux interactiveShellInit;
-  programs.zsh.interactiveShellInit = lib.mkIf pkgs.stdenv.isDarwin interactiveShellInit;
+  programs.bash.interactiveShellInit = lib.mkIf pkgs.stdenv.hostPlatform.isLinux interactiveShellInit;
+  programs.zsh.interactiveShellInit = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin interactiveShellInit;
   programs.fish.enable = true;
 }

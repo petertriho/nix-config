@@ -8,13 +8,13 @@
 
 rustPlatform.buildRustPackage {
   pname = "sem";
-  version = "0.21.0-unstable-2026-07-18";
+  version = "0.21.1-unstable-2026-08-13";
 
   src = fetchFromGitHub {
     owner = "Ataraxy-Labs";
     repo = "sem";
-    rev = "11675d121d834104cf62d47b1968b8caa337be08";
-    hash = "sha256-wiu3OY2iAj45+vwNGiCoOOhAlLA+xJdoGX/+KRAhmjQ=";
+    rev = "47fcc4b5c18d4d8ef310bc5c1cc4c0ba0e2b6e7d";
+    hash = "sha256-rzWV9QuZbHupRqVK7hGL6fsh8KQELkc8bvfQWoIfTrs=";
   };
 
   sourceRoot = "source/crates";

@@ -5,7 +5,7 @@
 }:
 {
   programs.alacritty = {
-    enable = lib.mkIf pkgs.stdenv.isLinux true;
+    enable = lib.mkIf pkgs.stdenv.hostPlatform.isLinux true;
     settings = {
       window = {
         option_as_alt = "Both";
@@ -16,7 +16,7 @@
     };
   };
 
-  targets.darwin.defaults = lib.mkIf pkgs.stdenv.isDarwin {
+  targets.darwin.defaults = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
     "org.alacritty" = {
       AppleFontSmoothing = 0;
     };

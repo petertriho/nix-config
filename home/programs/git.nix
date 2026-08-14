@@ -45,7 +45,7 @@
   };
 
   xdg.configFile = {
-    # "git/fsmonitor.gitconfig" = lib.mkIf pkgs.stdenv.isDarwin {
+    # "git/fsmonitor.gitconfig" = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
     #   source = config.lib.meta.mkDotfilesSymlink "git/.config/git/fsmonitor.gitconfig";
     # };
     "git/attributes".source = config.lib.meta.mkDotfilesSymlink "git/.config/git/attributes";

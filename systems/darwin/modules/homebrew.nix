@@ -4,7 +4,7 @@
   ...
 }:
 let
-  HOMEBREW_PREFIX = if pkgs.stdenv.isAarch64 then "/opt/homebrew" else "/usr/local";
+  HOMEBREW_PREFIX = if pkgs.stdenv.hostPlatform.isAarch64 then "/opt/homebrew" else "/usr/local";
 in
 {
   system.activationScripts.preActivation.text =
@@ -95,7 +95,7 @@ in
       # "wooshy"
     ]
     ++ (
-      if pkgs.stdenv.isAarch64 then
+      if pkgs.stdenv.hostPlatform.isAarch64 then
         [
           "battery"
         ]

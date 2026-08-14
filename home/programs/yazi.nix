@@ -24,7 +24,7 @@
         resvg
         _7zz
       ]
-      ++ lib.optionals pkgs.stdenv.isLinux [
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
         eject
         udisks2
         util-linux

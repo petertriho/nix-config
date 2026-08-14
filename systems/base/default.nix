@@ -25,7 +25,7 @@
       warn-dirty = false;
       trusted-users = [
         "root"
-        (if pkgs.stdenv.isLinux then "@wheel" else "@admin")
+        (if pkgs.stdenv.hostPlatform.isLinux then "@wheel" else "@admin")
       ];
 
       # Deliberately duplicated with flake.nix's nixConfig, which covers fresh

@@ -19,7 +19,7 @@
       type = types.str;
       description = "User's home path";
       default = strings.concatStrings [
-        (if pkgs.stdenv.isLinux then "/home/" else "/Users/")
+        (if pkgs.stdenv.hostPlatform.isLinux then "/home/" else "/Users/")
         config.user
       ];
     };

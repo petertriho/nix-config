@@ -181,7 +181,7 @@
       ysdk = "yarn dlx @yarnpkg/sdks base"; # https://yarnpkg.com/getting-started/editor-sdks#neovim-native-lsp
     }
     // (
-      if pkgs.stdenv.isDarwin then
+      if pkgs.stdenv.hostPlatform.isDarwin then
         {
           aa = "arch -arm64";
           af = "afish";

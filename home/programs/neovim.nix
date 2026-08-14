@@ -101,7 +101,7 @@ in
       ctags-lsp
       universal-ctags
     ]
-    ++ lib.optionals pkgs.stdenv.isLinux [
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
       # qmlls (linux only, requires wayland)
       qt6.qtdeclarative
     ];
@@ -112,7 +112,7 @@ in
       let
         nightly = inputs.neovim-nightly-overlay.packages.${pkgs.stdenv.hostPlatform.system}.default;
       in
-      if pkgs.stdenv.isDarwin then
+      if pkgs.stdenv.hostPlatform.isDarwin then
         nightly.overrideAttrs (_: {
           # The nightly Tree-sitter test runner passes an invalid --listen value on Darwin.
           doCheck = false;

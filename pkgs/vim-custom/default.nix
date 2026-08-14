@@ -12,7 +12,7 @@
       rubySupport = false;
     }
     // (
-      if stdenv.isDarwin then
+      if stdenv.hostPlatform.isDarwin then
         {
           darwinSupport = true;
           guiSupport = false;

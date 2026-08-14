@@ -6,12 +6,12 @@
 }:
 let
   colors = config.lib.stylix.colors.withHashtag;
-  fontSize = if pkgs.stdenv.isLinux then 11 else 13;
+  fontSize = if pkgs.stdenv.hostPlatform.isLinux then 11 else 13;
 in
 {
   home.packages =
     with pkgs;
-    lib.mkIf pkgs.stdenv.isLinux [
+    lib.mkIf pkgs.stdenv.hostPlatform.isLinux [
       ghostty
     ];
 
@@ -19,7 +19,7 @@ in
     "ghostty/config".source = config.lib.meta.mkDotfilesSymlink "ghostty/.config/ghostty/config";
     "ghostty/keybinds".source = config.lib.meta.mkDotfilesSymlink "ghostty/.config/ghostty/keybinds";
     # Only wipe the defaults on Linux; macOS defaults (cmd+c, cmd+v, ...) stay.
-    "ghostty/keybinds-clear".text = lib.optionalString pkgs.stdenv.isLinux ''
+    "ghostty/keybinds-clear".text = lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
       keybind = clear
     '';
     "stylix/ghostty.conf".text = ''
@@ -50,7 +50,7 @@ in
       background-opacity = ${toString config.stylix.opacity.terminal}
     '';
     "ghostty/system".text =
-      if pkgs.stdenv.isLinux then
+      if pkgs.stdenv.hostPlatform.isLinux then
         ""
       else
         ''
@@ -59,7 +59,7 @@ in
         '';
   };
 
-  targets.darwin.defaults = lib.mkIf pkgs.stdenv.isDarwin {
+  targets.darwin.defaults = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
     "com.mitchellh.ghostty" = {
       AppleFontSmoothing = 0;
     };
