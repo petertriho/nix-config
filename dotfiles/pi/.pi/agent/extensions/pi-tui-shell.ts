@@ -56,10 +56,7 @@ export type SessionAccounting = {
 };
 
 export type SessionAccountingCache = {
-  read(
-    ctx: ExtensionContext,
-    model: ModelInfo | undefined,
-  ): SessionAccounting;
+  read(ctx: ExtensionContext, model: ModelInfo | undefined): SessionAccounting;
   invalidate(): void;
 };
 
@@ -108,9 +105,7 @@ type RandomSource = () => number;
 function normalizeAutocompleteCommand(
   item: AutocompleteItem,
 ): DashboardCommand | undefined {
-  const name = sanitizePlainTerminalText(item.value)
-    .replace(/^\/+/, "")
-    .trim();
+  const name = sanitizePlainTerminalText(item.value).replace(/^\/+/, "").trim();
   if (!name) return undefined;
   const description = sanitizePlainTerminalText(item.description ?? "").trim();
   return {
@@ -391,7 +386,10 @@ export function editorBottomLeftText(
 export function editorTopLeftText(
   theme: FrameTheme,
   model: ModelInfo | undefined,
+  thinking: ThinkingLevel,
+  width?: number,
 ): string {
+  const thinkText = `${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}`;
   const identity = model
     ? `${span(theme, "accent", sanitizePlainTerminalText(model.provider))}${span(
         theme,
@@ -399,25 +397,142 @@ export function editorTopLeftText(
         "/",
       )}${span(theme, "text", sanitizePlainTerminalText(model.id))}`
     : span(theme, "muted", "no model");
-  return ` ${identity} `;
+
+  // Unconstrained: full model identity followed by the thinking level.
+  if (width === undefined) {
+    return ` ${identity}${separator(theme)}${thinkText} `;
+  }
+  if (width <= 0) return "";
+
+  // Constrained: preserve `think`; compact the identity (drop the provider,
+  // then truncate the id) first — mirrors fitBottomLeft's mode-label logic.
+  const horizontalPadding = width >= 2 ? 2 : 0;
+  const contentWidth = width - horizontalPadding;
+  const leftPadding = horizontalPadding > 0 ? " " : "";
+  const rightPadding = leftPadding;
+  const sep = separator(theme);
+  const sepWidth = visibleWidth(sep);
+  const thinkWidth = visibleWidth(thinkText);
+
+  if (contentWidth <= thinkWidth) {
+    return `${leftPadding}${truncateToWidth(thinkText, contentWidth, "")}${rightPadding}`;
+  }
+
+  const identityBudget = contentWidth - thinkWidth - sepWidth;
+  if (identityBudget <= 0) {
+    return `${leftPadding}${thinkText}${rightPadding}`;
+  }
+  const idOnly = model
+    ? span(theme, "text", sanitizePlainTerminalText(model.id))
+    : identity;
+  const fitIdentity = (budget: number): string => {
+    if (visibleWidth(identity) <= budget) return identity;
+    if (visibleWidth(idOnly) <= budget) return idOnly;
+    return truncateToWidth(idOnly, budget, "");
+  };
+  return `${leftPadding}${fitIdentity(identityBudget)}${sep}${thinkText}${rightPadding}`;
+}
+
+export function editorTopRightText(
+  theme: FrameTheme,
+  context: ContextDisplay,
+  cost: number,
+): string {
+  let contextColor: FrameColor = "text";
+  if (context.percent !== null) {
+    if (context.percent > 90) contextColor = "error";
+    else if (context.percent > 70) contextColor = "warning";
+  }
+  return ` ${span(theme, "muted", "$")}${span(theme, "text", cost.toFixed(3))}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
+}
+
+export type EditorTurnInfo = {
+  state: LifecycleState;
+  spinnerFrame: string;
+  elapsedMs?: number;
+};
+
+export type EditorBottomRightInput = {
+  usage: SessionUsage;
+  turn: EditorTurnInfo;
+  width?: number;
+};
+
+function sessionUsageStatsText(theme: FrameTheme, usage: SessionUsage): string {
+  const statSpecs = [
+    { label: "↑", value: usage.input, color: "accent" },
+    { label: "↓", value: usage.output, color: "success" },
+    { label: "R", value: usage.cacheRead, color: "muted" },
+    { label: "W", value: usage.cacheWrite, color: "muted" },
+  ] satisfies Array<{ label: string; value: number; color: FrameColor }>;
+  const stats: string[] = [];
+  for (const stat of statSpecs) {
+    if (stat.value <= 0) continue;
+    stats.push(
+      `${span(theme, stat.color, stat.label)}${span(theme, "text", formatTokens(stat.value))}`,
+    );
+  }
+  return stats.join(separator(theme, " "));
+}
+
+function turnIndicatorText(theme: FrameTheme, turn: EditorTurnInfo): string {
+  if (turn.state === "ready") return "";
+  const elapsedText =
+    turn.elapsedMs === undefined
+      ? ""
+      : ` ${span(theme, "text", formatDuration(turn.elapsedMs))}`;
+  return `${span(theme, "accent", turn.spinnerFrame)} ${span(theme, "accent", turn.state)}${elapsedText}`;
+}
+
+function joinBorderParts(theme: FrameTheme, parts: string[]): string {
+  const visibleParts = parts.filter((part) => visibleWidth(part) > 0);
+  if (visibleParts.length === 0) return "";
+  return ` ${visibleParts.join(separator(theme))} `;
+}
+
+function fitEditorBottomRightText(
+  theme: FrameTheme,
+  stats: string,
+  turnText: string,
+  width: number,
+): string {
+  if (width <= 0) return "";
+
+  const horizontalPadding = width >= 2 ? 2 : 0;
+  const contentWidth = width - horizontalPadding;
+  const leftPadding = horizontalPadding > 0 ? " " : "";
+  const rightPadding = leftPadding;
+  const turnWidth = visibleWidth(turnText);
+
+  if (turnWidth > contentWidth) {
+    return `${leftPadding}${truncateToWidth(turnText, contentWidth, "")}${rightPadding}`;
+  }
+
+  let statsBudget = contentWidth - turnWidth;
+  if (turnWidth > 0) statsBudget -= visibleWidth(separator(theme));
+  const statsWidth = visibleWidth(stats);
+  if (statsWidth === 0 || statsBudget <= 0) {
+    return turnWidth === 0 ? "" : `${leftPadding}${turnText}${rightPadding}`;
+  }
+
+  let fittedStats = stats;
+  if (statsWidth > statsBudget) {
+    fittedStats = truncateToWidth(stats, statsBudget, "");
+  }
+  const divider = turnWidth > 0 ? separator(theme) : "";
+  return `${leftPadding}${fittedStats}${divider}${turnText}${rightPadding}`;
 }
 
 export function editorBottomRightText(
   theme: FrameTheme,
-  usage: SessionUsage,
-  elapsedMs?: number,
+  input: EditorBottomRightInput,
 ): string {
-  const usageStats = [
-    `${span(theme, "accent", "↑")}${span(theme, "text", formatTokens(usage.input))}`,
-    `${span(theme, "success", "↓")}${span(theme, "text", formatTokens(usage.output))}`,
-    `${span(theme, "muted", "R")}${span(theme, "text", formatTokens(usage.cacheRead))}`,
-    `${span(theme, "muted", "W")}${span(theme, "text", formatTokens(usage.cacheWrite))}`,
-  ].join(separator(theme, " "));
-  const turnTime =
-    elapsedMs === undefined
-      ? ""
-      : `${separator(theme)}${span(theme, "text", formatDuration(elapsedMs))}`;
-  return ` ${usageStats}${turnTime}${separator(theme)}${span(theme, "muted", "$")}${span(theme, "text", usage.cost.toFixed(3))} `;
+  const stats = sessionUsageStatsText(theme, input.usage);
+  const turnText = turnIndicatorText(theme, input.turn);
+  if (input.width !== undefined) {
+    return fitEditorBottomRightText(theme, stats, turnText, input.width);
+  }
+  return joinBorderParts(theme, [stats, turnText]);
 }
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: Matches ANSI SGR sequences in extension status text.
@@ -465,48 +580,28 @@ export function applyOuterMargin(lines: string[], width: number): string[] {
 
 function renderStatusFooterContent(
   theme: ShellTheme,
-  lifecycle: LifecycleState,
-  spinnerFrame: string,
   statuses: Iterable<string>,
   width: number,
 ): string[] {
-  if (width <= 0) return [""];
+  if (width <= 0) return [];
 
-  const stateText =
-    lifecycle === "ready"
-      ? span(theme, "success", lifecycle)
-      : `${spinnerFrame} ${span(theme, "accent", lifecycle)}`;
-  const fittedState = truncateToWidth(stateText, width, "");
   const statusSeparator = separator(theme);
   const statusText = Array.from(statuses)
     .map((s) => sanitizeStatusText(s).replace(/^\s*·\s*/, ""))
     .filter((status) => visibleWidth(status) > 0)
     .join(statusSeparator);
-  const statusBudget =
-    width - visibleWidth(fittedState) - visibleWidth(statusSeparator);
-  const fittedStatus =
-    statusBudget > 0 ? truncateToWidth(statusText, statusBudget, "") : "";
-  const suffix = fittedStatus ? `${statusSeparator}${fittedStatus}` : "";
-
-  return [`${fittedState}${suffix}`];
+  if (visibleWidth(statusText) === 0) return [];
+  return [truncateToWidth(statusText, width, "")];
 }
 
 export function renderStatusFooter(
   theme: ShellTheme,
-  lifecycle: LifecycleState,
-  spinnerFrame: string,
   statuses: Iterable<string>,
   width: number,
 ): string[] {
   const contentWidth = Math.max(0, width - 2);
   return applyOuterMargin(
-    renderStatusFooterContent(
-      theme,
-      lifecycle,
-      spinnerFrame,
-      statuses,
-      contentWidth,
-    ),
+    renderStatusFooterContent(theme, statuses, contentWidth),
     width,
   );
 }
@@ -545,8 +640,7 @@ function renderDashboardContent(
         if (index === 0) {
           marker = span(theme, "accent", "●");
         } else {
-          const connector =
-            index === data.commands.length - 1 ? "└" : "│";
+          const connector = index === data.commands.length - 1 ? "└" : "│";
           marker = span(theme, "dim", connector);
         }
         const name = truncateToWidth(
@@ -564,15 +658,9 @@ function renderDashboardContent(
           "",
         );
         const padding = description
-          ? " ".repeat(
-              Math.max(2, nameColumnWidth - visibleWidth(name) + 2),
-            )
+          ? " ".repeat(Math.max(2, nameColumnWidth - visibleWidth(name) + 2))
           : "";
-        const styledName = span(
-          theme,
-          index === 0 ? "accent" : "text",
-          name,
-        );
+        const styledName = span(theme, index === 0 ? "accent" : "text", name);
         return `${marker} ${styledName}${padding}${span(theme, "dim", description)}`;
       });
     }
@@ -757,16 +845,30 @@ export function createSessionAccountingCache(): SessionAccountingCache {
   };
 }
 
-function fitBorder(
-  left: string,
-  right: string,
-  width: number,
-  border: (text: string) => string,
-  leftCorner: string,
-  rightCorner: string,
-  priority: BorderPriority,
-  truncateLeft?: (width: number) => string,
-): string {
+type FitBorderInput = {
+  left: string;
+  right: string;
+  width: number;
+  border: (text: string) => string;
+  leftCorner: string;
+  rightCorner: string;
+  priority: BorderPriority;
+  truncateLeft?: (width: number) => string;
+  truncateRight?: (width: number) => string;
+};
+
+function fitBorder(input: FitBorderInput): string {
+  const {
+    left,
+    right,
+    width,
+    border,
+    leftCorner,
+    rightCorner,
+    priority,
+    truncateLeft,
+    truncateRight,
+  } = input;
   if (width <= 0) return "";
   if (width === 1) return border(leftCorner);
 
@@ -789,7 +891,9 @@ function fitBorder(
   const fitRight = () => {
     const maximumWidth = Math.max(0, innerWidth - leftWidth - minimumGap);
     if (rightWidth <= maximumWidth) return;
-    rightText = truncateToWidth(rightText, maximumWidth, "");
+    rightText = truncateRight
+      ? truncateRight(maximumWidth)
+      : truncateToWidth(rightText, maximumWidth, "");
     rightWidth = visibleWidth(rightText);
   };
 
@@ -871,6 +975,10 @@ export type EditorShellRows = {
   bottomLeft: string;
   bottomRight: string;
   fitBottomLeft(width: number): string;
+  /** Constrained top-left fit: preserve `think`, compact the model identity. */
+  fitTopLeft?(width: number): string;
+  /** Constrained bottom-right fit: preserve the turn segment, drop stats first. */
+  fitBottomRight?(width: number): string;
   /**
    * When true, keep the wrapped editor's own bottom-border line (framed with
    * side edges) instead of redrawing the shell's `╰─…─╯` bottom border. Used
@@ -890,6 +998,8 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
     bottomLeft,
     bottomRight,
     fitBottomLeft,
+    fitTopLeft,
+    fitBottomRight,
     preserveBottomBorder = false,
   } = input;
   const border = (text: string) => theme.fg("border", text);
@@ -927,20 +1037,30 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
   return [
     ...autocompleteLines.map((line) => panelLine(line, width, theme)),
     ...(autocompleteLines.length > 0 ? [""] : []),
-    fitBorder(topLeft, topRight, width, border, "╭", "╮", "right"),
+    fitBorder({
+      left: topLeft,
+      right: topRight,
+      width,
+      border,
+      leftCorner: "╭",
+      rightCorner: "╮",
+      priority: "right",
+      truncateLeft: fitTopLeft,
+    }),
     ...editorLines.map((line) => frameLine(line, width, border)),
-    preservedBottomBorder !== undefined
-      ? frameLine(preservedBottomBorder, width, border)
-      : fitBorder(
-          bottomLeft,
-          bottomRight,
+    preservedBottomBorder === undefined
+      ? fitBorder({
+          left: bottomLeft,
+          right: bottomRight,
           width,
           border,
-          "╰",
-          "╯",
-          "left",
-          fitBottomLeft,
-        ),
+          leftCorner: "╰",
+          rightCorner: "╯",
+          priority: "left",
+          truncateLeft: fitBottomLeft,
+          truncateRight: fitBottomRight,
+        })
+      : frameLine(preservedBottomBorder, width, border),
   ];
 }
 
@@ -1008,26 +1128,31 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     const shellWidth = Math.max(1, width - 2);
     const theme = ctx.ui.theme;
     const thinking = pi.getThinkingLevel();
-    const topLeft = editorTopLeftText(theme, activeModel);
+    const topLeft = editorTopLeftText(theme, activeModel, thinking);
 
     const { context, usage } = accounting.read(ctx, activeModel);
-    const contextColor =
-      context.percent !== null && context.percent > 90
-        ? "error"
-        : context.percent !== null && context.percent > 70
-          ? "warning"
-          : "text";
-    const topRight = ` ${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
+    const topRight = editorTopRightText(theme, context, usage.cost);
 
     const cwd = sanitizePlainTerminalText(
       formatCwd(ctx.sessionManager.getCwd()),
     );
-    const bottomLeft = editorBottomLeftText(theme, cwd, undefined, modeLabel, modeColor);
+    const bottomLeft = editorBottomLeftText(
+      theme,
+      cwd,
+      undefined,
+      modeLabel,
+      modeColor,
+    );
     const elapsedMs =
       lifecycle.state !== "ready" && lifecycle.turnStartedAt !== undefined
         ? Date.now() - lifecycle.turnStartedAt
         : undefined;
-    const bottomRight = editorBottomRightText(theme, usage, elapsedMs);
+    const turn: EditorTurnInfo = {
+      state: lifecycle.state,
+      spinnerFrame: spinnerFrames[lifecycle.spinnerIndex] ?? spinnerFrames[0],
+      elapsedMs,
+    };
+    const bottomRight = editorBottomRightText(theme, { usage, turn });
 
     return applyOuterMargin(
       composeEditorShellRows({
@@ -1042,6 +1167,10 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         bottomRight,
         fitBottomLeft: (maximumWidth) =>
           editorBottomLeftText(theme, cwd, maximumWidth, modeLabel, modeColor),
+        fitTopLeft: (maximumWidth) =>
+          editorTopLeftText(theme, activeModel, thinking, maximumWidth),
+        fitBottomRight: (maximumWidth) =>
+          editorBottomRightText(theme, { usage, turn, width: maximumWidth }),
       }),
       width,
     );
@@ -1089,11 +1218,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     private readonly inner: EditorComponent;
     private readonly frameCtx: ExtensionContext;
 
-    constructor(
-      inner: EditorComponent,
-      frameCtx: ExtensionContext,
-      tui: TUI,
-    ) {
+    constructor(inner: EditorComponent, frameCtx: ExtensionContext, tui: TUI) {
       this.inner = inner;
       this.frameCtx = frameCtx;
       activeTui = tui;
@@ -1124,7 +1249,8 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     render(width: number): string[] {
       const shellWidth = Math.max(1, width - 2);
       const nativeWidth = Math.max(1, shellWidth - 2);
-      const border = (text: string) => this.frameCtx.ui.theme.fg("border", text);
+      const border = (text: string) =>
+        this.frameCtx.ui.theme.fg("border", text);
       // Match the inner editor's borders to the shell frame (matters when we
       // preserve its bottom border, e.g. a live vim search prompt).
       this.borderColor = border;
@@ -1142,8 +1268,9 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         width,
         innerLines,
         showingAutocomplete:
-          (leaf as { isShowingAutocomplete?: () => boolean })
-            .isShowingAutocomplete?.() ?? false,
+          (
+            leaf as { isShowingAutocomplete?: () => boolean }
+          ).isShowingAutocomplete?.() ?? false,
         modeLabel: vimModeLabel(mode),
         modeColor: vimModeColor(mode),
         preserveBottomBorder: mode === "command-line",
@@ -1179,9 +1306,11 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       return fn ? fn.call(this.inner) : this.getText().split("\n");
     }
     getCursor(): { line: number; col: number } {
-      const fn = (this.inner as {
-        getCursor?(): { line: number; col: number };
-      }).getCursor;
+      const fn = (
+        this.inner as {
+          getCursor?(): { line: number; col: number };
+        }
+      ).getCursor;
       if (fn) return fn.call(this.inner);
       const lines = this.getLines();
       const last = Math.max(0, lines.length - 1);
@@ -1223,9 +1352,11 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     // abort, Ctrl+D to exit, model cycling, paste-image, extension shortcuts)
     // reach the inner CustomEditor instead of dying on this wrapper.
     get actionHandlers() {
-      return (this.inner as unknown as {
-        actionHandlers: Map<string, () => void>;
-      }).actionHandlers;
+      return (
+        this.inner as unknown as {
+          actionHandlers: Map<string, () => void>;
+        }
+      ).actionHandlers;
     }
     get onEscape() {
       return (this.inner as { onEscape?: () => void }).onEscape;
@@ -1246,14 +1377,18 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       (this.inner as { onPasteImage?: () => void }).onPasteImage = value;
     }
     get onExtensionShortcut() {
-      return (this.inner as {
-        onExtensionShortcut?: (data: string) => boolean;
-      }).onExtensionShortcut;
+      return (
+        this.inner as {
+          onExtensionShortcut?: (data: string) => boolean;
+        }
+      ).onExtensionShortcut;
     }
     set onExtensionShortcut(value: ((data: string) => boolean) | undefined) {
-      (this.inner as {
-        onExtensionShortcut?: (data: string) => boolean;
-      }).onExtensionShortcut = value;
+      (
+        this.inner as {
+          onExtensionShortcut?: (data: string) => boolean;
+        }
+      ).onExtensionShortcut = value;
     }
   }
 
@@ -1404,12 +1539,6 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         render(width: number): string[] {
           return renderStatusFooter(
             theme,
-            lifecycle.state,
-            span(
-              theme,
-              "accent",
-              spinnerFrames[lifecycle.spinnerIndex] ?? spinnerFrames[0],
-            ),
             provider.getExtensionStatuses().values(),
             width,
           );
