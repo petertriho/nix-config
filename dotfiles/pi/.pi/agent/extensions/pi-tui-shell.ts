@@ -87,6 +87,31 @@ export type LifecycleController = {
   reset(): void;
 };
 
+export type ActivityPhase = "thinking" | "responding" | "settling";
+
+export type ActiveTool = {
+  toolCallId: string;
+  toolName: string;
+  order: number;
+};
+
+export type ActivitySnapshot = {
+  phase: ActivityPhase | undefined;
+  turn: number | undefined;
+  currentTool: ActiveTool | undefined;
+  activeToolCount: number;
+};
+
+export type ActivityTracker = {
+  readonly snapshot: ActivitySnapshot;
+  startTurn(turnIndex: number): void;
+  setPhase(phase: ActivityPhase): void;
+  startTool(toolCallId: string, toolName: string): void;
+  endTool(toolCallId: string): void;
+  settle(): void;
+  reset(): void;
+};
+
 export type DashboardCommand = {
   name: string;
   description?: string;
@@ -220,6 +245,69 @@ export function createLifecycleController(
       turnStartedAt = undefined;
       stopTimer();
       onChange();
+    },
+  };
+}
+
+export function createActivityTracker(onChange: () => void): ActivityTracker {
+  let phase: ActivityPhase | undefined;
+  let turn: number | undefined;
+  let toolOrder = 0;
+  const activeTools = new Map<string, ActiveTool>();
+
+  const currentTool = (): ActiveTool | undefined => {
+    let current: ActiveTool | undefined;
+    for (const tool of activeTools.values()) {
+      if (!current || tool.order > current.order) current = tool;
+    }
+    return current;
+  };
+
+  return {
+    get snapshot() {
+      const tool = currentTool();
+      return {
+        phase,
+        turn,
+        currentTool: tool ? { ...tool } : undefined,
+        activeToolCount: activeTools.size,
+      };
+    },
+    startTurn(turnIndex: number) {
+      const nextTurn = Math.max(1, Math.floor(turnIndex) + 1);
+      const changed = turn !== nextTurn || phase !== "thinking";
+      turn = nextTurn;
+      phase = "thinking";
+      if (changed) onChange();
+    },
+    setPhase(nextPhase: ActivityPhase) {
+      if (phase === nextPhase) return;
+      phase = nextPhase;
+      onChange();
+    },
+    startTool(toolCallId: string, toolName: string) {
+      toolOrder += 1;
+      activeTools.set(toolCallId, { toolCallId, toolName, order: toolOrder });
+      onChange();
+    },
+    endTool(toolCallId: string) {
+      if (!activeTools.delete(toolCallId)) return;
+      onChange();
+    },
+    settle() {
+      const changed = phase !== "settling" || activeTools.size > 0;
+      phase = "settling";
+      activeTools.clear();
+      if (changed) onChange();
+    },
+    reset() {
+      const changed =
+        phase !== undefined || turn !== undefined || activeTools.size > 0;
+      phase = undefined;
+      turn = undefined;
+      toolOrder = 0;
+      activeTools.clear();
+      if (changed) onChange();
     },
   };
 }
@@ -433,23 +521,129 @@ export function editorTopLeftText(
   return `${leftPadding}${fitIdentity(identityBudget)}${sep}${thinkText}${rightPadding}`;
 }
 
+const CONTEXT_METER_SEGMENTS = 5;
+
+export function contextMeterFill(
+  percent: number | null,
+  segments = CONTEXT_METER_SEGMENTS,
+): number | null {
+  if (percent === null || !Number.isFinite(percent)) return null;
+  const segmentCount = Math.max(0, Math.floor(segments));
+  const normalized = Math.max(0, Math.min(100, percent));
+  return Math.round((normalized / 100) * segmentCount);
+}
+
+function contextColor(percent: number | null): FrameColor {
+  if (percent === null) return "muted";
+  if (percent > 90) return "error";
+  if (percent > 70) return "warning";
+  return "accent";
+}
+
+export function contextMeterText(
+  theme: FrameTheme,
+  context: ContextDisplay,
+  segments = CONTEXT_METER_SEGMENTS,
+): string {
+  const segmentCount = Math.max(0, Math.floor(segments));
+  const filled = contextMeterFill(context.percent, segmentCount);
+  if (filled === null) return span(theme, "dim", "░".repeat(segmentCount));
+  const empty = segmentCount - filled;
+  const filledText =
+    filled > 0
+      ? span(theme, contextColor(context.percent), "█".repeat(filled))
+      : "";
+  const emptyText = empty > 0 ? span(theme, "dim", "░".repeat(empty)) : "";
+  return `${filledText}${emptyText}`;
+}
+
+function editorTopRightContent(
+  theme: FrameTheme,
+  context: ContextDisplay,
+  cost: number,
+  options: { showCost: boolean; showLabel: boolean; showMeter: boolean },
+): string {
+  const contextParts: string[] = [];
+  if (options.showLabel) contextParts.push(span(theme, "muted", "ctx"));
+  if (options.showMeter) contextParts.push(contextMeterText(theme, context));
+  contextParts.push(span(theme, contextColor(context.percent), context.text));
+  const contextText = contextParts.join(" ");
+  if (!options.showCost) return contextText;
+  const costText = `${span(theme, "muted", "$")}${span(
+    theme,
+    "text",
+    cost.toFixed(3),
+  )}`;
+  return `${costText}${separator(theme)}${contextText}`;
+}
+
+function fitEditorTopRightText(
+  theme: FrameTheme,
+  context: ContextDisplay,
+  cost: number,
+  width: number,
+): string {
+  if (width <= 0) return "";
+
+  const horizontalPadding = width >= 2 ? 2 : 0;
+  const contentWidth = width - horizontalPadding;
+  const padding = horizontalPadding > 0 ? " " : "";
+  const candidates = [
+    editorTopRightContent(theme, context, cost, {
+      showCost: true,
+      showLabel: true,
+      showMeter: true,
+    }),
+    editorTopRightContent(theme, context, cost, {
+      showCost: false,
+      showLabel: true,
+      showMeter: true,
+    }),
+    editorTopRightContent(theme, context, cost, {
+      showCost: false,
+      showLabel: true,
+      showMeter: false,
+    }),
+    editorTopRightContent(theme, context, cost, {
+      showCost: false,
+      showLabel: false,
+      showMeter: false,
+    }),
+  ];
+  const fitted = candidates.find(
+    (candidate) => visibleWidth(candidate) <= contentWidth,
+  );
+  if (fitted !== undefined) return `${padding}${fitted}${padding}`;
+
+  const absolute = span(
+    theme,
+    contextColor(context.percent),
+    truncateToWidth(context.text, contentWidth, ""),
+  );
+  return `${padding}${absolute}${padding}`;
+}
+
 export function editorTopRightText(
   theme: FrameTheme,
   context: ContextDisplay,
   cost: number,
+  width?: number,
 ): string {
-  let contextColor: FrameColor = "text";
-  if (context.percent !== null) {
-    if (context.percent > 90) contextColor = "error";
-    else if (context.percent > 70) contextColor = "warning";
+  if (width !== undefined) {
+    return fitEditorTopRightText(theme, context, cost, width);
   }
-  return ` ${span(theme, "muted", "$")}${span(theme, "text", cost.toFixed(3))}${separator(theme)}${span(theme, "muted", "ctx ")}${span(theme, contextColor, context.text)} `;
+  return ` ${editorTopRightContent(theme, context, cost, {
+    showCost: true,
+    showLabel: true,
+    showMeter: true,
+  })} `;
 }
 
 export type EditorTurnInfo = {
   state: LifecycleState;
   spinnerFrame: string;
   elapsedMs?: number;
+  activity?: ActivitySnapshot;
 };
 
 export type EditorBottomRightInput = {
@@ -458,16 +652,25 @@ export type EditorBottomRightInput = {
   width?: number;
 };
 
-function sessionUsageStatsText(theme: FrameTheme, usage: SessionUsage): string {
+function sessionUsageStatsText(
+  theme: FrameTheme,
+  usage: SessionUsage,
+  includeCache = true,
+): string {
   const statSpecs = [
-    { label: "↑", value: usage.input, color: "accent" },
-    { label: "↓", value: usage.output, color: "success" },
-    { label: "R", value: usage.cacheRead, color: "muted" },
-    { label: "W", value: usage.cacheWrite, color: "muted" },
-  ] satisfies Array<{ label: string; value: number; color: FrameColor }>;
+    { label: "↑", value: usage.input, color: "accent", cache: false },
+    { label: "↓", value: usage.output, color: "success", cache: false },
+    { label: "R", value: usage.cacheRead, color: "muted", cache: true },
+    { label: "W", value: usage.cacheWrite, color: "muted", cache: true },
+  ] satisfies Array<{
+    label: string;
+    value: number;
+    color: FrameColor;
+    cache: boolean;
+  }>;
   const stats: string[] = [];
   for (const stat of statSpecs) {
-    if (stat.value <= 0) continue;
+    if (stat.value <= 0 || (!includeCache && stat.cache)) continue;
     stats.push(
       `${span(theme, stat.color, stat.label)}${span(theme, "text", formatTokens(stat.value))}`,
     );
@@ -475,13 +678,39 @@ function sessionUsageStatsText(theme: FrameTheme, usage: SessionUsage): string {
   return stats.join(separator(theme, " "));
 }
 
-function turnIndicatorText(theme: FrameTheme, turn: EditorTurnInfo): string {
+function activityIndicatorText(
+  theme: FrameTheme,
+  turn: EditorTurnInfo,
+  options: { showCount: boolean; showTurn: boolean; showElapsed: boolean },
+): string {
   if (turn.state === "ready") return "";
-  const elapsedText =
-    turn.elapsedMs === undefined
-      ? ""
-      : ` ${span(theme, "text", formatDuration(turn.elapsedMs))}`;
-  return `${span(theme, "accent", turn.spinnerFrame)} ${span(theme, "accent", turn.state)}${elapsedText}`;
+
+  const snapshot = turn.activity;
+  const currentTool = snapshot?.currentTool;
+  const sanitizedTool = currentTool
+    ? sanitizePlainTerminalText(currentTool.toolName)
+    : "";
+  const phase =
+    snapshot?.phase ?? (turn.state === "settling" ? "settling" : "thinking");
+  const label = sanitizedTool || (currentTool ? "tool" : phase);
+  const additionalTools = Math.max(0, (snapshot?.activeToolCount ?? 0) - 1);
+  const countText =
+    options.showCount && additionalTools > 0
+      ? span(theme, "muted", ` +${additionalTools}`)
+      : "";
+  const primary = `${span(theme, "accent", turn.spinnerFrame)} ${span(
+    theme,
+    "accent",
+    label,
+  )}${countText}`;
+  const details: string[] = [];
+  if (options.showTurn && snapshot?.turn !== undefined) {
+    details.push(span(theme, "muted", `t${snapshot.turn}`));
+  }
+  if (options.showElapsed && turn.elapsedMs !== undefined) {
+    details.push(span(theme, "text", formatDuration(turn.elapsedMs)));
+  }
+  return [primary, ...details].join(separator(theme));
 }
 
 function joinBorderParts(theme: FrameTheme, parts: string[]): string {
@@ -492,47 +721,90 @@ function joinBorderParts(theme: FrameTheme, parts: string[]): string {
 
 function fitEditorBottomRightText(
   theme: FrameTheme,
-  stats: string,
-  turnText: string,
+  usage: SessionUsage,
+  turn: EditorTurnInfo,
   width: number,
 ): string {
   if (width <= 0) return "";
 
   const horizontalPadding = width >= 2 ? 2 : 0;
   const contentWidth = width - horizontalPadding;
-  const leftPadding = horizontalPadding > 0 ? " " : "";
-  const rightPadding = leftPadding;
-  const turnWidth = visibleWidth(turnText);
+  const padding = horizontalPadding > 0 ? " " : "";
+  const stats = sessionUsageStatsText(theme, usage);
+  const ioStats = sessionUsageStatsText(theme, usage, false);
+  const activity = (options: {
+    showCount: boolean;
+    showTurn: boolean;
+    showElapsed: boolean;
+  }) => activityIndicatorText(theme, turn, options);
+  const combine = (statsText: string, activityText: string) => {
+    if (!statsText) return activityText;
+    if (!activityText) return statsText;
+    return `${statsText}${separator(theme)}${activityText}`;
+  };
 
-  if (turnWidth > contentWidth) {
-    return `${leftPadding}${truncateToWidth(turnText, contentWidth, "")}${rightPadding}`;
+  const fullActivity = activity({
+    showCount: true,
+    showTurn: true,
+    showElapsed: true,
+  });
+  const noCountActivity = activity({
+    showCount: false,
+    showTurn: true,
+    showElapsed: true,
+  });
+  const compactActivity = activity({
+    showCount: false,
+    showTurn: false,
+    showElapsed: true,
+  });
+  const baseActivity = activity({
+    showCount: false,
+    showTurn: false,
+    showElapsed: false,
+  });
+  const candidates =
+    turn.state === "ready"
+      ? [stats, ioStats]
+      : [
+          combine(stats, fullActivity),
+          combine(ioStats, fullActivity),
+          combine(ioStats, noCountActivity),
+          combine(ioStats, compactActivity),
+          compactActivity,
+          baseActivity,
+        ];
+  const fitted = candidates.find(
+    (candidate) => visibleWidth(candidate) <= contentWidth,
+  );
+  if (fitted !== undefined) {
+    return fitted === "" ? "" : `${padding}${fitted}${padding}`;
   }
 
-  let statsBudget = contentWidth - turnWidth;
-  if (turnWidth > 0) statsBudget -= visibleWidth(separator(theme));
-  const statsWidth = visibleWidth(stats);
-  if (statsWidth === 0 || statsBudget <= 0) {
-    return turnWidth === 0 ? "" : `${leftPadding}${turnText}${rightPadding}`;
-  }
-
-  let fittedStats = stats;
-  if (statsWidth > statsBudget) {
-    fittedStats = truncateToWidth(stats, statsBudget, "");
-  }
-  const divider = turnWidth > 0 ? separator(theme) : "";
-  return `${leftPadding}${fittedStats}${divider}${turnText}${rightPadding}`;
+  const fallback = turn.state === "ready" ? ioStats || stats : baseActivity;
+  if (!fallback) return "";
+  return `${padding}${truncateToWidth(fallback, contentWidth, "")}${padding}`;
 }
 
 export function editorBottomRightText(
   theme: FrameTheme,
   input: EditorBottomRightInput,
 ): string {
-  const stats = sessionUsageStatsText(theme, input.usage);
-  const turnText = turnIndicatorText(theme, input.turn);
   if (input.width !== undefined) {
-    return fitEditorBottomRightText(theme, stats, turnText, input.width);
+    return fitEditorBottomRightText(
+      theme,
+      input.usage,
+      input.turn,
+      input.width,
+    );
   }
-  return joinBorderParts(theme, [stats, turnText]);
+  const stats = sessionUsageStatsText(theme, input.usage);
+  const activity = activityIndicatorText(theme, input.turn, {
+    showCount: true,
+    showTurn: true,
+    showElapsed: true,
+  });
+  return joinBorderParts(theme, [stats, activity]);
 }
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: Matches ANSI SGR sequences in extension status text.
@@ -591,7 +863,8 @@ function renderStatusFooterContent(
     .filter((status) => visibleWidth(status) > 0)
     .join(statusSeparator);
   if (visibleWidth(statusText) === 0) return [];
-  return [truncateToWidth(statusText, width, "")];
+  const content = `${span(theme, "dim", "◆ ")}${statusText}`;
+  return [truncateToWidth(content, width, "")];
 }
 
 export function renderStatusFooter(
@@ -614,35 +887,41 @@ function renderDashboardContent(
   if (width <= 0) return ["", ""];
 
   const fit = (line: string) => truncateToWidth(line, width, "");
-  const logoRows = (
+  const logo =
     width >= 70
       ? ["██████  ", "██  ██  ", "████  ██", "██    ██"]
-      : ["███ ", "█ █ ", "██ █", "█  █"]
-  ).map((line) => span(theme, "accent", line));
-  logoRows.push(span(theme, "dim", `v${data.version}`));
+      : ["███ ", "█ █ ", "██ █", "█  █"];
+  const logoRows = logo.map((line) => span(theme, "accent", line));
+  logoRows.push(
+    `${span(theme, "text", "PI")}${span(theme, "dim", ` · v${data.version}`)}`,
+  );
 
   const contentRows = (contentWidth: number) => {
+    const hint =
+      contentWidth >= 28
+        ? `${span(theme, "text", "COMMAND DECK")}${span(
+            theme,
+            "dim",
+            "  type / to browse",
+          )}`
+        : span(theme, "text", "COMMAND DECK");
     let commandRows: string[];
     if (data.commandsLoading) {
-      commandRows = [span(theme, "muted", "Discovering commands…")];
+      commandRows = [span(theme, "muted", "01  discovering commands…")];
     } else if (data.commands.length === 0) {
-      commandRows = [span(theme, "muted", "Type / to browse commands")];
+      commandRows = [span(theme, "muted", "01  type / to browse commands")];
     } else {
       const names = data.commands.map(
         (command) => `/${sanitizePlainTerminalText(command.name)}`,
       );
+      const indexWidth = Math.max(2, String(data.commands.length).length);
+      const markerWidth = indexWidth + 2;
       const nameColumnWidth = Math.min(
         Math.max(...names.map(visibleWidth)),
-        Math.max(0, Math.floor(contentWidth * 0.45)),
+        Math.max(0, Math.floor((contentWidth - markerWidth) * 0.45)),
       );
       commandRows = data.commands.map((command, index) => {
-        let marker: string;
-        if (index === 0) {
-          marker = span(theme, "accent", "●");
-        } else {
-          const connector = index === data.commands.length - 1 ? "└" : "│";
-          marker = span(theme, "dim", connector);
-        }
+        const marker = `${String(index + 1).padStart(indexWidth, "0")}  `;
         const name = truncateToWidth(
           `/${sanitizePlainTerminalText(command.name)}`,
           nameColumnWidth,
@@ -650,7 +929,7 @@ function renderDashboardContent(
         );
         const descriptionWidth = Math.max(
           0,
-          contentWidth - visibleWidth(marker) - nameColumnWidth - 3,
+          contentWidth - markerWidth - nameColumnWidth - 2,
         );
         const description = truncateToWidth(
           sanitizePlainTerminalText(command.description ?? ""),
@@ -660,12 +939,17 @@ function renderDashboardContent(
         const padding = description
           ? " ".repeat(Math.max(2, nameColumnWidth - visibleWidth(name) + 2))
           : "";
+        const styledMarker = span(
+          theme,
+          index === 0 ? "accent" : "dim",
+          marker,
+        );
         const styledName = span(theme, index === 0 ? "accent" : "text", name);
-        return `${marker} ${styledName}${padding}${span(theme, "dim", description)}`;
+        return `${styledMarker}${styledName}${padding}${span(theme, "dim", description)}`;
       });
     }
 
-    return [span(theme, "muted", "try a command"), ...commandRows];
+    return [hint, ...commandRows];
   };
 
   if (width >= 50) {
@@ -675,9 +959,11 @@ function renderDashboardContent(
     const rowCount = Math.max(logoRows.length, rowsContent.length);
     const rows = Array.from({ length: rowCount }, (_, index) => {
       const logoText = logoRows[index] ?? "";
-      const logo = `${logoText}${" ".repeat(Math.max(0, logoWidth - visibleWidth(logoText)))}`;
+      const logoColumn = `${logoText}${" ".repeat(
+        Math.max(0, logoWidth - visibleWidth(logoText)),
+      )}`;
       const content = rowsContent[index] ?? "";
-      return fit(`${logo}${content ? "   " : ""}${content}`);
+      return fit(`${logoColumn}${content ? "   " : ""}${content}`);
     });
     return ["", ...rows, ""];
   }
@@ -977,7 +1263,9 @@ export type EditorShellRows = {
   fitBottomLeft(width: number): string;
   /** Constrained top-left fit: preserve `think`, compact the model identity. */
   fitTopLeft?(width: number): string;
-  /** Constrained bottom-right fit: preserve the turn segment, drop stats first. */
+  /** Constrained top-right fit: preserve context, remove cost first. */
+  fitTopRight?(width: number): string;
+  /** Constrained bottom-right fit: preserve activity, then I/O, then cache. */
   fitBottomRight?(width: number): string;
   /**
    * When true, keep the wrapped editor's own bottom-border line (framed with
@@ -999,6 +1287,7 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
     bottomRight,
     fitBottomLeft,
     fitTopLeft,
+    fitTopRight,
     fitBottomRight,
     preserveBottomBorder = false,
   } = input;
@@ -1046,6 +1335,7 @@ export function composeEditorShellRows(input: EditorShellRows): string[] {
       rightCorner: "╮",
       priority: "right",
       truncateLeft: fitTopLeft,
+      truncateRight: fitTopRight,
     }),
     ...editorLines.map((line) => frameLine(line, width, border)),
     preservedBottomBorder === undefined
@@ -1098,6 +1388,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   let tuiSessionActive = false;
   let restoreEditorInstallInterceptor: (() => void) | undefined;
   const lifecycle = createLifecycleController(() => activeTui?.requestRender());
+  const activity = createActivityTracker(() => activeTui?.requestRender());
   const accounting = createSessionAccountingCache();
 
   // ── Editor frame ───────────────────────────────────────────────────────────
@@ -1131,7 +1422,14 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     const topLeft = editorTopLeftText(theme, activeModel, thinking);
 
     const { context, usage } = accounting.read(ctx, activeModel);
-    const topRight = editorTopRightText(theme, context, usage.cost);
+    const minimumTopLeftWidth = visibleWidth(` think ${thinking} `);
+    const topRightBudget = Math.max(0, shellWidth - 3 - minimumTopLeftWidth);
+    const topRight = editorTopRightText(
+      theme,
+      context,
+      usage.cost,
+      topRightBudget,
+    );
 
     const cwd = sanitizePlainTerminalText(
       formatCwd(ctx.sessionManager.getCwd()),
@@ -1151,6 +1449,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       state: lifecycle.state,
       spinnerFrame: spinnerFrames[lifecycle.spinnerIndex] ?? spinnerFrames[0],
       elapsedMs,
+      activity: activity.snapshot,
     };
     const bottomRight = editorBottomRightText(theme, { usage, turn });
 
@@ -1169,6 +1468,8 @@ export default function piTuiShell(pi: ExtensionAPI): void {
           editorBottomLeftText(theme, cwd, maximumWidth, modeLabel, modeColor),
         fitTopLeft: (maximumWidth) =>
           editorTopLeftText(theme, activeModel, thinking, maximumWidth),
+        fitTopRight: (maximumWidth) =>
+          editorTopRightText(theme, context, usage.cost, maximumWidth),
         fitBottomRight: (maximumWidth) =>
           editorBottomRightText(theme, { usage, turn, width: maximumWidth }),
       }),
@@ -1448,6 +1749,31 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     activeTui?.requestRender();
   });
 
+  pi.on("turn_start", (event) => {
+    if (!tuiSessionActive) return;
+    activity.startTurn(event.turnIndex);
+  });
+
+  pi.on("message_start", (event) => {
+    if (!tuiSessionActive || event.message.role !== "assistant") return;
+    activity.setPhase("responding");
+  });
+
+  pi.on("message_update", (event) => {
+    if (!tuiSessionActive || event.message.role !== "assistant") return;
+    activity.setPhase("responding");
+  });
+
+  pi.on("tool_execution_start", (event) => {
+    if (!tuiSessionActive) return;
+    activity.startTool(event.toolCallId, event.toolName);
+  });
+
+  pi.on("tool_execution_end", (event) => {
+    if (!tuiSessionActive) return;
+    activity.endTool(event.toolCallId);
+  });
+
   pi.on("message_end", () => {
     accounting.invalidate();
   });
@@ -1467,6 +1793,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   pi.on("agent_start", (_event, ctx) => {
     if (!tuiSessionActive) return;
     activeModel = ctx.model;
+    activity.setPhase("thinking");
     lifecycle.start();
   });
 
@@ -1474,12 +1801,14 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     if (!tuiSessionActive) return;
     activeModel = ctx.model;
     accounting.invalidate();
+    activity.settle();
     lifecycle.end();
   });
 
   pi.on("agent_settled", (_event, ctx) => {
     if (!tuiSessionActive) return;
     activeModel = ctx.model;
+    activity.reset();
     lifecycle.settle();
   });
 
@@ -1491,6 +1820,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     dashboardGeneration += 1;
     activeTui = undefined;
     lifecycle.reset();
+    activity.reset();
     accounting.invalidate();
     activeModel = undefined;
     dashboardCommands = [];
@@ -1508,6 +1838,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       dashboardGeneration += 1;
       activeTui = undefined;
       lifecycle.reset();
+      activity.reset();
       activeModel = undefined;
       dashboardCommands = [];
       commandPoolKey = "";
@@ -1523,6 +1854,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     installFramedEditor(ctx);
     activeTui = undefined;
     lifecycle.reset();
+    activity.reset();
     activeModel = ctx.model;
     commandDiscoveryAbort?.abort();
     dashboardCommands = [];
