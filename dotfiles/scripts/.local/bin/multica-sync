@@ -9,8 +9,12 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 readonly SCRIPT_DIR
-readonly SKILLS_DIR="$SCRIPT_DIR/skills"
-readonly AGENTS_DIR="$SCRIPT_DIR/agents"
+# dotfiles/scripts/.local/bin -> dotfiles/multica (pwd -P resolves the
+# ~/.local/bin symlink chain back into the repo).
+ASSETS_DIR="${MULTICA_SYNC_ASSETS_DIR:-$SCRIPT_DIR/../../../multica}"
+readonly ASSETS_DIR
+readonly SKILLS_DIR="$ASSETS_DIR/skills"
+readonly AGENTS_DIR="$ASSETS_DIR/agents"
 readonly MULTICA_BIN="${MULTICA_SYNC_MULTICA:-multica}"
 readonly JQ_BIN="${MULTICA_SYNC_JQ:-jq}"
 
@@ -31,7 +35,7 @@ die() {
 
 usage() {
   cat <<'EOF'
-Usage: sync.sh [--dry-run]
+Usage: multica-sync [--dry-run]
 
 Sync local Multica skills and agents into the configured workspace.
 

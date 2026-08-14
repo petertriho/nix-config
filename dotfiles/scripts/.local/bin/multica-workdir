@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+# The jq programs in this script use jq variables, not shell interpolation.
+# shellcheck disable=SC2016
+set -euo pipefail
+
+# Pick a local Multica issue workdir with fzf and print its path.
+#
+# Flow: issue picker -> agent workdir picker. Passing an issue identifier
+# (case-insensitive, e.g. dh-1) skips straight to the workdir picker; any
+# other argument pre-fills the issue picker query. Steps with a single
+# candidate auto-select, so `cd $(multica-workdir dh-2)` is zero-interaction.
+#
+# Local task dirs come from `multica daemon disk-usage`, joined with
+# `multica issue list` / `multica agent list` for names; each workdir's
+# .multica/daemon_task_context.json supplies the owning agent. Previews show
+# issue details (step 1) and per-repo git state plus the agent's last run
+# (step 2). Network failures degrade to unnamed rows, never errors.
+
+SELF=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")
+readonly SELF
+
+# Field separator for jq -> `read` plumbing. Unlike tab, a non-whitespace IFS
+# character preserves empty fields (jq side: join("\u001f")).
+US=$'\x1f'
+readonly US
+
+BOLD=$'\e[1m'
+DIM='' # secondary text stays plain: \e[2m is too faint
+RESET=$'\e[0m'
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
+}
+
+usage() {
+  cat <<'EOF'
+Usage: multica-workdir [issue]
+
+Pick a local Multica issue workdir with fzf and print its path.
+
+  issue   Issue identifier (case-insensitive, e.g. dh-1) jumps straight to
+          that issue's workdir picker; any other value pre-fills the issue
+          picker query.
+
+Composes with cd: cd "$(multica-workdir dh-1)"
+EOF
+}
+
+fmt_size() {
+  numfmt --to=iec "$1"
+}
+
+fmt_age() {
+  local s=$1
+  if ((s < 3600)); then
+    printf '%dm' $((s / 60))
+  elif ((s < 86400)); then
+    printf '%dh' $((s / 3600))
+  else
+    printf '%dd' $((s / 86400))
+  fi
+}
+
+# --- data --------------------------------------------------------------------
+
+# Print the first argument if it parses as JSON, else the fallback.
+json_or() {
+  jq -ce '.' <<<"$1" 2>/dev/null || printf '%s' "$2"
+}
+
+# Fetch every issue in the workspace, following pagination.
+fetch_issues() {
+  local offset=0 page merged='[]'
+  while :; do
+    page=$(multica issue list --output json --limit 200 --offset "$offset" 2>/dev/null) || return 1
+    jq -e '.issues' <<<"$page" >/dev/null 2>&1 || return 1
+    merged=$(jq -cn --argjson a "$merged" --argjson b "$page" '$a + ($b.issues // [])')
+    [[ $(jq -r '.has_more // false' <<<"$page") == true ]] || break
+    offset=$((offset + 200))
+  done
+  printf '%s' "$merged"
+}
+
+# Build $CACHE_DIR/data.json: local task dirs joined with issue/agent names.
+build_data() {
+  local disk_json issues_json agents_json issues_ok=true
+  disk_json=$(multica daemon disk-usage --output json) ||
+    die "failed to run 'multica daemon disk-usage'"
+
+  agents_json=$(json_or "$(multica agent list --output json 2>/dev/null || true)" '[]')
+  issues_json=$(fetch_issues) || {
+    issues_ok=false
+    issues_json='[]'
+    warn "could not fetch the issue list; showing raw ids"
+  }
+
+  # One entry per task dir whose workdir still exists on disk.
+  local path parent status age size wd agent_id
+  while IFS=$US read -r path parent status age size; do
+    wd="$path/workdir"
+    [[ -d $wd ]] || continue
+    agent_id=$(jq -r '.agent_id // empty' "$wd/.multica/daemon_task_context.json" 2>/dev/null || true)
+    jq -cn --arg wd "$wd" --arg iid "$parent" --arg aid "$agent_id" \
+      --arg ts "$(basename "$path")" --arg st "$status" \
+      --argjson age "$age" --argjson size "$size" \
+      '{workdir: $wd, issue_id: $iid, agent_id: $aid, task_short: $ts,
+        parent_status: $st, age_seconds: $age, size_bytes: $size}'
+  done < <(jq -r '.tasks[]? | select(.kind == "issue")
+    | [.path, .parent_id, .parent_status // "", .age_seconds, .size_bytes]
+    | map(tostring) | join("\u001f")' \
+    <<<"$disk_json") | jq -s '.' >"$CACHE_DIR/dirs.json"
+
+  # Dirs whose issue is missing from the list (deleted, filtered): resolve
+  # individually so real directories are never hidden.
+  if [[ $issues_ok == true ]]; then
+    local uuid extra
+    while IFS= read -r uuid; do
+      [[ -n $uuid ]] || continue
+      extra=$(multica issue get "$uuid" --output json 2>/dev/null) || continue
+      jq -e '.id' <<<"$extra" >/dev/null 2>&1 || continue
+      issues_json=$(jq -cn --argjson a "$issues_json" --argjson e "$extra" '$a + [$e]')
+    done < <(jq -r --argjson known "$(jq -c 'map(.id)' <<<"$issues_json")" \
+      '[.[].issue_id] | unique | map(select(. as $x | $known | index($x) | not)) | .[]' \
+      "$CACHE_DIR/dirs.json")
+  fi
+
+  jq -n --slurpfile d "$CACHE_DIR/dirs.json" \
+    --argjson issues "$issues_json" --argjson agents "$agents_json" \
+    '{dirs: $d[0],
+      issues: ($issues | map({key: .id, value: {identifier, title, status,
+        description, priority, updated_at}}) | from_entries),
+      agents: ($agents | map({key: .id, value: .name}) | from_entries)}' \
+    >"$CACHE_DIR/data.json"
+}
+
+# Previews run as separate invocations: reuse the parent picker's cache when
+# handed down via the environment, otherwise build a fresh one (standalone
+# debugging: multica-workdir --preview-workdir <path>).
+ensure_cache() {
+  if [[ -n ${MULTICA_WORKDIR_CACHE:-} && -f ${MULTICA_WORKDIR_CACHE}/data.json ]]; then
+    CACHE_DIR="$MULTICA_WORKDIR_CACHE"
+    return 0
+  fi
+  CACHE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/multica-workdir.XXXXXX")
+  trap 'rm -rf "$CACHE_DIR"' EXIT
+  build_data
+}
+
+# --- previews ------------------------------------------------------------------
+
+render_md() {
+  if command -v bat >/dev/null 2>&1; then
+    bat --language=md --style=plain --color=always --paging=never
+  else
+    cat
+  fi
+}
+
+preview_issue() {
+  local uuid=$1 meta ident status n size title updated
+  meta=$(jq -r --arg id "$uuid" '
+    (.issues[$id] // {identifier: ("~" + $id[0:8]), title: "(unknown issue)",
+      status: "unknown"}) as $i
+    | [.dirs[] | select(.issue_id == $id)] as $d
+    | [$i.identifier, ($i.status // "?"), ($d | length),
+       ($d | map(.size_bytes) | add // 0),
+       (($i.title // "") | gsub("[[:cntrl:]]"; " ")), ($i.updated_at // "")]
+    | map(tostring) | join("\u001f")' "$CACHE_DIR/data.json")
+  IFS=$US read -r ident status n size title updated <<<"$meta"
+
+  printf '%s%s%s · %s · %s workdir(s) · %s\n' \
+    "$BOLD" "$ident" "$RESET" "$status" "$n" "$(fmt_size "$size")"
+  printf '%s%s%s\n' "$BOLD" "$title" "$RESET"
+  [[ -n $updated ]] && printf '%supdated %s%s\n' "$DIM" "$updated" "$RESET"
+  echo
+  jq -r --arg id "$uuid" '.issues[$id].description // ""' "$CACHE_DIR/data.json" |
+    render_md
+}
+
+preview_repo_git() {
+  local repo=$1 name branch counts upstream dirty last behind ahead
+  name=$(basename "$repo")
+  branch=$(git -C "$repo" symbolic-ref --short -q HEAD ||
+    echo "detached @ $(git -C "$repo" rev-parse --short HEAD 2>/dev/null || echo '?')")
+  counts=$(git -C "$repo" rev-list --left-right --count '@{upstream}...HEAD' 2>/dev/null || true)
+  if [[ -n $counts ]]; then
+    read -r behind ahead <<<"$counts"
+    upstream="↑$ahead ↓$behind"
+  else
+    upstream="no upstream"
+  fi
+  dirty=$(git -C "$repo" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  [[ $dirty == 0 ]] && dirty="clean" || dirty="$dirty dirty"
+  last=$(git -C "$repo" log --oneline --no-decorate -1 2>/dev/null || echo '(no commits)')
+
+  printf '%s%s%s  %s  %s  %s\n' "$BOLD" "$name" "$RESET" "$branch" "$upstream" "$dirty"
+  printf '  %s%s%s\n' "$DIM" "$last" "$RESET"
+}
+
+preview_last_run() {
+  local issue_id=$1 agent_id=$2 runs_file run
+  runs_file="$CACHE_DIR/runs-$issue_id.json"
+  if [[ ! -f $runs_file ]]; then
+    multica issue runs "$issue_id" --output json >"$runs_file" 2>/dev/null ||
+      printf 'null' >"$runs_file"
+  fi
+  run=$(jq -c --arg a "$agent_id" '[.[]? | select(.agent_id == $a)][0] // empty' "$runs_file")
+  if [[ -z $run ]]; then
+    if [[ $(cat "$runs_file") == null ]]; then
+      printf '%slast run: (unavailable — offline?)%s\n' "$DIM" "$RESET"
+    else
+      printf '%slast run: none recorded for this agent%s\n' "$DIM" "$RESET"
+    fi
+    return 0
+  fi
+
+  local status completed trigger
+  status=$(jq -r '.status // "?"' <<<"$run")
+  completed=$(jq -r '.completed_at // .started_at // .created_at // "?"' <<<"$run")
+  trigger=$(jq -r '.trigger_summary // ""' <<<"$run" |
+    sed -E 's|\[(@[^]]+)\]\(mention://[^)]+\)|\1|g' | tr '\t\n' '  ')
+
+  printf '%slast run%s  %s · %s\n' "$BOLD" "$RESET" "$status" "$completed"
+  [[ -n $trigger ]] && printf '%s▸ %s%s\n' "$DIM" "$trigger" "$RESET"
+  echo
+  jq -r '.result.output // ""' <<<"$run" | head -n 15
+}
+
+preview_workdir() {
+  local wd=$1 agent_id=${2:-} meta agent ident status size age issue_id repo
+  meta=$(jq -r --arg wd "$wd" '
+    [.dirs[] | select(.workdir == $wd)][0] as $d
+    | if $d == null then empty else
+        (.issues[$d.issue_id] // {identifier: ("~" + $d.issue_id[0:8]),
+          status: (if $d.parent_status == "" then "unknown" else $d.parent_status end)}) as $i
+        | [(.agents[$d.agent_id] // (if $d.agent_id == "" then "?" else $d.agent_id[0:8] end)),
+           $i.identifier, ($i.status // "?"), $d.size_bytes, $d.age_seconds, $d.issue_id]
+        | map(tostring) | join("\u001f")
+      end' "$CACHE_DIR/data.json")
+  [[ -n $meta ]] || {
+    printf '(not a known workdir: %s)\n' "$wd"
+    return 0
+  }
+  IFS=$US read -r agent ident status size age issue_id <<<"$meta"
+
+  printf '%s%s · %s%s · %s · %s · %s\n' \
+    "$BOLD" "$ident" "$agent" "$RESET" "$status" "$(fmt_size "$size")" "$(fmt_age "$age")"
+  printf '%s%s%s\n\n' "$DIM" "$wd" "$RESET"
+
+  for repo in "$wd"/*/; do
+    [[ -e "$repo/.git" ]] || continue
+    preview_repo_git "${repo%/}"
+  done
+  echo
+  preview_last_run "$issue_id" "$agent_id"
+}
+
+# --- pickers -------------------------------------------------------------------
+
+fzf_preview_cmd() {
+  printf 'MULTICA_WORKDIR_CACHE=%q %q %s' "$CACHE_DIR" "$SELF" "$1"
+}
+
+pick_issue() {
+  local query=$1 rows display="" sel
+  local uuid ident status n size age title
+  rows=$(jq -r '
+    .issues as $issues
+    | .dirs
+    | group_by(.issue_id)
+    | map({id: .[0].issue_id, n: length,
+           size: (map(.size_bytes) | add),
+           age: (map(.age_seconds) | min),
+           status_fallback: .[0].parent_status})
+    | sort_by(.age)
+    | .[]
+    | ($issues[.id] // {}) as $i
+    | [.id,
+       ($i.identifier // ("~" + .id[0:8])),
+       ($i.status // (if .status_fallback == "" then "unknown" else .status_fallback end)),
+       .n, .size, .age,
+       (($i.title // "(unknown issue)") | gsub("[[:cntrl:]]"; " "))]
+    | map(tostring) | join("\u001f")' "$CACHE_DIR/data.json")
+
+  while IFS=$US read -r uuid ident status n size age title; do
+    display+=$(printf '%s\t%-8s %-12s %2d wd %6s %4s  %s' \
+      "$uuid" "$ident" "$status" "$n" "$(fmt_size "$size")" "$(fmt_age "$age")" "$title")$'\n'
+  done <<<"$rows"
+
+  local fzf_args=(
+    --delimiter=$'\t' --with-nth=2..
+    --prompt='issue> '
+    --select-1
+    --preview "$(fzf_preview_cmd '--preview-issue {1}')"
+    --preview-window=wrap
+    # Plain preview text otherwise inherits the theme's muted list fg.
+    --color=preview-fg:-1
+  )
+  [[ -n $query ]] && fzf_args+=(--query "$query")
+
+  sel=$(printf '%s' "$display" | fzf "${fzf_args[@]}")
+  cut -f1 <<<"$sel"
+}
+
+pick_workdir() {
+  local issue_id=$1 rows display="" sel
+  local wd aid name ts size age
+  rows=$(jq -r --arg id "$issue_id" '
+    .agents as $agents
+    | [.dirs[] | select(.issue_id == $id)]
+    | sort_by(.age_seconds)
+    | .[]
+    | [.workdir, .agent_id,
+       ($agents[.agent_id] // (if .agent_id == "" then "?" else .agent_id[0:8] end)),
+       .task_short, .size_bytes, .age_seconds]
+    | map(tostring) | join("\u001f")' "$CACHE_DIR/data.json")
+  [[ -n $rows ]] || die "no local workdirs for the selected issue"
+
+  while IFS=$US read -r wd aid name ts size age; do
+    display+=$(printf '%s\t%s\t%-12s %-10s %6s %4s' \
+      "$wd" "$aid" "$name" "$ts" "$(fmt_size "$size")" "$(fmt_age "$age")")$'\n'
+  done <<<"$rows"
+
+  sel=$(printf '%s' "$display" | fzf \
+    --delimiter=$'\t' --with-nth=3.. \
+    --prompt='workdir> ' \
+    --select-1 \
+    --preview "$(fzf_preview_cmd '--preview-workdir {1} {2}')" \
+    --preview-window=wrap \
+    --color=preview-fg:-1)
+  cut -f1 <<<"$sel"
+}
+
+# --- main ----------------------------------------------------------------------
+
+main() {
+  case "${1:-}" in
+    -h | --help)
+      usage
+      return 0
+      ;;
+    --preview-issue)
+      [[ -n ${2:-} ]] || die "--preview-issue requires an issue id"
+      ensure_cache
+      preview_issue "$2"
+      return 0
+      ;;
+    --preview-workdir)
+      [[ -n ${2:-} ]] || die "--preview-workdir requires a workdir path"
+      ensure_cache
+      preview_workdir "$2" "${3:-}"
+      return 0
+      ;;
+    -*)
+      die "unknown flag: $1"
+      ;;
+  esac
+  [[ $# -le 1 ]] || die "expected at most one argument (an issue identifier or query)"
+  local query="${1:-}"
+
+  command -v multica >/dev/null 2>&1 || die "multica CLI not found"
+  command -v fzf >/dev/null 2>&1 || die "fzf not found"
+  command -v jq >/dev/null 2>&1 || die "jq not found"
+
+  CACHE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/multica-workdir.XXXXXX")
+  trap 'rm -rf "$CACHE_DIR"' EXIT
+  build_data
+
+  local ndirs
+  ndirs=$(jq '.dirs | length' "$CACHE_DIR/data.json")
+  ((ndirs > 0)) || die "no local Multica issue workdirs found"
+
+  # Case-insensitive exact identifier match skips the issue picker.
+  local issue_id=""
+  if [[ -n $query ]]; then
+    issue_id=$(jq -r --arg q "$query" '
+      ([.dirs[].issue_id] | unique) as $have
+      | .issues | to_entries[]
+      | select(.key as $k | $have | index($k))
+      | select((.value.identifier // "") | ascii_downcase == ($q | ascii_downcase))
+      | .key' "$CACHE_DIR/data.json" | head -n1)
+  fi
+  if [[ -z $issue_id ]]; then
+    issue_id=$(pick_issue "$query")
+  fi
+  [[ -n $issue_id ]] || die "no issue selected"
+
+  pick_workdir "$issue_id"
+}
+
+main "$@"

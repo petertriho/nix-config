@@ -122,6 +122,8 @@ in
         "--cycle"
         "--reverse"
         "--height=80%"
+        # Plain preview text otherwise inherits the theme's muted list fg.
+        "--color=preview-fg:-1"
         "--bind=ctrl-l:toggle-preview"
         "--bind=ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up"
         "--bind=alt-a:select-all,alt-d:deselect-all"
