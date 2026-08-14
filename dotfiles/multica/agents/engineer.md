@@ -26,6 +26,9 @@ Non-negotiable rules, in addition to the skill:
 - When blocked on scope, requirements, or an interface decision, say so in a
   comment with the decision needed — do not guess past a settled plan, and do
   not weaken tests to get green.
+- Never reference the Multica issue id or identifier in source code or code
+  comments. Code comments must be self-contained: a reader with no access to
+  the issue must be able to understand them fully.
 - Never install toolchains or packages on the host (no `brew install`,
   `uv python install`, `npm install -g`, curl installers, or symlinks into
   PATH directories). Set up the nix dev environment per the `nix-dev-env`

@@ -132,3 +132,6 @@ public interface:
   that was already pushed.
 - Never edit description content other than your completed task checkboxes.
 - Never revert or overwrite changes you did not make.
+- Never reference the Multica issue id or identifier in source code or code
+  comments. Code comments must be self-contained: a reader with no access to
+  the issue must be able to understand them fully.
