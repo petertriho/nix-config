@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+auth_file="$HOME/.local/share/opencode/auth.json"
+provider="zai-coding-plan"
+
+if [[ ! -f "$auth_file" ]]; then
+    echo "Error: $auth_file not found" >&2
+    exit 1
+fi
+
+if ! key=$(jq -r --arg provider "$provider" '.[$provider].key // empty' "$auth_file") || [[ -z "$key" ]]; then
+    echo "Error: No key found for provider '$provider'" >&2
+    exit 1
+fi
+
+export ANTHROPIC_AUTH_TOKEN="$key"
+export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
+export API_TIMEOUT_MS="3000000"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.7"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5-turbo"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.3[1m]"
+exec claude "$@"
