@@ -255,6 +255,7 @@ in
         "tui.altScreen.previousPrompt" = [
           "ctrl+shift+u"
         ];
+        "tui.altScreen.search" = [ "ctrl+alt+f" ];
         "app.message.dequeue" = [ "ctrl+q" ];
       };
       settings = {
