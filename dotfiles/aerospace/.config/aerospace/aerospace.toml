@@ -249,7 +249,7 @@ z = ['fullscreen', 'mode main']
 alt-z = ['fullscreen', 'mode main']
 
 [workspace-to-monitor-force-assignment]
-1 = '^built-in retina display$'
+# 1 = '^built-in retina display$'
 A = ['^dell [a-zA-Z0-9]+ \(1\)$', '^lg tv sscr2$', 'dell u3419w', 'secondary']
 B = ['^dell [a-zA-Z0-9]+ \(2\)$', '^dell u2723qe$', 'eb321hqu']
 C = ['^led monitor$']
