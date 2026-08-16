@@ -568,7 +568,8 @@ function editorTopRightContent(
   if (options.showMeter) contextParts.push(contextMeterText(theme, context));
   contextParts.push(span(theme, contextColor(context.percent), context.text));
   const contextText = contextParts.join(" ");
-  if (!options.showCost) return contextText;
+  // Hide zero-cost sessions (e.g. local/offline models) instead of showing $0.000.
+  if (!options.showCost || cost <= 0) return contextText;
   const costText = `${span(theme, "muted", "$")}${span(
     theme,
     "text",

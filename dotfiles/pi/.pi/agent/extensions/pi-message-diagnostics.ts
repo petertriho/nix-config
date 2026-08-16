@@ -358,10 +358,12 @@ function renderCollapsed(
       text: `${theme.fg("muted", "R")}${theme.fg("text", formatTokens(data.usage.cacheRead))} ${theme.fg("muted", "W")}${theme.fg("text", formatTokens(data.usage.cacheWrite))}`,
     });
   }
-  sections.push({
-    key: "cost",
-    text: theme.fg("text", formatCost(data.usage.cost.total, 3)),
-  });
+  if (data.usage.cost.total > 0) {
+    sections.push({
+      key: "cost",
+      text: theme.fg("text", formatCost(data.usage.cost.total, 3)),
+    });
+  }
   if (status?.isSuccess) {
     sections.push({
       key: "success",
@@ -429,15 +431,17 @@ function renderExpanded(
       `${theme.fg("dim", "total ")}${theme.fg("text", formatTokens(data.usage.totalTokens))}`,
     ])}`,
   );
-  lines.push(
-    `  ${theme.fg("dim", "Cost ")}${joinSections(theme, [
-      `${theme.fg("dim", "input ")}${theme.fg("text", formatCost(data.usage.cost.input, 4))}`,
-      `${theme.fg("dim", "output ")}${theme.fg("text", formatCost(data.usage.cost.output, 4))}`,
-      `${theme.fg("dim", "cache read ")}${theme.fg("text", formatCost(data.usage.cost.cacheRead, 4))}`,
-      `${theme.fg("dim", "cache write ")}${theme.fg("text", formatCost(data.usage.cost.cacheWrite, 4))}`,
-      `${theme.fg("dim", "total ")}${theme.fg("text", formatCost(data.usage.cost.total, 4))}`,
-    ])}`,
-  );
+  if (data.usage.cost.total > 0) {
+    lines.push(
+      `  ${theme.fg("dim", "Cost ")}${joinSections(theme, [
+        `${theme.fg("dim", "input ")}${theme.fg("text", formatCost(data.usage.cost.input, 4))}`,
+        `${theme.fg("dim", "output ")}${theme.fg("text", formatCost(data.usage.cost.output, 4))}`,
+        `${theme.fg("dim", "cache read ")}${theme.fg("text", formatCost(data.usage.cost.cacheRead, 4))}`,
+        `${theme.fg("dim", "cache write ")}${theme.fg("text", formatCost(data.usage.cost.cacheWrite, 4))}`,
+        `${theme.fg("dim", "total ")}${theme.fg("text", formatCost(data.usage.cost.total, 4))}`,
+      ])}`,
+    );
+  }
 
   const errorMessage = optionalText(data.errorMessage);
   if (errorMessage) {
