@@ -6,13 +6,13 @@
 }:
 buildNpmPackage {
   pname = "pi-tasks";
-  version = "0.7.2-unstable-2026-07-22";
+  version = "0.7.2-unstable-2026-08-16";
 
   src = fetchFromGitHub {
     owner = "tintinweb";
     repo = "pi-tasks";
-    rev = "03a13011eb7bfb63d6d348959fe738ab7365ea75";
-    hash = "sha256-aKCJKkl1jmAQ17eJ6wmnu6cjhwY2t3PB0yIqyYgqQHY=";
+    rev = "e49fd9695c5c4baa250836af7fcaa35fbdfa79b2";
+    hash = "sha256-SuQ2WdHiqwy0V5uKO8jN1Kl05jvI3XDgoYpCNgnhGJc=";
   };
 
   # Upstream package-lock.json records the @earendil-works/* peerDependencies

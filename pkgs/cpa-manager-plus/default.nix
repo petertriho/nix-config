@@ -6,13 +6,13 @@
   nodejs_22,
 }:
 let
-  version = "1.12.0-rc.2-unstable-2026-08-14";
+  version = "1.12.0-rc.3-unstable-2026-08-15";
 
   src = fetchFromGitHub {
     owner = "seakee";
     repo = "CPA-Manager-Plus";
-    rev = "8c8f7bb7d996b3faad0188dc76cce45a073cfb92";
-    hash = "sha256-oBazws+0/4IL/1vrSzPWroBsx6afLM075EH5GhEHYts=";
+    rev = "184d0cab47c23dbd911824b2f1a15fc5f71cb223";
+    hash = "sha256-1eTt4RmWvPHeJs1eaOW54hzv/mJlFAWzabEcTVAY9XU=";
   };
 
   frontend = buildNpmPackage {
@@ -39,7 +39,7 @@ buildGoModule {
   inherit version src;
 
   sourceRoot = "${src.name}/apps/manager-server";
-  vendorHash = "sha256-uJGAp0OI+kPYEqycceleOFbl6A+Tb2PDh2QnffvNFfY=";
+  vendorHash = "sha256-OhtGqAXPPbTIqGB9VvQ5UTgCNt7fw2yNKkEIgWhGuiM=";
   subPackages = [ "cmd/cpa-manager-plus" ];
   env.CGO_ENABLED = "0";
 
