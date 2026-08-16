@@ -294,12 +294,12 @@ in
         );
         "${cfg.configDir}/themes/stylix.json".source =
           jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
-
-        "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
-          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
-
+        "${cfg.configDir}/extensions/pi-dashboard.ts".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-dashboard.ts";
         "${cfg.configDir}/extensions/pi-message-diagnostics.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
+        "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
 
         # Provider compat overrides only (pi-cache-optimizer recommendations for
         # the zai/opencode-go gateways) — no credentials, models, or baseUrls; pi
