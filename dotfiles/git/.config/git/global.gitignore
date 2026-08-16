@@ -1,11 +1,12 @@
-.beads
 .artifacts
+.auto
+.beads
 .claude
 .grip
 .od
 .opencode
-.plans
 .pi
+.plans
 .scratch
 .tasks
 .workmux.yaml
