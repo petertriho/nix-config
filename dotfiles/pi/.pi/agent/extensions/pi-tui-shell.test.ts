@@ -129,24 +129,28 @@ test("plain terminal text removes executable controls", () => {
 	assert.match(sanitized, /title next/);
 });
 
-test("status footer preserves SGR styling but removes unsafe escapes", () => {
+test("status footer renders extension statuses verbatim", () => {
+	const status = "\x1b[31m· Claude 14/16·4.31M/5.02M 85.9%\x1b[0m";
+	const rendered = renderStatusFooter(plainTheme, [status], 60).join("\n");
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: Verifies raw status passthrough.
+	assert.equal(rendered.includes(status), true);
+	assert.equal(rendered.includes("◆"), false);
+});
+
+test("status footer joins multiple statuses with the shell separator", () => {
 	const rendered = renderStatusFooter(
 		plainTheme,
-		["\x1b[31mred\x1b[0m \x1b[2Junsafe"],
+		["· first", "· second"],
 		60,
 	).join("\n");
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: Verifies preserved ANSI SGR output.
-	assert.match(rendered, /\x1b\[31mred\x1b\[0m/);
-	assert.match(rendered, /◆/);
-	assert.equal(rendered.includes("\x1b[2J"), false);
+	assert.match(rendered, /· first/);
+	assert.match(rendered, /· second/);
+	assert.equal(rendered.includes("◆"), false);
 });
 
 test("status footer renders no rows without visible extension statuses", () => {
 	assert.deepEqual(renderStatusFooter(plainTheme, [], 60), []);
-	assert.deepEqual(
-		renderStatusFooter(plainTheme, ["", " \u00b7 ", "\x1b[2J\x07"], 60),
-		[],
-	);
+	assert.deepEqual(renderStatusFooter(plainTheme, ["", ""], 60), []);
 });
 
 test("editor top-left pairs the model with the thinking level", () => {

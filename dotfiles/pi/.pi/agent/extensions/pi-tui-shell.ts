@@ -743,11 +743,8 @@ export function editorBottomRightText(
   return joinBorderParts(theme, [stats, activity]);
 }
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: Matches ANSI SGR sequences in extension status text.
-const SAFE_SGR_PATTERN = /\x1b\[[0-9;:]*m/g;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: Removes terminal control bytes from untrusted display text.
 const TERMINAL_CONTROL_PATTERN = /[\x00-\x1f\x7f]/g;
-const SGR_PLACEHOLDER_PATTERN = /\uE000(\d+)\uE001/g;
 
 /** Strip terminal controls from untrusted text while keeping printable content. */
 export function sanitizePlainTerminalText(text: string): string {
@@ -755,20 +752,6 @@ export function sanitizePlainTerminalText(text: string): string {
     .replace(TERMINAL_CONTROL_PATTERN, " ")
     .replace(/ +/g, " ")
     .trim();
-}
-
-/** Preserve extension-supplied SGR colors, but neutralize all other controls. */
-function sanitizeStatusText(text: string): string {
-  const sgrSequences: string[] = [];
-  const protectedText = text.replace(SAFE_SGR_PATTERN, (sequence) => {
-    const placeholder = `\uE000${sgrSequences.length}\uE001`;
-    sgrSequences.push(sequence);
-    return placeholder;
-  });
-  return sanitizePlainTerminalText(protectedText).replace(
-    SGR_PLACEHOLDER_PATTERN,
-    (_placeholder, index: string) => sgrSequences[Number(index)] ?? "",
-  );
 }
 
 export function applyOuterMargin(lines: string[], width: number): string[] {
@@ -793,14 +776,11 @@ function renderStatusFooterContent(
 ): string[] {
   if (width <= 0) return [];
 
-  const statusSeparator = separator(theme);
   const statusText = Array.from(statuses)
-    .map((s) => sanitizeStatusText(s).replace(/^\s*·\s*/, ""))
     .filter((status) => visibleWidth(status) > 0)
-    .join(statusSeparator);
+    .join(separator(theme));
   if (visibleWidth(statusText) === 0) return [];
-  const content = `${span(theme, "dim", "◆ ")}${statusText}`;
-  return [truncateToWidth(content, width, "")];
+  return [truncateToWidth(statusText, width, "")];
 }
 
 export function renderStatusFooter(
