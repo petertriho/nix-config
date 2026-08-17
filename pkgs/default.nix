@@ -31,6 +31,7 @@ with pkgs;
   multica = callPackage ./multica { };
   multica-selfhost = callPackage ./multica-selfhost { };
   nono-packs = callPackage ./nono-packs { };
+  pi-acp = callPackage ./pi-acp { };
   playwriter = callPackage ./playwriter { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   python-validity = callPackage ./python-validity { };
