@@ -6,6 +6,7 @@
   nodejs_24,
   autoPatchelfHook,
   zlib,
+  stripNpmManifest,
 }:
 buildNpmPackage {
   pname = "pi-mcp-adapter";
@@ -31,23 +32,19 @@ buildNpmPackage {
   # references and --omit=dev only prunes the *install*, so all 344 were
   # downloaded and then discarded, leaving the build hostage to unrelated
   # tooling (an unpublished @biomejs/biome release broke pi-tasks exactly this
-  # way). So the vendored files are upstream's with every dev-only entry pruned,
-  # production pins untouched.
+  # way). So package.json is stripped in place — dev + peer deps dropped,
+  # production pins untouched — and the lockfile regenerated from the stripped
+  # manifest is vendored.
   #
-  # The vendored package.json also carries upstream's `files` whitelist, which
-  # `npm pack` enforces: any file upstream adds must be re-vendored on the next
-  # bump or it silently drops from the install while shipped .ts files still
-  # import it (2.26.0 broke exactly this way over agent-plugin-loader.ts).
-  #
-  # Stripping them also removes the three @earendil-works/* entries that record
-  # `resolved` with no `integrity` (which panics nixpkgs' lockfile parser), so
-  # the integrity values no longer need patching in by hand. Those are
-  # peerDependencies that pi injects at runtime; they were already dev-flagged
-  # and pruned from the install, so the closure is unchanged.
-  postPatch = ''
-    cp ${./package-no-peers.json} package.json
-    cp ${./package-lock.json} package-lock.json
-  '';
+  # Stripping also removes the three @earendil-works/* entries that record
+  # `resolved` with no `integrity` (which panics nixpkgs' lockfile parser);
+  # they are peerDependencies that pi injects at runtime, already dev-flagged
+  # and pruned from the install, so the closure is unchanged. Because
+  # package.json now flows from upstream at the pinned rev, its `files`
+  # whitelist tracks upstream automatically — files upstream adds no longer
+  # need re-vendoring on the next bump (2.26.0 broke exactly this way over
+  # agent-plugin-loader.ts).
+  postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
 
   nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];
   buildInputs = lib.optionals stdenv.hostPlatform.isLinux [

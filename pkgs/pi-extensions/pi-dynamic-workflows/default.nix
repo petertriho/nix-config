@@ -3,6 +3,7 @@
   buildNpmPackage,
   fetchFromGitHub,
   nodejs_24,
+  stripNpmManifest,
 }:
 buildNpmPackage {
   pname = "pi-dynamic-workflows";
@@ -16,21 +17,18 @@ buildNpmPackage {
   };
 
   # Upstream package-lock.json records @earendil-works/* peerDependencies
-  # (and pi-coding-agent's own nested peers) with `resolved` but no `integrity`,
-  # which panics nixpkgs' npm fetcher lockfile parser. Pi injects those peers at
-  # runtime, so we vendor a package.json with peerDependencies and the
-  # devDeps stripped plus the lockfile regenerated from it (mirrors
-  # pi-subagents / pi-tasks).
+  # (and pi-coding-agent's own nested peers) with `resolved` but no
+  # `integrity`, which panics nixpkgs' npm fetcher lockfile parser. Pi injects
+  # those peers at runtime, so package.json is stripped in place (upstream's
+  # copy — nothing vendored, so pi.extensions/files track the pinned rev) and
+  # the lockfile regenerated from the stripped manifest is vendored instead.
   #
   # All devDependencies are stripped, not just omitted at install time:
   # fetchNpmDeps prefetches every tarball the lockfile references, and
   # --omit=dev only prunes the *install*. That made the build hostage to
   # unrelated tooling — it broke outright when tsx 4.23.7 was unpublished from
   # npm (403 on the tarball). 62 of the 63 locked packages were dev-only.
-  postPatch = ''
-    cp ${./package-no-peers.json} package.json
-    cp ${./package-lock.json} package-lock.json
-  '';
+  postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
 
   nodejs = nodejs_24;
   npmDepsHash = "sha256-4+vEahhQw01C9hzZalb6HSW9NHFjmIkL2GPgQ3vACn4=";
@@ -40,9 +38,9 @@ buildNpmPackage {
   # (the entry imports ../src/index.js, resolved to ../src/index.ts under
   # NodeNext + pi's loader), so the upstream `tsc` build (→ dist/) is never
   # consumed. That leaves acorn as the only dep the closure needs; biome/tsx/
-  # typescript/fast-check/typebox are gone from the vendored files entirely
-  # (see postPatch). The @earendil-works/* peerDependencies are injected by pi
-  # at runtime and kept out of the closure.
+  # typescript/fast-check/typebox are gone from the manifest entirely (see
+  # postPatch). The @earendil-works/* peerDependencies are injected by pi at
+  # runtime and kept out of the closure.
   dontNpmBuild = true;
   npmInstallFlags = [ "--omit=dev" ];
 

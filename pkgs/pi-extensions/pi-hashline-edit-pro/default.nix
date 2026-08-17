@@ -3,6 +3,7 @@
   buildNpmPackage,
   fetchFromGitHub,
   nodejs_24,
+  stripNpmManifest,
 }:
 buildNpmPackage {
   pname = "pi-hashline-edit-pro";
@@ -18,23 +19,21 @@ buildNpmPackage {
   # Upstream package-lock.json records the six nested @earendil-works/* packages
   # (pulled in by the @earendil-works/pi-coding-agent devDependency) with
   # `resolved` but no `integrity`, which panics nixpkgs' npm fetcher lockfile
-  # parser. Pi injects those peers at runtime, so we vendor a package.json with
-  # peerDependencies stripped plus the matching lockfile regenerated from it
-  # (mirrors pi-tasks / pi-subagents).
+  # parser. Pi injects those peers at runtime, so package.json is stripped in
+  # place (upstream's copy — nothing vendored, so pi.extensions and `files`
+  # track the pinned rev) and the lockfile regenerated from the stripped
+  # manifest is vendored instead.
   #
-  # devDependencies are stripped from the vendored package.json too, not just
-  # omitted at install time: fetchNpmDeps prefetches every tarball the lockfile
+  # devDependencies are stripped from package.json too, not just omitted at
+  # install time: fetchNpmDeps prefetches every tarball the lockfile
   # references, and --omit=dev only prunes the *install*. The dev tree here is
   # the whole pi-coding-agent closure — aws-sdk, @google/genai, openai,
   # protobufjs, photon-node, nine platforms of clipboard prebuilts — none of it
   # reachable, since pi loads the TypeScript directly and there is no build
   # step. Stripping takes the fetched closure from 363 packages to 14, and
   # keeps the build off the hostage-to-unrelated-tooling path that broke
-  # pi-tasks when @biomejs/biome was unpublished. Regenerate both files with:
-  #   npm install --package-lock-only --ignore-scripts
+  # pi-tasks when @biomejs/biome was unpublished.
   #
-  # The vendored package.json is what pi reads from the store at load time, so
-  # `pi.extensions` and `files` must survive the strip.
   # pi's package.json declares `bin: dist/cli.js` and `engines.node >= 22.19.0`,
   # so upstream's `node:sqlite` import is correct for pi's stated runtime. But
   # llm-agents.nix packages pi's other distribution — the `bun build --compile`
@@ -44,10 +43,7 @@ buildNpmPackage {
   #
   # --replace-fail makes this loud if upstream restructures the import, rather
   # than silently shipping an extension that dies on first read.
-  postPatch = ''
-    cp ${./package-no-peers.json} package.json
-    cp ${./package-lock.json} package-lock.json
-
+  postPatch = stripNpmManifest { lockfile = ./package-lock.json; } + ''
     cp ${./bun-sqlite-shim.ts} src/bun-sqlite-shim.ts
     substituteInPlace src/hash-store.ts \
       --replace-fail \

@@ -8,6 +8,7 @@
   nodejs_24,
   autoPatchelfHook,
   writeText,
+  stripNpmManifest,
 }:
 let
   grammars = import ./grammars.nix;
@@ -43,11 +44,11 @@ let
       };
       "x86_64-darwin" = {
         package = "darwin-x64";
-        hash = "sha512-zfdzgK9ACBNZLI/CyHTOx81SyNbM6YXn7rxSgX97VjyiPl9W1i4Ka4fgKECEoFCKGpvBj5qArWIGgQjOwkgskQ==";
+        hash = "sha512-zfdzgK9ACBNZLI/CyHTOx81SyNbM6YXn7rxSgX97VjyiPl9W1i4Ka4fgKECEfFCKGpvBj5qArWIGgQjOwkgskQ==";
       };
       "aarch64-darwin" = {
         package = "darwin-arm64";
-        hash = "sha512-TZbWkQY7kvTAXbXUT7uVACR5cMHsDiSz9z7ZKAX/RTq/WJEk3QyRr0wZpNhBDX+/0CtdqUIJlOiodQcta6tY3Q==";
+        hash = "sha512-TZbWkQY7kvTAXbXUT7uVACR5cMHsDiSz9z7ZKAX/RTq/WJEk3QyRr0ZpNhBDX+/CtdqUIJlOiodQcta6tY3Q==";
       };
     }
     .${stdenv.hostPlatform.system};
@@ -85,33 +86,41 @@ buildNpmPackage {
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-WdaRi8i2juvHwEwNMdGvtui7XDCZpFyjT4puv/Jg3kg=";
+  npmDepsHash = "sha256-741QSTWLlnOSsvBWrJMbteki05JjcMMM7pePXRCaMvU=";
   npmDepsFetcherVersion = 2;
   npmPackFlags = [ "--ignore-scripts" ];
 
-  # npm omits integrity hashes for the nested packages that satisfy the
-  # pi-coding-agent peer dependency. fetchNpmDeps needs these hashes.
-  postPatch = ''
-    substituteInPlace package-lock.json \
-      --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.84.2.tgz",\n      "dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.84.2.tgz",\n      "integrity": "sha512-8Pn3wSCxj0cfo5I6jxQYVB/3uuQRmHhAlEclyjqpOuMEdQMIODHizRogv56FLdbU+dTiGnybeHQ2N+sV1/L2YA==",\n      "dev": true,' \
-      --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.84.2.tgz",\n      "dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.84.2.tgz",\n      "integrity": "sha512-6MzsrYIYNVlE7SfpbL2yYb67Qo58p/7Q+xWG1RZvoX1P80aRCHSod2/13aFpxkow1lPO2LEh3c495J0Gwmyjig==",\n      "dev": true,' \
-      --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-client/-/pi-client-0.84.2.tgz",\n      "dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-client/-/pi-client-0.84.2.tgz",\n      "integrity": "sha512-/RFSPhD/bZbpOp1oJj+UneSUFSgZhWxzcSENUY+8+8xhoBrWXMYI2t77XNx4Yf+c8YK2qTHquForhNcelYpXvg==",\n      "dev": true,' \
-      --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-protocol/-/pi-protocol-0.84.2.tgz",\n      "dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-protocol/-/pi-protocol-0.84.2.tgz",\n      "integrity": "sha512-jbBh03fkeckWEroHpcZBr4w5/Ibat8WwdXFlXHivYQImrQNFtLpDeL0t1cku4hmK0q3pceIRQHkw4fwbM4YILQ==",\n      "dev": true,' \
-      --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-telemetry/-/pi-telemetry-0.84.2.tgz",\n      "dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-telemetry/-/pi-telemetry-0.84.2.tgz",\n      "integrity": "sha512-wg5caea7uIv1BHRBm2Y116RvFG4oSAiP5qk9tA2463PDGIr4K8M1Ceyyg5DOpF/shUUl0gk826yQJAeAcHYB9g==",\n      "dev": true,' \
-      --replace-fail \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.84.2.tgz",\n      "dev": true,' \
-        $'"resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.84.2.tgz",\n      "integrity": "sha512-ds2TLihOnM5sLJB3VpXV6y0uR5efVuHf4MN7yDpsty6hA2DUO/EDVzjp/0od0G2JslzVLMjT8T8zavtxVb+qbg==",\n      "dev": true,'
-  '';
+  # package.json is stripped in place and the lockfile regenerated from the
+  # stripped manifest is vendored (the pi-tasks / pi-subagents pattern):
+  #  - @earendil-works/pi-coding-agent is declared both as an optional
+  #    peerDependency (pi injects it at runtime) and as a devDependency (for
+  #    type-checking). Its nested transitive deps land in npm's lockfile with
+  #    `resolved` but no `integrity` — six entries upstream — which panics
+  #    nixpkgs' fetcher parser. These entries were previously integrity-patched
+  #    by hand via substituteInPlace; instead the whole pi-coding-agent tree is
+  #    dropped from the manifest, which removes the broken entries at the
+  #    source, shrinks the FOD from ~170 locked packages (aws-sdk, openai,
+  #    google/genai, ...) to 56, and stops the hand-patched integrity hashes
+  #    tracking every pi release.
+  #  - devDependencies are pruned to typescript + @types/node, the tsc the
+  #    buildPhase runs from node_modules; the tsc run is --noCheck (see
+  #    buildPhase), so the stripped peers' types are never consulted. They are
+  #    dev-only for the install too (pruned before node_modules is copied to
+  #    $out).
+  #  - @earendil-works/pi-tui stays: it is a production dependency bundled into
+  #    dist/ and used at runtime.
+  # Everything else in package.json — pi.extensions, files, bin — flows from
+  # upstream at the pinned rev.
+  postPatch = stripNpmManifest {
+    stripFields = [
+      "peerDependencies"
+      "peerDependenciesMeta"
+    ];
+    extraJqOps = [
+      ''.devDependencies |= with_entries(select(.key == "typescript" or .key == "@types/node"))''
+    ];
+    lockfile = ./package-lock.json;
+  };
 
   buildPhase = ''
     runHook preBuild
