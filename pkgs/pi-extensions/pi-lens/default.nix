@@ -44,11 +44,11 @@ let
       };
       "x86_64-darwin" = {
         package = "darwin-x64";
-        hash = "sha512-zfdzgK9ACBNZLI/CyHTOx81SyNbM6YXn7rxSgX97VjyiPl9W1i4Ka4fgKECEfFCKGpvBj5qArWIGgQjOwkgskQ==";
+        hash = "sha512-zfdzgK9ACBNZLI/CyHTOx81SyNbM6YXn7rxSgX97VjyiPl9W1i4Ka4fgKECEoFCKGpvBj5qArWIGgQjOwkgskQ==";
       };
       "aarch64-darwin" = {
         package = "darwin-arm64";
-        hash = "sha512-TZbWkQY7kvTAXbXUT7uVACR5cMHsDiSz9z7ZKAX/RTq/WJEk3QyRr0ZpNhBDX+/CtdqUIJlOiodQcta6tY3Q==";
+        hash = "sha512-TZbWkQY7kvTAXbXUT7uVACR5cMHsDiSz9z7ZKAX/RTq/WJEk3QyRr0wZpNhBDX+/0CtdqUIJlOiodQcta6tY3Q==";
       };
     }
     .${stdenv.hostPlatform.system};
