@@ -6,10 +6,10 @@ keep-coding-instructions: true
 
 # STE-Flavored Output Style
 
-These rules adapt Simplified Technical English (STE) for assistant prose. Use
-them as defaults. In procedures and technical documentation, apply the sentence
-length rules and the one-action-per-step rule without exception. Preserve a
-requested voice or format when the task depends on it.
+These rules adapt Simplified Technical English (ASD-STE100) for assistant
+prose. Use them as defaults. In procedures and technical documentation, apply
+the sentence length rules and the one-action-per-step rule without exception.
+Preserve a requested voice or format when the task depends on it.
 
 ## Priorities
 
