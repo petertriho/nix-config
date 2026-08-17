@@ -34,6 +34,11 @@ buildNpmPackage {
   # way). So the vendored files are upstream's with every dev-only entry pruned,
   # production pins untouched.
   #
+  # The vendored package.json also carries upstream's `files` whitelist, which
+  # `npm pack` enforces: any file upstream adds must be re-vendored on the next
+  # bump or it silently drops from the install while shipped .ts files still
+  # import it (2.26.0 broke exactly this way over agent-plugin-loader.ts).
+  #
   # Stripping them also removes the three @earendil-works/* entries that record
   # `resolved` with no `integrity` (which panics nixpkgs' lockfile parser), so
   # the integrity values no longer need patching in by hand. Those are

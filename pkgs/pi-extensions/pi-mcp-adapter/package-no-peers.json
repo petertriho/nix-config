@@ -1,6 +1,6 @@
 {
   "name": "pi-mcp-adapter",
-  "version": "2.20.1",
+  "version": "2.26.0",
   "description": "MCP (Model Context Protocol) adapter extension for Pi coding agent",
   "type": "module",
   "types": "./index.ts",
@@ -14,6 +14,11 @@
       "types": "./types.ts",
       "import": "./types.ts",
       "default": "./types.ts"
+    },
+    "./oauth": {
+      "types": "./oauth.ts",
+      "import": "./oauth.ts",
+      "default": "./oauth.ts"
     }
   },
   "license": "MIT",
@@ -29,8 +34,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:oauth": "PI_MCP_ADAPTER_TEST_AUTH_STORE=memory node --import tsx --test --test-concurrency=1 mcp-auth.test.ts mcp-auth-flow.test.ts mcp-callback-server.test.ts mcp-oauth-provider.test.ts",
-    "test:oauth-provider": "PI_MCP_ADAPTER_TEST_AUTH_STORE=memory node --import tsx --test mcp-oauth-provider.test.ts",
+    "test:oauth": "PI_MCP_ADAPTER_TEST_AUTH_STORE=memory PI_MCP_ADAPTER_DISABLE_AUTH_CACHE=1 node --import tsx --test --test-concurrency=1 oauth-public-api.test.ts mcp-auth.test.ts mcp-auth-flow.test.ts mcp-callback-server.test.ts mcp-oauth-provider.test.ts",
+    "test:oauth-provider": "PI_MCP_ADAPTER_TEST_AUTH_STORE=memory PI_MCP_ADAPTER_DISABLE_AUTH_CACHE=1 node --import tsx --test mcp-oauth-provider.test.ts",
     "test:conformance": "bash conformance/run.sh"
   },
   "repository": {
@@ -84,6 +89,7 @@
     "ui-app-bridge-helpers.ts",
     "config.ts",
     "server-manager.ts",
+    "request-headers-command.ts",
     "unix-socket-transport.ts",
     "json-schema-validator.ts",
     "session-recovery.ts",
@@ -95,6 +101,7 @@
     "mcp-code.ts",
     "mcp-script-worker.mjs",
     "mcp-probe.ts",
+    "agent-plugin-loader.ts",
     "resource-tools.ts",
     "lifecycle.ts",
     "mcp-status.ts",
@@ -106,6 +113,7 @@
     "glimpse-ui.ts",
     "npx-resolver.ts",
     "oauth-handler.ts",
+    "oauth.ts",
     "mcp-auth.ts",
     "mcp-keyring-helper.cjs",
     "mcp-oauth-provider.ts",
