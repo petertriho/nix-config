@@ -6,7 +6,7 @@
   cacert,
 }:
 let
-  version = "0.51.0";
+  version = "0.53.0";
 
   # Official prebuilt static-musl Linux tarballs. Static-musl → no dynamic lib
   # deps, so no patchelf/runtimeDeps; only a CA-bundle wrapper for
@@ -16,7 +16,7 @@ let
   assets = {
     x86_64-linux = {
       url = "https://github.com/steipete/CodexBar/releases/download/v${version}/CodexBarCLI-v${version}-linux-musl-x86_64.tar.gz";
-      hash = "sha256-b/TzEx4eq6A0XqA5rd70VAbPJqh0IKBHHDg2E/2XBS0=";
+      hash = "sha256-PGIIZv6QCk4t+hPGgMDK70nQxC4GBTpR3x/9QpMI/dA=";
     };
     aarch64-linux = {
       url = "https://github.com/steipete/CodexBar/releases/download/v${version}/CodexBarCLI-v${version}-linux-musl-aarch64.tar.gz";

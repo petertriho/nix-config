@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "autoresearch";
-  version = "2.2.2-unstable-2026-08-13";
+  version = "2.2.2-unstable-2026-08-12";
 
   src = fetchFromGitHub {
     owner = "uditgoenka";
