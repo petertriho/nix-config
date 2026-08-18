@@ -29,7 +29,7 @@ let
     pi-vim
     pi-history
     pi-lens
-    pi-mcp-adapter
+    # pi-mcp-adapter
     pi-subagents
     pi-tasks
     pi-vcc
