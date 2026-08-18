@@ -6,6 +6,7 @@
     ./agent-browser.nix
     ./annot.nix
     ./anthropic-skills.nix
+    ./autoresearch.nix
     ./betterfox.nix
     ./claude-code.nix
     ./crush.nix

@@ -285,6 +285,7 @@ in
         "skill-creator"
       ];
     };
+    autoresearch.enable = true;
     crush.enable = false;
     effective-html.enable = true;
     hallmark.enable = true;

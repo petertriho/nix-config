@@ -8,7 +8,10 @@ let
   cfg = config.programs.agents;
   skillsDir = ../../../dotfiles/agents/.agents/skills;
   skillEntries = builtins.readDir skillsDir;
-  availableSkills = lib.filterAttrs (_: type: type == "directory") skillEntries;
+  excludedSkills = [ "autoresearch" ];
+  availableSkills = lib.filterAttrs (
+    name: type: type == "directory" && !(lib.elem name excludedSkills)
+  ) skillEntries;
   skillCommands = lib.mapAttrs' (
     name: _:
     lib.nameValuePair name ''
