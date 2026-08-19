@@ -1,0 +1,35 @@
+# Spawnpoint configuration
+# https://github.com/mihirgupta0900/spawnpoint
+
+# Directories to scan for git repos
+scan_dirs = ['~/Projects', '~/Work']
+
+# Where workspaces are created
+worktree_dir = '~/.spawnpoint/workspaces'
+
+# Additional directories to scan during cleanup (for worktrees created at previous locations)
+additional_worktree_dirs = []
+
+# How deep to scan for repos (1-4)
+# 2 is required for ~/Work, whose repos live at <repo>/{main,work,releases}.
+scan_depth = 2
+
+# Glob patterns for files to copy into new worktrees
+copy_patterns_globs = ['.env*']
+
+# Specific files to copy
+copy_patterns_files = ['AGENT.md', 'CLAUDE.md', 'GEMINI.md']
+
+# Directories to copy
+# `docs` dropped from upstream's default: it is git-tracked, so the worktree
+# already has it and the copy is a no-op that only costs scan time.
+copy_patterns_dirs = ['.vscode']
+
+# Auto-install dependencies after worktree creation
+# Off: direnv + devenv already install on `cd` into the worktree.
+auto_install_deps = false
+
+# Check for new versions on startup
+# Off: the version is pinned by pkgs/spawnpoint, and `sp update` cannot write
+# to the read-only Nix venv.
+check_updates = false

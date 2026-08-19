@@ -41,6 +41,9 @@ with pkgs;
   };
   sem = callPackage ./sem { };
   sort-package-json = callPackage ./sort-package-json { };
+  spawnpoint = callPackage ./spawnpoint {
+    inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
+  };
   superpowers = callPackage ./superpowers { };
   taste-skill = callPackage ./taste-skill { };
   vim-custom = callPackage ./vim-custom { };

@@ -294,6 +294,7 @@ in
     plannotator.enable = false;
     playwriter.enable = false;
     repowise.enable = false;
+    spawnpoint.enable = true;
     superpowers.enable = false;
     taste-skill = {
       enable = true;

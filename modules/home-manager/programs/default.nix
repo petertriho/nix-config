@@ -20,6 +20,7 @@
     ./plannotator.nix
     ./playwriter.nix
     ./repowise.nix
+    ./spawnpoint.nix
     ./superpowers.nix
     ./taste-skill.nix
     ./workmux.nix
