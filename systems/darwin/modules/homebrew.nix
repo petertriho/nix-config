@@ -38,7 +38,7 @@ in
       "gromgit/brewtils"
       "nikitabobko/tap"
       "steipete/tap"
-      "TabularisDB/tabularis"
+      # "TabularisDB/tabularis"
     ];
     brews = [
       "gromgit/brewtils/taproom"
@@ -74,7 +74,7 @@ in
       "raycast"
       "reminders-menubar"
       "steipete/tap/codexbar"
-      "TabularisDB/tabularis/tabularis"
+      # "TabularisDB/tabularis/tabularis"
       # "wezterm"
       # "airbuddy"
       # "badgeify"
