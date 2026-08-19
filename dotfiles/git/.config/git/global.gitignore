@@ -11,5 +11,7 @@
 .tasks
 .workmux.yaml
 .worktrees
+autoresearch
+bench
 docs/superpowers
 openspec
