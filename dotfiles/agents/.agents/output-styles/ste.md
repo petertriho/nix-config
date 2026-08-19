@@ -1,5 +1,5 @@
 ---
-name: STE-Flavored Technical Prose
+name: ste
 description: Clear, direct engineering prose inspired by Simplified Technical English
 keep-coding-instructions: true
 ---
