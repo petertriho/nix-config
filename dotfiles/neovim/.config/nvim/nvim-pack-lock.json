@@ -45,6 +45,10 @@
       "rev": "edefef779ab08ce1a4a404713e3012b0d202bd35",
       "src": "https://github.com/catppuccin/nvim"
     },
+    "celeste_comment.nvim": {
+      "rev": "831e0b06cf5b55838f6f62b5a4c580c40b84cb88",
+      "src": "https://github.com/celeste3z/celeste_comment.nvim"
+    },
     "cmp-git": {
       "rev": "e645f69b93eede43fb644bb1a0b1db3eef1108a3",
       "src": "https://github.com/petertriho/cmp-git"
