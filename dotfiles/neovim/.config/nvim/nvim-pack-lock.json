@@ -235,6 +235,10 @@
       "rev": "228aabdb1b9cc74f0c0ccec88e79873857236e49",
       "src": "https://github.com/tiagovla/scope.nvim"
     },
+    "select-undo.nvim": {
+      "rev": "d3e9658f8dbcbf67267f5d07505917543beac376",
+      "src": "https://github.com/SunnyTamang/select-undo.nvim"
+    },
     "smart-backspace.nvim": {
       "rev": "06121e57027ae4a6a444817d005ce1b475004ccd",
       "src": "https://github.com/qwavies/smart-backspace.nvim"
