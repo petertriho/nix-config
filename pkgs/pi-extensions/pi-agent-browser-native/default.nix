@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-agent-browser-native";
-  version = "0.4.5-unstable-2026-08-18";
+  version = "0.5.0-unstable-2026-08-21";
 
   src = fetchFromGitHub {
     owner = "fitchmultz";
     repo = "pi-agent-browser-native";
-    rev = "f352e0f5b8c73d5624ea3025191700822930c7df"; # tag v0.3.0
-    hash = "sha256-SvFT4jb3Tiue8zLoldBmFa7TZc9t6ztiPwf6HlekeyM=";
+    rev = "fc051c4542fdad78b5a84b72919ee73966d8e71f"; # tag v0.5.0
+    hash = "sha256-Cn/2cQOyGZPnHTgydxrqVvwzAHoiqvLpmj9P6TbqQe0=";
   };
 
   nodejs = nodejs_24;
@@ -58,13 +58,15 @@ buildNpmPackage {
       lockfile = ./package-lock.json;
     }
     + ''
-      # Upstream probes the absolute /bin/ps then /usr/bin/ps paths for process
-      # identity, which don't exist on NixOS (ps lives under /run/current-system/sw/bin).
-      # Try a PATH-resolved `ps` first; keep the absolute fallbacks for other systems.
+      # Upstream probes absolute /bin/ps then /usr/bin/ps for process identity,
+      # which don't exist on NixOS (ps lives under /run/current-system/sw/bin).
+      # v0.5.0 folded this into buildProcessStartIdentityCommand's ternary: make
+      # the non-android primary a PATH-resolved `ps`; the /usr/bin/ps fallback in
+      # buildProcessStartIdentityCommands stays for other systems.
       # --replace-fail makes an upstream rename fail the build loudly on version bump.
       substituteInPlace extensions/agent-browser/lib/process-identity.ts \
-        --replace-fail ': [primary, { ...primary, file: "/usr/bin/ps" }];' \
-                        ': [{ ...primary, file: "ps" }, primary, { ...primary, file: "/usr/bin/ps" }];'
+        --replace-fail ': platform === "android" ? join(dirname(process.execPath), "ps") : "/bin/ps",' \
+                        ': platform === "android" ? join(dirname(process.execPath), "ps") : "ps",'
     '';
 
   # Override the default `npm run build` (build.mjs → plain tsc, which would

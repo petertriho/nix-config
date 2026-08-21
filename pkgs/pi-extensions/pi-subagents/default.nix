@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-subagents";
-  version = "0.17.1-unstable-2026-08-20";
+  version = "0.18.0-unstable-2026-08-20";
 
   src = fetchFromGitHub {
     owner = "tintinweb";
     repo = "pi-subagents";
-    rev = "33dd46db2f178d5c52b0511d768b3108986cab9d";
-    hash = "sha256-di6N/bc5NyaL8xhZxdACXGAcH/WOLneJSKwrjwX+M3w=";
+    rev = "3f9d35cd078d18a141eb5a6d8f4fc5010d756280";
+    hash = "sha256-gpaIK622/IMHIEQDIvg7IhazDkvl5HVU8dU16jkP2jk=";
   };
 
   # Upstream package-lock.json records the @earendil-works/* peerDependencies
@@ -32,7 +32,7 @@ buildNpmPackage {
   postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-zHqqbdug5bMfa5Tt9UMLA6MsM5AI5ZJ6AbuBw/CLl+g=";
+  npmDepsHash = "sha256-xHZheP2+htaQ6dZaDYL5VtKsAo0898avi+MLQ5mwu30=";
   npmDepsFetcherVersion = 2;
 
   # pi.extensions = ["./src/index.ts"]; pi loads the TypeScript directly, so
