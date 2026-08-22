@@ -211,14 +211,17 @@ OverlayHost {
                             fontsConfig: root.fontsConfig
                         }
 
-                        // Codex free rate-limit reset credits (quota rows only)
+                        // Codex free rate-limit reset credits + their expiry
+                        // times, one compact line (quota rows only)
                         Text {
                             Layout.fillWidth: true
-                            visible: model.kind === "quota" && model.resetCredits > 0
-                            text: model.resetCredits + " reset credits available"
+                            visible: model.kind === "quota"
+                                && model.resetCreditSummary.length > 0
+                            text: model.resetCreditSummary
                             color: colors.base03
                             font.family: fontsConfig.defaultFamily
                             font.pixelSize: fontsConfig.defaultSize - 2
+                            wrapMode: Text.WordWrap
                         }
 
                         // Credits-used meter — cost rows (OpenRouter)

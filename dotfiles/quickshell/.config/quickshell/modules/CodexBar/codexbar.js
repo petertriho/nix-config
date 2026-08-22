@@ -19,8 +19,9 @@
 //     rows); older 0.37.x used usage.openRouterUsage (balance / totalCredits /
 //     totalUsage + usedPercent), still accepted as a fallback. Renders a
 //     credits-used meter but is never picked as "most critical".
-//   - Codex also carries usage.codexResetCredits.availableCount (free rate-limit
-//     resets); surfaced as an info line on quota rows.
+//   - Codex also carries usage.codexResetCredits (free rate-limit resets;
+//     each credit has its own expires_at); surfaced as ONE compact info line
+//     on quota rows: count plus every usable credit's expiry.
 //
 // Pure functions only (no QML globals). `now` is injectable for testing; it
 // defaults to Date.now() so the service can call parseAll(output) directly.
@@ -93,7 +94,7 @@ function parseResetTime(value) {
 
 // Humanized relative ("in 3h 20m") from a reset timestamp to `now`.
 function relativeReset(resetMs, now) {
-    now = now !== undefined ? now : Date.now();
+    now = now === undefined ? Date.now() : now;
     if (isNaN(resetMs))
         return "—";
     var diff = resetMs - now;
@@ -101,6 +102,7 @@ function relativeReset(resetMs, now) {
         return "resets soon";
     return "in " + formatDuration(diff);
 }
+
 
 function formatDuration(durationMs) {
     var mins = Math.round(durationMs / 60000);
@@ -131,7 +133,7 @@ function paceForWindow(window, now) {
     var usedPercent = clampPercent(Number(window.usedPercent));
     var windowMinutes = Number(window.windowMinutes);
     var resetMs = parseResetTime(window.resetsAt);
-    now = now !== undefined ? Number(now) : Date.now();
+    now = now === undefined ? Date.now() : Number(now);
     if (!isFinite(usedPercent) || usedPercent < 0 || !isFinite(windowMinutes)
             || windowMinutes <= 0 || !isFinite(resetMs) || !isFinite(now))
         return pace;
@@ -229,8 +231,11 @@ function emptyRow() {
         creditsBalance: "",
         creditsTotal: "",
         creditsUsed: "",
-        // Codex free rate-limit reset credits available (>0 => show a line).
+        // Codex free rate-limit reset credits (>0 => show the summary line).
         resetCredits: -1,
+        // Compact one-line expiry for those credits, e.g.
+        // "1 reset credit · expires in 29d". "" if none.
+        resetCreditSummary: "",
         cost: "",
         message: ""
     };
@@ -304,6 +309,45 @@ function errorRow(provider, message) {
 
 // --- provider-specific mappers ----------------------------------------------
 
+// Compact one-line summary of Codex reset credits and their expiry times:
+//   "1 reset credit · expires in 29d"
+//   "2 reset credits · in 7d + 29d"
+// Only usable (not yet expired) credits are listed, soonest first. Falls back
+// to "N reset credits available" when the credits[] array is missing but
+// availableCount > 0. "" when there is nothing to show.
+function resetCreditSummary(usage, now) {
+    now = now === undefined ? Date.now() : now;
+    var rc = usage && usage.codexResetCredits;
+    if (!rc)
+        return "";
+    var remainMs = [];
+    if (Array.isArray(rc.credits)) {
+        for (var i = 0; i < rc.credits.length; i++) {
+            var credit = rc.credits[i];
+            if (!credit || !credit.expires_at)
+                continue;
+            var diff = parseResetTime(credit.expires_at) - now;
+            // Expired credits are unusable; skip them to keep the line short.
+            if (!isNaN(diff) && diff > 0)
+                remainMs.push(diff);
+        }
+    }
+    remainMs.sort((a, b) => a - b);
+    var count = remainMs.length;
+    if (count === 0) {
+        var available = typeof rc.availableCount === "number" ? rc.availableCount : 0;
+        return available > 0
+            ? available + " reset credit" + (available === 1 ? "" : "s")
+            : "";
+    }
+    if (count === 1)
+        return "1 reset credit · expires in " + formatDuration(remainMs[0]);
+    var durations = [];
+    for (var j = 0; j < remainMs.length; j++)
+        durations.push(formatDuration(remainMs[j]));
+    return count + " reset credits · in " + durations.join(" + ");
+}
+
 // Compact all available normalized source windows into contiguous display slots
 // so missing earlier windows do not leave gaps or duplicate later windows.
 function mapQuota(item, provider, now) {
@@ -321,10 +365,12 @@ function mapQuota(item, provider, now) {
         || (usage.identity && usage.identity.accountEmail)
         || "";
     var row = quotaRow(provider, account, windows[0] || {}, windows[1] || {}, windows[2] || {}, now);
-    // Codex grants free rate-limit reset credits; surface the count when > 0.
+    // Codex grants free rate-limit reset credits; surface the count and a
+    // compact one-line expiry list when present.
     var credits = usage.codexResetCredits && usage.codexResetCredits.availableCount;
     if (typeof credits === "number" && credits > 0)
         row.resetCredits = credits;
+    row.resetCreditSummary = resetCreditSummary(usage, now);
     return row;
 }
 
@@ -333,7 +379,7 @@ function mapQuota(item, provider, now) {
 function parseMoney(value) {
     if (value === undefined || value === null)
         return NaN;
-    var s = String(value).replace(/[^0-9.\-]/g, "");
+    var s = String(value).replace(/[^0-9.-]/g, "");
     if (s === "" || s === "-" || s === ".")
         return NaN;
     var n = Number(s);
@@ -425,10 +471,10 @@ function mapOpenRouter(item) {
     row.account = account;
     row.label = providerLabel("openrouter") + (account ? " · " + account : "");
     row.percent = clampPercent(usedPercent);
-    row.creditsBalance = !isNaN(balance) ? "$" + balance.toFixed(2) : "";
-    row.creditsTotal = !isNaN(total) ? "$" + total.toFixed(2) : "";
-    row.creditsUsed = !isNaN(used) ? "$" + used.toFixed(2) + " used" : "";
-    row.cost = !isNaN(balance) ? "Balance $" + balance.toFixed(2) : "—";
+    row.creditsBalance = isNaN(balance) ? "" : "$" + balance.toFixed(2);
+    row.creditsTotal = isNaN(total) ? "" : "$" + total.toFixed(2);
+    row.creditsUsed = isNaN(used) ? "" : "$" + used.toFixed(2) + " used";
+    row.cost = isNaN(balance) ? "—" : "Balance $" + balance.toFixed(2);
     return row;
 }
 
@@ -450,7 +496,7 @@ function mapProvider(item, now) {
 // show "—" / a clean message instead of crashing. barSummary counts exhausted
 // quota rows and selects the highest-usage row that remains below 100%.
 function parseAll(output, now) {
-    now = now !== undefined ? now : Date.now();
+    now = now === undefined ? Date.now() : now;
     var result = { rows: [], barSummary: summarizeQuotaRows([]) };
 
     var trimmed = String(output || "").trim();
@@ -543,7 +589,7 @@ function summarizeQuotaRows(rows) {
 // (provider, account) so the Codex primary account (which appears in both
 // chunks) is not duplicated.
 function parseProviders(output, now) {
-    now = now !== undefined ? now : Date.now();
+    now = now === undefined ? Date.now() : now;
     var merged = { rows: [], barSummary: summarizeQuotaRows([]) };
     var text = String(output || "");
     if (text.trim() === "")
