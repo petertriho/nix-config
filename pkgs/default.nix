@@ -15,14 +15,6 @@ with pkgs;
   effective-html = callPackage ./effective-html { };
   figlet-fonts = callPackage ./figlet-fonts { };
   hallmark = callPackage ./hallmark { };
-  iris = inputs.iris.packages.${stdenv.hostPlatform.system}.iris.overrideAttrs (old: {
-    patches = (old.patches or [ ]) ++ [ ./iris/iris-config.patch ];
-    ldflags = (old.ldflags or [ ]) ++ [
-      "-s"
-      "-w"
-      "-X=github.com/versenilvis/iris/root.Version=${old.version}"
-    ];
-  });
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };

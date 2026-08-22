@@ -100,7 +100,6 @@ in
               "zsh"
             ];
             wrapper_programs = mkStringList "'" [
-              "iris"
               "nono"
             ];
             substitute_sets = mkStringList "" [

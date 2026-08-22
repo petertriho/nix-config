@@ -13,7 +13,6 @@
     ./effective-html.nix
     ./hallmark.nix
     ./impeccable.nix
-    ./iris.nix
     ./jscpd.nix
     ./nono.nix
     ./pi.nix

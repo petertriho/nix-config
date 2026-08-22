@@ -46,10 +46,6 @@
       url = "github:outfoxxed/quickshell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    iris = {
-      url = "github:versenilvis/IRIS/main";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     neovim-nightly-overlay.url = "github:nix-community/neovim-nightly-overlay";
     niri.url = "github:sodiboo/niri-flake";
     vicinae.url = "github:vicinaehq/vicinae";
