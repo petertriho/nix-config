@@ -21,7 +21,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "b3f9d1a1efdb90a76c88eec58152347e8814d433",
+      "rev": "e9454aa2fd37c1d4717ed59b2b6928550ae3d060",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -46,7 +46,7 @@
       "src": "https://github.com/catppuccin/nvim"
     },
     "celeste_comment.nvim": {
-      "rev": "831e0b06cf5b55838f6f62b5a4c580c40b84cb88",
+      "rev": "9a20b8bce78ea3c67c022891af2c489beee612c5",
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
@@ -162,7 +162,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "bff1bd61cb1455040533201ca1edf1e84efa578f",
+      "rev": "221c43884319e791519f0d6c94a7f2fbcd653278",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -198,10 +198,6 @@
     "nvim-ts-autotag": {
       "rev": "88c1453db4ba7dd24131086fe51fdf74e587d275",
       "src": "https://github.com/windwp/nvim-ts-autotag"
-    },
-    "nvim-ts-context-commentstring": {
-      "rev": "6141a40173c6efa98242dc951ed4b6f892c97027",
-      "src": "https://github.com/JoosepAlviste/nvim-ts-context-commentstring"
     },
     "nvim-various-textobjs": {
       "rev": "dfbf0e9ccab4bad3c87961e1de3c8dc09d8f337a",
