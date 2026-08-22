@@ -10,8 +10,8 @@ stdenvNoCC.mkDerivation {
   src = fetchFromGitHub {
     owner = "Leonxlnx";
     repo = "taste-skill";
-    rev = "78a81c53eac43f6f6bba665c9fe8f11f592fa550";
-    hash = "sha256-MBNaq3tnBvMLBt40hWCIXL2QVXP60WiRhAnR5eGMoH0=";
+    rev = "843c8dd4d18ccff0d5a9cd4b0b71d7dbf7278293";
+    hash = "sha256-G6IagqikU6QV24HeYixJZBzTOvvY8oXCCyEtAGAauk0=";
   };
 
   dontBuild = true;

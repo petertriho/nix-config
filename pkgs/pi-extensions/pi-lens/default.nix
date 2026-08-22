@@ -76,17 +76,17 @@ let
 in
 buildNpmPackage {
   pname = "pi-lens";
-  version = "4.1.0-unstable-2026-08-21";
+  version = "4.1.1-unstable-2026-08-21";
 
   src = fetchFromGitHub {
     owner = "apmantza";
     repo = "pi-lens";
-    rev = "ef0fc9bd8ec25116e1c6bf68af996f5ee3a17067";
-    hash = "sha256-qdk+91+SNhhohfBrvrhNKcAfGZzWDwxb0br9MLnrzLo=";
+    rev = "0c46556de7fb8c376aeb45dbaab24d8d95ccc65f";
+    hash = "sha256-NjcSCljIpu6sqZ8eOn/DRbE3wxXSJ2Yx5ax7X59FnQc=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-741QSTWLlnOSsvBWrJMbteki05JjcMMM7pePXRCaMvU=";
+  npmDepsHash = "sha256-j/dIHuZV6Jz9CRVrg8U23Q5ZGWmAGvfLl4eZD8Bblc0=";
   npmDepsFetcherVersion = 2;
   npmPackFlags = [ "--ignore-scripts" ];
 
@@ -107,8 +107,9 @@ buildNpmPackage {
   #    buildPhase), so the stripped peers' types are never consulted. They are
   #    dev-only for the install too (pruned before node_modules is copied to
   #    $out).
-  #  - @earendil-works/pi-tui stays: it is a production dependency bundled into
-  #    dist/ and used at runtime.
+  #  - @earendil-works/pi-tui and typebox moved to optional peerDependencies
+  #    upstream at this rev: pi injects them at runtime, so the strip drops
+  #    them and the esbuild bundle keeps them external.
   # Everything else in package.json — pi.extensions, files, bin — flows from
   # upstream at the pinned rev.
   postPatch = stripNpmManifest {
