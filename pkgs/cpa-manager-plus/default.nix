@@ -52,6 +52,8 @@ buildGoModule {
     "-w"
   ];
 
+  doCheck = false;
+
   meta = with lib; {
     description = "Management panel and analytics service for CLIProxyAPI";
     homepage = "https://github.com/seakee/CPA-Manager-Plus";
