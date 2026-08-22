@@ -42,7 +42,6 @@ in
     openssl # for generating certificates
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
-    (lib.hiPrio sem) # semantic version control; wins GNU Parallel's sem conflict
     television # fuzzy finder tui
     # tldr # help pages for command-line tools
     tree # directory listing
@@ -107,7 +106,6 @@ in
       "--preview='command eza {2..}'"
       "--preview-window=bottom"
     ];
-    SEM_NO_TELEMETRY = "1";
   };
 
   programs = {

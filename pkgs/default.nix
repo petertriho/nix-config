@@ -31,7 +31,6 @@ with pkgs;
   repowise = callPackage ./repowise {
     inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
   };
-  sem = callPackage ./sem { };
   sort-package-json = callPackage ./sort-package-json { };
   spawnpoint = callPackage ./spawnpoint {
     inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
