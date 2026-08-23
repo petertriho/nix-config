@@ -1,21 +1,17 @@
-{
-  inputs,
-  lib,
-  config,
-  ...
-}:
-with lib;
+{ config, ... }:
+
+let
+  configPath = "${config.home.homeDirectory}/.nix-config";
+
+  mkSymlink =
+    relativePath:
+    config.lib.file.mkOutOfStoreSymlink "${configPath}/${relativePath}";
+in
 {
   # https://github.com/nix-community/home-manager/issues/676
   lib.meta = {
-    configPath = "${config.home.homeDirectory}/.nix-config";
-    mkDotfilesSymlink =
-      pathString:
-      config.lib.file.mkOutOfStoreSymlink (config.lib.meta.configPath + "/dotfiles/" + pathString);
-    mkSymlink =
-      path:
-      config.lib.file.mkOutOfStoreSymlink (
-        config.lib.meta.configPath + removePrefix (toString inputs.self) (toString path)
-      );
+    inherit configPath mkSymlink;
+
+    mkDotfilesSymlink = relativePath: mkSymlink "dotfiles/${relativePath}";
   };
 }
