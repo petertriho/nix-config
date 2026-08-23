@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-dynamic-workflows";
-  version = "3.7.0-unstable-2026-08-19";
+  version = "3.7.0-unstable-2026-08-22";
 
   src = fetchFromGitHub {
     owner = "QuintinShaw";
     repo = "pi-dynamic-workflows";
-    rev = "fad6ef36990394621b08b245b16d355ccdfcc175";
-    hash = "sha256-KU/zZHWU2ZEk1Gsgzzpjgf3S+MggeEzATjISzqL4JnA=";
+    rev = "ab9bf5cb1e042de02a9f7b7501d8de4676d50281";
+    hash = "sha256-lbmQuJ5sLymgYYv8FhV1Kw2vz1GbCh5BWZRWWA6Lcxw=";
   };
 
   # Upstream package-lock.json records @earendil-works/* peerDependencies

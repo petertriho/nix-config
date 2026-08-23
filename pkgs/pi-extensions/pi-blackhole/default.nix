@@ -9,13 +9,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "pi-blackhole";
-  version = "0.4.7-unstable-2026-08-15";
+  version = "0.4.8-unstable-2026-08-23";
 
   src = fetchFromGitHub {
     owner = "k0valik";
     repo = "pi-blackhole";
-    rev = "c4be93edb97516fba222f318c7aaca3c37561d19";
-    hash = "sha256-UyFPT7jyNW/lWOSqXsZ2i4YkCBX8qVeSiocz/WKTpmc=";
+    rev = "de71d87d64a82bd399d61c7f7f071afae2b56474";
+    hash = "sha256-r8XVX562ZqYulI2OTOLj3ZEAZ2ertG3hq6IW2+ZJvG0=";
   };
 
   pnpmDeps = fetchPnpmDeps {
