@@ -47,13 +47,8 @@ in
       "terminal-notifier"
     ];
     casks = [
-      # "aionui"
-      # "alacritty"
-      "appcleaner"
-      # "codex-app"
       "cyberduck"
       "displaylink"
-      # "doll"
       "easy-move+resize"
       "firefox"
       "floorp"
@@ -62,29 +57,33 @@ in
       "google-chrome"
       "helium-browser"
       "iina"
-      "keepingyouawake"
       "keka"
-      "keyboardcleantool"
       "meetingbar"
       "nextcloud"
       "nikitabobko/tap/aerospace"
-      "notunes"
       "obsidian"
       "orbstack"
       "raycast"
       "reminders-menubar"
       "steipete/tap/codexbar"
       # "TabularisDB/tabularis/tabularis"
-      # "wezterm"
+      # "aionui"
       # "airbuddy"
+      # "alacritty"
+      # "appcleaner"
       # "badgeify"
       # "bartender"
       # "betterdisplay"
+      # "codex-app"
       # "cursorsense"
+      # "doll"
       # "istat-menus"
       # "itsycal"
       # "jordanbaird-ice"
+      # "keepingyouawake"
+      # "keyboardcleantool"
       # "kindavim"
+      # "notunes"
       # "rectangle"
       # "scrolla"
       # "stats"
@@ -92,16 +91,22 @@ in
       # "swish"
       # "thaw"
       # "vlc"
+      # "wezterm"
       # "wooshy"
     ]
     ++ (
       if pkgs.stdenv.hostPlatform.isAarch64 then
         [
           "battery"
+          "vorssaint"
         ]
       else
         [
           "aldente"
+          "appcleaner"
+          "keepingyouawake"
+          "keyboardcleantool"
+          "notunes"
         ]
     );
   };
