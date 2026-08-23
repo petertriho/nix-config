@@ -301,6 +301,9 @@ in
         "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
 
+        ".pi/web-search.json".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/web-search.json";
+
         # Provider compat overrides only (pi-cache-optimizer recommendations for
         # the zai/opencode-go gateways) — no credentials, models, or baseUrls; pi
         # merges these over its built-in provider definitions. Out-of-store
