@@ -253,3 +253,13 @@ alt-z = ['fullscreen', 'mode main']
 A = ['^dell [a-zA-Z0-9]+ \(1\)$', '^lg tv sscr2$', 'dell u3419w', 'secondary']
 B = ['^dell [a-zA-Z0-9]+ \(2\)$', '^dell u2723qe$', 'eb321hqu']
 C = ['^led monitor$']
+
+# Float DBeaver dialogs by title. The main window stays tiled.
+# Refine the title list with: aerospace list-windows --all --format '%{app-name} | %{window-title}'
+# NOTE: [[on-window-detected]] is an array-of-tables. Keep it at the end of the
+# file so it does not absorb the top-level keys that follow it.
+# See: https://nikitabobko.github.io/AeroSpace/guide#on-window-detected-callback
+[[on-window-detected]]
+if.app-id = 'org.jkiss.dbeaver.core.product'
+if.window-title-regex-substring = '(?i)(connect|preference|wizard|confirm|error|progress|data transfer|generate sql|install|new |edit )'
+run = 'layout floating'
