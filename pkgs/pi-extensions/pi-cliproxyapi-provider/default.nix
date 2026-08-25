@@ -6,13 +6,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-cliproxyapi-provider";
-  version = "1.4.0-unstable-2026-08-05";
+  version = "1.4.0-unstable-2026-08-24";
 
   src = fetchFromGitHub {
     owner = "router-for-me";
     repo = "pi-cliproxyapi-provider";
-    rev = "2b3da2e67c05bfeb843a986878f8972c8ae39199";
-    hash = "sha256-q9LKYSRlYGFmadIJNVgQ3nviTBOgT2oQOxipEkErEwA=";
+    rev = "e0d1778a2bf56e8334ffe48fc92d7aa6dd9423d2";
+    hash = "sha256-sCJnwO5YD61dIAi2NOONnzKQxfVhL97Jnp61qsKVzMc=";
   };
 
   # Upstream registers a bespoke api id so it can ship a patched copy of pi-ai's

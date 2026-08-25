@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "taste-skill";
-  version = "0-unstable-2026-08-22";
+  version = "0-unstable-2026-08-24";
 
   src = fetchFromGitHub {
     owner = "Leonxlnx";
     repo = "taste-skill";
-    rev = "72e299530e2eb31ed8da06181bc19f6c18a00821";
-    hash = "sha256-DH1Q+1FgcVHnxMuXwifutCtTXulJjDgzwmQ9kSbL0a8=";
+    rev = "ccbc15639c97057cbfcf32ecebc38ef716e4bb37";
+    hash = "sha256-JfySNijrKwfrcMlYZUO/QK9Uo/ObaylBMTlwUdglyIw=";
   };
 
   dontBuild = true;

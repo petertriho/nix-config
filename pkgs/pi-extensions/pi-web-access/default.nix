@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-web-access";
-  version = "0.24.2-unstable-2026-08-24";
+  version = "0.24.2-unstable-2026-08-25";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-web-access";
-    rev = "d327e4299e43014586eee2bf7b637baae9047d38";
-    hash = "sha256-Whhy9RJ2AGzRZKgUmOpJ8SSOP2NOA9QzAouFHMoIOPk=";
+    rev = "54c23531a5d249daebdccf061c9b28e65aca1d19";
+    hash = "sha256-a7eIQ5ljZzWDHcP94i6cke6m05tQOKDHiGnDyVTzB6k=";
   };
 
   # Upstream gitignores its lockfile, so a reproducible one is vendored here.
@@ -35,7 +35,7 @@ buildNpmPackage {
   postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-Lzmsc94uP3B7O/G63f09So6lo1Az3Z9ajQNlOs5YkqY=";
+  npmDepsHash = "sha256-3D7w31i/NQ920VCG7cvx7PQvlYvb86J6bz77lhXp+9k=";
   npmDepsFetcherVersion = 2;
 
   # Upstream ships raw .ts (pi.extensions = ["./index.ts"]) with no build
