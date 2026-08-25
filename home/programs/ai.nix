@@ -261,19 +261,19 @@ in
           agent = "claude";
           extends = "nono-claude-base";
           description = "Claude profile with read access to out-of-store Nix configuration targets";
-          abbr = "cn";
+          abbr = "nnc";
         };
         pi-nix = {
           agent = "pi";
           extends = "nono-pi-base";
           description = "Pi profile with minimal access to out-of-store Nix configuration targets";
-          abbr = "pin";
+          abbr = "nnp";
         };
         opencode-nix = {
           agent = "opencode";
           extends = "nono-opencode-base";
           description = "OpenCode profile with read access to out-of-store Nix configuration targets";
-          abbr = "ocn";
+          abbr = "nno";
         };
       };
     };
