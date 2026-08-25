@@ -33,7 +33,7 @@ let
     pi-subagents
     pi-tasks
     pi-vcc
-    pi-web-access
+    # pi-web-access
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
