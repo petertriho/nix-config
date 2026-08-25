@@ -287,6 +287,7 @@ in
     };
     autoresearch.enable = true;
     crush.enable = false;
+    donsetch.enable = true;
     effective-html.enable = true;
     hallmark.enable = true;
     impeccable.enable = true;

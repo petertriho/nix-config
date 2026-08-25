@@ -10,6 +10,7 @@
     ./betterfox.nix
     ./claude-code.nix
     ./crush.nix
+    ./donsetch.nix
     ./effective-html.nix
     ./hallmark.nix
     ./impeccable.nix

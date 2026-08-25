@@ -32,6 +32,7 @@ SKIP_PACKAGES=(
 # Packages that use stable versioning (updated with --version=stable)
 STABLE_PACKAGES=(
     "codexbar"
+    "donsetch"
     "playwriter"
     "pybetter"
 )

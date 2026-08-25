@@ -12,6 +12,7 @@ with pkgs;
   cpa-manager-plus = callPackage ./cpa-manager-plus { };
   codexbar = callPackage ./codexbar { };
   cups-brother-mfc9335cdw = callPackage ./cups-brother-mfc9335cdw { };
+  donsetch = callPackage ./donsetch { };
   effective-html = callPackage ./effective-html { };
   figlet-fonts = callPackage ./figlet-fonts { };
   hallmark = callPackage ./hallmark { };
