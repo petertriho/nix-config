@@ -17,7 +17,7 @@ in
       type = lib.types.nullOr lib.types.port;
       # Linux: connect to the visible Chromium that bladebro-chrome launches.
       # macOS: null — bladebro opens a visible Chrome window natively.
-      default = if pkgs.stdenv.isLinux then 9222 else null;
+      default = if pkgs.stdenv.hostPlatform.isLinux then 9222 else null;
       description = ''
         Connect bladebro to an already-running visible Chromium's CDP
         debug port instead of auto-launching its own browser. Launch the
