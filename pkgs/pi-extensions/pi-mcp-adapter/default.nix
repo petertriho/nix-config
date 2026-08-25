@@ -22,6 +22,14 @@ buildNpmPackage {
   nodejs = nodejs_24;
   npmDepsHash = "sha256-uR3MQutnIMiaQBhVogjav3TwfeTAoKcRacz360t7DF0=";
   npmDepsFetcherVersion = 2;
+  # Upstream (post-2.27.0) added `prepare: npm run build:public` — tsc
+  # emitting dist/ declaration files for embedding hosts that import the
+  # adapter as a library. The install hook runs `npm pack`, which fires
+  # `prepare`, and tsc is absent because devDependencies are stripped above;
+  # the failed pack then breaks the hook's jq parse and file copy. Pi loads
+  # the .ts sources directly, so dist/ is not needed (the pi-lens /
+  # pi-agent-browser-native pattern).
+  npmPackFlags = [ "--ignore-scripts" ];
 
   dontNpmBuild = true;
   npmInstallFlags = [ "--omit=dev" ];
