@@ -150,7 +150,7 @@ in
         # };
       };
     };
-    agent-browser.enable = true;
+    agent-browser.enable = false;
     claude-code = {
       enable = true;
       package = pkgs.llm-agents.claude-code;
