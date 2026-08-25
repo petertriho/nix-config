@@ -86,6 +86,7 @@
   "disableRemoteControl": true,
   "disableArtifact": true,
   "enableWorkflows": false,
+  "workflowKeywordTriggerEnabled": false,
   "statusLine": {
     "type": "command",
     "command": "claude-statusline",
@@ -97,6 +98,5 @@
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-ansi",
   "editorMode": "vim",
-  "remoteControlAtStartup": false,
-  "workflowKeywordTriggerEnabled": false
+  "remoteControlAtStartup": false
 }
