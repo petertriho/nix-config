@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Visible Chromium with a CDP debug port for bladebro
+# (programs.bladebro.debugPort). Uses a dedicated profile dir:
+# Chrome 136+ refuses --remote-debugging-port on the default profile,
+# and an already-running Chromium cannot gain one after the fact.
+
+set -euo pipefail
+
+port="${BLADEBRO_CHROME_PORT:-9222}"
+profile="${XDG_CACHE_HOME:-$HOME/.cache}/bladebro-chrome"
+
+exec chromium \
+    --user-data-dir="$profile" \
+    --remote-debugging-port="$port" \
+    "$@"

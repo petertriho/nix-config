@@ -8,6 +8,7 @@
     ./anthropic-skills.nix
     ./autoresearch.nix
     ./betterfox.nix
+    ./bladebro.nix
     ./claude-code.nix
     ./crush.nix
     ./donsetch.nix

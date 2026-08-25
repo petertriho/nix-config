@@ -286,6 +286,7 @@ in
       ];
     };
     autoresearch.enable = true;
+    bladebro.enable = true;
     crush.enable = false;
     donsetch.enable = true;
     effective-html.enable = true;

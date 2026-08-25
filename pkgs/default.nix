@@ -9,6 +9,7 @@ with pkgs;
   anthropic-skills = callPackage ./anthropic-skills { };
   autoresearch = callPackage ./autoresearch { };
   betterfox = callPackage ./betterfox { };
+  bladebro = callPackage ./bladebro { };
   cpa-manager-plus = callPackage ./cpa-manager-plus { };
   codexbar = callPackage ./codexbar { };
   cups-brother-mfc9335cdw = callPackage ./cups-brother-mfc9335cdw { };
