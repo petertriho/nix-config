@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+
+# Offline derived-data maintenance for cpa-manager-plus.
+#
+# Runs the "cleanup-derived" database maintenance that the management
+# panel requests after upgrades ("Database upgrade maintenance is not
+# finished"):
+#
+#   1. stops the cpa-manager-plus service (systemd user unit on Linux,
+#      launchd agent on macOS) so the offline command can take the DB lock,
+#   2. backs up usage.sqlite (keeps the 3 newest backups),
+#   3. runs `cpa-manager-plus cleanup-derived --db-path ...`,
+#   4. restarts the service and verifies the /status endpoint.
+#
+# Authoritative request data is never modified; the command only rebuilds
+# derived indexes and finishes legacy cleanup jobs.
+#
+# Usage: cpa-manager-plus-maintenance [--db-path PATH] [--no-backup]
+#
+# Environment overrides:
+#   CPA_MANAGER_PLUS_ADDR   listen address of the server (default 127.0.0.1:18317)
+#   CLI_PROXY_API_KEY       admin key for the status check (default sk-dummy)
+
+set -euo pipefail
+
+db_path="${XDG_DATA_HOME:-$HOME/.local/share}/cpa-manager-plus/usage.sqlite"
+make_backup=1
+addr="${CPA_MANAGER_PLUS_ADDR:-127.0.0.1:18317}"
+admin_key="${CLI_PROXY_API_KEY:-sk-dummy}"
+
+systemd_unit="cpa-manager-plus.service"
+launchd_label="org.nix-community.home.cpa-manager-plus"
+launchd_plist="$HOME/Library/LaunchAgents/$launchd_label.plist"
+
+usage() {
+    sed -n '/^# Usage:/,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+    exit "${1:-0}"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --db-path)
+            [ "$#" -ge 2 ] || usage 1
+            db_path="$2"
+            shift 2
+            ;;
+        --no-backup)
+            make_backup=0
+            shift
+            ;;
+        -h | --help)
+            usage 0
+            ;;
+        *)
+            echo "error: unknown argument: $1" >&2
+            usage 1
+            ;;
+    esac
+done
+
+if ! command -v cpa-manager-plus >/dev/null 2>&1; then
+    echo "error: cpa-manager-plus is not in PATH" >&2
+    exit 1
+fi
+
+data_dir="$(dirname "$db_path")"
+
+if [ ! -f "$db_path" ]; then
+    echo "error: database not found: $db_path" >&2
+    exit 1
+fi
+
+# The service process comm name is truncated to 15 characters by the kernel.
+server_running() {
+    pgrep -x cpa-manager-plus >/dev/null 2>&1 || pgrep -x cpa-manager-plu >/dev/null 2>&1
+}
+
+service_was_running=no
+service_restarted=no
+
+stop_service() {
+    case "$(uname -s)" in
+        Linux)
+            if command -v systemctl >/dev/null 2>&1; then
+                if systemctl --user is-active --quiet "$systemd_unit" 2>/dev/null; then
+                    service_was_running=yes
+                fi
+                systemctl --user stop "$systemd_unit" 2>/dev/null || true
+            fi
+            ;;
+        Darwin)
+            if /bin/launchctl print "gui/$(id -u)/$launchd_label" >/dev/null 2>&1; then
+                service_was_running=yes
+                /bin/launchctl bootout "gui/$(id -u)/$launchd_label" 2>/dev/null || true
+            fi
+            ;;
+        *)
+            echo "warning: unsupported platform $(uname -s); assuming the server is not managed" >&2
+            ;;
+    esac
+
+    # Wait for the server to release the database process lock.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        server_running || return 0
+        sleep 1
+    done
+    echo "error: cpa-manager-plus is still running; stop it and retry" >&2
+    return 1
+}
+
+start_service() {
+    case "$(uname -s)" in
+        Linux)
+            command -v systemctl >/dev/null 2>&1 && systemctl --user start "$systemd_unit"
+            ;;
+        Darwin)
+            if [ -f "$launchd_plist" ]; then
+                /bin/launchctl bootstrap "gui/$(id -u)" "$launchd_plist" ||
+                    /bin/launchctl kickstart -k "gui/$(id -u)/$launchd_label"
+            else
+                echo "warning: launchd plist not found: $launchd_plist" >&2
+            fi
+            ;;
+    esac
+}
+
+finish() {
+    local status=$?
+    if [ "$service_was_running" = yes ] && [ "$service_restarted" = no ]; then
+        echo "restoring cpa-manager-plus service..."
+        start_service || true
+    fi
+    exit "$status"
+}
+trap finish EXIT
+
+echo "==> stopping cpa-manager-plus"
+stop_service
+
+if [ "$make_backup" -eq 1 ]; then
+    backup="$data_dir/usage.sqlite.bak-$(date +%Y%m%d-%H%M%S)"
+    echo "==> backing up database to $backup"
+    cp "$db_path" "$backup"
+    # Keep only the 3 newest backups. Backup names are plain
+    # usage.sqlite.bak-YYYYMMDD-HHMMSS, so ls sorting is safe here.
+    # shellcheck disable=SC2012
+    ls -1t "$data_dir"/usage.sqlite.bak-* 2>/dev/null | tail -n +4 | while read -r old; do
+        rm -f "$old"
+    done
+fi
+
+echo "==> running cleanup-derived"
+cleanup_status=0
+cpa-manager-plus cleanup-derived --db-path "$db_path" || cleanup_status=$?
+
+echo "==> restarting cpa-manager-plus"
+start_service
+service_restarted=yes
+
+# Give the server a moment before the status check.
+sleep 3
+
+status_json="$(curl -fsS -m 10 -H "Authorization: Bearer $admin_key" "http://$addr/status" 2>/dev/null || true)"
+if [ -n "$status_json" ]; then
+    maintenance="$(printf '%s' "$status_json" | grep -o '"databaseMaintenance":{[^}]*}' || true)"
+    if [ -n "$maintenance" ]; then
+        echo "==> status: $maintenance"
+        if printf '%s' "$maintenance" | grep -q '"required":true'; then
+            echo "warning: maintenance still required; check the management panel" >&2
+            [ "$cleanup_status" -eq 0 ] || exit "$cleanup_status"
+            exit 1
+        fi
+    fi
+else
+    echo "warning: could not read http://$addr/status; verify the service manually" >&2
+fi
+
+if [ "$cleanup_status" -ne 0 ]; then
+    echo "error: cleanup-derived failed; a database backup may exist in $data_dir" >&2
+    exit "$cleanup_status"
+fi
+
+echo "==> done"
