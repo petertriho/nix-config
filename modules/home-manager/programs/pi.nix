@@ -218,7 +218,16 @@ in
     # sandbox needs them granted. `models.json` stays writable because
     # `/cache-optimizer fix` rewrites it at runtime. The output style needs no
     # grant: `stripFrontmatter` copies it into the store at build time.
+    #
+    # `$HOME/.pi-lens` is pi-lens's own state directory. It holds two nix-store
+    # symlinks (config.json here, lsp.json in ai.nix) plus runtime state that
+    # pi-lens writes (logs, projects/, instances.json). nono resolves the config
+    # symlinks to /nix/store and grants them there, but the kernel still has to
+    # traverse `$HOME/.pi-lens` to reach a symlink, and that traversal fails
+    # (EPERM opening lsp.json) unless the directory is granted. Grant it
+    # read-write so both the traversal and the runtime writes succeed.
     programs.nono.agentFilesystem.pi = {
+      allow = [ "$HOME/.pi-lens" ];
       read = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions" ];
       allow_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/models.json" ];
     };
