@@ -312,7 +312,7 @@ in
         ".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
           widget.visible = false;
           format = {
-            enabled = true;
+            enabled = false;
             mode = "deferred";
           };
           autofix.enabled = true;
