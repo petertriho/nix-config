@@ -21,7 +21,7 @@ let
     };
     aarch64-darwin = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-darwin-arm64";
-      hash = "sha256-XTJtw7chK5tIyIEaK5iDTZe2k4BvFGeymYqvioa+bdk=";
+      hash = "sha256-vgGyAxp5wZ/8NpDzu9dscpEK+B8iNTwrV4HAe5IJ+3k=";
     };
     x86_64-darwin = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-darwin-x64";
