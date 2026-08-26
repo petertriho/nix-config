@@ -1,6 +1,7 @@
 ---
 name: simplify
 description: "Mutating current-diff cleanup. Use only when all are true: the user explicitly wants files edited now; the target is code already changed in the current Git diff, or a whole added or untracked regular file; and behavior and public APIs must stay the same. Typical requests ask to tidy, clean up, polish, reduce nesting or duplication, or improve readability in recent changes. Do not use for “simplify this explanation,” prose editing, suggestion-only simplification or refactoring-opportunity scans, whole-file or subsystem refactors, architecture audits, bug or feature work, or unclear requests without code-edit intent. Repository-wide opportunity audits belong to architecture-review."
+disable-model-invocation: true
 ---
 
 # Simplify

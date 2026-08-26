@@ -1,6 +1,7 @@
 ---
 name: autoresearch
 description: Autonomous goal-directed optimization loop in the spirit of Karpathy's autoresearch. Use whenever the user says "autoresearch", wants an agent to iterate unattended or overnight against a measurable target, or wants a number driven up or down through repeated experiments — reduce latency, memory, cost, bundle size, or error count; raise accuracy or a benchmark score; tune parameters, configs, or prompts; "keep trying until X". Each cycle proposes one change, measures it with a locked evaluation harness, keeps improvements, reverts regressions, and repeats until a budget or target is reached. Requires a metric produced by a repeatable command. Do not use for open-ended refactors, feature work, bugs without a reproducible measurement, web or literature research, or single changes the user wants to review before applying.
+disable-model-invocation: true
 ---
 
 # Autoresearch

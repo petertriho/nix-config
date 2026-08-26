@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: Review current or staged Git diffs, ref comparisons, PRs or merge requests, patches, or named files for localized correctness, security, regression, contract, error-handling, concurrency or resource, and concrete maintainability findings. Use for code review, diff or patch review, “look over my changes,” “sanity-check this patch,” or report-only findings requests. Never modify files. Do not use for architecture, ownership, testability, navigability, deletion, or refactoring-opportunity audits; simplification edits; or requests to fix, apply, address, or resolve review feedback.
+disable-model-invocation: true
 ---
 
 # Code Review

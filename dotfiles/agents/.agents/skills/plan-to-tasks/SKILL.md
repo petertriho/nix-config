@@ -1,6 +1,7 @@
 ---
 name: plan-to-tasks
 description: Convert a completed plan, planner output, PLAN.md, PRD, or implementation outline into concrete sequenced tasks. Use when the user asks to turn a plan into tasks, create TASKS.md, produce handoff tickets, build an execution backlog, or prepare agent/developer implementation work from an already-settled plan.
+disable-model-invocation: true
 ---
 
 # Plan To Tasks

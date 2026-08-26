@@ -1,6 +1,7 @@
 ---
 name: architecture-review
 description: Use for architecture review, refactoring-opportunity scans, ownership-opportunity discovery, codebase simplification audits, over-engineering/deletion reviews with an architecture angle, and testability or navigability reviews. Trigger when the user asks to review architecture, improve a codebase, clarify behavior ownership, simplify boundaries, reduce coupling, find shallow modules, identify refactors, discover contract/resource/test seams, identify what can be deleted, or prepare evidence-backed recommendations another engineer or agent can explore; avoid ordinary bug-only reviews unless architecture is the stated focus.
+disable-model-invocation: true
 ---
 
 # Architecture Review
