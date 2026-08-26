@@ -29,7 +29,7 @@ let
     pi-history
     pi-lens
     pi-mcp-adapter
-    pi-subagents
+    # pi-subagents
     pi-tasks
     pi-vcc
     # pi-web-access
@@ -297,6 +297,8 @@ in
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
         "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
+        "${cfg.configDir}/extensions/pi-tmux-subagents".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tmux-subagents";
 
         ".pi/web-search.json".source = config.lib.meta.mkDotfilesSymlink "pi/.pi/web-search.json";
 

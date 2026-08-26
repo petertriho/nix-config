@@ -5,7 +5,7 @@
   "version": "0.0.0",
   "description": "Local dev types for pi extensions. pi injects the runtime packages; these devDependencies exist only for LSP type-checking.",
   "scripts": {
-    "test": "node --test *.test.ts",
+    "test": "node --test \"*.test.ts\" \"pi-tmux-subagents/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "pi-tmux-subagents/**/*.ts"]
 }
