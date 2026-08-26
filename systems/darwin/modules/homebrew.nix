@@ -63,7 +63,7 @@ in
       "nikitabobko/tap/aerospace"
       "obsidian"
       "orbstack"
-      "raycast"
+      # "raycast" # disabled; use default macOS Spotlight instead
       "reminders-menubar"
       "steipete/tap/codexbar"
       # "TabularisDB/tabularis/tabularis"

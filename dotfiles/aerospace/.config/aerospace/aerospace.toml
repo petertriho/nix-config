@@ -93,7 +93,8 @@ outer.right = 0
 alt-enter = 'exec-and-forget open -n -a Ghostty'
 alt-f = 'exec-and-forget open -n finder'
 alt-t = 'exec-and-forget open -n -a "Floorp"'
-alt-v = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
+# Raycast disabled; use default macOS Spotlight (Cmd+Space) as launcher.
+# alt-v = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
 
 # Layout
 # See: https://nikitabobko.github.io/AeroSpace/commands#layout
@@ -224,14 +225,15 @@ alt-m = ['fullscreen', 'mode main']
 q = ['close --quit-if-last-window', 'mode main']
 alt-q = ['close --quit-if-last-window', 'mode main']
 
-w = [
-    'exec-and-forget open raycast://extensions/raycast/navigation/switch-windows',
-    'mode main',
-]
-alt-w = [
-    'exec-and-forget open raycast://extensions/raycast/navigation/switch-windows',
-    'mode main',
-]
+# Raycast disabled; switch-windows has no Spotlight equivalent.
+# w = [
+#     'exec-and-forget open raycast://extensions/raycast/navigation/switch-windows',
+#     'mode main',
+# ]
+# alt-w = [
+#     'exec-and-forget open raycast://extensions/raycast/navigation/switch-windows',
+#     'mode main',
+# ]
 
 x = ['swap dfs-next', 'mode main']
 alt-x = ['swap dfs-next', 'mode main']
