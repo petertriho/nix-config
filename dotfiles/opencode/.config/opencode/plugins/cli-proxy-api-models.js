@@ -6,6 +6,30 @@ const DEFAULT_PROVIDER_ID = "openai";
 const DEFAULT_CACHE_DAYS = 7;
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_OVERWRITE = "1";
+const CACHE_VERSION = 2;
+
+// Any client_version query value switches CLIProxyAPI from the bare OpenAI
+// model list to the Codex catalog, which carries visibility, display names,
+// context windows, output limits, reasoning levels and service tiers.
+const CATALOG_CLIENT_VERSION = "opencode";
+
+// Reasoning levels opencode may already know for a model (from models.dev).
+// Levels the catalog does not list are disabled so the picker matches the
+// proxy. Levels the catalog adds (for example "ultra") are enabled.
+const KNOWN_REASONING_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"];
+const OPENAI_REASONING_INCLUDE = ["reasoning.encrypted_content"];
+
+// The catalog advertises "ultra" (Codex multi-agent delegation) for the
+// gpt-5.6 models, but CLIProxyAPI rejects it: `level "ultra" not supported,
+// valid levels: low, medium, high, xhigh, max` (internal/thinking/validate.go).
+const PROXY_REJECTED_EFFORTS = ["ultra"];
+
+// models.dev exposes the priority service tier as a "<id>-fast" model. Keep
+// that model visible and give it the same limits when the catalog reports the
+// tier. This relies on models.dev defining the mode; without it opencode would
+// create a "<id>-fast" model the proxy does not serve.
+const FAST_SERVICE_TIER = "priority";
+const FAST_MODEL_SUFFIX = "-fast";
 
 function numberFromEnv(name, fallback) {
   const value = Number(process.env[name]);
@@ -22,6 +46,12 @@ function boolFromString(value) {
   return !/^(0|false|no|off)$/i.test(value);
 }
 
+function positiveNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : null;
+}
+
 function cachePath() {
   const root =
     process.env.XDG_CACHE_HOME || join(process.env.HOME || ".", ".cache");
@@ -31,38 +61,94 @@ function cachePath() {
 function normalizeModelsURL(baseURL) {
   const url = new URL(baseURL);
   url.pathname = url.pathname.replace(/\/$/, "") + "/models";
-  url.search = "";
+  url.search = `client_version=${CATALOG_CLIENT_VERSION}`;
   url.hash = "";
   return url.toString();
 }
 
-function readCache(path, maxAgeMs) {
+function isCatalogModel(value) {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.hidden === "boolean" &&
+    Array.isArray(value.efforts) &&
+    Array.isArray(value.serviceTiers)
+  );
+}
+
+function readCache(path, modelsURL, maxAgeMs) {
   if (!existsSync(path)) return null;
 
   try {
     const cache = JSON.parse(readFileSync(path, "utf8"));
-    if (!Array.isArray(cache.models) || typeof cache.updatedAt !== "number")
+    if (
+      cache.version !== CACHE_VERSION ||
+      cache.modelsURL !== modelsURL ||
+      typeof cache.updatedAt !== "number" ||
+      !Array.isArray(cache.models) ||
+      !cache.models.every(isCatalogModel)
+    )
       return null;
 
     const age = Date.now() - cache.updatedAt;
-    if (age >= 0 && age < maxAgeMs) return cache.models;
-    return { stale: cache.models };
+    return { models: cache.models, stale: !(age >= 0 && age < maxAgeMs) };
   } catch (error) {
     console.warn(`[${PLUGIN_NAME}] Failed to read cache: ${error.message}`);
     return null;
   }
 }
 
-function writeCache(path, models) {
+function writeCache(path, modelsURL, models) {
   try {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(
       path,
-      JSON.stringify({ updatedAt: Date.now(), models }, null, 2) + "\n",
+      JSON.stringify(
+        { version: CACHE_VERSION, modelsURL, updatedAt: Date.now(), models },
+        null,
+        2,
+      ) + "\n",
     );
   } catch (error) {
     console.warn(`[${PLUGIN_NAME}] Failed to write cache: ${error.message}`);
   }
+}
+
+function normalizeCatalogModel(model) {
+  if (!model || typeof model !== "object") return null;
+  const id = typeof model.slug === "string" ? model.slug.trim() : "";
+  if (!id) return null;
+
+  const displayName =
+    typeof model.display_name === "string" ? model.display_name.trim() : "";
+  const levels = Array.isArray(model.supported_reasoning_levels)
+    ? model.supported_reasoning_levels
+    : [];
+  const efforts = levels
+    .map((level) =>
+      level && typeof level.effort === "string"
+        ? level.effort.trim().toLowerCase()
+        : "",
+    )
+    .filter((effort, index, all) => effort && all.indexOf(effort) === index);
+  const tiers = Array.isArray(model.service_tiers) ? model.service_tiers : [];
+  const serviceTiers = tiers
+    .map((tier) => (typeof tier === "string" ? tier : tier?.id))
+    .filter((tier) => typeof tier === "string" && tier);
+
+  return {
+    id,
+    name: displayName || id,
+    hidden: String(model.visibility ?? "").toLowerCase() === "hide",
+    contextWindow:
+      positiveNumber(model.context_window) ??
+      positiveNumber(model.max_context_window),
+    maxTokens: positiveNumber(model.max_tokens),
+    efforts,
+    serviceTiers,
+  };
 }
 
 async function fetchModels(modelsURL, apiKey, timeoutMs) {
@@ -81,31 +167,60 @@ async function fetchModels(modelsURL, apiKey, timeoutMs) {
       throw new Error(`${response.status} ${response.statusText}`);
 
     const body = await response.json();
-    if (!Array.isArray(body.data))
-      throw new Error("response did not include a data array");
+    const entries = Array.isArray(body)
+      ? body
+      : Array.isArray(body?.models)
+        ? body.models
+        : Array.isArray(body?.data)
+          ? body.data
+          : null;
+    if (!entries)
+      throw new Error("response did not include a models array");
 
-    return body.data
-      .map((model) => (model && typeof model.id === "string" ? model.id : null))
-      .filter(Boolean)
-      .filter((id, index, ids) => ids.indexOf(id) === index)
-      .sort();
+    return entries.map(normalizeCatalogModel).filter(Boolean);
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function isChatModel(id) {
-  return !/(^|[-_/])(embedding|embed|rerank|image)([-_/]|$)/i.test(id);
+function buildVariants(efforts) {
+  const variants = {};
+  for (const effort of efforts) {
+    variants[effort] = {
+      reasoningEffort: effort,
+      reasoningSummary: "auto",
+      include: OPENAI_REASONING_INCLUDE,
+    };
+  }
+  for (const effort of KNOWN_REASONING_EFFORTS) {
+    if (!efforts.includes(effort)) variants[effort] = { disabled: true };
+  }
+  return variants;
 }
 
-function modelEntry(id) {
-  const entry = { id, name: id };
+function modelEntry(model, name = model.name) {
+  const efforts = model.efforts.filter(
+    (effort) => !PROXY_REJECTED_EFFORTS.includes(effort),
+  );
+  const entry = { name, reasoning: efforts.length > 0 };
 
-  if (/(thinking|reasoning|gpt-oss|^o[134](?:-|$)|^gpt-5)/i.test(id)) {
-    entry.reasoning = true;
+  if (model.contextWindow && model.maxTokens) {
+    entry.limit = { context: model.contextWindow, output: model.maxTokens };
   }
+  if (efforts.length > 0) entry.variants = buildVariants(efforts);
 
   return entry;
+}
+
+function modelEntries(model) {
+  const entries = [[model.id, modelEntry(model)]];
+  if (model.serviceTiers.includes(FAST_SERVICE_TIER)) {
+    entries.push([
+      `${model.id}${FAST_MODEL_SUFFIX}`,
+      modelEntry(model, `${model.name} Fast`),
+    ]);
+  }
+  return entries;
 }
 
 async function loadModels(provider) {
@@ -117,6 +232,7 @@ async function loadModels(provider) {
     return [];
   }
 
+  const modelsURL = normalizeModelsURL(baseURL);
   const path = cachePath();
   const cacheDays = numberFromEnv(
     "OPENCODE_CLI_PROXY_MODELS_CACHE_DAYS",
@@ -130,29 +246,33 @@ async function loadModels(provider) {
   const cached =
     process.env.OPENCODE_CLI_PROXY_MODELS_FORCE_REFRESH === "1"
       ? null
-      : readCache(path, maxAgeMs);
+      : readCache(path, modelsURL, maxAgeMs);
 
-  if (Array.isArray(cached)) return cached;
+  if (cached && !cached.stale) return cached.models;
+
+  const refresh = fetchModels(modelsURL, options.apiKey, timeoutMs).then(
+    (models) => {
+      writeCache(path, modelsURL, models);
+      return models;
+    },
+  );
+
+  if (cached) {
+    // The config hook cannot update the running model list, so serve the
+    // stale cache now and refresh it for the next start.
+    refresh.catch((error) => {
+      console.warn(
+        `[${PLUGIN_NAME}] Background model refresh failed: ${error.message}`,
+      );
+    });
+    return cached.models;
+  }
 
   try {
-    const models = await fetchModels(
-      normalizeModelsURL(baseURL),
-      options.apiKey,
-      timeoutMs,
-    );
-    writeCache(path, models);
-    // console.log(
-    //   `[${PLUGIN_NAME}] Cached ${models.length} models from ${baseURL}`,
-    // );
-    return models;
+    return await refresh;
   } catch (error) {
-    const stale = cached && Array.isArray(cached.stale) ? cached.stale : [];
-    const suffix =
-      stale.length > 0 ? `; using ${stale.length} stale cached models` : "";
-    console.warn(
-      `[${PLUGIN_NAME}] Model discovery failed: ${error.message}${suffix}`,
-    );
-    return stale;
+    console.warn(`[${PLUGIN_NAME}] Model discovery failed: ${error.message}`);
+    return [];
   }
 }
 
@@ -163,27 +283,28 @@ export const CliProxyApiModels = async () => ({
     const provider = config.provider?.[providerID];
     if (!provider) return;
 
-    provider.models ||= {};
     const overwrite = boolFromEnv(
       "OPENCODE_CLI_PROXY_MODELS_OVERWRITE",
       DEFAULT_OVERWRITE,
     );
-    const discovered = await loadModels(provider);
+    const discovered = (await loadModels(provider)).filter(
+      (model) => !model.hidden,
+    );
+    if (discovered.length === 0) return;
 
-    let added = 0;
-    let replaced = 0;
-    for (const id of discovered.filter(isChatModel)) {
-      const existed = !!provider.models[id];
-      if (existed && !overwrite) continue;
-      provider.models[id] = modelEntry(id);
-      if (existed) replaced += 1;
-      else added += 1;
+    provider.models ||= {};
+    const ids = [];
+    for (const model of discovered) {
+      for (const [id, entry] of modelEntries(model)) {
+        ids.push(id);
+        if (provider.models[id] && !overwrite) continue;
+        provider.models[id] = entry;
+      }
     }
 
-    // if (added > 0 || replaced > 0) {
-    //   console.log(
-    //     `[${PLUGIN_NAME}] Added ${added} models and replaced ${replaced} models in provider.${providerID}`,
-    //   );
-    // }
+    // Hide the models.dev entries the proxy does not serve.
+    provider.whitelist = [
+      ...new Set([...(provider.whitelist ?? []), ...ids]),
+    ].sort();
   },
 });
