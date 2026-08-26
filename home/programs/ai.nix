@@ -240,7 +240,7 @@ in
           "./plugins/skills-sidebar.tsx"
           "@ishaksebsib/opencode-tree"
           # "@slkiser/opencode-quota"
-          "oc-tps"
+        #   "oc-tps"
         ];
       };
     };
