@@ -6,10 +6,6 @@ let
   # Shared postPatch builder that jq-strips the pi-injected peer/dev
   # dependency groups out of package.json in place; see strip-manifest.nix.
   stripNpmManifest = callPackage ./strip-manifest.nix { };
-
-  # Shared helper, not an exported extension: an on-disk @earendil-works/pi-ai
-  # for extensions that read pi-ai's own dist off the filesystem.
-  pi-ai-runtime = callPackage ./pi-ai { };
 in
 {
   omp-undo-redo = callPackage ./omp-undo-redo { };
@@ -20,9 +16,6 @@ in
   pi-atelier = callPackage ./pi-atelier { };
   pi-blackhole = callPackage ./pi-blackhole { };
   pi-cache-optimizer = callPackage ./pi-cache-optimizer { };
-  pi-cliproxyapi-provider = callPackage ./pi-cliproxyapi-provider {
-    piAiRuntime = pi-ai-runtime;
-  };
   pi-dynamic-workflows = callPackage ./pi-dynamic-workflows {
     inherit stripNpmManifest;
   };

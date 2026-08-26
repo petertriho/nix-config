@@ -18,7 +18,6 @@ let
     # pi-agent-browser-native
     # pi-blackhole
     pi-cache-optimizer
-    pi-cliproxyapi-provider
     # pi-dynamic-workflows
     pi-fzfp
     # pi-hashline-edit-pro
@@ -263,24 +262,13 @@ in
         editorPaddingX = 1;
         enableInstallTelemetry = false;
         outputPad = 1;
-        # pi-cliproxyapi-provider bundles two extension entry points in its
-        # package.json `pi.extensions`: extensions/index.ts (the CLIProxyAPI model
-        # provider) and extensions/tps.ts (the Elapsed/TPS TUI footer + settle
-        # toast). The object form narrows the manifest so only index.ts loads.
-        # https://github.com/router-for-me/pi-cliproxyapi-provider#elapsed-time-and-tps-tui
-        packages =
-          map piPackageRoot (builtins.filter (p: p.pname != "pi-cliproxyapi-provider") piExtensions)
-          ++ [
-            {
-              source = piPackageRoot pkgs.piExtensions.pi-cliproxyapi-provider;
-              extensions = [ "!extensions/tps.ts" ];
-            }
-            # The nono Pi pack (extension + skill) from the pinned
-            # nono-packs derivation. Declared, not registry-discovered.
-            {
-              source = "${config.programs.nono.agentPacksPackage}/share/nono-packs/packs/pi";
-            }
-          ];
+        packages = map piPackageRoot piExtensions ++ [
+          # The nono Pi pack (extension + skill) from the pinned
+          # nono-packs derivation. Declared, not registry-discovered.
+          {
+            source = "${config.programs.nono.agentPacksPackage}/share/nono-packs/packs/pi";
+          }
+        ];
         quietStartup = true;
         theme = "stylix";
         tuiMode = "fullscreen";
@@ -301,8 +289,7 @@ in
         "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
 
-        ".pi/web-search.json".source =
-          config.lib.meta.mkDotfilesSymlink "pi/.pi/web-search.json";
+        ".pi/web-search.json".source = config.lib.meta.mkDotfilesSymlink "pi/.pi/web-search.json";
 
         # Provider compat overrides only (pi-cache-optimizer recommendations for
         # the zai/opencode-go gateways) — no credentials, models, or baseUrls; pi

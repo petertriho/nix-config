@@ -59,11 +59,9 @@ lib.mkMerge [
       sessionVariables = {
         CLI_PROXY_API_KEY = cliProxyApiKeyDefault;
 
-        # Consumed by pkgs.piExtensions.pi-cliproxyapi-provider. Env is the
-        # extension's highest-precedence config source, so it never needs
-        # /login. CLIPROXYAPI_FAST is deliberately left unset: the extension
-        # persists the /fast toggle itself in ~/.pi/agent/cliproxyapi.json, and
-        # declaring it here would override that preference on every startup.
+        # Consumed by the personal pi-cliproxyapi-provider.ts extension (linked
+        # below): the proxy root for the model catalog and inference, and the
+        # bearer token pi resolves at request time.
         CLIPROXYAPI_BASE_URL = cliProxyApiBaseUrl;
         CLIPROXYAPI_API_KEY = cliProxyApiKeyDefault;
       };
@@ -76,6 +74,11 @@ lib.mkMerge [
       };
     };
   }
+
+  (lib.mkIf config.programs.pi-coding-agent.enable {
+    home.file."${config.programs.pi-coding-agent.configDir}/extensions/pi-cliproxyapi-provider.ts".source =
+      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-cliproxyapi-provider.ts";
+  })
 
   (lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
     systemd.user.services.cli-proxy-api = {
