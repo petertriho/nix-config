@@ -26,6 +26,7 @@
       # rs-git-fsmonitor
       llm-agents.tuicr
       # watchman
+      worktrunk
     ];
     file = {
       ".gitconfig".source = config.lib.meta.mkDotfilesSymlink "git/.gitconfig";
