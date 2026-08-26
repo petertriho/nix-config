@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-web-access";
-  version = "0.24.2-unstable-2026-08-25";
+  version = "0.25.0-unstable-2026-08-26";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-web-access";
-    rev = "54c23531a5d249daebdccf061c9b28e65aca1d19";
-    hash = "sha256-a7eIQ5ljZzWDHcP94i6cke6m05tQOKDHiGnDyVTzB6k=";
+    rev = "17b04cf3669fecace0c97a22d8dc731f6a58c954";
+    hash = "sha256-IGccvoMzqfKhyVqO13/Qbmm0b2O0Lkep8Ps4UPus96M=";
   };
 
   # Upstream gitignores its lockfile, so a reproducible one is vendored here.

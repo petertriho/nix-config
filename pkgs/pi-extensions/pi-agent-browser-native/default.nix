@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-agent-browser-native";
-  version = "0.5.0-unstable-2026-08-22";
+  version = "0.5.1-unstable-2026-08-25";
 
   src = fetchFromGitHub {
     owner = "fitchmultz";
     repo = "pi-agent-browser-native";
-    rev = "f4736a99b59a4d8e86722eb69cc30c337c567805"; # tag v0.5.0
-    hash = "sha256-qqBHe09tv03zieKN1U51kH0zp8TP7Xm7BXnML7efVqA=";
+    rev = "33bcc5d749b3a000eea65ccb12b7e858246dab51"; # tag v0.5.0
+    hash = "sha256-hUs0kn7wjiCwyGtisqqIGtXxjVj2tRkafu8dhFCdopQ=";
   };
 
   nodejs = nodejs_24;
