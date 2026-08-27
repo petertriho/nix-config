@@ -10,6 +10,21 @@ in
   config = lib.mkIf cfg.enable {
     programs.claude-code.outputStyles.ste = config.lib.meta.mkDotfilesSymlink "agents/.agents/output-styles/ste.md";
 
+    # Block model-initiated plan mode. Custom planning skills (e.g. `planner`)
+    # own their own interview-and-write workflow, and Claude Code's built-in
+    # plan mode hijacks it: it is read-only, so it blocks the skill's Write, and
+    # its approve-a-plan flow replaces the skill's interview. Only the
+    # `EnterPlanMode` tool call is blocked; Shift+Tab still enters plan mode.
+    # Exit code 2 blocks the call and returns stderr to the model as the reason.
+    programs.claude-code.hooks.PreToolUse =
+      #bash
+      ''
+        #!/usr/bin/env bash
+
+        echo "EnterPlanMode is blocked in this environment. Do not switch to writing a plan as chat text. If a skill is active (for example /planner), resume that skill's workflow at its current step, including its interview questions and its file output. Otherwise continue the task in normal mode." >&2
+        exit 2
+      '';
+
     home = {
       # file.".claude/skills/context7" = {
       #   source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/context7";

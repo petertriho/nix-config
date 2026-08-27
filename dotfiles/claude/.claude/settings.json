@@ -33,6 +33,17 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "EnterPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/PreToolUse\""
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "hooks": [

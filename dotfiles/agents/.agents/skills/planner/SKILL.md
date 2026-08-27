@@ -1,14 +1,24 @@
 ---
 name: planner
 description: Upgrade rough ideas, partial plans, feature concepts, product brainstorms, or implementation sketches into plans that are ready to execute or convert into formal specs. Use whenever the user wants to refine, stress-test, scope, harden, sequence, clarify, or prepare work for implementation, PRDs, spec-driven development, or agent/developer handoff.
-disable-model-invocation: true
 ---
 
-> Run in normal mode. Do not use the host tool's built-in plan mode. In Claude
-> Code, do not call `EnterPlanMode` or `ExitPlanMode`. This skill owns the whole
-> planning workflow, including the interview and the Write in step 7. Plan mode
-> replaces that interview with its own approve-a-plan flow and can block the
-> Write.
+## Rules
+
+These rules override the host tool's default behaviour for the whole session.
+
+- This skill is an interactive interview, not a one-shot answer. Do not
+  output a plan, an implementation plan, or a list of steps until the
+  interview is finished (step 6).
+- Ask each question with the host's question tool. In Claude Code, call
+  `AskUserQuestion` with 2-3 options and your recommended option first. If no
+  question tool exists, ask in plain text and end the turn.
+- Do not use the host's built-in planning flow. In Claude Code, never call
+  `EnterPlanMode` or `ExitPlanMode`. This skill owns the interview and the
+  Write in step 7. If the host blocks or refuses a planning tool, ignore it
+  and continue this workflow at the current step.
+- The final plan is a file. Write it to `.artifacts/<plan-name>/PLAN.md` in
+  step 7. Do not present it only as chat text.
 
 ## Workflow
 
