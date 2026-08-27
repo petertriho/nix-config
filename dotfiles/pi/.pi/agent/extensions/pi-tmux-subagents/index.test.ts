@@ -440,11 +440,11 @@ test("buildWorkflowMessage wraps the bundled prompt like a skill expansion", () 
 		'agent: "task-writer"',
 		'agent: "implementer"',
 		'agent: "reviewer"',
-		"📝 Planning",
-		"🧩 Tasking",
-		"🔨 Implementing",
-		"🔎 Reviewing",
-		"✅ Workflow done",
+		" Planning",
+		" Tasking",
+		" Implementing",
+		" Reviewing",
+		" Workflow done",
 		"ls -t .artifacts",
 	]) {
 		assert.ok(message.includes(phrase), `workflow prompt must mention ${phrase}`);

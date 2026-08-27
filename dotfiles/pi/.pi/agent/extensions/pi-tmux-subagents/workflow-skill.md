@@ -20,8 +20,8 @@ from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
 - Stop at every gate and wait for the user's answer. Do not continue on your
   own, and do not skip a gate.
 - At the start of each phase, rename the tmux window through `bash`:
-  `tmux rename-window -t "$TMUX_PANE" "<label>"`. Labels: `📝 Planning`,
-  `🧩 Tasking`, `🔨 Implementing`, `🔎 Reviewing`, `✅ Workflow done`.
+  `tmux rename-window -t "$TMUX_PANE" "<label>"`. Labels: ` Planning`,
+  ` Tasking`, ` Implementing`, ` Reviewing`, ` Workflow done`.
 - Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `TASKS.md`,
   `REVIEW.md`. Keep the session paths from every `subagent_result`; you need
   them for `subagent_resume`.
@@ -39,11 +39,11 @@ from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
 
 ## Phase 1: Plan
 
-Rename the window to `📝 Planning`. Then spawn the planner:
+Rename the window to ` Planning`. Then spawn the planner:
 
 ```
 subagent({
-  name: "📝 Planner",
+  name: " Planner",
   agent: "planner",
   interactive: true,
   task: "<the user's request, verbatim>\n\nRun the planner skill interview with the user in this pane. Write the plan to .artifacts/<plan-name>/PLAN.md in this repository. Report the exact PLAN.md path in your final message as `PLAN: <absolute path>`."
@@ -65,7 +65,7 @@ Wait for the `subagent_result`.
 ```
 subagent_resume({
   sessionPath: "<planner session path>",
-  name: "📝 Planner",
+  name: " Planner",
   autoExit: false,
   message: "The user asks for these changes to PLAN.md: <notes>. Update PLAN.md, then report the exact path again as `PLAN: <absolute path>` and call subagent_done."
 })
@@ -73,11 +73,11 @@ subagent_resume({
 
 ## Phase 2: Tasks
 
-Rename the window to `🧩 Tasking`. Then spawn the task writer:
+Rename the window to ` Tasking`. Then spawn the task writer:
 
 ```
 subagent({
-  name: "🧩 Task writer",
+  name: " Task writer",
   agent: "task-writer",
   task: "Convert <PLAN.md path> into TASKS.md in the same directory with the plan-to-tasks skill. Do not change PLAN.md. Report the TASKS.md path as `TASKS: <absolute path>`, the task count, and any blocking assumptions."
 })
@@ -92,11 +92,11 @@ subagent({
 
 ## Phase 3: Implement
 
-Rename the window to `🔨 Implementing`. Then spawn the implementer:
+Rename the window to ` Implementing`. Then spawn the implementer:
 
 ```
 subagent({
-  name: "🔨 Implementer",
+  name: " Implementer",
   agent: "implementer",
   task: "Implement <TASKS.md path> against <PLAN.md path> with the implement skill. Base ref: <base ref>. Do not commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: tasks completed with IDs, validation commands run with results, blockers or unchecked tasks."
 })
@@ -108,7 +108,7 @@ blocker, resume the implementer exactly once:
 ```
 subagent_resume({
   sessionPath: "<implementer session path>",
-  name: "🔨 Implementer",
+  name: " Implementer",
   message: "Continue from the first unchecked task in <TASKS.md path>. Do not commit. Report tasks completed, validation run, and blockers."
 })
 ```
@@ -118,11 +118,11 @@ not loop.
 
 ## Phase 4: Review
 
-Rename the window to `🔎 Reviewing`. Then spawn the reviewer:
+Rename the window to ` Reviewing`. Then spawn the reviewer:
 
 ```
 subagent({
-  name: "🔎 Reviewer",
+  name: " Reviewer",
   agent: "reviewer",
   task: "Review the implementation with the implementation-review skill. Base ref: <base ref>. PLAN.md: <path>. TASKS.md: <path>. Write the review to <same directory>/REVIEW.md and edit nothing else. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
 })
@@ -137,12 +137,12 @@ subagent({
 
 ## Phase 5: Fix (only after approval at Gate 3)
 
-Rename the window to `🔨 Implementing`. Resume the implementer session:
+Rename the window to ` Implementing`. Resume the implementer session:
 
 ```
 subagent_resume({
   sessionPath: "<implementer session path>",
-  name: "🔨 Implementer",
+  name: " Implementer",
   message: "Fix the CRITICAL and HIGH findings in <REVIEW.md path>. Keep TASKS.md checkboxes accurate. Do not commit. Report what changed and the validation run."
 })
 ```
@@ -152,7 +152,7 @@ Gate 3 once.
 
 ## Done
 
-Rename the window to `✅ Workflow done`. Give the final summary:
+Rename the window to ` Workflow done`. Give the final summary:
 
 - The three artifact paths: `PLAN.md`, `TASKS.md`, `REVIEW.md`.
 - Validation run, taken from the implementer and reviewer results.

@@ -2032,7 +2032,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
       try {
         const label = request.length > 40 ? request.slice(0, 40) + "…" : request;
-        renameCurrentTab(`📝 Workflow: ${label}`);
+        renameCurrentTab(` Workflow: ${label}`);
       } catch {
         // Cosmetic. The prompt renames the window per phase anyway.
       }
