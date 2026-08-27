@@ -49,16 +49,16 @@ in
           "bash"
         ];
       };
-      # basedpyright = {
-      #   command = "basedpyright-langserver";
-      #   args = [
-      #     "--stdio"
-      #   ];
-      #   filetypes = [
-      #     "python"
-      #     "pyi"
-      #   ];
-      # };
+      basedpyright = {
+        command = "basedpyright-langserver";
+        args = [
+          "--stdio"
+        ];
+        filetypes = [
+          "python"
+          "pyi"
+        ];
+      };
       eslint = {
         command = "vscode-eslint-language-server";
         args = [ "--stdio" ];
@@ -85,14 +85,14 @@ in
         args = [ ];
         filetypes = [ "nix" ];
       };
-      pyrefly = {
-        command = "pyrefly";
-        args = [ "lsp" ];
-        filetypes = [
-          "python"
-          "pyi"
-        ];
-      };
+      # pyrefly = {
+      #   command = "pyrefly";
+      #   args = [ "lsp" ];
+      #   filetypes = [
+      #     "python"
+      #     "pyi"
+      #   ];
+      # };
       terraformls = {
         command = "terraform-ls";
         args = [
