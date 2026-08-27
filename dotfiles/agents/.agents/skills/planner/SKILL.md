@@ -4,6 +4,12 @@ description: Upgrade rough ideas, partial plans, feature concepts, product brain
 disable-model-invocation: true
 ---
 
+> Run in normal mode. Do not use the host tool's built-in plan mode. In Claude
+> Code, do not call `EnterPlanMode` or `ExitPlanMode`. This skill owns the whole
+> planning workflow, including the interview and the Write in step 7. Plan mode
+> replaces that interview with its own approve-a-plan flow and can block the
+> Write.
+
 ## Workflow
 
 1. Check project context first.
