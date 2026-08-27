@@ -5,10 +5,11 @@
  * Codex catalog (`/v1/models?client_version=pi`) and served over pi's stock
  * `openai-responses` API at `${root}/v1`. Native pi providers stay untouched.
  *
- * Startup is cache-first: a valid `~/.pi/agent/cliproxyapi-models.json`
- * registers at once and refreshes in the background. Without a cache, the
- * catalog is fetched synchronously with a short timeout. When both fail, a
- * warning is logged and no models are registered.
+ * Startup is cache-first: a current `~/.pi/agent/cliproxyapi-models.json`
+ * registers at once and refreshes in the background. A legacy cache is
+ * refreshed synchronously so grammar-tool capability is verified; if that
+ * fails, its models remain available with grammar tools forced off. Without a
+ * cache, the catalog is fetched synchronously with a short timeout.
  *
  * Prices come from https://models.dev/api.json, cached for 24 h at
  * `~/.pi/agent/tmp/models-dev-cache.json` with a stale fallback. Models that
@@ -32,7 +33,7 @@
  * retry policy takes the turn again.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
   type AssistantMessage,
@@ -57,7 +58,8 @@ const API_KEY_ENV_VAR = "CLIPROXYAPI_API_KEY";
 const DEFAULT_BASE_URL = "http://127.0.0.1:8317";
 const CLIENT_VERSION = "pi";
 const MODELS_CACHE_FILE_NAME = "cliproxyapi-models.json";
-const MODELS_CACHE_VERSION = 1;
+const MODELS_CACHE_VERSION = 2;
+const LEGACY_MODELS_CACHE_VERSION = 1;
 const CONFIG_FILE_NAME = "cliproxyapi.json";
 const PAUSE_POLL_INTERVAL_MS = 200;
 const PAUSE_STATUS_KEY = "cliproxyapi";
@@ -101,6 +103,7 @@ export type CodexCatalogModel = {
   max_context_window?: number;
   input_modalities?: string[];
   supported_reasoning_levels?: Array<{ effort?: string; description?: string } | string>;
+  apply_patch_tool_type?: unknown;
   visibility?: string;
 };
 
@@ -134,7 +137,12 @@ export function resolveEndpoints(baseUrlInput: string | undefined): Endpoints {
   if (!/^https?:\/\//i.test(raw)) {
     raw = `http://${raw}`;
   }
-  const url = new URL(raw);
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch (error) {
+    throw new Error(`invalid ${BASE_URL_ENV_VAR}: ${errorMessage(error)}`, { cause: error });
+  }
   const path = url.pathname.replace(/\/+$/, "").replace(/\/v1$/, "");
   const root = `${url.origin}${path}`;
   return {
@@ -229,10 +237,17 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 }
 
 function writeTextFile(path: string, text: string): void {
+  const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}`;
   try {
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, text, "utf8");
+    writeFileSync(temporaryPath, text, "utf8");
+    renameSync(temporaryPath, path);
   } catch (error) {
+    try {
+      unlinkSync(temporaryPath);
+    } catch {
+      // Best-effort cleanup after a failed atomic replacement.
+    }
     logWarn(`failed to write ${path}: ${errorMessage(error)}`);
   }
 }
@@ -421,6 +436,9 @@ export function toPiModel(
     compat: {
       sessionAffinityFormat: "openai",
       supportsLongCacheRetention: true,
+      supportsOpenAIGrammarTools:
+        typeof model.apply_patch_tool_type === "string" &&
+        model.apply_patch_tool_type.trim().toLowerCase() === "freeform",
     },
   };
 }
@@ -433,6 +451,7 @@ function isProviderModel(value: unknown): value is ProviderModelConfig {
     typeof model.name === "string" &&
     typeof model.reasoning === "boolean" &&
     Array.isArray(model.input) &&
+    model.input.every((modality) => typeof modality === "string") &&
     typeof model.contextWindow === "number" &&
     typeof model.maxTokens === "number" &&
     !!model.cost &&
@@ -440,18 +459,53 @@ function isProviderModel(value: unknown): value is ProviderModelConfig {
   );
 }
 
-/** Validate a parsed cache file. Rejects other versions and other catalog URLs. */
-export function parseModelsCache(raw: unknown, modelsUrl: string): ProviderModelConfig[] | null {
+function parseCacheVersion(
+  raw: unknown,
+  modelsUrl: string,
+  version: number,
+): ProviderModelConfig[] | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const cache = raw as Partial<ModelsCache>;
-  if (cache.version !== MODELS_CACHE_VERSION) return null;
+  const cache = raw as Partial<ModelsCache> & { version?: unknown };
+  if (cache.version !== version) return null;
   if (cache.modelsUrl !== modelsUrl) return null;
   if (typeof cache.fetchedAt !== "number") return null;
   if (!Array.isArray(cache.models) || !cache.models.every(isProviderModel)) return null;
   return cache.models;
 }
 
-function readModelsCache(cachePath: string, modelsUrl: string): ProviderModelConfig[] | null {
+function hasGrammarCapability(model: ProviderModelConfig): boolean {
+  const compat = asRecord(model.compat);
+  return typeof compat?.supportsOpenAIGrammarTools === "boolean";
+}
+
+/** Validate a current cache file. Rejects legacy versions and other catalog URLs. */
+export function parseModelsCache(raw: unknown, modelsUrl: string): ProviderModelConfig[] | null {
+  const models = parseCacheVersion(raw, modelsUrl, MODELS_CACHE_VERSION);
+  return models?.every(hasGrammarCapability) ? models : null;
+}
+
+/** Read a version 1 cache while forcing unverified grammar capability off. */
+export function parseLegacyModelsCache(
+  raw: unknown,
+  modelsUrl: string,
+): ProviderModelConfig[] | null {
+  const models = parseCacheVersion(raw, modelsUrl, LEGACY_MODELS_CACHE_VERSION);
+  if (!models) return null;
+  return models.map((model) => ({
+    ...model,
+    compat: {
+      ...(asRecord(model.compat) ?? {}),
+      supportsOpenAIGrammarTools: false,
+    },
+  }));
+}
+
+type CachedModels =
+  | { kind: "current"; models: ProviderModelConfig[] }
+  | { kind: "legacy"; models: ProviderModelConfig[] }
+  | { kind: "none" };
+
+function readModelsCache(cachePath: string, modelsUrl: string): CachedModels {
   let text: string;
   try {
     text = readFileSync(cachePath, "utf8");
@@ -459,13 +513,18 @@ function readModelsCache(cachePath: string, modelsUrl: string): ProviderModelCon
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       logWarn(`failed to read ${cachePath}: ${errorMessage(error)}`);
     }
-    return null;
+    return { kind: "none" };
   }
   try {
-    return parseModelsCache(JSON.parse(text), modelsUrl);
+    const raw = JSON.parse(text);
+    const current = parseModelsCache(raw, modelsUrl);
+    if (current) return { kind: "current", models: current };
+    const legacy = parseLegacyModelsCache(raw, modelsUrl);
+    if (legacy) return { kind: "legacy", models: legacy };
+    return { kind: "none" };
   } catch (error) {
     logWarn(`ignoring invalid ${cachePath}: ${errorMessage(error)}`);
-    return null;
+    return { kind: "none" };
   }
 }
 
@@ -490,7 +549,13 @@ function readConfigFile(configPath: string): Record<string, unknown> {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw error;
   }
-  const parsed = asRecord(JSON.parse(text));
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`invalid ${CONFIG_FILE_NAME}: ${errorMessage(error)}`, { cause: error });
+  }
+  const parsed = asRecord(value);
   if (!parsed) throw new Error(`${CONFIG_FILE_NAME} must contain a JSON object`);
   return parsed;
 }
@@ -613,13 +678,24 @@ export default async function (pi: ExtensionAPI) {
   };
 
   const cached = readModelsCache(cachePath, endpoints.modelsUrl);
-  if (cached) {
-    register(cached);
+  let legacyFallbackActive = false;
+  if (cached.kind === "current") {
+    register(cached.models);
     void refresh().catch((error) => {
       logWarn(
-        `background model refresh failed: ${errorMessage(error)}; keeping ${cached.length} cached models`,
+        `background model refresh failed: ${errorMessage(error)}; keeping ${cached.models.length} cached models`,
       );
     });
+  } else if (cached.kind === "legacy") {
+    try {
+      await refresh();
+    } catch (error) {
+      legacyFallbackActive = true;
+      register(cached.models);
+      logWarn(
+        `legacy model cache refresh failed: ${errorMessage(error)}; registered ${cached.models.length} cached models with grammar tools disabled. After a successful /cliproxyapi-refresh, reselect the model or run /reload`,
+      );
+    }
   } else {
     try {
       await refresh();
@@ -641,7 +717,15 @@ export default async function (pi: ExtensionAPI) {
           ctx.ui.notify(`${PROVIDER_NAME}: refresh superseded by a newer refresh`, "warning");
           return;
         }
-        ctx.ui.notify(`${PROVIDER_NAME}: registered ${models.length} models`, "info");
+        if (legacyFallbackActive) {
+          legacyFallbackActive = false;
+          ctx.ui.notify(
+            `${PROVIDER_NAME}: registered ${models.length} models; reselect the model or run /reload to activate verified grammar tools`,
+            "warning",
+          );
+        } else {
+          ctx.ui.notify(`${PROVIDER_NAME}: registered ${models.length} models`, "info");
+        }
       } catch (error) {
         ctx.ui.notify(`${PROVIDER_NAME} refresh failed: ${errorMessage(error)}`, "error");
       }

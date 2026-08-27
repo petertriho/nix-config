@@ -18,6 +18,7 @@ let
     # pi-agent-browser-native
     # pi-blackhole
     pi-cache-optimizer
+    pi-codex-tools
     # pi-dynamic-workflows
     pi-fzfp
     # pi-hashline-edit-pro

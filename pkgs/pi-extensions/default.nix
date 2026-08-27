@@ -16,6 +16,9 @@ in
   pi-atelier = callPackage ./pi-atelier { };
   pi-blackhole = callPackage ./pi-blackhole { };
   pi-cache-optimizer = callPackage ./pi-cache-optimizer { };
+  pi-codex-tools = callPackage ./pi-codex-tools {
+    inherit stripNpmManifest;
+  };
   pi-dynamic-workflows = callPackage ./pi-dynamic-workflows {
     inherit stripNpmManifest;
   };

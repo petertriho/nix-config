@@ -19,6 +19,7 @@ import cliproxyapi, {
 	loadCostCatalog,
 	matchModelCost,
 	normalizeTransientNetworkError,
+	parseLegacyModelsCache,
 	parseModelsCache,
 	PauseController,
 	readPauseSetting,
@@ -43,6 +44,7 @@ const gpt56Sol: CodexCatalogModel = {
 		{ effort: "max" },
 		{ effort: "ultra" },
 	],
+	apply_patch_tool_type: "freeform",
 	visibility: "list",
 };
 
@@ -92,6 +94,10 @@ test("resolveEndpoints defaults to the loopback proxy when the input is empty", 
 	assert.deepEqual(resolveEndpoints("  "), expectedEndpoints);
 });
 
+test("resolveEndpoints rejects an invalid proxy URL with context", () => {
+	assert.throws(() => resolveEndpoints("http://["), /invalid CLIPROXYAPI_BASE_URL/i);
+});
+
 test("toPiModel maps gpt-5.6-sol and ignores the ultra effort", () => {
 	const model = toPiModel(gpt56Sol);
 	assert.ok(model);
@@ -114,7 +120,33 @@ test("toPiModel maps gpt-5.6-sol and ignores the ultra effort", () => {
 	assert.deepEqual(model.compat, {
 		sessionAffinityFormat: "openai",
 		supportsLongCacheRetention: true,
+		supportsOpenAIGrammarTools: true,
 	});
+});
+
+test("toPiModel enables grammar tools only for normalized freeform capability", () => {
+	for (const value of [" FREEFORM ", "FreeForm"]) {
+		const model = toPiModel({ slug: `supported-${value.trim()}`, apply_patch_tool_type: value });
+		assert.ok(model);
+		assert.deepEqual(model.compat, {
+			sessionAffinityFormat: "openai",
+			supportsLongCacheRetention: true,
+			supportsOpenAIGrammarTools: true,
+		});
+	}
+
+	for (const value of [undefined, "", "   ", "function", "free-form", 123, { type: "freeform" }, ["freeform"]]) {
+		const model = toPiModel({
+			slug: `unsupported-${String(value)}`,
+			apply_patch_tool_type: value,
+		});
+		assert.ok(model);
+		assert.deepEqual(model.compat, {
+			sessionAffinityFormat: "openai",
+			supportsLongCacheRetention: true,
+			supportsOpenAIGrammarTools: false,
+		});
+	}
 });
 
 test("toPiModel marks unsupported levels null for gpt-5.4-mini", () => {
@@ -156,9 +188,21 @@ test("toPiModel maps a `none` effort to off", () => {
 	assert.equal(model.thinkingLevelMap?.low, "low");
 });
 
-test("parseModelsCache accepts a version 1 cache for the same catalog URL", () => {
+test("parseModelsCache accepts version 2 and rejects version 1 for the same catalog URL", () => {
 	const model = toPiModel(gpt56Sol);
-	const parsed = parseModelsCache(
+	const cache = {
+		modelsUrl: expectedEndpoints.modelsUrl,
+		fetchedAt: 1,
+		models: [model],
+	};
+	assert.deepEqual(parseModelsCache({ version: 2, ...cache }, expectedEndpoints.modelsUrl), [model]);
+	assert.equal(parseModelsCache({ version: 1, ...cache }, expectedEndpoints.modelsUrl), null);
+});
+
+test("parseLegacyModelsCache accepts only version 1 and forces grammar support off", () => {
+	const model = toPiModel(gpt56Sol);
+	assert.ok(model);
+	const parsed = parseLegacyModelsCache(
 		{
 			version: 1,
 			modelsUrl: expectedEndpoints.modelsUrl,
@@ -167,7 +211,14 @@ test("parseModelsCache accepts a version 1 cache for the same catalog URL", () =
 		},
 		expectedEndpoints.modelsUrl,
 	);
-	assert.deepEqual(parsed, [model]);
+	assert.ok(parsed);
+	assert.equal(parsed.length, 1);
+	assert.deepEqual(parsed[0]?.compat, {
+		sessionAffinityFormat: "openai",
+		supportsLongCacheRetention: true,
+		supportsOpenAIGrammarTools: false,
+	});
+	assert.equal(parseLegacyModelsCache({ version: 2, models: [model] }, expectedEndpoints.modelsUrl), null);
 });
 
 test("parseModelsCache rejects the upstream pi-cliproxyapi-provider schema", () => {
@@ -183,7 +234,7 @@ test("parseModelsCache rejects the upstream pi-cliproxyapi-provider schema", () 
 
 test("parseModelsCache rejects a different catalog URL and malformed models", () => {
 	const model = toPiModel(gpt56Sol);
-	const base = { version: 1, fetchedAt: 1, models: [model] };
+	const base = { version: 2, fetchedAt: 1, models: [model] };
 	assert.equal(
 		parseModelsCache(
 			{ ...base, modelsUrl: "http://other:1/v1/models?client_version=pi" },
@@ -364,7 +415,7 @@ function writeFreshModelsDevCache(agentDir: string, providers: Record<string, un
 
 const emptyModelsDevProviders = { none: { models: {} } };
 
-test("startup without a cache fetches, registers, writes a version 1 cache, and /cliproxyapi-refresh re-registers", async () => {
+test("startup without a cache fetches, registers, writes a version 2 cache, and /cliproxyapi-refresh re-registers", async () => {
 	await withCatalogServer(
 		() => ({ status: 200, body: { models: [gpt56Sol, gpt54Mini, codexAutoReview] } }),
 		async (baseUrl, requests) => {
@@ -388,7 +439,7 @@ test("startup without a cache fetches, registers, writes a version 1 cache, and 
 						assert.equal(requests[0]?.auth, "Bearer sk-harness");
 
 						const cache = JSON.parse(readFileSync(join(agentDir, "cliproxyapi-models.json"), "utf8"));
-						assert.equal(cache.version, 1);
+						assert.equal(cache.version, 2);
 						assert.equal(cache.modelsUrl, `${baseUrl}/v1/models?client_version=pi`);
 						assert.equal(typeof cache.fetchedAt, "number");
 						assert.deepEqual(parseModelsCache(cache, cache.modelsUrl), config.models);
@@ -415,6 +466,38 @@ test("startup without a cache fetches, registers, writes a version 1 cache, and 
 	);
 });
 
+test("startup preserves models with non-string capability metadata and disables grammar tools", async () => {
+	const changedShapeModels = [123, { type: "freeform" }, ["freeform"]].map((apply_patch_tool_type, index) => ({
+		slug: `changed-shape-${index}`,
+		apply_patch_tool_type,
+	}));
+	await withCatalogServer(
+		() => ({ status: 200, body: { models: changedShapeModels } }),
+		async (baseUrl) => {
+			await withTempAgentDir(async (agentDir) => {
+				writeFreshModelsDevCache(agentDir, emptyModelsDevProviders);
+				await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl }, async () => {
+					const harness = createHarness();
+					await cliproxyapi(harness.pi);
+
+					assert.equal(harness.providers.length, 1);
+					assert.deepEqual(modelIds(harness, 0), ["changed-shape-0", "changed-shape-1", "changed-shape-2"]);
+					for (const model of harness.providers[0]?.config.models ?? []) {
+						assert.deepEqual(model.compat, {
+							sessionAffinityFormat: "openai",
+							supportsLongCacheRetention: true,
+							supportsOpenAIGrammarTools: false,
+						});
+					}
+					const cache = JSON.parse(readFileSync(join(agentDir, "cliproxyapi-models.json"), "utf8"));
+					assert.equal(cache.version, 2);
+					assert.deepEqual(parseModelsCache(cache, cache.modelsUrl), harness.providers[0]?.config.models);
+				});
+			});
+		},
+	);
+});
+
 test("startup with a valid cache registers at once and keeps cached models when the refresh fails", async () => {
 	const baseUrl = await closedPortBaseUrl();
 	const modelsUrl = `${baseUrl}/v1/models?client_version=pi`;
@@ -422,7 +505,7 @@ test("startup with a valid cache registers at once and keeps cached models when 
 		writeFreshModelsDevCache(agentDir, emptyModelsDevProviders);
 		writeFileSync(
 			join(agentDir, "cliproxyapi-models.json"),
-			JSON.stringify({ version: 1, modelsUrl, fetchedAt: 1, models: [toPiModel(gpt54Mini)] }),
+			JSON.stringify({ version: 2, modelsUrl, fetchedAt: 1, models: [toPiModel(gpt54Mini)] }),
 		);
 		await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl }, async () => {
 			await captureWarnings(async (warnings) => {
@@ -437,6 +520,108 @@ test("startup with a valid cache registers at once and keeps cached models when 
 			});
 		});
 	});
+});
+
+test("startup with a legacy cache refreshes synchronously and registers version 2 models", async () => {
+	await withCatalogServer(
+		() => ({ status: 200, body: { models: [gpt56Sol] } }),
+		async (baseUrl, requests) => {
+			const modelsUrl = `${baseUrl}/v1/models?client_version=pi`;
+			await withTempAgentDir(async (agentDir) => {
+				writeFreshModelsDevCache(agentDir, emptyModelsDevProviders);
+				writeFileSync(
+					join(agentDir, "cliproxyapi-models.json"),
+					JSON.stringify({ version: 1, modelsUrl, fetchedAt: 1, models: [toPiModel(gpt54Mini)] }),
+				);
+				await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl }, async () => {
+					const harness = createHarness();
+					await cliproxyapi(harness.pi);
+
+					assert.equal(requests.length, 1);
+					assert.equal(harness.providers.length, 1);
+					assert.deepEqual(modelIds(harness, 0), ["gpt-5.6-sol"]);
+					assert.deepEqual(harness.providers[0]?.config.models?.[0]?.compat, {
+						sessionAffinityFormat: "openai",
+						supportsLongCacheRetention: true,
+						supportsOpenAIGrammarTools: true,
+					});
+					const cache = JSON.parse(readFileSync(join(agentDir, "cliproxyapi-models.json"), "utf8"));
+					assert.equal(cache.version, 2);
+					assert.deepEqual(parseModelsCache(cache, modelsUrl), harness.providers[0]?.config.models);
+				});
+			});
+		},
+	);
+});
+
+test("startup with an unavailable proxy safely registers legacy models and warns once", async () => {
+	const baseUrl = await closedPortBaseUrl();
+	const modelsUrl = `${baseUrl}/v1/models?client_version=pi`;
+	await withTempAgentDir(async (agentDir) => {
+		writeFreshModelsDevCache(agentDir, emptyModelsDevProviders);
+		writeFileSync(
+			join(agentDir, "cliproxyapi-models.json"),
+			JSON.stringify({ version: 1, modelsUrl, fetchedAt: 1, models: [toPiModel(gpt56Sol)] }),
+		);
+		await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl }, async () => {
+			await captureWarnings(async (warnings) => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+
+				assert.equal(harness.providers.length, 1);
+				assert.deepEqual(modelIds(harness, 0), ["gpt-5.6-sol"]);
+				assert.deepEqual(harness.providers[0]?.config.models?.[0]?.compat, {
+					sessionAffinityFormat: "openai",
+					supportsLongCacheRetention: true,
+					supportsOpenAIGrammarTools: false,
+				});
+				assert.equal(warnings.length, 1);
+				assert.match(warnings[0]!, /legacy model cache/i);
+				assert.match(warnings[0]!, /reselect.*model|\/reload/i);
+				const cache = JSON.parse(readFileSync(join(agentDir, "cliproxyapi-models.json"), "utf8"));
+				assert.equal(cache.version, 1);
+			});
+		});
+	});
+});
+
+test("a later refresh replaces a legacy fallback with version 2 and gives a reload hint", async () => {
+	let catalogRequests = 0;
+	await withCatalogServer(
+		() =>
+			++catalogRequests === 1
+				? { status: 503, body: { error: "temporarily unavailable" } }
+				: { status: 200, body: { models: [gpt56Sol] } },
+		async (baseUrl) => {
+			const modelsUrl = `${baseUrl}/v1/models?client_version=pi`;
+			await withTempAgentDir(async (agentDir) => {
+				writeFreshModelsDevCache(agentDir, emptyModelsDevProviders);
+				writeFileSync(
+					join(agentDir, "cliproxyapi-models.json"),
+					JSON.stringify({ version: 1, modelsUrl, fetchedAt: 1, models: [toPiModel(gpt54Mini)] }),
+				);
+				await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl }, async () => {
+					await captureWarnings(async (warnings) => {
+						const harness = createHarness();
+						await cliproxyapi(harness.pi);
+						assert.equal(warnings.length, 1);
+
+						const refresh = harness.commands.get("cliproxyapi-refresh");
+						assert.ok(refresh);
+						await refresh("", harness.ctx);
+
+						assert.equal(harness.providers.length, 2);
+						assert.deepEqual(modelIds(harness, 1), ["gpt-5.6-sol"]);
+						assert.equal(harness.notifications.at(-1)?.type, "warning");
+						assert.match(harness.notifications.at(-1)?.message ?? "", /reselect.*model|\/reload/i);
+						const cache = JSON.parse(readFileSync(join(agentDir, "cliproxyapi-models.json"), "utf8"));
+						assert.equal(cache.version, 2);
+						assert.deepEqual(parseModelsCache(cache, modelsUrl), harness.providers[1]?.config.models);
+					});
+				});
+			});
+		},
+	);
 });
 
 test("startup without a cache and without a proxy registers nothing and warns once", async () => {
@@ -610,6 +795,9 @@ test("readPauseSetting reports false for a missing file and rejects non-boolean 
 		assert.equal(readPauseSetting(configPath), true);
 		writeFileSync(configPath, JSON.stringify({ pause: "yes" }));
 		assert.throws(() => readPauseSetting(configPath), /must be a boolean/);
+
+		writeFileSync(configPath, "{");
+		assert.throws(() => readPauseSetting(configPath), /invalid cliproxyapi\.json/i);
 	});
 });
 
