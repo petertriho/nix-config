@@ -10,9 +10,10 @@
 --     ty = true/false,            -- Does ty support this?
 --   }
 
+-- NOTE: reverted back to basedpyright because pyrefly go to definition is not working correctly
 local python_lsp_capabilities = {
     callHierarchyProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
@@ -33,98 +34,98 @@ local python_lsp_capabilities = {
         ty = true,
     },
     declarationProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     definitionProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     documentHighlightProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     documentSymbolProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     foldingRangeProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = false,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     hoverProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = true, -- rule documentation
         ty = true,
     },
     implementationProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = false,
     },
     inlayHintProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     referencesProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     renameProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     semanticTokensProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     signatureHelpProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     typeDefinitionProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     workspaceSymbolProvider = {
-        active = "pyrefly",
+        active = "basedpyright",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
@@ -244,35 +245,35 @@ return {
             "atlas-*",
         },
     },
-    -- basedpyright = {
-    --     -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
-    --     settings = {
-    --         basedpyright = {
-    --             analysis = {
-    --                 autoImportCompletions = true,
-    --                 autoSearchPaths = true,
-    --                 diagnosticMode = "workspace",
-    --                 useLibraryCodeForTypes = true,
-    --                 typeCheckingMode = "off",
-    --                 ignore = { "*" },
-    --                 diagnosticSeverityOverrides = {
-    --                     reportGeneralTypeIssues = "information",
-    --                 },
-    --                 inlayHints = {
-    --                     variableTypes = true,
-    --                     callArgumentNames = true,
-    --                     functionReturnTypes = true,
-    --                     genericTypes = true,
-    --                 },
-    --             },
-    --         },
-    --     },
-    --     on_attach = function(client, bufnr)
-    --         vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
-    --         disable_capabilities_for_server(client)
-    --         -- check_basedpyright_deprecation()
-    --     end,
-    -- },
+    basedpyright = {
+        -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
+        settings = {
+            basedpyright = {
+                analysis = {
+                    autoImportCompletions = true,
+                    autoSearchPaths = true,
+                    diagnosticMode = "workspace",
+                    useLibraryCodeForTypes = true,
+                    typeCheckingMode = "off",
+                    ignore = { "*" },
+                    diagnosticSeverityOverrides = {
+                        reportGeneralTypeIssues = "information",
+                    },
+                    inlayHints = {
+                        variableTypes = true,
+                        callArgumentNames = true,
+                        functionReturnTypes = true,
+                        genericTypes = true,
+                    },
+                },
+            },
+        },
+        on_attach = function(client, bufnr)
+            vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+            disable_capabilities_for_server(client)
+            -- check_basedpyright_deprecation()
+        end,
+    },
     bashls = {},
     cssls = {},
     -- ctags_lsp = {
