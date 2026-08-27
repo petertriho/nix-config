@@ -88,6 +88,20 @@ const globalState = globalThis as unknown as GlobalState;
     clearInterval(prevStatusInterval);
     globalState[STATUS_INTERVAL_KEY] = null;
   }
+  rearmModuleAbortController();
+}
+
+/**
+ * Abort any poll loops from the previous module load or session, then install a
+ * fresh module abort controller.
+ *
+ * `session_shutdown` aborts the controller, but `/new`, `/resume`, and `/fork`
+ * rebind the cached extension instance without re-importing this module, so
+ * only `session_start` can re-arm it. Without the re-arm, every subagent spawn
+ * in the new session fails instantly with "Aborted while waiting for subagent
+ * to finish".
+ */
+function rearmModuleAbortController(): void {
   const prevAbort = globalState[POLL_ABORT_KEY] as AbortController | undefined;
   if (prevAbort) prevAbort.abort();
   globalState[POLL_ABORT_KEY] = new AbortController();
@@ -249,7 +263,7 @@ function getFrontmatterValue(frontmatter: string, key: string): string | undefin
 }
 
 function parseOptionalBoolean(value: string | undefined): boolean | undefined {
-  return value != null ? value === "true" : undefined;
+  return value == null ? undefined : value === "true";
 }
 
 function parseSessionMode(value: string | undefined): SubagentSessionMode | undefined {
@@ -503,9 +517,9 @@ function resolveResultPresentation(
     );
   }
 
-  return result.exitCode !== 0
-    ? `Sub-agent "${name}" failed (exit code ${result.exitCode}).\n\n${result.summary}${sessionRef}`
-    : `Sub-agent "${name}" completed (${formatElapsed(result.elapsed)}).\n\n${result.summary}${sessionRef}`;
+  return result.exitCode === 0
+    ? `Sub-agent "${name}" completed (${formatElapsed(result.elapsed)}).\n\n${result.summary}${sessionRef}`
+    : `Sub-agent "${name}" failed (exit code ${result.exitCode}).\n\n${result.summary}${sessionRef}`;
 }
 
 /** Result from running a single subagent. */
@@ -1215,9 +1229,9 @@ function copyClaudeSession(sentinelFile: string): string | null {
 
 function fallbackSummary(result: { exitCode: number; errorMessage?: string }): string {
   if (result.errorMessage) return `Subagent error: ${result.errorMessage}`;
-  return result.exitCode !== 0
-    ? `Sub-agent exited with code ${result.exitCode}`
-    : "Sub-agent exited without output";
+  return result.exitCode === 0
+    ? "Sub-agent exited without output"
+    : `Sub-agent exited with code ${result.exitCode}`;
 }
 
 /**
@@ -1259,9 +1273,9 @@ async function watchSubagent(
       }
 
       if (!summary) {
-        summary = result.exitCode !== 0
-          ? `Claude Code exited with code ${result.exitCode}`
-          : "Claude Code exited without output";
+        summary = result.exitCode === 0
+          ? "Claude Code exited without output"
+          : `Claude Code exited with code ${result.exitCode}`;
       }
 
       let claudeSessionId: string | null = null;
@@ -1407,6 +1421,10 @@ const SUBAGENTS_LIST_DESCRIPTION =
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     latestCtx = ctx;
+    // /new, /resume, and /fork tore the previous session down through
+    // session_shutdown without re-importing this module. Re-arm the poll-abort
+    // controller so subagent spawns in this session can watch their panes.
+    rearmModuleAbortController();
   });
 
   pi.on("session_shutdown", () => {
@@ -1877,9 +1895,9 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
               findLastAssistantMessage(newEntries) ??
               (result.errorMessage
                 ? `Subagent error: ${result.errorMessage}`
-                : result.exitCode !== 0
-                  ? `Resumed session exited with code ${result.exitCode}`
-                  : "Resumed session exited without new output");
+                : result.exitCode === 0
+                  ? "Resumed session exited without new output"
+                  : `Resumed session exited with code ${result.exitCode}`);
             const presentation = resolveResultPresentation(
               { ...result, summary, sessionFile: params.sessionPath },
               name,
@@ -2018,7 +2036,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         const exitCode = details.exitCode ?? 0;
         const errorMessage = typeof details.errorMessage === "string" ? details.errorMessage : "";
         const failed = exitCode !== 0 || !!errorMessage;
-        const elapsed = details.elapsed != null ? formatElapsed(details.elapsed) : "?";
+        const elapsed = details.elapsed == null ? "?" : formatElapsed(details.elapsed);
         const bgFn = failed
           ? (text: string) => theme.bg("toolErrorBg", text)
           : (text: string) => theme.bg("toolSuccessBg", text);
