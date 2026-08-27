@@ -1,5 +1,8 @@
 vim.o.cmdheight = 0
 
+-- ui2 no longer accepts msg.msg.timeout or msg.cmd.height; set them here instead.
+vim.o.messagesopt = "hit-enter,history:500,progress:c,timeout:4000,maxheight:30"
+
 local ui2 = require("vim._core.ui2")
 
 ui2.enable({
@@ -10,13 +13,10 @@ ui2.enable({
         --     list_cmd = "pager",
         -- },
         targets = "msg",
-        cmd = {
-            height = 0.3,
-        },
         dialog = {
             height = 0.3,
         },
-        msg = { height = 0.3, timeout = 4000 },
+        msg = { height = 0.3 },
         pager = { height = 0.3 },
     },
 })

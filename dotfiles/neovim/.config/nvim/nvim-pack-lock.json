@@ -78,7 +78,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffbandit.nvim": {
-      "rev": "c5c251d9fcd60637c662ce637206e96c31acf7c4",
+      "rev": "546505d6b33a8e973440a0af943be0c105480a05",
       "src": "https://github.com/CoreyKaylor/diffbandit.nvim"
     },
     "eyeliner.nvim": {
@@ -232,7 +232,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "5f2a3b5dc13f3622000cb488c9af505b933152e3",
+      "rev": "77d734dac7aa4f64a5b6b1062052be8f5aa7ff2f",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
