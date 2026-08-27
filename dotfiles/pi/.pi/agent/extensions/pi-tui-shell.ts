@@ -923,8 +923,14 @@ function fitBorder(input: FitBorderInput): string {
   } = input;
   if (width <= 0) return "";
   if (width === 1) return border(leftCorner);
+  if (width === 2) return `${border(leftCorner)}${border(rightCorner)}`;
+  if (width === 3) {
+    return `${border(leftCorner)}${border("─")}${border(rightCorner)}`;
+  }
 
-  const innerWidth = width - 2;
+  // The rails are fixed frame structure, not label padding. Reserve them
+  // alongside the corners so callers' intentional label spaces stay intact.
+  const innerWidth = width - 4;
   let leftText = left;
   let rightText = right;
   let leftWidth = visibleWidth(leftText);
@@ -960,7 +966,7 @@ function fitBorder(input: FitBorderInput): string {
   }
 
   const fillWidth = Math.max(0, innerWidth - leftWidth - rightWidth);
-  return `${border(leftCorner)}${leftText}${border("─".repeat(fillWidth))}${rightText}${border(rightCorner)}`;
+  return `${border(leftCorner)}${border("─")}${leftText}${border("─".repeat(fillWidth))}${rightText}${border("─")}${border(rightCorner)}`;
 }
 
 function frameLine(
