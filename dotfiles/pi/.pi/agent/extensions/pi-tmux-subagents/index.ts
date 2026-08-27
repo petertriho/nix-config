@@ -123,7 +123,11 @@ const SubagentParams = Type.Object({
   systemPrompt: Type.Optional(
     Type.String({ description: "Appended to system prompt (role instructions)" }),
   ),
-  model: Type.Optional(Type.String({ description: "Model override (overrides agent default)" })),
+  model: Type.Optional(
+    Type.String({
+      description: "Model override (overrides the agent model and inherited parent-session default)",
+    }),
+  ),
   skills: Type.Optional(
     Type.String({ description: "Comma-separated skills (overrides agent default)" }),
   ),
@@ -382,6 +386,28 @@ function resolveLaunchBehavior(
     inheritsConversationContext,
     taskDelivery: inheritsConversationContext ? "direct" : "artifact",
   };
+}
+
+interface PiParentSelection {
+  model?: Pick<NonNullable<ExtensionContext["model"]>, "provider" | "id">;
+  thinkingLevel?: ExtensionContext["thinkingLevel"];
+}
+
+function resolvePiModelArgument(
+  params: SubagentParamsType,
+  agentDefs: Pick<AgentDefaults, "model" | "thinking"> | null,
+  parentSelection: PiParentSelection,
+): string | undefined {
+  const configuredModel = params.model ?? agentDefs?.model;
+  const parentModel = parentSelection.model
+    ? `${parentSelection.model.provider}/${parentSelection.model.id}`
+    : undefined;
+  const effectiveModel = configuredModel ?? parentModel;
+  if (!effectiveModel) return undefined;
+
+  const thinking =
+    agentDefs?.thinking ?? (configuredModel === undefined ? parentSelection.thinkingLevel : undefined);
+  return thinking ? `${effectiveModel}:${thinking}` : effectiveModel;
 }
 
 /**
@@ -984,6 +1010,8 @@ interface LaunchContext {
     getSessionDir(): string;
   };
   cwd: string;
+  model: ExtensionContext["model"];
+  thinkingLevel?: ExtensionContext["thinkingLevel"];
 }
 
 /**
@@ -1001,10 +1029,9 @@ async function launchSubagent(
   const id = Math.random().toString(16).slice(2, 10);
 
   const agentDefs = params.agent ? loadAgentDefaults(params.agent) : null;
-  const effectiveModel = params.model ?? agentDefs?.model;
+  const configuredModel = params.model ?? agentDefs?.model;
   const effectiveTools = params.tools ?? agentDefs?.tools;
   const effectiveSkills = params.skills ?? agentDefs?.skills;
-  const effectiveThinking = agentDefs?.thinking;
   const effectiveInteractive = resolveEffectiveInteractive(params, agentDefs);
 
   const sessionFile = ctx.sessionManager.getSessionFile();
@@ -1081,8 +1108,8 @@ async function launchSubagent(
       cmdParts.push("--plugin-dir", shellEscape(pluginDir));
     }
 
-    if (effectiveModel) {
-      cmdParts.push("--model", shellEscape(effectiveModel));
+    if (configuredModel) {
+      cmdParts.push("--model", shellEscape(configuredModel));
     }
 
     const sp = params.systemPrompt ?? agentDefs.body;
@@ -1135,9 +1162,12 @@ async function launchSubagent(
   const subagentDonePath = join(SUBAGENTS_DIR, "subagent-done.ts");
   parts.push("-e", shellEscape(subagentDonePath));
 
-  if (effectiveModel) {
-    const model = effectiveThinking ? `${effectiveModel}:${effectiveThinking}` : effectiveModel;
-    parts.push("--model", shellEscape(model));
+  const piModelArgument = resolvePiModelArgument(params, agentDefs, {
+    model: ctx.model,
+    thinkingLevel: ctx.thinkingLevel,
+  });
+  if (piModelArgument) {
+    parts.push("--model", shellEscape(piModelArgument));
   }
 
   // Pass the agent body as a system prompt file. pi's --append-system-prompt
@@ -1396,6 +1426,7 @@ export const __test__ = {
   getBundledAgentsDir,
   resolveEffectiveSessionMode,
   resolveLaunchBehavior,
+  resolvePiModelArgument,
   resolveEffectiveInteractive,
   buildSubagentToolAllowlist,
   buildPiPromptArgs,

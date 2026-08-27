@@ -268,6 +268,66 @@ test("normalizeSubagentParams drops blank optional strings so agent defaults app
 	});
 });
 
+test("resolvePiModelArgument applies fresh Pi model and thinking precedence", () => {
+	const parent = {
+		model: { provider: "openai", id: "gpt-5.4" },
+		thinkingLevel: "high",
+	} as const;
+
+	assert.equal(
+		testApi.resolvePiModelArgument({ name: "A", task: "T" }, null, parent),
+		"openai/gpt-5.4:high",
+	);
+	assert.equal(
+		testApi.resolvePiModelArgument(
+			{ name: "A", task: "T" },
+			null,
+			{ model: { provider: "openrouter", id: "anthropic/claude-sonnet-4" }, thinkingLevel: "medium" },
+		),
+		"openrouter/anthropic/claude-sonnet-4:medium",
+	);
+	assert.equal(
+		testApi.resolvePiModelArgument(
+			{ name: "A", task: "T", model: "tool/model" },
+			{ model: "agent/model", thinking: "low" },
+			parent,
+		),
+		"tool/model:low",
+	);
+	assert.equal(
+		testApi.resolvePiModelArgument(
+			{ name: "A", task: "T" },
+			{ model: "agent/model" },
+			parent,
+		),
+		"agent/model",
+	);
+	assert.equal(
+		testApi.resolvePiModelArgument(
+			{ name: "A", task: "T" },
+			{ thinking: "minimal" },
+			parent,
+		),
+		"openai/gpt-5.4:minimal",
+	);
+	assert.equal(
+		testApi.resolvePiModelArgument(
+			{ name: "A", task: "T" },
+			{ model: "agent/model", thinking: "high" },
+			parent,
+		),
+		"agent/model:high",
+	);
+	assert.equal(
+		testApi.resolvePiModelArgument(
+			{ name: "A", task: "T" },
+			null,
+			{ model: undefined, thinkingLevel: "high" },
+		),
+		undefined,
+	);
+});
+
 test("buildSubagentToolAllowlist keeps requested tools and adds child control tools", () => {
 	assert.equal(
 		testApi.buildSubagentToolAllowlist("read,bash,web_search"),
