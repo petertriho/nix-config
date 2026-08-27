@@ -661,6 +661,25 @@ function renderSubagentWidgetLines(agents: RunningSubagent[], width: number): st
   return lines;
 }
 
+/**
+ * Wrap widget lines in the same 1-column outer margin pi-tui-shell applies to
+ * the editor frame (`applyOuterMargin`): ` line ` padded/truncated to width.
+ * Keeps the Subagents panel's left and right edges flush with the editor box
+ * instead of spanning the full terminal width from column 0.
+ */
+function applyWidgetMargin(lines: string[], width: number): string[] {
+  if (width <= 0) return lines.map(() => "");
+  if (width === 1) return lines.map((line) => (line ? " " : ""));
+
+  const contentWidth = width - 2;
+  return lines.map((line) => {
+    if (line === "") return "";
+    const content = truncateToWidth(line, contentWidth, "");
+    const padding = " ".repeat(Math.max(0, contentWidth - visibleWidth(content)));
+    return ` ${content}${padding} `;
+  });
+}
+
 function updateWidget() {
   if (!latestCtx?.hasUI) return;
 
@@ -680,7 +699,13 @@ function updateWidget() {
       return {
         invalidate() {},
         render(width: number) {
-          return renderSubagentWidgetLines(Array.from(runningSubagents.values()), width);
+          // Render the bordered box two columns narrower, then add the outer
+          // margin so the panel aligns with the framed editor above/below it.
+          const boxLines = renderSubagentWidgetLines(
+            Array.from(runningSubagents.values()),
+            Math.max(0, width - 2),
+          );
+          return applyWidgetMargin(boxLines, width);
         },
       };
     },
@@ -1362,6 +1387,7 @@ function buildWorkflowMessage(request: string, skillPath = WORKFLOW_SKILL_PATH):
 
 export const __test__ = {
   borderLine,
+  applyWidgetMargin,
   getShellReadyDelayMs,
   renderSubagentWidgetLines,
   parseAgentDefinition,

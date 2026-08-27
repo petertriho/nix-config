@@ -781,7 +781,7 @@ test("subagent_result renderer strips the session reference and marks failures",
 	const output = rendered.render(80).join("\n");
 	assert.match(output, /✓ Echo \(scout\) — completed \(5s\)/);
 	assert.match(output, /PONG/);
-	assert.match(output, /Resume:  pi --session \/tmp\/s\.jsonl/);
+	assert.match(output, /Resume: {2}pi --session \/tmp\/s\.jsonl/);
 	assert.doesNotMatch(output, /Sub-agent "Echo" completed/);
 
 	const failedRendered = entry.renderer(
@@ -835,6 +835,29 @@ test("formatWidgetRightLabel covers every status kind", () => {
 	assert.match(testApi.formatWidgetRightLabel(classifyStatus(stalled, 90_000)), /^ stalled/);
 	const claude = createStatusState({ source: "claude", startTimeMs: 0 });
 	assert.equal(testApi.formatWidgetRightLabel(classifyStatus(claude, 125_000)), " running 2m ");
+});
+
+test("applyWidgetMargin aligns the panel with the editor frame margin", () => {
+	const box = ["\u256d─ Subagents ─ 1 running ─\u256e", "\u2570────\u256f"];
+	const margined = testApi.applyWidgetMargin(box, 22);
+	assert.equal(margined.length, 2);
+	for (const line of margined) {
+		assert.equal(visibleWidth(line), 22, JSON.stringify(line));
+		assert.ok(line.startsWith(" "), `missing left margin: ${JSON.stringify(line)}`);
+		assert.ok(line.endsWith(" "), `missing right margin: ${JSON.stringify(line)}`);
+	}
+	// Degenerate widths stay within bounds.
+	assert.deepEqual(testApi.applyWidgetMargin(["x"], 0), [""]);
+	assert.deepEqual(testApi.applyWidgetMargin(["x"], 1), [" "]);
+	assert.deepEqual(testApi.applyWidgetMargin(["", "x"], 2), ["", "  "]);
+	// Box rendered at width-2 plus margin lands on the exact widget width.
+	const lines = testApi.renderSubagentWidgetLines(
+		[{ id: "a", name: "A", task: "", surface: "%0", startTime: 0, sessionFile: "s", interactive: false, statusState: createStatusState({ source: "pi", startTimeMs: 0 }) }] as any,
+		20,
+	);
+	for (const line of testApi.applyWidgetMargin(lines, 22)) {
+		assert.equal(visibleWidth(line), 22);
+	}
 });
 
 test("renderSubagentWidgetLines and borderLine respect the width contract", () => {
