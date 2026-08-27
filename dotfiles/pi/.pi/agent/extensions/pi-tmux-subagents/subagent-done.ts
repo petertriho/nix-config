@@ -1,7 +1,7 @@
 /**
  * Child-side extension for pi-tmux-subagents, loaded into every child pi with `-e`.
  * Ported from upstream pi-interactive-subagents `subagent-done.ts`.
- * - Shows agent identity + available tools as a styled widget above the editor (toggle with Alt+J; Ctrl+J is pi's built-in newline)
+ * - Shows agent identity + available tools as a styled widget above the editor (toggle with Ctrl+Shift+J; Ctrl+J is pi's built-in newline and bare Alt+J is swallowed by niri)
  * - Provides `subagent_done` and `caller_ping` tools and auto-exit on `agent_end`
  * - Records activity snapshots for the parent's status watcher
  */
@@ -104,7 +104,7 @@ export default function subagentDone(pi: ExtensionAPI) {
         if (expanded) {
           // Expanded: full tool list + denied
           const countInfo = theme.fg("dim", ` — ${toolNames.length} available`);
-          const hint = theme.fg("muted", "  (Alt+J to collapse)");
+          const hint = theme.fg("muted", "  (Ctrl+Shift+J to collapse)");
 
           const toolList = toolNames
             .map((name: string) => theme.fg("dim", name))
@@ -131,7 +131,7 @@ export default function subagentDone(pi: ExtensionAPI) {
             denied.length > 0
               ? theme.fg("dim", " · ") + theme.fg("error", `${denied.length} denied`)
               : "";
-          const hint = theme.fg("muted", "  (Alt+J to expand)");
+          const hint = theme.fg("muted", "  (Ctrl+Shift+J to expand)");
 
           const content = new Text(`${agentTag}${countInfo}${deniedInfo}${hint}`, 0, 0);
           box.addChild(content);
@@ -258,8 +258,9 @@ export default function subagentDone(pi: ExtensionAPI) {
     recorder.sessionShutdown((event as any).reason);
   });
 
-  // Toggle expand/collapse with Alt+J
-  pi.registerShortcut("alt+j", {
+  // Toggle expand/collapse with Ctrl+Shift+J (bare Alt+J is consumed by the
+  // compositor in niri setups and never reaches the terminal).
+  pi.registerShortcut("ctrl+shift+j", {
     description: "Toggle subagent tools widget",
     handler: (ctx) => {
       expanded = !expanded;
