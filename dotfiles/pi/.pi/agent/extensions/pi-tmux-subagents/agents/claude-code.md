@@ -2,7 +2,7 @@
 name: claude-code
 description: Self-driving Claude Code session for deep investigation, experimentation, and code exploration
 cli: claude
-model: sonnet
+model: opus
 auto-exit: true
 spawning: false
 deny-tools: claude

@@ -3,14 +3,20 @@ import test from "node:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import { getSubagentActivityFile } from "./activity.ts";
 import piTmuxSubagents, { __test__ as testApi } from "./index.ts";
-import { classifyStatus, createStatusState, observeStatus } from "./status.ts";
+import {
+	classifyStatus,
+	createStatusState,
+	formatStatusAggregate,
+	formatTransitionLine,
+	observeStatus,
+} from "./status.ts";
 
 type AnyRecord = Record<string, any>;
 
-function createMockExtensionApi() {
+function createMockExtensionApi(options: { env?: Record<string, string> } = {}) {
 	const registeredTools: AnyRecord[] = [];
 	const registeredCommands: AnyRecord[] = [];
 	const registeredMessageRenderers: AnyRecord[] = [];
@@ -38,7 +44,20 @@ function createMockExtensionApi() {
 			return [];
 		},
 	};
-	piTmuxSubagents(api as any);
+	// Scrub ambient PI_* vars (e.g. a subagent harness exporting PI_DENY_TOOLS) around the
+	// synchronous registration call so every invocation path sees the same env; restore
+	// afterwards so execute()-time readers still observe what each test arranged.
+	const ambient = Object.keys(process.env).filter((key) => key.startsWith("PI_"));
+	const saved = Object.fromEntries(ambient.map((key) => [key, process.env[key]!]));
+	for (const key of ambient) delete process.env[key];
+	for (const [key, value] of Object.entries(options.env ?? {})) process.env[key] = value;
+
+	try {
+		piTmuxSubagents(api as any);
+	} finally {
+		const touched = new Set([...ambient, ...Object.keys(options.env ?? {})]);
+		for (const key of touched) restoreEnvVar(key, saved[key]);
+	}
 	return { api, registeredTools, registeredCommands, registeredMessageRenderers, sentUserMessages, sentMessages };
 }
 
@@ -47,6 +66,16 @@ const theme = {
 	bg: (_color: string, text: string) => text,
 	bold: (text: string) => text,
 };
+
+function markerTheme(marker = "theme") {
+	const mark = (kind: string, token: string, text: string) =>
+		`\x1b]9;${marker}:${kind}:${token}\x07${text}\x1b]9;end\x07`;
+	return {
+		fg: (token: string, text: string) => mark("fg", token, text),
+		bg: (token: string, text: string) => mark("bg", token, text),
+		bold: (text: string) => mark("style", "bold", text),
+	};
+}
 
 function withTempDir(run: (dir: string) => void): void {
 	const dir = mkdtempSync(join(tmpdir(), "pi-tmux-subagents-index-"));
@@ -512,14 +541,24 @@ test("buildWorkflowMessage wraps the bundled prompt like a skill expansion", () 
 });
 
 test("PI_DENY_TOOLS gates tool registration", () => {
+	const { registeredTools } = createMockExtensionApi({ env: { PI_DENY_TOOLS: "subagent, subagent_resume" } });
+	assert.deepEqual(
+		registeredTools.map((tool) => tool.name).sort(),
+		["subagent_interrupt", "subagents_list"],
+	);
+});
+
+test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards", () => {
 	const previous = process.env.PI_DENY_TOOLS;
-	process.env.PI_DENY_TOOLS = "subagent, subagent_resume";
+	process.env.PI_DENY_TOOLS = "subagent,subagent_interrupt,subagents_list,subagent_resume";
 	try {
 		const { registeredTools } = createMockExtensionApi();
 		assert.deepEqual(
 			registeredTools.map((tool) => tool.name).sort(),
-			["subagent_interrupt", "subagents_list"],
+			["subagent", "subagent_interrupt", "subagent_resume", "subagents_list"],
 		);
+		// scrub window closed: ambient value visible again to execute()-time readers
+		assert.equal(process.env.PI_DENY_TOOLS, "subagent,subagent_interrupt,subagents_list,subagent_resume");
 	} finally {
 		restoreEnvVar("PI_DENY_TOOLS", previous);
 	}
@@ -578,6 +617,113 @@ test("subagent renderCall handles partial args and subagent_resume exposes autoE
 	const autoExitSchema = resumeTool.parameters.properties.autoExit;
 	assert.equal(autoExitSchema.type, "boolean");
 	assert.match(autoExitSchema.description, /Defaults to true/);
+});
+
+test("parent tool rows use semantic states, sanitize display fields, and fit narrow widths", () => {
+	const { registeredTools } = createMockExtensionApi();
+	const marked = markerTheme("tools");
+	const byName = (name: string) => {
+		const tool = registeredTools.find((entry) => entry.name === name);
+		assert.ok(tool, name);
+		return tool;
+	};
+	const render = (component: AnyRecord, width = 80) => component.render(width).join("\n");
+	const assertFits = (component: AnyRecord) => {
+		for (const width of [16, 24, 40, 80]) {
+			for (const line of component.render(width)) {
+				assert.ok(visibleWidth(line) <= width, `${width}: ${JSON.stringify(line)}`);
+			}
+		}
+	};
+
+	const subagent = byName("subagent");
+	const pending = subagent.renderCall(
+		{
+			name: "\x1b[31mWorker\x1b[0m\u009b",
+			agent: "\x1b]8;;https://evil.example\x07scout\x1b]8;;\x07\u009d",
+			cwd: "\x1b[2A/tmp/project\u0090",
+			task: `A long Unicode 👩🏽‍💻 task ${"漢".repeat(120)}\u0085\nsecond line\u009c`,
+		},
+		marked,
+	);
+	const pendingOutput = render(pending);
+	assert.match(pendingOutput, /tools:fg:accent/);
+	assert.match(stripTerminalSequences(pendingOutput), /Worker \(scout\).*○ pending/);
+	assert.match(pendingOutput, /tools:fg:toolOutput/);
+	assert.doesNotMatch(pendingOutput, /\x1b\[31m|https:\/\/evil\.example|\x1b\[2A/);
+	assert.doesNotMatch(pendingOutput, /[\u0080-\u009f]/u);
+	assertFits(pending);
+
+	const started = subagent.renderResult(
+		{ content: [], details: { name: "Worker", status: "started" } },
+		{},
+		marked,
+	);
+	assert.match(render(started), /tools:fg:accent/);
+	assert.match(stripTerminalSequences(render(started)), /Worker.*○ started/);
+
+	const failed = subagent.renderResult(
+		{
+			content: [{ type: "text", text: "\x1b[31mError:\x1b[0m failed" }],
+			details: { error: "failed" },
+		},
+		{},
+		marked,
+	);
+	assert.match(render(failed), /tools:fg:error/);
+	assert.match(stripTerminalSequences(render(failed)), /✗ failed.*Error: failed/);
+	assertFits(failed);
+
+	const interrupt = byName("subagent_interrupt");
+	for (const component of [
+		interrupt.renderCall({ name: "\x1b[31mWorker\x1b[0m" }, marked),
+		interrupt.renderResult(
+			{ content: [], details: { name: "Worker", status: "interrupt_requested" } },
+			{},
+			marked,
+		),
+	]) {
+		const output = render(component);
+		assert.match(output, /tools:fg:warning/);
+		assert.match(stripTerminalSequences(output), /\? interrupt/);
+		assertFits(component);
+	}
+
+	const resume = byName("subagent_resume");
+	const resuming = resume.renderCall(
+		{ name: "\x1b]8;;https://evil\x07Resume\x1b]8;;\x07", sessionPath: "/tmp/session.jsonl" },
+		marked,
+	);
+	assert.match(stripTerminalSequences(render(resuming)), /Resume.*○ resuming session/);
+	assert.doesNotMatch(render(resuming), /https:\/\/evil/);
+	const resumed = resume.renderResult(
+		{ content: [], details: { name: "Resume", status: "started" } },
+		{},
+		marked,
+	);
+	assert.match(stripTerminalSequences(render(resumed)), /Resume.*○ resumed/);
+
+	const list = byName("subagents_list").renderResult(
+		{
+			content: [],
+			details: {
+				agents: [
+					{
+						name: "\x1b[31mScout\x1b[0m",
+						source: "project",
+						model: "model/漢字",
+						description: "\x1b]8;;https://evil\x07find things\x1b]8;;\x07",
+					},
+				],
+			},
+		},
+		{},
+		marked,
+	);
+	assert.match(render(list), /tools:fg:success/);
+	assert.match(stripTerminalSequences(render(list)), /✓.*Scout.*project.*model\/漢字.*find things/);
+	assert.doesNotMatch(render(list), /\x1b\[31m|https:\/\/evil/);
+	assertFits(list);
 });
 
 test("subagent tool returns the tmux hint outside tmux without spawning", async () => {
@@ -799,25 +945,107 @@ test("resolveResultPresentation formats success, failure, and provider errors", 
 
 // ── renderers ──
 
-test("subagent_status renderer shows capped lines plus overflow and respects narrow widths", () => {
+test("status refresh payload keeps aggregate prose aligned with capped structured items", () => {
+	const base = createStatusState({ source: "pi", startTimeMs: 0 });
+	const activeState = observeStatus(base, {
+		snapshot: "present",
+		updatedAt: 419_000,
+		sequence: 1,
+		phase: "active",
+		active: true,
+		activeScope: "tool",
+		activeSince: 419_000,
+		activityLabel: "bash",
+	}, 419_000);
+	const waitingState = observeStatus(base, {
+		snapshot: "present",
+		updatedAt: 300_000,
+		sequence: 2,
+		phase: "waiting",
+		waitingSince: 180_000,
+	}, 300_000);
+	const stalledState = observeStatus(base, { snapshot: "missing" }, 1_000);
+	const transitions = [
+		{ name: "Worker", snapshot: classifyStatus(activeState, 420_000), transition: "recovered" as const },
+		{ name: "Scout", snapshot: classifyStatus(waitingState, 300_000), transition: "recovered" as const },
+		{ name: "Reviewer", snapshot: classifyStatus(stalledState, 90_000), transition: "stalled" as const },
+	];
+	const payload = testApi.buildStatusRefreshMessage(transitions, 2);
+	const lines = transitions.map(({ name, snapshot, transition }) =>
+		formatTransitionLine(name, snapshot, transition)
+	);
+
+	assert.equal(payload.content, formatStatusAggregate(lines, 2));
+	assert.deepEqual(payload.details.lines, lines.slice(0, 2));
+	assert.equal(payload.details.overflow, 1);
+	assert.equal(payload.details.items.length, 2);
+	assert.deepEqual(
+		payload.details.items.map((item: AnyRecord) => ({
+			name: item.name,
+			kind: item.kind,
+			transition: item.transition,
+			elapsedText: item.elapsedText,
+		})),
+		[
+			{ name: "Worker", kind: "active", transition: "recovered", elapsedText: "7m" },
+			{ name: "Scout", kind: "waiting", transition: "recovered", elapsedText: "5m" },
+		],
+	);
+});
+
+test("subagent_status renderer uses structured semantic states and respects narrow widths", () => {
 	const { registeredMessageRenderers } = createMockExtensionApi();
 	const entry = registeredMessageRenderers.find((renderer) => renderer.name === "subagent_status");
 	assert.ok(entry);
 	const visibleLines = [
-		"Worker running 5m, active (bash 2m).",
+		"\x1b[31mThis prose says waiting but must not drive state.\x1b[0m",
 		"Scout running 3m, waiting 1m.",
+		"Reviewer running 4m, stalled 1m.",
 	];
+	const items = [
+		{
+			name: "\x1b[31mWorker\x1b[0m\u009b",
+			kind: "active",
+			transition: "recovered",
+			elapsedText: "5m\u0090",
+			activityLabel: "\x1b]8;;https://evil\x07bash\x1b]8;;\x07\u009d",
+			activeDurationText: "2m",
+		},
+		{
+			name: "Scout",
+			kind: "waiting",
+			transition: "recovered",
+			elapsedText: "3m",
+			waitingDurationText: "1m",
+		},
+		{
+			name: "Reviewer",
+			kind: "stalled",
+			transition: "stalled",
+			elapsedText: "4m",
+			snapshotProblemText: "1m",
+		},
+	];
+	const marked = markerTheme("status");
 	const rendered = entry.renderer(
-		{ customType: "subagent_status", content: "Subagent status:", details: { lines: visibleLines, overflow: 2 } },
-		{ expanded: true },
-		theme,
+		{ customType: "subagent_status", content: "Subagent status:", details: { lines: visibleLines, items, overflow: 2 } },
+		{ expanded: true, outputPad: 0 },
+		marked,
 	);
 	const output = rendered.render(80).join("\n");
 	assert.match(output, /Subagent status/);
-	for (const line of visibleLines) assert.ok(output.includes(line), line);
+	assert.match(output, /status:bg:customMessageBg/);
+	assert.match(output, /status:fg:success/);
+	assert.match(output, /status:fg:muted/);
+	assert.match(output, /status:fg:error/);
+	assert.match(stripTerminalSequences(output), /Worker.*● recovered.*bash.*2m/);
+	assert.match(stripTerminalSequences(output), /Scout.*◐ recovered.*1m/);
+	assert.match(stripTerminalSequences(output), /Reviewer.*! stalled.*1m/);
+	assert.doesNotMatch(output, /\x1b\[31m|https:\/\/evil|This prose says waiting/);
+	assert.doesNotMatch(output, /[\u0080-\u009f]/u);
 	assert.match(output, /\+2 more running\./);
 
-	for (const width of [4, 5, 6]) {
+	for (const width of [4, 5, 6, 16, 24, 40, 80]) {
 		for (const line of rendered.render(width)) {
 			assert.ok(visibleWidth(line) <= width, `width ${width}: ${JSON.stringify(line)}`);
 		}
@@ -829,43 +1057,118 @@ test("subagent_result renderer strips the session reference and marks failures",
 	const { registeredMessageRenderers } = createMockExtensionApi();
 	const entry = registeredMessageRenderers.find((renderer) => renderer.name === "subagent_result");
 	assert.ok(entry);
+	const marked = markerTheme("result");
 	const content = testApi.resolveResultPresentation(
-		{ exitCode: 0, elapsed: 5, summary: "PONG", sessionFile: "/tmp/s.jsonl" },
+		{ exitCode: 0, elapsed: 5, summary: "PONG\nsecond line", sessionFile: "/tmp/s.jsonl" },
 		"Echo",
 	);
 	const rendered = entry.renderer(
 		{ customType: "subagent_result", content, details: { name: "Echo", exitCode: 0, elapsed: 5, sessionFile: "/tmp/s.jsonl", agent: "scout" } },
-		{ expanded: true },
-		theme,
+		{ expanded: true, outputPad: 0 },
+		marked,
 	);
 	const output = rendered.render(80).join("\n");
-	assert.match(output, /✓ Echo \(scout\) — completed \(5s\)/);
-	assert.match(output, /PONG/);
-	assert.match(output, /Resume: {2}pi --session \/tmp\/s\.jsonl/);
-	assert.doesNotMatch(output, /Sub-agent "Echo" completed/);
+	assert.match(output, /result:bg:toolSuccessBg/);
+	assert.match(output, /result:fg:success/);
+	assert.match(stripTerminalSequences(output), /✓ Echo \(scout\) — completed \(5s\)/);
+	assert.match(stripTerminalSequences(output), /PONG\s*\nsecond line/);
+	assert.match(stripTerminalSequences(output), /Resume: {2}pi --session \/tmp\/s\.jsonl/);
+	assert.doesNotMatch(stripTerminalSequences(output), /Sub-agent "Echo" completed/);
 
 	const failedRendered = entry.renderer(
-		{ customType: "subagent_result", content: "x", details: { name: "Echo", exitCode: 1, elapsed: 5, errorMessage: "boom" } },
-		// Collapsed rendering calls pi's keyHint, which needs a live theme; stay expanded in tests.
-		{ expanded: true },
-		theme,
+		{
+			customType: "subagent_result",
+			content: "\x1b[31mboom\x1b[0m\n\x1b]8;;https://evil\x07details\x1b]8;;\x07",
+			details: {
+				name: "\x1b[31mEcho\x1b[0m\u009b",
+				agent: "\x1b[2Ascout\u009d",
+				exitCode: 1,
+				elapsed: 5,
+				errorMessage: "boom",
+				sessionFile: "\x1b]8;;https://evil\x07/tmp/f.jsonl\x1b]8;;\x07\u0090",
+			},
+		},
+		{ expanded: true, outputPad: 1 },
+		marked,
 	);
-	assert.match(failedRendered.render(80).join("\n"), /✗ Echo — failed \(provider\/agent error\)/);
+	const failedOutput = failedRendered.render(80).join("\n");
+	assert.match(failedOutput, /result:bg:toolErrorBg/);
+	assert.match(failedOutput, /result:fg:error/);
+	assert.match(stripTerminalSequences(failedOutput), /✗ Echo \(scout\) — failed \(provider\/agent error\)/);
+	assert.doesNotMatch(failedOutput, /\x1b\[31m|\x1b\[2A|https:\/\/evil/);
+	assert.doesNotMatch(failedOutput, /[\u0080-\u009f]/u);
+
+	for (const component of [rendered, failedRendered]) {
+		for (const width of [4, 5, 6, 16, 24, 40, 80]) {
+			for (const line of component.render(width)) {
+				assert.ok(visibleWidth(line) <= width, `${width}: ${JSON.stringify(line)}`);
+			}
+		}
+	}
+
+	const collapsed = entry.renderer(
+		{ customType: "subagent_result", content, details: { name: "Echo", exitCode: 0, elapsed: 5, sessionFile: "/tmp/s.jsonl" } },
+		{ expanded: false, outputPad: 0 },
+		marked,
+	);
+	const collapsedOutput = stripTerminalSequences(collapsed.render(80).join("\n"));
+	assert.match(collapsedOutput, /PONG/);
+	assert.match(collapsedOutput, /second line/);
+	assert.match(collapsedOutput, /to expand/);
+	assert.doesNotMatch(collapsedOutput, /Session:|pi --session/);
 });
 
 test("subagent_ping renderer shows the help request", () => {
 	const { registeredMessageRenderers } = createMockExtensionApi();
 	const entry = registeredMessageRenderers.find((renderer) => renderer.name === "subagent_ping");
 	assert.ok(entry);
+	const marked = markerTheme("ping");
 	const rendered = entry.renderer(
-		{ customType: "subagent_ping", content: "", details: { name: "Worker", message: "Need the API key", sessionFile: "/tmp/w.jsonl" } },
-		{ expanded: true },
-		theme,
+		{
+			customType: "subagent_ping",
+			content: "",
+			details: {
+				name: "\x1b[31mWorker\x1b[0m\u009b",
+				agent: "\x1b[2Ascout\u009d",
+				message: "Need the API key\u0085\n\x1b]8;;https://evil\x07Please help\x1b]8;;\x07\u0090",
+				sessionFile: "\x1b[31m/tmp/w.jsonl\x1b[0m\u009c",
+			},
+		},
+		{ expanded: true, outputPad: 0 },
+		marked,
 	);
 	const output = rendered.render(80).join("\n");
-	assert.match(output, /\? Worker — needs help/);
-	assert.match(output, /Need the API key/);
-	assert.match(output, /Session: \/tmp\/w\.jsonl/);
+	assert.match(output, /ping:bg:customMessageBg/);
+	assert.doesNotMatch(output, /ping:bg:toolSuccessBg/);
+	assert.match(output, /ping:fg:warning/);
+	assert.match(stripTerminalSequences(output), /\? Worker \(scout\) — needs help/);
+	assert.match(stripTerminalSequences(output), /Need the API key\s*\nPlease help/);
+	assert.match(stripTerminalSequences(output), /Session: \/tmp\/w\.jsonl/);
+	assert.doesNotMatch(output, /\x1b\[31m|\x1b\[2A|https:\/\/evil/);
+	assert.doesNotMatch(output, /[\u0080-\u009f]/u);
+	for (const width of [4, 5, 6, 16, 24, 40, 80]) {
+		for (const line of rendered.render(width)) {
+			assert.ok(visibleWidth(line) <= width, `${width}: ${JSON.stringify(line)}`);
+		}
+	}
+
+	const collapsed = entry.renderer(
+		{
+			customType: "subagent_ping",
+			content: "",
+			details: {
+				name: "Worker",
+				message: "Need the API key\nPlease help",
+				sessionFile: "/tmp/w.jsonl",
+			},
+		},
+		{ expanded: false, outputPad: 0 },
+		marked,
+	);
+	const collapsedOutput = stripTerminalSequences(collapsed.render(80).join("\n"));
+	assert.match(collapsedOutput, /Need the API key/);
+	assert.match(collapsedOutput, /to expand/);
+	assert.doesNotMatch(collapsedOutput, /Please help|Session:/);
 });
 
 // ── widget and misc ──
@@ -886,15 +1189,30 @@ test("getShellReadyDelayMs defaults to 500 and honors the env override", () => {
 
 test("formatWidgetRightLabel covers every status kind", () => {
 	const base = createStatusState({ source: "pi", startTimeMs: 0 });
-	assert.equal(testApi.formatWidgetRightLabel(classifyStatus(base, 1_000)), " starting… ");
+	assert.deepEqual(testApi.formatWidgetRightLabel(classifyStatus(base, 1_000)), {
+		state: "starting",
+	});
 	const active = observeStatus(base, activeAt5, 5_000);
-	assert.equal(testApi.formatWidgetRightLabel(classifyStatus(active, 6_000)), " active · bash 1s ");
+	assert.deepEqual(testApi.formatWidgetRightLabel(classifyStatus(active, 6_000)), {
+		state: "active",
+		detail: "bash",
+		duration: "1s",
+	});
 	const waiting = observeStatus(base, { snapshot: "present", updatedAt: 5_000, sequence: 1, phase: "waiting", waitingSince: 5_000 }, 5_000);
-	assert.equal(testApi.formatWidgetRightLabel(classifyStatus(waiting, 6_000)), " waiting 1s ");
+	assert.deepEqual(testApi.formatWidgetRightLabel(classifyStatus(waiting, 6_000)), {
+		state: "waiting",
+		duration: "1s",
+	});
 	const stalled = observeStatus(base, { snapshot: "missing" }, 1_000);
-	assert.match(testApi.formatWidgetRightLabel(classifyStatus(stalled, 90_000)), /^ stalled/);
+	assert.deepEqual(testApi.formatWidgetRightLabel(classifyStatus(stalled, 90_000)), {
+		state: "stalled",
+		duration: "1m",
+	});
 	const claude = createStatusState({ source: "claude", startTimeMs: 0 });
-	assert.equal(testApi.formatWidgetRightLabel(classifyStatus(claude, 125_000)), " running 2m ");
+	assert.deepEqual(testApi.formatWidgetRightLabel(classifyStatus(claude, 125_000)), {
+		state: "running",
+		duration: "2m",
+	});
 });
 
 test("applyWidgetMargin aligns the panel with the editor frame margin", () => {
@@ -912,6 +1230,7 @@ test("applyWidgetMargin aligns the panel with the editor frame margin", () => {
 	assert.deepEqual(testApi.applyWidgetMargin(["", "x"], 2), ["", "  "]);
 	// Box rendered at width-2 plus margin lands on the exact widget width.
 	const lines = testApi.renderSubagentWidgetLines(
+		theme as any,
 		[{ id: "a", name: "A", task: "", surface: "%0", startTime: 0, sessionFile: "s", interactive: false, statusState: createStatusState({ source: "pi", startTimeMs: 0 }) }] as any,
 		20,
 	);
@@ -920,28 +1239,87 @@ test("applyWidgetMargin aligns the panel with the editor frame margin", () => {
 	}
 });
 
-test("renderSubagentWidgetLines and borderLine respect the width contract", () => {
+test("renderSubagentWidgetLines uses settled semantic states and respects widths", () => {
 	withMockedNow(1_000_000, () => {
-		const agents = [13_000, 21_000, 27_000].map((ago, index) => ({
-			id: `a${index}`,
-			name: String.fromCharCode(65 + index),
-			task: "",
-			surface: `%${index}`,
-			startTime: 1_000_000 - ago,
-			sessionFile: `sess${index}`,
-			interactive: false,
-			statusState: createStatusState({ source: "pi", startTimeMs: 1_000_000 - ago }),
-		}));
-		const lines = testApi.renderSubagentWidgetLines(agents as any, 16);
-		assert.deepEqual(lines.map((line: string) => visibleWidth(line)), [16, 16, 16, 16, 16]);
+		const base = createStatusState({ source: "pi", startTimeMs: 0 });
+		const agents = [
+			makeRunning({ id: "starting", name: "Starting", startTime: 999_000, statusState: createStatusState({ source: "pi", startTimeMs: 999_000 }) }),
+			makeRunning({ id: "running", name: "Running", cli: "claude", startTime: 0, statusState: createStatusState({ source: "claude", startTimeMs: 0 }) }),
+			makeRunning({ id: "active", name: "Active", startTime: 0, statusState: observeStatus(base, activeAt5, 5_000) }),
+			makeRunning({ id: "waiting", name: "Waiting", startTime: 0, statusState: observeStatus(base, { snapshot: "present", updatedAt: 5_000, sequence: 1, phase: "waiting", waitingSince: 5_000 }, 5_000) }),
+			makeRunning({ id: "stalled", name: "Stalled", startTime: 0, statusState: observeStatus(base, { snapshot: "missing" }, 1_000) }),
+		];
+		const marked = markerTheme("widget");
+		const lines = testApi.renderSubagentWidgetLines(marked as any, agents as any, 80);
+		assert.deepEqual(lines.map((line: string) => visibleWidth(line)), [80, 80, 80, 80, 80, 80, 80]);
 		assert.match(lines[0], /Subagents/);
-		assert.equal(visibleWidth(testApi.borderLine(" A ", " 999 msgs (999.9KB) ", 16)), 16);
-		for (const width of [0, 1, 2]) {
-			for (const line of testApi.renderSubagentWidgetLines(agents.slice(0, 1) as any, width)) {
+		for (const [name, token] of [
+			["starting", "accent"],
+			["running", "accent"],
+			["active", "success"],
+			["waiting", "muted"],
+			["stalled", "error"],
+		] as const) {
+			const line = lines.find((candidate: string) => stripTerminalSequences(candidate).includes(name[0]!.toUpperCase() + name.slice(1)));
+			assert.ok(line, name);
+			assert.match(line, new RegExp(`widget:fg:${token}`));
+		}
+		const waitingLine = lines.find((line: string) => stripTerminalSequences(line).includes("Waiting"));
+		assert.ok(waitingLine);
+		assert.doesNotMatch(waitingLine, /widget:fg:(warning|error)/);
+
+		for (const width of [0, 1, 2, 16, 24, 40, 80]) {
+			for (const line of testApi.renderSubagentWidgetLines(marked as any, agents.slice(0, 1) as any, width)) {
 				assert.ok(visibleWidth(line) <= width, `width ${width}: ${JSON.stringify(line)}`);
 			}
 		}
 	});
+});
+
+test("widget row compaction drops metadata, detail, identity, then label in order", () => {
+	withMockedNow(1_000_000, () => {
+		const marked = markerTheme("compact");
+		const status = {
+			kind: "active",
+			elapsedMs: 13_000,
+			elapsedText: "13s",
+			activeSinceMs: 999_000,
+			activeDurationText: "1s",
+			activeScope: "tool",
+			waitingSinceMs: null,
+			waitingDurationText: null,
+			latestEvent: null,
+			activityLabel: "bash",
+			snapshotState: "present",
+			snapshotError: null,
+			snapshotProblemText: null,
+			statusLabel: null,
+		} as const;
+		const agent = makeRunning({ name: "Scout", agent: "scout", startTime: 987_000 });
+		const render = (width: number) =>
+			stripTerminalSequences(testApi.renderWidgetAgentContent(marked as any, agent as any, status, width));
+
+		assert.match(render(80), /00:13.*Scout \(scout\).*● active.*bash.*1s/);
+		assert.match(render(24), /^Scout.*● active.*bash$/);
+		assert.doesNotMatch(render(24), /00:13|scout|1s/);
+		assert.match(render(16), /^Scout.*● active$/);
+		assert.doesNotMatch(render(16), /bash/);
+		assert.equal(render(8), "● active");
+		assert.equal(render(1), "●");
+	});
+});
+
+test("widget rendering uses the current theme and sanitizes display fields", () => {
+	const agent = makeRunning({
+		name: "\x1b[31mWorker\x1b[0m\x1b]8;;https://evil\x07link\x1b]8;;\x07",
+		agent: "\x1b[2Ascout",
+	});
+	const first = testApi.renderSubagentWidgetLines(markerTheme("first") as any, [agent] as any, 80).join("\n");
+	const second = testApi.renderSubagentWidgetLines(markerTheme("second") as any, [agent] as any, 80).join("\n");
+	assert.match(first, /first:fg:accent/);
+	assert.doesNotMatch(first, /second:|https:\/\/evil|\x1b\[31m|\x1b\[2A/);
+	assert.match(second, /second:fg:accent/);
+	assert.doesNotMatch(second, /first:/);
 });
 
 test("stripFrontmatter removes a leading frontmatter block", () => {

@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { keyHint } from "@earendil-works/pi-coding-agent";
-import { Box, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { keyText } from "@earendil-works/pi-coding-agent";
+import { Box, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import {
   copyFileSync,
   existsSync,
@@ -23,7 +23,9 @@ import {
 import { findLastAssistantMessage, getNewEntries, seedSubagentSessionFile } from "./session.ts";
 import {
   type StatusSnapshot,
+  type SubagentStatusKind,
   type SubagentStatusState,
+  type SubagentStatusTransition,
   advanceStatusState,
   capStatusLines,
   classifyStatus,
@@ -46,6 +48,24 @@ import {
   sendLongCommand,
   shellEscape,
 } from "./tmux.ts";
+import {
+  applyPanelMargin,
+  chooseWidthCandidate,
+  formatIdentity,
+  formatKeyHint,
+  formatMetadata,
+  formatSeparator,
+  formatState,
+  formatStateLabel,
+  renderPanelBottom,
+  renderPanelRow,
+  renderPanelTop,
+  sanitizeDisplayLine,
+  sanitizeDisplayText,
+  span,
+  type SemanticState,
+  type UiTheme,
+} from "./ui.ts";
 
 /**
  * pi-tmux-subagents: a tmux-only port of pi-interactive-subagents
@@ -506,23 +526,38 @@ function fileTimestamp(): string {
 
 const statusConfig = loadStatusConfig();
 
-function formatWidgetRightLabel(snapshot: StatusSnapshot): string {
-  if (snapshot.kind === "starting") return " starting… ";
-  if (snapshot.kind === "running") return ` running ${snapshot.elapsedText} `;
+interface WidgetStatusPresentation {
+  state: Extract<SemanticState, "starting" | "running" | "active" | "waiting" | "stalled">;
+  detail?: string;
+  duration?: string;
+}
+
+function formatWidgetRightLabel(snapshot: StatusSnapshot): WidgetStatusPresentation {
+  if (snapshot.kind === "starting") return { state: "starting" };
+  if (snapshot.kind === "running") {
+    return { state: "running", duration: snapshot.elapsedText };
+  }
   if (snapshot.kind === "active") {
     const label = snapshot.activityLabel ?? snapshot.activeScope;
-    const duration = snapshot.activeDurationText ? ` ${snapshot.activeDurationText}` : "";
-    return label ? ` active · ${label}${duration} ` : " active ";
+    return {
+      state: "active",
+      ...(label ? { detail: label } : {}),
+      ...(snapshot.activeDurationText ? { duration: snapshot.activeDurationText } : {}),
+    };
   }
   if (snapshot.kind === "waiting") {
-    const duration = snapshot.waitingDurationText ? ` ${snapshot.waitingDurationText}` : "";
-    const detail = snapshot.statusLabel ? ` · ${snapshot.statusLabel}` : "";
-    return ` waiting${duration}${detail} `;
+    return {
+      state: "waiting",
+      ...(snapshot.statusLabel ? { detail: snapshot.statusLabel } : {}),
+      ...(snapshot.waitingDurationText ? { duration: snapshot.waitingDurationText } : {}),
+    };
   }
 
-  const detail = snapshot.statusLabel ? ` · ${snapshot.statusLabel}` : "";
-  const duration = snapshot.snapshotProblemText ? ` ${snapshot.snapshotProblemText}` : "";
-  return ` stalled${detail}${duration} `;
+  return {
+    state: "stalled",
+    ...(snapshot.statusLabel ? { detail: snapshot.statusLabel } : {}),
+    ...(snapshot.snapshotProblemText ? { duration: snapshot.snapshotProblemText } : {}),
+  };
 }
 
 function resolveResultPresentation(
@@ -612,78 +647,68 @@ function formatElapsedMMSS(startTime: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-const ACCENT = "\x1b[38;2;77;163;255m";
-const RST = "\x1b[0m";
+function renderWidgetAgentContent(
+  theme: UiTheme,
+  agent: RunningSubagent,
+  snapshot: StatusSnapshot,
+  width: number,
+): string {
+  const status = formatWidgetRightLabel(snapshot);
+  const elapsed = formatMetadata(theme, formatElapsedMMSS(agent.startTime));
+  const fullIdentity = formatIdentity(theme, agent.name, agent.agent);
+  const compactIdentity = formatIdentity(theme, agent.name);
+  const state = formatState(theme, status.state);
+  const glyph = formatState(theme, status.state, { glyphOnly: true });
+  const detail = status.detail
+    ? `${formatSeparator(theme)}${formatMetadata(theme, sanitizeDisplayLine(status.detail))}`
+    : "";
+  const duration = status.duration
+    ? ` ${formatMetadata(theme, sanitizeDisplayLine(status.duration))}`
+    : "";
 
-/**
- * Build a bordered content line: │left          right│
- * Left content is truncated if needed, right is preserved, padded to fill width.
- */
-function borderLine(left: string, right: string, width: number): string {
-  if (width <= 0) return "";
-  if (width === 1) return `${ACCENT}│${RST}`;
-
-  const contentWidth = Math.max(0, width - 2);
-  const rightVis = visibleWidth(right);
-
-  if (rightVis >= contentWidth) {
-    const truncRight = truncateToWidth(right, contentWidth);
-    const rightPad = Math.max(0, contentWidth - visibleWidth(truncRight));
-    return `${ACCENT}│${RST}${truncRight}${" ".repeat(rightPad)}${ACCENT}│${RST}`;
-  }
-
-  const maxLeft = Math.max(0, contentWidth - rightVis);
-  const truncLeft = truncateToWidth(left, maxLeft);
-  const leftVis = visibleWidth(truncLeft);
-  const pad = Math.max(0, contentWidth - leftVis - rightVis);
-  return `${ACCENT}│${RST}${truncLeft}${" ".repeat(pad)}${right}${ACCENT}│${RST}`;
+  return chooseWidthCandidate(
+    [
+      `${elapsed}${formatSeparator(theme)}${fullIdentity}${formatSeparator(theme)}${state}${detail}${duration}`,
+      `${compactIdentity}${formatSeparator(theme)}${state}${detail}`,
+      `${compactIdentity}${formatSeparator(theme)}${state}`,
+      state,
+      glyph,
+    ],
+    width,
+  );
 }
 
-/** Build the bordered top line: ╭─ Title ──── info ─╮ */
-function borderTop(title: string, info: string, width: number): string {
-  if (width <= 0) return "";
-  if (width === 1) return `${ACCENT}╭${RST}`;
-
-  const inner = Math.max(0, width - 2);
-  const titlePart = `─ ${title} `;
-  const infoPart = ` ${info} ─`;
-  const fillLen = Math.max(0, inner - titlePart.length - infoPart.length);
-  const fill = "─".repeat(fillLen);
-  const content = `${titlePart}${fill}${infoPart}`.slice(0, inner).padEnd(inner, "─");
-  return `${ACCENT}╭${content}╮${RST}`;
-}
-
-/** Build the bordered bottom line: ╰──────────────────╯ */
-function borderBottom(width: number): string {
-  if (width <= 0) return "";
-  if (width === 1) return `${ACCENT}╰${RST}`;
-
-  const inner = Math.max(0, width - 2);
-  return `${ACCENT}╰${"─".repeat(inner)}╯${RST}`;
-}
-
-function renderSubagentWidgetLines(agents: RunningSubagent[], width: number): string[] {
+function renderSubagentWidgetLines(
+  theme: UiTheme,
+  agents: RunningSubagent[],
+  width: number,
+): string[] {
   const count = agents.length;
-  const title = "Subagents";
-  const info = `${count} running`;
-
-  const lines: string[] = [borderTop(title, info, width)];
+  const lines: string[] = [renderPanelTop(theme, width, "Subagents", `${count} running`)];
 
   for (const agent of agents) {
-    const elapsed = formatElapsedMMSS(agent.startTime);
-    const agentTag = agent.agent ? ` (${agent.agent})` : "";
-    const left = ` ${elapsed}  ${agent.name}${agentTag} `;
     const snapshot = classifyStatus(agent.statusState, Date.now());
-    const right = statusConfig.enabled
-      ? formatWidgetRightLabel(snapshot)
-      : agent.cli === "claude"
-        ? " running… "
-        : " starting… ";
-
-    lines.push(borderLine(left, right, width));
+    let visibleStatus = snapshot;
+    if (!statusConfig.enabled) {
+      visibleStatus = {
+        ...snapshot,
+        kind: agent.cli === "claude" ? "running" : "starting",
+        activeDurationText: null,
+        waitingDurationText: null,
+        snapshotProblemText: null,
+        statusLabel: null,
+      };
+    }
+    lines.push(
+      renderPanelRow(
+        theme,
+        width,
+        renderWidgetAgentContent(theme, agent, visibleStatus, Math.max(0, width - 2)),
+      ),
+    );
   }
 
-  lines.push(borderBottom(width));
+  lines.push(renderPanelBottom(theme, width));
   return lines;
 }
 
@@ -694,16 +719,7 @@ function renderSubagentWidgetLines(agents: RunningSubagent[], width: number): st
  * instead of spanning the full terminal width from column 0.
  */
 function applyWidgetMargin(lines: string[], width: number): string[] {
-  if (width <= 0) return lines.map(() => "");
-  if (width === 1) return lines.map((line) => (line ? " " : ""));
-
-  const contentWidth = width - 2;
-  return lines.map((line) => {
-    if (line === "") return "";
-    const content = truncateToWidth(line, contentWidth, "");
-    const padding = " ".repeat(Math.max(0, contentWidth - visibleWidth(content)));
-    return ` ${content}${padding} `;
-  });
+  return applyPanelMargin(lines, width);
 }
 
 function updateWidget() {
@@ -721,13 +737,14 @@ function updateWidget() {
 
   latestCtx.ui.setWidget(
     "subagent-status",
-    () => {
+    (_tui, theme) => {
       return {
         invalidate() {},
         render(width: number) {
           // Render the bordered box two columns narrower, then add the outer
           // margin so the panel aligns with the framed editor above/below it.
           const boxLines = renderSubagentWidgetLines(
+            theme,
             Array.from(runningSubagents.values()),
             Math.max(0, width - 2),
           );
@@ -938,6 +955,66 @@ function handleSubagentInterrupt(
   };
 }
 
+interface StatusTransitionItem {
+  name: string;
+  kind: SubagentStatusKind;
+  transition: Exclude<SubagentStatusTransition, null>;
+  elapsedText: string;
+  activityLabel?: string;
+  activeScope?: string;
+  activeDurationText?: string;
+  waitingDurationText?: string;
+  snapshotProblemText?: string;
+  statusLabel?: string;
+}
+
+interface StatusTransitionRecord {
+  name: string;
+  snapshot: StatusSnapshot;
+  transition: Exclude<SubagentStatusTransition, null>;
+}
+
+function toStatusTransitionItem(record: StatusTransitionRecord): StatusTransitionItem {
+  const { name, snapshot, transition } = record;
+  return {
+    name,
+    kind: snapshot.kind,
+    transition,
+    elapsedText: snapshot.elapsedText,
+    ...(snapshot.activityLabel ? { activityLabel: snapshot.activityLabel } : {}),
+    ...(snapshot.activeScope ? { activeScope: snapshot.activeScope } : {}),
+    ...(snapshot.activeDurationText ? { activeDurationText: snapshot.activeDurationText } : {}),
+    ...(snapshot.waitingDurationText ? { waitingDurationText: snapshot.waitingDurationText } : {}),
+    ...(snapshot.snapshotProblemText ? { snapshotProblemText: snapshot.snapshotProblemText } : {}),
+    ...(snapshot.statusLabel ? { statusLabel: snapshot.statusLabel } : {}),
+  };
+}
+
+function buildStatusRefreshMessage(
+  transitions: StatusTransitionRecord[],
+  lineLimit: number,
+): {
+  content: string;
+  details: {
+    lines: string[];
+    items: StatusTransitionItem[];
+    overflow: number;
+  };
+} {
+  const lines = transitions.map(({ name, snapshot, transition }) =>
+    formatTransitionLine(name, snapshot, transition)
+  );
+  const capped = capStatusLines(lines, lineLimit);
+  return {
+    content: formatStatusAggregate(lines, lineLimit),
+    details: {
+      lines: capped.visibleLines,
+      items: transitions.slice(0, capped.visibleLines.length).map(toStatusTransitionItem),
+      overflow: capped.overflow,
+    },
+  };
+}
+
 function startStatusRefresh(pi: ExtensionAPI) {
   if (!statusConfig.enabled || statusInterval) return;
 
@@ -951,7 +1028,7 @@ function startStatusRefresh(pi: ExtensionAPI) {
       return;
     }
 
-    const transitionLines: string[] = [];
+    const transitions: StatusTransitionRecord[] = [];
     const now = Date.now();
     let shouldRefreshWidget = false;
 
@@ -966,20 +1043,20 @@ function startStatusRefresh(pi: ExtensionAPI) {
       // Interactive subagents do not wake the parent on stalled/recovered
       // transitions; the user is working in that pane. The widget still updates.
       if (transition && !running.interactive) {
-        transitionLines.push(formatTransitionLine(running.name, snapshot, transition));
+        transitions.push({ name: running.name, snapshot, transition });
       }
     }
 
     if (shouldRefreshWidget) updateWidget();
 
-    if (transitionLines.length > 0) {
-      const capped = capStatusLines(transitionLines, statusConfig.lineLimit);
+    if (transitions.length > 0) {
+      const statusMessage = buildStatusRefreshMessage(transitions, statusConfig.lineLimit);
       pi.sendMessage(
         {
           customType: "subagent_status",
-          content: formatStatusAggregate(transitionLines, statusConfig.lineLimit),
+          content: statusMessage.content,
           display: true,
-          details: { lines: capped.visibleLines, overflow: capped.overflow },
+          details: statusMessage.details,
         },
         { triggerTurn: true, deliverAs: "steer" },
       );
@@ -1416,7 +1493,6 @@ function buildWorkflowMessage(request: string, skillPath = WORKFLOW_SKILL_PATH):
 }
 
 export const __test__ = {
-  borderLine,
   applyWidgetMargin,
   getShellReadyDelayMs,
   renderSubagentWidgetLines,
@@ -1432,6 +1508,8 @@ export const __test__ = {
   buildPiPromptArgs,
   normalizeSubagentParams,
   formatWidgetRightLabel,
+  renderWidgetAgentContent,
+  buildStatusRefreshMessage,
   observeRunningSubagent,
   resolveDenyTools,
   resolveInterruptTarget,
@@ -1444,11 +1522,6 @@ export const __test__ = {
   stripFrontmatter,
   buildWorkflowMessage,
   WORKFLOW_SKILL_PATH,
-};
-
-type ToolTheme = {
-  fg(color: string, text: string): string;
-  bold(text: string): string;
 };
 
 const ASYNC_TOOL_CONTRACT =
@@ -1474,6 +1547,46 @@ const SUBAGENTS_LIST_DESCRIPTION =
   "List all available subagent definitions. " +
   "Scans the bundled agents, global ~/.pi/agent/agents/, and project-local .pi/agents/. " +
   "Later sources override earlier ones with the same name.";
+
+type ToolRenderResult = {
+  content?: Array<{ type?: string; text?: string }>;
+  details?: unknown;
+};
+
+function renderToolStateRow(
+  theme: UiTheme,
+  input: {
+    name: string;
+    role?: string;
+    state: SemanticState;
+    label: string;
+    metadata?: string;
+  },
+): string {
+  const metadata = input.metadata
+    ? `${formatSeparator(theme)}${formatMetadata(theme, input.metadata)}`
+    : "";
+  return `${formatIdentity(theme, input.name, input.role)}${metadata}${formatSeparator(theme)}${formatState(theme, input.state, { label: input.label })}`;
+}
+
+function renderToolFallback(result: ToolRenderResult, theme: UiTheme): Text {
+  const details =
+    result.details != null && typeof result.details === "object"
+      ? result.details as { error?: unknown }
+      : undefined;
+  const first = result.content?.[0];
+  const text = sanitizeDisplayText(
+    first?.type === "text" && typeof first.text === "string" ? first.text : "",
+  );
+  const failed = details?.error != null;
+  const state = failed ? "failed" : "completed";
+  const body = span(theme, failed ? "error" : "toolOutput", text);
+  return new Text(
+    `${formatState(theme, state)}${text ? `${formatSeparator(theme)}${body}` : ""}`,
+    0,
+    0,
+  );
+}
 
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
@@ -1653,25 +1766,30 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         const partialArgs = args as Record<string, unknown>;
         const name = typeof partialArgs.name === "string" && partialArgs.name ? partialArgs.name : "(unnamed)";
         const task = typeof partialArgs.task === "string" ? partialArgs.task : "";
-        const agent = typeof partialArgs.agent === "string" && partialArgs.agent
-          ? theme.fg("dim", ` (${partialArgs.agent})`)
-          : "";
-        const cwdHint = typeof partialArgs.cwd === "string" && partialArgs.cwd
-          ? theme.fg("dim", ` in ${partialArgs.cwd}`)
-          : "";
-        let text = "▸ " + theme.fg("toolTitle", theme.bold(name)) + agent + cwdHint;
+        const agent = typeof partialArgs.agent === "string" ? partialArgs.agent : undefined;
+        const cwd = typeof partialArgs.cwd === "string" && partialArgs.cwd
+          ? `in ${partialArgs.cwd}`
+          : undefined;
+        let text = renderToolStateRow(theme, {
+          name,
+          role: agent,
+          state: "starting",
+          label: "pending",
+          metadata: cwd,
+        });
 
         // One-line task preview. renderCall runs repeatedly while the LLM
         // streams arguments, so keep it compact.
         if (task) {
-          const firstLine = task.split("\n").find((l: string) => l.trim()) ?? "";
-          const preview = firstLine.length > 100 ? firstLine.slice(0, 100) + "…" : firstLine;
+          const taskLines = sanitizeDisplayText(task).split("\n");
+          const firstLine = taskLines.find((line) => line.trim()) ?? "";
+          const preview = truncateToWidth(firstLine, 100, "…");
           if (preview) {
-            text += "\n" + theme.fg("toolOutput", preview);
+            text += `\n${span(theme, "toolOutput", preview)}`;
           }
-          const totalLines = task.split("\n").length;
+          const totalLines = taskLines.length;
           if (totalLines > 1) {
-            text += theme.fg("muted", ` (${totalLines} lines)`);
+            text += ` ${formatMetadata(theme, `(${totalLines} lines)`)}`;
           }
         }
 
@@ -1684,18 +1802,17 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
         if (details?.status === "started") {
           return new Text(
-            theme.fg("accent", "▸") +
-              " " +
-              theme.fg("toolTitle", theme.bold(name)) +
-              theme.fg("dim", " — started"),
+            renderToolStateRow(theme, {
+              name,
+              state: "starting",
+              label: "started",
+            }),
             0,
             0,
           );
         }
 
-        const first = result.content[0];
-        const text = first && first.type === "text" ? first.text : "";
-        return new Text(theme.fg("dim", text), 0, 0);
+        return renderToolFallback(result, theme);
       },
     });
 
@@ -1722,10 +1839,11 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       renderCall(args, theme) {
         const target = args.id ? `${args.id}` : args.name ?? "(unknown)";
         return new Text(
-          theme.fg("accent", "▸") +
-            " " +
-            theme.fg("toolTitle", theme.bold(target)) +
-            theme.fg("dim", " — interrupt turn"),
+          renderToolStateRow(theme, {
+            name: target,
+            state: "help",
+            label: "interrupt turn",
+          }),
           0,
           0,
         );
@@ -1735,18 +1853,17 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         const details = result.details as { status?: string; name?: string; id?: string } | undefined;
         if (details?.status === "interrupt_requested") {
           return new Text(
-            theme.fg("accent", "▸") +
-              " " +
-              theme.fg("toolTitle", theme.bold(details.name ?? details.id ?? "subagent")) +
-              theme.fg("dim", " — interrupt requested"),
+            renderToolStateRow(theme, {
+              name: details.name ?? details.id ?? "subagent",
+              state: "help",
+              label: "interrupt requested",
+            }),
             0,
             0,
           );
         }
 
-        const first = result.content[0];
-        const text = first && first.type === "text" ? first.text : "";
-        return new Text(theme.fg("dim", text), 0, 0);
+        return renderToolFallback(result, theme);
       },
     });
 
@@ -1786,13 +1903,26 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         const details = result.details as { agents?: ListedAgentDefinition[] } | undefined;
         const agents = details?.agents ?? [];
         if (agents.length === 0) {
-          return new Text(theme.fg("dim", "No subagent definitions found."), 0, 0);
+          return new Text(
+            `${formatState(theme, "completed", { glyphOnly: true })}${formatSeparator(theme)}${formatMetadata(theme, "No subagent definitions found.")}`,
+            0,
+            0,
+          );
         }
-        const lines = agents.map((a) => {
-          const badge = a.source === "project" ? theme.fg("accent", " (project)") : "";
-          const desc = a.description ? theme.fg("dim", ` — ${a.description}`) : "";
-          const model = a.model ? theme.fg("dim", ` [${a.model}]`) : "";
-          return `  ${theme.fg("toolTitle", theme.bold(a.name))}${badge}${model}${desc}`;
+        const lines = agents.map((agent, index) => {
+          const state = index === 0
+            ? `${formatState(theme, "completed", { glyphOnly: true })}${formatSeparator(theme)}`
+            : "  ";
+          const badge = agent.source === "project"
+            ? span(theme, "accent", " (project)")
+            : "";
+          const model = agent.model
+            ? ` ${formatMetadata(theme, `[${sanitizeDisplayLine(agent.model)}]`)}`
+            : "";
+          const description = agent.description
+            ? ` ${formatMetadata(theme, `— ${sanitizeDisplayLine(agent.description)}`)}`
+            : "";
+          return `${state}${formatIdentity(theme, agent.name)}${badge}${model}${description}`;
         });
         return new Text(lines.join("\n"), 0, 0);
       },
@@ -1825,8 +1955,15 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
       renderCall(args, theme) {
         const name = args.name ?? "Resume";
-        const text = "▸ " + theme.fg("toolTitle", theme.bold(name)) + theme.fg("dim", " — resuming session");
-        return new Text(text, 0, 0);
+        return new Text(
+          renderToolStateRow(theme, {
+            name,
+            state: "starting",
+            label: "resuming session",
+          }),
+          0,
+          0,
+        );
       },
 
       renderResult(result, _opts, theme) {
@@ -1835,18 +1972,17 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
         if (details?.status === "started") {
           return new Text(
-            theme.fg("accent", "▸") +
-              " " +
-              theme.fg("toolTitle", theme.bold(name)) +
-              theme.fg("dim", " — resumed"),
+            renderToolStateRow(theme, {
+              name,
+              state: "starting",
+              label: "resumed",
+            }),
             0,
             0,
           );
         }
 
-        const first = result.content[0];
-        const text = first && first.type === "text" ? first.text : "";
-        return new Text(theme.fg("dim", text), 0, 0);
+        return renderToolFallback(result, theme);
       },
 
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -2079,6 +2215,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           name?: string;
           exitCode?: number;
           errorMessage?: string;
+          error?: string;
           elapsed?: number;
           agent?: string;
           sessionFile?: string;
@@ -2092,24 +2229,29 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         const name = details.name ?? "subagent";
         const exitCode = details.exitCode ?? 0;
         const errorMessage = typeof details.errorMessage === "string" ? details.errorMessage : "";
-        const failed = exitCode !== 0 || !!errorMessage;
+        const genericError = typeof details.error === "string" ? details.error : "";
+        const failed = exitCode !== 0 || Boolean(errorMessage) || Boolean(genericError);
         const elapsed = details.elapsed == null ? "?" : formatElapsed(details.elapsed);
         const bgFn = failed
           ? (text: string) => theme.bg("toolErrorBg", text)
           : (text: string) => theme.bg("toolSuccessBg", text);
-        const icon = failed ? theme.fg("error", "✗") : theme.fg("success", "✓");
+        const state = failed ? "failed" : "completed";
         const status = errorMessage
           ? "failed (provider/agent error)"
           : failed
             ? `failed (exit ${exitCode})`
             : "completed";
-        const agentTag = details.agent ? theme.fg("dim", ` (${details.agent})`) : "";
-
-        const header = `${icon} ${theme.fg("toolTitle", theme.bold(name))}${agentTag} ${theme.fg("dim", "—")} ${status} ${theme.fg("dim", `(${elapsed})`)}`;
+        const header =
+          `${formatState(theme, state, { glyphOnly: true })} ` +
+          `${formatIdentity(theme, name, details.agent)}` +
+          `${formatSeparator(theme, "—")}` +
+          `${formatStateLabel(theme, state, status)} ` +
+          `${formatMetadata(theme, `(${elapsed})`)}`;
         const rawContent = typeof message.content === "string" ? message.content : "";
 
         // Clean summary (remove session ref and leading label for display)
-        const summary = rawContent
+        const summary = sanitizeDisplayText(
+          rawContent
           .replace(/\n\nSession: .+\nResume: .+$/, "")
           .replace(`Sub-agent "${name}" completed (${elapsed}).\n\n`, "")
           .replace(`Sub-agent "${name}" failed (exit code ${exitCode}).\n\n`, "")
@@ -2118,36 +2260,63 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
               `^Sub-agent "${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}" failed after ${elapsed} \\(provider/agent error — auto-retry exhausted\\)\\.\\n\\n`,
             ),
             "",
-          );
-
-        const contentLines = [header];
+          ),
+        );
+        const outputPad = Number.isFinite(options.outputPad)
+          ? Math.max(0, Math.floor(options.outputPad))
+          : 1;
+        const lineWidth = Math.max(0, width - outputPad * 2);
+        const contentLines = [truncateToWidth(header, lineWidth, "")];
+        const summaryLines = summary ? summary.split("\n") : [];
 
         if (options.expanded) {
-          if (summary) {
-            for (const line of summary.split("\n")) {
-              contentLines.push(line.slice(0, width - 6));
-            }
+          for (const line of summaryLines) {
+            contentLines.push(truncateToWidth(line, lineWidth, ""));
           }
           if (details.sessionFile) {
+            const sessionFile = sanitizeDisplayLine(details.sessionFile);
             contentLines.push("");
-            contentLines.push(theme.fg("dim", `Session: ${details.sessionFile}`));
-            contentLines.push(theme.fg("dim", `Resume:  pi --session ${details.sessionFile}`));
+            contentLines.push(
+              truncateToWidth(
+                span(theme, "dim", `Session: ${sessionFile}`),
+                lineWidth,
+                "",
+              ),
+            );
+            contentLines.push(
+              truncateToWidth(
+                span(theme, "dim", `Resume:  pi --session ${sessionFile}`),
+                lineWidth,
+                "",
+              ),
+            );
           }
         } else {
-          if (summary) {
-            const previewLines = summary.split("\n").slice(0, 5);
-            for (const line of previewLines) {
-              contentLines.push(theme.fg("dim", line.slice(0, width - 6)));
-            }
-            const totalLines = summary.split("\n").length;
-            if (totalLines > 5) {
-              contentLines.push(theme.fg("muted", `… ${totalLines - 5} more lines`));
-            }
+          const previewLines = summaryLines.slice(0, 5);
+          for (const line of previewLines) {
+            contentLines.push(
+              truncateToWidth(span(theme, "dim", line), lineWidth, ""),
+            );
           }
-          contentLines.push(theme.fg("muted", keyHint("app.tools.expand", "to expand")));
+          if (summaryLines.length > 5) {
+            contentLines.push(
+              truncateToWidth(
+                formatMetadata(theme, `… ${summaryLines.length - 5} more lines`),
+                lineWidth,
+                "",
+              ),
+            );
+          }
+          contentLines.push(
+            truncateToWidth(
+              formatKeyHint(theme, keyText("app.tools.expand"), "to expand"),
+              lineWidth,
+              "",
+            ),
+          );
         }
 
-        const box = new Box(1, 1, bgFn);
+        const box = new Box(outputPad, 1, bgFn);
         box.addChild(new Text(contentLines.join("\n"), 0, 0));
         return ["", ...box.render(width)];
       },
@@ -2156,28 +2325,100 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
   // ── subagent_status message renderer ──
   pi.registerMessageRenderer("subagent_status", (message, options, theme) => {
-    const details = message.details as { lines?: string[]; overflow?: number } | undefined;
+    const details = message.details as
+      | { lines?: string[]; items?: StatusTransitionItem[]; overflow?: number }
+      | undefined;
     const lines = Array.isArray(details?.lines) ? details.lines : [];
+    const items = Array.isArray(details?.items) ? details.items : [];
     const overflow = typeof details?.overflow === "number" ? details.overflow : 0;
-    if (lines.length === 0 && overflow === 0) return undefined;
+    if (items.length === 0 && lines.length === 0 && overflow === 0) return undefined;
 
     return {
       invalidate() {},
       render(width: number): string[] {
-        const lineWidth = Math.max(0, width - 6);
+        const outputPad = Number.isFinite(options.outputPad)
+          ? Math.max(0, Math.floor(options.outputPad))
+          : 1;
+        const lineWidth = Math.max(0, width - outputPad * 2);
         const contentLines = [
-          `${theme.fg("accent", "•")} ${theme.fg("toolTitle", theme.bold("Subagent status"))}`,
-          ...lines.map((line: string) => theme.fg("dim", truncateToWidth(line, lineWidth))),
+          truncateToWidth(
+            `${span(theme, "accent", "●")} ${formatIdentity(theme, "Subagent status")}`,
+            lineWidth,
+            "",
+          ),
         ];
 
-        if (overflow > 0) {
-          contentLines.push(theme.fg("muted", `+${overflow} more running.`));
-        }
-        if (!options.expanded) {
-          contentLines.push(theme.fg("muted", keyHint("app.tools.expand", "to expand")));
+        if (items.length > 0) {
+          for (const item of items) {
+            let state: SemanticState = item.kind;
+            if (item.transition === "recovered") {
+              state = item.kind === "waiting" ? "waiting" : "active";
+            }
+
+            const detailLabel =
+              item.kind === "active"
+                ? item.activityLabel ?? item.activeScope
+                : item.statusLabel;
+            const duration =
+              item.kind === "active"
+                ? item.activeDurationText
+                : item.kind === "waiting"
+                  ? item.waitingDurationText
+                  : item.kind === "stalled"
+                    ? item.snapshotProblemText
+                    : undefined;
+            const stateLabel = item.transition === "recovered"
+              ? "recovered"
+              : undefined;
+            const detail = detailLabel
+              ? `${formatSeparator(theme)}${formatMetadata(theme, detailLabel)}`
+              : "";
+            const durationText = duration
+              ? ` ${formatMetadata(theme, duration)}`
+              : "";
+            const row =
+              `${formatIdentity(theme, item.name)}${formatSeparator(theme)}` +
+              `${formatState(theme, state, { label: stateLabel })}` +
+              `${formatSeparator(theme)}${formatMetadata(theme, item.elapsedText)}` +
+              `${detail}${durationText}`;
+            contentLines.push(truncateToWidth(row, lineWidth, ""));
+          }
+        } else {
+          for (const line of lines) {
+            contentLines.push(
+              span(
+                theme,
+                "dim",
+                truncateToWidth(sanitizeDisplayLine(line), lineWidth, ""),
+              ),
+            );
+          }
         }
 
-        const box = new Box(1, 1, (text: string) => theme.bg("customMessageBg", text));
+        if (overflow > 0) {
+          contentLines.push(
+            truncateToWidth(
+              formatMetadata(theme, `+${overflow} more running.`),
+              lineWidth,
+              "",
+            ),
+          );
+        }
+        if (!options.expanded) {
+          contentLines.push(
+            truncateToWidth(
+              formatKeyHint(theme, keyText("app.tools.expand"), "to expand"),
+              lineWidth,
+              "",
+            ),
+          );
+        }
+
+        const box = new Box(
+          outputPad,
+          1,
+          (text: string) => theme.bg("customMessageBg", text),
+        );
         box.addChild(new Text(contentLines.join("\n"), 0, 0));
         return ["", ...box.render(width)];
       },
@@ -2195,28 +2436,55 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       invalidate() {},
       render(width: number): string[] {
         const name = details.name ?? "subagent";
-        const agentTag = details.agent ? theme.fg("dim", ` (${details.agent})`) : "";
-        const bgFn = (text: string) => theme.bg("toolSuccessBg", text);
-
-        const icon = theme.fg("accent", "?");
-        const header = `${icon} ${theme.fg("toolTitle", theme.bold(name))}${agentTag} ${theme.fg("dim", "— needs help")}`;
-
-        const contentLines = [header];
+        const header =
+          `${formatState(theme, "help", { glyphOnly: true })} ` +
+          `${formatIdentity(theme, name, details.agent)}` +
+          `${formatSeparator(theme, "—")}` +
+          `${formatStateLabel(theme, "help")}`;
+        const outputPad = Number.isFinite(options.outputPad)
+          ? Math.max(0, Math.floor(options.outputPad))
+          : 1;
+        const lineWidth = Math.max(0, width - outputPad * 2);
+        const contentLines = [truncateToWidth(header, lineWidth, "")];
+        const messageLines = sanitizeDisplayText(details.message ?? "").split("\n");
 
         if (options.expanded) {
           contentLines.push("");
-          contentLines.push(details.message ?? "");
+          for (const line of messageLines) {
+            contentLines.push(truncateToWidth(line, lineWidth, ""));
+          }
           if (details.sessionFile) {
             contentLines.push("");
-            contentLines.push(theme.fg("dim", `Session: ${details.sessionFile}`));
+            contentLines.push(
+              truncateToWidth(
+                formatMetadata(
+                  theme,
+                  `Session: ${sanitizeDisplayLine(details.sessionFile)}`,
+                ),
+                lineWidth,
+                "",
+              ),
+            );
           }
         } else {
-          const preview = (details.message ?? "").split("\n")[0].slice(0, width - 10);
-          contentLines.push(theme.fg("dim", preview));
-          contentLines.push(theme.fg("muted", keyHint("app.tools.expand", "to expand")));
+          const preview = messageLines[0] ?? "";
+          contentLines.push(
+            truncateToWidth(span(theme, "dim", preview), lineWidth, ""),
+          );
+          contentLines.push(
+            truncateToWidth(
+              formatKeyHint(theme, keyText("app.tools.expand"), "to expand"),
+              lineWidth,
+              "",
+            ),
+          );
         }
 
-        const box = new Box(1, 1, bgFn);
+        const box = new Box(
+          outputPad,
+          1,
+          (text: string) => theme.bg("customMessageBg", text),
+        );
         box.addChild(new Text(contentLines.join("\n"), 0, 0));
         return ["", ...box.render(width)];
       },

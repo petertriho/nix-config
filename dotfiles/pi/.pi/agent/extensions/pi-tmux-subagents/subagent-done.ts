@@ -5,11 +5,24 @@
  * - Provides `subagent_done` and `caller_ping` tools and auto-exit on `agent_end`
  * - Records activity snapshots for the parent's status watcher
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Box, Text } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { writeFileSync } from "node:fs";
 import { createSubagentActivityRecorder } from "./activity.ts";
+import {
+  applyPanelMargin,
+  chooseWidthCandidate,
+  formatKeyHint,
+  formatMetadata,
+  formatSeparator,
+  renderPanelBottom,
+  renderPanelRow,
+  renderPanelTop,
+  sanitizeDisplayLine,
+  span,
+  type UiTheme,
+} from "./ui.ts";
 
 export function shouldMarkUserTookOver(agentStarted: boolean): boolean {
   return agentStarted;
@@ -77,6 +90,85 @@ export function parseDeniedTools(rawValue: string | undefined): string[] {
     .filter(Boolean);
 }
 
+export interface SubagentToolsWidgetData {
+  identity: string;
+  toolNames: string[];
+  denied: string[];
+  expanded: boolean;
+}
+
+function wrapWidgetRow(text: string, width: number): string[] {
+  if (width <= 0) return [];
+  return wrapTextWithAnsi(text, width);
+}
+
+export function renderSubagentToolsWidget(
+  theme: UiTheme,
+  data: SubagentToolsWidgetData,
+  width: number,
+): string[] {
+  const safeWidth = Number.isFinite(width)
+    ? Math.max(0, Math.floor(width))
+    : 0;
+  const panelWidth = Math.max(0, safeWidth - 2);
+  const contentWidth = Math.max(0, panelWidth - 2);
+  const identity = sanitizeDisplayLine(data.identity) || "Subagent";
+  const toolNames = data.toolNames.map(sanitizeDisplayLine).filter(Boolean);
+  const denied = data.denied.map(sanitizeDisplayLine).filter(Boolean);
+  const lines = [
+    renderPanelTop(
+      theme,
+      panelWidth,
+      identity,
+      `${toolNames.length} available`,
+    ),
+  ];
+
+  if (data.expanded) {
+    const availableList = toolNames
+      .map((name) => span(theme, "dim", name))
+      .join(span(theme, "dim", ", "));
+    const availableText = `${formatMetadata(theme, "available:")}${
+      availableList ? ` ${availableList}` : ""
+    }`;
+    for (const line of wrapWidgetRow(availableText, contentWidth)) {
+      lines.push(renderPanelRow(theme, panelWidth, line));
+    }
+
+    if (denied.length > 0) {
+      const deniedList = denied
+        .map((name) => span(theme, "warning", name))
+        .join(span(theme, "dim", ", "));
+      const deniedText =
+        `${span(theme, "warning", "denied:")} ${deniedList}`;
+      for (const line of wrapWidgetRow(deniedText, contentWidth)) {
+        lines.push(renderPanelRow(theme, panelWidth, line));
+      }
+    }
+
+    const collapseHint = formatKeyHint(theme, "Ctrl+Shift+J", "collapse");
+    for (const line of wrapWidgetRow(collapseHint, contentWidth)) {
+      lines.push(renderPanelRow(theme, panelWidth, line));
+    }
+  } else {
+    const expandHint = formatKeyHint(theme, "Ctrl+Shift+J", "expand");
+    const deniedInfo = denied.length > 0
+      ? span(theme, "warning", `${denied.length} denied`)
+      : "";
+    const full = deniedInfo
+      ? `${deniedInfo}${formatSeparator(theme)}${expandHint}`
+      : expandHint;
+    const content = chooseWidthCandidate(
+      deniedInfo ? [full, deniedInfo, expandHint] : [expandHint],
+      contentWidth,
+    );
+    lines.push(renderPanelRow(theme, panelWidth, content));
+  }
+
+  lines.push(renderPanelBottom(theme, panelWidth));
+  return applyPanelMargin(lines, safeWidth);
+}
+
 export default function subagentDone(pi: ExtensionAPI) {
   let toolNames: string[] = [];
   let denied: string[] = [];
@@ -92,52 +184,25 @@ export default function subagentDone(pi: ExtensionAPI) {
     activityFile: process.env.PI_SUBAGENT_ACTIVITY_FILE,
   });
 
-  function renderWidget(ctx: { ui: { setWidget: Function } }, _theme: any) {
+  function renderWidget(ctx: Pick<ExtensionContext, "ui">) {
     ctx.ui.setWidget(
       "subagent-tools",
-      (_tui: any, theme: any) => {
-        const box = new Box(1, 0, (text: string) => theme.bg("toolSuccessBg", text));
-
-        const label = subagentAgent || subagentName;
-        const agentTag = label ? theme.bold(theme.fg("accent", `[${label}]`)) : "";
-
-        if (expanded) {
-          // Expanded: full tool list + denied
-          const countInfo = theme.fg("dim", ` — ${toolNames.length} available`);
-          const hint = theme.fg("muted", "  (Ctrl+Shift+J to collapse)");
-
-          const toolList = toolNames
-            .map((name: string) => theme.fg("dim", name))
-            .join(theme.fg("muted", ", "));
-
-          let deniedLine = "";
-          if (denied.length > 0) {
-            const deniedList = denied
-              .map((name: string) => theme.fg("error", name))
-              .join(theme.fg("muted", ", "));
-            deniedLine = "\n" + theme.fg("muted", "denied: ") + deniedList;
-          }
-
-          const content = new Text(
-            `${agentTag}${countInfo}${hint}\n${toolList}${deniedLine}`,
-            0,
-            0,
-          );
-          box.addChild(content);
-        } else {
-          // Collapsed: one-line summary
-          const countInfo = theme.fg("dim", ` — ${toolNames.length} tools`);
-          const deniedInfo =
-            denied.length > 0
-              ? theme.fg("dim", " · ") + theme.fg("error", `${denied.length} denied`)
-              : "";
-          const hint = theme.fg("muted", "  (Ctrl+Shift+J to expand)");
-
-          const content = new Text(`${agentTag}${countInfo}${deniedInfo}${hint}`, 0, 0);
-          box.addChild(content);
-        }
-
-        return box;
+      (_tui, theme) => {
+        return {
+          invalidate() {},
+          render(width: number) {
+            return renderSubagentToolsWidget(
+              theme,
+              {
+                identity: subagentAgent || subagentName,
+                toolNames,
+                denied,
+                expanded,
+              },
+              width,
+            );
+          },
+        };
       },
       { placement: "aboveEditor" },
     );
@@ -153,7 +218,7 @@ export default function subagentDone(pi: ExtensionAPI) {
     toolNames = tools.map((t) => t.name).sort();
     denied = parseDeniedTools(deniedToolsValue);
 
-    renderWidget(ctx, null);
+    renderWidget(ctx);
   });
 
   pi.on("input", () => {
@@ -264,7 +329,7 @@ export default function subagentDone(pi: ExtensionAPI) {
     description: "Toggle subagent tools widget",
     handler: (ctx) => {
       expanded = !expanded;
-      renderWidget(ctx, null);
+      renderWidget(ctx);
     },
   });
 
