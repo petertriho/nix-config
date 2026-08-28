@@ -580,7 +580,7 @@ return {
     --         disable_capabilities_for_server(client)
     --     end,
     -- },
-    tsgo = {},
+    tsc = {},
     typos_lsp = {
         init_options = {
             diagnosticSeverity = "information",
