@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-subagents";
-  version = "0.18.2-unstable-2026-08-25";
+  version = "0.19.0-unstable-2026-08-27";
 
   src = fetchFromGitHub {
     owner = "tintinweb";
     repo = "pi-subagents";
-    rev = "bd446fcce2b7b36778127a7877fd13df7088e9e5";
-    hash = "sha256-YYktddhPB4hxdrOXPPyiBQrpCGm0ALwcozEc82K3mYs=";
+    rev = "4f572eaa04c09d3dbc16e4a5f13a16b295e84e14";
+    hash = "sha256-1K6U5+2qLgOV7lUWbvqUne/Pf7oMRDf40GXLl8gv6Bk=";
   };
 
   # Upstream package-lock.json records the @earendil-works/* peerDependencies

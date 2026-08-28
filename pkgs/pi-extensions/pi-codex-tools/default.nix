@@ -15,7 +15,7 @@ let
 in
 buildNpmPackage {
   pname = "pi-codex-tools";
-  version = "0.2.3-unstable-2026-08-20";
+  version = "pi-codex-tools@0.2.3-unstable-2026-08-20";
   inherit src;
 
   sourceRoot = "${src.name}/packages/pi-codex-tools";
