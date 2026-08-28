@@ -280,7 +280,7 @@ function separator(theme: FrameTheme, text = " · "): string {
   return span(theme, "dim", text);
 }
 
-function thinkingLevelText(theme: FrameTheme, level: ThinkingLevel): string {
+export function thinkingLevelText(theme: FrameTheme, level: ThinkingLevel): string {
   return theme.getThinkingBorderColor(level)(level);
 }
 
@@ -303,7 +303,7 @@ function tailToWidth(text: string, width: number): string {
   return tail;
 }
 
-function compactCwd(cwd: string, width: number): string {
+export function compactCwd(cwd: string, width: number): string {
   if (width <= 0) return "";
   if (visibleWidth(cwd) <= width) return cwd;
 
