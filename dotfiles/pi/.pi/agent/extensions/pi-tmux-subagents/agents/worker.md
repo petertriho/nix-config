@@ -1,7 +1,6 @@
 ---
 name: worker
 description: Implements exactly one delegated slice of work with no scope changes and reports files changed and validation run
-tools: read, bash, write, edit, grep, find, ls
 system-prompt: append
 auto-exit: true
 spawning: false

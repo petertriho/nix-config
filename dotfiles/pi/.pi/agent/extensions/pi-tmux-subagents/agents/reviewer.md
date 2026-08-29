@@ -1,7 +1,6 @@
 ---
 name: reviewer
 description: Reviews an implementation run against PLAN.md and TASKS.md with the implementation-review skill and writes REVIEW.md
-tools: read, bash, grep, find, ls, write
 skills: implementation-review
 system-prompt: append
 auto-exit: true

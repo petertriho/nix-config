@@ -1,7 +1,6 @@
 ---
 name: task-writer
 description: Converts a settled PLAN.md into TASKS.md in the same directory with the plan-to-tasks skill
-tools: read, bash, grep, find, ls, write, edit
 skills: plan-to-tasks
 system-prompt: append
 auto-exit: true
