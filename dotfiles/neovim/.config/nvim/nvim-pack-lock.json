@@ -46,7 +46,7 @@
       "src": "https://github.com/catppuccin/nvim"
     },
     "celeste_comment.nvim": {
-      "rev": "a8cca3a58c34a8b485339a1c0f9229c0dd787964",
+      "rev": "f732360dbc057baaccd6206156089364d5952493",
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
@@ -58,7 +58,7 @@
       "src": "https://github.com/samir-roy/code-bridge.nvim"
     },
     "codediff.nvim": {
-      "rev": "be4d1991213c65d6a2f32983fe5b03b06362f709",
+      "rev": "0abad4aa022a34fab0deb90dd9379d5de1c9c329",
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "colorful-menu.nvim": {
