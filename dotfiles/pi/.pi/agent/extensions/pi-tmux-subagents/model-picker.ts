@@ -71,6 +71,13 @@ function formatSelection(model: Model<Api>, thinking?: SubagentThinkingLevel): s
 	return thinking ? `${base}:${thinking}` : base;
 }
 
+/** Strip a valid `:thinking` suffix so a currentRef can match a bare row. */
+function normalizeCurrentRef(currentRef: string): string {
+	const lastColon = currentRef.lastIndexOf(":");
+	const suffix = lastColon >= 0 ? asThinkingLevel(currentRef.slice(lastColon + 1)) : undefined;
+	return suffix ? currentRef.slice(0, lastColon) : currentRef;
+}
+
 function toSelection(model: Model<Api>, thinking?: SubagentThinkingLevel): ModelSelection {
 	return {
 		provider: model.provider,
@@ -197,7 +204,7 @@ export function buildPickerModelItems(ctx: PickerContext, showAll = false): Pick
 		});
 }
 
-function modelLabel(item: PickerModelItem, contextTokens?: number): string {
+function modelLabel(item: PickerModelItem, contextTokens?: number, currentRef?: string): string {
 	const ratio = contextTokens != null && item.model.contextWindow > 0
 		? contextTokens / item.model.contextWindow
 		: undefined;
@@ -209,7 +216,10 @@ function modelLabel(item: PickerModelItem, contextTokens?: number): string {
 	const name = item.model.name && item.model.name !== item.model.id
 		? ` · ${item.model.name}`
 		: "";
-	return `${canonicalModel(item.model)}${name} · ${formatContextWindow(item.model.contextWindow)}${ratioLabel}`;
+	const current = currentRef && normalizeCurrentRef(currentRef) === canonicalModel(item.model)
+		? " · current"
+		: "";
+	return `${canonicalModel(item.model)}${name} · ${formatContextWindow(item.model.contextWindow)}${ratioLabel}${current}`;
 }
 
 export async function pickModelSelection(
@@ -217,6 +227,10 @@ export async function pickModelSelection(
 	options: {
 		contextTokens?: number;
 		title?: string;
+		/** Agent/role being configured; names the thinking-level dialog. */
+		subject?: string;
+		/** Configured provider/model[:thinking] whose row gets `· current`. */
+		currentRef?: string;
 	},
 ): Promise<ResolvedModelSelection | undefined> {
 	if (!ctx.hasUI) {
@@ -232,7 +246,7 @@ export async function pickModelSelection(
 			throw new Error("No authenticated models are available for subagent selection.");
 		}
 
-		const labels = items.map((item) => modelLabel(item, options.contextTokens));
+		const labels = items.map((item) => modelLabel(item, options.contextTokens, options.currentRef));
 		const showAllLabel = "Show all authenticated models…";
 		const choices = !showAll && ctx.modelRegistry.getAvailable().length > items.length
 			? [...labels, showAllLabel]
@@ -250,7 +264,9 @@ export async function pickModelSelection(
 
 		const supported = getSupportedThinkingLevels(item.model) as SubagentThinkingLevel[];
 		const thinkingChoice = await ctx.ui.select(
-			`Thinking level for ${canonicalModel(item.model)}`,
+			options.subject
+				? `Thinking for ${options.subject} — ${canonicalModel(item.model)}`
+				: `Thinking level for ${canonicalModel(item.model)}`,
 			supported,
 		);
 		if (thinkingChoice === undefined) return undefined;
@@ -301,6 +317,8 @@ export async function resolveModelPolicy(
 		agentModel?: string;
 		agentThinking?: string;
 		contextTokens?: number;
+		/** Subject-aware prompt for the "pick" branch's model dialogs. */
+		picker?: { title?: string; subject?: string; currentRef?: string };
 	},
 ): Promise<ModelPolicyResolution> {
 	const available = ctx.modelRegistry.getAvailable();
@@ -315,7 +333,10 @@ export async function resolveModelPolicy(
 	if (policy === "pick") {
 		const picked = await pickModelSelection(ctx, {
 			contextTokens: options.contextTokens,
-			title: options.mode === "resume" ? "Select resume model" : "Select subagent model",
+			title: options.picker?.title
+				?? (options.mode === "resume" ? "Select resume model" : "Select subagent model"),
+			subject: options.picker?.subject,
+			currentRef: options.picker?.currentRef,
 		});
 		if (!picked) throw new Error("Model selection cancelled.");
 		return picked;

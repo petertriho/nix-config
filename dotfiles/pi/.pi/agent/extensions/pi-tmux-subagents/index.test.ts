@@ -508,19 +508,36 @@ test("buildLaunchProfile captures the stable role contract and mutable launch st
 });
 
 test("collectResourceFingerprints uses active tools and explicit skills deterministically", () => {
-	const pi = {
-		getActiveTools: () => ["bash", "read", "bash"],
-		getCommands: () => [{ name: "planner", source: "skill" }],
-	} as any;
-	const first = testApi.collectResourceFingerprints(pi, "implement, planner");
-	const second = testApi.collectResourceFingerprints(pi, "implement, planner");
-	assert.deepEqual(first, second);
-	assert.deepEqual(first.tools, fingerprintStrings(["bash", "read"]));
-	assert.deepEqual(first.visibleSkills, fingerprintStrings(["implement", "planner"]));
-	assert.deepEqual(
-		testApi.collectResourceFingerprints(pi, undefined).visibleSkills,
-		fingerprintStrings(["planner"]),
-	);
+	// Freeze the clock: two captures must be byte-identical, which flakes
+	// when their `updatedAt` timestamps straddle a millisecond boundary.
+	const RealDate = Date;
+	const frozenMs = RealDate.now();
+	class FrozenDate extends RealDate {
+		constructor(value?: number | string) {
+			super(value ?? frozenMs);
+		}
+		static override now(): number {
+			return frozenMs;
+		}
+	}
+	globalThis.Date = FrozenDate as unknown as typeof Date;
+	try {
+		const pi = {
+			getActiveTools: () => ["bash", "read", "bash"],
+			getCommands: () => [{ name: "planner", source: "skill" }],
+		} as any;
+		const first = testApi.collectResourceFingerprints(pi, "implement, planner");
+		const second = testApi.collectResourceFingerprints(pi, "implement, planner");
+		assert.deepEqual(first, second);
+		assert.deepEqual(first.tools, fingerprintStrings(["bash", "read"]));
+		assert.deepEqual(first.visibleSkills, fingerprintStrings(["implement", "planner"]));
+		assert.deepEqual(
+			testApi.collectResourceFingerprints(pi, undefined).visibleSkills,
+			fingerprintStrings(["planner"]),
+		);
+	} finally {
+		globalThis.Date = RealDate;
+	}
 });
 
 // ── bundled agents (T9) ──
@@ -587,19 +604,19 @@ function withTempGitRepo(run: (root: string) => void): void {
 
 test("task writer and reviewer no longer declare maintained tool lists", () => {
 	const dir = testApi.getBundledAgentsDir();
-	for (const name of ["planner", "task-writer", "implementer", "reviewer"]) {
+	// Workflow roles and the worker delegate keep full current tool discovery;
+	// worker dropped its frontmatter list when it took on write work.
+	for (const name of ["planner", "task-writer", "implementer", "reviewer", "worker"]) {
 		const content = readFileSync(join(dir, `${name}.md`), "utf8");
 		assert.doesNotMatch(content, /^tools:/m, `${name} must not maintain a tools list`);
 		const parsed = testApi.parseAgentDefinition(content, name);
 		assert.ok(parsed, name);
 		assert.equal(parsed.tools, undefined, `${name} keeps full current tool discovery`);
 	}
-	// Implementer delegates keep their own role contracts.
-	for (const name of ["worker", "scout"]) {
-		const parsed = testApi.parseAgentDefinition(readFileSync(join(dir, `${name}.md`), "utf8"), name);
-		assert.ok(parsed, name);
-		assert.ok(parsed.tools, `${name} keeps its tools list`);
-	}
+	// The read-only scout delegate keeps its restricted tool list.
+	const scout = testApi.parseAgentDefinition(readFileSync(join(dir, "scout.md"), "utf8"), "scout");
+	assert.ok(scout, "scout");
+	assert.ok(scout.tools, "scout keeps its tools list");
 });
 
 test("workflow prompt documents phase boundaries and the stop-without-revert rule", () => {
@@ -1491,7 +1508,7 @@ test("configured agent defaults reach the child --model and launch profile over 
 });
 
 function agentModelsCommandContext(options: {
-	selections?: Array<string | undefined>;
+	selections?: Array<string | undefined | ((choices: string[]) => string | undefined)>;
 	available?: unknown[];
 } = {}) {
 	const selections = [...(options.selections ?? [])];
@@ -1502,7 +1519,8 @@ function agentModelsCommandContext(options: {
 		ui: {
 			select: async (title: string, choices: string[]) => {
 				selectCalls.push({ title, choices });
-			return selections.shift();
+				const respond = selections.shift();
+				return typeof respond === "function" ? respond(choices) : respond;
 			},
 			notify: (message: string, kind: string) => notifications.push({ message, kind }),
 		},
@@ -1557,8 +1575,14 @@ test("/agent-models set persists a registry-validated default immediately", asyn
 	await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 		const agentDir = dirname(globalAgentsDir);
 		const command = findAgentModelsCommand(createMockExtensionApi().registeredCommands);
-		const { ctx, notifications } = agentModelsCommandContext({
-			selections: ["scout — parent default", "Set model", "openai/gpt · GPT · 100k", "high", "Done"],
+		const { ctx, notifications, selectCalls } = agentModelsCommandContext({
+			selections: [
+				"scout — parent default",
+				"Set model",
+				(choices: string[]) => choices.find((label: string) => label.startsWith("openai/gpt")),
+				"high",
+				"Done",
+			],
 		});
 		await command.handler("", ctx);
 		const read = readAgentModelConfig(agentDir);
@@ -1568,6 +1592,40 @@ test("/agent-models set persists a registry-validated default immediately", asyn
 			assert.equal(statSync(read.path).mode & 0o777, 0o600);
 		}
 		assert.ok(notifications.some((entry) => /Default model for scout/.test(entry.message)));
+		// Both model dialogs name the agent being configured; no current
+		// default exists yet, so no row carries the marker.
+		assert.equal(selectCalls[2].title, "Default model for scout");
+		assert.equal(selectCalls[3].title, "Thinking for scout — openai/gpt");
+		assert.ok(!selectCalls[2].choices.some((label: string) => label.includes("· current")));
+	});
+});
+
+test("/agent-models set marks the agent's current default in the model list", async () => {
+	await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
+		const agentDir = dirname(globalAgentsDir);
+		writeAgentModelConfig({ version: 1, agents: { scout: "anthropic/claude:high" } }, agentDir);
+		const command = findAgentModelsCommand(createMockExtensionApi().registeredCommands);
+		const { ctx, selectCalls } = agentModelsCommandContext({
+			selections: [
+				"scout — anthropic/claude:high",
+				"Set model",
+				(choices: string[]) => choices.find((label: string) => label.includes("· current")),
+				"high",
+				"Done",
+			],
+		});
+		await command.handler("", ctx);
+		assert.equal(selectCalls[2].title, "Default model for scout");
+		const modelChoices = selectCalls[2].choices;
+		const marked = modelChoices.filter((label: string) => label.includes("· current"));
+		assert.equal(marked.length, 1, modelChoices.join("\n"));
+		assert.ok(marked[0].startsWith("anthropic/claude"));
+		assert.equal(selectCalls[3].title, "Thinking for scout — anthropic/claude");
+		const read = readAgentModelConfig(agentDir);
+		assert.ok(read.status === "ok");
+		if (read.status === "ok") {
+			assert.deepEqual(read.config, { version: 1, agents: { scout: "anthropic/claude:high" } });
+		}
 	});
 });
 
@@ -1987,10 +2045,12 @@ function scriptedSelectCtx(
 	responses: Array<string | ((choices: string[]) => string | undefined)>,
 ) {
 	const calls: string[][] = [];
+	const titles: string[] = [];
 	const ctx = policyContext({
 		hasUI: true,
 		ui: {
-			select: async (_title: string, choices: string[]) => {
+			select: async (title: string, choices: string[]) => {
+				titles.push(title);
 				calls.push(choices);
 				const respond = responses.shift();
 				if (typeof respond === "function") return respond(choices);
@@ -1999,7 +2059,7 @@ function scriptedSelectCtx(
 			notify: async () => {},
 		},
 	});
-	return { ctx, calls };
+	return { ctx, calls, titles };
 }
 
 test("resume context gate stays silent below 65 percent and proceeds", async () => {
@@ -2118,6 +2178,61 @@ test("gate choice 'choose another model' reopens the picker with projected ratio
 		);
 		// The re-selected model was gated again before the user stopped.
 		assert.deepEqual(scripted.calls[3], [GATE_FRESH, GATE_RESUME, GATE_CHOOSE, GATE_STOP]);
+	} finally {
+		restoreEnvVar("TMUX", previous);
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("resume picker titles carry the session name identically across the gate re-pick", async () => {
+	const previous = process.env.TMUX;
+	delete process.env.TMUX;
+	const dir = mkdtempSync(join(tmpdir(), "pi-resume-prompt-"));
+	try {
+		const { registeredTools } = createMockExtensionApi();
+		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		assert.ok(tool);
+		const heavy = writeHeavySession(dir, 150_000); // 75% of the 200k window
+		writeSidecarOn(heavy, dir);
+
+		const currentRow = (choices: string[]) =>
+			choices.find((label: string) => label.includes("· current"));
+		const scripted = scriptedSelectCtx([
+			currentRow, // initial pick (model: "pick")
+			"high",
+			GATE_CHOOSE,
+			currentRow, // post-gate re-pick
+			"high",
+			GATE_STOP,
+		]);
+		const result: AnyRecord = await tool.execute(
+			"c",
+			{ sessionPath: heavy, model: "pick", name: "Stored role" },
+			undefined,
+			undefined,
+			scripted.ctx,
+		);
+		assert.equal(result.details.error, "resume cancelled at context gate");
+		// The sidecar's lastModel (anthropic/claude:high) marks its row.
+		assert.ok(scripted.calls[0].some((label: string) => label.startsWith("anthropic/claude") && label.includes("· current")));
+		// One prompt, reused verbatim by the initial pick and the re-pick.
+		assert.equal(scripted.titles[0], "Resume model for Stored role");
+		assert.equal(scripted.titles[1], "Thinking for Stored role — anthropic/claude");
+		assert.equal(scripted.titles[3], "Resume model for Stored role");
+		assert.equal(scripted.titles[4], "Thinking for Stored role — anthropic/claude");
+
+		// Without an explicit name the stored display name becomes the subject.
+		const unnamed = scriptedSelectCtx([currentRow, "high", GATE_STOP]);
+		const unnamedResult: AnyRecord = await tool.execute(
+			"c",
+			{ sessionPath: heavy, model: "pick" },
+			undefined,
+			undefined,
+			unnamed.ctx,
+		);
+		assert.equal(unnamedResult.details.error, "resume cancelled at context gate");
+		assert.equal(unnamed.titles[0], "Resume model for Worker");
+		assert.equal(unnamed.titles[1], "Thinking for Worker — anthropic/claude");
 	} finally {
 		restoreEnvVar("TMUX", previous);
 		rmSync(dir, { recursive: true, force: true });
@@ -2261,11 +2376,13 @@ function recoverCtx(
 ) {
 	const queue = [...responses];
 	const calls: string[][] = [];
+	const titles: string[] = [];
 	const notifications: Array<[string, string]> = [];
 	const ctx = policyContext({
 		hasUI: true,
 		ui: {
-			select: async (_title: string, choices: string[]) => {
+			select: async (title: string, choices: string[]) => {
+				titles.push(title);
 				calls.push(choices);
 				const respond = queue.shift();
 				return typeof respond === "function" ? respond(choices) : respond;
@@ -2275,7 +2392,7 @@ function recoverCtx(
 			},
 		},
 	});
-	return { ctx, calls, notifications };
+	return { ctx, calls, titles, notifications };
 }
 
 function findRecoverTool() {
@@ -2493,6 +2610,43 @@ test("rollover recovery routes through the context-fit gate after model selectio
 		assert.ok(existsSync(artifacts.plan));
 		assert.equal(readFileSync(sessionPath, "utf8"), sessionBefore);
 		assert.equal(testApi.runningSubagents.size, 0);
+	} finally {
+		restoreEnvVar("TMUX", previous);
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("recovery picker titles carry the workflow phase across the gate re-pick", async () => {
+	const previous = process.env.TMUX;
+	delete process.env.TMUX;
+	const dir = mkdtempSync(join(tmpdir(), "pi-recover-prompt-"));
+	try {
+		const tool = findRecoverTool();
+		const sessionPath = writeHeavySession(dir, 150_000); // 75%: rollover gate
+		writeWorkflowSidecar(sessionPath, dir);
+
+		const { ctx, titles } = recoverCtx([
+			RECOVER_SELECT,
+			pickEchoModel,
+			"high",
+			GATE_CHOOSE,
+			pickEchoModel,
+			"high",
+			GATE_STOP,
+		]);
+		const result: AnyRecord = await tool.execute(
+			"c",
+			{ sessionPath, failure: QUOTA_FAILURE },
+			undefined,
+			undefined,
+			ctx,
+		);
+		assert.equal(result.details.error, "resume cancelled at context gate");
+		// calls/titles: recovery gate, model, thinking, context gate, model, thinking.
+		assert.equal(titles[1], "Recovery model for implementer");
+		assert.equal(titles[2], "Thinking for implementer recovery — anthropic/claude");
+		assert.equal(titles[4], "Recovery model for implementer");
+		assert.equal(titles[5], "Thinking for implementer recovery — anthropic/claude");
 	} finally {
 		restoreEnvVar("TMUX", previous);
 		rmSync(dir, { recursive: true, force: true });

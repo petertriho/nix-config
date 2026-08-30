@@ -40,14 +40,19 @@ const ALT = {
 	name: "Alt",
 } as Model<any>;
 
-const ECHO_LABEL = "test/echo · Echo · 128k";
-const ALT_LABEL = "other/alt · Alt · 128k";
 const PARENT = "Use the current parent model for each phase";
 const CONFIGURE = "Configure each role before planning";
 const REUSE = "Reuse the saved project preset";
 const EDIT = "Edit saved preset roles";
 const CANCEL = "Cancel";
 const START = "Start workflow and save these assignments";
+
+/** Respond with the model row for a canonical provider/model, marker or not. */
+function rowFor(canonical: string): (choices: string[]) => string | undefined {
+	return (choices: string[]) => choices.find((label: string) => label.startsWith(canonical));
+}
+const echoRow = rowFor("test/echo");
+const altRow = rowFor("other/alt");
 
 function roles(provider = "test", model = "echo"): WorkflowPresetRoles {
 	return {
@@ -58,14 +63,22 @@ function roles(provider = "test", model = "echo"): WorkflowPresetRoles {
 	};
 }
 
-function startupContext(selections: Array<string | undefined>, available = [ECHO]) {
+function startupContext(
+	selections: Array<string | undefined | ((choices: string[]) => string | undefined)>,
+	available = [ECHO],
+) {
 	const queue = [...selections];
 	const notifications: Array<[string, string]> = [];
+	const selectCalls: Array<{ title: string; choices: string[] }> = [];
 	return {
 		ctx: {
 			hasUI: true,
 			ui: {
-				select: async () => queue.shift(),
+				select: async (title: string, choices: string[]) => {
+					selectCalls.push({ title, choices });
+					const respond = queue.shift();
+					return typeof respond === "function" ? respond(choices) : respond;
+				},
 				notify: (message: string, level: "info" | "warning" | "error") => {
 					notifications.push([message, level]);
 				},
@@ -77,6 +90,7 @@ function startupContext(selections: Array<string | undefined>, available = [ECHO
 		} as any,
 		notifications,
 		remaining: queue,
+		selectCalls,
 	};
 }
 
@@ -97,13 +111,13 @@ test("first-time setup collects all four assignments and persists one complete p
 	await withTempDir(async (root, agentDir) => {
 		const { ctx, remaining } = startupContext([
 			CONFIGURE,
-			ECHO_LABEL,
+			echoRow,
 			"off",
-			ECHO_LABEL,
+			echoRow,
 			"off",
-			ECHO_LABEL,
+			echoRow,
 			"off",
-			ECHO_LABEL,
+			echoRow,
 			"off",
 			START,
 		]);
@@ -121,6 +135,80 @@ test("first-time setup collects all four assignments and persists one complete p
 		const stored = readWorkflowModelPreset(root, agentDir);
 		assert.equal(stored.status, "ok");
 		if (stored.status === "ok") assert.deepEqual(stored.preset.roles, roles());
+	});
+});
+
+test("configure flow titles each role picker with its label and progress counter", async () => {
+	await withTempDir(async (root, agentDir) => {
+		const { ctx, selectCalls } = startupContext([
+			CONFIGURE,
+			echoRow,
+			"off",
+			echoRow,
+			"off",
+			echoRow,
+			"off",
+			echoRow,
+			"off",
+			START,
+		]);
+		const result = await chooseWorkflowStartup(ctx, root, {
+			agentDir,
+			now: () => new Date("2026-08-27T12:00:00Z"),
+		});
+		assert.equal(result.status, "started");
+		assert.deepEqual(
+			selectCalls.filter((call) => call.title.startsWith("Model for ")).map((call) => call.title),
+			[
+				"Model for Planner (1 of 4)",
+				"Model for Task writer (2 of 4)",
+				"Model for Implementer (3 of 4)",
+				"Model for Reviewer (4 of 4)",
+			],
+		);
+		assert.deepEqual(
+			selectCalls.filter((call) => call.title.startsWith("Thinking for ")).map((call) => call.title),
+			[
+				"Thinking for Planner — test/echo",
+				"Thinking for Task writer — test/echo",
+				"Thinking for Implementer — test/echo",
+				"Thinking for Reviewer — test/echo",
+			],
+		);
+		// The configure flow runs only on an empty baseline (saved presets go
+		// through the edit flow instead), so its pickers never mark a current model.
+		for (const call of selectCalls.filter((call) => call.title.startsWith("Model for "))) {
+			assert.ok(!call.choices.some((label: string) => label.includes("· current")), call.title);
+		}
+	});
+});
+
+test("edit-flow picker titles carry the selected role and mark its current model", async () => {
+	await withTempDir(async (root, agentDir) => {
+		writeWorkflowModelPreset(
+			makeWorkflowModelPreset(root, roles(), new Date("2026-08-26T12:00:00Z")),
+			agentDir,
+		);
+		const { ctx, selectCalls } = startupContext(
+			[EDIT, "Reviewer", altRow, "off", START],
+			[ECHO, ALT],
+		);
+		const result = await chooseWorkflowStartup(ctx, root, {
+			agentDir,
+			now: () => new Date("2026-08-27T12:00:00Z"),
+		});
+		assert.equal(result.status, "started");
+		const modelCall = selectCalls.find((call) => call.title === "Model for Reviewer");
+		assert.ok(modelCall, JSON.stringify(selectCalls.map((call) => call.title)));
+		// The Reviewer's current selection (test/echo:off) marks only that row.
+		assert.ok(
+			modelCall.choices.find((label: string) => label.startsWith("test/echo"))?.includes("· current"),
+			modelCall.choices.join("\n"),
+		);
+		assert.ok(
+			!modelCall.choices.find((label: string) => label.startsWith("other/alt"))?.includes("· current"),
+		);
+		assert.ok(selectCalls.some((call) => call.title === "Thinking for Reviewer — other/alt"));
 	});
 });
 
@@ -151,7 +239,7 @@ test("selective preset editing changes one role and preserves the other three", 
 			agentDir,
 		);
 		const { ctx } = startupContext(
-			[EDIT, "Reviewer", ALT_LABEL, "off", START],
+			[EDIT, "Reviewer", altRow, "off", START],
 			[ECHO, ALT],
 		);
 		const result = await chooseWorkflowStartup(ctx, root, {
@@ -184,11 +272,11 @@ test("editing assignments again preserves all earlier role changes", async () =>
 			[
 				EDIT,
 				"Planner",
-				ALT_LABEL,
+				altRow,
 				"off",
 				"Edit assignments",
 				"Reviewer",
-				ALT_LABEL,
+				altRow,
 				"off",
 				START,
 			],
@@ -227,7 +315,7 @@ test("stale saved models stay visible and require correction before launch", asy
 			REUSE,
 			EDIT,
 			"Implementer",
-			ECHO_LABEL,
+			echoRow,
 			"off",
 			START,
 		]);

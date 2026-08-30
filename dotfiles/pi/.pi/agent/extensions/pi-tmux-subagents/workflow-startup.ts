@@ -129,12 +129,17 @@ async function selectRoleAssignments(
 	roles: WorkflowPresetRoles,
 ): Promise<WorkflowPresetRoles | undefined> {
 	const next = editWorkflowPresetRoles(roles, {});
-	for (const role of WORKFLOW_ROLE_KEYS) {
+	for (const [index, role] of WORKFLOW_ROLE_KEYS.entries()) {
+		const label = WORKFLOW_ROLE_LABELS[role];
 		let picked: Awaited<ReturnType<typeof resolveModelPolicy>>;
 		try {
 			picked = await resolveModelPolicy("pick", ctx, {
 				mode: "spawn",
 				contextTokens: undefined,
+				picker: {
+					title: `Model for ${label} (${index + 1} of ${WORKFLOW_ROLE_KEYS.length})`,
+					subject: label,
+				},
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -185,9 +190,17 @@ async function editAssignments(
 	if (choice === "Done") return roles;
 	const role = WORKFLOW_ROLE_KEYS.find((key) => WORKFLOW_ROLE_LABELS[key] === choice);
 	if (!role) return undefined;
+	const label = WORKFLOW_ROLE_LABELS[role];
 	let picked: Awaited<ReturnType<typeof resolveModelPolicy>>;
 	try {
-		picked = await resolveModelPolicy("pick", ctx, { mode: "spawn" });
+		picked = await resolveModelPolicy("pick", ctx, {
+			mode: "spawn",
+			picker: {
+				title: `Model for ${label}`,
+				subject: label,
+				currentRef: formatSelection(roles[role]),
+			},
+		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		if (/cancelled/i.test(message)) return undefined;

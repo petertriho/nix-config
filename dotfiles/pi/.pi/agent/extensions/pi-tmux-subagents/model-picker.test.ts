@@ -51,17 +51,22 @@ const plain = model("local", "plain", { reasoning: false, contextWindow: 32_000 
 
 function context(options: {
 	hasUI?: boolean;
-	selections?: Array<string | undefined>;
+	selections?: Array<string | undefined | ((choices: string[]) => string | undefined)>;
 	scopedModels?: Array<{ model: AnyModel; thinkingLevel?: any }>;
 	available?: AnyModel[];
 	current?: AnyModel;
 	thinkingLevel?: any;
 } = {}) {
 	const selections = [...(options.selections ?? [])];
+	const selectCalls: Array<{ title: string; choices: string[] }> = [];
 	return {
 		hasUI: options.hasUI ?? true,
 		ui: {
-			select: async () => selections.shift(),
+			select: async (title: string, choices: string[]) => {
+				selectCalls.push({ title, choices });
+				const respond = selections.shift();
+				return typeof respond === "function" ? respond(choices) : respond;
+			},
 		},
 		scopedModels: options.scopedModels ?? [{ model: scoped, thinkingLevel: "high" }],
 		modelRegistry: {
@@ -69,6 +74,7 @@ function context(options: {
 		},
 		model: options.current ?? scoped,
 		thinkingLevel: options.thinkingLevel ?? "high",
+		selectCalls,
 	} as any;
 }
 
@@ -128,6 +134,66 @@ test("picker cancellation and non-interactive use are actionable", async () => {
 		() => pickModelSelection(context({ hasUI: false }), {}),
 		/needs interactive UI/,
 	);
+});
+
+test("picker dialogs carry the configured subject and mark the current model row", async () => {
+	const ctx = context({
+		scopedModels: [],
+		selections: [
+			(choices: string[]) => choices.find((label: string) => label.includes("· current")) ?? choices[0],
+			"high",
+		],
+	});
+	const picked = await pickModelSelection(ctx, {
+		subject: "scout",
+		currentRef: "anthropic/claude:high",
+	});
+	assert.equal(picked?.argument, "anthropic/claude:high");
+	// Without an explicit title the generic model-list title stays.
+	assert.equal(ctx.selectCalls[0].title, "Select subagent model");
+	// Exactly the current row carries the marker; a :thinking-suffixed
+	// currentRef still matches its bare provider/model row.
+	const modelChoices = ctx.selectCalls[0].choices;
+	assert.equal(modelChoices.filter((label: string) => label.includes("· current")).length, 1);
+	assert.ok(modelChoices.find((label: string) => label.startsWith("anthropic/claude"))?.includes("· current"));
+	assert.ok(!modelChoices.find((label: string) => label.startsWith("openai/gpt"))?.includes("· current"));
+	assert.ok(!modelChoices.find((label: string) => label.startsWith("local/plain"))?.includes("· current"));
+	// The thinking prompt names the subject and the canonical model.
+	assert.equal(ctx.selectCalls[1].title, "Thinking for scout — anthropic/claude");
+});
+
+test("picker without subject and currentRef keeps the legacy dialog titles", async () => {
+	const ctx = context({
+		scopedModels: [],
+		available: [plain],
+		selections: ["local/plain · 32k", "off"],
+	});
+	const picked = await pickModelSelection(ctx, {});
+	assert.equal(picked?.argument, "local/plain:off");
+	assert.equal(ctx.selectCalls[0].title, "Select subagent model");
+	assert.ok(!ctx.selectCalls[0].choices.some((label: string) => label.includes("· current")));
+	assert.equal(ctx.selectCalls[1].title, "Thinking level for local/plain");
+});
+
+test("resolveModelPolicy forwards the picker prompt through every model dialog", async () => {
+	const ctx = context({
+		scopedModels: [],
+		selections: [(choices: string[]) => choices[0], "medium"],
+	});
+	const picked = await resolveModelPolicy("pick", ctx, {
+		mode: "spawn",
+		picker: {
+			title: "Model for Planner (1 of 4)",
+			subject: "Planner",
+			currentRef: "openai/gpt:high",
+		},
+	});
+	assert.equal(picked.argument, "anthropic/claude:medium");
+	assert.equal(ctx.selectCalls[0].title, "Model for Planner (1 of 4)");
+	// The marker follows currentRef, not the picked row.
+	assert.ok(ctx.selectCalls[0].choices.find((label: string) => label.startsWith("openai/gpt"))?.includes("· current"));
+	assert.ok(!ctx.selectCalls[0].choices.find((label: string) => label.startsWith("anthropic/claude"))?.includes("· current"));
+	assert.equal(ctx.selectCalls[1].title, "Thinking for Planner — anthropic/claude");
 });
 
 test("model policies cover parent, previous, pick, explicit, omitted spawn, and legacy resume", async () => {

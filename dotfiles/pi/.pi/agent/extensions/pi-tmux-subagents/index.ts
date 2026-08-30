@@ -652,7 +652,11 @@ async function manageAgentModels(ctx: AgentModelsContext): Promise<void> {
     if (action === "Set model") {
       let picked: Awaited<ReturnType<typeof pickModelSelection>>;
       try {
-        picked = await pickModelSelection(ctx, { title: `Default model for ${id}` });
+        picked = await pickModelSelection(ctx, {
+          title: `Default model for ${id}`,
+          subject: id,
+          ...(current ? { currentRef: current } : {}),
+        });
       } catch (error) {
         ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
         continue;
@@ -1768,12 +1772,31 @@ async function executeSubagentResume(
   let fit: ContextFit | undefined;
   let rollover: { profile: LaunchProfile; selection: ResolvedModelSelection } | undefined;
   let modelPolicy = params.model;
+  // One picker prompt for the whole resume: the initial pick and any
+  // context-gate "Choose another model" re-pick reuse it verbatim.
+  const recoveryPhaseLabel = recovery ? WORKFLOW_PHASE_LABELS[recovery.phase] : undefined;
+  const resumeSubject = recovery
+    ? `${recoveryPhaseLabel} recovery`
+    : params.name ?? profile?.stable.displayName ?? "subagent";
+  const lastModel = profile?.runtime.lastModel;
+  const pickerPrompt = {
+    title: recovery
+      ? `Recovery model for ${recoveryPhaseLabel}`
+      : `Resume model for ${resumeSubject}`,
+    subject: resumeSubject,
+    ...(lastModel
+      ? {
+        currentRef: `${lastModel.provider}/${lastModel.model}${lastModel.thinking ? `:${lastModel.thinking}` : ""}`,
+      }
+      : {}),
+  };
   while (true) {
     try {
       const resolution = await resolveModelPolicy(modelPolicy, ctx, {
         mode: "resume",
         ...(profile ? { profile } : {}),
         ...(estimate ? { contextTokens: estimate.tokens } : {}),
+        picker: pickerPrompt,
       });
       if (resolution.source === "legacy") {
         resolvedModel = undefined;
