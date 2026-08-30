@@ -103,8 +103,8 @@ in
           "tf"
         ];
       };
-      tsgo = {
-        command = "tsgo";
+      tsc = {
+        command = "tsc";
         args = [
           "--lsp"
           "--stdio"
