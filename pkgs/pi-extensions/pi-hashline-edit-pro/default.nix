@@ -7,13 +7,13 @@
 }:
 buildNpmPackage {
   pname = "pi-hashline-edit-pro";
-  version = "0-unstable-2026-08-28";
+  version = "0-unstable-2026-08-29";
 
   src = fetchFromGitHub {
     owner = "YuGiMob";
     repo = "pi-hashline-edit-pro";
-    rev = "188cd9bca15a7c63fe6592778087b74408f0e5a3";
-    hash = "sha256-kMATueRR70xcYPZZfPS+paPQGq7PBbP7O6OcnstHTTU=";
+    rev = "8f027ca1c2a0796ccf1c15bd5a0d12db5d9fb9f0";
+    hash = "sha256-+rFhTRBs7wLzHiGvyD3ncmhjXYdfAI7NF85jlIOX9eM=";
   };
 
   # Upstream package-lock.json records the six nested @earendil-works/* packages

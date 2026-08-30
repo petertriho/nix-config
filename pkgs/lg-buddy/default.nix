@@ -59,16 +59,16 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "lg-buddy";
-  version = "1.2.2-unstable-2026-08-28";
+  version = "1.3.0-unstable-2026-08-29";
 
   src = fetchFromGitHub {
     owner = "Staphylococcus";
     repo = "LG_Buddy";
-    rev = "f2f56707cdfb1470288d54ad7dc9bb0bd5ddcda8";
-    hash = "sha256-I/cC9qsVSs717A8uIXTixaHWAuyr+fV6kxVsyrTRUVY=";
+    rev = "bd191799452404d4cb17da01055d435f6a043b14";
+    hash = "sha256-INofVZUNFioxDzhTbtbJsQpy1L1kVqiK3ASNl39w8PU=";
   };
 
-  cargoHash = "sha256-ZAe4rf6XdwNpRk4UMvti26roFnc/sb6PqPC04dtvVwc=";
+  cargoHash = "sha256-3C49xRC5hmhNuqzD4Of2A9S9wZZveu5FHhVtee+sP/g=";
 
   nativeBuildInputs = [ makeWrapper ];
 
