@@ -46,7 +46,7 @@
       "src": "https://github.com/catppuccin/nvim"
     },
     "celeste_comment.nvim": {
-      "rev": "629e698ccf369cd1add1d204917b4ab032bd09ab",
+      "rev": "a8cca3a58c34a8b485339a1c0f9229c0dd787964",
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
@@ -58,7 +58,7 @@
       "src": "https://github.com/samir-roy/code-bridge.nvim"
     },
     "codediff.nvim": {
-      "rev": "ae8d28896184d4a02ed590da9c3063ba50389b43",
+      "rev": "be4d1991213c65d6a2f32983fe5b03b06362f709",
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "colorful-menu.nvim": {
@@ -122,7 +122,7 @@
       "src": "https://github.com/fei6409/log-highlight.nvim"
     },
     "luvit-meta": {
-      "rev": "cc9b2d412d2fbd30b94a70cfc214c2a3be27a0a2",
+      "rev": "7edcd52ac6f2acc2f83f0cc27ac989a142408fbf",
       "src": "https://github.com/Bilal2453/luvit-meta"
     },
     "marks.nvim": {
@@ -232,7 +232,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "2a9b750cbaba7a7417e0d20774374dd0756d967d",
+      "rev": "76c1a2357d4a9da49a90f922e251e5c32d74c99b",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
