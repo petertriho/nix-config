@@ -183,7 +183,7 @@ export function renameCurrentTab(title: string): void {
 
 export interface PollResult {
   /** How the subagent exited */
-  reason: "done" | "ping" | "sentinel" | "error";
+  reason: "done" | "ping" | "sentinel" | "error" | "turn-limit";
   /** Shell exit code (from sentinel). 0 for file-based exits. */
   exitCode: number;
   /** Ping data if reason is "ping" */
@@ -194,7 +194,7 @@ export interface PollResult {
 
 /**
  * Interpret an `.exit` sidecar payload written by `subagent_done`,
- * `caller_ping`, or the error path in `subagent-done.ts`.
+ * `caller_ping`, or the error/turn-limit paths in `subagent-done.ts`.
  */
 export function interpretExitSidecar(data: unknown): PollResult {
   const payload = (data ?? {}) as Record<string, unknown>;
@@ -211,6 +211,13 @@ export function interpretExitSidecar(data: unknown): PollResult {
         ? payload.errorMessage
         : "Subagent exited with stopReason=error (no errorMessage in sidecar).";
     return { reason: "error", exitCode: 1, errorMessage };
+  }
+  if (payload.type === "turn-limit") {
+    const errorMessage =
+      typeof payload.errorMessage === "string" && payload.errorMessage.trim() !== ""
+        ? payload.errorMessage
+        : "Subagent exceeded its turn limit and was aborted.";
+    return { reason: "turn-limit", exitCode: 1, errorMessage };
   }
   return { reason: "done", exitCode: 0 };
 }
@@ -232,6 +239,20 @@ function readExitSidecar(sessionFile: string): PollResult | null {
  * optional sentinel file (Claude Code Stop hook), then the terminal screen for
  * the `__SUBAGENT_DONE_<code>__` sentinel used for crash detection.
  */
+/** True while the pane still exists on the tmux server (any session/window). */
+export function paneExists(pane: string): boolean {
+  try {
+    const panes = tmux(["list-panes", "-a", "-F", "#{pane_id}"])
+      .split("\n")
+      .map((line) => line.trim());
+    return panes.includes(pane);
+  } catch {
+    // The tmux query itself failed; assume the pane exists so a transient
+    // failure never gets misread as pane death.
+    return true;
+  }
+}
+
 export async function pollForExit(
   pane: string,
   signal: AbortSignal,
@@ -269,10 +290,20 @@ export async function pollForExit(
         return { reason: "sentinel", exitCode: parseInt(match[1], 10) };
       }
     } catch {
-      // The pane may be gone. Check whether the sidecar appeared in the meantime.
+      // Screen capture failed: either a transient failure or the pane is
+      // gone. Recheck the sidecar first, then decide pane death terminally —
+      // a removed pane can never produce a sentinel, so polling forever
+      // would hang the watcher (and any upstream task) indefinitely.
       if (options.sessionFile) {
         const result = readExitSidecar(options.sessionFile);
         if (result) return result;
+      }
+      if (!paneExists(pane)) {
+        return {
+          reason: "error",
+          exitCode: 1,
+          errorMessage: `Subagent pane ${pane} disappeared before exiting (no exit sidecar or sentinel).`,
+        };
       }
     }
 

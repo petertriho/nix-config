@@ -546,7 +546,10 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 	const dir = testApi.getBundledAgentsDir();
 	const files = readdirSync(dir).filter((file) => file.endsWith(".md")).sort();
 	assert.deepEqual(files, [
+		"Explore.md",
+		"Plan.md",
 		"claude-code.md",
+		"general-purpose.md",
 		"implementer.md",
 		"planner.md",
 		"reviewer.md",
@@ -3532,4 +3535,489 @@ test("widget rendering uses the current theme and sanitizes display fields", () 
 test("stripFrontmatter removes a leading frontmatter block", () => {
 	assert.equal(testApi.stripFrontmatter("---\nname: x\n---\n\nBody\n"), "Body");
 	assert.equal(testApi.stripFrontmatter("Body only"), "Body only");
+});
+
+// ── pi-tasks RPC task launches (taskRuntime option) ──
+
+/**
+ * Run launchSubagent outside tmux: sendLongCommand fails after the launch
+ * script is written, so the script's contents are inspectable even though the
+ * launch itself rejects. Returns the script text.
+ */
+async function launchScriptOutsideTmux(
+	params: AnyRecord,
+	options: AnyRecord,
+	dir: string,
+): Promise<string> {
+	const previousTmux = process.env.TMUX;
+	delete process.env.TMUX;
+	try {
+		await assert.rejects(
+			testApi.launchSubagent(
+				params as any,
+				{
+					...policyContext({
+						cwd: dir,
+						sessionManager: {
+							getSessionFile: () => join(dir, "parent.jsonl"),
+							getSessionId: () => "task-launch-parent",
+							getSessionDir: () => dir,
+						},
+					}),
+					pi: undefined,
+				} as any,
+				options,
+			),
+			/tmux/,
+		);
+	} finally {
+		if (previousTmux === undefined) delete process.env.TMUX; else process.env.TMUX = previousTmux;
+	}
+	const scripts: string[] = [];
+	const walk = (current: string): void => {
+		if (!existsSync(current)) return;
+		for (const entry of readdirSync(current, { withFileTypes: true })) {
+			const path = join(current, entry.name);
+			if (entry.isDirectory()) walk(path);
+			else if (entry.name.endsWith(".sh")) scripts.push(path);
+		}
+	};
+	walk(join(dir, "artifacts"));
+	assert.equal(scripts.length, 1, `expected exactly one launch script, found ${scripts.length}`);
+	return readFileSync(scripts[0], "utf8");
+}
+
+test("task RPC launches force autonomous auto-exit behavior, canonical model, and the turn limit", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pi-task-launch-"));
+	try {
+		// planner is interactive and non-auto-exiting — the profile the task
+		// resolver rejects — proving taskRuntime forces autonomy regardless.
+		const script = await launchScriptOutsideTmux(
+			{ name: "Task agent", task: "Do the delegated task.", agent: "planner" },
+			{
+				surface: "%999999",
+				resolvedModel: {
+					model: POLICY_MODEL,
+					selection: { provider: "test-provider", model: "echo", thinking: "high" },
+					argument: "test-provider/echo:high",
+					source: "explicit",
+				},
+				taskRuntime: { maxTurns: 3 },
+			},
+			dir,
+		);
+		assert.match(script, /PI_SUBAGENT_AUTO_EXIT=1/);
+		assert.match(script, /PI_SUBAGENT_MAX_TURNS=3/);
+		assert.match(script, /--model 'test-provider\/echo:high'/);
+		assert.match(script, /PI_SUBAGENT_AGENT='planner'/);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("task RPC launches wrap the task with the autonomous mode hint", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pi-task-prompt-"));
+	try {
+		const script = await launchScriptOutsideTmux(
+			{ name: "Task agent", task: "Do the delegated task.", agent: "worker" },
+			{ surface: "%999999", taskRuntime: {} },
+			dir,
+		);
+		const artifact = script.match(/'@([^']+\.md)'/)?.[1];
+		assert.ok(artifact, "task artifact path should appear in the launch script");
+		const taskText = readFileSync(artifact, "utf8");
+		assert.match(taskText, /Complete your task autonomously\./);
+		assert.match(taskText, /FINAL assistant message should summarize what you accomplished\./);
+		assert.doesNotMatch(taskText, /subagent_done/);
+		assert.match(taskText, /Do the delegated task\./);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("task RPC launches without maxTurns export no turn limit", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pi-task-unlimited-"));
+	try {
+		const script = await launchScriptOutsideTmux(
+			{ name: "Task agent", task: "No limit.", agent: "worker" },
+			{ surface: "%999999", taskRuntime: {} },
+			dir,
+		);
+		assert.match(script, /PI_SUBAGENT_AUTO_EXIT=1/);
+		assert.doesNotMatch(script, /PI_SUBAGENT_MAX_TURNS/);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("task RPC launches reject invalid maxTurns before creating a pane", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pi-task-bad-turns-"));
+	const previousTmux = process.env.TMUX;
+	delete process.env.TMUX;
+	try {
+		for (const maxTurns of [0, -1, 2.5, Number.NaN]) {
+			await assert.rejects(
+				testApi.launchSubagent(
+					{ name: "Task agent", task: "x", agent: "worker" } as any,
+					policyContext({
+						cwd: dir,
+						sessionManager: {
+							getSessionFile: () => join(dir, "parent.jsonl"),
+							getSessionId: () => "task-launch-parent",
+							getSessionDir: () => dir,
+						},
+					}) as any,
+					{ surface: "%999999", taskRuntime: { maxTurns } },
+				),
+				/Invalid task maxTurns/,
+			);
+		}
+		assert.equal(existsSync(join(dir, "artifacts")), false, "no pane artifacts may be created");
+	} finally {
+		if (previousTmux === undefined) delete process.env.TMUX; else process.env.TMUX = previousTmux;
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("ordinary launches keep their profile interaction, auto-exit, and prompt behavior", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pi-ordinary-launch-"));
+	try {
+		// planner (interactive, auto-exit false) keeps its interactive prompt
+		// and exports no AUTO_EXIT or MAX_TURNS without taskRuntime.
+		const plannerDir = join(dir, "planner");
+		const plannerScript = await launchScriptOutsideTmux(
+			{ name: "Planner", task: "Plan it.", agent: "planner" },
+			{ surface: "%999999" },
+			plannerDir,
+		);
+		assert.doesNotMatch(plannerScript, /PI_SUBAGENT_AUTO_EXIT/);
+		assert.doesNotMatch(plannerScript, /PI_SUBAGENT_MAX_TURNS/);
+
+		// worker (auto-exit true) keeps its autonomous behavior unchanged.
+		const workerDir = join(dir, "worker");
+		const workerScript = await launchScriptOutsideTmux(
+			{ name: "Worker", task: "Work.", agent: "worker" },
+			{ surface: "%999999" },
+			workerDir,
+		);
+		assert.match(workerScript, /PI_SUBAGENT_AUTO_EXIT=1/);
+		assert.doesNotMatch(workerScript, /PI_SUBAGENT_MAX_TURNS/);
+		// No resolvedModel: the parent session model (with its thinking level)
+		// flows through the ordinary path exactly as before.
+		assert.match(workerScript, /--model 'anthropic\/claude:high'/);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+// ── pi-tasks RPC bridge wiring (root session lifecycle) ──
+
+function createRecordingEventBus() {
+	const handlers = new Map<string, Set<(data: unknown) => void>>();
+	const log: Array<{ channel: string; data: unknown }> = [];
+	const bus = {
+		on(channel: string, handler: (data: unknown) => void) {
+			let set = handlers.get(channel);
+			if (!set) {
+				set = new Set();
+				handlers.set(channel, set);
+			}
+			set.add(handler);
+			return () => set?.delete(handler);
+		},
+		emit(channel: string, data: unknown) {
+			log.push({ channel, data });
+			for (const handler of handlers.get(channel) ?? []) handler(data);
+		},
+		handlers,
+		log,
+	};
+	return bus;
+}
+
+function createTaskBridgeMockApi(events: ReturnType<typeof createRecordingEventBus>) {
+	const api = {
+		on() {},
+		registerTool() {},
+		registerCommand() {},
+		registerMessageRenderer() {},
+		registerShortcut() {},
+		sendUserMessage() {},
+		sendMessage() {},
+		getAllTools() {
+			return [];
+		},
+		events: events,
+	};
+	return api as any;
+}
+
+function taskBridgeContext(overrides: AnyRecord = {}) {
+	return {
+		...policyContext(),
+		hasUI: true,
+		ui: { notify: () => {} },
+		...overrides,
+	};
+}
+
+const MANAGER_SYMBOL = Symbol.for("pi-subagents:manager");
+
+test("root session_start wires the task RPC handlers and emits ready once", async () => {
+	testApi.resetTaskRpcForTests();
+	const events = createRecordingEventBus();
+	const api = createTaskBridgeMockApi(events);
+	const ready: unknown[] = [];
+	events.on("subagents:ready", (data) => ready.push(data));
+	try {
+		piTmuxSubagents(api);
+		// The wiring registers via pi.on("session_start"); exercise it through
+		// a direct attach (the handler itself is fire-and-forget).
+		await testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as any);
+		assert.equal(ready.length, 1);
+
+		// ping answers protocol v2 through the wired bus.
+		const reply = await new Promise<AnyRecord>((resolve, reject) => {
+			const timer = setTimeout(() => reject(new Error("ping timeout")), 1_000);
+			events.on("subagents:rpc:ping:reply:wired-1", (raw) => {
+				clearTimeout(timer);
+				resolve(raw as AnyRecord);
+			});
+			events.emit("subagents:rpc:ping", { requestId: "wired-1" });
+		});
+		assert.deepEqual(reply, { success: true, data: { version: 2 } });
+
+		// A second attach (double-bound session_start) stays idempotent.
+		await testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as never);
+		assert.equal(ready.length, 1);
+		const probePings = events.log.filter(
+			(entry) =>
+				entry.channel === "subagents:rpc:ping"
+				&& typeof (entry.data as AnyRecord)?.requestId === "string"
+				&& ((entry.data as AnyRecord).requestId as string).startsWith("pi-tmux-subagents-probe-"),
+		).length;
+		assert.equal(probePings, 1, "no extra provider probe after the handlers are live");
+	} finally {
+		testApi.resetTaskRpcForTests();
+	}
+});
+
+test("session_shutdown unsubscribes the task RPC handlers and clears bridge state", async () => {
+	testApi.resetTaskRpcForTests();
+	const events = createRecordingEventBus();
+	const api = createTaskBridgeMockApi(events);
+	try {
+		await testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as any);
+		assert.ok(testApi.getAttachedTaskRpcForTests());
+
+		testApi.shutdownPiTasksRpcBridge();
+		assert.equal(testApi.getAttachedTaskRpcForTests(), null);
+
+		events.emit("subagents:rpc:ping", { requestId: "after-shutdown" });
+		assert.equal(
+			events.log.filter((entry) => entry.channel === "subagents:rpc:ping:reply:after-shutdown")
+				.length,
+			0,
+			"no handler may answer after shutdown",
+		);
+	} finally {
+		testApi.resetTaskRpcForTests();
+	}
+});
+
+test("a child session never wires the task RPC handlers", async () => {
+	testApi.resetTaskRpcForTests();
+	const events = createRecordingEventBus();
+	const api = createTaskBridgeMockApi(events);
+	const previousId = process.env.PI_SUBAGENT_ID;
+	process.env.PI_SUBAGENT_ID = "child-9";
+	try {
+		await testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as any);
+		assert.equal(testApi.getAttachedTaskRpcForTests(), null);
+		assert.equal(
+			events.log.some((entry) => entry.channel === "subagents:ready"),
+			false,
+		);
+		assert.equal(
+			events.log.some((entry) => entry.channel.startsWith("subagents:rpc:")),
+			false,
+			"child sessions must not even probe the RPC channels",
+		);
+	} finally {
+		if (previousId === undefined) delete process.env.PI_SUBAGENT_ID;
+		else process.env.PI_SUBAGENT_ID = previousId;
+		testApi.resetTaskRpcForTests();
+	}
+});
+
+test("an existing pi-subagents manager makes the bridge abstain with one notice", async () => {
+	testApi.resetTaskRpcForTests();
+	const events = createRecordingEventBus();
+	const api = createTaskBridgeMockApi(events);
+	const notices: string[] = [];
+	(globalThis as Record<symbol, unknown>)[MANAGER_SYMBOL] = { spawn: () => {} };
+	try {
+		await testApi.attachPiTasksRpcBridge(
+			api,
+			taskBridgeContext({ ui: { notify: (message: string) => notices.push(message) } }) as any,
+		);
+		assert.equal(testApi.getAttachedTaskRpcForTests(), null);
+		assert.equal(notices.length, 1);
+		assert.match(notices[0], /pi-subagents provider/);
+		assert.equal(
+			events.log.some((entry) => entry.channel === "subagents:ready"),
+			false,
+		);
+	} finally {
+		delete (globalThis as Record<symbol, unknown>)[MANAGER_SYMBOL];
+		testApi.resetTaskRpcForTests();
+	}
+});
+
+test("a stale attach settling mid-transition cannot admit a duplicate handler set", async () => {
+	testApi.resetTaskRpcForTests();
+	const events = createRecordingEventBus();
+	const api = createTaskBridgeMockApi(events);
+	const ready: unknown[] = [];
+	events.on("subagents:ready", (data) => ready.push(data));
+	try {
+		// Session 1's attach is still awaiting its provider probe when the
+		// session transitions.
+		const stale = testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as never);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		// Shutdown invalidates the stale attempt; the next session's attach is
+		// in flight before the stale one settles (its probe resolves later).
+		testApi.shutdownPiTasksRpcBridge();
+		const replacement = testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as never);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		// A third attach while the replacement is pending is a no-op, and must
+		// stay a no-op after the stale attempt settles: its finally hook may not
+		// clear the replacement's in-flight marker (which would admit a fourth,
+		// duplicate provider registration).
+		await testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as never);
+		await stale;
+		await testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as never);
+		await replacement;
+
+		assert.ok(testApi.getAttachedTaskRpcForTests());
+		// The stale attempt's registration emits ready before the wiring discards
+		// it; what matters is that only ONE handler set stays live (single probe
+		// per real attempt, single reply below).
+		assert.ok(ready.length >= 1, "at least the replacement registration is live");
+		const probes = events.log.filter(
+			(entry) =>
+				entry.channel === "subagents:rpc:ping"
+				&& String((entry.data as AnyRecord)?.requestId ?? "").startsWith(
+					"pi-tmux-subagents-probe-",
+				),
+		).length;
+		assert.equal(probes, 2, "no-op attach attempts must not probe again");
+
+		const replies: unknown[] = [];
+		events.on("subagents:rpc:ping:reply:single-3", () => replies.push(null));
+		events.emit("subagents:rpc:ping", { requestId: "single-3" });
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		assert.equal(replies.length, 1, "exactly one provider may answer a request");
+	} finally {
+		testApi.resetTaskRpcForTests();
+	}
+});
+
+test("resolveAndLaunchTaskRpc validates the agent profile before any pane work", async () => {
+	testApi.resetTaskRpcForTests();
+	const previousTmux = process.env.TMUX;
+	delete process.env.TMUX;
+	const dir = mkdtempSync(join(tmpdir(), "pi-task-resolve-"));
+	try {
+		const api = createTaskBridgeMockApi(createRecordingEventBus());
+		const ctx = {
+			...taskBridgeContext(),
+			cwd: dir,
+			sessionManager: {
+				getSessionFile: () => join(dir, "parent.jsonl"),
+				getSessionId: () => "task-resolve-parent",
+				getSessionDir: () => dir,
+			},
+		};
+		await assert.rejects(
+			testApi.resolveAndLaunchTaskRpc(api, ctx as any, {
+				type: "Explroe",
+				prompt: "do it",
+				options: { isBackground: true },
+			}),
+			/Unknown task agent type "Explroe"/,
+		);
+
+		// A valid profile with an interactive-true profile is rejected too.
+		await assert.rejects(
+			testApi.resolveAndLaunchTaskRpc(api, ctx as any, {
+				type: "planner",
+				prompt: "do it",
+				options: { isBackground: true },
+			}),
+			/interactive: true/,
+		);
+
+		// A valid autonomous profile resolves and only then fails at the tmux
+		// boundary (outside tmux), proving validation order: profile first,
+		// model next, pane last.
+		await assert.rejects(
+			testApi.resolveAndLaunchTaskRpc(api, ctx as any, {
+				type: "general-purpose",
+				prompt: "do it",
+				options: { isBackground: true },
+			}),
+			/tmux/,
+		);
+
+		// No parent model and no configured/default model: hard failure, not a
+		// silent inherit.
+		await assert.rejects(
+			testApi.resolveAndLaunchTaskRpc(
+				api,
+				{ ...ctx, model: undefined, modelRegistry: { getAvailable: () => [] } } as any,
+				{
+					type: "general-purpose",
+					prompt: "do it",
+					options: { isBackground: true },
+				},
+			),
+			/No model for task agent "general-purpose"/,
+		);
+	} finally {
+		if (previousTmux === undefined) delete process.env.TMUX; else process.env.TMUX = previousTmux;
+		testApi.resetTaskRpcForTests();
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("a shutdown during the in-flight provider probe discards the late registration", async () => {
+	testApi.resetTaskRpcForTests();
+	const events = createRecordingEventBus();
+	const api = createTaskBridgeMockApi(events);
+	try {
+		// Start the attach (its provider probe waits for the timeout) and tear
+		// the session down before the probe resolves.
+		const attaching = testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as never);
+		testApi.shutdownPiTasksRpcBridge();
+		await attaching;
+
+		assert.equal(testApi.getAttachedTaskRpcForTests(), null);
+		// The late registration was discarded: no handler answers afterwards.
+		events.emit("subagents:rpc:ping", { requestId: "raced-shutdown" });
+		assert.equal(
+			events.log.filter((entry) => entry.channel === "subagents:rpc:ping:reply:raced-shutdown")
+				.length,
+			0,
+			"a shutdown-invalidated attach must not leave live handlers",
+		);
+
+		// The next session can attach normally (the epoch did not wedge it).
+		await testApi.attachPiTasksRpcBridge(api, taskBridgeContext() as never);
+		assert.ok(testApi.getAttachedTaskRpcForTests());
+	} finally {
+		testApi.resetTaskRpcForTests();
+	}
 });

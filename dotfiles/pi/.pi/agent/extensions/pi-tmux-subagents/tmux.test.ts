@@ -8,7 +8,10 @@ import {
 	buildSendKeysArgs,
 	buildSplitWindowArgs,
 	buildLaunchScript,
+	closeSurface,
+	createSurface,
 	interpretExitSidecar,
+	paneExists,
 	parsePaneId,
 	pollForExit,
 	shellEscape,
@@ -142,3 +145,60 @@ test("buildLaunchScript comments out every preamble line so a newline in a name 
 	// The real command stays the last line, verbatim.
 	assert.equal(lines[lines.length - 1], "bash '/tmp/real-cmd.sh'");
 });
+
+test("interpretExitSidecar decodes a turn-limit payload", () => {
+	assert.deepEqual(
+		interpretExitSidecar({
+			type: "turn-limit",
+			errorMessage: "Task agent exceeded its turn limit (3 turns plus 5 grace turns) and was aborted without a final answer.",
+			maxTurns: 3,
+			graceTurns: 5,
+		}),
+		{
+			reason: "turn-limit",
+			exitCode: 1,
+			errorMessage: "Task agent exceeded its turn limit (3 turns plus 5 grace turns) and was aborted without a final answer.",
+		},
+	);
+	// A malformed turn-limit payload still surfaces a clear failure.
+	assert.deepEqual(interpretExitSidecar({ type: "turn-limit" }), {
+		reason: "turn-limit",
+		exitCode: 1,
+		errorMessage: "Subagent exceeded its turn limit and was aborted.",
+	});
+});
+
+test(
+	"a vanished pane settles pollForExit terminally instead of polling forever",
+	{ skip: !process.env.TMUX && "TMUX is not set", timeout: 15_000 },
+	async () => {
+		// A pane id that cannot exist: capture fails, no sidecar, and the pane
+		// is genuinely absent from the server.
+		const result = await pollForExit("%999999", AbortSignal.timeout(10_000), {
+			interval: 50,
+		});
+		assert.equal(result.reason, "error");
+		assert.equal(result.exitCode, 1);
+		assert.match(result.errorMessage ?? "", /disappeared before exiting/);
+	},
+);
+
+test(
+	"paneExists distinguishes a live pane from a removed one",
+	{ skip: !process.env.TMUX && "TMUX is not set", timeout: 15_000 },
+	async () => {
+		const pane = createSurface("it-pane-exists");
+		try {
+			assert.equal(paneExists(pane), true);
+			closeSurface(pane);
+			assert.equal(paneExists(pane), false);
+		} finally {
+			try {
+				closeSurface(pane);
+			} catch {
+				// Already closed above.
+			}
+		}
+		assert.equal(paneExists("%999999"), false);
+	},
+);

@@ -97,6 +97,17 @@ import {
 } from "./workflow-recovery.ts";
 import { findLastAssistantMessage, getNewEntries, seedSubagentSessionFile } from "./session.ts";
 import {
+	attachTaskRpc,
+	resolveTaskAgentProfile,
+	resolveTaskLaunchModel,
+	type AttachedTaskRpc,
+	type NormalizedTaskSpawnOptions,
+	type TaskAgentProfileDirs,
+	type TaskRunHandle,
+	type TaskRpcRuntimeHooks,
+	type TaskSpawnSpec,
+} from "./pi-tasks-rpc.ts";
+import {
   type SubagentUsageSummary,
   formatUsageSummary,
   summarizeSubagentUsage,
@@ -597,7 +608,7 @@ function agentModelsListLabel(def: ListedAgentDefinition, agents: Record<string,
   // looks up (`agents[params.agent]`), never the frontmatter `name:`, so a
   // default set here always matches the spawn that should use it.
   const id = def.fileName;
-  const display = def.name !== id ? ` (${def.name})` : "";
+  const display = def.name === id ? "" : ` (${def.name})`;
   const configured = agents[id];
   const base = `${id}${display} — ${configured ?? "parent default"}`;
   if (def.cli) return `${base} · frontmatter only`;
@@ -861,6 +872,8 @@ interface SubagentResult {
   error?: string;
   /** Provider/agent error message when auto-retry exhausted (overload, rate limit, etc.). */
   errorMessage?: string;
+  /** True when this run hit the hard task turn limit and was aborted. */
+  turnLimit?: boolean;
   /**
    * T9: provider-neutral usage summary aggregated from the child session's
    * completed assistant entries. Present only when at least one completed
@@ -909,6 +922,187 @@ interface RunningSubagent {
 
 /** All currently running subagents, keyed by id. */
 const runningSubagents = new Map<string, RunningSubagent>();
+
+// ── pi-tasks RPC bridge (protocol-v2 provider) ──
+
+/** Live task-RPC registration, once per root session (null after shutdown). */
+let attachedTaskRpc: AttachedTaskRpc | null = null;
+/** In-flight attach, so double-bound session_starts never register twice. */
+let taskRpcAttachInFlight: Promise<void> | null = null;
+/** Session generation; bumped on every shutdown to invalidate in-flight attaches. */
+let taskRpcAttachEpoch = 0;
+
+/** Effective agent-profile search dirs for the task bridge (project > global > bundled). */
+function getTaskAgentProfileDirs(): TaskAgentProfileDirs {
+	return {
+		project: join(process.cwd(), ".pi", "agents"),
+		global: join(getAgentConfigDir(), "agents"),
+		bundled: getBundledAgentsDir(),
+	};
+}
+
+/** Latest partial assistant text from a task child's session file. */
+function readTaskPartialResult(handle: TaskRunHandle): string | undefined {
+	try {
+		if (!existsSync(handle.sessionFile)) return undefined;
+		return findLastAssistantMessage(getNewEntries(handle.sessionFile, 0)) ?? undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Runtime hooks binding the protocol bridge to this extension's tmux primitives. */
+function createTaskRpcRuntimeHooks(
+	pi: ExtensionAPI,
+	ctx: LaunchContext,
+): TaskRpcRuntimeHooks {
+	return {
+		async launch(spec: TaskSpawnSpec): Promise<TaskRunHandle> {
+			// RPC task launches force autonomous behavior through taskRuntime
+			// (interactive: false, autoExit: true, optional PI_SUBAGENT_MAX_TURNS).
+			const running = await launchSubagent(
+				{
+					name: spec.options.description ?? spec.profile.fileName,
+					task: spec.prompt,
+					agent: spec.profile.fileName,
+				},
+				ctx,
+				{
+					resolvedModel: spec.resolvedModel,
+					taskRuntime: {
+						...(spec.options.maxTurns == null ? {} : { maxTurns: spec.options.maxTurns }),
+					},
+				},
+			);
+			const watcherAbort = new AbortController();
+			running.abortController = watcherAbort;
+			startWidgetRefresh();
+			startStatusRefresh(pi);
+			return {
+				id: running.id,
+				surface: running.surface,
+				sessionFile: running.sessionFile,
+				abortController: watcherAbort,
+			};
+		},
+		watch(handle: TaskRunHandle, signal: AbortSignal) {
+			const running = runningSubagents.get(handle.id);
+			if (!running) {
+				// The pane record vanished (e.g. a shutdown raced the deferred watch).
+				return Promise.resolve({
+					exitCode: 1,
+					summary: "Task agent pane record was lost before watching started.",
+					responded: false,
+				});
+			}
+			return watchSubagent(running, signal);
+		},
+		sendEscape(handle: TaskRunHandle): void {
+			sendEscape(handle.surface);
+		},
+		closeSurface(handle: TaskRunHandle): void {
+			closeSurface(handle.surface);
+			// Contain late launches: when the bridge closes a surface whose watcher
+			// never started (shutdown raced the pane creation), the running entry
+			// was added after the shutdown clear and must be dropped here. Normal
+			// completion paths already deleted it — a second delete is a no-op.
+			runningSubagents.delete(handle.id);
+		},
+		readPartialResult: readTaskPartialResult,
+	};
+}
+
+/** Validate and resolve a pi-tasks spawn request, then create its pane. */
+async function resolveAndLaunchTaskRpc(
+	pi: ExtensionAPI,
+	ctx: LaunchContext,
+	request: { type: string; prompt: string; options: NormalizedTaskSpawnOptions },
+): Promise<{ spec: TaskSpawnSpec; handle: TaskRunHandle }> {
+	const resolution = resolveTaskAgentProfile(request.type, getTaskAgentProfileDirs());
+	if (!resolution.ok) throw new Error(resolution.error);
+	const resolvedModel = resolveTaskLaunchModel({
+		...(request.options.model ? { override: request.options.model } : {}),
+		profile: resolution.profile,
+		ctx: {
+			modelRegistry: ctx.modelRegistry ?? { getAvailable: () => [] },
+			...(ctx.model ? { parentModel: ctx.model } : {}),
+			agentDir: getAgentConfigDir(),
+		},
+	});
+	const spec: TaskSpawnSpec = {
+		type: request.type,
+		prompt: request.prompt,
+		options: request.options,
+		profile: resolution.profile,
+		resolvedModel,
+	};
+	const handle = await createTaskRpcRuntimeHooks(pi, ctx).launch(spec);
+	return { spec, handle };
+}
+
+/**
+ * Register the protocol-v2 task RPC handlers on the root session (or abstain
+ * when the original pi-subagents owns the channels). Idempotent per session;
+ * /new, /resume, and /fork re-attach after their session_shutdown tore down.
+ */
+async function attachPiTasksRpcBridge(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+	if (attachedTaskRpc || taskRpcAttachInFlight) return;
+	// Session generation: shutdown bumps it, invalidating any attach that is
+	// still awaiting its bounded provider probe.
+	const epoch = taskRpcAttachEpoch;
+	const attempt = (async () => {
+		const launchContext: LaunchContext = { ...ctx, pi };
+		const attached = await attachTaskRpc({
+			events: pi.events,
+			hooks: createTaskRpcRuntimeHooks(pi, launchContext),
+			resolveAndLaunch: (request) => resolveAndLaunchTaskRpc(pi, launchContext, request),
+			notify: (message) => {
+				ctx.ui.notify(message, "info");
+			},
+		});
+		if (epoch !== taskRpcAttachEpoch) {
+			// A shutdown completed while the provider probe was in flight. The
+			// late registration binds a stale context: tear it down immediately
+			// instead of letting it answer the next session's requests.
+			if (attached) {
+				attached.bridge.shutdown();
+				attached.detach();
+			}
+			return;
+		}
+		if (attached) attachedTaskRpc = attached;
+	})().finally(() => {
+		// Clear only this attempt's marker. A shutdown-voided attempt can settle
+		// after a newer attach is already in flight; unconditionally nulling here
+		// would erase that attempt's marker and admit a third concurrent attach,
+		// whose registration would duplicate the live handler set.
+		if (taskRpcAttachInFlight === attempt) taskRpcAttachInFlight = null;
+	});
+	taskRpcAttachInFlight = attempt;
+	await attempt;
+}
+
+/** Unsubscribe handlers, terminate adapter-owned panes, drop task records. */
+function shutdownPiTasksRpcBridge(): void {
+	// Invalidate any in-flight attach first so its post-probe epoch check
+	// discards the late registration.
+	taskRpcAttachEpoch++;
+	if (attachedTaskRpc) {
+		attachedTaskRpc.bridge.shutdown();
+		attachedTaskRpc.detach();
+		attachedTaskRpc = null;
+	}
+	taskRpcAttachInFlight = null;
+}
+
+/** Test access to the bridge state (reset between test cases). */
+function getAttachedTaskRpcForTests(): AttachedTaskRpc | null {
+	return attachedTaskRpc;
+}
+
+function resetTaskRpcForTests(): void {
+	shutdownPiTasksRpcBridge();
+}
 
 /** Active `/workflow` model policy, set only by the `/workflow` startup gate. */
 let activeWorkflowRuntime: WorkflowRuntimeState | null = null;
@@ -2250,6 +2444,19 @@ async function executeSubagentResume(
 }
 
 /**
+ * Task-runtime policy for pi-tasks RPC launches (see pi-tasks-rpc.ts).
+ *
+ * Internal only — never exposed through the public `subagent` tool schema.
+ * A task launch is always autonomous regardless of profile defaults: forced
+ * non-interactive and auto-exiting (defense in depth for the pi-tasks
+ * contract), with an optional validated turn limit exported to the child as
+ * `PI_SUBAGENT_MAX_TURNS`.
+ */
+interface TaskRuntimeOptions {
+  maxTurns?: number;
+}
+
+/**
  * Launch a subagent: creates the tmux pane, builds the command, and sends it.
  * Returns a RunningSubagent. Does NOT poll; call watchSubagent() to observe
  * completion.
@@ -2268,6 +2475,8 @@ async function launchSubagent(
     workflow?: LaunchProfileWorkflowMetadata;
     resolvedModel?: ResolvedModelSelection;
     rolloverFrom?: LaunchProfile;
+    /** pi-tasks RPC launch: forces autonomous behavior (internal). */
+    taskRuntime?: TaskRuntimeOptions;
   },
 ): Promise<RunningSubagent> {
   const params = normalizeSubagentParams(rawParams);
@@ -2275,6 +2484,19 @@ async function launchSubagent(
   const id = Math.random().toString(16).slice(2, 10);
 
   const rollover = options?.rolloverFrom;
+  const taskRuntime = options?.taskRuntime;
+  if (taskRuntime) {
+    if (rollover) throw new Error("Task launches cannot be rollovers.");
+    const maxTurns = taskRuntime.maxTurns;
+    if (
+      maxTurns != null
+      && (typeof maxTurns !== "number" || !Number.isInteger(maxTurns) || maxTurns < 1)
+    ) {
+      throw new Error(
+        `Invalid task maxTurns ${String(maxTurns)}: pass a positive integer or omit it for unlimited.`,
+      );
+    }
+  }
   const agentDefs = !rollover && params.agent ? loadAgentDefaults(params.agent) : null;
   const configuredModel = options?.resolvedModel
     ? options.resolvedModel.selection.model
@@ -2283,10 +2505,17 @@ async function launchSubagent(
   const effectiveSkills = rollover
     ? rollover.stable.primarySkill?.name
     : params.skills ?? agentDefs?.skills;
+  // Task-RPC launches are always autonomous, whatever the profile says.
   const effectiveInteractive = rollover
     ? rollover.stable.controls.interactive
-    : resolveEffectiveInteractive(params, agentDefs);
-  const autoExitForChild = rollover ? rollover.stable.controls.autoExit : agentDefs?.autoExit;
+    : taskRuntime
+      ? false
+      : resolveEffectiveInteractive(params, agentDefs);
+  const autoExitForChild = rollover
+    ? rollover.stable.controls.autoExit
+    : taskRuntime
+      ? true
+      : agentDefs?.autoExit;
 
   const sessionFile = ctx.sessionManager.getSessionFile();
   if (!sessionFile) throw new Error("No session file");
@@ -2386,7 +2615,11 @@ async function launchSubagent(
       : {
         ...(agentDefs?.spawning === undefined ? {} : { spawning: agentDefs.spawning }),
         denyTools: [...denySet].sort((first, second) => first.localeCompare(second)),
-        ...(agentDefs?.autoExit === undefined ? {} : { autoExit: agentDefs.autoExit }),
+        ...(taskRuntime
+          ? { autoExit: true }
+          : agentDefs?.autoExit === undefined
+            ? {}
+            : { autoExit: agentDefs.autoExit }),
         interactive: effectiveInteractive,
         sessionMode: launchBehavior.sessionMode,
       },
@@ -2509,6 +2742,11 @@ async function launchSubagent(
   }
   if (autoExitForChild) {
     envParts.push(`PI_SUBAGENT_AUTO_EXIT=1`);
+  }
+  // Task-only turn limit: parsed and enforced by subagent-done.ts in the
+  // child. Exported for task RPC launches only, never for ordinary spawns.
+  if (taskRuntime?.maxTurns != null) {
+    envParts.push(`PI_SUBAGENT_MAX_TURNS=${taskRuntime.maxTurns}`);
   }
   envParts.push(`PI_SUBAGENT_SESSION=${shellEscape(subagentSessionFile)}`);
   envParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
@@ -2706,6 +2944,7 @@ async function watchSubagent(
       elapsed,
       responded,
       ping: result.ping,
+      ...(result.reason === "turn-limit" ? { turnLimit: true } : {}),
       ...(usage ? { usage } : {}),
       ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
     };
@@ -2878,6 +3117,14 @@ export const __test__ = {
   stripFrontmatter,
   buildWorkflowMessage,
   WORKFLOW_SKILL_PATH,
+  attachPiTasksRpcBridge,
+  shutdownPiTasksRpcBridge,
+  getAttachedTaskRpcForTests,
+  resetTaskRpcForTests,
+  getTaskAgentProfileDirs,
+  createTaskRpcRuntimeHooks,
+  resolveAndLaunchTaskRpc,
+  readTaskPartialResult,
 };
 
 const ASYNC_TOOL_CONTRACT =
@@ -2960,6 +3207,12 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     // session_shutdown without re-importing this module. Re-arm the poll-abort
     // controller so subagent spawns in this session can watch their panes.
     rearmModuleAbortController();
+    // pi-tasks protocol bridge: root sessions register the task RPC handlers
+    // (children abstain via PI_SUBAGENT_* env; foreign providers win).
+    void attachPiTasksRpcBridge(pi, ctx).catch(() => {
+      // Provider probing or registration failed; the bridge stays absent and
+      // pi-tasks reports task execution as unavailable.
+    });
   });
 
   pi.on("session_shutdown", () => {
@@ -2978,6 +3231,9 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     for (const agent of runningSubagents.values()) {
       agent.abortController?.abort();
     }
+    // Task panes never survive the parent session: unsubscribe the handlers,
+    // terminate adapter-owned panes, and clear the task-run records.
+    shutdownPiTasksRpcBridge();
     runningSubagents.clear();
     activeWorkflowRuntime = null;
     activeWorkflowRunId = null;

@@ -1,12 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { existsSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import subagentDone, {
+	buildTurnLimitExitSidecar,
+	createTurnLimitTracker,
 	findLatestAssistantError,
 	parseDeniedTools,
+	parseMaxTurnsEnv,
 	renderSubagentToolsWidget,
 	shouldAutoExitOnAgentEnd,
 	shouldMarkUserTookOver,
+	TURN_LIMIT_GRACE_TURNS,
+	TURN_LIMIT_WRAP_UP_MESSAGE,
 } from "./subagent-done.ts";
 import type { UiTheme } from "./ui.ts";
 
@@ -213,4 +221,192 @@ test("child extension preserves widget placement and Ctrl+Shift+J expansion", ()
 		if (saved.denied === undefined) delete process.env.PI_DENY_TOOLS;
 		else process.env.PI_DENY_TOOLS = saved.denied;
 	}
+});
+
+// ── task turn limits (PI_SUBAGENT_MAX_TURNS) ──
+
+test("parseMaxTurnsEnv treats missing, non-finite, negative, and zero values as unlimited", () => {
+	assert.equal(parseMaxTurnsEnv(undefined), undefined);
+	assert.equal(parseMaxTurnsEnv(""), undefined);
+	assert.equal(parseMaxTurnsEnv("   "), undefined);
+	assert.equal(parseMaxTurnsEnv("abc"), undefined);
+	assert.equal(parseMaxTurnsEnv("0"), undefined);
+	assert.equal(parseMaxTurnsEnv("-3"), undefined);
+	assert.equal(parseMaxTurnsEnv("Infinity"), undefined);
+	assert.equal(parseMaxTurnsEnv("NaN"), undefined);
+	assert.equal(parseMaxTurnsEnv("2.9"), 2);
+	assert.equal(parseMaxTurnsEnv("5"), 5);
+	assert.equal(parseMaxTurnsEnv(" 12 "), 12);
+});
+
+test("turn limit tracker steers exactly once at the soft limit and aborts only after five grace turns", () => {
+	const tracker = createTurnLimitTracker({ maxTurns: 3 });
+	const decisions = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(() => tracker.onTurnEnd());
+
+	assert.deepEqual(decisions[0], {});
+	assert.deepEqual(decisions[1], {});
+	assert.deepEqual(decisions[2], { steerMessage: TURN_LIMIT_WRAP_UP_MESSAGE });
+	// Grace turns 4–7 emit nothing; the hard abort lands on turn 8 = 3 + 5.
+	assert.deepEqual(decisions[3], {});
+	assert.deepEqual(decisions[4], {});
+	assert.deepEqual(decisions[5], {});
+	assert.deepEqual(decisions[6], {});
+	assert.deepEqual(decisions[7], { hardAbort: true });
+	// Exactly one steer and one abort across the whole run.
+	assert.equal(decisions.filter((d) => d.steerMessage).length, 1);
+	assert.equal(decisions.filter((d) => d.hardAbort).length, 1);
+	// After the hard abort the tracker stays silent and frozen.
+	assert.deepEqual(tracker.onTurnEnd(), {});
+	assert.equal(tracker.turnCount, 8);
+});
+
+test("turn limit tracker with maxTurns 1 steers on the first completed turn", () => {
+	const tracker = createTurnLimitTracker({ maxTurns: 1 });
+	assert.deepEqual(tracker.onTurnEnd(), { steerMessage: TURN_LIMIT_WRAP_UP_MESSAGE });
+	for (let i = 0; i < 4; i++) assert.deepEqual(tracker.onTurnEnd(), {});
+	assert.deepEqual(tracker.onTurnEnd(), { hardAbort: true });
+});
+
+test("turn limit tracker honors custom grace turns and messages", () => {
+	const tracker = createTurnLimitTracker({ maxTurns: 2, graceTurns: 1, steerMessage: "custom wrap up" });
+	assert.deepEqual(tracker.onTurnEnd(), {});
+	assert.deepEqual(tracker.onTurnEnd(), { steerMessage: "custom wrap up" });
+	// One grace turn, then the hard abort at 2 + 1.
+	assert.deepEqual(tracker.onTurnEnd(), { hardAbort: true });
+	assert.deepEqual(tracker.onTurnEnd(), {});
+});
+
+interface TurnLimitHarness {
+	handlers: Map<string, Function>;
+	/** Event context shaped like the real ExtensionContext: abort() and shutdown() live here, not on the API. */
+	ctx: {
+		shutdownCalls: number;
+		abortCalls: number;
+		abort(): void;
+		shutdown(): void;
+	};
+	steered: string[];
+	sidecarFile: string | undefined;
+}
+
+function runTaskChildWithTurns(maxTurns: number, turns: number): TurnLimitHarness {
+	const handlers = new Map<string, Function>();
+	const steered: string[] = [];
+	const api = {
+		on(name: string, handler: Function) {
+			handlers.set(name, handler);
+		},
+		getAllTools() {
+			return [];
+		},
+		registerShortcut() {},
+		registerTool() {},
+		sendUserMessage(message: string, options?: { deliverAs?: string }) {
+			steered.push(`${options?.deliverAs ?? "turn"}:${message}`);
+		},
+	};
+	const harness: TurnLimitHarness = {
+		handlers,
+		ctx: {
+			shutdownCalls: 0,
+			abortCalls: 0,
+			abort() {
+				harness.ctx.abortCalls++;
+			},
+			shutdown() {
+				harness.ctx.shutdownCalls++;
+			},
+		},
+		steered,
+		sidecarFile: undefined,
+	};
+	const previous = {
+		id: process.env.PI_SUBAGENT_ID,
+		session: process.env.PI_SUBAGENT_SESSION,
+		autoExit: process.env.PI_SUBAGENT_AUTO_EXIT,
+		maxTurns: process.env.PI_SUBAGENT_MAX_TURNS,
+		activityFile: process.env.PI_SUBAGENT_ACTIVITY_FILE,
+	};
+	const sessionFile = join(tmpdir(), `pi-turn-limit-${Math.random().toString(16).slice(2)}.jsonl`);
+	process.env.PI_SUBAGENT_ID = "turnlimit1";
+	process.env.PI_SUBAGENT_SESSION = sessionFile;
+	process.env.PI_SUBAGENT_AUTO_EXIT = "1";
+	process.env.PI_SUBAGENT_ACTIVITY_FILE = join(tmpdir(), "pi-turn-limit-activity.json");
+	process.env.PI_SUBAGENT_MAX_TURNS = String(maxTurns);
+	try {
+		subagentDone(api as never);
+		for (let turn = 0; turn < turns; turn++) {
+			handlers.get("turn_end")?.({ turnIndex: turn }, harness.ctx);
+		}
+	} finally {
+		for (const [key, value] of Object.entries(previous)) {
+			if (value === undefined) delete process.env[key as keyof typeof previous];
+			else (process.env as Record<string, string | undefined>)[key] = value;
+		}
+	}
+	harness.sidecarFile = existsSync(`${sessionFile}.exit`) ? `${sessionFile}.exit` : undefined;
+	return harness;
+}
+
+test("task child queues the exact wrap-up steer once at the soft limit", () => {
+	const harness = runTaskChildWithTurns(3, 3);
+	assert.deepEqual(harness.steered, [
+		`steer:${TURN_LIMIT_WRAP_UP_MESSAGE}`,
+	]);
+	assert.equal(harness.ctx.abortCalls, 0);
+	assert.equal(harness.sidecarFile, undefined, "no failure sidecar at the soft limit");
+});
+
+test("task child writes the failure sidecar, aborts, and shuts down at the hard limit", () => {
+	const harness = runTaskChildWithTurns(2, 7); // soft at 2, hard at 2 + 5
+	assert.deepEqual(harness.steered, [`steer:${TURN_LIMIT_WRAP_UP_MESSAGE}`]);
+	// Abort and shutdown were requested through the event context, in order,
+	// with the sidecar already persisted.
+	assert.equal(harness.ctx.abortCalls, 1);
+	assert.equal(harness.ctx.shutdownCalls, 1);
+
+	// The failure sidecar is persisted before the shutdown request.
+	assert.ok(harness.sidecarFile, "hard-limit sidecar must be written");
+	const sidecar = JSON.parse(readFileSync(harness.sidecarFile!, "utf8"));
+	assert.equal(sidecar.type, "turn-limit");
+	assert.equal(sidecar.maxTurns, 2);
+	assert.equal(sidecar.graceTurns, TURN_LIMIT_GRACE_TURNS);
+	assert.match(sidecar.errorMessage, /exceeded its turn limit/);
+	assert.equal(
+		readFileSync(harness.sidecarFile!, "utf8").trim(),
+		buildTurnLimitExitSidecar(2, TURN_LIMIT_GRACE_TURNS),
+	);
+
+	// agent_end after the hard limit is a backstop that shuts down again,
+	// even though the aborted run would otherwise keep the pane open.
+	harness.handlers.get("agent_end")?.(
+		{ messages: [{ role: "assistant", stopReason: "aborted" }] },
+		harness.ctx,
+	);
+	assert.equal(harness.ctx.shutdownCalls, 2, "backstop shutdown after the immediate one");
+});
+
+test("task child completing during grace shuts down cleanly with no sidecar", () => {
+	const harness = runTaskChildWithTurns(2, 4); // soft at 2, wrapped up during grace
+	assert.deepEqual(harness.steered, [`steer:${TURN_LIMIT_WRAP_UP_MESSAGE}`]);
+	assert.equal(harness.ctx.abortCalls, 0);
+	assert.equal(harness.sidecarFile, undefined);
+
+	harness.handlers.get("agent_end")?.(
+		{ messages: [{ role: "assistant", stopReason: "stop", content: [{ type: "text", text: "wrapped up" }] }] },
+		harness.ctx,
+	);
+	assert.equal(harness.ctx.shutdownCalls, 1, "ordinary auto-exit still applies during grace");
+});
+
+test("task child without a limit never steers or aborts", () => {
+	const harness = runTaskChildWithTurns(0, 12); // 0 = unlimited
+	assert.deepEqual(harness.steered, []);
+	assert.equal(harness.ctx.abortCalls, 0);
+	assert.equal(harness.sidecarFile, undefined);
+	harness.handlers.get("agent_end")?.(
+		{ messages: [{ role: "assistant", stopReason: "stop" }] },
+		harness.ctx,
+	);
+	assert.equal(harness.ctx.shutdownCalls, 1);
 });

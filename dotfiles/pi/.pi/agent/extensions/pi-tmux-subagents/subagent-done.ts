@@ -90,6 +90,90 @@ export function parseDeniedTools(rawValue: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/** The wrap-up steering message queued at the soft turn limit (matches upstream pi-subagents). */
+export const TURN_LIMIT_WRAP_UP_MESSAGE =
+  "You have reached your turn limit. Wrap up immediately — provide your final answer now.";
+
+/** Grace turns allowed after the soft limit before a hard abort (matches upstream pi-subagents). */
+export const TURN_LIMIT_GRACE_TURNS = 5;
+
+/**
+ * Parse the task-only `PI_SUBAGENT_MAX_TURNS` environment value. Missing,
+ * non-finite, negative, and zero values mean unlimited; values ≥ 1 floor to
+ * whole turns (matching pi-subagents' normalizeMaxTurns semantics).
+ */
+export function parseMaxTurnsEnv(rawValue: string | undefined): number | undefined {
+  const trimmed = rawValue?.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+  return Math.floor(parsed);
+}
+
+export interface TurnLimitDecision {
+  /** Queue exactly one wrap-up steering message at the soft limit. */
+  steerMessage?: string;
+  /** Hard limit reached: write the failure sidecar, abort, shut down. */
+  hardAbort?: boolean;
+}
+
+/**
+ * Pure turn-limit state machine, mirroring upstream pi-subagents'
+ * agent-runner: count completed turns, steer once when the soft limit is
+ * reached, and hard-abort once `graceTurns` more turns complete. A run that
+ * wraps up during grace simply stops emitting decisions.
+ */
+export function createTurnLimitTracker(options: {
+  maxTurns: number;
+  graceTurns?: number;
+  steerMessage?: string;
+}) {
+  const graceTurns = options.graceTurns ?? TURN_LIMIT_GRACE_TURNS;
+  const steerMessage = options.steerMessage ?? TURN_LIMIT_WRAP_UP_MESSAGE;
+  let turnCount = 0;
+  let softLimitReached = false;
+  let hardAborted = false;
+  return {
+    get turnCount() {
+      return turnCount;
+    },
+    get softLimitReached() {
+      return softLimitReached;
+    },
+    onTurnEnd(): TurnLimitDecision {
+      if (hardAborted) return {};
+      turnCount++;
+      if (options.maxTurns < 1) return {};
+      if (!softLimitReached && turnCount >= options.maxTurns) {
+        softLimitReached = true;
+        return { steerMessage };
+      }
+      if (softLimitReached && turnCount >= options.maxTurns + graceTurns) {
+        hardAborted = true;
+        return { hardAbort: true };
+      }
+      return {};
+    },
+  };
+}
+
+/**
+ * Persist the hard-limit failure sidecar before shutdown so the parent's
+ * watcher reports an aborted task instead of a clean exit. Written by the
+ * child at the hard limit; the ordinary agent_end auto-exit path cannot
+ * overwrite it (an aborted run never takes that branch).
+ */
+export function buildTurnLimitExitSidecar(maxTurns: number, graceTurns: number): string {
+  return JSON.stringify({
+    type: "turn-limit",
+    errorMessage:
+      `Task agent exceeded its turn limit (${maxTurns} turns plus ${graceTurns} grace turns) ` +
+      `and was aborted without a final answer.`,
+    maxTurns,
+    graceTurns,
+  });
+}
+
 export interface SubagentToolsWidgetData {
   identity: string;
   toolNames: string[];
@@ -184,6 +268,14 @@ export default function subagentDone(pi: ExtensionAPI) {
     activityFile: process.env.PI_SUBAGENT_ACTIVITY_FILE,
   });
 
+  // Task-RPC turn limit (PI_SUBAGENT_MAX_TURNS, exported only by task
+  // launches). Missing/unlimited keeps every existing behavior identical.
+  const taskMaxTurns = parseMaxTurnsEnv(process.env.PI_SUBAGENT_MAX_TURNS);
+  const turnLimitTracker = taskMaxTurns == null
+    ? null
+    : createTurnLimitTracker({ maxTurns: taskMaxTurns });
+  let hardTurnLimitTripped = false;
+
   function renderWidget(ctx: Pick<ExtensionContext, "ui">) {
     ctx.ui.setWidget(
       "subagent-tools",
@@ -240,6 +332,17 @@ export default function subagentDone(pi: ExtensionAPI) {
 
   pi.on("agent_end", (event, ctx) => {
     const messages = (event as any).messages as any[] | undefined;
+
+    // A hard turn-limit abort always shuts down with the failure sidecar it
+    // already persisted at turn_end. The ordinary auto-exit branch below must
+    // not run: it would either keep the pane open (aborted runs exit false) or
+    // replace the turn-limit failure with a different sidecar.
+    if (hardTurnLimitTripped) {
+      recorder.agentEndDone();
+      ctx.shutdown();
+      return;
+    }
+
     const shouldExit = autoExit && shouldAutoExitOnAgentEnd(userTookOver, messages);
 
     if (shouldExit) {
@@ -283,8 +386,37 @@ export default function subagentDone(pi: ExtensionAPI) {
     recorder.turnStart((event as any).turnIndex);
   });
 
-  pi.on("turn_end", (event) => {
+  pi.on("turn_end", (event, ctx) => {
     recorder.turnEnd((event as any).turnIndex);
+
+    if (!turnLimitTracker || hardTurnLimitTripped) return;
+    const decision = turnLimitTracker.onTurnEnd();
+    if (decision.steerMessage) {
+      pi.sendUserMessage(decision.steerMessage, { deliverAs: "steer" });
+      return;
+    }
+    if (decision.hardAbort) {
+      hardTurnLimitTripped = true;
+      // 1. Persist the failure sidecar BEFORE anything else so the parent's
+      //    watcher observes an aborted task even if later steps fail.
+      const sessionFile = process.env.PI_SUBAGENT_SESSION;
+      if (sessionFile) {
+        try {
+          writeFileSync(
+            `${sessionFile}.exit`,
+            buildTurnLimitExitSidecar(taskMaxTurns ?? 0, TURN_LIMIT_GRACE_TURNS),
+          );
+        } catch {
+          // Best effort — the pane still exits and the watcher reports failure.
+        }
+      }
+      // 2. Abort the active run through the event context. ExtensionAPI has
+      //    no abort(); abort() and shutdown() are ExtensionContext methods.
+      ctx?.abort();
+      // 3. Request shutdown immediately; agent_end's hard-limit branch is
+      //    the backstop for a shutdown deferred until the run unwinds.
+      ctx?.shutdown();
+    }
   });
 
   pi.on("before_provider_request", () => {
