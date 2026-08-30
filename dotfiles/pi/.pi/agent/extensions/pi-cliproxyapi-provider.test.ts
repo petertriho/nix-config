@@ -17,11 +17,12 @@ import cliproxyapi, {
 	type CodexCatalogModel,
 	fetchCodexModels,
 	loadCostCatalog,
+	MODEL_CATALOG_REFRESHED_EVENT,
 	matchModelCost,
 	normalizeTransientNetworkError,
+	PauseController,
 	parseLegacyModelsCache,
 	parseModelsCache,
-	PauseController,
 	readPauseSetting,
 	resolveEndpoints,
 	savePauseSetting,
@@ -310,6 +311,7 @@ type Harness = {
 	pi: ExtensionAPI;
 	ctx: ExtensionCommandContext;
 	providers: Array<{ id: string; config: ProviderConfig }>;
+	emittedEvents: Array<{ channel: string; data: unknown }>;
 	commands: Map<string, RegisteredCommand["handler"]>;
 	handlers: Map<string, EventHandler[]>;
 	notifications: Array<{ message: string; type?: string }>;
@@ -320,6 +322,7 @@ type Harness = {
 
 function createHarness(): Harness {
 	const providers: Harness["providers"] = [];
+	const emittedEvents: Harness["emittedEvents"] = [];
 	const commands: Harness["commands"] = new Map();
 	const handlers: Harness["handlers"] = new Map();
 	const notifications: Harness["notifications"] = [];
@@ -334,6 +337,14 @@ function createHarness(): Harness {
 		on(event: string, handler: EventHandler) {
 			handlers.set(event, [...(handlers.get(event) ?? []), handler]);
 		},
+		events: {
+			emit(channel: string, data: unknown) {
+				emittedEvents.push({ channel, data });
+			},
+			on() {
+				return () => {};
+			},
+		},
 	} as unknown as ExtensionAPI;
 	const ui = {
 		notify(message: string, type?: string) {
@@ -346,7 +357,17 @@ function createHarness(): Harness {
 	const ctx = { ui } as unknown as ExtensionCommandContext;
 	const requestCtx = (provider: string, signal?: AbortSignal) =>
 		({ ui, model: { provider }, signal }) as unknown as ExtensionCommandContext;
-	return { pi, ctx, providers, commands, handlers, notifications, statuses, requestCtx };
+	return {
+		pi,
+		ctx,
+		providers,
+		emittedEvents,
+		commands,
+		handlers,
+		notifications,
+		statuses,
+		requestCtx,
+	};
 }
 
 async function withEnv(vars: Record<string, string | undefined>, run: () => Promise<void>): Promise<void> {
@@ -445,6 +466,12 @@ test("startup without a cache fetches, registers, writes a version 2 cache, and 
 						assert.deepEqual(parseModelsCache(cache, cache.modelsUrl), config.models);
 						assert.deepEqual(config.models?.[0]?.cost, gpt56SolCost);
 						assert.equal(cache.models[0].cost.tiers[0].inputTokensAbove, 272000);
+						assert.deepEqual(harness.emittedEvents, [
+							{
+								channel: MODEL_CATALOG_REFRESHED_EVENT,
+								data: { provider: "cliproxyapi" },
+							},
+						]);
 
 						const refresh = harness.commands.get("cliproxyapi-refresh");
 						assert.ok(refresh);
@@ -459,6 +486,11 @@ test("startup without a cache fetches, registers, writes a version 2 cache, and 
 						});
 						assert.equal(harness.providers.length, 2);
 						assert.equal(requests.length, 2);
+						assert.deepEqual(harness.emittedEvents.at(-1), {
+							channel: MODEL_CATALOG_REFRESHED_EVENT,
+							data: { provider: "cliproxyapi" },
+						});
+						assert.equal(harness.emittedEvents.length, 2);
 					},
 				);
 			});

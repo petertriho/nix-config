@@ -292,6 +292,8 @@ in
         );
         "${cfg.configDir}/themes/stylix.json".source =
           jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
+        "${cfg.configDir}/extensions/pi-context-window-cap.ts".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-context-window-cap.ts";
         "${cfg.configDir}/extensions/pi-dashboard.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-dashboard.ts";
         "${cfg.configDir}/extensions/pi-message-diagnostics.ts".source =

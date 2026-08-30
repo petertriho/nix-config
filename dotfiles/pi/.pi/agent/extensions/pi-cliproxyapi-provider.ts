@@ -61,6 +61,14 @@ const MODELS_CACHE_FILE_NAME = "cliproxyapi-models.json";
 const MODELS_CACHE_VERSION = 2;
 const LEGACY_MODELS_CACHE_VERSION = 1;
 const CONFIG_FILE_NAME = "cliproxyapi.json";
+/**
+ * Shared custom event emitted after a runtime model-catalog refresh.
+ *
+ * Keep this value in sync with pi-context-window-cap.ts. The cap extension
+ * uses it to clamp model objects that replace the session model after
+ * session_start.
+ */
+export const MODEL_CATALOG_REFRESHED_EVENT = "dotfiles:model-catalog-refreshed";
 const PAUSE_POLL_INTERVAL_MS = 200;
 const PAUSE_STATUS_KEY = "cliproxyapi";
 // Proxy stream failures that pi-ai's retry pattern does not cover.
@@ -674,6 +682,7 @@ export default async function (pi: ExtensionAPI) {
       .filter((model): model is ProviderModelConfig => model !== null);
     writeModelsCache(cachePath, endpoints.modelsUrl, models);
     register(models);
+    pi.events.emit(MODEL_CATALOG_REFRESHED_EVENT, { provider: PROVIDER_ID });
     return models;
   };
 
