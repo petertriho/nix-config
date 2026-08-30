@@ -13,19 +13,11 @@ in
     inherit stripNpmManifest;
   };
   pi-autoresearch = callPackage ./pi-autoresearch { };
-  pi-atelier = callPackage ./pi-atelier { };
-  pi-blackhole = callPackage ./pi-blackhole { };
   pi-cache-optimizer = callPackage ./pi-cache-optimizer { };
   pi-codex-tools = callPackage ./pi-codex-tools {
     inherit stripNpmManifest;
   };
-  pi-dynamic-workflows = callPackage ./pi-dynamic-workflows {
-    inherit stripNpmManifest;
-  };
   pi-fzfp = callPackage ./pi-fzfp { };
-  pi-hashline-edit-pro = callPackage ./pi-hashline-edit-pro {
-    inherit stripNpmManifest;
-  };
   pi-history = callPackage ./pi-history { };
   pi-lens = callPackage ./pi-lens {
     inherit stripNpmManifest;
@@ -41,9 +33,6 @@ in
   };
   pi-vcc = callPackage ./pi-vcc { };
   pi-vim = callPackage ./pi-vim { };
-  pi-web-access = callPackage ./pi-web-access {
-    inherit stripNpmManifest;
-  };
   rpiv-args = callPackage ./rpiv-args { inherit (rpiv-mono) src version; };
   rpiv-ask-user-question = callPackage ./rpiv-ask-user-question {
     inherit (rpiv-mono) src version typebox;

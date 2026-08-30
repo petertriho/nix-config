@@ -13,15 +13,11 @@ let
     rpiv-args
     rpiv-ask-user-question
     # rpiv-todo
-    # pi-atelier
     pi-autoresearch
     # pi-agent-browser-native
-    # pi-blackhole
     pi-cache-optimizer
     pi-codex-tools
-    # pi-dynamic-workflows
     pi-fzfp
-    # pi-hashline-edit-pro
     # pi-vim must load before pi-history: pi-vim *replaces* the editor (no
     # preservation of a prior factory), while pi-history *wraps* whatever is
     # current. If pi-history loads first, pi-vim clobbers its HistoryEditor and
@@ -33,7 +29,6 @@ let
     # pi-subagents
     pi-tasks
     pi-vcc
-    # pi-web-access
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
