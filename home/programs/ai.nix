@@ -292,7 +292,7 @@ in
     effective-html.enable = true;
     hallmark.enable = true;
     impeccable.enable = true;
-    jscpd.enable = true;
+    jscpd.enable = false;
     plannotator.enable = false;
     playwriter.enable = false;
     repowise.enable = false;
