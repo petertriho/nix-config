@@ -72,6 +72,12 @@ in
           y = 0;
         };
         scale = 1.25;
+        mode = {
+          width = 3840;
+          height = 2160;
+          refresh = 120.000;
+        };
+        variable-refresh-rate = false;
       };
       "DP-2" = {
         position = {
