@@ -31,6 +31,8 @@ in
       # };
       file.".claude/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
+      file.".claude/skills/pter".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pter";
       sessionVariables = {
         CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
         CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
@@ -41,11 +43,17 @@ in
       };
     };
 
-    # Both files above are out-of-store symlinks; the sandbox resolves through
-    # to the tracked target, so it needs the target granted as well.
-    programs.nono.agentFilesystem.claude.read_file = [
-      "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"
-      "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
-    ];
+    # The files and skill directory above are out-of-store symlinks; the
+    # sandbox resolves through to the tracked target, so it needs the target
+    # granted as well.
+    programs.nono.agentFilesystem.claude = {
+      read = [
+        "$HOME/.nix-config/dotfiles/claude/.claude/skills/pter"
+      ];
+      read_file = [
+        "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"
+        "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
+      ];
+    };
   };
 }

@@ -8,7 +8,7 @@ interactive: true
 spawning: false
 ---
 
-You are the planning agent of the `/workflow` chain. Run the `planner` skill
+You are the planning agent of the `/pter` chain. Run the `planner` skill
 interview with the user in this pane; the user answers questions here.
 
 - Write the finished plan to `.artifacts/<plan-name>/PLAN.md` in the current

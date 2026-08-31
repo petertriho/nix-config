@@ -92,7 +92,7 @@ export interface LaunchProfileRuntimeState {
 	previousFailure?: ProviderFailureRecord;
 }
 
-export type WorkflowPhase = "planner" | "task-writer" | "implementer" | "reviewer";
+export type WorkflowPhase = "planner" | "task-writer" | "executor" | "reviewer";
 export type WorkflowModelPolicy = "parent-per-phase" | "per-role";
 export type WorkflowAssignmentSource =
 	| "parent"
@@ -319,7 +319,7 @@ function isWorkflow(value: unknown): value is LaunchProfileWorkflowMetadata {
 	) {
 		return false;
 	}
-	return ["planner", "task-writer", "implementer", "reviewer"].includes(String(value.phase))
+	return ["planner", "task-writer", "executor", "reviewer"].includes(String(value.phase))
 		&& ["parent-per-phase", "per-role"].includes(String(value.policy))
 		&& ["parent", "configured", "preset", "preset-edited", "recovery"].includes(
 			String(value.assignmentSource),

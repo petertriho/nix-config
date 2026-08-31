@@ -145,5 +145,5 @@ Stop without weakening the contract when:
 - Scope cannot be distinguished from unrelated user changes.
 
 Report the blocker and stop. Summarize any useful out-of-scope refactor, then wait
-for explicit user approval before switching to `implement` as a separate workflow.
+for explicit user approval before switching to `execute` as a separate workflow.
 Do not continue this skill with expanded scope.

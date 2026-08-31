@@ -1212,7 +1212,7 @@ test("bundled Explore and Plan enforce read-only tool allowlists, not prompt tex
 
 test("existing autonomous workflow profiles stay eligible through the task resolver", () => {
 	const dirs = bundledOnlyDirs();
-	for (const name of ["worker", "scout", "implementer", "reviewer"]) {
+	for (const name of ["worker", "scout", "executor", "reviewer"]) {
 		const resolved = resolveTaskAgentProfile(name, dirs);
 		assert.ok(resolved.ok, `${name} should stay eligible`);
 		assert.notEqual(resolved.profile.interactive, true, name);

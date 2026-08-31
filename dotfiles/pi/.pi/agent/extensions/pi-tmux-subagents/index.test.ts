@@ -479,7 +479,7 @@ test("buildLaunchProfile captures the stable role contract and mutable launch st
 			originalSessionPath: "/tmp/sessions/child.jsonl",
 			resources,
 			workflow: {
-				phase: "implementer",
+				phase: "executor",
 				policy: "per-role",
 				assignmentSource: "configured",
 				artifacts: { plan: "/tmp/PLAN.md" },
@@ -549,8 +549,8 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 		"Explore.md",
 		"Plan.md",
 		"claude-code.md",
+		"executor.md",
 		"general-purpose.md",
-		"implementer.md",
 		"planner.md",
 		"reviewer.md",
 		"scout.md",
@@ -565,7 +565,7 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 			return [parsed.name, parsed] as const;
 		}),
 	);
-	assert.ok(byName.get("implementer")!.spawning === undefined || byName.get("implementer")!.spawning === true);
+	assert.ok(byName.get("executor")!.spawning === undefined || byName.get("executor")!.spawning === true);
 	for (const name of ["planner", "task-writer", "reviewer", "worker", "scout", "claude-code"]) {
 		assert.equal(byName.get(name)!.spawning, false, name);
 	}
@@ -573,15 +573,15 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 	assert.equal(byName.get("planner")!.interactive, true);
 	assert.equal(byName.get("planner")!.skills, "planner");
 	assert.equal(byName.get("task-writer")!.skills, "plan-to-tasks");
-	assert.equal(byName.get("implementer")!.skills, "implement");
-	assert.equal(byName.get("reviewer")!.skills, "implementation-review");
-	for (const name of ["task-writer", "implementer", "reviewer", "worker", "scout"]) {
+	assert.equal(byName.get("executor")!.skills, "execute");
+	assert.equal(byName.get("reviewer")!.skills, "execution-review");
+	for (const name of ["task-writer", "executor", "reviewer", "worker", "scout"]) {
 		assert.equal(byName.get(name)!.autoExit, true, name);
 		assert.equal(byName.get(name)!.model, undefined, `${name} inherits the session model`);
 		assert.equal(byName.get(name)!.systemPromptMode, "append", name);
 	}
 	assert.equal(byName.get("claude-code")!.cli, "claude");
-	for (const name of ["planner", "worker", "scout", "reviewer", "task-writer", "implementer"]) {
+	for (const name of ["planner", "worker", "scout", "reviewer", "task-writer", "executor"]) {
 		assert.equal(testApi.resolveEffectiveInteractive({ name, task: "" }, byName.get(name)!), name === "planner", name);
 	}
 });
@@ -609,7 +609,7 @@ test("task writer and reviewer no longer declare maintained tool lists", () => {
 	const dir = testApi.getBundledAgentsDir();
 	// Workflow roles and the worker delegate keep full current tool discovery;
 	// worker dropped its frontmatter list when it took on write work.
-	for (const name of ["planner", "task-writer", "implementer", "reviewer", "worker"]) {
+	for (const name of ["planner", "task-writer", "executor", "reviewer", "worker"]) {
 		const content = readFileSync(join(dir, `${name}.md`), "utf8");
 		assert.doesNotMatch(content, /^tools:/m, `${name} must not maintain a tools list`);
 		const parsed = testApi.parseAgentDefinition(content, name);
@@ -705,8 +705,8 @@ test("describeRunningPhaseBoundary passes artifact-only phases and skips snapsho
 		assert.ok(
 			clean.details.phaseBoundary.allowedPaths.every((path: string) => path.endsWith("TASKS.md")),
 		);
-		// The implementer and snapshot-free children are never boundary-checked.
-		assert.equal(testApi.capturePhaseBoundarySnapshot("implementer", root), undefined);
+		// The executor and snapshot-free children are never boundary-checked.
+		assert.equal(testApi.capturePhaseBoundarySnapshot("executor", root), undefined);
 		assert.equal(testApi.describeRunningPhaseBoundary({}), undefined);
 	});
 });
@@ -726,19 +726,19 @@ test("registers the five tools, three renderers, and the commands", () => {
 	const commandNames = registeredCommands.map((command) => command.name);
 	assert.ok(commandNames.includes("iterate"));
 	assert.ok(commandNames.includes("subagent"));
-	assert.ok(commandNames.includes("workflow"));
+	assert.ok(commandNames.includes("pter"));
 	assert.equal(commandNames.includes("plan"), false);
 });
 
-test("/workflow requires a request and shows the tmux hint outside tmux", async () => {
+test("/pter requires a request and shows the tmux hint outside tmux", async () => {
 	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
-	const command = registeredCommands.find((entry) => entry.name === "workflow");
+	const command = registeredCommands.find((entry) => entry.name === "pter");
 	assert.ok(command);
 	const notifications: Array<[string, string]> = [];
 	const ctx = { ui: { notify: (text: string, level: string) => notifications.push([text, level]) } };
 
 	await command.handler("   ", ctx);
-	assert.deepEqual(notifications[0], ["Usage: /workflow <request>", "warning"]);
+	assert.deepEqual(notifications[0], ["Usage: /pter <request>", "warning"]);
 
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
@@ -747,14 +747,14 @@ test("/workflow requires a request and shows the tmux hint outside tmux", async 
 	} finally {
 		restoreEnvVar("TMUX", previous);
 	}
-	assert.match(notifications[1][0], /\/workflow needs tmux\. Start pi inside tmux/);
+	assert.match(notifications[1][0], /\/pter needs tmux\. Start pi inside tmux/);
 	assert.equal(sentUserMessages.length, 0);
 });
 
 test("buildWorkflowMessage wraps the bundled prompt like a skill expansion", () => {
 	assert.ok(existsSync(testApi.WORKFLOW_SKILL_PATH));
 	const message = testApi.buildWorkflowMessage("test request");
-	assert.match(message, /^<skill name="workflow" location=".*workflow-skill\.md">\n/);
+	assert.match(message, /^<skill name="pter-workflow" location=".*workflow-skill\.md">\n/);
 	assert.doesNotMatch(message, /^---/m);
 	assert.match(message, /<\/skill>\n\ntest request$/);
 	for (const phrase of [
@@ -769,11 +769,11 @@ test("buildWorkflowMessage wraps the bundled prompt like a skill expansion", () 
 		"Never commit",
 		'agent: "planner"',
 		'agent: "task-writer"',
-		'agent: "implementer"',
+		'agent: "executor"',
 		'agent: "reviewer"',
 		" Planning",
 		" Tasking",
-		" Implementing",
+		" Executing",
 		" Reviewing",
 		" Workflow done",
 		"ls -t .artifacts",
@@ -791,7 +791,7 @@ test("buildWorkflowMessage includes the confirmed startup policy and role defaul
 		currentAssignments: {
 			planner: { provider: "test", model: "echo", thinking: "off" as const },
 			taskWriter: { provider: "test", model: "echo", thinking: "off" as const },
-			implementer: { provider: "test", model: "echo", thinking: "off" as const },
+			executor: { provider: "test", model: "echo", thinking: "off" as const },
 			reviewer: { provider: "test", model: "echo", thinking: "off" as const },
 		},
 		updatedAt: "2026-08-27T12:00:00.000Z",
@@ -808,11 +808,11 @@ test("buildWorkflowMessage includes the confirmed startup policy and role defaul
 	assert.match(message, /<\/workflow-config>\n\ntest request$/);
 });
 
-test("/workflow startup cancellation sends no prompt and starts no child", async () => {
+test("/pter startup cancellation sends no prompt and starts no child", async () => {
 	if (!process.env.TMUX) return;
 	testApi.setActiveWorkflowRuntimeForTests(null);
 	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
-	const command = registeredCommands.find((entry) => entry.name === "workflow");
+	const command = registeredCommands.find((entry) => entry.name === "pter");
 	assert.ok(command);
 	const notifications: Array<[string, string]> = [];
 	const ctx = {
@@ -1040,12 +1040,12 @@ test("subagent tool returns the tmux hint outside tmux without spawning", async 
 
 test("subagent tool blocks self-spawn and requires a session file", async () => {
 	const previousAgent = process.env.PI_SUBAGENT_AGENT;
-	process.env.PI_SUBAGENT_AGENT = "implementer";
+	process.env.PI_SUBAGENT_AGENT = "executor";
 	try {
 		const { registeredTools } = createMockExtensionApi();
 		const subagentTool = registeredTools.find((tool) => tool.name === "subagent");
 		assert.ok(subagentTool);
-		const blocked = await subagentTool.execute("c", { name: "X", task: "t", agent: "implementer" }, undefined, undefined, {});
+		const blocked = await subagentTool.execute("c", { name: "X", task: "t", agent: "executor" }, undefined, undefined, {});
 		assert.equal(blocked.details.error, "self-spawn blocked");
 	} finally {
 		restoreEnvVar("PI_SUBAGENT_AGENT", previousAgent);
@@ -1192,7 +1192,7 @@ test("workflow agents revalidate the active role default before launch", async (
 		const assignments = {
 			planner: { provider: "anthropic", model: "claude", thinking: "off" as const },
 			taskWriter: { provider: "anthropic", model: "claude", thinking: "off" as const },
-			implementer: { provider: "anthropic", model: "claude", thinking: "off" as const },
+			executor: { provider: "anthropic", model: "claude", thinking: "off" as const },
 			reviewer: { provider: "anthropic", model: "claude", thinking: "off" as const },
 		};
 		testApi.setActiveWorkflowRuntimeForTests({
@@ -1367,7 +1367,7 @@ test("active workflow runtimes ignore agent model config entries for the four ph
 					agents: {
 						planner: "missing/gone:high",
 						"task-writer": "missing/gone:high",
-						implementer: "missing/gone:high",
+						executor: "missing/gone:high",
 						reviewer: "missing/gone:high",
 					},
 			},
@@ -1376,7 +1376,7 @@ test("active workflow runtimes ignore agent model config entries for the four ph
 			const assignments = {
 				planner: { provider: "anthropic", model: "claude", thinking: "off" as const },
 				taskWriter: { provider: "anthropic", model: "claude", thinking: "off" as const },
-				implementer: { provider: "anthropic", model: "claude", thinking: "off" as const },
+				executor: { provider: "anthropic", model: "claude", thinking: "off" as const },
 				reviewer: { provider: "anthropic", model: "claude", thinking: "off" as const },
 			};
 			testApi.setActiveWorkflowRuntimeForTests({
@@ -1388,7 +1388,7 @@ test("active workflow runtimes ignore agent model config entries for the four ph
 				updatedAt: "2026-08-27T12:00:00.000Z",
 			} as any);
 
-			for (const agent of ["planner", "task-writer", "implementer", "reviewer"]) {
+			for (const agent of ["planner", "task-writer", "executor", "reviewer"]) {
 				const result: AnyRecord = await executeWithoutSubagentIdentity(() =>
 					tool.execute("c", { name: agent, task: "t", agent }, undefined, undefined, policyContext()),
 				);
@@ -1566,7 +1566,7 @@ test("/agent-models lists discovered agents with current values and annotations"
 		assert.ok(choices.includes("claude-code — parent default · frontmatter only"), choices.join("\n"));
 		assert.ok(choices.includes("planner — parent default · ad-hoc spawns only"), choices.join("\n"));
 		assert.ok(choices.includes("task-writer — parent default · ad-hoc spawns only"), choices.join("\n"));
-		assert.ok(choices.includes("implementer — parent default · ad-hoc spawns only"), choices.join("\n"));
+		assert.ok(choices.includes("executor — parent default · ad-hoc spawns only"), choices.join("\n"));
 		assert.ok(choices.includes("reviewer — parent default · ad-hoc spawns only"), choices.join("\n"));
 		assert.ok(choices.includes("worker — parent default"), choices.join("\n"));
 		assert.equal(choices[choices.length - 1], "Done");
@@ -2333,9 +2333,9 @@ function writeWorkflowSidecar(
 	writeLaunchProfile(
 		sessionPath,
 		testApi.buildLaunchProfile({
-			displayName: "Implementer",
-			agentName: "implementer",
-			roleBody: "You are the implementer. Follow TASKS.md exactly.",
+			displayName: "Executor",
+			agentName: "executor",
+			roleBody: "You are the executor. Follow TASKS.md exactly.",
 			systemPromptMode: "append",
 			cwd: dir,
 			agentDir: dir,
@@ -2348,7 +2348,7 @@ function writeWorkflowSidecar(
 				updatedAt: "2026-08-27T12:00:00.000Z",
 			},
 			workflow: {
-				phase: "implementer",
+				phase: "executor",
 				policy: "per-role",
 				assignmentSource: "preset",
 				projectRoot: dir,
@@ -2444,7 +2444,7 @@ test("usage exhaustion opens the recovery gate with phase, model, failure, sessi
 		assert.equal(notifications.length, 1);
 		assert.equal(notifications[0][1], "error");
 		const summary = notifications[0][0];
-		assert.match(summary, /implementer/);
+		assert.match(summary, /executor/);
 		assert.match(summary, /quota\/usage exhaustion/);
 		assert.match(summary, /Provider\/model: anthropic\/claude/);
 		assert.match(summary, new RegExp(`Saved session: ${sessionPath.replace(/\//g, "\\/")}`));
@@ -2520,7 +2520,7 @@ test("other provider errors do not open the gate and keep the retry decision wit
 		);
 		assert.equal(result.details.status, "not-opened");
 		assert.equal(result.details.failureKind, "other");
-		assert.equal(result.details.phase, "implementer");
+		assert.equal(result.details.phase, "executor");
 		assert.match(result.content[0].text, /ask whether to retry the phase/);
 		assert.deepEqual(calls, []);
 		assert.ok(existsSync(artifacts.plan));
@@ -2646,10 +2646,10 @@ test("recovery picker titles carry the workflow phase across the gate re-pick", 
 		);
 		assert.equal(result.details.error, "resume cancelled at context gate");
 		// calls/titles: recovery gate, model, thinking, context gate, model, thinking.
-		assert.equal(titles[1], "Recovery model for implementer");
-		assert.equal(titles[2], "Thinking for implementer recovery — anthropic/claude");
-		assert.equal(titles[4], "Recovery model for implementer");
-		assert.equal(titles[5], "Thinking for implementer recovery — anthropic/claude");
+		assert.equal(titles[1], "Recovery model for executor");
+		assert.equal(titles[2], "Thinking for executor recovery — anthropic/claude");
+		assert.equal(titles[4], "Recovery model for executor");
+		assert.equal(titles[5], "Thinking for executor recovery — anthropic/claude");
 	} finally {
 		restoreEnvVar("TMUX", previous);
 		rmSync(dir, { recursive: true, force: true });

@@ -1,11 +1,11 @@
 ---
-name: workflow
-description: Orchestrate the planner -> plan-to-tasks -> implement -> implementation-review chain through tmux subagents with four user gates.
+name: pter-workflow
+description: Orchestrate the planner -> plan-to-tasks -> execute -> execution-review chain through tmux subagents with four user gates.
 ---
 
 # Workflow
 
-You are the orchestrator of a plan -> tasks -> implement -> review chain. Each
+You are the orchestrator of a plan -> tasks -> execute -> review chain. Each
 phase runs in its own tmux pane as a subagent spawned with the `subagent` tool
 from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
 
@@ -29,13 +29,13 @@ from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
   `phaseBoundary` details report `violated: true`, stop the workflow at once:
   show the user the exact unexpected paths, preserve every change exactly as
   it is, and never revert, restore, delete, stage, or commit anything.
-  Do not launch the next phase; the user decides how to continue. The implementer
+  Do not launch the next phase; the user decides how to continue. The executor
   phase is exempt from this path rule: its scope is governed by `TASKS.md`.
 - Stop at every gate and wait for the user's answer. Do not continue on your
   own, and do not skip a gate.
 - At the start of each phase, rename the tmux window through `bash`:
   `tmux rename-window -t "$TMUX_PANE" "<label>"`. Labels: ` Planning`,
-  ` Tasking`, ` Implementing`, ` Reviewing`, ` Workflow done`.
+  ` Tasking`, ` Executing`, ` Reviewing`, ` Workflow done`.
 - Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `TASKS.md`,
   `REVIEW.md`. Keep the session paths from every `subagent_result`; you need
   them for `subagent_resume`. When any result — a recovery, a resume, or a
@@ -62,7 +62,7 @@ from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
 - Transient network and overload failures retry inside the child session
   through Pi's normal retry policy. Never write retry loops, fallback chains,
   or provider switches of your own.
-- The `/workflow` command completed a model-policy gate before this prompt.
+- The `/pter` command completed a model-policy gate before this prompt.
   Its `<workflow-config>` block is authoritative. Spawn workflow phases with
   their agent name and no `model` argument; the extension resolves the model
   immediately before each new phase.
@@ -82,7 +82,7 @@ from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
   their frontmatter model and agent-less spawns keep the parent model.
 - The model-policy gate offers parent-per-phase mode or per-role
   configuration, and per-role assignments are saved as a project preset in
-  Pi user state (never inside the repository). A later `/workflow` in the
+  Pi user state (never inside the repository). A later `/pter` in the
   same project offers to reuse the saved preset, edit roles in it, switch to
   parent-per-phase, or cancel; a preset with unavailable models requires
   correction before the workflow starts. The `<workflow-config>` line
@@ -116,7 +116,7 @@ from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
   reports them; they are observability only, may be absent or zero for any
   provider, and no workflow decision depends on them.
 - Read the `Run ID:` value from `<workflow-config>`. Pass it as
-  `workflowRunId` on every fresh planner, task-writer, implementer, and
+  `workflowRunId` on every fresh planner, task-writer, executor, and
   reviewer launch in this workflow. Do not pass it to unrelated subagents.
   Pass the authoritative absolute artifact paths and base ref in
   `workflowArtifacts` as soon as they are known. These values are persisted
@@ -124,7 +124,7 @@ from pi-tmux-subagents. You coordinate; you do not do the phase work yourself.
 
 ## Phase 0: Preflight
 
-1. Run `git rev-parse HEAD`. Store the output as the base ref. The implementer
+1. Run `git rev-parse HEAD`. Store the output as the base ref. The executor
    and reviewer both receive it. If this fails, the directory is not a git
    repository: tell the user and stop.
 2. Run `git status --porcelain`. If the output is not empty, the tree is
@@ -197,29 +197,29 @@ subagent({
 
 ## Phase 3: Implement
 
-Rename the window to ` Implementing`. Then spawn the implementer:
+Rename the window to ` Executing`. Then spawn the executor:
 
 ```
 subagent({
-  name: " Implementer",
-  agent: "implementer",
+  name: " Executor",
+  agent: "executor",
   workflowRunId: "<run id>",
   workflowArtifacts: {
     plan: "<absolute PLAN.md path>",
     tasks: "<absolute TASKS.md path>",
     baseRef: "<base ref>"
   },
-  task: "Implement <TASKS.md path> against <PLAN.md path> with the implement skill. Base ref: <base ref>. Do not commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: tasks completed with IDs, validation commands run with results, blockers or unchecked tasks."
+  task: "Implement <TASKS.md path> against <PLAN.md path> with the execute skill. Base ref: <base ref>. Do not commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: tasks completed with IDs, validation commands run with results, blockers or unchecked tasks."
 })
 ```
 
 If the result reports a failure, a stall, or unchecked tasks without a named
-blocker, resume the implementer exactly once:
+blocker, resume the executor exactly once:
 
 ```
 subagent_resume({
-  sessionPath: "<implementer session path>",
-  name: " Implementer",
+  sessionPath: "<executor session path>",
+  name: " Executor",
   workflowArtifacts: {
     plan: "<absolute PLAN.md path>",
     tasks: "<absolute TASKS.md path>",
@@ -247,7 +247,7 @@ subagent({
     review: "<absolute REVIEW.md path>",
     baseRef: "<base ref>"
   },
-  task: "Review the implementation with the implementation-review skill. Base ref: <base ref>. PLAN.md: <path>. TASKS.md: <path>. Write the review to <same directory>/REVIEW.md and edit nothing else. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
+  task: "Review the implementation with the execution-review skill. Base ref: <base ref>. PLAN.md: <path>. TASKS.md: <path>. Write the review to <same directory>/REVIEW.md and edit nothing else. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
 })
 ```
 
@@ -260,12 +260,12 @@ subagent({
 
 ## Phase 5: Fix (only after approval at Gate 3)
 
-Rename the window to ` Implementing`. Resume the implementer session:
+Rename the window to ` Executing`. Resume the executor session:
 
 ```
 subagent_resume({
-  sessionPath: "<implementer session path>",
-  name: " Implementer",
+  sessionPath: "<executor session path>",
+  name: " Executor",
   workflowArtifacts: {
     plan: "<absolute PLAN.md path>",
     tasks: "<absolute TASKS.md path>",
@@ -325,7 +325,7 @@ subagent({
     review: "<absolute REVIEW.md path>",
     baseRef: "<base ref>"
   },
-  task: "Re-review the implementation with the implementation-review skill after an approved fix pass. Judge the fixed implementation independently; use the previous REVIEW.md, if any, only as optional context. Base ref: <base ref>. PLAN.md: <path>. TASKS.md: <path>. Previous REVIEW.md (optional input): <path>. Write the re-review to <same REVIEW.md path> and edit nothing else. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
+  task: "Re-review the implementation with the execution-review skill after an approved fix pass. Judge the fixed implementation independently; use the previous REVIEW.md, if any, only as optional context. Base ref: <base ref>. PLAN.md: <path>. TASKS.md: <path>. Previous REVIEW.md (optional input): <path>. Write the re-review to <same REVIEW.md path> and edit nothing else. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
 })
 ```
 
@@ -343,6 +343,6 @@ again; never loop without a fresh gate answer.
 Rename the window to ` Workflow done`. Give the final summary:
 
 - The three artifact paths: `PLAN.md`, `TASKS.md`, `REVIEW.md`.
-- Validation run, taken from the implementer and reviewer results.
+- Validation run, taken from the executor and reviewer results.
 - Unresolved findings: MEDIUM and INFO, plus anything not fixed.
 - A reminder that nothing was committed. The user reviews and commits.

@@ -34,7 +34,7 @@ clear scope, dependencies, and acceptance checks.
    - Do not add features, broaden scope, or re-litigate settled decisions while
      converting the plan.
    - Carry forward non-goals, risks, constraints, and decisions that a future
-     implementer must not reinterpret.
+     executor must not reinterpret.
    - Keep unresolved questions visible when they affect sequencing, ownership,
      risk, or cost.
 

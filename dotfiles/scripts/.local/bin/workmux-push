@@ -109,7 +109,7 @@ case "$variant" in
         if [ "$plan_dir" = ".artifacts" ]; then
             die "TASKS.md must be inside a change subdirectory under .artifacts"
         fi
-        workmux add --prompt "/implement @${work_item_file}" "$worktree_name"
+        workmux add --prompt "/execute @${work_item_file}" "$worktree_name"
         ;;
     superpowers)
         workmux add --prompt "/executing-plans @${work_item_file}" "$worktree_name"

@@ -225,7 +225,7 @@ function artifactLines(phase: WorkflowPhase, artifacts: WorkflowArtifacts): stri
 			add("PLAN.md", artifacts.plan);
 			add("TASKS.md", artifacts.tasks);
 			break;
-		case "implementer":
+		case "executor":
 			add("PLAN.md", artifacts.plan);
 			add("TASKS.md", artifacts.tasks);
 			add("Previous REVIEW.md (optional)", artifacts.review);
@@ -249,7 +249,7 @@ export function buildRolloverHandoff(profile: LaunchProfile, userMessage?: strin
 		? {
 			planner: "Continue planning from the current PLAN.md state and the user's latest adjustment.",
 			"task-writer": "Re-read PLAN.md and TASKS.md, then continue task writing from the current artifacts.",
-			implementer: "Re-read the handoff artifacts and continue from the first unchecked task or named review finding.",
+			executor: "Re-read the handoff artifacts and continue from the first unchecked task or named review finding.",
 			reviewer: "Perform an independent review from the current artifacts and base ref. Use the previous review only as optional context.",
 		}[phase]
 		: "Continue the same role from the latest durable project artifacts.";

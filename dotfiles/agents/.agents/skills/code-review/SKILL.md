@@ -32,7 +32,7 @@ Read these bundled references when needed:
   `architecture-review`.
 - Do not change code under this skill. If the user asks to fix findings, stop the
   review, summarize the actionable findings, and wait for explicit approval before
-  switching to `implement` as a separate workflow.
+  switching to `execute` as a separate workflow.
 - Keep behavior-preserving cleanup of changed code with `simplify`.
 - Do not run this as a mandatory post-edit gate when the user did not ask for a
   review.

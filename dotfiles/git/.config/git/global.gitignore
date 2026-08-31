@@ -1,7 +1,7 @@
 .artifacts
 .auto
 .beads
-.claude
+/.claude
 .grip
 .od
 .opencode

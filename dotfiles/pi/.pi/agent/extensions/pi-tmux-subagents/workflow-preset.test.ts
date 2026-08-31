@@ -30,7 +30,7 @@ function withTempDir(run: (dir: string) => void): void {
 const roles: WorkflowPresetRoles = {
 	planner: { provider: "anthropic", model: "claude", thinking: "high" },
 	taskWriter: { provider: "openai", model: "gpt", thinking: "medium" },
-	implementer: { provider: "anthropic", model: "claude", thinking: "xhigh" },
+	executor: { provider: "anthropic", model: "claude", thinking: "xhigh" },
 	reviewer: { provider: "local", model: "plain", thinking: "off" },
 };
 
@@ -133,7 +133,7 @@ test("selective role editing preserves untouched assignments", () => {
 		taskWriter: { provider: "openai", model: "gpt-2", thinking: "low" },
 	});
 	assert.deepEqual(edited.planner, roles.planner);
-	assert.deepEqual(edited.implementer, roles.implementer);
+	assert.deepEqual(edited.executor, roles.executor);
 	assert.deepEqual(edited.reviewer, roles.reviewer);
 	assert.deepEqual(edited.taskWriter, {
 		provider: "openai",

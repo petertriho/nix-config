@@ -84,7 +84,7 @@ test("the fresh path builds an independent reviewer task with full context", () 
 	const launch = buildReReviewLaunch("fresh", CONTEXT);
 	assert.equal(launch.choice, "fresh");
 	if (launch.choice !== "fresh") return;
-	assert.match(launch.task, /implementation-review skill/);
+	assert.match(launch.task, /execution-review skill/);
 	assert.match(launch.task, /independently/);
 	assert.ok(launch.task.includes(`Base ref: ${CONTEXT.baseRef}`));
 	assert.ok(launch.task.includes(`PLAN.md: ${CONTEXT.planPath}`));

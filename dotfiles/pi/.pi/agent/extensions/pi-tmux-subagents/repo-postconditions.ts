@@ -160,7 +160,7 @@ export function resolveGitRoot(startDir: string): string | null {
 
 /**
  * Phase-relative baseline captured before a phase child starts working.
- * Undefined when the phase has no expected artifact (implementer) or the
+ * Undefined when the phase has no expected artifact (executor) or the
  * directory is not inside a git repository; those phases run unchecked.
  */
 export interface PhaseBoundarySnapshot {

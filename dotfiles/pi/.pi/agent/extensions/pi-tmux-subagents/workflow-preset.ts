@@ -25,7 +25,7 @@ export const WORKFLOW_PRESET_VERSION = 1 as const;
 export const WORKFLOW_ROLE_KEYS = [
 	"planner",
 	"taskWriter",
-	"implementer",
+	"executor",
 	"reviewer",
 ] as const;
 
@@ -101,7 +101,7 @@ export function validateWorkflowModelPreset(value: unknown): value is WorkflowMo
 /**
  * Canonical project identity for workflow presets.
  *
- * Git projects use their repository top-level so invoking `/workflow` from a
+ * Git projects use their repository top-level so invoking `/pter` from a
  * nested directory reuses the same preset. Outside Git, the canonicalized cwd
  * is the documented fallback project identity.
  */
@@ -226,7 +226,7 @@ export function editWorkflowPresetRoles(
 	return {
 		planner: structuredClone(updates.planner ?? roles.planner),
 		taskWriter: structuredClone(updates.taskWriter ?? roles.taskWriter),
-		implementer: structuredClone(updates.implementer ?? roles.implementer),
+		executor: structuredClone(updates.executor ?? roles.executor),
 		reviewer: structuredClone(updates.reviewer ?? roles.reviewer),
 	};
 }

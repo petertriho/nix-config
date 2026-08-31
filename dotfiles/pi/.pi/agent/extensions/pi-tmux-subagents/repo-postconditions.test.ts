@@ -130,11 +130,11 @@ test("legacy dirty-path-only RepoState values remain comparable", () => {
 
 // ── phase artifacts (T7) ──
 
-test("phaseArtifactForPhase maps artifact phases and exempts the implementer", () => {
+test("phaseArtifactForPhase maps artifact phases and exempts the executor", () => {
 	assert.equal(phaseArtifactForPhase("planner"), "PLAN.md");
 	assert.equal(phaseArtifactForPhase("task-writer"), "TASKS.md");
 	assert.equal(phaseArtifactForPhase("reviewer"), "REVIEW.md");
-	assert.equal(phaseArtifactForPhase("implementer"), undefined);
+	assert.equal(phaseArtifactForPhase("executor"), undefined);
 	assert.equal(phaseArtifactForPhase("worker"), undefined);
 	assert.equal(phaseArtifactForPhase("unknown-phase"), undefined);
 });
@@ -152,9 +152,9 @@ test("resolveGitRoot finds the repository root from a nested directory and fails
 	}
 });
 
-test("capturePhaseBoundarySnapshot returns undefined for implementer and non-repo directories", () => {
+test("capturePhaseBoundarySnapshot returns undefined for executor and non-repo directories", () => {
 	withTempRepo((root) => {
-		assert.equal(capturePhaseBoundarySnapshot("implementer", root), undefined);
+		assert.equal(capturePhaseBoundarySnapshot("executor", root), undefined);
 	});
 	const outside = mkdtempSync(join(tmpdir(), "pi-phase-nogit-"));
 	try {

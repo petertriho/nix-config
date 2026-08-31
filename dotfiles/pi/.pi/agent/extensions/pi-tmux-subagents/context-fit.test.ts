@@ -367,7 +367,7 @@ test("resume gate returns every user choice and rejects non-interactive pressure
 	);
 });
 
-function workflowProfile(phase: "planner" | "task-writer" | "implementer" | "reviewer"): LaunchProfile {
+function workflowProfile(phase: "planner" | "task-writer" | "executor" | "reviewer"): LaunchProfile {
 	const sessionPath = "/tmp/old.jsonl";
 	return {
 		version: 1,
@@ -417,7 +417,7 @@ test("rollover handoffs include the correct role artifacts", () => {
 	assert.match(taskWriter, /TASKS\.md/);
 	assert.doesNotMatch(taskWriter, /REVIEW\.md/);
 
-	for (const phase of ["implementer", "reviewer"] as const) {
+	for (const phase of ["executor", "reviewer"] as const) {
 		const handoff = buildRolloverHandoff(workflowProfile(phase), "Continue now.");
 		assert.match(handoff, /PLAN\.md/);
 		assert.match(handoff, /TASKS\.md/);

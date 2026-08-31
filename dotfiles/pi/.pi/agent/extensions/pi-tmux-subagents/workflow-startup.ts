@@ -45,21 +45,21 @@ export type WorkflowStartupResult =
 export const WORKFLOW_ROLE_LABELS: Record<WorkflowRoleKey, string> = {
 	planner: "Planner",
 	taskWriter: "Task writer",
-	implementer: "Implementer",
+	executor: "Executor",
 	reviewer: "Reviewer",
 };
 
 const AGENT_TO_PHASE: Record<string, WorkflowPhase> = {
 	planner: "planner",
 	"task-writer": "task-writer",
-	implementer: "implementer",
+	executor: "executor",
 	reviewer: "reviewer",
 };
 
 const PHASE_TO_ROLE: Record<WorkflowPhase, WorkflowRoleKey> = {
 	planner: "planner",
 	"task-writer": "taskWriter",
-	implementer: "implementer",
+	executor: "executor",
 	reviewer: "reviewer",
 };
 
@@ -260,7 +260,7 @@ export async function chooseWorkflowStartup(
 	projectRoot: string,
 	options: { agentDir?: string; now?: () => Date } = {},
 ): Promise<WorkflowStartupResult> {
-	if (!ctx.hasUI) return { status: "cancelled", reason: "/workflow model setup needs interactive UI." };
+	if (!ctx.hasUI) return { status: "cancelled", reason: "/pter model setup needs interactive UI." };
 
 	const root = canonicalProjectRoot(projectRoot);
 	const presetRead = readWorkflowModelPreset(root, options.agentDir);
@@ -295,7 +295,7 @@ export async function chooseWorkflowStartup(
 			const baseline: WorkflowPresetRoles = savedRoles ?? {
 				planner: { provider: "", model: "", thinking: "off" },
 				taskWriter: { provider: "", model: "", thinking: "off" },
-				implementer: { provider: "", model: "", thinking: "off" },
+				executor: { provider: "", model: "", thinking: "off" },
 				reviewer: { provider: "", model: "", thinking: "off" },
 			};
 			const collected = await selectRoleAssignments(ctx, baseline);

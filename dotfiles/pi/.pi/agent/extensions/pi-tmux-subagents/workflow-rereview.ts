@@ -119,7 +119,7 @@ export function buildReReviewLaunch(
 	return {
 		choice: "fresh",
 		task: [
-			"Re-review the implementation with the implementation-review skill after an approved fix pass.",
+			"Re-review the implementation with the execution-review skill after an approved fix pass.",
 			"Judge the fixed implementation independently; use the previous review, if any, only as optional context.",
 			...shared,
 		].join("\n"),

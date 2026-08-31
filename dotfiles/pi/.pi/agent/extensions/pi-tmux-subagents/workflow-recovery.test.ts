@@ -72,7 +72,7 @@ test("failure kind labels name all four outcomes distinctly", () => {
 	assert.equal(formatFailureKind("usage"), "quota/usage exhaustion");
 	assert.equal(formatFailureKind("retry-exhausted"), "transient failures exhausted normal retries");
 	assert.equal(formatFailureKind("other"), "provider/agent error");
-	for (const phase of ["planner", "task-writer", "implementer", "reviewer"] as const) {
+	for (const phase of ["planner", "task-writer", "executor", "reviewer"] as const) {
 		assert.ok(WORKFLOW_PHASE_LABELS[phase].length > 0);
 	}
 });
@@ -107,7 +107,7 @@ test("provider failure records persist only diagnostics-safe fields", () => {
 
 test("recovery summaries show phase, provider, model, session, estimate, and failure", () => {
 	const summary = formatRecoverySummary({
-		phase: "implementer",
+		phase: "executor",
 		failureKind: "usage",
 		failure: "You exceeded your current quota",
 		sessionPath: "/tmp/project/sessions/impl.jsonl",
@@ -115,7 +115,7 @@ test("recovery summaries show phase, provider, model, session, estimate, and fai
 		model: "echo",
 		estimate: { tokens: 150_000, usageTokens: 149_950, trailingTokens: 50, source: "usage+estimate" },
 	});
-	assert.match(summary, /implementer/);
+	assert.match(summary, /executor/);
 	assert.match(summary, /quota\/usage exhaustion/);
 	assert.match(summary, /Provider\/model: test-provider\/echo/);
 	assert.match(summary, /Saved session: \/tmp\/project\/sessions\/impl\.jsonl/);

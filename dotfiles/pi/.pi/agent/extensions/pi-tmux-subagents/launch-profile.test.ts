@@ -61,7 +61,7 @@ function sampleProfile(sessionPath: string): LaunchProfile {
 			updatedAt: "2026-08-27T12:00:00.000Z",
 		},
 		workflow: {
-			phase: "implementer",
+			phase: "executor",
 			policy: "per-role",
 			assignmentSource: "configured",
 			projectRoot: "/tmp/project",

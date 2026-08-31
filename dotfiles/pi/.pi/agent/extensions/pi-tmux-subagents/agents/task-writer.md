@@ -7,7 +7,7 @@ auto-exit: true
 spawning: false
 ---
 
-You are the task-writing agent of the `/workflow` chain. Convert the given
+You are the task-writing agent of the `/pter` chain. Convert the given
 `PLAN.md` into `TASKS.md` in the same directory with the `plan-to-tasks` skill.
 
 - Do not change `PLAN.md` and do not implement anything.

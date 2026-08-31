@@ -169,7 +169,7 @@ import {
  * nono sandbox profile, children are not sandboxed.
  *
  * Tools: `subagent`, `subagent_interrupt`, `subagents_list`, `subagent_resume`.
- * Commands: `/iterate`, `/subagent`, `/workflow` (prompt in `workflow-skill.md`).
+ * Commands: `/iterate`, `/subagent`, `/pter` (prompt in `workflow-skill.md`).
  * Agents are discovered from `<this dir>/agents`, `~/.pi/agent/agents`
  * (`PI_CODING_AGENT_DIR`), and `./.pi/agents`; later sources win.
  * See NOTES.md for the pi 0.84.3 prompt-argument findings behind
@@ -275,7 +275,7 @@ const SubagentParams = Type.Object({
   workflowRunId: Type.Optional(
     Type.String({
       description:
-        "Internal /workflow run token from the <workflow-config> block. Omit for ordinary subagent spawns.",
+        "Internal /pter run token from the <workflow-config> block. Omit for ordinary subagent spawns.",
     }),
   ),
   workflowArtifacts: Type.Optional(
@@ -622,7 +622,7 @@ function agentModelsListLabel(def: ListedAgentDefinition, agents: Record<string,
  * entry at a time. Every change is validated against the registry and saved
  * immediately through the atomic write, so the on-disk config is always the
  * source of truth. Workflow phase roles are annotated "ad-hoc spawns only"
- * because `/workflow` resolves them through its own model-policy gate;
+ * because `/pter` resolves them through its own model-policy gate;
  * `cli:` agents keep their frontmatter model and offer no edits here.
  */
 async function manageAgentModels(ctx: AgentModelsContext): Promise<void> {
@@ -913,8 +913,8 @@ interface RunningSubagent {
   interactive: boolean;
   /**
    * T7 phase-boundary baseline captured before a planner, task-writer, or
-   * reviewer child started working. Undefined for the implementer and for
-   * spawns outside a /workflow phase: implementer scope is governed by
+   * reviewer child started working. Undefined for the executor and for
+   * spawns outside a /pter phase: executor scope is governed by
    * TASKS.md, never by an artifact-only path rule.
    */
   phaseBoundary?: PhaseBoundarySnapshot;
@@ -1104,7 +1104,7 @@ function resetTaskRpcForTests(): void {
 	shutdownPiTasksRpcBridge();
 }
 
-/** Active `/workflow` model policy, set only by the `/workflow` startup gate. */
+/** Active `/pter` model policy, set only by the `/pter` startup gate. */
 let activeWorkflowRuntime: WorkflowRuntimeState | null = null;
 /** Token that scopes phase spawns to the currently active workflow run. */
 let activeWorkflowRunId: string | null = null;
@@ -1734,8 +1734,8 @@ interface PhaseBoundaryOutcome {
 /**
  * Evaluate a finished child's phase boundary against its pre-phase snapshot.
  * Read-only: the repository keeps every change exactly as the child left it.
- * Returns undefined when the child carried no snapshot (implementer, spawns
- * outside a /workflow phase, or a non-repo project) or when the after state
+ * Returns undefined when the child carried no snapshot (executor, spawns
+ * outside a /pter phase, or a non-repo project) or when the after state
  * cannot be read; both cases report no violation.
  */
 function describeRunningPhaseBoundary(
@@ -1944,7 +1944,7 @@ async function executeSubagentResume(
 
   // T7: phase-boundary baseline for resumed artifact phases (planner, task
   // writer, reviewer), captured before any child pane starts working. The
-  // implementer is exempt: TASKS.md governs its scope.
+  // executor is exempt: TASKS.md governs its scope.
   const phaseBoundary = profile?.workflow
     ? capturePhaseBoundarySnapshot(
         profile.workflow.phase,
@@ -3070,7 +3070,7 @@ function buildWorkflowMessage(
   const config = workflowState
     ? `<workflow-config>\n${formatWorkflowStartupConfig(workflowState, workflowRunId)}\n</workflow-config>\n\n`
     : "";
-  return `<skill name="workflow" location="${skillPath}">\n${content}\n</skill>\n\n${config}${request}`;
+  return `<skill name="pter-workflow" location="${skillPath}">\n${content}\n</skill>\n\n${config}${request}`;
 }
 
 export const __test__ = {
@@ -3154,7 +3154,7 @@ const SUBAGENTS_LIST_DESCRIPTION =
   "Later sources override earlier ones with the same name.";
 
 const SUBAGENT_RECOVER_DESCRIPTION =
-  "Recover a failed /workflow phase session after quota/usage exhaustion or exhausted provider retries. " +
+  "Recover a failed /pter phase session after quota/usage exhaustion or exhausted provider retries. " +
   "Shows phase, provider, model, failure, saved session path, and context estimate, opens the shared model and thinking picker, " +
   "then resumes the saved session or starts a fresh same-role rollover through the context-fit gate. " +
   "Completed artifacts and the saved project preset are preserved; a successful replacement model becomes that role's default for the rest of the workflow. " +
@@ -3269,7 +3269,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
       async execute(_toolCallId, rawParams, _signal, _onUpdate, ctx) {
         const params = normalizeSubagentParams(rawParams);
-        // Prevent self-spawning (e.g. implementer spawning another implementer).
+        // Prevent self-spawning (e.g. executor spawning another executor).
         const currentAgent = process.env.PI_SUBAGENT_AGENT;
         if (params.agent && currentAgent && params.agent === currentAgent) {
           return {
@@ -3293,7 +3293,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           return {
             content: [{
               type: "text",
-              text: "Error: this workflow run token is no longer active. Start or continue the current /workflow run.",
+              text: "Error: this workflow run token is no longer active. Start or continue the current /pter run.",
             }],
             details: { error: "stale workflow run token" },
           };
@@ -3405,7 +3405,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
         // T7: phase-boundary baseline for artifact phases (planner, task
         // writer, reviewer), taken before the child can touch the worktree.
-        // The implementer stays exempt: TASKS.md governs its scope.
+        // The executor stays exempt: TASKS.md governs its scope.
         const phaseBoundary = workflowMetadata
           ? capturePhaseBoundarySnapshot(
               workflowMetadata.phase,
@@ -3874,7 +3874,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           return {
             content: [{
               type: "text",
-              text: "Error: this session does not belong to a /workflow phase. Resume it with subagent_resume instead.",
+              text: "Error: this session does not belong to a /pter phase. Resume it with subagent_resume instead.",
             }],
             details: { error: "not a workflow session" },
           };
@@ -4043,17 +4043,17 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     },
   });
 
-  // /workflow: plan -> tasks -> implement -> review chain with four user gates
-  pi.registerCommand("workflow", {
-    description: "Run the plan → tasks → implement → review chain in subagent panes: /workflow <request>",
+  // /pter: plan -> tasks -> execute -> review chain with four user gates
+  pi.registerCommand("pter", {
+    description: "Run the plan → tasks → execute → review chain in subagent panes: /pter <request>",
     handler: async (args, ctx) => {
       const request = args.trim();
       if (!request) {
-        ctx.ui.notify("Usage: /workflow <request>", "warning");
+        ctx.ui.notify("Usage: /pter <request>", "warning");
         return;
       }
       if (!isTmuxAvailable()) {
-        ctx.ui.notify(`/workflow needs tmux. ${muxSetupHint()}`, "error");
+        ctx.ui.notify(`/pter needs tmux. ${muxSetupHint()}`, "error");
         return;
       }
 

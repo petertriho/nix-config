@@ -237,9 +237,9 @@ function writeHeavySidecar(input: {
 	workflow?: LaunchProfile["workflow"];
 }): void {
 	const role = input.role ?? {
-		name: "implementer",
-		displayName: "Implementer",
-		roleBody: "You are the implementer. Follow TASKS.md exactly.",
+		name: "executor",
+		displayName: "Executor",
+		roleBody: "You are the executor. Follow TASKS.md exactly.",
 	};
 	writeLaunchProfile(
 		input.sessionPath,
@@ -428,7 +428,7 @@ test(
 					hash: hashText(skillBody),
 				},
 				workflow: {
-					phase: "implementer",
+					phase: "executor",
 					policy: "per-role",
 					assignmentSource: "preset",
 					projectRoot: projectDir,
@@ -471,14 +471,14 @@ test(
 			assert.ok(script.includes(`cd '${projectDir}'`));
 			assert.ok(script.includes(`PI_CODING_AGENT_DIR='${agentDir}'`));
 			assert.ok(script.includes("PI_DENY_TOOLS='subagent'"));
-			assert.ok(script.includes("PI_SUBAGENT_AGENT='implementer'"));
+			assert.ok(script.includes("PI_SUBAGENT_AGENT='executor'"));
 			assert.ok(script.includes("PI_SUBAGENT_AUTO_EXIT=1"));
 				assert.match(script, /--append-system-prompt '[^']+'/);
 				const syspromptPath = script.match(/--append-system-prompt '([^']+)'/)?.[1];
 				assert.ok(syspromptPath);
 				assert.equal(
 					readFileSync(syspromptPath, "utf8"),
-					"You are the implementer. Follow TASKS.md exactly.",
+					"You are the executor. Follow TASKS.md exactly.",
 				);
 			// The latest primary skill is re-expanded for the replacement.
 			assert.ok(script.includes("/skill:workflow "));
@@ -495,9 +495,9 @@ test(
 			assert.equal(replacementProfile.status, "ok");
 			if (replacementProfile.status === "ok") {
 				const next = replacementProfile.profile;
-				assert.equal(next.stable.displayName, "Implementer");
-				assert.equal(next.stable.agentName, "implementer");
-				assert.equal(next.stable.roleBody, "You are the implementer. Follow TASKS.md exactly.");
+				assert.equal(next.stable.displayName, "Executor");
+				assert.equal(next.stable.agentName, "executor");
+				assert.equal(next.stable.roleBody, "You are the executor. Follow TASKS.md exactly.");
 				assert.equal(next.stable.cwd, projectDir);
 				assert.equal(next.stable.agentDir, agentDir);
 				assert.deepEqual(next.stable.controls.denyTools, ["subagent"]);
@@ -511,7 +511,7 @@ test(
 					model: "echo",
 					thinking: "off",
 				});
-				assert.equal(next.workflow?.phase, "implementer");
+				assert.equal(next.workflow?.phase, "executor");
 				assert.equal(next.workflow?.artifacts.baseRef, "abc123");
 				assert.deepEqual(next.workflow?.currentDefault, {
 					provider: "test-provider",
@@ -632,7 +632,7 @@ function workflowAssignments() {
 	return {
 		planner: { provider: "test-provider", model: "echo", thinking: "off" as const },
 		taskWriter: { provider: "test-provider", model: "echo", thinking: "off" as const },
-		implementer: { provider: "test-provider", model: "echo", thinking: "off" as const },
+		executor: { provider: "test-provider", model: "echo", thinking: "off" as const },
 		reviewer: { provider: "test-provider", model: "echo", thinking: "off" as const },
 	};
 }
@@ -680,12 +680,12 @@ test(
 					cwd: projectDir,
 					agentDir,
 					workflow: {
-						phase: "implementer",
+						phase: "executor",
 						policy: "per-role",
 						assignmentSource: "preset",
 						projectRoot: projectDir,
-						originalDefault: presetRoles.implementer,
-						currentDefault: presetRoles.implementer,
+						originalDefault: presetRoles.executor,
+						currentDefault: presetRoles.executor,
 						artifacts: { plan: join(projectDir, "PLAN.md") },
 					},
 				});
@@ -699,7 +699,7 @@ test(
 				);
 				assert.equal(result.details.status, "started");
 				assert.equal(result.details.sessionPath, sessionPath);
-				assert.deepEqual(result.details.recovery, { phase: "implementer", failureKind: "usage" });
+				assert.deepEqual(result.details.recovery, { phase: "executor", failureKind: "usage" });
 				const watcherId: string = result.details.id;
 				runningId = watcherId;
 				const running = testApi.runningSubagents.get(watcherId);
@@ -717,21 +717,21 @@ test(
 				writeFileSync(`${sessionPath}.exit`, JSON.stringify({ type: "done" }));
 
 				await waitFor(() =>
-					testApi.getActiveWorkflowRuntime()?.currentAssignments?.implementer?.model === "replacement",
+					testApi.getActiveWorkflowRuntime()?.currentAssignments?.executor?.model === "replacement",
 				);
 				const state = testApi.getActiveWorkflowRuntime();
-				assert.deepEqual(state?.currentAssignments?.implementer, {
+				assert.deepEqual(state?.currentAssignments?.executor, {
 					provider: "other",
 					model: "replacement",
 					thinking: "medium",
 				});
 				// The deliberate assignments and the saved preset are untouched.
-				assert.deepEqual(state?.roleAssignments?.implementer, presetRoles.implementer);
+				assert.deepEqual(state?.roleAssignments?.executor, presetRoles.executor);
 				const preset = readWorkflowModelPreset(projectDir, agentDir);
 				assert.equal(preset.status, "ok");
 				if (preset.status === "ok") {
 					assert.equal(preset.preset.updatedAt, "2026-08-26T12:00:00.000Z");
-					assert.equal(preset.preset.roles.implementer.provider, "test-provider");
+					assert.equal(preset.preset.roles.executor.provider, "test-provider");
 				}
 
 				// The saved profile records the recovery and the new last model.
@@ -836,12 +836,12 @@ test(
 				cwd: projectDir,
 				agentDir,
 				workflow: {
-					phase: "implementer",
+					phase: "executor",
 					policy: "per-role",
 					assignmentSource: "preset",
 					projectRoot: projectDir,
-					originalDefault: presetRoles.implementer,
-					currentDefault: presetRoles.implementer,
+					originalDefault: presetRoles.executor,
+					currentDefault: presetRoles.executor,
 					artifacts: { plan: join(projectDir, "PLAN.md") },
 				},
 			});
@@ -868,7 +868,7 @@ test(
 			);
 
 			const state = testApi.getActiveWorkflowRuntime();
-			assert.equal(state?.currentAssignments?.implementer?.model, "echo");
+			assert.equal(state?.currentAssignments?.executor?.model, "echo");
 			const sidecar = readLaunchProfile(sessionPath);
 			assert.equal(sidecar.status, "ok");
 			if (sidecar.status === "ok") {
@@ -943,12 +943,12 @@ test(
 					cwd: projectDir,
 					agentDir,
 					workflow: {
-						phase: "implementer",
+						phase: "executor",
 						policy: "per-role",
 						assignmentSource: "preset",
 						projectRoot: projectDir,
-						originalDefault: presetRoles.implementer,
-						currentDefault: presetRoles.implementer,
+						originalDefault: presetRoles.executor,
+						currentDefault: presetRoles.executor,
 						artifacts: { tasks: join(projectDir, "TASKS.md"), baseRef: "abc123" },
 					},
 				});
@@ -976,23 +976,23 @@ test(
 				writeFileSync(`${replacement}.exit`, JSON.stringify({ type: "done" }));
 
 				await waitFor(() =>
-					testApi.getActiveWorkflowRuntime()?.currentAssignments?.implementer?.model === "replacement",
+					testApi.getActiveWorkflowRuntime()?.currentAssignments?.executor?.model === "replacement",
 				);
 				const state = testApi.getActiveWorkflowRuntime();
 				// The workflow's active session path now points at the replacement.
-				assert.equal(state?.activeSessions?.implementer, replacement);
-				assert.deepEqual(state?.currentAssignments?.implementer, {
+				assert.equal(state?.activeSessions?.executor, replacement);
+				assert.deepEqual(state?.currentAssignments?.executor, {
 					provider: "other",
 					model: "replacement",
 					thinking: "medium",
 				});
-				assert.deepEqual(state?.roleAssignments?.implementer, presetRoles.implementer);
+				assert.deepEqual(state?.roleAssignments?.executor, presetRoles.executor);
 
 				// The saved preset keeps the deliberate assignment.
 				const preset = readWorkflowModelPreset(projectDir, agentDir);
 				assert.equal(preset.status, "ok");
 				if (preset.status === "ok") {
-					assert.equal(preset.preset.roles.implementer.provider, "test-provider");
+					assert.equal(preset.preset.roles.executor.provider, "test-provider");
 					assert.equal(preset.preset.updatedAt, "2026-08-26T12:00:00.000Z");
 				}
 
@@ -1305,7 +1305,7 @@ test(
 				role: {
 					name: "reviewer",
 					displayName: " Reviewer",
-					roleBody: "You are the review agent of the /workflow chain.",
+					roleBody: "You are the review agent of the /pter chain.",
 				},
 				workflow: {
 					phase: "reviewer",
@@ -1414,7 +1414,7 @@ test(
 				currentAssignments: assignments,
 				updatedAt: "2026-08-27T12:00:00.000Z",
 			});
-			// A real /workflow run pins phase launches to its run token; this
+			// A real /pter run pins phase launches to its run token; this
 			// fresh reviewer must present the matching token and artifact handoff.
 			testApi.setActiveWorkflowRunIdForTests("run-a");
 

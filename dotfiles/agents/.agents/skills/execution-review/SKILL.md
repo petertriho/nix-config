@@ -1,10 +1,10 @@
 ---
-name: implementation-review
-description: "Review a completed implementation run against its PLAN.md and TASKS.md and write .artifacts/<plan-name>/REVIEW.md. Use for \"review the implementation of <plan>\", \"check TASKS.md acceptance\", \"verify the plan was implemented\", or the review phase of /workflow. Checks every task's acceptance lines and checkbox state against the diff, confirms non-goals and settled decisions were respected, runs the plan's validation commands, and writes one review artifact. Not for ad-hoc diff review, \"look over my changes\", or \"review this diff\": use code-review for those. Depends on ../code-review/references/review-checklists.md for severity definitions."
+name: execution-review
+description: "Review a completed implementation run against its PLAN.md and TASKS.md and write .artifacts/<plan-name>/REVIEW.md. Use for \"review the implementation of <plan>\", \"check TASKS.md acceptance\", \"verify the plan was implemented\", or the review phase of /pter. Checks every task's acceptance lines and checkbox state against the diff, confirms non-goals and settled decisions were respected, runs the plan's validation commands, and writes one review artifact. Not for ad-hoc diff review, \"look over my changes\", or \"review this diff\": use code-review for those. Depends on ../code-review/references/review-checklists.md for severity definitions."
 disable-model-invocation: true
 ---
 
-# Implementation Review
+# Execution Review
 
 Review an implementation run against the plan that drove it and write one
 review artifact, `REVIEW.md`. This skill is plan-aware where `code-review` is

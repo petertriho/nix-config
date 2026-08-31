@@ -1,10 +1,10 @@
 ---
-name: implement
+name: execute
 description: "Use this skill only when the user explicitly asks to modify files or carry out implementation work now, such as fixing a bug, adding a feature, making tests pass, refactoring code, or completing a specific task from an existing task list. It drives end-to-end implementation with a smallest-safe-diff bias: inspect context, prefer existing code and native capabilities, avoid speculative abstractions, validate, and report clearly. Do not use for planning, plan refinement, task breakdown, architecture review, code review, diagnosis, research, discussion of approaches, or interpreting a plan unless the user clearly asks to edit files now."
 disable-model-invocation: true
 ---
 
-# Implement
+# Execute
 
 Execute implementation work end-to-end. Inputs may be a direct request, bug
 report, issue description, named files, or a specific task from a task file. A

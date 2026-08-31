@@ -58,7 +58,7 @@ function roles(provider = "test", model = "echo"): WorkflowPresetRoles {
 	return {
 		planner: { provider, model, thinking: "off" },
 		taskWriter: { provider, model, thinking: "off" },
-		implementer: { provider, model, thinking: "off" },
+		executor: { provider, model, thinking: "off" },
 		reviewer: { provider, model, thinking: "off" },
 	};
 }
@@ -162,7 +162,7 @@ test("configure flow titles each role picker with its label and progress counter
 			[
 				"Model for Planner (1 of 4)",
 				"Model for Task writer (2 of 4)",
-				"Model for Implementer (3 of 4)",
+				"Model for Executor (3 of 4)",
 				"Model for Reviewer (4 of 4)",
 			],
 		);
@@ -171,7 +171,7 @@ test("configure flow titles each role picker with its label and progress counter
 			[
 				"Thinking for Planner — test/echo",
 				"Thinking for Task writer — test/echo",
-				"Thinking for Implementer — test/echo",
+				"Thinking for Executor — test/echo",
 				"Thinking for Reviewer — test/echo",
 			],
 		);
@@ -306,7 +306,7 @@ test("editing assignments again preserves all earlier role changes", async () =>
 test("stale saved models stay visible and require correction before launch", async () => {
 	await withTempDir(async (root, agentDir) => {
 		const stale = roles();
-		stale.implementer = { provider: "missing", model: "gone", thinking: "off" };
+		stale.executor = { provider: "missing", model: "gone", thinking: "off" };
 		writeWorkflowModelPreset(
 			makeWorkflowModelPreset(root, stale, new Date("2026-08-26T12:00:00Z")),
 			agentDir,
@@ -314,7 +314,7 @@ test("stale saved models stay visible and require correction before launch", asy
 		const { ctx, notifications } = startupContext([
 			REUSE,
 			EDIT,
-			"Implementer",
+			"Executor",
 			echoRow,
 			"off",
 			START,
@@ -329,7 +329,7 @@ test("stale saved models stay visible and require correction before launch", asy
 		const stored = readWorkflowModelPreset(root, agentDir);
 		assert.equal(stored.status, "ok");
 		if (stored.status !== "ok") return;
-		assert.equal(stored.preset.roles.implementer.provider, "test");
+		assert.equal(stored.preset.roles.executor.provider, "test");
 		assert.equal(stored.preset.roles.planner.provider, "test");
 	});
 });
@@ -381,14 +381,14 @@ test("workflow metadata keeps original and current role defaults separate", () =
 		currentAssignments: roles("recovered", "replacement"),
 		updatedAt: "2026-08-27T12:00:00.000Z",
 	};
-	const metadata = buildWorkflowMetadata(state, "implementer", {
+	const metadata = buildWorkflowMetadata(state, "executor", {
 		model: ECHO,
 		selection: { provider: "recovered", model: "replacement", thinking: "off" },
 		argument: "recovered/replacement:off",
 		source: "picker",
 	});
-	assert.equal(metadata.phase, "implementer");
-	assert.deepEqual(metadata.originalDefault, state.roleAssignments?.implementer);
+	assert.equal(metadata.phase, "executor");
+	assert.deepEqual(metadata.originalDefault, state.roleAssignments?.executor);
 	assert.deepEqual(metadata.currentDefault, { provider: "recovered", model: "replacement", thinking: "off" });
 });
 
@@ -411,7 +411,7 @@ test("startup cancellation and non-interactive mode start no workflow", async ()
 test("workflow phases map from bundled agent names", () => {
 	assert.equal(workflowPhaseForAgent("planner"), "planner");
 	assert.equal(workflowPhaseForAgent("task-writer"), "task-writer");
-	assert.equal(workflowPhaseForAgent("implementer"), "implementer");
+	assert.equal(workflowPhaseForAgent("executor"), "executor");
 	assert.equal(workflowPhaseForAgent("reviewer"), "reviewer");
 	assert.equal(workflowPhaseForAgent("worker"), undefined);
 });
@@ -425,14 +425,14 @@ test("updateWorkflowActiveSession records the latest phase session without mutat
 		currentAssignments: roles(),
 		updatedAt: "2026-08-27T12:00:00.000Z",
 	};
-	const first = updateWorkflowActiveSession(state, "implementer", "/tmp/impl-1.jsonl");
+	const first = updateWorkflowActiveSession(state, "executor", "/tmp/impl-1.jsonl");
 	assert.notEqual(first, state);
-	assert.equal(first?.activeSessions?.implementer, "/tmp/impl-1.jsonl");
+	assert.equal(first?.activeSessions?.executor, "/tmp/impl-1.jsonl");
 	assert.equal(state.activeSessions, undefined);
 
 	// A rollover replacement replaces the phase's active session path.
-	const second = updateWorkflowActiveSession(first!, "implementer", "/tmp/impl-2.jsonl");
-	assert.equal(second?.activeSessions?.implementer, "/tmp/impl-2.jsonl");
+	const second = updateWorkflowActiveSession(first!, "executor", "/tmp/impl-2.jsonl");
+	assert.equal(second?.activeSessions?.executor, "/tmp/impl-2.jsonl");
 	assert.equal(second?.roleAssignments, state.roleAssignments);
 
 	assert.equal(updateWorkflowActiveSession(null, "planner", "/tmp/p.jsonl"), null);
@@ -445,29 +445,29 @@ test("applyWorkflowRecoveryOverride replaces only the recovered role's current d
 		projectRoot: "/tmp/project",
 		roleAssignments: roles(),
 		currentAssignments: roles(),
-		activeSessions: { implementer: "/tmp/impl-1.jsonl" },
+		activeSessions: { executor: "/tmp/impl-1.jsonl" },
 		updatedAt: "2026-08-27T12:00:00.000Z",
 	};
-	const recovered = applyWorkflowRecoveryOverride(state, "implementer", {
+	const recovered = applyWorkflowRecoveryOverride(state, "executor", {
 		provider: "other",
 		model: "replacement",
 		thinking: "high",
 	});
 	assert.ok(recovered);
 	assert.equal(recovered.roleAssignments, state.roleAssignments);
-	assert.deepEqual(recovered.roleAssignments?.implementer, {
+	assert.deepEqual(recovered.roleAssignments?.executor, {
 		provider: "test",
 		model: "echo",
 		thinking: "off",
 	});
-	assert.deepEqual(recovered.currentAssignments?.implementer, {
+	assert.deepEqual(recovered.currentAssignments?.executor, {
 		provider: "other",
 		model: "replacement",
 		thinking: "high",
 	});
 	assert.deepEqual(recovered.currentAssignments?.reviewer, roles().reviewer);
 	// Existing active session tracking survives the override.
-	assert.equal(recovered.activeSessions?.implementer, "/tmp/impl-1.jsonl");
+	assert.equal(recovered.activeSessions?.executor, "/tmp/impl-1.jsonl");
 	assert.notEqual(recovered.updatedAt, state.updatedAt);
 	assert.equal(applyWorkflowRecoveryOverride(null, "reviewer", {
 		provider: "a",
@@ -484,7 +484,7 @@ test("a recovery override becomes the role default for later fresh sessions in p
 		currentAssignments: roles(),
 		updatedAt: "2026-08-27T12:00:00.000Z",
 	};
-	const recovered = applyWorkflowRecoveryOverride(state, "implementer", {
+	const recovered = applyWorkflowRecoveryOverride(state, "executor", {
 		provider: "other",
 		model: "replacement",
 		thinking: "high",
@@ -493,7 +493,7 @@ test("a recovery override becomes the role default for later fresh sessions in p
 	const replacement = { ...ECHO, provider: "other", id: "replacement", reasoning: true };
 	const { ctx } = startupContext([], [replacement, ECHO]);
 	// Later fresh sessions of the recovered role use the recovered default.
-	const resolved = await resolveWorkflowPhaseSelection(ctx, recovered, "implementer");
+	const resolved = await resolveWorkflowPhaseSelection(ctx, recovered, "executor");
 	assert.equal(resolved.argument, "other/replacement:high");
 
 	// Other roles keep their startup assignments.

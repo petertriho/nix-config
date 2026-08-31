@@ -68,7 +68,7 @@ const FAILURE_KIND_LABELS: Record<ProviderFailureKind, string> = {
 export const WORKFLOW_PHASE_LABELS: Record<WorkflowPhase, string> = {
 	planner: "planner",
 	"task-writer": "task writer",
-	implementer: "implementer",
+	executor: "executor",
 	reviewer: "reviewer",
 };
 
