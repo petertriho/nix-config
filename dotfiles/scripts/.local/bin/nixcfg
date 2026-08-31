@@ -482,6 +482,42 @@ function tool:nix:flake {
     echo_header "Updating flake.lock"
     pushd "$NIX_CONFIG_PATH"
     nix flake update --accept-flake-config
+
+    # `nix flake update` only re-resolves inputs declared in our own flake.nix.
+    # Transitive inputs (e.g. niri/niri-unstable) keep the pins they inherit
+    # from each child flake's own lock file, so they never move on their own.
+    # Update every nested input path explicitly to refresh the whole graph.
+    if command -v jq >/dev/null 2>&1; then
+        local nested_inputs
+        nested_inputs=$(nix flake metadata --json --accept-flake-config 2>/dev/null | jq -r '
+            .locks as $l
+            | def walk($p; $id):
+                ( (($l.nodes[$id].locked.type // "") as $t
+                  | select($t == "github" or $t == "git" or $t == "gitlab")
+                  | $p),
+                  (($l.nodes[$id].inputs // {}) | to_entries[]
+                    | select((.value | type) == "string")
+                    | walk("\($p)/\(.key)"; .value)) );
+            [ ($l.nodes[$l.root].inputs // {}) | to_entries[]
+              | select((.value | type) == "string")
+              | walk(.key; .value) ]
+            | unique | .[]' | grep '/' | sort -u)
+
+        if [[ -n "$nested_inputs" ]]; then
+            local count input_path
+            count=$(echo "$nested_inputs" | wc -l)
+            echo_info "Updating $count nested inputs (not covered by bare 'nix flake update')..."
+            while IFS= read -r input_path; do
+                if nix flake update "$input_path" --accept-flake-config >/dev/null 2>&1; then
+                    echo_info "  updated $input_path"
+                else
+                    echo_warning "  skipped $input_path (cannot update)"
+                fi
+            done <<<"$nested_inputs"
+        fi
+    else
+        echo_warning "jq not found, nested inputs were not updated"
+    fi
     echo_success "Flake.lock updated"
     popd
 }
