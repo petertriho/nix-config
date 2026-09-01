@@ -132,17 +132,17 @@ local python_lsp_capabilities = {
         ty = true,
     },
     documentFormattingProvider = {
-        active = "ruff",
+        active = "basedpyright",
         basedpyright = false,
         pyrefly = false,
-        ruff = true,
+        ruff = false,
         ty = false,
     },
     documentRangeFormattingProvider = {
-        active = "ruff",
+        active = "basedpyright",
         basedpyright = false,
         pyrefly = false,
-        ruff = true,
+        ruff = false,
         ty = false,
     },
 }
