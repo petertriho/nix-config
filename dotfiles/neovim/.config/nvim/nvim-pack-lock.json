@@ -21,7 +21,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "eb0c574723ae10e0d5297dea12b0447a76121cb1",
+      "rev": "d762a1a353efc8c6fd1d0004687a0947fdaccaa4",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -98,7 +98,7 @@
       "src": "https://github.com/zeioth/garbage-day.nvim"
     },
     "glance.nvim": {
-      "rev": "bf86d8b79dce808e65fdb6e9269d0b4ed6d2eefc",
+      "rev": "297377b0753f257c40c303e43d3f6cad74565b02",
       "src": "https://github.com/dnlhc/glance.nvim"
     },
     "guess-indent.nvim": {
@@ -232,7 +232,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "2940d5e12f8797620cd47dca984d46119e1fa4b8",
+      "rev": "d34c58439271f5e73ed79c2b8d1a09731c4525f1",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
