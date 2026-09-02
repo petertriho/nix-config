@@ -13,7 +13,7 @@ let
   assets = {
     x86_64-linux = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-linux-x64";
-      hash = "sha256-WbZxiwbNKPJOmo4ukiGjl2klIjrDPGa0wTqloD7yLs8=";
+      hash = "sha256-/cfswh8r3JWA8vkcK25agz3GXlV9sCFMUEQznS1UhFg=";
     };
     aarch64-linux = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-linux-arm64";
@@ -28,7 +28,7 @@ let
       hash = "sha256-imXZkBoV1XE3yN7mZiTWa49i+80ZwBYgBX4fJG7FV2k=";
     };
   };
-  version = "3.9.5";
+  version = "3.9.6";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "bladebro";
