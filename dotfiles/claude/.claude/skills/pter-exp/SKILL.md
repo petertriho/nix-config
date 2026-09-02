@@ -1,6 +1,6 @@
 ---
 name: pter-exp
-description: "Experimental agent-teams variant of pter: orchestrate the planner -> plan-to-tasks -> execute -> execution-review chain through named teammates (full Claude Code sessions, one tmux pane each) with four user gates: plan review, task review, review result, and re-review choice. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1."
+description: "Experimental agent-teams variant of pter: orchestrate the planner -> plan-to-tasks -> execute -> execution-review chain through named teammates (full Claude Code sessions) with four user gates: plan review, task review, review result, and re-review choice. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1."
 disable-model-invocation: true
 ---
 

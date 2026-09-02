@@ -109,6 +109,6 @@
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-ansi",
   "editorMode": "vim",
-  "teammateMode": "tmux",
+  "teammateMode": "auto",
   "remoteControlAtStartup": false
 }
