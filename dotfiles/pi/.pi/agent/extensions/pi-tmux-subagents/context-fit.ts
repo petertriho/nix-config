@@ -10,8 +10,6 @@ import {
 	type LaunchProfile,
 	profilePathForSession,
 	updateLaunchProfile,
-	type WorkflowArtifacts,
-	type WorkflowPhase,
 } from "./launch-profile.ts";
 
 /** Saved sessions at or above this fraction of the selected context window
@@ -211,53 +209,15 @@ export async function chooseResumeGateAction(
 	return "stop";
 }
 
-function artifactLines(phase: WorkflowPhase, artifacts: WorkflowArtifacts): string[] {
-	const lines: string[] = [];
-	const add = (label: string, path: string | undefined) => {
-		if (path) lines.push(`- ${label}: ${path}`);
-	};
-
-	switch (phase) {
-		case "planner":
-			add("PLAN.md", artifacts.plan);
-			break;
-		case "task-writer":
-			add("PLAN.md", artifacts.plan);
-			add("TASKS.md", artifacts.tasks);
-			break;
-		case "executor":
-			add("PLAN.md", artifacts.plan);
-			add("TASKS.md", artifacts.tasks);
-			add("Previous REVIEW.md (optional)", artifacts.review);
-			add("Base ref", artifacts.baseRef);
-			break;
-		case "reviewer":
-			add("PLAN.md", artifacts.plan);
-			add("TASKS.md", artifacts.tasks);
-			add("Previous REVIEW.md (optional)", artifacts.review);
-			add("Base ref", artifacts.baseRef);
-			break;
-	}
-	return lines;
-}
-
 export function buildRolloverHandoff(profile: LaunchProfile, userMessage?: string): string {
-	const phase = profile.workflow?.phase;
-	const artifacts = profile.workflow?.artifacts ?? {};
-	const lines = phase ? artifactLines(phase, artifacts) : [];
-	const roleInstruction = phase
-		? {
-			planner: "Continue planning from the current PLAN.md state and the user's latest adjustment.",
-			"task-writer": "Re-read PLAN.md and TASKS.md, then continue task writing from the current artifacts.",
-			executor: "Re-read the handoff artifacts and continue from the first unchecked task or named review finding.",
-			reviewer: "Perform an independent review from the current artifacts and base ref. Use the previous review only as optional context.",
-		}[phase]
-		: "Continue the same role from the latest durable project artifacts.";
-
 	return [
 		"This is a fresh same-role rollover. Do not assume prior conversation history is present.",
-		roleInstruction,
-		...(lines.length > 0 ? ["", "Handoff artifacts:", ...lines] : []),
+		"Continue the same role from the latest durable project state.",
+		...(profile.workflow
+			? [
+				"The manifest workflow runtime owns role-specific handoff data; use its dedicated lifecycle tool for workflow rollovers.",
+			]
+			: []),
 		...(userMessage ? ["", "Latest user instruction:", userMessage] : []),
 	].join("\n");
 }

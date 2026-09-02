@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after, before } from "node:test";
 import { execFileSync } from "node:child_process";
 import {
 	appendFileSync,
@@ -34,6 +34,44 @@ import {
 	formatTransitionLine,
 	observeStatus,
 } from "./status.ts";
+import {
+	buildResumePiArgs as sharedBuildResumePiArgs,
+	buildSubagentToolAllowlist as sharedBuildSubagentToolAllowlist,
+	formatElapsed as sharedFormatElapsed,
+	resolveResultPresentation as sharedResolveResultPresentation,
+	resolveResumeLaunchBehavior as sharedResolveResumeLaunchBehavior,
+} from "./subagent-services.ts";
+import { loadWorkflowDefinitionFromPackage } from "./workflow/schema.ts";
+import {
+	createWorkflowRunState,
+	getActiveWorkflowRun,
+	recordWorkflowRunRoleSession,
+	startWorkflowRun,
+} from "./workflow/state.ts";
+
+// Hermetic guard: when this suite runs inside a pi-spawned agent session the
+// test process inherits PI_SUBAGENT_ID/PI_SUBAGENT_SESSION, isTaskRpcChildSession()
+// sees them, and attachTaskRpc abstains — so the root-session wiring tests below
+// would spuriously fail. Snapshot and strip just those two vars for the whole
+// file (the only ones isTaskRpcChildSession reads), and restore them afterwards.
+const savedSubagentEnv = {
+	PI_SUBAGENT_ID: process.env.PI_SUBAGENT_ID,
+	PI_SUBAGENT_SESSION: process.env.PI_SUBAGENT_SESSION,
+};
+
+before(() => {
+	// Root-session wiring tests must not abstain because this process
+	// happens to run inside a pi subagent that exported PI_SUBAGENT_*.
+	delete process.env.PI_SUBAGENT_ID;
+	delete process.env.PI_SUBAGENT_SESSION;
+});
+
+after(() => {
+	for (const [key, value] of Object.entries(savedSubagentEnv)) {
+		if (value === undefined) delete process.env[key];
+		else process.env[key] = value;
+	}
+});
 
 type AnyRecord = Record<string, any>;
 
@@ -41,10 +79,15 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 	const registeredTools: AnyRecord[] = [];
 	const registeredCommands: AnyRecord[] = [];
 	const registeredMessageRenderers: AnyRecord[] = [];
+	const eventHandlers = new Map<string, Array<(event: AnyRecord, ctx: AnyRecord) => unknown>>();
 	const sentUserMessages: string[] = [];
 	const sentMessages: AnyRecord[] = [];
 	const api = {
-		on() {},
+		on(event: string, handler: (event: AnyRecord, ctx: AnyRecord) => unknown) {
+			const handlers = eventHandlers.get(event) ?? [];
+			handlers.push(handler);
+			eventHandlers.set(event, handlers);
+		},
 		registerTool(tool: AnyRecord) {
 			registeredTools.push(tool);
 		},
@@ -64,6 +107,19 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 		getAllTools() {
 			return [];
 		},
+		getCommands() {
+			return registeredCommands.map((command) => ({
+				name: command.name,
+				description: command.description,
+				source: "extension",
+				sourceInfo: {
+					path: "/tmp/pi-tmux-subagents/index.ts",
+					source: "test",
+					scope: "temporary",
+					origin: "top-level",
+				},
+			}));
+		},
 	};
 	// Scrub ambient PI_* vars (e.g. a subagent harness exporting PI_DENY_TOOLS) around the
 	// synchronous registration call so every invocation path sees the same env; restore
@@ -79,7 +135,15 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 		const touched = new Set([...ambient, ...Object.keys(options.env ?? {})]);
 		for (const key of touched) restoreEnvVar(key, saved[key]);
 	}
-	return { api, registeredTools, registeredCommands, registeredMessageRenderers, sentUserMessages, sentMessages };
+	return {
+		api,
+		registeredTools,
+		registeredCommands,
+		registeredMessageRenderers,
+		eventHandlers,
+		sentUserMessages,
+		sentMessages,
+	};
 }
 
 const theme = {
@@ -110,6 +174,43 @@ function withTempDir(run: (dir: string) => void): void {
 function writeAgentFile(agentsDir: string, name: string, frontmatter: string, body = "You are a test agent."): void {
 	mkdirSync(agentsDir, { recursive: true });
 	writeFileSync(join(agentsDir, `${name}.md`), `---\n${frontmatter}\n---\n\n${body}\n`);
+}
+
+function writeWorkflowFixture(workflowsDir: string): void {
+	const packageDir = join(workflowsDir, "docs-review");
+	mkdirSync(packageDir, { recursive: true });
+	writeFileSync(
+		join(packageDir, "workflow.json"),
+		`${JSON.stringify(
+			{
+				version: 1,
+				id: "docs-review",
+				command: {
+					name: "docs",
+					description: "Run the documentation review workflow",
+					argumentHint: "<request>",
+				},
+				skill: "SKILL.md",
+				data: {},
+				roles: [
+					{
+						id: "author",
+						label: "Author",
+						agent: "scribe",
+						reads: [],
+						writes: [],
+						handoff: "Continue authoring.",
+					},
+				],
+			},
+			null,
+			2,
+		)}\n`,
+	);
+	writeFileSync(
+		join(packageDir, "SKILL.md"),
+		"---\nname: docs-private\ndescription: Private docs workflow.\n---\n\n# Docs\n",
+	);
 }
 
 function restoreEnvVar(name: string, value: string | undefined): void {
@@ -387,6 +488,14 @@ test("buildSubagentToolAllowlist keeps requested tools and adds child control to
 	assert.equal(testApi.buildSubagentToolAllowlist(""), null);
 });
 
+test("index test exports use the shared subagent helper implementations", () => {
+	assert.equal(testApi.formatElapsed, sharedFormatElapsed);
+	assert.equal(testApi.buildSubagentToolAllowlist, sharedBuildSubagentToolAllowlist);
+	assert.equal(testApi.resolveResumeLaunchBehavior, sharedResolveResumeLaunchBehavior);
+	assert.equal(testApi.buildResumePiArgs, sharedBuildResumePiArgs);
+	assert.equal(testApi.resolveResultPresentation, sharedResolveResultPresentation);
+});
+
 test("buildPiPromptArgs passes the task argument through when no skills are set", () => {
 	assert.deepEqual(
 		testApi.buildPiPromptArgs({ effectiveSkills: undefined, taskDelivery: "artifact", taskArg: "@artifact.md", taskText: "do it" }),
@@ -479,10 +588,16 @@ test("buildLaunchProfile captures the stable role contract and mutable launch st
 			originalSessionPath: "/tmp/sessions/child.jsonl",
 			resources,
 			workflow: {
-				phase: "executor",
+				version: 1,
+				workflowId: "demo-workflow",
+				runId: "run-demo",
+				roleId: "executor",
+				manifestHash: hashText("demo manifest"),
+				skillHash: hashText("demo skill"),
 				policy: "per-role",
 				assignmentSource: "configured",
-				artifacts: { plan: "/tmp/PLAN.md" },
+				projectRoot: "/tmp/project",
+				data: { plan: "/tmp/PLAN.md" },
 			},
 		});
 
@@ -586,25 +701,6 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 	}
 });
 
-// ── workflow phase boundaries (T7) ──
-
-function withTempGitRepo(run: (root: string) => void): void {
-	const root = mkdtempSync(join(tmpdir(), "pi-phase-boundaries-"));
-	try {
-		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
-		writeFileSync(join(root, "tracked.txt"), "initial\n");
-		execFileSync("git", ["add", "tracked.txt"], { cwd: root });
-		execFileSync(
-			"git",
-			["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "initial"],
-			{ cwd: root, stdio: "ignore" },
-		);
-		run(root);
-	} finally {
-		rmSync(root, { recursive: true, force: true });
-	}
-}
-
 test("task writer and reviewer no longer declare maintained tool lists", () => {
 	const dir = testApi.getBundledAgentsDir();
 	// Workflow roles and the worker delegate keep full current tool discovery;
@@ -622,215 +718,311 @@ test("task writer and reviewer no longer declare maintained tool lists", () => {
 	assert.ok(scout.tools, "scout keeps its tools list");
 });
 
-test("workflow prompt documents phase boundaries and the stop-without-revert rule", () => {
-	const message = testApi.buildWorkflowMessage("test request");
-	for (const phrase of [
-		"phaseBoundary",
-		"PHASE BOUNDARY VIOLATION",
-		"expected artifact (`PLAN.md`, `TASKS.md`, or `REVIEW.md`)",
-		"never revert, restore, delete, stage, or commit anything",
-		"never revert, restore, delete, stage, or commit",
-		"Do not launch the next phase",
-		"governed by `TASKS.md`",
-		"not a clean worktree",
-	]) {
-		assert.ok(message.includes(phrase), `workflow prompt must mention ${phrase}`);
-	}
-});
-
-test("describeRunningPhaseBoundary reports violations with exact paths and no tree mutation", () => {
-	withTempGitRepo((root) => {
-		const snapshot = testApi.capturePhaseBoundarySnapshot("reviewer", root);
-		assert.ok(snapshot);
-		assert.equal(snapshot.artifact, "REVIEW.md");
-
-		appendFileSync(join(root, "tracked.txt"), "rogue edit\n");
-		mkdirSync(join(root, "src"), { recursive: true });
-		writeFileSync(join(root, "src", "index.ts"), "code\n");
-		mkdirSync(join(root, "docs", "plan-a"), { recursive: true });
-		writeFileSync(join(root, "docs", "plan-a", "REVIEW.md"), "review\n");
-
-		const statusBefore = execFileSync(
-			"git",
-			["-C", root, "status", "--porcelain", "--untracked-files=all"],
-			{ encoding: "utf8" },
-		);
-		const outcome = testApi.describeRunningPhaseBoundary({ phaseBoundary: snapshot }) as AnyRecord;
-		assert.ok(outcome);
-		assert.ok(outcome.violationText);
-		assert.match(outcome.violationText, /PHASE BOUNDARY VIOLATION/);
-		assert.match(
-			outcome.violationText,
-			/reviewer phase changed paths outside its expected artifact \(REVIEW\.md\)/,
-		);
-		assert.match(outcome.violationText, /- src\/index\.ts/);
-		assert.match(outcome.violationText, /- tracked\.txt/);
-		const boundary = outcome.details.phaseBoundary;
-		assert.equal(boundary.phase, "reviewer");
-		assert.equal(boundary.artifact, "REVIEW.md");
-		assert.equal(boundary.violated, true);
-		assert.ok(boundary.unexpectedPaths.includes("tracked.txt"));
-		assert.ok(boundary.unexpectedPaths.includes("src/index.ts"));
-		const statusAfter = execFileSync(
-			"git",
-			["-C", root, "status", "--porcelain", "--untracked-files=all"],
-			{ encoding: "utf8" },
-		);
-		assert.equal(statusAfter, statusBefore, "the report must not change the tree");
-		assert.equal(
-			readFileSync(join(root, "tracked.txt"), "utf8"),
-			"initial\nrogue edit\n",
-			"changes stay exactly as the phase left them",
-		);
-	});
-});
-
-test("describeRunningPhaseBoundary passes artifact-only phases and skips snapshot-free children", () => {
-	withTempGitRepo((root) => {
-		// Dirt that exists before the phase starts is the baseline, not a change.
-		appendFileSync(join(root, "tracked.txt"), "pre-existing dirt\n");
-		const snapshot = testApi.capturePhaseBoundarySnapshot("task-writer", root);
-		assert.ok(snapshot);
-		const dirty = testApi.describeRunningPhaseBoundary({ phaseBoundary: snapshot }) as AnyRecord;
-		assert.ok(dirty);
-		assert.equal(dirty.details.phaseBoundary.violated, false);
-		assert.equal(dirty.violationText, undefined);
-
-		// The phase writes only its artifact: allowed, in any directory.
-		mkdirSync(join(root, "docs", "plan-a"), { recursive: true });
-		writeFileSync(join(root, "docs", "plan-a", "TASKS.md"), "tasks\n");
-		const clean = testApi.describeRunningPhaseBoundary({ phaseBoundary: snapshot }) as AnyRecord;
-		assert.ok(clean);
-		assert.equal(clean.details.phaseBoundary.violated, false);
-		assert.ok(
-			clean.details.phaseBoundary.allowedPaths.every((path: string) => path.endsWith("TASKS.md")),
-		);
-		// The executor and snapshot-free children are never boundary-checked.
-		assert.equal(testApi.capturePhaseBoundarySnapshot("executor", root), undefined);
-		assert.equal(testApi.describeRunningPhaseBoundary({}), undefined);
-	});
-});
-
 // ── registration and commands ──
 
-test("registers the five tools, three renderers, and the commands", () => {
+test("registers the eight tools, three renderers, and the commands", () => {
 	const { registeredTools, registeredCommands, registeredMessageRenderers } = createMockExtensionApi();
 	assert.deepEqual(
 		registeredTools.map((tool) => tool.name).sort(),
-		["subagent", "subagent_interrupt", "subagent_recover", "subagent_resume", "subagents_list"],
+		[
+			"subagent",
+			"subagent_interrupt",
+			"subagent_resume",
+			"subagents_list",
+			"workflow_complete",
+			"workflow_recover",
+			"workflow_resume",
+			"workflow_spawn",
+		],
 	);
 	assert.deepEqual(
 		registeredMessageRenderers.map((entry) => entry.name).sort(),
 		["subagent_ping", "subagent_result", "subagent_status"],
 	);
+	const subagent = registeredTools.find((tool) => tool.name === "subagent");
+	const resume = registeredTools.find((tool) => tool.name === "subagent_resume");
+	assert.equal(subagent?.parameters.properties.workflowRunId, undefined);
+	assert.equal(subagent?.parameters.properties.workflowArtifacts, undefined);
+	assert.equal(resume?.parameters.properties.workflowArtifacts, undefined);
+	for (const name of ["workflow_spawn", "workflow_resume", "workflow_recover"]) {
+		const tool = registeredTools.find((entry) => entry.name === name);
+		assert.match(tool?.description ?? "", /do not poll/i);
+	}
 	const commandNames = registeredCommands.map((command) => command.name);
 	assert.ok(commandNames.includes("iterate"));
 	assert.ok(commandNames.includes("subagent"));
-	assert.ok(commandNames.includes("pter"));
+	assert.ok(commandNames.includes("workflow"));
+	assert.ok(commandNames.includes("workflows"));
+	assert.ok(commandNames.includes("workflow-resume"));
+	assert.equal(commandNames.includes("pter"), false);
 	assert.equal(commandNames.includes("plan"), false);
 });
 
-test("/pter requires a request and shows the tmux hint outside tmux", async () => {
+test("session_start discovers workflows and registers a generated alias once across reloads", async () => {
+	const root = mkdtempSync(join(tmpdir(), "pi-workflow-command-integration-"));
+	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const previousSubagentId = process.env.PI_SUBAGENT_ID;
+	const agentDir = join(root, "agent");
+	const projectDir = join(root, "project");
+	mkdirSync(projectDir, { recursive: true });
+	writeWorkflowFixture(join(agentDir, "workflows"));
+	writeAgentFile(join(agentDir, "agents"), "scribe", "name: Scribe");
+	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.PI_SUBAGENT_ID = "command-test-child";
+	try {
+		const { registeredCommands, eventHandlers } = createMockExtensionApi();
+		const notifications: Array<[string, string]> = [];
+		const ctx = {
+			...policyContext({ cwd: projectDir }),
+			isIdle: () => true,
+			isProjectTrusted: () => true,
+			sessionManager: {
+				getSessionFile: () => join(root, "parent.jsonl"),
+				getBranch: () => [],
+			},
+			ui: {
+				notify: (message: string, level: string) =>
+					notifications.push([message, level]),
+			},
+		};
+		const handlers = eventHandlers.get("session_start") ?? [];
+		assert.equal(handlers.length, 1);
+		await handlers[0]({ reason: "startup" }, ctx);
+		await handlers[0]({ reason: "reload" }, ctx);
+
+		assert.equal(
+			registeredCommands.filter((command) => command.name === "docs").length,
+			1,
+		);
+		const workflow = registeredCommands.find(
+			(command) => command.name === "workflow",
+		);
+		assert.ok(workflow);
+		assert.deepEqual(
+			workflow
+				.getArgumentCompletions("run doc")
+				.map((item: AnyRecord) => item.value),
+			["run docs-review "],
+		);
+
+		const workflows = registeredCommands.find(
+			(command) => command.name === "workflows",
+		);
+		assert.ok(workflows);
+		await workflows.handler("", ctx);
+		assert.match(notifications.at(-1)?.[0] ?? "", /docs-review/);
+		assert.match(notifications.at(-1)?.[0] ?? "", /alias \/docs/);
+		assert.match(notifications.at(-1)?.[0] ?? "", /source global/);
+	} finally {
+		restoreEnvVar("PI_CODING_AGENT_DIR", previousAgentDir);
+		restoreEnvVar("PI_SUBAGENT_ID", previousSubagentId);
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("/workflow requires a lifecycle subcommand and /workflow-resume requires an active run", async () => {
 	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
-	const command = registeredCommands.find((entry) => entry.name === "pter");
+	const command = registeredCommands.find((entry) => entry.name === "workflow");
+	const resume = registeredCommands.find((entry) => entry.name === "workflow-resume");
 	assert.ok(command);
+	assert.ok(resume);
 	const notifications: Array<[string, string]> = [];
-	const ctx = { ui: { notify: (text: string, level: string) => notifications.push([text, level]) } };
+	const ctx = {
+		...policyContext(),
+		isIdle: () => true,
+		ui: { notify: (text: string, level: string) => notifications.push([text, level]) },
+	};
 
 	await command.handler("   ", ctx);
-	assert.deepEqual(notifications[0], ["Usage: /pter <request>", "warning"]);
-
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	try {
-		await command.handler("test request", ctx);
-	} finally {
-		restoreEnvVar("TMUX", previous);
-	}
-	assert.match(notifications[1][0], /\/pter needs tmux\. Start pi inside tmux/);
+	assert.deepEqual(
+		notifications[0],
+		["Usage: /workflow list | run <id> <request> | status | abort", "warning"],
+	);
+	await resume.handler("", ctx);
+	assert.deepEqual(notifications[1], ["No active workflow run to resume.", "warning"]);
 	assert.equal(sentUserMessages.length, 0);
 });
 
-test("buildWorkflowMessage wraps the bundled prompt like a skill expansion", () => {
-	assert.ok(existsSync(testApi.WORKFLOW_SKILL_PATH));
-	const message = testApi.buildWorkflowMessage("test request");
-	assert.match(message, /^<skill name="pter-workflow" location=".*workflow-skill\.md">\n/);
-	assert.doesNotMatch(message, /^---/m);
-	assert.match(message, /<\/skill>\n\ntest request$/);
-	for (const phrase of [
-		"subagent_resume",
-		"`subagent`",
-		"Gate 1",
-		"Gate 2",
-		"Gate 3",
-		"git rev-parse HEAD",
-		"git status --porcelain",
-		"dirty",
-		"Never commit",
-		'agent: "planner"',
-		'agent: "task-writer"',
-		'agent: "executor"',
-		'agent: "reviewer"',
-		" Planning",
-		" Tasking",
-		" Executing",
-		" Reviewing",
-		" Workflow done",
-		"ls -t .artifacts",
-	]) {
-		assert.ok(message.includes(phrase), `workflow prompt must mention ${phrase}`);
-	}
-});
-
-test("buildWorkflowMessage includes the confirmed startup policy and role defaults", () => {
-	const state = {
-		policy: "per-role" as const,
-		assignmentSource: "preset" as const,
-		projectRoot: "/tmp/project",
-		roleAssignments: undefined,
-		currentAssignments: {
-			planner: { provider: "test", model: "echo", thinking: "off" as const },
-			taskWriter: { provider: "test", model: "echo", thinking: "off" as const },
-			executor: { provider: "test", model: "echo", thinking: "off" as const },
-			reviewer: { provider: "test", model: "echo", thinking: "off" as const },
-		},
-		updatedAt: "2026-08-27T12:00:00.000Z",
-	};
-	const message = testApi.buildWorkflowMessage(
-		"test request",
-		testApi.WORKFLOW_SKILL_PATH,
-		state as any,
-	);
-	assert.match(message, /<workflow-config>\nPolicy: per-role/);
-	assert.match(message, /Assignment source: preset/);
-	assert.match(message, /- planner: test\/echo:off/);
-	assert.match(message, /Do not pass `model` for ordinary workflow phase launches\./);
-	assert.match(message, /<\/workflow-config>\n\ntest request$/);
-});
-
-test("/pter startup cancellation sends no prompt and starts no child", async () => {
-	if (!process.env.TMUX) return;
-	testApi.setActiveWorkflowRuntimeForTests(null);
+test("/workflow status is available before any generic run starts", async () => {
 	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
-	const command = registeredCommands.find((entry) => entry.name === "pter");
+	const command = registeredCommands.find((entry) => entry.name === "workflow");
 	assert.ok(command);
 	const notifications: Array<[string, string]> = [];
 	const ctx = {
 		...policyContext(),
 		ui: {
-			select: async () => undefined,
 			notify: (text: string, level: string) => notifications.push([text, level]),
 		},
 	};
-	await command.handler("test request", ctx);
+	await command.handler("status", ctx);
 	assert.equal(sentUserMessages.length, 0);
 	assert.equal(testApi.runningSubagents.size, 0);
-	assert.equal(testApi.getActiveWorkflowRuntime(), null);
-	assert.ok(notifications.some(([text]) => /cancelled|interactive/i.test(text)) || notifications.length === 0);
+	assert.match(notifications[0]?.[0] ?? "", /No active workflow run/);
+});
+
+test("workflow commits publish only after durable append and fail closed after a partial append", () => {
+	const emptyState = {
+		activeRunId: null,
+		runsById: {},
+		runOrder: [],
+	} as any;
+	const previousState = {
+		activeRunId: "old",
+		runsById: { old: { runId: "old" } },
+		runOrder: ["old"],
+	} as any;
+	const nextState = {
+		activeRunId: "next",
+		runsById: { next: { runId: "next" } },
+		runOrder: ["next"],
+	} as any;
+	const snapshots = [{ runId: "old" }, { runId: "next" }] as any;
+
+	try {
+		testApi.setWorkflowRunStateForTests(previousState);
+		const observedDuringAppend: unknown[] = [];
+		testApi.commitWorkflowRunTransition(
+			{
+				appendEntry() {
+					observedDuringAppend.push(testApi.getWorkflowRunStateForTests());
+				},
+			} as any,
+			{ state: nextState, snapshots } as any,
+		);
+		assert.deepEqual(observedDuringAppend, [previousState, previousState]);
+		assert.equal(testApi.getWorkflowRunStateForTests(), nextState);
+
+		testApi.setWorkflowRunStateForTests(previousState);
+		assert.throws(
+			() =>
+				testApi.commitWorkflowRunTransition(
+					{
+						appendEntry() {
+							throw new Error("disk full");
+						},
+					} as any,
+					{ state: nextState, snapshots: [snapshots[0]] } as any,
+				),
+			/before any snapshot was appended; live workflow state was left unchanged/i,
+		);
+		assert.equal(testApi.getWorkflowRunStateForTests(), previousState);
+
+		testApi.setWorkflowRunStateForTests(previousState);
+		let appendCount = 0;
+		assert.throws(
+			() =>
+				testApi.commitWorkflowRunTransition(
+					{
+						appendEntry() {
+							appendCount += 1;
+							if (appendCount === 2) throw new Error("disk full");
+						},
+					} as any,
+					{ state: nextState, snapshots } as any,
+				),
+			/appending 1 of 2 snapshots; live workflow state was cleared/i,
+		);
+		assert.deepEqual(testApi.getWorkflowRunStateForTests(), emptyState);
+	} finally {
+		testApi.setWorkflowRunStateForTests(emptyState);
+	}
+});
+
+test("session_start keeps the restored run in memory and warns when snapshot persistence fails", async () => {
+	const root = mkdtempSync(join(tmpdir(), "pi-workflow-restore-persist-"));
+	const projectDir = join(root, "project");
+	mkdirSync(projectDir, { recursive: true });
+	writeWorkflowFixture(join(root, "agent", "workflows"));
+	const definitionResult = loadWorkflowDefinitionFromPackage(
+		join(root, "agent", "workflows", "docs-review"),
+	);
+	assert.equal(definitionResult.status, "ok");
+	// Fabricate the persisted branch entry through the real state machine so the
+	// snapshot round-trips through restoreWorkflowRunStateFromSession.
+	const started = startWorkflowRun(createWorkflowRunState(), {
+		runId: "run-docs",
+		source: "project",
+		definition: definitionResult.definition,
+		projectRoot: projectDir,
+		policy: "per-role",
+		assignmentSource: "preset",
+		originalAssignments: {
+			author: { provider: "test", model: "echo", thinking: "off" },
+		},
+	});
+	const launched = recordWorkflowRunRoleSession(
+		started.state,
+		"run-docs",
+		"author",
+		join(root, "author-1.jsonl"),
+		{ launchStatus: "running" },
+	);
+	const runningSnapshot = getActiveWorkflowRun(launched.state);
+	assert.equal(runningSnapshot?.activeLaunch?.status, "running");
+
+	const previousSubagentId = process.env.PI_SUBAGENT_ID;
+	process.env.PI_SUBAGENT_ID = "restore-persist-test-child";
+	const { api, eventHandlers } = createMockExtensionApi();
+	const notifications: Array<[string, string]> = [];
+	const appendedTypes: string[] = [];
+	// The shared appendEntry mock throws only for workflow-run snapshot entries.
+	(api as any).appendEntry = (customType: string) => {
+		appendedTypes.push(customType);
+		if (customType === "pi-tmux-subagents.workflow-run") {
+			throw new Error("parent log busy");
+		}
+	};
+	const ctx = {
+		...policyContext({ cwd: projectDir }),
+		isIdle: () => true,
+		isProjectTrusted: () => true,
+		sessionManager: {
+			getSessionFile: () => join(root, "parent.jsonl"),
+			getBranch: () => [
+				{
+					type: "custom",
+					customType: "pi-tmux-subagents.workflow-run",
+					data: runningSnapshot,
+				},
+			],
+		},
+		ui: {
+			notify: (message: string, level: string) => notifications.push([message, level]),
+		},
+	};
+	try {
+		const handlers = eventHandlers.get("session_start") ?? [];
+		assert.equal(handlers.length, 1);
+		await handlers[0]({ reason: "reload" }, ctx);
+
+		const state = testApi.getWorkflowRunStateForTests();
+		assert.equal(state.activeRunId, "run-docs");
+		const restored = state.runsById["run-docs"];
+		assert.ok(restored);
+		assert.equal(restored.status, "active");
+		assert.equal(restored.activeLaunch?.status, "interrupted");
+		assert.deepEqual(appendedTypes, ["pi-tmux-subagents.workflow-run"]);
+		const persistWarning = notifications
+			.map(([message]) => message)
+			.find((message) => /restored in memory/i.test(message));
+		assert.ok(persistWarning);
+		assert.match(persistWarning, /session log failed: parent log busy/i);
+		assert.match(persistWarning, /re-derived on the next reload/i);
+	} finally {
+		restoreEnvVar("PI_SUBAGENT_ID", previousSubagentId);
+		delete (api as any).appendEntry;
+		testApi.setWorkflowRunStateForTests(createWorkflowRunState());
+		rmSync(root, { recursive: true, force: true });
+	}
 });
 
 test("PI_DENY_TOOLS gates tool registration", () => {
-	const { registeredTools } = createMockExtensionApi({ env: { PI_DENY_TOOLS: "subagent, subagent_resume, subagent_recover" } });
+	const { registeredTools } = createMockExtensionApi({
+		env: {
+			PI_DENY_TOOLS:
+				"subagent,subagent_resume,workflow_spawn,workflow_resume,workflow_recover,workflow_complete",
+		},
+	});
 	assert.deepEqual(
 		registeredTools.map((tool) => tool.name).sort(),
 		["subagent_interrupt", "subagents_list"],
@@ -839,17 +1031,26 @@ test("PI_DENY_TOOLS gates tool registration", () => {
 
 test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards", () => {
 	const previous = process.env.PI_DENY_TOOLS;
-	process.env.PI_DENY_TOOLS = "subagent,subagent_interrupt,subagents_list,subagent_resume,subagent_recover";
+	process.env.PI_DENY_TOOLS = "subagent,subagent_interrupt,subagents_list,subagent_resume,workflow_recover";
 	try {
 		const { registeredTools } = createMockExtensionApi();
 		assert.deepEqual(
 			registeredTools.map((tool) => tool.name).sort(),
-			["subagent", "subagent_interrupt", "subagent_recover", "subagent_resume", "subagents_list"],
+			[
+				"subagent",
+				"subagent_interrupt",
+				"subagent_resume",
+				"subagents_list",
+				"workflow_complete",
+				"workflow_recover",
+				"workflow_resume",
+				"workflow_spawn",
+			],
 		);
 		// scrub window closed: ambient value visible again to execute()-time readers
 		assert.equal(
 			process.env.PI_DENY_TOOLS,
-			"subagent,subagent_interrupt,subagents_list,subagent_resume,subagent_recover",
+			"subagent,subagent_interrupt,subagents_list,subagent_resume,workflow_recover",
 		);
 	} finally {
 		restoreEnvVar("PI_DENY_TOOLS", previous);
@@ -1181,65 +1382,6 @@ test("subagent model policies reject invalid new-spawn selections before tmux wo
 	}
 });
 
-test("workflow agents revalidate the active role default before launch", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	testApi.setActiveWorkflowRuntimeForTests(null);
-	try {
-		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent");
-		assert.ok(tool);
-		const assignments = {
-			planner: { provider: "anthropic", model: "claude", thinking: "off" as const },
-			taskWriter: { provider: "anthropic", model: "claude", thinking: "off" as const },
-			executor: { provider: "anthropic", model: "claude", thinking: "off" as const },
-			reviewer: { provider: "anthropic", model: "claude", thinking: "off" as const },
-		};
-		testApi.setActiveWorkflowRuntimeForTests({
-			policy: "per-role",
-			assignmentSource: "preset",
-			projectRoot: "/tmp/project",
-			roleAssignments: assignments,
-			currentAssignments: assignments,
-			updatedAt: "2026-08-27T12:00:00.000Z",
-		} as any);
-
-		const valid = await tool.execute(
-			"c",
-			{ name: "Planner", task: "t", agent: "planner" },
-			undefined,
-			undefined,
-			policyContext(),
-		);
-		assert.equal(valid.details.error, "tmux not available");
-
-		testApi.setActiveWorkflowRuntimeForTests({
-			policy: "per-role",
-			assignmentSource: "preset",
-			projectRoot: "/tmp/project",
-			roleAssignments: assignments,
-			currentAssignments: {
-				...assignments,
-				planner: { provider: "missing", model: "gone", thinking: "off" as const },
-			},
-			updatedAt: "2026-08-27T12:00:00.000Z",
-		} as any);
-		const stale = await tool.execute(
-			"c",
-			{ name: "Planner", task: "t", agent: "planner" },
-			undefined,
-			undefined,
-			policyContext(),
-		);
-		assert.equal(stale.details.error, "workflow model selection failed");
-		assert.match(stale.content[0].text, /not authenticated and available/);
-		assert.equal(testApi.runningSubagents.size, 0);
-	} finally {
-		testApi.setActiveWorkflowRuntimeForTests(null);
-		restoreEnvVar("TMUX", previous);
-	}
-});
-
 const OTHER_MODEL = {
 	provider: "openai",
 	id: "gpt",
@@ -1266,7 +1408,6 @@ async function executeWithoutSubagentIdentity<T>(run: () => Promise<T>): Promise
 test("malformed or unresolvable agent model configs hard-error before tmux work", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
-	testApi.setActiveWorkflowRuntimeForTests(null);
 	try {
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
@@ -1297,7 +1438,6 @@ test("malformed or unresolvable agent model configs hard-error before tmux work"
 			assert.equal(testApi.runningSubagents.size, 0);
 		});
 	} finally {
-		testApi.setActiveWorkflowRuntimeForTests(null);
 		restoreEnvVar("TMUX", previous);
 	}
 });
@@ -1305,7 +1445,6 @@ test("malformed or unresolvable agent model configs hard-error before tmux work"
 test("agent model config yields to params.model and never applies to agent-less or cli agents", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
-	testApi.setActiveWorkflowRuntimeForTests(null);
 	try {
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
@@ -1347,12 +1486,11 @@ test("agent model config yields to params.model and never applies to agent-less 
 			assert.equal(configured.details.error, "tmux not available");
 		});
 	} finally {
-		testApi.setActiveWorkflowRuntimeForTests(null);
 		restoreEnvVar("TMUX", previous);
 	}
 });
 
-test("active workflow runtimes ignore agent model config entries for the four phase roles", async () => {
+test("ordinary subagent launches keep agent model config precedence for workflow-named agents", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
 	try {
@@ -1373,30 +1511,14 @@ test("active workflow runtimes ignore agent model config entries for the four ph
 			},
 				agentDir,
 			);
-			const assignments = {
-				planner: { provider: "anthropic", model: "claude", thinking: "off" as const },
-				taskWriter: { provider: "anthropic", model: "claude", thinking: "off" as const },
-				executor: { provider: "anthropic", model: "claude", thinking: "off" as const },
-				reviewer: { provider: "anthropic", model: "claude", thinking: "off" as const },
-			};
-			testApi.setActiveWorkflowRuntimeForTests({
-				policy: "per-role",
-				assignmentSource: "preset",
-				projectRoot: "/tmp/project",
-				roleAssignments: assignments,
-				currentAssignments: assignments,
-				updatedAt: "2026-08-27T12:00:00.000Z",
-			} as any);
-
 			for (const agent of ["planner", "task-writer", "executor", "reviewer"]) {
 				const result: AnyRecord = await executeWithoutSubagentIdentity(() =>
 					tool.execute("c", { name: agent, task: "t", agent }, undefined, undefined, policyContext()),
 				);
-				assert.equal(result.details.error, "tmux not available", agent);
+				assert.equal(result.details.error, "agent model config resolution failed", agent);
 			}
 		});
 	} finally {
-		testApi.setActiveWorkflowRuntimeForTests(null);
 		restoreEnvVar("TMUX", previous);
 	}
 });
@@ -1564,10 +1686,10 @@ test("/agent-models lists discovered agents with current values and annotations"
 		const choices = selectCalls[0].choices;
 		assert.ok(choices.includes("scout — anthropic/claude:high"), choices.join("\n"));
 		assert.ok(choices.includes("claude-code — parent default · frontmatter only"), choices.join("\n"));
-		assert.ok(choices.includes("planner — parent default · ad-hoc spawns only"), choices.join("\n"));
-		assert.ok(choices.includes("task-writer — parent default · ad-hoc spawns only"), choices.join("\n"));
-		assert.ok(choices.includes("executor — parent default · ad-hoc spawns only"), choices.join("\n"));
-		assert.ok(choices.includes("reviewer — parent default · ad-hoc spawns only"), choices.join("\n"));
+		assert.ok(choices.includes("planner — parent default"), choices.join("\n"));
+		assert.ok(choices.includes("task-writer — parent default"), choices.join("\n"));
+		assert.ok(choices.includes("executor — parent default"), choices.join("\n"));
+		assert.ok(choices.includes("reviewer — parent default"), choices.join("\n"));
 		assert.ok(choices.includes("worker — parent default"), choices.join("\n"));
 		assert.equal(choices[choices.length - 1], "Done");
 		assert.equal(readAgentModelConfig(agentDir).status, "ok");
@@ -1717,7 +1839,6 @@ test("/agent-models keys entries by the filename-based spawn identifier", async 
 test("spawn config lookup keys by the filename identifier, not the frontmatter name", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
-	testApi.setActiveWorkflowRuntimeForTests(null);
 	try {
 		await withIsolatedAgentEnv(async ({ projectAgentsDir, globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
@@ -1746,7 +1867,6 @@ test("spawn config lookup keys by the filename identifier, not the frontmatter n
 			assert.equal(byFrontmatterName.details.error, "tmux not available");
 		});
 	} finally {
-		testApi.setActiveWorkflowRuntimeForTests(null);
 		restoreEnvVar("TMUX", previous);
 	}
 });
@@ -2312,416 +2432,6 @@ test("legacy heavy sessions gate on explicit models but cannot roll over without
 			resumed.ctx,
 		);
 		assert.equal(resumeResult.details.error, "tmux not available");
-	} finally {
-		restoreEnvVar("TMUX", previous);
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-// ── workflow provider-failure recovery (T6) ──
-
-const RECOVER_SELECT = "Select a replacement model and thinking level";
-const RECOVER_STOP = "Stop recovery";
-const QUOTA_FAILURE = "You exceeded your current quota, please check your plan and billing details";
-const TRANSIENT_FAILURE = "Anthropic 529 overloaded; request failed after retries were exhausted";
-
-function writeWorkflowSidecar(
-	sessionPath: string,
-	dir: string,
-	overrides: Record<string, unknown> = {},
-): void {
-	writeLaunchProfile(
-		sessionPath,
-		testApi.buildLaunchProfile({
-			displayName: "Executor",
-			agentName: "executor",
-			roleBody: "You are the executor. Follow TASKS.md exactly.",
-			systemPromptMode: "append",
-			cwd: dir,
-			agentDir: dir,
-			controls: { denyTools: [], autoExit: true, interactive: false, sessionMode: "standalone" },
-			modelArgument: "anthropic/claude:high",
-			originalSessionPath: sessionPath,
-			resources: {
-				tools: fingerprintStrings([]),
-				visibleSkills: fingerprintStrings([]),
-				updatedAt: "2026-08-27T12:00:00.000Z",
-			},
-			workflow: {
-				phase: "executor",
-				policy: "per-role",
-				assignmentSource: "preset",
-				projectRoot: dir,
-				originalDefault: { provider: "anthropic", model: "claude", thinking: "high" },
-				currentDefault: { provider: "anthropic", model: "claude", thinking: "high" },
-				artifacts: {
-					plan: join(dir, ".artifacts", "demo", "PLAN.md"),
-					tasks: join(dir, ".artifacts", "demo", "TASKS.md"),
-				},
-				...overrides,
-			},
-		}),
-	);
-}
-
-function writeWorkflowArtifacts(dir: string): { plan: string; tasks: string } {
-	const plan = join(dir, ".artifacts", "demo", "PLAN.md");
-	const tasks = join(dir, ".artifacts", "demo", "TASKS.md");
-	mkdirSync(dirname(plan), { recursive: true });
-	writeFileSync(plan, "# Plan\n");
-	writeFileSync(tasks, "# Tasks\n- [x] done task\n");
-	return { plan, tasks };
-}
-
-/** policyContext with scripted ui.select responses and a recording notify. */
-function recoverCtx(
-	responses: Array<string | undefined | ((choices: string[]) => string | undefined)>,
-) {
-	const queue = [...responses];
-	const calls: string[][] = [];
-	const titles: string[] = [];
-	const notifications: Array<[string, string]> = [];
-	const ctx = policyContext({
-		hasUI: true,
-		ui: {
-			select: async (title: string, choices: string[]) => {
-				titles.push(title);
-				calls.push(choices);
-				const respond = queue.shift();
-				return typeof respond === "function" ? respond(choices) : respond;
-			},
-			notify: (message: string, level: string) => {
-				notifications.push([message, level]);
-			},
-		},
-	});
-	return { ctx, calls, titles, notifications };
-}
-
-function findRecoverTool() {
-	const { registeredTools } = createMockExtensionApi();
-	const tool = registeredTools.find((entry) => entry.name === "subagent_recover");
-	assert.ok(tool);
-	return tool;
-}
-
-function pickEchoModel(choices: string[]): string | undefined {
-	return choices.find((label) => /anthropic\/claude/.test(label) && !/Show all/.test(label));
-}
-
-test("usage exhaustion opens the recovery gate with phase, model, failure, session, and estimate", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	const dir = mkdtempSync(join(tmpdir(), "pi-recover-usage-"));
-	try {
-		const tool = findRecoverTool();
-		const artifacts = writeWorkflowArtifacts(dir);
-		const sessionPath = writeHeavySession(dir, 100_000); // 50% of 200k: fits
-		writeWorkflowSidecar(sessionPath, dir);
-		const sessionBefore = readFileSync(sessionPath, "utf8");
-
-		const { ctx, calls, notifications } = recoverCtx([
-			RECOVER_SELECT,
-			pickEchoModel,
-			"high",
-		]);
-		const result: AnyRecord = await tool.execute(
-			"c",
-			{ sessionPath, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			ctx,
-		);
-
-		// Same-session recovery: picker + thinking, no context gate, then launch.
-		assert.equal(result.details.error, "tmux not available");
-		assert.equal(calls.length, 3);
-		assert.deepEqual(calls[0], [RECOVER_SELECT, RECOVER_STOP]);
-		assert.ok(calls[1].some((label) => /anthropic\/claude/.test(label) && /50% context/.test(label)));
-		assert.deepEqual(calls[2], ["off", "minimal", "low", "medium", "high"]);
-
-		// The gate summary shows phase, provider/model, failure, session, estimate.
-		assert.equal(notifications.length, 1);
-		assert.equal(notifications[0][1], "error");
-		const summary = notifications[0][0];
-		assert.match(summary, /executor/);
-		assert.match(summary, /quota\/usage exhaustion/);
-		assert.match(summary, /Provider\/model: anthropic\/claude/);
-		assert.match(summary, new RegExp(`Saved session: ${sessionPath.replace(/\//g, "\\/")}`));
-		assert.match(summary, /Context estimate: 100,000 tokens/);
-		assert.match(summary, /You exceeded your current quota/);
-
-		// The failure is recorded on the saved profile for diagnostics.
-		const sidecar = readLaunchProfile(sessionPath);
-		assert.equal(sidecar.status, "ok");
-		if (sidecar.status === "ok") {
-			assert.equal(sidecar.profile.runtime.previousFailure?.kind, "usage");
-			assert.equal(sidecar.profile.runtime.previousFailure?.message, QUOTA_FAILURE);
-			assert.equal(sidecar.profile.runtime.previousFailure?.provider, "anthropic");
-			assert.equal(sidecar.profile.runtime.previousFailure?.model, "claude");
-		}
-
-		// Completed artifacts and the saved conversation survive.
-		assert.ok(existsSync(artifacts.plan));
-		assert.ok(existsSync(artifacts.tasks));
-		assert.equal(readFileSync(sessionPath, "utf8"), sessionBefore);
-	} finally {
-		restoreEnvVar("TMUX", previous);
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-test("exhausted transient retries open the same recovery gate", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	const dir = mkdtempSync(join(tmpdir(), "pi-recover-transient-"));
-	try {
-		const tool = findRecoverTool();
-		const sessionPath = writeHeavySession(dir, 100_000);
-		writeWorkflowSidecar(sessionPath, dir);
-		const { ctx, calls, notifications } = recoverCtx([RECOVER_STOP]);
-		const result: AnyRecord = await tool.execute(
-			"c",
-			{ sessionPath, failure: TRANSIENT_FAILURE },
-			undefined,
-			undefined,
-			ctx,
-		);
-		assert.equal(result.details.status, "cancelled");
-		assert.equal(result.details.failureKind, "retry-exhausted");
-		assert.deepEqual(calls, [[RECOVER_SELECT, RECOVER_STOP]]);
-		assert.match(notifications[0][0], /transient failures exhausted normal retries/);
-		const sidecar = readLaunchProfile(sessionPath);
-		if (sidecar.status === "ok") {
-			assert.equal(sidecar.profile.runtime.previousFailure?.kind, "retry-exhausted");
-		}
-	} finally {
-		restoreEnvVar("TMUX", previous);
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-test("other provider errors do not open the gate and keep the retry decision with the user", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	const dir = mkdtempSync(join(tmpdir(), "pi-recover-other-"));
-	try {
-		const tool = findRecoverTool();
-		const artifacts = writeWorkflowArtifacts(dir);
-		const sessionPath = writeHeavySession(dir, 100_000);
-		writeWorkflowSidecar(sessionPath, dir);
-		const { ctx, calls } = recoverCtx([]);
-		const result: AnyRecord = await tool.execute(
-			"c",
-			{ sessionPath, failure: "invalid x-api-key" },
-			undefined,
-			undefined,
-			ctx,
-		);
-		assert.equal(result.details.status, "not-opened");
-		assert.equal(result.details.failureKind, "other");
-		assert.equal(result.details.phase, "executor");
-		assert.match(result.content[0].text, /ask whether to retry the phase/);
-		assert.deepEqual(calls, []);
-		assert.ok(existsSync(artifacts.plan));
-		const sidecar = readLaunchProfile(sessionPath);
-		if (sidecar.status === "ok") {
-			assert.equal(sidecar.profile.runtime.previousFailure?.kind, "other");
-		}
-	} finally {
-		restoreEnvVar("TMUX", previous);
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-test("gate and picker cancellations preserve the session and artifacts", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	const dir = mkdtempSync(join(tmpdir(), "pi-recover-cancel-"));
-	try {
-		const tool = findRecoverTool();
-		const artifacts = writeWorkflowArtifacts(dir);
-		const sessionPath = writeHeavySession(dir, 100_000);
-		writeWorkflowSidecar(sessionPath, dir);
-		const sessionBefore = readFileSync(sessionPath, "utf8");
-
-		// Cancelling at the recovery gate stops without launching anything.
-		const gate = recoverCtx([undefined]);
-		const gateResult: AnyRecord = await tool.execute(
-			"c",
-			{ sessionPath, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			gate.ctx,
-		);
-		assert.equal(gateResult.details.status, "cancelled");
-		assert.match(gateResult.content[0].text, /preserved/);
-
-		// Cancelling inside the shared picker surfaces the actionable error.
-		const picker = recoverCtx([RECOVER_SELECT, undefined]);
-		const pickerResult: AnyRecord = await tool.execute(
-			"c",
-			{ sessionPath, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			picker.ctx,
-		);
-		assert.equal(pickerResult.details.error, "model selection failed");
-		assert.match(pickerResult.content[0].text, /Model selection cancelled/);
-		assert.equal(picker.calls.length, 2);
-
-		assert.ok(existsSync(artifacts.plan));
-		assert.ok(existsSync(artifacts.tasks));
-		assert.equal(readFileSync(sessionPath, "utf8"), sessionBefore);
-		assert.equal(testApi.runningSubagents.size, 0);
-	} finally {
-		restoreEnvVar("TMUX", previous);
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-test("rollover recovery routes through the context-fit gate after model selection", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	const dir = mkdtempSync(join(tmpdir(), "pi-recover-rollover-"));
-	try {
-		const tool = findRecoverTool();
-		const artifacts = writeWorkflowArtifacts(dir);
-		const sessionPath = writeHeavySession(dir, 150_000); // 75%: rollover gate
-		writeWorkflowSidecar(sessionPath, dir);
-		const sessionBefore = readFileSync(sessionPath, "utf8");
-
-		const { ctx, calls } = recoverCtx([
-			RECOVER_SELECT,
-			pickEchoModel,
-			"high",
-			GATE_FRESH,
-		]);
-		const result: AnyRecord = await tool.execute(
-			"c",
-			{ sessionPath, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			ctx,
-		);
-		// The fresh rollover was chosen; launch stops only at the tmux check.
-		assert.equal(result.details.error, "tmux not available");
-		assert.equal(calls.length, 4);
-		assert.deepEqual(calls[0], [RECOVER_SELECT, RECOVER_STOP]);
-		assert.ok(calls[1].some((label) => /75% context · rollover warning/.test(label)));
-		assert.deepEqual(calls[3], [GATE_FRESH, GATE_RESUME, GATE_CHOOSE, GATE_STOP]);
-		assert.ok(existsSync(artifacts.plan));
-		assert.equal(readFileSync(sessionPath, "utf8"), sessionBefore);
-		assert.equal(testApi.runningSubagents.size, 0);
-	} finally {
-		restoreEnvVar("TMUX", previous);
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-test("recovery picker titles carry the workflow phase across the gate re-pick", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	const dir = mkdtempSync(join(tmpdir(), "pi-recover-prompt-"));
-	try {
-		const tool = findRecoverTool();
-		const sessionPath = writeHeavySession(dir, 150_000); // 75%: rollover gate
-		writeWorkflowSidecar(sessionPath, dir);
-
-		const { ctx, titles } = recoverCtx([
-			RECOVER_SELECT,
-			pickEchoModel,
-			"high",
-			GATE_CHOOSE,
-			pickEchoModel,
-			"high",
-			GATE_STOP,
-		]);
-		const result: AnyRecord = await tool.execute(
-			"c",
-			{ sessionPath, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			ctx,
-		);
-		assert.equal(result.details.error, "resume cancelled at context gate");
-		// calls/titles: recovery gate, model, thinking, context gate, model, thinking.
-		assert.equal(titles[1], "Recovery model for executor");
-		assert.equal(titles[2], "Thinking for executor recovery — anthropic/claude");
-		assert.equal(titles[4], "Recovery model for executor");
-		assert.equal(titles[5], "Thinking for executor recovery — anthropic/claude");
-	} finally {
-		restoreEnvVar("TMUX", previous);
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-test("subagent_recover validates its inputs and interactive requirements", async () => {
-	const previous = process.env.TMUX;
-	delete process.env.TMUX;
-	const dir = mkdtempSync(join(tmpdir(), "pi-recover-invalid-"));
-	try {
-		const tool = findRecoverTool();
-
-		const missing = await tool.execute(
-			"c",
-			{ sessionPath: join(dir, "missing.jsonl"), failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			policyContext(),
-		);
-		assert.equal(missing.details.error, "session not found");
-
-		// A session without a sidecar keeps the legacy resume path.
-		const legacy = join(dir, "legacy.jsonl");
-		writeFileSync(legacy, "{}\n");
-		const legacyResult = await tool.execute(
-			"c",
-			{ sessionPath: legacy, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			policyContext(),
-		);
-		assert.equal(legacyResult.details.error, "no launch profile");
-		assert.match(legacyResult.content[0].text, /subagent_resume/);
-
-		// A sidecar-backed session outside any workflow phase is rejected.
-		const plain = writeHeavySession(dir, 100_000);
-		writeSidecarOn(plain, dir);
-		const plainResult = await tool.execute(
-			"c",
-			{ sessionPath: plain, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			policyContext(),
-		);
-		assert.equal(plainResult.details.error, "not a workflow session");
-
-		// A malformed sidecar fails closed.
-		const invalid = join(dir, "invalid.jsonl");
-		writeFileSync(invalid, "{}\n");
-		writeFileSync(`${invalid}.subagent.json`, "{}");
-		const invalidResult = await tool.execute(
-			"c",
-			{ sessionPath: invalid, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			policyContext(),
-		);
-		assert.equal(invalidResult.details.error, "invalid launch profile");
-
-		// Non-interactive recovery gets an actionable error instead of a gate.
-		const gated = writeHeavySession(dir, 100_000);
-		writeWorkflowSidecar(gated, dir);
-		const offline = await tool.execute(
-			"c",
-			{ sessionPath: gated, failure: QUOTA_FAILURE },
-			undefined,
-			undefined,
-			policyContext(), // hasUI: false
-		);
-		assert.equal(offline.details.error, "recovery needs interactive UI");
-		assert.match(offline.content[0].text, /subagent_resume/);
 	} finally {
 		restoreEnvVar("TMUX", previous);
 		rmSync(dir, { recursive: true, force: true });
@@ -3530,11 +3240,6 @@ test("widget rendering uses the current theme and sanitizes display fields", () 
 	assert.doesNotMatch(first, /second:|https:\/\/evil|\x1b\[31m|\x1b\[2A/);
 	assert.match(second, /second:fg:accent/);
 	assert.doesNotMatch(second, /first:/);
-});
-
-test("stripFrontmatter removes a leading frontmatter block", () => {
-	assert.equal(testApi.stripFrontmatter("---\nname: x\n---\n\nBody\n"), "Body");
-	assert.equal(testApi.stripFrontmatter("Body only"), "Body only");
 });
 
 // ── pi-tasks RPC task launches (taskRuntime option) ──

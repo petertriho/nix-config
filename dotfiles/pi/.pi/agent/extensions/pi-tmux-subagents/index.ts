@@ -2,13 +2,9 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { keyText } from "@earendil-works/pi-coding-agent";
 import { Box, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import {
-  copyFileSync,
   existsSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
-  unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -17,37 +13,16 @@ import { Type, type Static } from "typebox";
 import {
   type ActivityReadResult,
   type SubagentActivityState,
-  getSubagentActivityFile,
   readSubagentActivityFile,
 } from "./activity.ts";
-import {
-  buildRolloverHandoff,
-  calculateContextFit,
-  chooseResumeGateAction,
-  estimateSavedSessionContext,
-  type ContextFit,
-  type ResumeGateAction,
-  type SavedContextEstimate,
-  linkRolloverLineage,
-  toContextEstimateRecord,
-} from "./context-fit.ts";
 import {
   type LaunchProfile,
   type LaunchProfileResources,
   type LaunchProfileWorkflowMetadata,
   type ModelSelection,
   type PrimarySkillIdentity,
-  type ProviderFailureRecord,
-  type WorkflowArtifacts,
-  type WorkflowPhase,
   THINKING_LEVELS,
-  fingerprintStrings,
-  hashText,
-  readLaunchProfile,
-  removeLaunchProfile,
   updateLaunchProfile,
-  updateProfileAfterSuccessfulResponse,
-  writeLaunchProfile,
 } from "./launch-profile.ts";
 import {
   AGENT_MODELS_VERSION,
@@ -63,39 +38,12 @@ import {
   type ResolvedModelSelection,
 } from "./model-picker.ts";
 import {
-	capturePhaseBoundarySnapshot,
-	evaluatePhaseBoundarySnapshot,
-	formatPhaseBoundaryViolation,
-	type PhaseBoundarySnapshot,
-} from "./repo-postconditions.ts";
-import {
-  diffResourceFingerprints,
-  primarySkillChanged,
-  resolveResumeRestoration,
-  resourceChangeNotice,
-} from "./resume-restore.ts";
-import {
-	type WorkflowRuntimeState,
-	applyWorkflowRecoveryOverride,
-	buildWorkflowMetadata,
-	chooseWorkflowStartup,
-	resolveWorkflowPhaseSelection,
-	updateWorkflowActiveSession,
-	workflowPhaseForAgent,
-} from "./workflow-startup.ts";
-import {
-	type ProviderFailureKind,
-	RECOVERY_SELECT_MODEL,
-	RECOVERY_STOP,
-	WORKFLOW_PHASE_LABELS,
-	buildProviderFailureRecord,
-	classifyProviderFailure,
-	defaultRecoveryMessage,
-	formatFailureKind,
-	formatRecoverySummary,
-	shouldOpenRecoveryGate,
-} from "./workflow-recovery.ts";
-import { findLastAssistantMessage, getNewEntries, seedSubagentSessionFile } from "./session.ts";
+	describeWorkflowWriteBoundaryReport,
+	evaluateWorkflowWriteBoundarySnapshot,
+	type WorkflowWriteBoundarySnapshot,
+} from "./workflow/write-policy.ts";
+import { classifyProviderFailure } from "./workflow/recovery.ts";
+import { findLastAssistantMessage, getNewEntries } from "./session.ts";
 import {
 	attachTaskRpc,
 	resolveTaskAgentProfile,
@@ -110,7 +58,6 @@ import {
 import {
   type SubagentUsageSummary,
   formatUsageSummary,
-  summarizeSubagentUsage,
   withContextWindow,
 } from "./usage.ts";
 import {
@@ -121,7 +68,6 @@ import {
   advanceStatusState,
   capStatusLines,
   classifyStatus,
-  createStatusState,
   forceStatusAfterInterrupt,
   formatStatusAggregate,
   formatTransitionLine,
@@ -138,7 +84,6 @@ import {
   renameCurrentTab,
   sendEscape,
   sendLongCommand,
-  shellEscape,
 } from "./tmux.ts";
 import {
   applyPanelMargin,
@@ -158,6 +103,23 @@ import {
   type SemanticState,
   type UiTheme,
 } from "./ui.ts";
+import {
+  buildResumePiArgs,
+  buildSubagentToolAllowlist,
+  createSubagentExecutionServices,
+  formatElapsed,
+  resolveResultPresentation,
+  resolveResumeLaunchBehavior,
+} from "./subagent-services.ts";
+import {
+	createWorkflowRunState,
+	persistWorkflowRunSnapshots,
+	restoreWorkflowRunStateFromSession,
+	type WorkflowRunState,
+	type WorkflowRunTransitionResult,
+} from "./workflow/state.ts";
+import { registerWorkflowLifecycleTools } from "./workflow/tools.ts";
+import { registerWorkflowCommands } from "./workflow/runtime.ts";
 
 /**
  * pi-tmux-subagents: a tmux-only port of pi-interactive-subagents
@@ -169,7 +131,8 @@ import {
  * nono sandbox profile, children are not sandboxed.
  *
  * Tools: `subagent`, `subagent_interrupt`, `subagents_list`, `subagent_resume`.
- * Commands: `/iterate`, `/subagent`, `/pter` (prompt in `workflow-skill.md`).
+ * Commands: `/iterate`, `/subagent`, `/workflow`, `/workflows`,
+ * `/workflow-resume`, plus collision-free aliases from discovered manifests.
  * Agents are discovered from `<this dir>/agents`, `~/.pi/agent/agents`
  * (`PI_CODING_AGENT_DIR`), and `./.pi/agents`; later sources win.
  * See NOTES.md for the pi 0.84.3 prompt-argument findings behind
@@ -272,20 +235,6 @@ const SubagentParams = Type.Object({
         "Resume a previous Claude Code session by its ID. Loads the conversation history and continues where it left off. The session ID is returned in details of every claude tool call. Use this to retry cancelled runs or ask follow-up questions.",
     }),
   ),
-  workflowRunId: Type.Optional(
-    Type.String({
-      description:
-        "Internal /pter run token from the <workflow-config> block. Omit for ordinary subagent spawns.",
-    }),
-  ),
-  workflowArtifacts: Type.Optional(
-    Type.Object({
-      plan: Type.Optional(Type.String({ description: "Absolute PLAN.md path for this workflow phase" })),
-      tasks: Type.Optional(Type.String({ description: "Absolute TASKS.md path for this workflow phase" })),
-      review: Type.Optional(Type.String({ description: "Absolute REVIEW.md path for this workflow phase" })),
-      baseRef: Type.Optional(Type.String({ description: "Git base ref for implementation and review" })),
-    }),
-  ),
 });
 
 type SubagentParamsType = Static<typeof SubagentParams>;
@@ -298,7 +247,6 @@ const OPTIONAL_STRING_PARAMS = [
   "tools",
   "cwd",
   "resumeSessionId",
-  "workflowRunId",
 ] as const;
 
 /**
@@ -313,22 +261,6 @@ function normalizeSubagentParams(params: SubagentParamsType): SubagentParamsType
     if (typeof value === "string" && value.trim() === "") {
       delete normalized[key];
     }
-  }
-  if (normalized.workflowArtifacts) {
-    const artifacts = normalizeWorkflowArtifacts(normalized.workflowArtifacts);
-    if (Object.keys(artifacts).length > 0) normalized.workflowArtifacts = artifacts;
-    else delete normalized.workflowArtifacts;
-  }
-  return normalized;
-}
-
-function normalizeWorkflowArtifacts(
-  artifacts: Partial<Record<keyof WorkflowArtifacts, string>>,
-): WorkflowArtifacts {
-  const normalized: WorkflowArtifacts = {};
-  for (const key of ["plan", "tasks", "review", "baseRef"] as const) {
-    const value = artifacts[key];
-    if (typeof value === "string" && value.trim()) normalized[key] = value.trim();
   }
   return normalized;
 }
@@ -372,7 +304,10 @@ const SPAWNING_TOOLS = new Set([
   "subagent_interrupt",
   "subagents_list",
   "subagent_resume",
-  "subagent_recover",
+  "workflow_spawn",
+  "workflow_resume",
+  "workflow_recover",
+  "workflow_complete",
 ]);
 
 /**
@@ -500,15 +435,6 @@ function resolveSubagentPaths(
   return { effectiveCwd, localAgentDir, effectiveAgentDir };
 }
 
-function getDefaultSessionDirFor(cwd: string, agentDir: string): string {
-  const safePath = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
-  const sessionDir = join(agentDir, "sessions", safePath);
-  if (!existsSync(sessionDir)) {
-    mkdirSync(sessionDir, { recursive: true });
-  }
-  return sessionDir;
-}
-
 function resolveEffectiveSessionMode(
   params: SubagentParamsType,
   agentDefs: AgentDefaults | null,
@@ -612,7 +538,6 @@ function agentModelsListLabel(def: ListedAgentDefinition, agents: Record<string,
   const configured = agents[id];
   const base = `${id}${display} — ${configured ?? "parent default"}`;
   if (def.cli) return `${base} · frontmatter only`;
-  if (workflowPhaseForAgent(id)) return `${base} · ad-hoc spawns only`;
   return base;
 }
 
@@ -621,8 +546,8 @@ function agentModelsListLabel(def: ListedAgentDefinition, agents: Record<string,
  * with its configured default (or "parent default"), then set or clear one
  * entry at a time. Every change is validated against the registry and saved
  * immediately through the atomic write, so the on-disk config is always the
- * source of truth. Workflow phase roles are annotated "ad-hoc spawns only"
- * because `/pter` resolves them through its own model-policy gate;
+ * source of truth. Manifest workflow launches resolve models through their
+ * persisted workflow policy and never consult this ad-hoc spawn config.
  * `cli:` agents keep their frontmatter model and offer no edits here.
  */
 async function manageAgentModels(ctx: AgentModelsContext): Promise<void> {
@@ -710,13 +635,6 @@ async function manageAgentModels(ctx: AgentModelsContext): Promise<void> {
   }
 }
 
-function formatElapsed(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
-}
-
 /**
  * Wait long enough for a freshly created pane to finish shell startup.
  * Configurable through PI_SUBAGENT_SHELL_READY_DELAY_MS for slow shell init
@@ -738,30 +656,6 @@ function muxUnavailableResult() {
     ],
     details: { error: "tmux not available" },
   };
-}
-
-/**
- * Internal artifact directory for the current session:
- *   <sessionDir>/artifacts/<session-id>/
- * Holds task files, system prompts, launch scripts, and activity snapshots.
- */
-function getArtifactDir(sessionDir: string, sessionId: string): string {
-  return join(sessionDir, "artifacts", sessionId);
-}
-
-function toSafeFileName(name: string, fallback: string): string {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "") || fallback
-  );
-}
-
-function fileTimestamp(): string {
-  return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 }
 
 const statusConfig = loadStatusConfig();
@@ -830,36 +724,6 @@ function resolveUsageDetails(
   return withContextWindow(result.usage, resolveUsageContextWindow(result.usage, ctx.modelRegistry));
 }
 
-function resolveResultPresentation(
-  result: Pick<
-    SubagentResult,
-    "exitCode" | "elapsed" | "summary" | "sessionFile" | "errorMessage" | "usage"
-  >,
-  name: string,
-): string {
-  const sessionRef = result.sessionFile
-    ? `\n\nSession: ${result.sessionFile}\nResume: pi --session ${result.sessionFile}`
-    : "";
-  // T9: compact usage/context-pressure line. Appended after the summary —
-  // the model-visible final message itself stays intact and untruncated.
-  const usageBlock = formatUsageSummary(result.usage);
-  const usageRef = usageBlock ? `\n\n${usageBlock}` : "";
-
-  if (result.errorMessage) {
-    return (
-      `Sub-agent "${name}" failed after ${formatElapsed(result.elapsed)} ` +
-      `(provider/agent error — auto-retry exhausted).\n\n` +
-      `Error: ${result.errorMessage}\n\n` +
-      `The subagent did not produce a result. You can retry by spawning a new ` +
-      `subagent or resume the session with subagent_resume.${usageRef}${sessionRef}`
-    );
-  }
-
-  return result.exitCode === 0
-    ? `Sub-agent "${name}" completed (${formatElapsed(result.elapsed)}).\n\n${result.summary}${usageRef}${sessionRef}`
-    : `Sub-agent "${name}" failed (exit code ${result.exitCode}).\n\n${result.summary}${usageRef}${sessionRef}`;
-}
-
 /** Result from running a single subagent. */
 interface SubagentResult {
   name: string;
@@ -912,12 +776,10 @@ interface RunningSubagent {
    */
   interactive: boolean;
   /**
-   * T7 phase-boundary baseline captured before a planner, task-writer, or
-   * reviewer child started working. Undefined for the executor and for
-   * spawns outside a /pter phase: executor scope is governed by
-   * TASKS.md, never by an artifact-only path rule.
+   * Generic manifest write-policy boundary. Shared subagent services keep
+   * this opaque; the index composition layer evaluates it after completion.
    */
-  phaseBoundary?: PhaseBoundarySnapshot;
+  boundary?: unknown;
 }
 
 /** All currently running subagents, keyed by id. */
@@ -1104,10 +966,46 @@ function resetTaskRpcForTests(): void {
 	shutdownPiTasksRpcBridge();
 }
 
-/** Active `/pter` model policy, set only by the `/pter` startup gate. */
-let activeWorkflowRuntime: WorkflowRuntimeState | null = null;
-/** Token that scopes phase spawns to the currently active workflow run. */
-let activeWorkflowRunId: string | null = null;
+/** Persisted generic workflow lifecycle state for dedicated workflow tools. */
+let workflowRunState: WorkflowRunState = createWorkflowRunState();
+
+function commitWorkflowRunTransition(
+  pi: ExtensionAPI,
+  transition: WorkflowRunTransitionResult,
+): void {
+  let appended = 0;
+  try {
+    for (const snapshot of transition.snapshots) {
+      persistWorkflowRunSnapshots(pi, [snapshot]);
+      appended += 1;
+    }
+  } catch (error) {
+    const cause = error instanceof Error ? error.message : String(error);
+    if (appended > 0) {
+      // A multi-snapshot transition (currently active-run replacement) can
+      // fail after its durable prefix was appended. The final transition
+      // state is not durable, while the previous live state is now stale.
+      // Fail closed until session reload reconstructs the appended prefix.
+      workflowRunState = createWorkflowRunState();
+      throw new Error(
+        `Workflow state persistence failed after appending ${appended} of ${transition.snapshots.length} snapshots; `
+        + `live workflow state was cleared to avoid publishing an undurable or stale active run. ${cause}`,
+      );
+    }
+    throw new Error(
+      `Workflow state persistence failed before any snapshot was appended; live workflow state was left unchanged. ${cause}`,
+    );
+  }
+  workflowRunState = transition.state;
+}
+
+function getWorkflowRunStateForTests(): WorkflowRunState {
+  return workflowRunState;
+}
+
+function setWorkflowRunStateForTests(state: WorkflowRunState): void {
+  workflowRunState = state;
+}
 
 // ── Widget management ──
 
@@ -1237,32 +1135,6 @@ function updateWidget() {
     },
     { placement: "aboveEditor" },
   );
-}
-
-const SUBAGENT_CONTROL_TOOLS = ["caller_ping", "subagent_done"] as const;
-
-/**
- * Build the child --tools allowlist.
- *
- * pi applies --tools to built-in, extension, and custom tools. If a subagent
- * definition restricts tools to e.g. "read,bash,write", the child control
- * tools from subagent-done.ts would otherwise be hidden, leaving a manually
- * resumed or user-touched subagent unable to call subagent_done.
- */
-function buildSubagentToolAllowlist(effectiveTools?: string): string | null {
-  const requested = (effectiveTools ?? "")
-    .split(",")
-    .map((tool) => tool.trim())
-    .filter(Boolean);
-
-  if (requested.length === 0) return null;
-
-  const allow = new Set(requested);
-  for (const tool of SUBAGENT_CONTROL_TOOLS) {
-    allow.add(tool);
-  }
-
-  return [...allow].join(",");
 }
 
 function parseSkillList(skills: string | undefined): string[] {
@@ -1549,20 +1421,6 @@ function startStatusRefresh(pi: ExtensionAPI) {
   globalState[STATUS_INTERVAL_KEY] = statusInterval;
 }
 
-function resolveResumeLaunchBehavior(params: { autoExit?: boolean }): { autoExit: boolean; interactive: boolean } {
-  const autoExit = params.autoExit ?? true;
-  return { autoExit, interactive: !autoExit };
-}
-
-function buildResumePiArgs(sessionPath: string, modelArgument?: string): string[] {
-  return [
-    "pi",
-    "--session",
-    shellEscape(sessionPath),
-    ...(modelArgument ? ["--model", shellEscape(modelArgument)] : []),
-  ];
-}
-
 function startWidgetRefresh() {
   if (widgetInterval) return;
   updateWidget();
@@ -1571,6 +1429,44 @@ function startWidgetRefresh() {
   }, 1000);
   globalState[WIDGET_INTERVAL_KEY] = widgetInterval;
 }
+
+const subagentExecution = createSubagentExecutionServices({
+  subagentsDir: SUBAGENTS_DIR,
+  getAgentConfigDir,
+  normalizeSubagentParams,
+  loadAgentDefaults,
+  resolveSubagentPaths,
+  resolveLaunchBehavior,
+  resolveEffectiveInteractive,
+  resolvePiModelArgument,
+  resolveDenyTools,
+  runningSubagents,
+  observeRunningSubagent,
+  startWidgetRefresh,
+  startStatusRefresh,
+  updateWidget,
+  isTmuxAvailable,
+  muxUnavailableResult,
+  createSurface,
+  sendLongCommand,
+  closeSurface,
+  pollForExit,
+  readScreen,
+  getModuleAbortSignal,
+  describeBoundary: describeRunningBoundary,
+  onRolloverLaunched: ({ running, recovery }) => {
+    if (recovery) {
+      try {
+        updateLaunchProfile(running.sessionFile, (next) => ({
+          ...next,
+          runtime: { ...next.runtime, previousFailure: recovery.failure },
+        }));
+      } catch {
+        // Best-effort; the launch already succeeded.
+      }
+    }
+  },
+});
 
 interface LaunchContext {
   pi?: ExtensionAPI;
@@ -1609,57 +1505,19 @@ interface LaunchProfileInput {
   workflow?: LaunchProfileWorkflowMetadata;
 }
 
-function findPrimarySkillPath(
-  skillName: string,
-  cwd?: string,
-  agentDir?: string,
-): string | undefined {
-  const candidates = [
-    ...(cwd
-      ? [
-        join(cwd, ".pi", "skills", skillName, "SKILL.md"),
-        join(cwd, ".agents", "skills", skillName, "SKILL.md"),
-      ]
-      : []),
-    join(process.cwd(), ".pi", "skills", skillName, "SKILL.md"),
-    join(process.cwd(), ".agents", "skills", skillName, "SKILL.md"),
-    ...(agentDir ? [join(agentDir, "skills", skillName, "SKILL.md")] : []),
-    join(getAgentConfigDir(), "skills", skillName, "SKILL.md"),
-    join(homedir(), ".agents", "skills", skillName, "SKILL.md"),
-  ];
-  return candidates.find((path) => existsSync(path));
-}
-
 function resolvePrimarySkill(
   effectiveSkills: string | undefined,
   cwd?: string,
   agentDir?: string,
 ): PrimarySkillIdentity | undefined {
-  const primary = parseSkillList(effectiveSkills)[0];
-  if (!primary) return undefined;
-  const path = findPrimarySkillPath(primary, cwd, agentDir);
-  if (!path) return undefined;
-  try {
-    return { name: primary, path, hash: hashText(readFileSync(path, "utf8")) };
-  } catch {
-    return undefined;
-  }
+  return subagentExecution.resolvePrimarySkill(effectiveSkills, cwd, agentDir);
 }
 
 function collectResourceFingerprints(
   pi: ExtensionAPI | undefined,
   effectiveSkills: string | undefined,
 ): LaunchProfileResources {
-  const tools = pi?.getActiveTools?.() ?? [];
-  const namedSkills = parseSkillList(effectiveSkills);
-  const commandSkills =
-    pi?.getCommands?.().filter((command) => command.source === "skill").map((command) => command.name) ?? [];
-  const visibleSkills = [...new Set([...namedSkills, ...commandSkills])];
-  return {
-    tools: fingerprintStrings(tools),
-    visibleSkills: fingerprintStrings(visibleSkills),
-    updatedAt: new Date().toISOString(),
-  };
+  return subagentExecution.collectResourceFingerprints(pi, effectiveSkills);
 }
 
 function parseLegacyModelSelection(argument: string | undefined): ModelSelection | undefined {
@@ -1682,31 +1540,7 @@ function parseLegacyModelSelection(argument: string | undefined): ModelSelection
 }
 
 function buildLaunchProfile(input: LaunchProfileInput): LaunchProfile {
-  const model = parseLegacyModelSelection(input.modelArgument);
-  const primarySkill = resolvePrimarySkill(input.effectiveSkills, input.cwd, input.agentDir);
-  const createdAt = new Date().toISOString();
-  return {
-    version: 1,
-    stable: {
-      ...(input.agentName ? { agentName: input.agentName } : {}),
-      displayName: input.displayName,
-      roleBody: input.roleBody,
-      roleBodyHash: hashText(input.roleBody),
-      systemPromptMode: input.systemPromptMode,
-      cwd: input.cwd,
-      agentDir: input.agentDir,
-      controls: input.controls,
-      ...(primarySkill ? { primarySkill } : {}),
-      originalSessionPath: input.originalSessionPath,
-      createdAt,
-    },
-    runtime: {
-      ...(model ? { originalModel: model, lastModel: model } : {}),
-      resumeCount: 0,
-    },
-    resources: input.resources,
-    ...(input.workflow ? { workflow: input.workflow } : {}),
-  };
+  return subagentExecution.buildLaunchProfile(input);
 }
 
 /** Result details shared by the resume and recovery launch paths. */
@@ -1715,16 +1549,7 @@ interface SubagentToolResult {
   details: Record<string, unknown>;
 }
 
-function workflowArtifactForPhase(
-  workflow: LaunchProfileWorkflowMetadata,
-): string | undefined {
-  if (workflow.phase === "planner") return workflow.artifacts.plan;
-  if (workflow.phase === "task-writer") return workflow.artifacts.tasks;
-  if (workflow.phase === "reviewer") return workflow.artifacts.review;
-  return undefined;
-}
-
-/** Phase-boundary outcome attached to a finished workflow child's result. */
+/** Repository-boundary outcome attached to a finished workflow child's result. */
 interface PhaseBoundaryOutcome {
   details: Record<string, unknown>;
   /** Stop instruction shown to the orchestrator; present only on violation. */
@@ -1732,66 +1557,30 @@ interface PhaseBoundaryOutcome {
 }
 
 /**
- * Evaluate a finished child's phase boundary against its pre-phase snapshot.
- * Read-only: the repository keeps every change exactly as the child left it.
- * Returns undefined when the child carried no snapshot (executor, spawns
- * outside a /pter phase, or a non-repo project) or when the after state
- * cannot be read; both cases report no violation.
+ * Evaluate a finished child's manifest write boundary. Read-only: the
+ * repository keeps every change exactly as the child left it. Ordinary
+ * subagents carry no boundary and return undefined.
  */
-function describeRunningPhaseBoundary(
-  running: Pick<RunningSubagent, "phaseBoundary">,
-): PhaseBoundaryOutcome | undefined {
-  const snapshot = running.phaseBoundary;
-  if (!snapshot) return undefined;
-  const report = evaluatePhaseBoundarySnapshot(snapshot);
-  if (!report) return undefined;
-  const details = {
-    phaseBoundary: {
-      phase: snapshot.phase,
-      artifact: snapshot.artifact,
-      violated: report.violated,
-      allowedPaths: report.allowedPaths,
-      unexpectedPaths: report.unexpectedPaths,
-    },
-  };
-  if (!report.violated) return { details };
-  const phaseLabel =
-    WORKFLOW_PHASE_LABELS[snapshot.phase as WorkflowPhase] ?? snapshot.phase;
-  return {
-    details,
-    violationText: formatPhaseBoundaryViolation({
-      phaseLabel,
-      artifact: snapshot.artifact,
-      report,
-    }),
-  };
+function isWorkflowWriteBoundarySnapshot(
+  value: unknown,
+): value is WorkflowWriteBoundarySnapshot {
+  return typeof value === "object"
+    && value !== null
+    && "workflowId" in value
+    && "roleId" in value
+    && "resolvedWrites" in value
+    && "protectedFiles" in value;
 }
 
-function sendSubagentPing(
-  pi: ExtensionAPI,
-  result: SubagentResult,
-  agent: string | undefined,
-  sessionPath: string | undefined,
-  boundary?: PhaseBoundaryOutcome,
-) {
-  if (!result.ping) return;
-  const sessionRef = sessionPath ? `\n\nSession: ${sessionPath}\nResume: pi --session ${sessionPath}` : "";
-  const violation = boundary?.violationText ? `\n\n${boundary.violationText}` : "";
-  pi.sendMessage(
-    {
-      customType: "subagent_ping",
-      content: `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}${violation}${sessionRef}`,
-      display: true,
-      details: {
-        name: result.ping.name,
-        message: result.ping.message,
-        agent,
-        sessionFile: sessionPath,
-        ...(boundary ? boundary.details : {}),
-      },
-    },
-    { triggerTurn: true, deliverAs: "steer" },
-  );
+function describeRunningBoundary(
+  running: Pick<RunningSubagent, "boundary">,
+): PhaseBoundaryOutcome | undefined {
+  const genericBoundary = running.boundary;
+  if (isWorkflowWriteBoundarySnapshot(genericBoundary)) {
+    const report = evaluateWorkflowWriteBoundarySnapshot(genericBoundary);
+    return report ? describeWorkflowWriteBoundaryReport(report) : undefined;
+  }
+  return undefined;
 }
 
 /** Parameters accepted by the shared resume implementation. */
@@ -1801,646 +1590,14 @@ interface SubagentResumeParams {
   message?: string;
   autoExit?: boolean;
   model?: string;
-  workflowArtifacts?: WorkflowArtifacts;
 }
 
-/** Workflow provider-failure context threaded through a recovery resume. */
-interface RecoveryLaunchContext {
-  failure: ProviderFailureRecord;
-  phase: WorkflowPhase;
-  projectRoot?: string;
-}
-
-/**
- * Shared resume implementation behind the `subagent_resume` and
- * `subagent_recover` tools.
- *
- * Restores the role contract from the launch-profile sidecar (legacy fallback
- * with a warning), applies the selected model policy with the context-fit
- * gate, and either resumes the saved session or launches a fresh same-role
- * rollover.
- *
- * With `recovery`, workflow provider-failure bookkeeping applies on top: the
- * failure is recorded on the saved profile for diagnostics, a rollover
- * replacement becomes the workflow's active session for its phase, and a
- * successful recovery response replaces that role's current workflow default
- * for the remainder of the workflow. The saved project preset is never
- * touched from recovery.
- */
 async function executeSubagentResume(
   pi: ExtensionAPI,
   params: SubagentResumeParams,
   ctx: LaunchContext & Parameters<typeof resolveModelPolicy>[1],
-  recovery?: RecoveryLaunchContext,
 ): Promise<SubagentToolResult> {
-  const name = params.name ?? "Resume";
-  const startTime = Date.now();
-  const id = Math.random().toString(16).slice(2, 10);
-
-  if (!existsSync(params.sessionPath)) {
-    return {
-      content: [
-        { type: "text", text: `Error: session file not found: ${params.sessionPath}` },
-      ],
-      details: { error: "session not found" },
-    };
-  }
-
-  let profileRead = readLaunchProfile(params.sessionPath);
-  if (profileRead.status === "invalid") {
-    return {
-      content: [{ type: "text", text: `Error: ${profileRead.error}` }],
-      details: { error: "invalid launch profile" },
-    };
-  }
-  if (
-    profileRead.status === "ok"
-    && profileRead.profile.workflow
-    && params.workflowArtifacts
-  ) {
-    const artifacts = {
-      ...profileRead.profile.workflow.artifacts,
-      ...normalizeWorkflowArtifacts(params.workflowArtifacts),
-    };
-    try {
-      const profile = updateLaunchProfile(params.sessionPath, (stored) =>
-        stored.workflow
-          ? { ...stored, workflow: { ...stored.workflow, artifacts } }
-          : stored);
-      profileRead = { status: "ok", profile };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: "text", text: `Error: could not update workflow handoff: ${message}` }],
-        details: { error: "workflow handoff update failed", message },
-      };
-    }
-  }
-
-  const restoration = resolveResumeRestoration(
-    profileRead.status === "ok" ? profileRead.profile : null,
-    params,
-  );
-  const { autoExit, interactive } = restoration;
-  const resumeWarnings: string[] = [];
-  let freshForPrimarySkillChange = false;
-  if (restoration.legacyWarning) {
-    resumeWarnings.push(restoration.legacyWarning);
-    await ctx.ui?.notify?.(restoration.legacyWarning, "warning");
-  }
-
-  const currentResources = collectResourceFingerprints(
-    pi,
-    profileRead.status === "ok" ? profileRead.profile.stable.primarySkill?.name : undefined,
-  );
-  if (profileRead.status === "ok") {
-    const resourceChanges = diffResourceFingerprints(
-      profileRead.profile.resources,
-      currentResources,
-    );
-    const notice = resourceChangeNotice(resourceChanges);
-    if (notice) {
-      resumeWarnings.push(notice);
-      await ctx.ui?.notify?.(`Resume uses current resources: ${notice}`, "info");
-    }
-
-    const currentPrimarySkill = restoration.agentDir
-      ? resolvePrimarySkill(
-          profileRead.profile.stable.primarySkill?.name,
-          restoration.cwd,
-          restoration.agentDir,
-        )
-      : undefined;
-    if (
-      profileRead.profile.stable.primarySkill &&
-      primarySkillChanged(profileRead.profile, currentPrimarySkill)
-    ) {
-      const choice = await ctx.ui?.select?.(
-        `The ${profileRead.profile.stable.primarySkill.name} skill definition changed since this session was launched.`,
-        [
-          "Resume with the older instructions",
-          "Start a fresh same-role session with the latest skill",
-          "Stop this resume",
-        ],
-      );
-      if (choice === "Start a fresh same-role session with the latest skill") {
-        freshForPrimarySkillChange = true;
-      } else if (choice !== "Resume with the older instructions") {
-        return {
-          content: [{
-            type: "text",
-            text: "Resume cancelled because the primary skill definition changed.",
-          }],
-          details: {
-            error: "primary skill changed",
-            skill: profileRead.profile.stable.primarySkill.name,
-          },
-        };
-      }
-    }
-  }
-
-  const profile = profileRead.status === "ok" ? profileRead.profile : null;
-
-  // T7: phase-boundary baseline for resumed artifact phases (planner, task
-  // writer, reviewer), captured before any child pane starts working. The
-  // executor is exempt: TASKS.md governs its scope.
-  const phaseBoundary = profile?.workflow
-    ? capturePhaseBoundarySnapshot(
-        profile.workflow.phase,
-        profile.workflow.projectRoot ?? profile.stable.cwd,
-        workflowArtifactForPhase(profile.workflow),
-      )
-    : undefined;
-
-  // ── Context fit: estimate the saved session without mutating it ──
-  let estimate: SavedContextEstimate | undefined;
-  try {
-    estimate = estimateSavedSessionContext(params.sessionPath);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    resumeWarnings.push(`Context estimate unavailable (${message}); rollover gate skipped.`);
-  }
-
-  let resolvedModel: ResolvedModelSelection | undefined;
-  let fit: ContextFit | undefined;
-  let rollover: { profile: LaunchProfile; selection: ResolvedModelSelection } | undefined;
-  let modelPolicy = params.model;
-  // One picker prompt for the whole resume: the initial pick and any
-  // context-gate "Choose another model" re-pick reuse it verbatim.
-  const recoveryPhaseLabel = recovery ? WORKFLOW_PHASE_LABELS[recovery.phase] : undefined;
-  const resumeSubject = recovery
-    ? `${recoveryPhaseLabel} recovery`
-    : params.name ?? profile?.stable.displayName ?? "subagent";
-  const lastModel = profile?.runtime.lastModel;
-  const pickerPrompt = {
-    title: recovery
-      ? `Recovery model for ${recoveryPhaseLabel}`
-      : `Resume model for ${resumeSubject}`,
-    subject: resumeSubject,
-    ...(lastModel
-      ? {
-        currentRef: `${lastModel.provider}/${lastModel.model}${lastModel.thinking ? `:${lastModel.thinking}` : ""}`,
-      }
-      : {}),
-  };
-  while (true) {
-    try {
-      const resolution = await resolveModelPolicy(modelPolicy, ctx, {
-        mode: "resume",
-        ...(profile ? { profile } : {}),
-        ...(estimate ? { contextTokens: estimate.tokens } : {}),
-        picker: pickerPrompt,
-      });
-      if (resolution.source === "legacy") {
-        resolvedModel = undefined;
-        fit = undefined;
-      } else {
-        resolvedModel = resolution;
-        const contextWindow = resolution.model.contextWindow;
-        fit =
-          estimate && Number.isFinite(contextWindow) && contextWindow > 0
-            ? calculateContextFit(estimate.tokens, contextWindow)
-            : undefined;
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: "text", text: `Error: ${message}` }],
-        details: { error: "model selection failed", message },
-      };
-    }
-
-    if (freshForPrimarySkillChange) {
-      if (!profile || !resolvedModel) {
-        return {
-          content: [{
-            type: "text",
-            text: "Error: a fresh latest-skill rollover needs a launch-profile sidecar and a selected model.",
-          }],
-          details: { error: "primary skill rollover unavailable" },
-        };
-      }
-      rollover = { profile, selection: resolvedModel };
-      break;
-    }
-
-    if (!fit?.requiresGate) break;
-
-    // At or above 65% of the selected context window: ask before resuming.
-    let action: ResumeGateAction;
-    try {
-      action = await chooseResumeGateAction(ctx, fit);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: "text", text: `Error: ${message}` }],
-        details: { error: "context gate unavailable", message },
-      };
-    }
-    if (action === "choose") {
-      modelPolicy = "pick";
-      continue;
-    }
-    if (action === "stop") {
-      return {
-        content: [{
-          type: "text",
-          text: "Resume cancelled at the context-fit gate. The saved session was not changed.",
-        }],
-        details: {
-          error: "resume cancelled at context gate",
-          contextRatio: fit.ratio,
-          ...(resumeWarnings.length > 0 ? { resumeWarnings } : {}),
-        },
-      };
-    }
-    if (action === "fresh") {
-      if (!profile || !resolvedModel) {
-        return {
-          content: [{
-            type: "text",
-            text: "Error: a fresh same-role rollover needs a launch-profile sidecar and a selected model. Choose 'Resume the saved session anyway' or 'Choose another model'.",
-          }],
-          details: { error: "rollover unavailable without sidecar" },
-        };
-      }
-      rollover = { profile, selection: resolvedModel };
-    }
-    break;
-  }
-
-  if (!isTmuxAvailable()) {
-    return muxUnavailableResult();
-  }
-
-  const recoveryDetails = (extra: Record<string, unknown> = {}): Record<string, unknown> =>
-    recovery
-      ? { recovery: { phase: recovery.phase, failureKind: recovery.failure.kind }, ...extra }
-      : extra;
-
-  // ── Fresh same-role rollover: a standalone child, not a resume or fork ──
-  if (rollover) {
-    const rolloverProfile = rollover.profile;
-    const running = await launchSubagent(
-      {
-        name: params.name ?? rolloverProfile.stable.displayName,
-        task: buildRolloverHandoff(rolloverProfile, params.message),
-        systemPrompt: rolloverProfile.stable.roleBody || undefined,
-        cwd: rolloverProfile.stable.cwd,
-      },
-      { ...ctx, pi },
-      {
-        resolvedModel: rollover.selection,
-        rolloverFrom: rolloverProfile,
-        ...(rolloverProfile.workflow
-          ? {
-            workflow: {
-              ...rolloverProfile.workflow,
-              currentDefault: rollover.selection.selection,
-              ...(recovery ? { assignmentSource: "recovery" as const } : {}),
-            },
-          }
-          : {}),
-      },
-    );
-
-    // Link old and new sidecars through rollover lineage. Best-effort:
-    // the child launch has already succeeded when a linkage write fails.
-    const lineageWarnings = linkRolloverLineage(params.sessionPath, running.sessionFile);
-    if (lineageWarnings.length > 0) {
-      await ctx.ui?.notify?.(`Rollover lineage incomplete: ${lineageWarnings.join("; ")}`, "warning");
-    }
-
-    if (recovery) {
-      // Diagnostics: the replacement records what it recovered from.
-      try {
-        updateLaunchProfile(running.sessionFile, (next) => ({
-          ...next,
-          runtime: { ...next.runtime, previousFailure: recovery.failure },
-        }));
-      } catch {
-        // Best-effort; the launch already succeeded.
-      }
-    }
-    if (rolloverProfile.workflow) {
-      // A replacement becomes the workflow's active session for its phase.
-      updateActiveWorkflowSession(
-        rolloverProfile.workflow.phase,
-        running.sessionFile,
-        rolloverProfile.workflow.projectRoot,
-      );
-    }
-    if (phaseBoundary) running.phaseBoundary = phaseBoundary;
-
-    const watcherAbort = new AbortController();
-    running.abortController = watcherAbort;
-    startWidgetRefresh();
-    startStatusRefresh(pi);
-
-    watchSubagent(running, watcherAbort.signal)
-      .then((result) => {
-        updateWidget();
-
-        const boundary = describeRunningPhaseBoundary(running);
-
-        if (result.ping) {
-          sendSubagentPing(pi, result, rolloverProfile.stable.agentName, running.sessionFile, boundary);
-          return;
-        }
-
-        if (
-          recovery
-          && result.exitCode === 0
-          && !result.errorMessage
-          && result.responded
-        ) {
-          applyWorkflowRecoveryOverrideForPhase(
-            recovery.phase,
-            rollover.selection.selection,
-            recovery.projectRoot,
-          );
-        }
-
-        const usage = resolveUsageDetails(result, ctx);
-        const base = resolveResultPresentation(
-          { ...result, ...(usage ? { usage } : {}) },
-          running.name,
-        );
-        const presentation = boundary?.violationText
-          ? `${boundary.violationText}\n\n${base}`
-          : base;
-        pi.sendMessage(
-          {
-            customType: "subagent_result",
-            content: presentation,
-            display: true,
-            details: recoveryDetails({
-              name: running.name,
-              task: running.task,
-              agent: rolloverProfile.stable.agentName,
-              exitCode: result.exitCode,
-              elapsed: result.elapsed,
-              sessionFile: running.sessionFile,
-              rollover: "fresh",
-              originalSessionPath: params.sessionPath,
-              ...(usage ? { usage } : {}),
-              ...(result.errorMessage
-                ? {
-                  errorMessage: result.errorMessage,
-                  failureKind: classifyProviderFailure(result.errorMessage),
-                }
-                : {}),
-              ...(boundary ? boundary.details : {}),
-            }),
-          },
-          { triggerTurn: true, deliverAs: "steer" },
-        );
-      })
-      .catch((err) => {
-        updateWidget();
-        const message = err instanceof Error ? err.message : String(err);
-        pi.sendMessage(
-          {
-            customType: "subagent_result",
-            content: `Rollover "${running.name}" error: ${message}`,
-            display: true,
-            details: recoveryDetails({
-              name: running.name,
-              error: message,
-              rollover: "fresh",
-              originalSessionPath: params.sessionPath,
-            }),
-          },
-          { triggerTurn: true, deliverAs: "steer" },
-        );
-      });
-
-    return {
-      content: [{
-        type: "text",
-        text:
-          `Fresh same-role session "${running.name}" launched in place of the saved conversation. `
-          + `It does not inherit the old conversation; it continues from the role snapshot and handoff artifacts.\n\n`
-          + `Replacement session: ${running.sessionFile}\n`
-          + `Replaced session: ${params.sessionPath}`,
-      }],
-      details: recoveryDetails({
-        id: running.id,
-        name: running.name,
-        status: "started",
-        rollover: "fresh",
-        originalSessionPath: params.sessionPath,
-        replacementSessionPath: running.sessionFile,
-        sessionFile: running.sessionFile,
-        launchScriptFile: running.launchScriptFile,
-        ...(lineageWarnings.length > 0 ? { lineageWarnings } : {}),
-        ...(resumeWarnings.length > 0 ? { resumeWarnings } : {}),
-      }),
-    };
-  }
-
-  // Entry count before resuming, so the result only covers new messages.
-  const entryCountBefore = getNewEntries(params.sessionPath, 0).length;
-
-  const surface = createSurface(name);
-  await new Promise<void>((resolve) => setTimeout(resolve, getShellReadyDelayMs()));
-
-  const parts = buildResumePiArgs(params.sessionPath, resolvedModel?.argument);
-
-  const subagentDonePath = join(SUBAGENTS_DIR, "subagent-done.ts");
-  parts.push("-e", shellEscape(subagentDonePath));
-
-  const sessionId = ctx.sessionManager.getSessionId();
-  const artifactDir = getArtifactDir(ctx.sessionManager.getSessionDir(), sessionId);
-  const activityFile = getSubagentActivityFile(artifactDir, id);
-  mkdirSync(dirname(activityFile), { recursive: true });
-
-  const safeName = toSafeFileName(name, "resume");
-  if (
-    restoration.roleBody &&
-    (restoration.systemPromptMode === "append" || restoration.systemPromptMode === "replace")
-  ) {
-    const flag = restoration.systemPromptMode === "replace"
-      ? "--system-prompt"
-      : "--append-system-prompt";
-    const syspromptPath = join(
-      artifactDir,
-      "subagent-resume",
-      `${safeName}-sysprompt-${fileTimestamp()}.md`,
-    );
-    mkdirSync(dirname(syspromptPath), { recursive: true });
-    writeFileSync(syspromptPath, restoration.roleBody, "utf8");
-    parts.push(flag, shellEscape(syspromptPath));
-  }
-
-  let resumeMsgFile: string | undefined;
-  if (params.message) {
-    resumeMsgFile = join(artifactDir, "subagent-resume", `${safeName}-${fileTimestamp()}.md`);
-    mkdirSync(dirname(resumeMsgFile), { recursive: true });
-    writeFileSync(resumeMsgFile, params.message, "utf8");
-    parts.push(shellEscape(`@${resumeMsgFile}`));
-  }
-
-  const resumeEnvParts: string[] = [];
-  if (restoration.agentDir && existsSync(restoration.agentDir)) {
-    resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(restoration.agentDir)}`);
-  } else if (process.env.PI_CODING_AGENT_DIR) {
-    resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
-  }
-  if (restoration.denyTools.length > 0) {
-    resumeEnvParts.push(`PI_DENY_TOOLS=${shellEscape(restoration.denyTools.join(","))}`);
-  }
-  resumeEnvParts.push(`PI_SUBAGENT_NAME=${shellEscape(name)}`);
-  if (restoration.agentName) {
-    resumeEnvParts.push(`PI_SUBAGENT_AGENT=${shellEscape(restoration.agentName)}`);
-  }
-  resumeEnvParts.push(`PI_SUBAGENT_SESSION=${shellEscape(params.sessionPath)}`);
-  resumeEnvParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
-  resumeEnvParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
-  if (autoExit) {
-    resumeEnvParts.push(`PI_SUBAGENT_AUTO_EXIT=1`);
-  }
-  const resumeEnvPrefix = resumeEnvParts.join(" ") + " ";
-
-  const resumeCommand = parts.join(" ");
-  const cdPrefix = restoration.cwd ? `cd ${shellEscape(restoration.cwd)} && ` : "";
-  const command = `${cdPrefix}${resumeEnvPrefix}${resumeCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
-  const launchScriptFile = join(artifactDir, "subagent-scripts", `${safeName}-resume-${Date.now()}.sh`);
-  sendLongCommand(surface, command, {
-    scriptPath: launchScriptFile,
-    scriptPreamble: [
-      `# Subagent resume script for ${name}`,
-      `# Generated: ${new Date().toISOString()}`,
-      `# Session: ${params.sessionPath}`,
-      `# Surface: ${surface}`,
-      ...(resumeMsgFile ? [`# Resume message file: ${resumeMsgFile}`] : []),
-    ].join("\n"),
-  });
-
-  const running: RunningSubagent = {
-    id,
-    name,
-    task: params.message ?? "resumed session",
-    surface,
-    startTime,
-    sessionFile: params.sessionPath,
-    launchScriptFile,
-    activityFile,
-    interactive,
-    statusState: createStatusState({ source: "pi", startTimeMs: startTime }),
-  };
-  if (phaseBoundary) running.phaseBoundary = phaseBoundary;
-  runningSubagents.set(id, running);
-  startWidgetRefresh();
-  startStatusRefresh(pi);
-
-  const watcherAbort = new AbortController();
-  running.abortController = watcherAbort;
-
-  watchSubagent(running, watcherAbort.signal)
-    .then((result) => {
-      updateWidget();
-
-      const boundary = describeRunningPhaseBoundary(running);
-
-      if (result.ping) {
-        sendSubagentPing(pi, result, undefined, params.sessionPath, boundary);
-        return;
-      }
-
-      const newEntries = getNewEntries(params.sessionPath, entryCountBefore);
-      const assistantResponse = findLastAssistantMessage(newEntries);
-      if (
-        profileRead.status === "ok" &&
-        result.exitCode === 0 &&
-        !result.errorMessage &&
-        assistantResponse !== null
-      ) {
-        try {
-          updateLaunchProfile(params.sessionPath, (stored) =>
-            updateProfileAfterSuccessfulResponse(stored, {
-              ...(resolvedModel?.selection ? { selection: resolvedModel.selection } : {}),
-              resources: currentResources,
-              ...(fit ? { contextEstimate: toContextEstimateRecord(fit) } : {}),
-              ...(recovery ? { previousFailure: recovery.failure } : {}),
-            }));
-        } catch {
-          // Profile updates are best-effort; the response is already complete.
-        }
-        if (recovery && resolvedModel?.selection) {
-          applyWorkflowRecoveryOverrideForPhase(
-            recovery.phase,
-            resolvedModel.selection,
-            recovery.projectRoot,
-          );
-        }
-      }
-      const summary =
-        assistantResponse ??
-        (result.errorMessage
-          ? `Subagent error: ${result.errorMessage}`
-          : result.exitCode === 0
-            ? "Resumed session exited without new output"
-            : `Resumed session exited with code ${result.exitCode}`);
-      const usage = resolveUsageDetails(result, ctx);
-      const presentation = resolveResultPresentation(
-        { ...result, summary, sessionFile: params.sessionPath, ...(usage ? { usage } : {}) },
-        name,
-      );
-      const content = boundary?.violationText
-        ? `${boundary.violationText}\n\n${presentation}`
-        : presentation;
-
-      pi.sendMessage(
-        {
-          customType: "subagent_result",
-          content,
-          display: true,
-          details: recoveryDetails({
-            name,
-            task: params.message ?? "resumed session",
-            exitCode: result.exitCode,
-            elapsed: result.elapsed,
-            sessionFile: params.sessionPath,
-            ...(result.errorMessage
-              ? {
-                errorMessage: result.errorMessage,
-                failureKind: classifyProviderFailure(result.errorMessage),
-              }
-              : {}),
-            ...(usage ? { usage } : {}),
-            ...(boundary ? boundary.details : {}),
-          }),
-        },
-        { triggerTurn: true, deliverAs: "steer" },
-      );
-    })
-    .catch((err) => {
-      updateWidget();
-      const message = err instanceof Error ? err.message : String(err);
-      pi.sendMessage(
-        {
-          customType: "subagent_result",
-          content: `Resume error: ${message}`,
-          display: true,
-          details: recoveryDetails({ name, error: message }),
-        },
-        { triggerTurn: true, deliverAs: "steer" },
-      );
-    });
-
-  return {
-    content: [{ type: "text", text: `Session "${name}" resumed.` }],
-    details: recoveryDetails({
-      id,
-      name,
-      sessionPath: params.sessionPath,
-      launchScriptFile,
-      status: "started",
-      ...(resumeWarnings.length > 0 ? { resumeWarnings } : {}),
-    }),
-  };
+  return subagentExecution.executeSubagentResume(pi, params, ctx);
 }
 
 /**
@@ -2479,364 +1636,7 @@ async function launchSubagent(
     taskRuntime?: TaskRuntimeOptions;
   },
 ): Promise<RunningSubagent> {
-  const params = normalizeSubagentParams(rawParams);
-  const startTime = Date.now();
-  const id = Math.random().toString(16).slice(2, 10);
-
-  const rollover = options?.rolloverFrom;
-  const taskRuntime = options?.taskRuntime;
-  if (taskRuntime) {
-    if (rollover) throw new Error("Task launches cannot be rollovers.");
-    const maxTurns = taskRuntime.maxTurns;
-    if (
-      maxTurns != null
-      && (typeof maxTurns !== "number" || !Number.isInteger(maxTurns) || maxTurns < 1)
-    ) {
-      throw new Error(
-        `Invalid task maxTurns ${String(maxTurns)}: pass a positive integer or omit it for unlimited.`,
-      );
-    }
-  }
-  const agentDefs = !rollover && params.agent ? loadAgentDefaults(params.agent) : null;
-  const configuredModel = options?.resolvedModel
-    ? options.resolvedModel.selection.model
-    : params.model ?? agentDefs?.model;
-  const effectiveTools = rollover ? undefined : params.tools ?? agentDefs?.tools;
-  const effectiveSkills = rollover
-    ? rollover.stable.primarySkill?.name
-    : params.skills ?? agentDefs?.skills;
-  // Task-RPC launches are always autonomous, whatever the profile says.
-  const effectiveInteractive = rollover
-    ? rollover.stable.controls.interactive
-    : taskRuntime
-      ? false
-      : resolveEffectiveInteractive(params, agentDefs);
-  const autoExitForChild = rollover
-    ? rollover.stable.controls.autoExit
-    : taskRuntime
-      ? true
-      : agentDefs?.autoExit;
-
-  const sessionFile = ctx.sessionManager.getSessionFile();
-  if (!sessionFile) throw new Error("No session file");
-  const sessionId = ctx.sessionManager.getSessionId();
-  const artifactDir = getArtifactDir(ctx.sessionManager.getSessionDir(), sessionId);
-
-  const resolvedPaths = resolveSubagentPaths(params, agentDefs);
-  const effectiveCwd = resolvedPaths.effectiveCwd;
-  // A rollover restores the original working directory and Pi config dir
-  // instead of re-deriving them from current agent frontmatter.
-  const effectiveAgentDir = rollover ? rollover.stable.agentDir : resolvedPaths.effectiveAgentDir;
-  const localAgentDir = rollover
-    ? (existsSync(rollover.stable.agentDir) ? rollover.stable.agentDir : null)
-    : resolvedPaths.localAgentDir;
-  const targetCwdForSession = effectiveCwd ?? ctx.cwd;
-  const sessionDir = getDefaultSessionDirFor(targetCwdForSession, effectiveAgentDir);
-
-  // Deterministic session file path so parallel launches never race.
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23) + "Z";
-  const uuid = [
-    id,
-    Math.random().toString(16).slice(2, 10),
-    Math.random().toString(16).slice(2, 10),
-    Math.random().toString(16).slice(2, 6),
-  ].join("-");
-  const subagentSessionFile = join(sessionDir, `${timestamp}_${uuid}.jsonl`);
-
-  const surfacePreCreated = !!options?.surface;
-  const surface = options?.surface ?? createSurface(params.name);
-  if (!surfacePreCreated) {
-    await new Promise<void>((resolve) => setTimeout(resolve, getShellReadyDelayMs()));
-  }
-
-  const launchBehavior = resolveLaunchBehavior(params, agentDefs);
-
-  if (launchBehavior.seededSessionMode) {
-    seedSubagentSessionFile({
-      mode: launchBehavior.seededSessionMode,
-      parentSessionFile: sessionFile,
-      childSessionFile: subagentSessionFile,
-      childCwd: targetCwdForSession,
-    });
-  }
-
-  const activityFile = getSubagentActivityFile(artifactDir, id);
-  mkdirSync(dirname(activityFile), { recursive: true });
-  const { inheritsConversationContext } = launchBehavior;
-
-  // Only full-context fork mode inherits prior conversation state.
-  // Blank-session modes need the wrapper instructions.
-  const modeHint = autoExitForChild
-    ? "Complete your task autonomously."
-    : "Complete your task. When finished, call the subagent_done tool. The user can interact with you at any time.";
-  const summaryInstruction = autoExitForChild
-    ? "Your FINAL assistant message should summarize what you accomplished."
-    : "Your FINAL assistant message (before calling subagent_done or before the user exits) should summarize what you accomplished.";
-  const denySet = rollover
-    ? new Set(rollover.stable.controls.denyTools)
-    : resolveDenyTools(agentDefs);
-  const identity = rollover
-    ? (rollover.stable.roleBody || null)
-    : agentDefs?.body ?? params.systemPrompt ?? null;
-  const systemPromptMode = rollover ? rollover.stable.systemPromptMode : agentDefs?.systemPromptMode;
-  // A stored "message" mode embeds the role in the task text, like an
-  // agent-less spawn; only "append"/"replace" use a system-prompt file.
-  const systemPromptFileMode =
-    systemPromptMode === "append" || systemPromptMode === "replace" ? systemPromptMode : undefined;
-  const identityInSystemPrompt = systemPromptFileMode && identity;
-  const roleBlock = identity && !identityInSystemPrompt ? `\n\n${identity}` : "";
-  const fullTask = inheritsConversationContext
-    ? params.task
-    : `${roleBlock}\n\n${modeHint}\n\n${params.task}\n\n${summaryInstruction}`.trim();
-
-  const safeName = toSafeFileName(params.name || "subagent", "subagent");
-  const launchScriptFile = join(artifactDir, "subagent-scripts", `${safeName}-${id}.sh`);
-  const piModelArgument = options?.resolvedModel?.argument ?? resolvePiModelArgument(params, agentDefs, {
-    model: ctx.model,
-    thinkingLevel: ctx.thinkingLevel,
-  });
-  const launchProfile = buildLaunchProfile({
-    displayName: params.name,
-    ...(rollover
-      ? (rollover.stable.agentName ? { agentName: rollover.stable.agentName } : {})
-      : params.agent
-        ? { agentName: params.agent }
-        : {}),
-    roleBody: identity ?? "",
-    systemPromptMode: rollover ? rollover.stable.systemPromptMode : agentDefs?.systemPromptMode ?? "message",
-    cwd: targetCwdForSession,
-    agentDir: effectiveAgentDir,
-    controls: rollover
-      ? {
-        ...rollover.stable.controls,
-        // A rollover child is always a standalone session, never a fork.
-        sessionMode: launchBehavior.sessionMode,
-      }
-      : {
-        ...(agentDefs?.spawning === undefined ? {} : { spawning: agentDefs.spawning }),
-        denyTools: [...denySet].sort((first, second) => first.localeCompare(second)),
-        ...(taskRuntime
-          ? { autoExit: true }
-          : agentDefs?.autoExit === undefined
-            ? {}
-            : { autoExit: agentDefs.autoExit }),
-        interactive: effectiveInteractive,
-        sessionMode: launchBehavior.sessionMode,
-      },
-    effectiveSkills,
-    modelArgument: piModelArgument,
-    originalSessionPath: subagentSessionFile,
-    resources: collectResourceFingerprints(ctx.pi, effectiveSkills),
-    ...(options?.workflow ? { workflow: options.workflow } : {}),
-  });
-
-  // ── Claude Code CLI path ──
-  if (agentDefs?.cli === "claude") {
-    const sentinelFile = `/tmp/pi-claude-${id}-done`;
-    const pluginDir = join(SUBAGENTS_DIR, "plugin");
-
-    const cmdParts: string[] = [];
-    cmdParts.push(`PI_CLAUDE_SENTINEL=${shellEscape(sentinelFile)}`);
-    cmdParts.push("claude");
-    cmdParts.push("--dangerously-skip-permissions");
-
-    if (existsSync(pluginDir)) {
-      cmdParts.push("--plugin-dir", shellEscape(pluginDir));
-    }
-
-    if (configuredModel) {
-      cmdParts.push("--model", shellEscape(configuredModel));
-    }
-
-    const sp = params.systemPrompt ?? agentDefs.body;
-    if (sp) {
-      cmdParts.push("--append-system-prompt", shellEscape(sp));
-    }
-
-    if (params.resumeSessionId) {
-      cmdParts.push("--resume", shellEscape(params.resumeSessionId));
-    }
-
-    // Always pass the task as the prompt. For resumed sessions it is the follow-up.
-    cmdParts.push(shellEscape(params.task));
-
-    const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
-    const command = `${cdPrefix}${cmdParts.join(" ")}; echo '__SUBAGENT_DONE_'$?'__'`;
-
-    writeLaunchProfile(subagentSessionFile, launchProfile);
-    try {
-      sendLongCommand(surface, command, {
-        scriptPath: launchScriptFile,
-        scriptPreamble: [
-          `# Claude Code subagent launch script for ${params.name}`,
-          `# Generated: ${new Date().toISOString()}`,
-          `# Surface: ${surface}`,
-        ].join("\n"),
-      });
-    } catch (error) {
-      removeLaunchProfile(subagentSessionFile);
-      throw error;
-    }
-
-    const running: RunningSubagent = {
-      id,
-      name: params.name,
-      task: params.task,
-      agent: params.agent,
-      surface,
-      startTime,
-      sessionFile: subagentSessionFile,
-      launchScriptFile,
-      cli: "claude",
-      sentinelFile,
-      interactive: effectiveInteractive,
-      statusState: createStatusState({ source: "claude", startTimeMs: startTime }),
-    };
-
-    runningSubagents.set(id, running);
-    return running;
-  }
-
-  // ── pi CLI path ──
-  const parts: string[] = ["pi"];
-  parts.push("--session", shellEscape(subagentSessionFile));
-
-  const subagentDonePath = join(SUBAGENTS_DIR, "subagent-done.ts");
-  parts.push("-e", shellEscape(subagentDonePath));
-
-  if (piModelArgument) {
-    parts.push("--model", shellEscape(piModelArgument));
-  }
-
-  // Pass the agent body as a system prompt file. pi's --append-system-prompt
-  // and --system-prompt read file contents when given a path.
-  if (identityInSystemPrompt && identity) {
-    const flag = systemPromptMode === "replace" ? "--system-prompt" : "--append-system-prompt";
-    const syspromptPath = join(artifactDir, `context/${safeName}-sysprompt-${fileTimestamp()}.md`);
-    mkdirSync(dirname(syspromptPath), { recursive: true });
-    writeFileSync(syspromptPath, identity, "utf8");
-    parts.push(flag, shellEscape(syspromptPath));
-  }
-
-  const toolAllowlist = buildSubagentToolAllowlist(effectiveTools);
-  if (toolAllowlist) {
-    parts.push("--tools", shellEscape(toolAllowlist));
-  }
-
-  // Env prefix: denied tools, subagent identity, config dir propagation.
-  const envParts: string[] = [];
-
-  if (localAgentDir && existsSync(localAgentDir)) {
-    envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(localAgentDir)}`);
-  } else if (process.env.PI_CODING_AGENT_DIR) {
-    envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
-  }
-
-  if (denySet.size > 0) {
-    envParts.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
-  }
-  envParts.push(`PI_SUBAGENT_NAME=${shellEscape(params.name)}`);
-  const childAgentName = rollover ? rollover.stable.agentName : params.agent;
-  if (childAgentName) {
-    envParts.push(`PI_SUBAGENT_AGENT=${shellEscape(childAgentName)}`);
-  }
-  if (autoExitForChild) {
-    envParts.push(`PI_SUBAGENT_AUTO_EXIT=1`);
-  }
-  // Task-only turn limit: parsed and enforced by subagent-done.ts in the
-  // child. Exported for task RPC launches only, never for ordinary spawns.
-  if (taskRuntime?.maxTurns != null) {
-    envParts.push(`PI_SUBAGENT_MAX_TURNS=${taskRuntime.maxTurns}`);
-  }
-  envParts.push(`PI_SUBAGENT_SESSION=${shellEscape(subagentSessionFile)}`);
-  envParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
-  envParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
-  envParts.push(`PI_SUBAGENT_SURFACE=${shellEscape(surface)}`);
-  const envPrefix = envParts.join(" ") + " ";
-
-  // Task handoff. Fork mode passes the task directly (it inherits the parent
-  // conversation). Blank-session modes write the wrapped task to an artifact
-  // file; with skills the text is passed inline instead (see buildPiPromptArgs).
-  let taskArg: string;
-  if (launchBehavior.taskDelivery === "direct") {
-    taskArg = fullTask;
-  } else {
-    const artifactPath = join(artifactDir, `context/${safeName}-${fileTimestamp()}.md`);
-    mkdirSync(dirname(artifactPath), { recursive: true });
-    writeFileSync(artifactPath, fullTask, "utf8");
-    taskArg = `@${artifactPath}`;
-  }
-
-  for (const promptArg of buildPiPromptArgs({
-    effectiveSkills,
-    taskDelivery: launchBehavior.taskDelivery,
-    taskArg,
-    taskText: fullTask,
-  })) {
-    parts.push(shellEscape(promptArg));
-  }
-
-  const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
-
-  const piCommand = cdPrefix + envPrefix + parts.join(" ");
-  const command = `${piCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
-  writeLaunchProfile(subagentSessionFile, launchProfile);
-  try {
-    sendLongCommand(surface, command, {
-      scriptPath: launchScriptFile,
-      scriptPreamble: [
-        `# Subagent launch script for ${params.name}`,
-        `# Generated: ${new Date().toISOString()}`,
-        `# Session: ${subagentSessionFile}`,
-        `# Surface: ${surface}`,
-      ].join("\n"),
-    });
-  } catch (error) {
-    removeLaunchProfile(subagentSessionFile);
-    throw error;
-  }
-
-  const running: RunningSubagent = {
-    id,
-    name: params.name,
-    task: params.task,
-    agent: params.agent,
-    surface,
-    startTime,
-    sessionFile: subagentSessionFile,
-    launchScriptFile,
-    activityFile,
-    interactive: effectiveInteractive,
-    statusState: createStatusState({ source: "pi", startTimeMs: startTime }),
-  };
-
-  runningSubagents.set(id, running);
-  return running;
-}
-
-const CLAUDE_SESSIONS_DIR = join(homedir(), ".pi", "agent", "sessions", "claude-code");
-
-function copyClaudeSession(sentinelFile: string): string | null {
-  try {
-    const transcriptFile = sentinelFile + ".transcript";
-    if (!existsSync(transcriptFile)) return null;
-    const transcriptPath = readFileSync(transcriptFile, "utf-8").trim();
-    if (!transcriptPath || !existsSync(transcriptPath)) return null;
-    mkdirSync(CLAUDE_SESSIONS_DIR, { recursive: true });
-    const filename = transcriptPath.split("/").pop() ?? `claude-${Date.now()}.jsonl`;
-    const dest = join(CLAUDE_SESSIONS_DIR, filename);
-    copyFileSync(transcriptPath, dest);
-    return filename;
-  } catch {
-    return null;
-  }
-}
-
-function fallbackSummary(result: { exitCode: number; errorMessage?: string }): string {
-  if (result.errorMessage) return `Subagent error: ${result.errorMessage}`;
-  return result.exitCode === 0
-    ? "Sub-agent exited without output"
-    : `Sub-agent exited with code ${result.exitCode}`;
+  return subagentExecution.launchSubagent(rawParams, ctx, options);
 }
 
 /**
@@ -2848,229 +1648,7 @@ async function watchSubagent(
   running: RunningSubagent,
   signal: AbortSignal,
 ): Promise<SubagentResult> {
-  const { name, task, surface, startTime, sessionFile } = running;
-
-  try {
-    const result = await pollForExit(surface, AbortSignal.any([signal, getModuleAbortSignal()]), {
-      interval: 1000,
-      sessionFile,
-      sentinelFile: running.sentinelFile,
-      onTick() {
-        observeRunningSubagent(running);
-      },
-    });
-
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-
-    if (running.cli === "claude") {
-      let summary = "";
-
-      if (running.sentinelFile) {
-        try {
-          summary = readFileSync(running.sentinelFile, "utf-8").trim();
-        } catch {
-          // The sentinel summary is optional; screen capture is the fallback.
-        }
-      }
-
-      if (!summary) {
-        summary = readScreen(surface, 200)
-          .replace(/__SUBAGENT_DONE_\d+__/, "")
-          .trimEnd();
-      }
-
-      const responded = Boolean(summary);
-      if (!summary) {
-        summary = result.exitCode === 0
-          ? "Claude Code exited without output"
-          : `Claude Code exited with code ${result.exitCode}`;
-      }
-
-      let claudeSessionId: string | null = null;
-      if (running.sentinelFile) {
-        claudeSessionId = copyClaudeSession(running.sentinelFile);
-        try {
-          unlinkSync(running.sentinelFile);
-        } catch {
-          // Cleanup is best-effort; the pane is closing regardless.
-        }
-        try {
-          unlinkSync(running.sentinelFile + ".transcript");
-        } catch {
-          // Cleanup is best-effort; the pane is closing regardless.
-        }
-      }
-
-      closeSurface(surface);
-      runningSubagents.delete(running.id);
-
-      return {
-        name,
-        task,
-        summary,
-        exitCode: result.exitCode,
-        elapsed,
-        responded,
-        ...(claudeSessionId ? { claudeSessionId } : {}),
-      };
-    }
-
-    let summary: string;
-    let usage: SubagentUsageSummary | undefined;
-    let responded = false;
-    if (existsSync(sessionFile)) {
-      const allEntries = getNewEntries(sessionFile, 0);
-      const assistantMessage = findLastAssistantMessage(allEntries);
-      responded = assistantMessage !== null;
-      summary = assistantMessage ?? fallbackSummary(result);
-      // T9: aggregate every completed assistant entry of the child session —
-      // for a resumed session this is the same role session's cumulative
-      // usage, and the latest entry fixes the current context tokens.
-      const aggregated = summarizeSubagentUsage(allEntries);
-      if (aggregated.requests > 0) usage = aggregated;
-    } else {
-      summary = fallbackSummary(result);
-    }
-
-    closeSurface(surface);
-    runningSubagents.delete(running.id);
-
-    return {
-      name,
-      task,
-      summary,
-      sessionFile,
-      exitCode: result.exitCode,
-      elapsed,
-      responded,
-      ping: result.ping,
-      ...(result.reason === "turn-limit" ? { turnLimit: true } : {}),
-      ...(usage ? { usage } : {}),
-      ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
-    };
-  } catch (err) {
-    try {
-      closeSurface(surface);
-    } catch {
-      // The pane may already be gone after a tmux failure.
-    }
-    runningSubagents.delete(running.id);
-
-    const message = err instanceof Error ? err.message : String(err);
-    if (signal.aborted) {
-      return {
-        name,
-        task,
-        summary: "Subagent cancelled.",
-        exitCode: 1,
-        elapsed: Math.floor((Date.now() - startTime) / 1000),
-        error: "cancelled",
-        sessionFile,
-      };
-    }
-    return {
-      name,
-      task,
-      summary: `Subagent error: ${message}`,
-      exitCode: 1,
-      elapsed: Math.floor((Date.now() - startTime) / 1000),
-      error: message,
-    };
-  }
-}
-
-function stripFrontmatter(content: string): string {
-  return content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
-}
-
-const WORKFLOW_SKILL_PATH = join(SUBAGENTS_DIR, "workflow-skill.md");
-
-function getActiveWorkflowRuntime(): WorkflowRuntimeState | null {
-  return activeWorkflowRuntime;
-}
-
-function setActiveWorkflowRuntimeForTests(state: WorkflowRuntimeState | null): void {
-  activeWorkflowRuntime = state;
-}
-
-function getActiveWorkflowRunId(): string | null {
-  return activeWorkflowRunId;
-}
-
-function setActiveWorkflowRunIdForTests(runId: string | null): void {
-  activeWorkflowRunId = runId;
-}
-
-function createWorkflowRunId(): string {
-  return `workflow-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 10)}`;
-}
-
-/**
- * Record the latest active session path for a workflow phase. Skipped when no
- * workflow runtime is active or when the phase belongs to another project, so
- * a stale sidecar can never redirect a different workflow's state.
- */
-function updateActiveWorkflowSession(
-  phase: WorkflowPhase,
-  sessionPath: string,
-  projectRoot?: string,
-): void {
-  const state = activeWorkflowRuntime;
-  if (!state) return;
-  if (projectRoot && state.projectRoot !== projectRoot) return;
-  activeWorkflowRuntime = updateWorkflowActiveSession(state, phase, sessionPath);
-}
-
-/**
- * Apply a successful recovery override to the active workflow runtime: the
- * replacement becomes that role's current default for the remainder of the
- * workflow. The saved project preset is never touched from recovery.
- */
-function applyWorkflowRecoveryOverrideForPhase(
-  phase: WorkflowPhase,
-  selection: ModelSelection,
-  projectRoot?: string,
-): void {
-  const state = activeWorkflowRuntime;
-  if (!state) return;
-  if (projectRoot && state.projectRoot !== projectRoot) return;
-  activeWorkflowRuntime = applyWorkflowRecoveryOverride(state, phase, selection);
-}
-
-function formatWorkflowStartupConfig(
-  state: WorkflowRuntimeState,
-  workflowRunId?: string,
-): string {
-  const lines = [
-    `Policy: ${state.policy}`,
-    `Assignment source: ${state.assignmentSource}`,
-  ];
-  if (workflowRunId) lines.push(`Run ID: ${workflowRunId}`);
-  if (state.currentAssignments) {
-    lines.push("Current role defaults:");
-    for (const [role, selection] of Object.entries(state.currentAssignments)) {
-      const thinking = selection.thinking ? `:${selection.thinking}` : "";
-      lines.push(`- ${role}: ${selection.provider}/${selection.model}${thinking}`);
-    }
-  }
-  lines.push(
-    "Workflow agents listed above receive these models automatically when spawned with their agent name and this Run ID. Pass `workflowRunId` on every fresh workflow phase launch. Do not pass `model` for ordinary workflow phase launches.",
-  );
-  return lines.join("\n");
-}
-
-/** Wrap the bundled workflow prompt the way pi expands a `/skill:` command. */
-function buildWorkflowMessage(
-  request: string,
-  skillPath = WORKFLOW_SKILL_PATH,
-  workflowState?: WorkflowRuntimeState,
-  workflowRunId?: string,
-): string {
-  const content = stripFrontmatter(readFileSync(skillPath, "utf8"));
-  const config = workflowState
-    ? `<workflow-config>\n${formatWorkflowStartupConfig(workflowState, workflowRunId)}\n</workflow-config>\n\n`
-    : "";
-  return `<skill name="pter-workflow" location="${skillPath}">\n${content}\n</skill>\n\n${config}${request}`;
+  return subagentExecution.watchSubagent(running, signal);
 }
 
 export const __test__ = {
@@ -3101,22 +1679,16 @@ export const __test__ = {
   resolveResumeLaunchBehavior,
   buildResumePiArgs,
   buildLaunchProfile,
-  formatWorkflowStartupConfig,
-  describeRunningPhaseBoundary,
-  capturePhaseBoundarySnapshot,
-  getActiveWorkflowRuntime,
-  setActiveWorkflowRuntimeForTests,
-  getActiveWorkflowRunId,
-  setActiveWorkflowRunIdForTests,
+  describeRunningBoundary,
+  getWorkflowRunStateForTests,
+  setWorkflowRunStateForTests,
+  commitWorkflowRunTransition,
   collectResourceFingerprints,
   parseLegacyModelSelection,
   resolvePrimarySkill,
   launchSubagent,
   runningSubagents,
   formatElapsed,
-  stripFrontmatter,
-  buildWorkflowMessage,
-  WORKFLOW_SKILL_PATH,
   attachPiTasksRpcBridge,
   shutdownPiTasksRpcBridge,
   getAttachedTaskRpcForTests,
@@ -3152,13 +1724,6 @@ const SUBAGENTS_LIST_DESCRIPTION =
   "List all available subagent definitions. " +
   "Scans the bundled agents, global ~/.pi/agent/agents/, and project-local .pi/agents/. " +
   "Later sources override earlier ones with the same name.";
-
-const SUBAGENT_RECOVER_DESCRIPTION =
-  "Recover a failed /pter phase session after quota/usage exhaustion or exhausted provider retries. " +
-  "Shows phase, provider, model, failure, saved session path, and context estimate, opens the shared model and thinking picker, " +
-  "then resumes the saved session or starts a fresh same-role rollover through the context-fit gate. " +
-  "Completed artifacts and the saved project preset are preserved; a successful replacement model becomes that role's default for the rest of the workflow. " +
-  ASYNC_TOOL_CONTRACT;
 
 type ToolRenderResult = {
   content?: Array<{ type?: string; text?: string }>;
@@ -3201,12 +1766,58 @@ function renderToolFallback(result: ToolRenderResult, theme: UiTheme): Text {
 }
 
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
+  workflowRunState = createWorkflowRunState();
+  const workflowCommands = registerWorkflowCommands(
+    pi,
+    {
+      state: {
+        getState: () => workflowRunState,
+        commit: (transition) => commitWorkflowRunTransition(pi, transition),
+      },
+      loadAgent: loadAgentDefaults,
+      isTmuxAvailable,
+      muxSetupHint,
+      renameTab: renameCurrentTab,
+    },
+  );
+
   pi.on("session_start", (_event, ctx) => {
     latestCtx = ctx;
     // /new, /resume, and /fork tore the previous session down through
     // session_shutdown without re-importing this module. Re-arm the poll-abort
     // controller so subagent spawns in this session can watch their panes.
     rearmModuleAbortController();
+    const restored = restoreWorkflowRunStateFromSession(ctx.sessionManager);
+    // Restore the in-memory state first so a transient parent-session append
+    // failure cannot leave the restored run unreachable for this session.
+    workflowRunState = restored.state;
+    try {
+      persistWorkflowRunSnapshots(pi, restored.snapshots);
+    } catch (error) {
+      const cause = error instanceof Error ? error.message : String(error);
+      try {
+        ctx.ui.notify(
+          `Workflow run restored in memory, but persisting the interrupted transition to the session log failed: `
+          + `${cause}. The status is re-derived on the next reload.`,
+          "warning",
+        );
+      } catch {
+        // Workflow snapshot persistence must not block unrelated session startup services.
+      }
+    }
+    try {
+      workflowCommands.refreshRegistry(ctx);
+    } catch (error) {
+      try {
+        ctx.ui.notify(
+          `Workflow discovery failed: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
+        );
+      } catch {
+        // Workflow discovery must not block unrelated session startup services.
+      }
+    }
+    workflowCommands.restoreActiveRunUx(ctx);
     // pi-tasks protocol bridge: root sessions register the task RPC handlers
     // (children abstain via PI_SUBAGENT_* env; foreign providers win).
     void attachPiTasksRpcBridge(pi, ctx).catch(() => {
@@ -3235,8 +1846,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     // terminate adapter-owned panes, and clear the task-run records.
     shutdownPiTasksRpcBridge();
     runningSubagents.clear();
-    activeWorkflowRuntime = null;
-    activeWorkflowRunId = null;
+    workflowRunState = createWorkflowRunState();
   });
 
   // Tools denied via PI_DENY_TOOLS (set by the parent from agent frontmatter).
@@ -3248,15 +1858,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
   );
 
   const shouldRegister = (name: string) => !deniedTools.has(name);
-
-  function sendPing(
-    result: SubagentResult,
-    agent: string | undefined,
-    sessionPath: string | undefined,
-    boundary?: PhaseBoundaryOutcome,
-  ) {
-    sendSubagentPing(pi, result, agent, sessionPath, boundary);
-  }
 
   // ── subagent tool ──
   if (shouldRegister("subagent"))
@@ -3284,58 +1885,10 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         }
 
         let resolvedModel: ResolvedModelSelection | undefined;
-        let workflowMetadata: LaunchProfileWorkflowMetadata | undefined;
-        if (
-          params.workflowRunId
-          && activeWorkflowRunId
-          && params.workflowRunId !== activeWorkflowRunId
-        ) {
-          return {
-            content: [{
-              type: "text",
-              text: "Error: this workflow run token is no longer active. Start or continue the current /pter run.",
-            }],
-            details: { error: "stale workflow run token" },
-          };
-        }
-        const workflowRunMatches = activeWorkflowRunId === null
-          ? activeWorkflowRuntime !== null
-          : params.workflowRunId === activeWorkflowRunId;
-        const workflowPhase = activeWorkflowRuntime && workflowRunMatches
-          ? workflowPhaseForAgent(params.agent)
-          : undefined;
         // Agent frontmatter for this spawn, loaded once for both the explicit
         // model branch and the per-agent configured-default branch below.
         const spawnAgentDefs = params.agent ? loadAgentDefaults(params.agent) : null;
-        if (workflowPhase && activeWorkflowRuntime) {
-          try {
-            resolvedModel = await resolveWorkflowPhaseSelection(
-              ctx,
-              activeWorkflowRuntime,
-              workflowPhase,
-            );
-            const baseMetadata = buildWorkflowMetadata(
-              activeWorkflowRuntime,
-              workflowPhase,
-              resolvedModel,
-            );
-            workflowMetadata = params.workflowArtifacts
-              ? {
-                ...baseMetadata,
-                artifacts: {
-                  ...baseMetadata.artifacts,
-                  ...normalizeWorkflowArtifacts(params.workflowArtifacts),
-                },
-              }
-              : baseMetadata;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            return {
-              content: [{ type: "text", text: `Error: ${message}` }],
-              details: { error: "workflow model selection failed", message },
-            };
-          }
-        } else if (params.model) {
+        if (params.model) {
           try {
             const resolution = await resolveModelPolicy(params.model, ctx, {
               mode: "spawn",
@@ -3403,55 +1956,21 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           };
         }
 
-        // T7: phase-boundary baseline for artifact phases (planner, task
-        // writer, reviewer), taken before the child can touch the worktree.
-        // The executor stays exempt: TASKS.md governs its scope.
-        const phaseBoundary = workflowMetadata
-          ? capturePhaseBoundarySnapshot(
-              workflowMetadata.phase,
-              workflowMetadata.projectRoot ?? ctx.cwd,
-              workflowArtifactForPhase(workflowMetadata),
-            )
-          : undefined;
-
         const running = await launchSubagent(
           params,
           { ...ctx, pi },
           {
             ...(resolvedModel ? { resolvedModel } : {}),
-            ...(workflowMetadata ? { workflow: workflowMetadata } : {}),
           },
         );
-        if (phaseBoundary) running.phaseBoundary = phaseBoundary;
 
-        // The workflow runtime tracks the latest active session per phase so
-        // later resumes and recoveries target the replacement, not a stale path.
-        if (workflowMetadata) {
-          updateActiveWorkflowSession(
-            workflowMetadata.phase,
-            running.sessionFile,
-            workflowMetadata.projectRoot,
-          );
-        }
-
-        // Separate AbortController for the watcher: the tool's signal completes when we return.
-        const watcherAbort = new AbortController();
-        running.abortController = watcherAbort;
-
-        startWidgetRefresh();
-        startStatusRefresh(pi);
-
-        watchSubagent(running, watcherAbort.signal)
-          .then((result) => {
-            updateWidget();
-
-            const boundary = describeRunningPhaseBoundary(running);
-
-            if (result.ping) {
-              sendPing(result, running.agent, result.sessionFile, boundary);
-              return;
-            }
-
+        subagentExecution.watchInBackground({
+          pi,
+          ctx,
+          running,
+          pingAgent: running.agent,
+          pingSessionPath: running.cli === "claude" ? undefined : running.sessionFile,
+          onSuccess: ({ result, boundary }) => {
             const usage = resolveUsageDetails(result, ctx);
             const base = resolveResultPresentation(
               { ...result, ...(usage ? { usage } : {}) },
@@ -3461,45 +1980,32 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
               ? `${boundary.violationText}\n\n${base}`
               : base;
 
-            pi.sendMessage(
-              {
-                customType: "subagent_result",
-                content: presentation,
-                display: true,
-                details: {
-                  name: running.name,
-                  task: running.task,
-                  agent: running.agent,
-                  exitCode: result.exitCode,
-                  elapsed: result.elapsed,
-                  sessionFile: result.sessionFile,
-                  ...(result.errorMessage
-                    ? {
-                      errorMessage: result.errorMessage,
-                      failureKind: classifyProviderFailure(result.errorMessage),
-                    }
-                    : {}),
-                  ...(usage ? { usage } : {}),
-                  ...(result.claudeSessionId ? { claudeSessionId: result.claudeSessionId } : {}),
-                  ...(boundary ? boundary.details : {}),
-                },
+            return {
+              content: presentation,
+              details: {
+                name: running.name,
+                task: running.task,
+                agent: running.agent,
+                exitCode: result.exitCode,
+                elapsed: result.elapsed,
+                sessionFile: result.sessionFile,
+                ...(result.errorMessage
+                  ? {
+                    errorMessage: result.errorMessage,
+                    failureKind: classifyProviderFailure(result.errorMessage),
+                  }
+                  : {}),
+                ...(usage ? { usage } : {}),
+                ...(result.claudeSessionId ? { claudeSessionId: result.claudeSessionId } : {}),
+                ...(boundary ? boundary.details : {}),
               },
-              { triggerTurn: true, deliverAs: "steer" },
-            );
-          })
-          .catch((err) => {
-            updateWidget();
-            const message = err instanceof Error ? err.message : String(err);
-            pi.sendMessage(
-              {
-                customType: "subagent_result",
-                content: `Sub-agent "${running.name}" error: ${message}`,
-                display: true,
-                details: { name: running.name, task: running.task, error: message },
-              },
-              { triggerTurn: true, deliverAs: "steer" },
-            );
-          });
+            };
+          },
+          onError: (message) => ({
+            content: `Sub-agent "${running.name}" error: ${message}`,
+            details: { name: running.name, task: running.task, error: message },
+          }),
+        });
 
         return {
           content: [
@@ -3719,14 +2225,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
               "Model policy for the resumed session: 'previous' (default; the sidecar's last successful model), 'parent', 'pick', or an explicit 'provider/model[:thinking]' value. Sessions without a launch-profile sidecar keep the legacy behavior when this is omitted.",
           }),
         ),
-        workflowArtifacts: Type.Optional(
-          Type.Object({
-            plan: Type.Optional(Type.String({ description: "Absolute PLAN.md path" })),
-            tasks: Type.Optional(Type.String({ description: "Absolute TASKS.md path" })),
-            review: Type.Optional(Type.String({ description: "Absolute REVIEW.md path" })),
-            baseRef: Type.Optional(Type.String({ description: "Git base ref" })),
-          }),
-        ),
       }),
 
       renderCall(args, theme) {
@@ -3768,237 +2266,20 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       },
     });
 
-  // ── subagent_recover tool ──
-  if (shouldRegister("subagent_recover"))
-    pi.registerTool({
-      name: "subagent_recover",
-      label: "Recover Subagent",
-      description: SUBAGENT_RECOVER_DESCRIPTION,
-      promptSnippet: SUBAGENT_RECOVER_DESCRIPTION,
-      parameters: Type.Object({
-        sessionPath: Type.String({
-          description:
-            "Path to the failed workflow phase's session .jsonl file (the subagent_result details.sessionFile)",
-        }),
-        failure: Type.Optional(
-          Type.String({
-            description:
-              "The provider/agent error message from the failed subagent_result (details.errorMessage)",
-          }),
-        ),
-        message: Type.Optional(
-          Type.String({
-            description:
-              "Optional continuation message for the recovered session. Default: a role continuation instruction.",
-          }),
-        ),
-        name: Type.Optional(
-          Type.String({ description: "Display name for the recovered pane. Default: the saved role display name" }),
-        ),
-      }),
-
-      renderCall(args, theme) {
-        const name = args.name ?? "Recover";
-        return new Text(
-          renderToolStateRow(theme, {
-            name,
-            state: "starting",
-            label: "recovery gate",
-          }),
-          0,
-          0,
-        );
+  registerWorkflowLifecycleTools(
+    pi,
+    {
+      state: {
+        getState: () => workflowRunState,
+        commit: (transition) => commitWorkflowRunTransition(pi, transition),
       },
-
-      renderResult(result, _opts, theme) {
-        const details = result.details as
-          | { name?: string; status?: string; rollover?: string }
-          | undefined;
-        const name = details?.name ?? "Recover";
-
-        if (details?.status === "started") {
-          return new Text(
-            renderToolStateRow(theme, {
-              name,
-              state: "starting",
-              label: details?.rollover === "fresh" ? "fresh rollover started" : "recovery resumed",
-            }),
-            0,
-            0,
-          );
-        }
-
-        if (details?.status === "cancelled" || details?.status === "not-opened") {
-          return new Text(
-            renderToolStateRow(theme, {
-              name,
-              state: "help",
-              label: details.status === "cancelled" ? "recovery cancelled" : "recovery not opened",
-            }),
-            0,
-            0,
-          );
-        }
-
-        return renderToolFallback(result, theme);
-      },
-
-      async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-        if (!existsSync(params.sessionPath)) {
-          return {
-            content: [
-              { type: "text", text: `Error: session file not found: ${params.sessionPath}` },
-            ],
-            details: { error: "session not found" },
-          };
-        }
-
-        const profileRead = readLaunchProfile(params.sessionPath);
-        if (profileRead.status === "missing") {
-          return {
-            content: [{
-              type: "text",
-              text: "Error: this session has no launch-profile sidecar. Recover legacy sessions with subagent_resume and an explicit model.",
-            }],
-            details: { error: "no launch profile" },
-          };
-        }
-        if (profileRead.status === "invalid") {
-          return {
-            content: [{ type: "text", text: `Error: ${profileRead.error}` }],
-            details: { error: "invalid launch profile" },
-          };
-        }
-        const workflowMeta = profileRead.profile.workflow;
-        if (!workflowMeta) {
-          return {
-            content: [{
-              type: "text",
-              text: "Error: this session does not belong to a /pter phase. Resume it with subagent_resume instead.",
-            }],
-            details: { error: "not a workflow session" },
-          };
-        }
-
-        const failureMessage =
-          params.failure?.trim() || profileRead.profile.runtime.previousFailure?.message || "";
-        const failureKind: ProviderFailureKind = failureMessage
-          ? classifyProviderFailure(failureMessage)
-          : "other";
-        const failedSelection =
-          profileRead.profile.runtime.lastModel ?? profileRead.profile.runtime.originalModel;
-        const failure = buildProviderFailureRecord({
-          kind: failureKind,
-          message: failureMessage || "unknown provider failure",
-          ...(failedSelection?.provider ? { provider: failedSelection.provider } : {}),
-          ...(failedSelection?.model ? { model: failedSelection.model } : {}),
-        });
-
-        // Record the failure on the saved profile for diagnostics. Best-effort:
-        // the recovery decision never depends on this write.
-        try {
-          updateLaunchProfile(params.sessionPath, (stored) => ({
-            ...stored,
-            runtime: { ...stored.runtime, previousFailure: failure },
-          }));
-        } catch {
-          // Diagnostics only; recovery continues.
-        }
-
-        if (!shouldOpenRecoveryGate(failureKind)) {
-          return {
-            content: [{
-              type: "text",
-              text:
-                `Failure classified as "${formatFailureKind(failureKind)}". The workflow recovery gate applies only to ` +
-                `quota/usage exhaustion and exhausted normal retries. Tell the user the failure and ask whether to retry the phase; ` +
-                `the saved session and all completed artifacts are preserved.`,
-            }],
-            details: {
-              status: "not-opened",
-              failureKind,
-              phase: workflowMeta.phase,
-              sessionPath: params.sessionPath,
-            },
-          };
-        }
-
-        if (!ctx.hasUI) {
-          return {
-            content: [{
-              type: "text",
-              text:
-                "Error: workflow recovery needs interactive UI for the model and thinking picker. " +
-                "Ask the user to fix the provider problem and retry the phase, or resume the session with subagent_resume " +
-                "and an explicit provider/model[:thinking] value.",
-            }],
-            details: {
-              error: "recovery needs interactive UI",
-              failureKind,
-              phase: workflowMeta.phase,
-            },
-          };
-        }
-
-        let estimate: SavedContextEstimate | undefined;
-        try {
-          estimate = estimateSavedSessionContext(params.sessionPath);
-        } catch {
-          estimate = undefined;
-        }
-
-        await ctx.ui?.notify?.(
-          formatRecoverySummary({
-            phase: workflowMeta.phase,
-            failureKind,
-            failure: failureMessage || "unknown provider failure",
-            sessionPath: params.sessionPath,
-            ...(failedSelection?.provider ? { provider: failedSelection.provider } : {}),
-            ...(failedSelection?.model ? { model: failedSelection.model } : {}),
-            ...(estimate ? { estimate } : {}),
-          }),
-          "error",
-        );
-
-        const choice = await ctx.ui.select(
-          `Recover the workflow ${WORKFLOW_PHASE_LABELS[workflowMeta.phase]} phase?`,
-          [RECOVERY_SELECT_MODEL, RECOVERY_STOP],
-        );
-        if (choice !== RECOVERY_SELECT_MODEL) {
-          return {
-            content: [{
-              type: "text",
-              text: "Recovery cancelled at the user gate. The saved session and all completed artifacts are preserved.",
-            }],
-            details: {
-              status: "cancelled",
-              failureKind,
-              phase: workflowMeta.phase,
-              sessionPath: params.sessionPath,
-            },
-          };
-        }
-
-        // The shared picker, context-fit gate, resume, and rollover machinery
-        // all live in the resume implementation. Recovery only adds the
-        // workflow bookkeeping it applies on success.
-        return executeSubagentResume(
-          pi,
-          {
-            sessionPath: params.sessionPath,
-            ...(params.name ? { name: params.name } : {}),
-            message: params.message ?? defaultRecoveryMessage(),
-            model: "pick",
-          },
-          ctx,
-          {
-            failure,
-            phase: workflowMeta.phase,
-            ...(workflowMeta.projectRoot ? { projectRoot: workflowMeta.projectRoot } : {}),
-          },
-        );
-      },
-    });
+      execution: subagentExecution,
+      loadAgentDefaults,
+      isTmuxAvailable,
+      muxUnavailableResult,
+    },
+    { shouldRegister },
+  );
 
   // /iterate: fork the session into a subagent
   pi.registerCommand("iterate", {
@@ -4040,48 +2321,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       const displayName = agentName[0].toUpperCase() + agentName.slice(1);
       const toolCall = `Use subagent with agent: "${agentName}", name: "${displayName}", task: ${JSON.stringify(taskText)}`;
       pi.sendUserMessage(toolCall);
-    },
-  });
-
-  // /pter: plan -> tasks -> execute -> review chain with four user gates
-  pi.registerCommand("pter", {
-    description: "Run the plan → tasks → execute → review chain in subagent panes: /pter <request>",
-    handler: async (args, ctx) => {
-      const request = args.trim();
-      if (!request) {
-        ctx.ui.notify("Usage: /pter <request>", "warning");
-        return;
-      }
-      if (!isTmuxAvailable()) {
-        ctx.ui.notify(`/pter needs tmux. ${muxSetupHint()}`, "error");
-        return;
-      }
-
-      const startup = await chooseWorkflowStartup(ctx, ctx.cwd);
-      if (startup.status !== "started") {
-        activeWorkflowRuntime = null;
-        activeWorkflowRunId = null;
-        ctx.ui.notify(startup.reason, "warning");
-        return;
-      }
-      activeWorkflowRuntime = startup.state;
-      activeWorkflowRunId = createWorkflowRunId();
-
-      try {
-        const label = request.length > 40 ? request.slice(0, 40) + "…" : request;
-        renameCurrentTab(` Workflow: ${label}`);
-      } catch {
-        // Cosmetic. The prompt renames the window per phase anyway.
-      }
-
-      pi.sendUserMessage(
-        buildWorkflowMessage(
-          request,
-          WORKFLOW_SKILL_PATH,
-          startup.state,
-          activeWorkflowRunId,
-        ),
-      );
     },
   });
 

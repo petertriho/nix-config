@@ -1155,7 +1155,16 @@ test("bundled compatibility profiles are autonomous, auto-exiting, and cannot sp
 		assert.ok(defs, name);
 		assert.equal(defs?.spawning, false, name);
 		const denied = indexTestApi.resolveDenyTools(defs);
-		for (const tool of ["subagent", "subagent_interrupt", "subagents_list", "subagent_resume", "subagent_recover"]) {
+		for (const tool of [
+			"subagent",
+			"subagent_interrupt",
+			"subagents_list",
+			"subagent_resume",
+			"workflow_spawn",
+			"workflow_resume",
+			"workflow_recover",
+			"workflow_complete",
+		]) {
 			assert.equal(denied.has(tool), true, `${name} must deny ${tool}`);
 		}
 	}

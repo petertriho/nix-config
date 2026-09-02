@@ -1,7 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import {
+	basename,
+	dirname,
+	isAbsolute,
+	join,
+	relative,
+	resolve,
+	sep,
+} from "node:path";
 
 export interface RepoState {
 	changedPaths: string[];
@@ -14,26 +22,62 @@ export interface RepoState {
 	headEntries?: Map<string, string>;
 	indexEntries?: Map<string, string>;
 	statusSignatures?: Map<string, string>;
+	/** Direct fingerprints for declared boundary files, including ignored files. */
+	boundaryFileSignatures?: Map<string, string>;
+	/** Recursive fingerprints for initialized Git submodules. */
+	submoduleSignatures?: Map<string, string>;
 }
 
-export interface PhasePostconditionReport {
+export interface RepoFileConstraint {
+	readonly under: string;
+	readonly basename?: string;
+}
+
+export interface RepoBoundaryWorktreeRule {
+	readonly capability: "worktree";
+	readonly kind: "worktree";
+}
+
+export interface RepoBoundaryExactFileRule {
+	readonly capability?: string;
+	readonly kind: "file";
+	readonly slotId?: string;
+	readonly label?: string;
+	readonly exactPath: string;
+}
+
+export interface RepoBoundaryConstrainedFileRule {
+	readonly capability?: string;
+	readonly kind: "file";
+	readonly slotId?: string;
+	readonly label?: string;
+	readonly constraint: RepoFileConstraint;
+}
+
+export type RepoBoundaryFileRule =
+	| RepoBoundaryExactFileRule
+	| RepoBoundaryConstrainedFileRule;
+
+export type RepoBoundaryAllowedRule =
+	| RepoBoundaryWorktreeRule
+	| RepoBoundaryFileRule;
+
+export interface RepoBoundaryDefinition {
+	readonly allowedRules: readonly RepoBoundaryAllowedRule[];
+	readonly protectedRules: readonly RepoBoundaryFileRule[];
+}
+
+export interface RepoBoundarySnapshot extends RepoBoundaryDefinition {
+	readonly repoRoot: string;
+	readonly before: RepoState;
+}
+
+export interface RepoBoundaryReport extends RepoBoundaryDefinition {
 	allowedPaths: string[];
 	unexpectedPaths: string[];
 	violated: boolean;
-}
-
-/** The only artifact each non-implementation workflow phase may change. */
-export type PhaseArtifact = "PLAN.md" | "TASKS.md" | "REVIEW.md";
-
-const PHASE_ARTIFACTS: Record<string, PhaseArtifact> = {
-	planner: "PLAN.md",
-	"task-writer": "TASKS.md",
-	reviewer: "REVIEW.md",
-};
-
-/** Artifact a workflow phase permits, or undefined for phases without one. */
-export function phaseArtifactForPhase(phase: string): PhaseArtifact | undefined {
-	return PHASE_ARTIFACTS[phase];
+	/** Set when post-run repository state could not be captured safely. */
+	manualReviewReason?: string;
 }
 
 const HEAD_CHANGE_MARKER = "<repository HEAD>";
@@ -110,7 +154,7 @@ function captureIndexEntries(root: string): Map<string, string> {
 }
 
 function fileSignature(root: string, path: string): string {
-	const absolute = join(root, path);
+	const absolute = resolve(root, path);
 	if (!existsSync(absolute)) return "missing";
 
 	try {
@@ -120,13 +164,100 @@ function fileSignature(root: string, path: string): string {
 	}
 }
 
+function sortedMapEntries(map: Map<string, string> | undefined): [string, string][] {
+	return [...(map ?? new Map<string, string>()).entries()].sort(([first], [second]) =>
+		compareStrings(first, second)
+	);
+}
+
+function repoStateSignature(state: RepoState): string {
+	return createHash("sha256")
+		.update(JSON.stringify({
+			changedPaths: state.changedPaths,
+			signatures: sortedMapEntries(state.signatures),
+			head: state.head,
+			headEntries: sortedMapEntries(state.headEntries),
+			indexEntries: sortedMapEntries(state.indexEntries),
+			statusSignatures: sortedMapEntries(state.statusSignatures),
+			submoduleSignatures: sortedMapEntries(state.submoduleSignatures),
+		}))
+		.digest("hex");
+}
+
+function isGitlinkEntry(entry: string): boolean {
+	return entry.startsWith("160000 ");
+}
+
+function captureSubmoduleSignatures(
+	root: string,
+	indexEntries: Map<string, string>,
+): Map<string, string> {
+	const signatures = new Map<string, string>();
+	for (const [path, entry] of indexEntries) {
+		if (!isGitlinkEntry(entry)) continue;
+		const submoduleRoot = resolve(root, path);
+		if (!existsSync(join(submoduleRoot, ".git"))) {
+			signatures.set(path, "uninitialized");
+			continue;
+		}
+		signatures.set(path, repoStateSignature(captureRepoState(submoduleRoot)));
+	}
+	return signatures;
+}
+
+function collectConstrainedFiles(
+	repoRoot: string,
+	constraint: RepoFileConstraint,
+): string[] {
+	const under = resolve(repoRoot, constraint.under);
+	if (!isContainedPath(repoRoot, under) || !existsSync(under)) return [];
+	const paths: string[] = [];
+	const visit = (directory: string): void => {
+		for (const entry of readdirSync(directory, { withFileTypes: true })) {
+			if (entry.name === ".git") continue;
+			const absolute = join(directory, entry.name);
+			if (entry.isDirectory()) {
+				visit(absolute);
+				continue;
+			}
+			if (constraint.basename !== undefined && entry.name !== constraint.basename) continue;
+			paths.push(normalizeRepoPath(repoRoot, absolute));
+		}
+	};
+	visit(under);
+	return paths;
+}
+
+function captureBoundaryFileSignatures(
+	root: string,
+	definition: RepoBoundaryDefinition | undefined,
+): Map<string, string> | undefined {
+	if (!definition) return undefined;
+	const paths = new Set<string>();
+	for (const rule of [...definition.allowedRules, ...definition.protectedRules]) {
+		if (rule.kind !== "file") continue;
+		if ("exactPath" in rule) {
+			const path = normalizeRepoPath(root, rule.exactPath);
+			if (isContainedPath(root, resolve(root, path))) paths.add(path);
+			continue;
+		}
+		for (const path of collectConstrainedFiles(root, rule.constraint)) paths.add(path);
+	}
+	const signatures = new Map<string, string>();
+	for (const path of paths) signatures.set(path, fileSignature(root, path));
+	return signatures;
+}
+
 /**
  * Snapshot the repository's changed and untracked paths. Uses
  * `--untracked-files=all` so untracked files inside new directories are
  * listed individually instead of collapsed to `dir/`, keeping the
  * before/after comparison deterministic across environments.
  */
-export function captureRepoState(root: string): RepoState {
+export function captureRepoState(
+	root: string,
+	definition?: RepoBoundaryDefinition,
+): RepoState {
 	const head = captureHead(root);
 	const headEntries = captureHeadEntries(root, head);
 	const indexEntries = captureIndexEntries(root);
@@ -135,6 +266,8 @@ export function captureRepoState(root: string): RepoState {
 	);
 	const signatures = new Map<string, string>();
 	for (const path of status.changedPaths) signatures.set(path, fileSignature(root, path));
+	const boundaryFileSignatures = captureBoundaryFileSignatures(root, definition);
+	const submoduleSignatures = captureSubmoduleSignatures(root, indexEntries);
 	return {
 		changedPaths: status.changedPaths,
 		signatures,
@@ -142,6 +275,8 @@ export function captureRepoState(root: string): RepoState {
 		headEntries,
 		indexEntries,
 		statusSignatures: status.statusSignatures,
+		boundaryFileSignatures,
+		submoduleSignatures,
 	};
 }
 
@@ -158,93 +293,142 @@ export function resolveGitRoot(startDir: string): string | null {
 	}
 }
 
-/**
- * Phase-relative baseline captured before a phase child starts working.
- * Undefined when the phase has no expected artifact (executor) or the
- * directory is not inside a git repository; those phases run unchecked.
- */
-export interface PhaseBoundarySnapshot {
-	phase: string;
-	artifact: PhaseArtifact;
-	repoRoot: string;
-	before: RepoState;
-	/**
-	 * Exact repo-relative artifact path when the orchestrator knows it.
-	 * Omitted callers retain the legacy basename fallback until parent wiring
-	 * supplies PLAN/TASKS/REVIEW paths.
-	 */
-	expectedArtifactPath?: string;
+function hasGitMetadataAncestor(startDir: string): boolean {
+	let current = resolve(startDir);
+	while (true) {
+		if (existsSync(join(current, ".git"))) return true;
+		const parent = dirname(current);
+		if (parent === current) return false;
+		current = parent;
+	}
 }
 
 /**
- * Capture the phase-boundary baseline before a workflow phase launches.
- * Read-only: takes a git status snapshot and never touches the worktree.
+ * Capture a generic repo-write boundary snapshot. Undefined outside a Git
+ * repository; repository-state read failures throw so callers fail closed.
  */
-export function capturePhaseBoundarySnapshot(
-	phase: string,
+export function captureRepoBoundarySnapshot(
 	startDir: string,
-	expectedArtifactPath?: string,
-): PhaseBoundarySnapshot | undefined {
-	const artifact = phaseArtifactForPhase(phase);
-	if (!artifact) return undefined;
+	definition: RepoBoundaryDefinition,
+): RepoBoundarySnapshot | undefined {
 	const repoRoot = resolveGitRoot(startDir);
-	if (!repoRoot) return undefined;
-	let before: RepoState;
-	try {
-		before = captureRepoState(repoRoot);
-	} catch {
+	if (!repoRoot) {
+		if (hasGitMetadataAncestor(startDir)) {
+			throw new Error(
+				`Could not resolve the Git repository root for boundary capture at "${startDir}".`,
+			);
+		}
 		return undefined;
 	}
-	return {
-		phase,
-		artifact,
-		repoRoot,
-		before,
-		...(expectedArtifactPath
-			? { expectedArtifactPath: normalizeWorkflowPath(repoRoot, expectedArtifactPath) }
-			: {}),
-	};
+	const normalized = normalizeRepoBoundaryDefinition(definition, repoRoot);
+	try {
+		const before = captureRepoState(repoRoot, normalized);
+		return {
+			repoRoot,
+			before,
+			allowedRules: normalized.allowedRules,
+			protectedRules: normalized.protectedRules,
+		};
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		throw new Error(
+			`Could not capture the repository boundary baseline at "${repoRoot}": ${detail}`,
+		);
+	}
 }
 
 /**
- * Compare the baseline with the repository state after the phase. Read-only:
- * the reported changes stay exactly as the child left them. Returns undefined
- * when the after state cannot be read (never fails closed on a git error).
+ * Compare a generic boundary baseline with the repository state after the
+ * child finishes. Read-only: never reverts, restores, stages, or commits.
  */
-export function evaluatePhaseBoundarySnapshot(
-	snapshot: PhaseBoundarySnapshot,
+export function evaluateRepoBoundarySnapshot(
+	snapshot: RepoBoundarySnapshot,
 	after?: RepoState,
-): PhasePostconditionReport | undefined {
+): RepoBoundaryReport {
 	let afterState: RepoState;
 	try {
-		afterState = after ?? captureRepoState(snapshot.repoRoot);
-	} catch {
-		return undefined;
+		afterState = after ?? captureRepoState(snapshot.repoRoot, snapshot);
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		return {
+			allowedRules: snapshot.allowedRules,
+			protectedRules: snapshot.protectedRules,
+			allowedPaths: [],
+			unexpectedPaths: [],
+			violated: true,
+			manualReviewReason:
+				`Post-run repository state capture failed; manual review is required: ${detail}`,
+		};
 	}
-	return comparePhaseArtifact(
-		snapshot.before,
-		afterState,
-		snapshot.artifact,
-		snapshot.expectedArtifactPath,
-		snapshot.repoRoot,
-	);
+	return compareRepoBoundaryRules(snapshot.before, afterState, snapshot, snapshot.repoRoot);
 }
 
-function normalizeWorkflowPath(root: string, path: string): string {
+function isContainedPath(parent: string, child: string): boolean {
+	const relativePath = relative(resolve(parent), resolve(child));
+	return relativePath === "" || !relativePath.split(sep).includes("..");
+}
+
+function normalizeRepoPath(root: string, path: string): string {
 	const cwdRoot = resolve(root);
 	const resolvedPath = isAbsolute(path) ? resolve(path) : path;
 	if (isAbsolute(resolvedPath)) {
 		const repoRelative = relative(cwdRoot, resolvedPath);
 		if (!repoRelative.startsWith("..") && repoRelative !== "..") {
-			return repoRelative.split(sep).join("/");
+			return (repoRelative || ".").split(sep).join("/");
 		}
 	}
 	return resolvedPath.replace(/^\.\//, "").split(sep).join("/");
 }
 
-function pathBasename(path: string): string {
-	const parts = path.split("/");
-	return parts[parts.length - 1];
+function normalizeRepoConstraint(root: string, constraint: RepoFileConstraint): RepoFileConstraint {
+	const normalizedUnder = normalizeRepoPath(root, resolve(root, constraint.under)) || ".";
+	return constraint.basename === undefined
+		? { under: normalizedUnder }
+		: { under: normalizedUnder, basename: constraint.basename };
+}
+
+function normalizeRepoBoundaryDefinition(
+	definition: RepoBoundaryDefinition,
+	repoRoot: string,
+): RepoBoundaryDefinition {
+	return {
+		allowedRules: definition.allowedRules.map((rule) => {
+			if (rule.kind === "worktree") return rule;
+			return "exactPath" in rule
+				? {
+					...rule,
+					exactPath: normalizeRepoPath(repoRoot, rule.exactPath),
+				}
+				: {
+					...rule,
+					constraint: normalizeRepoConstraint(repoRoot, rule.constraint),
+				};
+		}),
+		protectedRules: definition.protectedRules.map((rule) =>
+			"exactPath" in rule
+				? {
+					...rule,
+					exactPath: normalizeRepoPath(repoRoot, rule.exactPath),
+				}
+				: {
+					...rule,
+					constraint: normalizeRepoConstraint(repoRoot, rule.constraint),
+				}
+		),
+	};
+}
+
+function matchesRepoBoundaryFileRule(
+	path: string,
+	rule: RepoBoundaryFileRule,
+	repoRoot: string,
+): boolean {
+	const normalizedPath = normalizeRepoPath(repoRoot, path);
+	if ("exactPath" in rule) return normalizedPath === normalizeRepoPath(repoRoot, rule.exactPath);
+	const absolutePath = resolve(repoRoot, normalizedPath);
+	const allowedRoot = resolve(repoRoot, rule.constraint.under);
+	if (!isContainedPath(allowedRoot, absolutePath)) return false;
+	return rule.constraint.basename === undefined || basename(absolutePath) === rule.constraint.basename;
 }
 
 function compareStrings(first: string, second: string): number {
@@ -266,29 +450,43 @@ function changedMapPaths(
 	return [...paths].filter((path) => first.get(path) !== second.get(path));
 }
 
+function pathChangedDuringBoundary(path: string, before: RepoState, after: RepoState): boolean {
+	const beforeHash = before.signatures.get(path) ?? "clean";
+	const afterHash = after.signatures.get(path) ?? "clean";
+	const beforeBoundaryHash = before.boundaryFileSignatures?.get(path) ?? "not-declared";
+	const afterBoundaryHash = after.boundaryFileSignatures?.get(path) ?? "not-declared";
+	const beforeSubmoduleHash = before.submoduleSignatures?.get(path) ?? "not-submodule";
+	const afterSubmoduleHash = after.submoduleSignatures?.get(path) ?? "not-submodule";
+	const wasChanged = before.changedPaths.includes(path);
+	const isChanged = after.changedPaths.includes(path);
+	const beforeStatus = before.statusSignatures?.get(path) ?? (wasChanged ? "changed" : "clean");
+	const afterStatus = after.statusSignatures?.get(path) ?? (isChanged ? "changed" : "clean");
+	return (
+		wasChanged !== isChanged
+		|| beforeHash !== afterHash
+		|| beforeStatus !== afterStatus
+		|| beforeBoundaryHash !== afterBoundaryHash
+		|| beforeSubmoduleHash !== afterSubmoduleHash
+	);
+}
+
 /**
- * Net repository changes during the phase. Worktree/status changes are
+ * Net repository changes during the boundary. Worktree/status changes are
  * relative to the dirty baseline. Index and HEAD changes are separately
- * marked as forced violations, even when they affect the allowed artifact.
+ * marked as forced violations, even when they affect an explicitly allowed
+ * file.
  */
-function changesDuringPhase(before: RepoState, after: RepoState): RepoChanges {
-	const allPaths = new Set([...before.changedPaths, ...after.changedPaths]);
+function changesDuringBoundary(before: RepoState, after: RepoState): RepoChanges {
+	const allPaths = new Set([
+		...before.changedPaths,
+		...after.changedPaths,
+		...(before.boundaryFileSignatures?.keys() ?? []),
+		...(after.boundaryFileSignatures?.keys() ?? []),
+		...(before.submoduleSignatures?.keys() ?? []),
+		...(after.submoduleSignatures?.keys() ?? []),
+	]);
 	const changed = new Set<string>();
-	for (const path of allPaths) {
-		const beforeHash = before.signatures.get(path) ?? "clean";
-		const afterHash = after.signatures.get(path) ?? "clean";
-		const wasChanged = before.changedPaths.includes(path);
-		const isChanged = after.changedPaths.includes(path);
-		const beforeStatus = before.statusSignatures?.get(path) ?? (wasChanged ? "changed" : "clean");
-		const afterStatus = after.statusSignatures?.get(path) ?? (isChanged ? "changed" : "clean");
-		if (
-			wasChanged !== isChanged
-			|| beforeHash !== afterHash
-			|| beforeStatus !== afterStatus
-		) {
-			changed.add(path);
-		}
-	}
+	for (const path of allPaths) if (pathChangedDuringBoundary(path, before, after)) changed.add(path);
 
 	const indexPaths = changedMapPaths(before.indexEntries, after.indexEntries);
 	const headPaths = changedMapPaths(before.headEntries, after.headEntries);
@@ -310,80 +508,41 @@ function changesDuringPhase(before: RepoState, after: RepoState): RepoChanges {
 	};
 }
 
-export function comparePhasePaths(
+export function compareRepoBoundaryRules(
 	before: RepoState,
 	after: RepoState,
-	allowedPaths: readonly string[],
+	definition: RepoBoundaryDefinition,
 	repoRoot = process.cwd(),
-): PhasePostconditionReport {
-	const allowed = new Set([...allowedPaths].map((path) => normalizeWorkflowPath(repoRoot, path)));
-	const changes = changesDuringPhase(before, after);
-	const unusual = changes.paths.filter(
-		(path) =>
-			changes.forcedUnexpectedPaths.has(path)
-			|| !allowed.has(normalizeWorkflowPath(repoRoot, path)),
-	);
-	return {
-		allowedPaths: [...allowed].sort(compareStrings),
-		unexpectedPaths: unusual.sort(compareStrings),
-		violated: unusual.length > 0,
-	};
-}
-
-/**
- * Phase postcondition against the phase's expected artifact. Pass
- * `expectedArtifactPath` to enforce one exact path. The three-argument form
- * keeps the legacy basename fallback for existing index.ts callers until the
- * parent wires structured workflow artifact paths.
- */
-export function comparePhaseArtifact(
-	before: RepoState,
-	after: RepoState,
-	artifact: string,
-	expectedArtifactPath?: string,
-	repoRoot = process.cwd(),
-): PhasePostconditionReport {
-	if (expectedArtifactPath) {
-		return comparePhasePaths(before, after, [expectedArtifactPath], repoRoot);
+): RepoBoundaryReport {
+	const normalized = normalizeRepoBoundaryDefinition(definition, repoRoot);
+	const changes = changesDuringBoundary(before, after);
+	const explicitFileRules = normalized.allowedRules.filter((rule) => rule.kind === "file");
+	const hasWorktree = normalized.allowedRules.some((rule) => rule.kind === "worktree");
+	const allowed = new Set<string>();
+	const unusual = new Set<string>();
+	for (const path of changes.paths) {
+		if (changes.forcedUnexpectedPaths.has(path) || path === HEAD_CHANGE_MARKER) {
+			unusual.add(path);
+			continue;
+		}
+		if (explicitFileRules.some((rule) => matchesRepoBoundaryFileRule(path, rule, repoRoot))) {
+			allowed.add(normalizeRepoPath(repoRoot, path));
+			continue;
+		}
+		if (
+			hasWorktree
+			&& !normalized.protectedRules.some((rule) => matchesRepoBoundaryFileRule(path, rule, repoRoot))
+		) {
+			allowed.add(normalizeRepoPath(repoRoot, path));
+			continue;
+		}
+		unusual.add(normalizeRepoPath(repoRoot, path));
 	}
-
-	const changes = changesDuringPhase(before, after);
-	const allowed = changes.paths.filter(
-		(path) =>
-			!changes.forcedUnexpectedPaths.has(path)
-			&& pathBasename(path) === artifact,
-	);
-	const unexpected = changes.paths.filter(
-		(path) =>
-			changes.forcedUnexpectedPaths.has(path)
-			|| pathBasename(path) !== artifact,
-	);
 	return {
-		allowedPaths: allowed,
-		unexpectedPaths: unexpected,
-		violated: unexpected.length > 0,
+		allowedRules: normalized.allowedRules,
+		protectedRules: normalized.protectedRules,
+		allowedPaths: [...allowed].sort(compareStrings),
+		unexpectedPaths: [...unusual].sort(compareStrings),
+		violated: unusual.size > 0,
 	};
-}
-
-/**
- * Orchestrator-facing stop instruction for a violated phase boundary. Lists
- * the exact unexpected paths and forbids reverting, staging, or committing:
- * every change is preserved for the user to review.
- */
-export function formatPhaseBoundaryViolation(input: {
-	phaseLabel: string;
-	artifact: string;
-	report: PhasePostconditionReport;
-}): string {
-	const paths = input.report.unexpectedPaths.map((path) => `- ${path}`).join("\n");
-	return [
-		`PHASE BOUNDARY VIOLATION — the ${input.phaseLabel} phase changed paths outside its expected artifact (${input.artifact}).`,
-		"",
-		`Unexpected changed paths:`,
-		paths,
-		"",
-		"Stop the workflow now. Report these exact paths to the user and wait for their decision.",
-		"Every change is preserved exactly as it is. Do not revert, restore, delete, stage, or commit anything,",
-		"and do not launch the next phase.",
-	].join("\n");
 }

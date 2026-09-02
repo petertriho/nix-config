@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { closeSurface, createSurface, pollForExit, sendLongCommand } from "./tmux.ts";
@@ -13,17 +13,12 @@ import {
 	readLaunchProfile,
 	writeLaunchProfile,
 } from "./launch-profile.ts";
+import { loadWorkflowDefinitionFromPackage } from "./workflow/schema.ts";
 import {
-	makeWorkflowModelPreset,
-	readWorkflowModelPreset,
-	type WorkflowPresetRoles,
-	writeWorkflowModelPreset,
-} from "./workflow-preset.ts";
-import {
-	buildReReviewLaunch,
-	chooseReReviewAction,
-	RE_REVIEW_STOP_LABEL,
-} from "./workflow-rereview.ts";
+	createWorkflowRunState,
+	getActiveWorkflowRun,
+	startWorkflowRun,
+} from "./workflow/state.ts";
 
 const insideTmux = !!process.env.TMUX;
 
@@ -92,13 +87,18 @@ test(
 							source: "picker",
 						},
 						workflow: {
-							phase: "planner",
+							version: 1,
+							workflowId: "integration-workflow",
+							runId: "run-profile",
+							roleId: "architect",
+							manifestHash: hashText("integration manifest"),
+							skillHash: hashText("integration skill"),
 							policy: "per-role",
 							assignmentSource: "preset",
 							projectRoot: root,
 							originalDefault: { provider: "test-provider", model: "echo", thinking: "off" },
 							currentDefault: { provider: "test-provider", model: "echo", thinking: "off" },
-							artifacts: {},
+							data: {},
 						},
 					},
 				);
@@ -115,7 +115,7 @@ test(
 					thinking: "off",
 				});
 				assert.deepEqual(sidecar.profile.runtime.lastModel, sidecar.profile.runtime.originalModel);
-				assert.equal(sidecar.profile.workflow?.phase, "planner");
+				assert.equal(sidecar.profile.workflow?.roleId, "architect");
 				assert.equal(sidecar.profile.workflow?.policy, "per-role");
 				assert.equal(sidecar.profile.workflow?.assignmentSource, "preset");
 				assert.deepEqual(sidecar.profile.workflow?.originalDefault, {
@@ -188,44 +188,6 @@ function writeHeavySession(dir: string, usageTokens = 150_000): string {
 	];
 	writeFileSync(sessionPath, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
 	return sessionPath;
-}
-
-/**
- * Append a completed assistant response to a session file, the way a real
- * child does before it exits. Recovery bookkeeping must require it.
- */
-function appendAssistantResponse(sessionPath: string, text: string): void {
-	appendFileSync(
-		sessionPath,
-		`${JSON.stringify({
-			type: "message",
-			id: `a-${Math.random().toString(16).slice(2, 8)}`,
-			parentId: "u1",
-			timestamp: "2026-08-27T00:00:09Z",
-			message: {
-				role: "assistant",
-				content: [{ type: "text", text }],
-				stopReason: "stop",
-				timestamp: 9,
-			},
-		})}\n`,
-	);
-}
-
-/** Seed a fresh child session file with one completed assistant response. */
-function writeChildSessionWithResponse(sessionPath: string, text: string): void {
-	const entries = [
-		{ type: "session", version: 3, id: "child", timestamp: "2026-08-27T00:00:05Z", cwd: tmpdir() },
-		{
-			type: "message",
-			id: "cu1",
-			parentId: null,
-			timestamp: "2026-08-27T00:00:06Z",
-			message: { role: "user", content: "continue", timestamp: 6 },
-		},
-	];
-	writeFileSync(sessionPath, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
-	appendAssistantResponse(sessionPath, text);
 }
 
 function writeHeavySidecar(input: {
@@ -428,17 +390,21 @@ test(
 					hash: hashText(skillBody),
 				},
 				workflow: {
-					phase: "executor",
+					version: 1,
+					workflowId: "implementation-flow",
+					runId: "run-implementation",
+					roleId: "builder",
+					manifestHash: hashText("implementation manifest"),
+					skillHash: hashText("implementation skill"),
 					policy: "per-role",
 					assignmentSource: "preset",
 					projectRoot: projectDir,
 					originalDefault: { provider: "test-provider", model: "echo", thinking: "off" },
 					currentDefault: { provider: "test-provider", model: "echo", thinking: "off" },
-					artifacts: {
-						plan: join(projectDir, ".artifacts", "demo", "PLAN.md"),
-						tasks: join(projectDir, ".artifacts", "demo", "TASKS.md"),
-						review: join(projectDir, ".artifacts", "demo", "REVIEW.md"),
-						baseRef: "abc123",
+					data: {
+						spec: join(projectDir, ".artifacts", "demo", "SPEC.md"),
+						checklist: join(projectDir, ".artifacts", "demo", "CHECKLIST.md"),
+						base: "abc123",
 					},
 				},
 			});
@@ -482,11 +448,12 @@ test(
 				);
 			// The latest primary skill is re-expanded for the replacement.
 			assert.ok(script.includes("/skill:workflow "));
-			// The role-correct handoff artifacts reach the child prompt.
-			assert.ok(script.includes(join(projectDir, ".artifacts", "demo", "PLAN.md")));
-			assert.ok(script.includes(join(projectDir, ".artifacts", "demo", "TASKS.md")));
-			assert.ok(script.includes(join(projectDir, ".artifacts", "demo", "REVIEW.md")));
-			assert.ok(script.includes("abc123"));
+			// Public resume has no manifest snapshot, so it stays generic and
+			// does not infer or expose workflow data. Dedicated workflow_resume
+			// supplies the role-specific handoff in workflow tool tests.
+			assert.ok(script.includes("manifest workflow runtime owns role-specific handoff data"));
+			assert.ok(!script.includes(join(projectDir, ".artifacts", "demo", "SPEC.md")));
+			assert.ok(!script.includes("abc123"));
 			assert.ok(script.includes("Continue from the first unchecked task."));
 			// No conversation fork: the launch never points at the saved session.
 			assert.ok(!script.includes(`--session '${sessionPath}'`));
@@ -511,8 +478,8 @@ test(
 					model: "echo",
 					thinking: "off",
 				});
-				assert.equal(next.workflow?.phase, "executor");
-				assert.equal(next.workflow?.artifacts.baseRef, "abc123");
+				assert.equal(next.workflow?.roleId, "builder");
+				assert.equal(next.workflow?.data.base, "abc123");
 				assert.deepEqual(next.workflow?.currentDefault, {
 					provider: "test-provider",
 					model: "echo",
@@ -544,23 +511,6 @@ test(
 		},
 );
 
-// ── Workflow provider-failure recovery (T6) ──
-
-const RECOVER_SELECT = "Select a replacement model and thinking level";
-const RECOVERY_REPLACEMENT = {
-	provider: "other",
-	id: "replacement",
-	name: "Replacement",
-	api: "openai-completions",
-	reasoning: true,
-	input: ["text"],
-	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-	contextWindow: 200_000,
-	maxTokens: 8_000,
-} as any;
-
-const QUOTA_FAILURE = "You exceeded your current quota, please check your plan and billing details";
-
 function registerToolsWithMessages(): {
 	tools: any[];
 	sentMessages: any[];
@@ -582,6 +532,7 @@ function registerToolsWithMessages(): {
 			sendMessage(message: any) {
 				sentMessages.push(message);
 			},
+			appendEntry() {},
 			getAllTools: () => [],
 		} as any);
 	} catch (error) {
@@ -600,8 +551,7 @@ async function waitFor(predicate: () => boolean, timeoutMs = 15_000): Promise<vo
 	assert.fail("condition not met within timeout");
 }
 
-function recoveryContext(responses: Array<string | ((choices: string[]) => string | undefined)>) {
-	const queue = [...responses];
+function integrationContext() {
 	return {
 		sessionManager: {
 			getSessionFile: () => "/tmp/parent.jsonl",
@@ -612,278 +562,149 @@ function recoveryContext(responses: Array<string | ((choices: string[]) => strin
 		model: GATE_MODEL,
 		thinkingLevel: "off" as const,
 		scopedModels: [],
-		modelRegistry: { getAvailable: () => [GATE_MODEL, RECOVERY_REPLACEMENT] },
+		modelRegistry: { getAvailable: () => [GATE_MODEL] },
 		hasUI: true,
 		ui: {
-			select: async (_title: string, choices: string[]) => {
-				const respond = queue.shift();
-				return typeof respond === "function" ? respond(choices) : respond;
-			},
+			select: async () => undefined,
 			notify: async () => {},
 		},
 	};
 }
 
-function pickReplacement(choices: string[]): string | undefined {
-	return choices.find((label) => /other\/replacement/.test(label));
-}
-
-function workflowAssignments() {
-	return {
-		planner: { provider: "test-provider", model: "echo", thinking: "off" as const },
-		taskWriter: { provider: "test-provider", model: "echo", thinking: "off" as const },
-		executor: { provider: "test-provider", model: "echo", thinking: "off" as const },
-		reviewer: { provider: "test-provider", model: "echo", thinking: "off" as const },
-	};
+function writeGenericWorkflowPackage(root: string) {
+	const packageDir = join(root, "generic-workflow");
+	mkdirSync(packageDir, { recursive: true });
+	writeFileSync(
+		join(packageDir, "workflow.json"),
+		JSON.stringify({
+			version: 1,
+			id: "integration-generic",
+			command: {
+				name: "integration-generic",
+				description: "Exercise generic workflow lifecycle tools",
+			},
+			skill: "SKILL.md",
+			data: {
+				plan: {
+					kind: "file",
+					label: "Plan",
+					constraint: { under: ".artifacts/integration", basename: "PLAN.md" },
+				},
+			},
+			roles: [{
+				id: "architect",
+				label: "Architecture specialist",
+				agent: "planner",
+				reads: ["plan"],
+				writes: ["file:plan"],
+				handoff: "Continue the architecture plan from the durable artifact.",
+			}],
+		}),
+	);
+	writeFileSync(
+		join(packageDir, "SKILL.md"),
+		[
+			"---",
+			"name: integration-generic-private",
+			"description: Private integration workflow instructions.",
+			"---",
+			"",
+			"# Integration workflow",
+		].join("\n"),
+	);
+	const loaded = loadWorkflowDefinitionFromPackage(packageDir);
+	assert.equal(loaded.status, "ok");
+	if (loaded.status !== "ok") throw new Error("generic workflow fixture failed");
+	return loaded.definition;
 }
 
 test(
-	"same-session recovery resumes with the picked model and updates the role default",
-		{ skip: !insideTmux && "TMUX is not set", timeout: 40_000 },
-	async (t) => {
-			const root = mkdtempSync(join(tmpdir(), "pi-recover-resume-it-"));
-			let pane: string | undefined;
-			let runningId: string | undefined;
-			testApi.setActiveWorkflowRuntimeForTests(null);
-			try {
-				const agentDir = join(root, "agent");
-				const projectDir = join(root, "project");
-				mkdirSync(agentDir, { recursive: true });
-				mkdirSync(projectDir, { recursive: true });
-				const previousAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-				process.env.PI_CODING_AGENT_DIR = agentDir;
-
-				// A deliberate saved preset that recovery must never modify.
-				const presetRoles = workflowAssignments();
-				writeWorkflowModelPreset(
-					makeWorkflowModelPreset(projectDir, presetRoles, new Date("2026-08-26T12:00:00Z")),
-					agentDir,
-				);
-
-				testApi.setActiveWorkflowRuntimeForTests({
-					policy: "per-role",
-					assignmentSource: "preset",
-					projectRoot: projectDir,
-					roleAssignments: presetRoles,
-					currentAssignments: presetRoles,
-					updatedAt: "2026-08-27T12:00:00.000Z",
-				});
-
-				const { tools, sentMessages, restoreEnv } = registerToolsWithMessages();
-				t.after(restoreEnv);
-				const recoverTool = tools.find((entry) => entry.name === "subagent_recover");
-				assert.ok(recoverTool);
-
-				const sessionPath = writeHeavySession(root, 100_000); // 50%: resume fits
-				writeHeavySidecar({
-					sessionPath,
-					cwd: projectDir,
-					agentDir,
-					workflow: {
-						phase: "executor",
-						policy: "per-role",
-						assignmentSource: "preset",
-						projectRoot: projectDir,
-						originalDefault: presetRoles.executor,
-						currentDefault: presetRoles.executor,
-						artifacts: { plan: join(projectDir, "PLAN.md") },
-					},
-				});
-
-				const result = await recoverTool.execute(
-					"c",
-					{ sessionPath, failure: QUOTA_FAILURE, message: "Continue from the first unchecked task." },
-					undefined,
-					undefined,
-					recoveryContext([RECOVER_SELECT, pickReplacement, "medium"]),
-				);
-				assert.equal(result.details.status, "started");
-				assert.equal(result.details.sessionPath, sessionPath);
-				assert.deepEqual(result.details.recovery, { phase: "executor", failureKind: "usage" });
-				const watcherId: string = result.details.id;
-				runningId = watcherId;
-				const running = testApi.runningSubagents.get(watcherId);
-				assert.ok(running);
-				pane = running.surface;
-				const script = readFileSync(result.details.launchScriptFile, "utf8");
-				assert.ok(script.includes(`--session '${sessionPath}'`));
-				assert.ok(script.includes("--model 'other/replacement:medium'"));
-
-				// Simulate the successful replacement: the child appends a completed
-				// assistant response, then exits through the .exit sidecar. The sidecar
-				// must be written only after the launch assertions, or the watcher
-				// completes and removes itself from runningSubagents before they run.
-				appendAssistantResponse(sessionPath, "Continued from the first unchecked task.");
-				writeFileSync(`${sessionPath}.exit`, JSON.stringify({ type: "done" }));
-
-				await waitFor(() =>
-					testApi.getActiveWorkflowRuntime()?.currentAssignments?.executor?.model === "replacement",
-				);
-				const state = testApi.getActiveWorkflowRuntime();
-				assert.deepEqual(state?.currentAssignments?.executor, {
-					provider: "other",
-					model: "replacement",
-					thinking: "medium",
-				});
-				// The deliberate assignments and the saved preset are untouched.
-				assert.deepEqual(state?.roleAssignments?.executor, presetRoles.executor);
-				const preset = readWorkflowModelPreset(projectDir, agentDir);
-				assert.equal(preset.status, "ok");
-				if (preset.status === "ok") {
-					assert.equal(preset.preset.updatedAt, "2026-08-26T12:00:00.000Z");
-					assert.equal(preset.preset.roles.executor.provider, "test-provider");
-				}
-
-				// The saved profile records the recovery and the new last model.
-				await waitFor(() => sentMessages.some((message) => message.customType === "subagent_result"));
-				const recoveryMessage = sentMessages.find(
-					(message) => message.customType === "subagent_result",
-				);
-				// T9: the resume result exposes the provider-neutral usage summary,
-				// enriched with the registered context window of test-provider/echo.
-				// Cache fields are reported even when zero because the provider
-				// reported them; nothing here drives control flow.
-				assert.deepEqual(recoveryMessage.details.usage, {
-					requests: 2,
-					input: 99_950,
-					output: 50,
-					total: 100_000,
-					contextTokens: 100_000,
-					contextWindow: 200_000,
-					contextRatio: 0.5,
-					provider: "test-provider",
-					model: "echo",
-					thinking: "off",
-					cacheRead: 0,
-					cacheWrite: 0,
-					skippedInvalidUsage: 0,
-				});
-				assert.match(
-					recoveryMessage.content,
-					/Usage: 2 requests · input 99,950 · output 50 · total 100,000 · context 100,000\/200k \(50%\)/,
-				);
-				const sidecar = readLaunchProfile(sessionPath);
-				assert.equal(sidecar.status, "ok");
-				if (sidecar.status === "ok") {
-					assert.equal(sidecar.profile.runtime.previousFailure?.kind, "usage");
-					assert.deepEqual(sidecar.profile.runtime.lastModel, {
-						provider: "other",
-						model: "replacement",
-						thinking: "medium",
-					});
-					assert.equal(sidecar.profile.runtime.resumeCount, 1);
-				}
-
-				if (previousAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-				else process.env.PI_CODING_AGENT_DIR = previousAgentDirEnv;
-			} finally {
-				testApi.setActiveWorkflowRuntimeForTests(null);
-				if (runningId) {
-					const running = testApi.runningSubagents.get(runningId);
-					running?.abortController?.abort();
-					testApi.runningSubagents.delete(runningId);
-				}
-				if (pane) {
-					try {
-						closeSurface(pane);
-					} catch {
-						// Watcher cleanup may have closed it already.
-					}
-				}
-				rmSync(root, { recursive: true, force: true });
-			}
-		},
-);
-
-test(
-	"an exit-0 recovery with no new assistant response does not commit replacement state",
+	"generic workflow spawn persists arbitrary role state and delivers provider failure asynchronously",
 	{ skip: !insideTmux && "TMUX is not set", timeout: 40_000 },
 	async (t) => {
-		const root = mkdtempSync(join(tmpdir(), "pi-recover-silent-it-"));
+		const root = mkdtempSync(join(tmpdir(), "pi-workflow-spawn-it-"));
 		let pane: string | undefined;
 		let runningId: string | undefined;
-		testApi.setActiveWorkflowRuntimeForTests(null);
 		try {
-			const agentDir = join(root, "agent");
-			const projectDir = join(root, "project");
-			mkdirSync(agentDir, { recursive: true });
-			mkdirSync(projectDir, { recursive: true });
-			const previousAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-			process.env.PI_CODING_AGENT_DIR = agentDir;
-
-			const presetRoles = workflowAssignments();
-			writeWorkflowModelPreset(
-				makeWorkflowModelPreset(projectDir, presetRoles, new Date("2026-08-26T12:00:00Z")),
-				agentDir,
+			execFileSync("git", ["init", "-q", root]);
+			const definition = writeGenericWorkflowPackage(root);
+			const started = startWorkflowRun(
+				createWorkflowRunState(),
+				{
+					runId: "run-generic-it",
+					source: "project",
+					definition,
+					projectRoot: root,
+					policy: "per-role",
+					assignmentSource: "configured",
+					originalAssignments: {
+						architect: {
+							provider: "test-provider",
+							model: "echo",
+							thinking: "off",
+						},
+					},
+					data: {
+						plan: join(root, ".artifacts", "integration", "PLAN.md"),
+					},
+				},
 			);
-			testApi.setActiveWorkflowRuntimeForTests({
-				policy: "per-role",
-				assignmentSource: "preset",
-				projectRoot: projectDir,
-				roleAssignments: presetRoles,
-				currentAssignments: presetRoles,
-				updatedAt: "2026-08-27T12:00:00.000Z",
-			});
-
 			const { tools, sentMessages, restoreEnv } = registerToolsWithMessages();
 			t.after(restoreEnv);
-			const recoverTool = tools.find((entry) => entry.name === "subagent_recover");
-			assert.ok(recoverTool);
+			testApi.setWorkflowRunStateForTests(started.state);
+			const spawnTool = tools.find((entry) => entry.name === "workflow_spawn");
+			assert.ok(spawnTool);
 
-			const sessionPath = writeHeavySession(root, 100_000); // 50%: resume fits
-			writeHeavySidecar({
-				sessionPath,
-				cwd: projectDir,
-				agentDir,
-				workflow: {
-					phase: "executor",
-					policy: "per-role",
-					assignmentSource: "preset",
-					projectRoot: projectDir,
-					originalDefault: presetRoles.executor,
-					currentDefault: presetRoles.executor,
-					artifacts: { plan: join(projectDir, "PLAN.md") },
-				},
-			});
-
-			const result = await recoverTool.execute(
+			const result = await spawnTool.execute(
 				"c",
-				{ sessionPath, failure: QUOTA_FAILURE, message: "Continue from the first unchecked task." },
+				{
+					runId: "run-generic-it",
+					role: "architect",
+					task: "Draft the architecture plan.",
+				},
 				undefined,
 				undefined,
-				recoveryContext([RECOVER_SELECT, pickReplacement, "medium"]),
+				integrationContext(),
 			);
 			assert.equal(result.details.status, "started");
-			const watcherId: string = result.details.id;
-			runningId = watcherId;
-			const running = testApi.runningSubagents.get(watcherId);
+			runningId = result.details.id;
+			if (!runningId) throw new Error("workflow_spawn did not return a running ID");
+			const running = testApi.runningSubagents.get(runningId);
 			assert.ok(running);
 			pane = running.surface;
 
-			// Exit 0 without any new assistant entry: a silent process is not a
-			// successful response, so nothing below may update.
-			writeFileSync(`${sessionPath}.exit`, JSON.stringify({ type: "done" }));
+			const active = getActiveWorkflowRun(testApi.getWorkflowRunStateForTests());
+			assert.equal(active?.roleSessions.architect?.current, result.details.sessionFile);
+			assert.equal(active?.activeLaunch?.status, "running");
+			const sidecar = readLaunchProfile(result.details.sessionFile);
+			assert.equal(sidecar.status, "ok");
+			if (sidecar.status === "ok") {
+				assert.equal(sidecar.profile.workflow?.workflowId, "integration-generic");
+				assert.equal(sidecar.profile.workflow?.roleId, "architect");
+				assert.equal(sidecar.profile.stable.agentName, "planner");
+			}
+
+			const providerFailure =
+				"You exceeded your current quota, please check your plan and billing details";
+			writeFileSync(
+				`${result.details.sessionFile}.exit`,
+				JSON.stringify({ type: "error", errorMessage: providerFailure }),
+			);
 			await waitFor(() =>
 				sentMessages.some((message) => message.customType === "subagent_result"),
 			);
-
-			const state = testApi.getActiveWorkflowRuntime();
-			assert.equal(state?.currentAssignments?.executor?.model, "echo");
-			const sidecar = readLaunchProfile(sessionPath);
-			assert.equal(sidecar.status, "ok");
-			if (sidecar.status === "ok") {
-				assert.deepEqual(sidecar.profile.runtime.lastModel, {
-					provider: "test-provider",
-					model: "echo",
-					thinking: "off",
-				});
-				assert.equal(sidecar.profile.runtime.resumeCount, 0);
-			}
-
-			if (previousAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDirEnv;
+			const delivered = sentMessages.find(
+				(message) => message.customType === "subagent_result",
+			);
+			assert.equal(delivered.details.workflow.roleId, "architect");
+			assert.equal(delivered.details.failureKind, "usage");
+			assert.match(delivered.content, /quota/i);
+			assert.equal(
+				getActiveWorkflowRun(testApi.getWorkflowRunStateForTests())?.activeLaunch?.status,
+				"failed",
+			);
 		} finally {
-			testApi.setActiveWorkflowRuntimeForTests(null);
+			testApi.setWorkflowRunStateForTests(createWorkflowRunState());
 			if (runningId) {
 				const running = testApi.runningSubagents.get(runningId);
 				running?.abortController?.abort();
@@ -899,225 +720,6 @@ test(
 			rmSync(root, { recursive: true, force: true });
 		}
 	},
-);
-
-test(
-	"rollover recovery replaces the active session path and pins the recovered default",
-		{ skip: !insideTmux && "TMUX is not set", timeout: 40_000 },
-	async (t) => {
-			const root = mkdtempSync(join(tmpdir(), "pi-recover-rollover-it-"));
-			let pane: string | undefined;
-			let runningId: string | undefined;
-			testApi.setActiveWorkflowRuntimeForTests(null);
-			try {
-				const agentDir = join(root, "agent");
-				const projectDir = join(root, "project");
-				mkdirSync(agentDir, { recursive: true });
-				mkdirSync(projectDir, { recursive: true });
-				const previousAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-				process.env.PI_CODING_AGENT_DIR = agentDir;
-
-				const presetRoles = workflowAssignments();
-				writeWorkflowModelPreset(
-					makeWorkflowModelPreset(projectDir, presetRoles, new Date("2026-08-26T12:00:00Z")),
-					agentDir,
-				);
-				testApi.setActiveWorkflowRuntimeForTests({
-					policy: "per-role",
-					assignmentSource: "preset",
-					projectRoot: projectDir,
-					roleAssignments: presetRoles,
-					currentAssignments: presetRoles,
-					updatedAt: "2026-08-27T12:00:00.000Z",
-				});
-
-				const { tools, restoreEnv } = registerToolsWithMessages();
-				t.after(restoreEnv);
-				const recoverTool = tools.find((entry) => entry.name === "subagent_recover");
-				assert.ok(recoverTool);
-
-				const sessionPath = writeHeavySession(root, 150_000); // 75%: rollover gate
-				const heavyBefore = readFileSync(sessionPath, "utf8");
-				writeHeavySidecar({
-					sessionPath,
-					cwd: projectDir,
-					agentDir,
-					workflow: {
-						phase: "executor",
-						policy: "per-role",
-						assignmentSource: "preset",
-						projectRoot: projectDir,
-						originalDefault: presetRoles.executor,
-						currentDefault: presetRoles.executor,
-						artifacts: { tasks: join(projectDir, "TASKS.md"), baseRef: "abc123" },
-					},
-				});
-
-				const result = await recoverTool.execute(
-					"c",
-					{ sessionPath, failure: QUOTA_FAILURE, message: "Continue implementation from artifacts." },
-					undefined,
-					undefined,
-					recoveryContext([RECOVER_SELECT, pickReplacement, "medium", GATE_FRESH]),
-				);
-				assert.equal(result.details.status, "started");
-				assert.equal(result.details.rollover, "fresh");
-				assert.equal(result.details.replacementSessionPath !== sessionPath, true);
-				const replacement: string = result.details.replacementSessionPath;
-				const watcherId: string = result.details.id;
-				runningId = watcherId;
-				const running = testApi.runningSubagents.get(watcherId);
-				assert.ok(running);
-				pane = running.surface;
-
-				// Simulate the successful replacement: a fresh child session with a
-				// completed assistant response, then the .exit sidecar.
-				writeChildSessionWithResponse(replacement, "Continued implementation from artifacts.");
-				writeFileSync(`${replacement}.exit`, JSON.stringify({ type: "done" }));
-
-				await waitFor(() =>
-					testApi.getActiveWorkflowRuntime()?.currentAssignments?.executor?.model === "replacement",
-				);
-				const state = testApi.getActiveWorkflowRuntime();
-				// The workflow's active session path now points at the replacement.
-				assert.equal(state?.activeSessions?.executor, replacement);
-				assert.deepEqual(state?.currentAssignments?.executor, {
-					provider: "other",
-					model: "replacement",
-					thinking: "medium",
-				});
-				assert.deepEqual(state?.roleAssignments?.executor, presetRoles.executor);
-
-				// The saved preset keeps the deliberate assignment.
-				const preset = readWorkflowModelPreset(projectDir, agentDir);
-				assert.equal(preset.status, "ok");
-				if (preset.status === "ok") {
-					assert.equal(preset.preset.roles.executor.provider, "test-provider");
-					assert.equal(preset.preset.updatedAt, "2026-08-26T12:00:00.000Z");
-				}
-
-				// The replaced conversation is untouched; lineage links both sides.
-				assert.equal(readFileSync(sessionPath, "utf8"), heavyBefore);
-				const replacementProfile = readLaunchProfile(replacement);
-				assert.equal(replacementProfile.status, "ok");
-				if (replacementProfile.status === "ok") {
-					assert.equal(replacementProfile.profile.lineage?.rolledOverFrom, sessionPath);
-					assert.equal(replacementProfile.profile.workflow?.assignmentSource, "recovery");
-					assert.deepEqual(replacementProfile.profile.workflow?.currentDefault, {
-						provider: "other",
-						model: "replacement",
-						thinking: "medium",
-					});
-					assert.equal(replacementProfile.profile.runtime.previousFailure?.kind, "usage");
-				}
-				const oldProfile = readLaunchProfile(sessionPath);
-				assert.equal(oldProfile.status, "ok");
-				if (oldProfile.status === "ok") {
-					assert.equal(oldProfile.profile.lineage?.rolledOverTo, replacement);
-					assert.equal(oldProfile.profile.workflow?.assignmentSource, "preset");
-				}
-
-				if (previousAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-				else process.env.PI_CODING_AGENT_DIR = previousAgentDirEnv;
-			} finally {
-				testApi.setActiveWorkflowRuntimeForTests(null);
-				if (runningId) {
-					const running = testApi.runningSubagents.get(runningId);
-					running?.abortController?.abort();
-					testApi.runningSubagents.delete(runningId);
-				}
-				if (pane) {
-					try {
-						closeSurface(pane);
-					} catch {
-						// Watcher cleanup may have closed it already.
-					}
-				}
-				rmSync(root, { recursive: true, force: true });
-			}
-		},
-);
-
-test(
-	"workflow phase spawns record their session path, and provider failures report a failure kind",
-		{ skip: !insideTmux && "TMUX is not set", timeout: 40_000 },
-	async (t) => {
-			const root = mkdtempSync(join(tmpdir(), "pi-recover-spawn-it-"));
-			let pane: string | undefined;
-			let runningId: string | undefined;
-			testApi.setActiveWorkflowRuntimeForTests(null);
-			try {
-				const agentDir = join(root, "agent");
-				const projectDir = join(root, "project");
-				mkdirSync(agentDir, { recursive: true });
-				mkdirSync(projectDir, { recursive: true });
-				const previousAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-				process.env.PI_CODING_AGENT_DIR = agentDir;
-
-				const assignments = workflowAssignments();
-				testApi.setActiveWorkflowRuntimeForTests({
-					policy: "per-role",
-					assignmentSource: "configured",
-					projectRoot: projectDir,
-					roleAssignments: assignments,
-					currentAssignments: assignments,
-					updatedAt: "2026-08-27T12:00:00.000Z",
-				});
-
-				const { tools, sentMessages, restoreEnv } = registerToolsWithMessages();
-				t.after(restoreEnv);
-				const subagentTool = tools.find((entry) => entry.name === "subagent");
-				assert.ok(subagentTool);
-
-				const result = await subagentTool.execute(
-					"c",
-					{ name: "Planner", task: "Plan the demo.", agent: "planner" },
-					undefined,
-					undefined,
-					recoveryContext([]),
-				);
-				assert.equal(result.details.status, "started");
-				const watcherId: string = result.details.id;
-				runningId = watcherId;
-				const sessionFile: string = result.details.sessionFile;
-				const running = testApi.runningSubagents.get(watcherId);
-				assert.ok(running);
-				pane = running.surface;
-
-				// The fresh workflow spawn is recorded as the planner's active session.
-				const state = testApi.getActiveWorkflowRuntime();
-				assert.equal(state?.activeSessions?.planner, sessionFile);
-
-				// A surfaced provider error is classified in the result details.
-				writeFileSync(`${sessionFile}.exit`, JSON.stringify({ type: "error", errorMessage: QUOTA_FAILURE }));
-				await waitFor(() =>
-					sentMessages.some((message) => message.customType === "subagent_result"),
-				);
-				const failure = sentMessages.find((message) => message.customType === "subagent_result");
-				assert.equal(failure.details.failureKind, "usage");
-				assert.equal(failure.details.errorMessage, QUOTA_FAILURE);
-				// A failure before any completed assistant turn carries no usage summary.
-				assert.equal(failure.details.usage, undefined);
-
-				if (previousAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-				else process.env.PI_CODING_AGENT_DIR = previousAgentDirEnv;
-			} finally {
-				testApi.setActiveWorkflowRuntimeForTests(null);
-				if (runningId) {
-					const running = testApi.runningSubagents.get(runningId);
-					running?.abortController?.abort();
-					testApi.runningSubagents.delete(runningId);
-				}
-				if (pane) {
-					try {
-					closeSurface(pane);
-					} catch {
-						// Watcher cleanup may have closed it already.
-					}
-				}
-				rmSync(root, { recursive: true, force: true });
-			}
-		},
 );
 
 test(
@@ -1138,7 +740,7 @@ test(
 					{ name: "Usage probe", task: "Produce usage entries." },
 					undefined,
 					undefined,
-					recoveryContext([]),
+					integrationContext(),
 				);
 				assert.equal(result.details.status, "started");
 				const watcherId: string = result.details.id;
@@ -1268,302 +870,4 @@ test(
 				rmSync(root, { recursive: true, force: true });
 			}
 		},
-);
-
-// ── Explicit re-review selection (T8) ──
-
-function reReviewArtifacts(projectDir: string) {
-	const plan = join(projectDir, ".artifacts", "demo", "PLAN.md");
-	const tasks = join(projectDir, ".artifacts", "demo", "TASKS.md");
-	const review = join(projectDir, ".artifacts", "demo", "REVIEW.md");
-	return {
-		paths: { planPath: plan, tasksPath: tasks, reviewPath: review },
-		artifacts: { plan, tasks, review, baseRef: "abc123" },
-	};
-}
-
-test(
-	"re-review resume-previous resumes the stored reviewer session with its saved selection and gates",
-	{ skip: !insideTmux && "TMUX is not set", timeout: 30_000 },
-	async () => {
-		const root = mkdtempSync(join(tmpdir(), "pi-rereview-resume-it-"));
-		let pane: string | undefined;
-		let runningId: string | undefined;
-		const { tools: registeredTools, restoreEnv } = registerToolsForTests();
-		try {
-			const projectDir = join(root, "project");
-			const agentDir = join(root, "agent");
-			mkdirSync(projectDir, { recursive: true });
-			const artifacts = reReviewArtifacts(projectDir);
-
-			// 75% of the 200k window: the context-fit gate must stay available.
-			const sessionPath = writeHeavySession(root, 150_000);
-			writeHeavySidecar({
-				sessionPath,
-				cwd: projectDir,
-				agentDir,
-				role: {
-					name: "reviewer",
-					displayName: " Reviewer",
-					roleBody: "You are the review agent of the /pter chain.",
-				},
-				workflow: {
-					phase: "reviewer",
-					policy: "per-role",
-					assignmentSource: "preset",
-					projectRoot: projectDir,
-					originalDefault: { provider: "test-provider", model: "echo", thinking: "off" },
-					currentDefault: { provider: "test-provider", model: "echo", thinking: "off" },
-					artifacts: artifacts.artifacts,
-				},
-			});
-
-			const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
-			assert.ok(tool);
-
-			const launch = buildReReviewLaunch("resume", {
-				...artifacts.paths,
-				baseRef: "abc123",
-				fixSummary: "Fixed both CRITICAL findings.",
-			});
-			assert.equal(launch.choice, "resume");
-			if (launch.choice !== "resume") return;
-
-			// No model override: the answered gate keeps the resume going and the
-			// sidecar's stored reviewer selection drives the launch.
-			const result = await tool.execute(
-				"c",
-				{ sessionPath, name: " Reviewer", message: launch.message },
-				undefined,
-				undefined,
-				gateContext(GATE_RESUME),
-			);
-			assert.equal(result.details.status, "started");
-			assert.equal(result.details.rollover, undefined);
-			const resumeId: string = result.details.id;
-			runningId = resumeId;
-			const running = testApi.runningSubagents.get(resumeId);
-			assert.ok(running);
-			pane = running.surface;
-			assert.equal(running.sessionFile, sessionPath);
-
-			const script = readFileSync(result.details.launchScriptFile, "utf8");
-			assert.ok(script.includes(`--session '${sessionPath}'`));
-			assert.ok(script.includes("--model 'test-provider/echo:off'"));
-
-			// The re-review message carries the full review context, with the
-			// previous REVIEW.md as optional input.
-			const messageFile = script.match(/# Resume message file: (.+)/)?.[1];
-			assert.ok(messageFile);
-			const message = readFileSync(messageFile, "utf8");
-			for (const expected of [
-				`Base ref: abc123.`,
-				`PLAN.md: ${artifacts.paths.planPath}.`,
-				`TASKS.md: ${artifacts.paths.tasksPath}.`,
-				`Previous REVIEW.md (optional input): ${artifacts.paths.reviewPath}.`,
-				`Write the re-review to ${artifacts.paths.reviewPath}`,
-				"Fixed both CRITICAL findings.",
-			]) {
-				assert.ok(message.includes(expected), `resume message must include ${expected}`);
-			}
-		} finally {
-			if (runningId) {
-				const running = testApi.runningSubagents.get(runningId);
-				running?.abortController?.abort();
-				testApi.runningSubagents.delete(runningId);
-			}
-			if (pane) {
-				try {
-					closeSurface(pane);
-				} catch {
-					// Watcher cleanup may have closed it already.
-				}
-			}
-			rmSync(root, { recursive: true, force: true });
-			restoreEnv();
-		}
-	},
-);
-
-test(
-	"re-review fresh reviewer follows the active workflow model policy",
-	{ skip: !insideTmux && "TMUX is not set", timeout: 40_000 },
-	async (t) => {
-		const root = mkdtempSync(join(tmpdir(), "pi-rereview-fresh-it-"));
-		let pane: string | undefined;
-		let runningId: string | undefined;
-		testApi.setActiveWorkflowRuntimeForTests(null);
-		testApi.setActiveWorkflowRunIdForTests(null);
-		try {
-			const agentDir = join(root, "agent");
-			const projectDir = join(root, "project");
-			mkdirSync(agentDir, { recursive: true });
-			mkdirSync(projectDir, { recursive: true });
-			const previousAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-			process.env.PI_CODING_AGENT_DIR = agentDir;
-
-			// The reviewer assignment differs from the parent selection (off), so
-			// the script proves the per-role policy resolved it.
-			const assignments: WorkflowPresetRoles = workflowAssignments();
-			assignments.reviewer = { provider: "test-provider", model: "echo", thinking: "high" };
-			testApi.setActiveWorkflowRuntimeForTests({
-				policy: "per-role",
-				assignmentSource: "configured",
-				projectRoot: projectDir,
-				roleAssignments: assignments,
-				currentAssignments: assignments,
-				updatedAt: "2026-08-27T12:00:00.000Z",
-			});
-			// A real /pter run pins phase launches to its run token; this
-			// fresh reviewer must present the matching token and artifact handoff.
-			testApi.setActiveWorkflowRunIdForTests("run-a");
-
-			const { tools, restoreEnv } = registerToolsWithMessages();
-			t.after(restoreEnv);
-			const subagentTool = tools.find((entry) => entry.name === "subagent");
-			assert.ok(subagentTool);
-
-			const artifacts = reReviewArtifacts(projectDir);
-			const launch = buildReReviewLaunch("fresh", {
-				...artifacts.paths,
-				baseRef: "abc123",
-				fixSummary: "Fixed the 2 CRITICAL findings.",
-			});
-			assert.equal(launch.choice, "fresh");
-			if (launch.choice !== "fresh") return;
-
-			// A stale run token is rejected before any launch.
-			const stale = await subagentTool.execute(
-				"c",
-				{
-					name: " Reviewer",
-					agent: "reviewer",
-					task: launch.task,
-					workflowRunId: "run-old",
-				},
-				undefined,
-				undefined,
-				recoveryContext([]),
-			);
-			assert.equal(stale.details.error, "stale workflow run token");
-
-			const result = await subagentTool.execute(
-				"c",
-				{
-					name: " Reviewer",
-					agent: "reviewer",
-					task: launch.task,
-					workflowRunId: "run-a",
-					workflowArtifacts: {
-						plan: artifacts.paths.planPath,
-						tasks: artifacts.paths.tasksPath,
-						review: artifacts.paths.reviewPath,
-						baseRef: "abc123",
-					},
-				},
-				undefined,
-				undefined,
-				recoveryContext([]),
-			);
-			assert.equal(result.details.status, "started");
-			const watcherId: string = result.details.id;
-			runningId = watcherId;
-			const running = testApi.runningSubagents.get(watcherId);
-			assert.ok(running);
-			pane = running.surface;
-
-			const script = readFileSync(result.details.launchScriptFile, "utf8");
-			// The active per-role policy resolved the reviewer default; no model
-			// override was passed and the reviewer role ran in the pane.
-			assert.ok(script.includes("--model 'test-provider/echo:high'"));
-			assert.ok(script.includes("PI_SUBAGENT_AGENT='reviewer'"));
-			// The re-review task carries the full review context inline.
-			for (const expected of [
-				`Base ref: abc123.`,
-				`PLAN.md: ${artifacts.paths.planPath}.`,
-				`TASKS.md: ${artifacts.paths.tasksPath}.`,
-				`Previous REVIEW.md (optional input): ${artifacts.paths.reviewPath}.`,
-				`Write the re-review to ${artifacts.paths.reviewPath}`,
-				"Fixed the 2 CRITICAL findings.",
-			]) {
-				assert.ok(script.includes(expected), `fresh task must include ${expected}`);
-			}
-
-			// The fresh reviewer session becomes the workflow-held reviewer path.
-			assert.equal(
-				testApi.getActiveWorkflowRuntime()?.activeSessions?.reviewer,
-				result.details.sessionFile,
-			);
-
-			// The authoritative artifact handoff is persisted in the phase sidecar,
-			// so a later recovery rollover continues from the exact paths.
-			const sidecar = readLaunchProfile(result.details.sessionFile);
-			assert.equal(sidecar.status, "ok");
-			if (sidecar.status === "ok") {
-				assert.equal(sidecar.profile.workflow?.phase, "reviewer");
-				assert.equal(sidecar.profile.workflow?.artifacts.plan, artifacts.paths.planPath);
-				assert.equal(sidecar.profile.workflow?.artifacts.tasks, artifacts.paths.tasksPath);
-				assert.equal(sidecar.profile.workflow?.artifacts.review, artifacts.paths.reviewPath);
-				assert.equal(sidecar.profile.workflow?.artifacts.baseRef, "abc123");
-			}
-
-			if (previousAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDirEnv;
-		} finally {
-			testApi.setActiveWorkflowRuntimeForTests(null);
-			testApi.setActiveWorkflowRunIdForTests(null);
-			if (runningId) {
-				const running = testApi.runningSubagents.get(runningId);
-				running?.abortController?.abort();
-				testApi.runningSubagents.delete(runningId);
-			}
-			if (pane) {
-				try {
-					closeSurface(pane);
-				} catch {
-					// Watcher cleanup may have closed it already.
-				}
-			}
-			rmSync(root, { recursive: true, force: true });
-		}
-	},
-);
-
-test(
-	"re-review stop and cancellation launch no reviewer at all",
-	{ skip: !insideTmux && "TMUX is not set", timeout: 10_000 },
-	async () => {
-		testApi.setActiveWorkflowRuntimeForTests(null);
-		const runningBefore = testApi.runningSubagents.size;
-		const panesBefore = execFileSync("tmux", ["list-panes", "-a", "-F", "#{pane_id}"], {
-			encoding: "utf8",
-		})
-			.split("\n")
-			.map((line) => line.trim())
-			.filter(Boolean);
-
-		for (const selection of [RE_REVIEW_STOP_LABEL, undefined] as const) {
-			const ctx = {
-				hasUI: true,
-				ui: { select: async () => selection },
-			} as any;
-			const choice = await chooseReReviewAction(ctx);
-			const launch = buildReReviewLaunch(choice, {
-				...reReviewArtifacts("/tmp/project").paths,
-				baseRef: "abc123",
-			});
-			assert.deepEqual(launch, { choice: "stop" });
-			assert.equal("task" in launch || "message" in launch, false);
-		}
-
-		// Nothing was spawned: no running subagent entry, no new tmux pane.
-		assert.equal(testApi.runningSubagents.size, runningBefore);
-		const panesAfter = execFileSync("tmux", ["list-panes", "-a", "-F", "#{pane_id}"], {
-			encoding: "utf8",
-		})
-			.split("\n")
-			.map((line) => line.trim())
-			.filter(Boolean);
-		assert.deepEqual(panesAfter, panesBefore);
-	},
 );

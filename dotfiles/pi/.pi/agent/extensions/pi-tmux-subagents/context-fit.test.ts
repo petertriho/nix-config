@@ -367,13 +367,13 @@ test("resume gate returns every user choice and rejects non-interactive pressure
 	);
 });
 
-function workflowProfile(phase: "planner" | "task-writer" | "executor" | "reviewer"): LaunchProfile {
+function workflowProfile(): LaunchProfile {
 	const sessionPath = "/tmp/old.jsonl";
 	return {
 		version: 1,
 		stable: {
-			agentName: phase,
-			displayName: phase,
+			agentName: "author",
+			displayName: "Author",
 			roleBody: "role",
 			roleBodyHash: hashText("role"),
 			systemPromptMode: "append",
@@ -394,35 +394,27 @@ function workflowProfile(phase: "planner" | "task-writer" | "executor" | "review
 			updatedAt: "2026-08-27T00:00:00Z",
 		},
 		workflow: {
-			phase,
-			policy: "parent-per-phase",
+			version: 1,
+			workflowId: "docs-review",
+			runId: "run-docs",
+			roleId: "author",
+			manifestHash: hashText("manifest"),
+			skillHash: hashText("skill"),
+			policy: "parent-per-role",
 			assignmentSource: "parent",
-			artifacts: {
-				plan: "/tmp/project/.artifacts/demo/PLAN.md",
-				tasks: "/tmp/project/.artifacts/demo/TASKS.md",
-				review: "/tmp/project/.artifacts/demo/REVIEW.md",
-				baseRef: "abc123",
+			projectRoot: "/tmp/project",
+			data: {
+				draft: "/tmp/project/.artifacts/demo/DRAFT.md",
+				secret: "must-not-leak-without-manifest-reads",
 			},
 		},
 	};
 }
 
-test("rollover handoffs include the correct role artifacts", () => {
-	const planner = buildRolloverHandoff(workflowProfile("planner"));
-	assert.match(planner, /PLAN\.md/);
-	assert.doesNotMatch(planner, /TASKS\.md/);
-
-	const taskWriter = buildRolloverHandoff(workflowProfile("task-writer"));
-	assert.match(taskWriter, /PLAN\.md/);
-	assert.match(taskWriter, /TASKS\.md/);
-	assert.doesNotMatch(taskWriter, /REVIEW\.md/);
-
-	for (const phase of ["executor", "reviewer"] as const) {
-		const handoff = buildRolloverHandoff(workflowProfile(phase), "Continue now.");
-		assert.match(handoff, /PLAN\.md/);
-		assert.match(handoff, /TASKS\.md/);
-		assert.match(handoff, /REVIEW\.md/);
-		assert.match(handoff, /abc123/);
-		assert.match(handoff, /Continue now\./);
-	}
+test("public rollover fallback stays generic and does not infer manifest-readable workflow data", () => {
+	const handoff = buildRolloverHandoff(workflowProfile(), "Continue now.");
+	assert.match(handoff, /fresh same-role rollover/);
+	assert.match(handoff, /dedicated lifecycle tool/);
+	assert.match(handoff, /Continue now\./);
+	assert.doesNotMatch(handoff, /DRAFT\.md|must-not-leak/);
 });

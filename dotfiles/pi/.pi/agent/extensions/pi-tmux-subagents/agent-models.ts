@@ -18,8 +18,8 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
  *
  * Values use the exact `provider/model[:thinking]` string syntax of the
  * `subagent` tool's `model:` parameter and are resolved through the
- * validated registry path at spawn time. Entries never affect `/pter`
- * phase roles and never apply to `cli:` agents (those keep frontmatter).
+ * validated registry path at spawn time. Entries never affect manifest
+ * workflow roles and never apply to `cli:` agents (those keep frontmatter).
  */
 export const AGENT_MODELS_VERSION = 1 as const;
 

@@ -92,30 +92,30 @@ export interface LaunchProfileRuntimeState {
 	previousFailure?: ProviderFailureRecord;
 }
 
-export type WorkflowPhase = "planner" | "task-writer" | "executor" | "reviewer";
-export type WorkflowModelPolicy = "parent-per-phase" | "per-role";
+export const LAUNCH_PROFILE_WORKFLOW_VERSION = 1 as const;
+
+export type WorkflowModelPolicy = "parent-per-role" | "per-role";
 export type WorkflowAssignmentSource =
 	| "parent"
 	| "configured"
 	| "preset"
 	| "preset-edited"
 	| "recovery";
-
-export interface WorkflowArtifacts {
-	plan?: string;
-	tasks?: string;
-	review?: string;
-	baseRef?: string;
-}
+export type WorkflowDataValueMap = Partial<Record<string, string>>;
 
 export interface LaunchProfileWorkflowMetadata {
-	phase: WorkflowPhase;
+	version: typeof LAUNCH_PROFILE_WORKFLOW_VERSION;
+	workflowId: string;
+	runId: string;
+	roleId: string;
+	manifestHash: string;
+	skillHash: string;
 	policy: WorkflowModelPolicy;
 	assignmentSource: WorkflowAssignmentSource;
-	projectRoot?: string;
+	projectRoot: string;
 	originalDefault?: ModelSelection;
 	currentDefault?: ModelSelection;
-	artifacts: WorkflowArtifacts;
+	data: WorkflowDataValueMap;
 }
 
 export interface RolloverLineage {
@@ -138,6 +138,10 @@ export type LaunchProfileReadResult =
 	| { status: "invalid"; error: string };
 
 type UnknownRecord = Record<string, unknown>;
+
+const HEX_64 = /^[a-f0-9]{64}$/;
+const WORKFLOW_IDENTIFIER_PATTERN = /^[a-z](?:[a-z0-9-]*[a-z0-9])?$/;
+const WORKFLOW_DATA_IDENTIFIER_PATTERN = /^[a-z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/;
 
 function isRecord(value: unknown): value is UnknownRecord {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -299,35 +303,115 @@ function isResources(value: unknown): value is LaunchProfileResources {
 		&& isIsoDate(value.updatedAt);
 }
 
-function isArtifacts(value: unknown): value is WorkflowArtifacts {
-	if (!isRecord(value) || !hasExactKeys(value, [], ["plan", "tasks", "review", "baseRef"])) {
-		return false;
-	}
-	return ["plan", "tasks", "review", "baseRef"].every(
-		(key) => value[key] === undefined || isNonEmptyString(value[key]),
+function isWorkflowIdentifier(value: unknown): value is string {
+	return isNonEmptyString(value) && WORKFLOW_IDENTIFIER_PATTERN.test(value);
+}
+
+function isWorkflowDataValueMap(value: unknown): value is WorkflowDataValueMap {
+	if (!isRecord(value)) return false;
+	return Object.entries(value).every(
+		([key, entryValue]) =>
+			WORKFLOW_DATA_IDENTIFIER_PATTERN.test(key)
+			&& isNonEmptyString(entryValue),
 	);
 }
 
-function isWorkflow(value: unknown): value is LaunchProfileWorkflowMetadata {
+function normalizeWorkflowDataValues(
+	values: Readonly<Record<string, unknown>> | undefined,
+): WorkflowDataValueMap {
+	const normalized: WorkflowDataValueMap = {};
+	if (!values) return normalized;
+	for (const [key, value] of Object.entries(values)) {
+		if (!WORKFLOW_DATA_IDENTIFIER_PATTERN.test(key)) continue;
+		if (typeof value !== "string") continue;
+		const trimmed = value.trim();
+		if (trimmed) normalized[key] = trimmed;
+	}
+	return normalized;
+}
+
+function isWorkflowPolicy(value: unknown): value is WorkflowModelPolicy {
+	return value === "parent-per-role" || value === "per-role";
+}
+
+function workflowValidationError(value: unknown): string | undefined {
+	if (!isRecord(value)) {
+		return "workflow metadata must be an object.";
+	}
+
 	if (
-		!isRecord(value)
-		|| !hasExactKeys(
+		hasExactKeys(
 			value,
 			["phase", "policy", "assignmentSource", "artifacts"],
 			["projectRoot", "originalDefault", "currentDefault"],
 		)
 	) {
-		return false;
+		return "workflow metadata uses the retired /pter phase/artifact shape. Re-launch the workflow so the sidecar records versioned workflowId/runId/roleId/data metadata.";
 	}
-	return ["planner", "task-writer", "executor", "reviewer"].includes(String(value.phase))
-		&& ["parent-per-phase", "per-role"].includes(String(value.policy))
-		&& ["parent", "configured", "preset", "preset-edited", "recovery"].includes(
+
+	if (
+		!hasExactKeys(
+			value,
+			[
+				"version",
+				"workflowId",
+				"runId",
+				"roleId",
+				"manifestHash",
+				"skillHash",
+				"policy",
+				"assignmentSource",
+				"projectRoot",
+				"data",
+			],
+			["originalDefault", "currentDefault"],
+		)
+	) {
+		return "workflow metadata must include only version, workflowId, runId, roleId, manifestHash, skillHash, policy, assignmentSource, projectRoot, data, and optional originalDefault/currentDefault fields.";
+	}
+
+	if (value.version !== LAUNCH_PROFILE_WORKFLOW_VERSION) {
+		return `workflow metadata.version must be ${LAUNCH_PROFILE_WORKFLOW_VERSION}.`;
+	}
+	if (!isWorkflowIdentifier(value.workflowId)) {
+		return "workflow metadata.workflowId must be a stable lowercase workflow identifier.";
+	}
+	if (!isNonEmptyString(value.runId)) {
+		return "workflow metadata.runId must be a non-empty string.";
+	}
+	if (!isWorkflowIdentifier(value.roleId)) {
+		return "workflow metadata.roleId must be a stable lowercase workflow role identifier.";
+	}
+	if (!HEX_64.test(String(value.manifestHash))) {
+		return "workflow metadata.manifestHash must be a 64-character lowercase hex hash.";
+	}
+	if (!HEX_64.test(String(value.skillHash))) {
+		return "workflow metadata.skillHash must be a 64-character lowercase hex hash.";
+	}
+	if (!isWorkflowPolicy(value.policy)) {
+		return 'workflow metadata.policy must be "parent-per-role" or "per-role".';
+	}
+	if (
+		!["parent", "configured", "preset", "preset-edited", "recovery"].includes(
 			String(value.assignmentSource),
 		)
-		&& (value.projectRoot === undefined || isNonEmptyString(value.projectRoot))
-		&& (value.originalDefault === undefined || isModelSelection(value.originalDefault))
-		&& (value.currentDefault === undefined || isModelSelection(value.currentDefault))
-		&& isArtifacts(value.artifacts);
+	) {
+		return "workflow metadata.assignmentSource is invalid.";
+	}
+	if (!isNonEmptyString(value.projectRoot) || value.projectRoot.trim().length === 0) {
+		return "workflow metadata.projectRoot must be a non-empty string.";
+	}
+	if (value.originalDefault !== undefined && !isModelSelection(value.originalDefault)) {
+		return "workflow metadata.originalDefault is invalid.";
+	}
+	if (value.currentDefault !== undefined && !isModelSelection(value.currentDefault)) {
+		return "workflow metadata.currentDefault is invalid.";
+	}
+	if (!isWorkflowDataValueMap(value.data)) {
+		return "workflow metadata.data must be an object of string workflow data values.";
+	}
+
+	return undefined;
 }
 
 function isLineage(value: unknown): value is RolloverLineage {
@@ -338,19 +422,110 @@ function isLineage(value: unknown): value is RolloverLineage {
 		&& (value.rolledOverTo === undefined || isNonEmptyString(value.rolledOverTo));
 }
 
-export function validateLaunchProfile(value: unknown): value is LaunchProfile {
+function launchProfileValidationError(value: unknown): string | undefined {
 	if (
 		!isRecord(value)
 		|| !hasExactKeys(value, ["version", "stable", "runtime", "resources"], ["workflow", "lineage"])
 	) {
-		return false;
+		return "launch profile must include version, stable, runtime, resources, and optional workflow/lineage fields only.";
 	}
-	return value.version === LAUNCH_PROFILE_VERSION
-		&& isStableState(value.stable)
-		&& isRuntimeState(value.runtime)
-		&& isResources(value.resources)
-		&& (value.workflow === undefined || isWorkflow(value.workflow))
-		&& (value.lineage === undefined || isLineage(value.lineage));
+	if (value.version !== LAUNCH_PROFILE_VERSION) {
+		return `launch profile.version must be ${LAUNCH_PROFILE_VERSION}.`;
+	}
+	if (!isStableState(value.stable)) return "launch profile.stable is invalid.";
+	if (!isRuntimeState(value.runtime)) return "launch profile.runtime is invalid.";
+	if (!isResources(value.resources)) return "launch profile.resources is invalid.";
+	if (value.workflow !== undefined) {
+		const workflowError = workflowValidationError(value.workflow);
+		if (workflowError) return workflowError;
+	}
+	if (value.lineage !== undefined && !isLineage(value.lineage)) {
+		return "launch profile.lineage is invalid.";
+	}
+	return undefined;
+}
+
+export function validateLaunchProfile(value: unknown): value is LaunchProfile {
+	return launchProfileValidationError(value) === undefined;
+}
+
+export function normalizeLaunchProfileWorkflowMetadata(
+	value: LaunchProfileWorkflowMetadata,
+): LaunchProfileWorkflowMetadata {
+	if (!isRecord(value)) {
+		throw new Error("Workflow metadata must be an object.");
+	}
+	const workflowId = value.workflowId?.trim();
+	if (!workflowId || !isWorkflowIdentifier(workflowId)) {
+		throw new Error("Workflow metadata needs a stable lowercase workflowId.");
+	}
+	const roleId = value.roleId?.trim();
+	if (!roleId || !isWorkflowIdentifier(roleId)) {
+		throw new Error("Workflow metadata needs a stable lowercase roleId.");
+	}
+	if (!isWorkflowPolicy(value.policy)) {
+		throw new Error('Workflow metadata policy must be "parent-per-role" or "per-role".');
+	}
+	if (
+		!["parent", "configured", "preset", "preset-edited", "recovery"].includes(
+			String(value.assignmentSource),
+		)
+	) {
+		throw new Error("Workflow metadata assignmentSource is invalid.");
+	}
+	if (value.originalDefault !== undefined && !isModelSelection(value.originalDefault)) {
+		throw new Error("Workflow metadata originalDefault is invalid.");
+	}
+	if (value.currentDefault !== undefined && !isModelSelection(value.currentDefault)) {
+		throw new Error("Workflow metadata currentDefault is invalid.");
+	}
+	const runId = value.runId?.trim();
+	if (!runId) {
+		throw new Error("Workflow metadata needs a runId.");
+	}
+	const manifestHash = value.manifestHash?.trim();
+	if (!manifestHash || !HEX_64.test(manifestHash)) {
+		throw new Error("Workflow metadata needs a 64-character lowercase manifestHash.");
+	}
+	const skillHash = value.skillHash?.trim();
+	if (!skillHash || !HEX_64.test(skillHash)) {
+		throw new Error("Workflow metadata needs a 64-character lowercase skillHash.");
+	}
+	const projectRoot = value.projectRoot?.trim();
+	if (!projectRoot) {
+		throw new Error("Workflow metadata needs a non-empty projectRoot.");
+	}
+
+	const data = normalizeWorkflowDataValues(value.data as Record<string, unknown>);
+
+	return {
+		version: LAUNCH_PROFILE_WORKFLOW_VERSION,
+		workflowId,
+		runId,
+		roleId,
+		manifestHash,
+		skillHash,
+		policy: value.policy,
+		assignmentSource: value.assignmentSource,
+		projectRoot,
+		...(value.originalDefault ? { originalDefault: value.originalDefault } : {}),
+		...(value.currentDefault ? { currentDefault: value.currentDefault } : {}),
+		data,
+	};
+}
+
+export function mergeLaunchProfileWorkflowData(
+	workflow: LaunchProfileWorkflowMetadata,
+	updates: WorkflowDataValueMap,
+): LaunchProfileWorkflowMetadata {
+	const normalized = normalizeLaunchProfileWorkflowMetadata(workflow);
+	return normalizeLaunchProfileWorkflowMetadata({
+		...normalized,
+		data: {
+			...(normalized.data ?? {}),
+			...normalizeWorkflowDataValues(updates as Record<string, unknown>),
+		},
+	});
 }
 
 export function profilePathForSession(sessionPath: string): string {
@@ -362,7 +537,8 @@ export function hashText(value: string): string {
 }
 
 export function fingerprintStrings(values: readonly string[]): ResourceFingerprint {
-	const normalized = [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
+	const normalized = [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+		.sort((first, second) => first.localeCompare(second));
 	return {
 		hash: hashText(normalized.join("\n")),
 		count: normalized.length,
@@ -390,6 +566,10 @@ export function readLaunchProfile(sessionPath: string): LaunchProfileReadResult 
 			error: `Unsupported launch profile version ${String(version)} in ${path}`,
 		};
 	}
+	const validationError = launchProfileValidationError(parsed);
+	if (validationError) {
+		return { status: "invalid", error: `Invalid launch profile schema in ${path}: ${validationError}` };
+	}
 	if (!validateLaunchProfile(parsed)) {
 		return { status: "invalid", error: `Invalid launch profile schema in ${path}` };
 	}
@@ -397,8 +577,9 @@ export function readLaunchProfile(sessionPath: string): LaunchProfileReadResult 
 }
 
 export function writeLaunchProfile(sessionPath: string, profile: LaunchProfile): string {
-	if (!validateLaunchProfile(profile)) {
-		throw new Error("Refusing to serialize an invalid launch profile");
+	const validationError = launchProfileValidationError(profile);
+	if (validationError) {
+		throw new Error(`Refusing to serialize an invalid launch profile: ${validationError}`);
 	}
 
 	const path = profilePathForSession(sessionPath);

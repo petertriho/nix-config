@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "id": "pter",
+  "command": {
+    "name": "pter",
+    "description": "Run the plan to tasks to execute to review workflow",
+    "argumentHint": "<request>"
+  },
+  "skill": "SKILL.md",
+  "data": {
+    "plan": {
+      "kind": "file",
+      "label": "PLAN.md",
+      "constraint": {
+        "under": ".artifacts",
+        "basename": "PLAN.md"
+      }
+    },
+    "tasks": {
+      "kind": "file",
+      "label": "TASKS.md",
+      "constraint": {
+        "under": ".artifacts",
+        "basename": "TASKS.md"
+      }
+    },
+    "review": {
+      "kind": "file",
+      "label": "REVIEW.md",
+      "constraint": {
+        "under": ".artifacts",
+        "basename": "REVIEW.md"
+      }
+    },
+    "baseRef": {
+      "kind": "string",
+      "label": "Base ref"
+    }
+  },
+  "roles": [
+    {
+      "id": "planner",
+      "label": " Planner",
+      "agent": "planner",
+      "reads": [
+        "baseRef",
+        "plan"
+      ],
+      "writes": [
+        "file:plan"
+      ],
+      "handoff": "Continue planning from the current PLAN.md state and the user's latest adjustment. Do not implement or change any other repository file."
+    },
+    {
+      "id": "task-writer",
+      "label": " Task writer",
+      "agent": "task-writer",
+      "reads": [
+        "plan",
+        "tasks"
+      ],
+      "writes": [
+        "file:tasks"
+      ],
+      "handoff": "Re-read PLAN.md and TASKS.md, then continue task writing from the current artifacts. Do not change PLAN.md or implement anything."
+    },
+    {
+      "id": "executor",
+      "label": " Executor",
+      "agent": "executor",
+      "reads": [
+        "plan",
+        "tasks",
+        "review",
+        "baseRef"
+      ],
+      "writes": [
+        "worktree",
+        "file:tasks"
+      ],
+      "handoff": "Re-read PLAN.md, TASKS.md, the base ref, and REVIEW.md when present. Continue from the first unchecked task or named review finding. Keep TASKS.md accurate and never commit or stage."
+    },
+    {
+      "id": "reviewer",
+      "label": " Reviewer",
+      "agent": "reviewer",
+      "reads": [
+        "plan",
+        "tasks",
+        "review",
+        "baseRef"
+      ],
+      "writes": [
+        "file:review"
+      ],
+      "handoff": "Perform an independent review from the current PLAN.md, TASKS.md, implementation, and base ref. Use the previous REVIEW.md only as optional context and edit nothing except REVIEW.md."
+    }
+  ]
+}

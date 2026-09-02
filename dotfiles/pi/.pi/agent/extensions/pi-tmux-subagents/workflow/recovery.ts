@@ -1,22 +1,27 @@
-import type { SavedContextEstimate } from "./context-fit.ts";
+import type { SavedContextEstimate } from "../context-fit.ts";
 import type {
 	ModelSelection,
 	ProviderFailureRecord,
-	WorkflowPhase,
-} from "./launch-profile.ts";
+} from "../launch-profile.ts";
+import {
+	overrideWorkflowRunAssignment,
+	type WorkflowRunState,
+	type WorkflowRunTransitionOptions,
+	type WorkflowRunTransitionResult,
+} from "./state.ts";
+import {
+	buildWorkflowRoleContinuation,
+	resolveWorkflowRole,
+} from "./handoff.ts";
+import type { WorkflowRunSnapshot } from "./types.ts";
 
 /**
- * Workflow provider-failure recovery (T6).
+ * Workflow provider-failure recovery helpers.
  *
- * Classifies provider/agent failures surfaced by a workflow child, decides
- * whether the recovery user gate applies, and formats the gate summary.
- *
- * Classification only observes the final error that reached the parent:
- * transient network, overload, and rate-limit failures retry inside the child
- * session through Pi's normal retry policy, so they surface here only after
- * those retries are exhausted. This module never retries, never falls back to
- * another provider automatically, and knows nothing about provider-specific
- * cache or affinity parameters.
+ * These helpers are manifest-driven: they classify provider failures
+ * generically, then derive recovery UI labels, summaries, and continuation
+ * messages from the current workflow role snapshot rather than from fixed role
+ * or phase names.
  */
 
 export type ProviderFailureKind = ProviderFailureRecord["kind"];
@@ -65,16 +70,35 @@ const FAILURE_KIND_LABELS: Record<ProviderFailureKind, string> = {
 	other: "provider/agent error",
 };
 
-export const WORKFLOW_PHASE_LABELS: Record<WorkflowPhase, string> = {
-	planner: "planner",
-	"task-writer": "task writer",
-	executor: "executor",
-	reviewer: "reviewer",
-};
-
 /** Recovery gate choices shown after the failure summary. */
 export const RECOVERY_SELECT_MODEL = "Select a replacement model and thinking level";
 export const RECOVERY_STOP = "Stop recovery";
+
+export interface WorkflowRecoveryTextLabels {
+	readonly roleLabel: string;
+	readonly pickerSubject: string;
+	readonly pickerTitle: string;
+	readonly gatePrompt: string;
+}
+
+export interface WorkflowRecoveryLabels extends WorkflowRecoveryTextLabels {
+	readonly roleId: string;
+	readonly sessionPath?: string;
+}
+
+function resolveWorkflowRecoveryRoleId(
+	snapshot: WorkflowRunSnapshot,
+	roleId?: string,
+): string {
+	const resolvedRoleId = roleId ?? snapshot.activeLaunch?.roleId;
+	if (!resolvedRoleId) {
+		throw new Error(
+			`Workflow run "${snapshot.runId}" has no active role for provider recovery.`,
+		);
+	}
+	resolveWorkflowRole(snapshot.definition, resolvedRoleId);
+	return resolvedRoleId;
+}
 
 /**
  * Classify a provider/agent error message that reached the parent.
@@ -149,11 +173,48 @@ export function formatModelSelection(selection: ModelSelection | undefined): str
 		: `${selection.provider}/${selection.model}`;
 }
 
-export function formatRecoverySummary(input: {
-	phase: WorkflowPhase;
+export function buildWorkflowRecoveryTextLabels(
+	roleLabel: string,
+): WorkflowRecoveryTextLabels {
+	return {
+		roleLabel,
+		pickerSubject: `${roleLabel} recovery`,
+		pickerTitle: `Resume model for ${roleLabel} recovery`,
+		gatePrompt: `Recover the ${roleLabel} role?`,
+	};
+}
+
+export function resolveWorkflowRecoverySessionPath(
+	snapshot: WorkflowRunSnapshot,
+	roleId?: string,
+): string | undefined {
+	const resolvedRoleId = resolveWorkflowRecoveryRoleId(snapshot, roleId);
+	return snapshot.roleSessions[resolvedRoleId]?.current
+		?? (snapshot.activeLaunch?.roleId === resolvedRoleId
+			? snapshot.activeLaunch.sessionPath
+			: undefined);
+}
+
+export function buildWorkflowRecoveryLabels(
+	snapshot: WorkflowRunSnapshot,
+	roleId?: string,
+): WorkflowRecoveryLabels {
+	const resolvedRoleId = resolveWorkflowRecoveryRoleId(snapshot, roleId);
+	const role = resolveWorkflowRole(snapshot.definition, resolvedRoleId);
+	return {
+		roleId: resolvedRoleId,
+		...buildWorkflowRecoveryTextLabels(role.label),
+		...(resolveWorkflowRecoverySessionPath(snapshot, resolvedRoleId)
+			? { sessionPath: resolveWorkflowRecoverySessionPath(snapshot, resolvedRoleId) }
+			: {}),
+	};
+}
+
+export function formatWorkflowRecoverySummaryForRoleLabel(input: {
+	roleLabel: string;
 	failureKind: ProviderFailureKind;
 	failure: string;
-	sessionPath: string;
+	sessionPath?: string;
 	provider?: string;
 	model?: string;
 	estimate?: SavedContextEstimate;
@@ -165,19 +226,69 @@ export function formatRecoverySummary(input: {
 		? `${input.estimate.tokens.toLocaleString()} tokens (${input.estimate.source})`
 		: "unavailable";
 	return [
-		`Workflow ${WORKFLOW_PHASE_LABELS[input.phase]} phase failed — ${formatFailureKind(input.failureKind)}.`,
+		`Workflow ${input.roleLabel} failed — ${formatFailureKind(input.failureKind)}.`,
 		`Provider/model: ${providerModel}`,
-		`Saved session: ${input.sessionPath}`,
+		`Saved session: ${input.sessionPath ?? "unavailable"}`,
 		`Context estimate: ${estimate}`,
 		`Failure: ${input.failure}`,
-		"The saved session and all completed artifacts are preserved.",
+		"The saved session and all completed workflow data are preserved.",
 	].join("\n");
 }
 
+export function formatWorkflowRecoverySummary(input: {
+	snapshot: WorkflowRunSnapshot;
+	roleId?: string;
+	failureKind: ProviderFailureKind;
+	failure: string;
+	sessionPath?: string;
+	provider?: string;
+	model?: string;
+	estimate?: SavedContextEstimate;
+}): string {
+	const labels = buildWorkflowRecoveryLabels(input.snapshot, input.roleId);
+	return formatWorkflowRecoverySummaryForRoleLabel({
+		roleLabel: `${labels.roleLabel} role`,
+		failureKind: input.failureKind,
+		failure: input.failure,
+		sessionPath: input.sessionPath ?? labels.sessionPath,
+		...(input.provider ? { provider: input.provider } : {}),
+		...(input.model ? { model: input.model } : {}),
+		...(input.estimate ? { estimate: input.estimate } : {}),
+	});
+}
+
 /** Default continuation message for a recovered workflow role session. */
-export function defaultRecoveryMessage(): string {
+export function defaultWorkflowRecoveryMessage(
+	subject = "workflow role",
+): string {
 	return (
-		"A provider failure interrupted this workflow phase. Do not redo completed work. "
-		+ "Re-read your phase artifacts, continue from where this session stopped, and finish the phase."
+		`A provider failure interrupted the ${subject}. Do not redo completed work. `
+		+ "Re-read the saved workflow data, continue from where this session stopped, and finish the pending work."
 	);
+}
+
+export function buildWorkflowRecoveryMessage(input: {
+	readonly snapshot: WorkflowRunSnapshot;
+	readonly roleId?: string;
+	readonly userMessage?: string;
+}): string {
+	const labels = buildWorkflowRecoveryLabels(input.snapshot, input.roleId);
+	const role = resolveWorkflowRole(input.snapshot.definition, labels.roleId);
+	return buildWorkflowRoleContinuation({
+		opening: defaultWorkflowRecoveryMessage(`${labels.roleLabel} role`),
+		role,
+		dataSlots: input.snapshot.definition.data,
+		data: input.snapshot.data,
+		...(input.userMessage ? { userMessage: input.userMessage } : {}),
+	});
+}
+
+export function applyWorkflowRunRecoveryOverride(
+	state: WorkflowRunState,
+	runId: string,
+	roleId: string,
+	selection: ModelSelection,
+	options: WorkflowRunTransitionOptions = {},
+): WorkflowRunTransitionResult {
+	return overrideWorkflowRunAssignment(state, runId, roleId, selection, options);
 }
