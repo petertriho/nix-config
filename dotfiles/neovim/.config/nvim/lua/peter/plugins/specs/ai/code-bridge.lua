@@ -60,6 +60,29 @@ return {
         },
     },
     config = function(_, opts)
+        -- The native Claude Code binary lives at
+        -- ~/.local/share/claude/versions/<version>, so tmux reports the pane's
+        -- current command as a bare version like "2.1.258". That string
+        -- contains none of the configured process names, so code-bridge cannot
+        -- find the pane. Reload the module with `matches_process` taught to
+        -- also accept a bare semantic-version command.
+        local path = vim.api.nvim_get_runtime_file("lua/code-bridge/init.lua", false)[1]
+            or (vim.fn.stdpath("data") .. "/site/pack/core/opt/code-bridge.nvim/lua/code-bridge/init.lua")
+        local patched, count = table.concat(vim.fn.readfile(path), "\n"):gsub(
+            "local function matches_process%(cmd%)",
+            function(signature)
+                return signature .. "\n  if cmd and cmd:match('^%d+%.%d+%.%d+$') then return true end"
+            end
+        )
+        if count == 1 then
+            package.loaded["code-bridge"] = assert(load(patched, "@" .. path))()
+        else
+            vim.notify(
+                "code-bridge: version-match patch did not apply (" .. count .. " sites)",
+                vim.log.levels.WARN
+            )
+        end
+
         local bridge = require("code-bridge")
         bridge.setup(opts)
     end,
