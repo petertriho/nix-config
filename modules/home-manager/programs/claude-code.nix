@@ -33,6 +33,8 @@ in
         config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
       file.".claude/skills/pter".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pter";
+      file.".claude/skills/pter-exp".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pter-exp";
       sessionVariables = {
         CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
         CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
@@ -50,6 +52,7 @@ in
     programs.nono.agentFilesystem.claude = {
       read = [
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/pter"
+        "$HOME/.nix-config/dotfiles/claude/.claude/skills/pter-exp"
       ];
       read_file = [
         "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"
