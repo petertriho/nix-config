@@ -10,7 +10,6 @@ return {
         "gcA",
     },
     opts = {
-        keep_selection = "accurate",
         mappings = {
             line_add_below = "gco",
             line_add_above = "gcO",
