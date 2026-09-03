@@ -86,6 +86,10 @@ When a role result reports a provider or agent error, inspect
 3. A dirty start is safe to accept. Every role boundary compares against the
    repository state at that role's start, so untouched pre-existing dirt does
    not count as a violation.
+4. The final base-ref review includes current untracked files and can also
+   include tracked or untracked changes that existed before Pter. This
+   attribution limit is accepted. The reviewer records it under
+   `Review Limits` instead of blocking the review.
 
 ## Phase 1: Plan
 
@@ -228,7 +232,7 @@ workflow_spawn({
     review: "<absolute REVIEW.md path>",
     baseRef: "<base ref>"
   },
-  task: "Review the implementation with the execution-review skill. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Write the review to <absolute REVIEW.md path> and edit nothing else. Never stage or commit. Final message: verdict, findings count per severity, and `REVIEW: <absolute path>`."
+  task: "Review the implementation with the execution-review skill. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Include untracked files in the base-ref scope. Accept that the scope can contain pre-existing worktree changes and record that attribution limit under Review Limits. Write the review to <absolute REVIEW.md path> and edit nothing else. Never stage or commit. Final message: verdict, findings count per severity, and `REVIEW: <absolute path>`."
 })
 ```
 
@@ -289,7 +293,7 @@ user for one and never pass one.
       review: "<absolute REVIEW.md path>",
       baseRef: "<base ref>"
     },
-    message: "Re-review the fixed implementation after the approved fix pass. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Previous REVIEW.md (optional input): <absolute path>. Write the re-review to the same REVIEW.md path and edit nothing else. Never stage or commit. Final message: verdict, findings count per severity, and `REVIEW: <absolute path>`."
+    message: "Re-review the fixed implementation after the approved fix pass. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Previous REVIEW.md (optional input): <absolute path>. Include untracked files in the base-ref scope. Accept that the scope can contain pre-existing worktree changes and record that attribution limit under Review Limits. Write the re-review to the same REVIEW.md path and edit nothing else. Never stage or commit. Final message: verdict, findings count per severity, and `REVIEW: <absolute path>`."
   })
   ```
 
@@ -308,7 +312,7 @@ user for one and never pass one.
       review: "<absolute REVIEW.md path>",
       baseRef: "<base ref>"
     },
-    task: "Re-review the implementation with the execution-review skill after an approved fix pass. Judge the fixed implementation independently; use the previous REVIEW.md only as optional context. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Previous REVIEW.md (optional input): <absolute path>. Write the re-review to the same REVIEW.md path and edit nothing else. Never stage or commit. Final message: verdict, findings count per severity, and `REVIEW: <absolute path>`."
+    task: "Re-review the implementation with the execution-review skill after an approved fix pass. Judge the fixed implementation independently; use the previous REVIEW.md only as optional context. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Previous REVIEW.md (optional input): <absolute path>. Include untracked files in the base-ref scope. Accept that the scope can contain pre-existing worktree changes and record that attribution limit under Review Limits. Write the re-review to the same REVIEW.md path and edit nothing else. Never stage or commit. Final message: verdict, findings count per severity, and `REVIEW: <absolute path>`."
   })
   ```
 

@@ -58,6 +58,7 @@ Non-goals and settled decisions: <respected, or one line per violation>
 
 - <files or checks skipped and why>
 - <validation not run and why>
+- <base-ref patches that can include pre-existing changes, when applicable>
 - <anything that could not be verified>
 ```
 
@@ -94,3 +95,6 @@ concrete blocker>
 
 <the smallest user decision or repository action needed>
 ```
+
+Do not recommend staging or committing only to expose untracked files. A
+base-ref execution review must first use `--include-untracked`.

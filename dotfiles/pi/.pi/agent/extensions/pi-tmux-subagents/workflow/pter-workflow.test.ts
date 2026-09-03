@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +24,12 @@ const PACKAGE_ROOT = dirname(
 	fileURLToPath(new URL("../workflows/pter/workflow.json", import.meta.url)),
 );
 const WORKFLOWS_ROOT = dirname(PACKAGE_ROOT);
+const EXECUTION_REVIEW_SKILL = fileURLToPath(
+	new URL(
+		"../../../../../../agents/.agents/skills/execution-review/SKILL.md",
+		import.meta.url,
+	),
+);
 
 function loadPter() {
 	const loaded = loadWorkflowDefinitionFromPackage(PACKAGE_ROOT);
@@ -111,6 +117,8 @@ test("Pter private skill preserves all gates and behavior while using only dedic
 		" Reviewing",
 		" Workflow done",
 		"nothing was staged or committed",
+		"Include untracked files in the base-ref scope",
+		"attribution limit is accepted",
 	]) {
 		assert.ok(skill.includes(behavior), `missing preserved behavior: ${behavior}`);
 	}
@@ -129,6 +137,18 @@ test("Pter private skill preserves all gates and behavior while using only dedic
 	assert.match(skill, /status: "completed"/);
 	assert.match(skill, /WORKFLOW WRITE POLICY VIOLATION/);
 	assert.match(skill, /Never re-review automatically/);
+});
+
+test("Pter review scope includes untracked files without executor path bookkeeping", () => {
+	const skill = loadPter().skill.body;
+	const executionReview = readFileSync(EXECUTION_REVIEW_SKILL, "utf8");
+
+	assert.doesNotMatch(skill, /workflowWriteBoundary\.allowedPaths|implementationPaths/);
+	assert.match(
+		executionReview,
+		/git-diff-scope --ref "\$base" --include-untracked --pretty/,
+	);
+	assert.match(executionReview, /changes that existed\s+before implementation/);
 });
 
 test("bundled discovery exposes /pter as the manifest alias and private startup uses the package snapshot", () => {

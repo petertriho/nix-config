@@ -53,11 +53,17 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
      notes, and acceptance lines.
 
 2. **Resolve the review scope.**
-   - With a base ref: `git-diff-scope --ref "$base" --pretty`.
+   - With a base ref:
+     `git-diff-scope --ref "$base" --include-untracked --pretty`.
    - Without a base ref: `git-diff-scope --pretty`.
    - Run from the repository root. If the resolver is unavailable or fails,
      write a "Nothing Reviewed" `REVIEW.md` per `references/output-format.md`
      and stop. Never substitute another ref.
+   - In base-ref mode, the resolver includes all current untracked files as
+     status `?`; review each regular `?` entry as a whole-file addition.
+   - A base-ref scope can include tracked and untracked changes that existed
+     before implementation. Proceed with the combined scope, and record this
+     attribution limit under `Review Limits`.
    - Read every `entries[].patch` before reading final files. The review target
      is the behavior the patches introduce or change.
 

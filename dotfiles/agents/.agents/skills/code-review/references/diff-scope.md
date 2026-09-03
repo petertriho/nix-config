@@ -15,18 +15,24 @@ Use the invocation matching the request:
 git-diff-scope --pretty
 git-diff-scope --staged --pretty
 git-diff-scope --ref "$ref" --pretty
+git-diff-scope --ref "$ref" --include-untracked --pretty
 git-diff-scope --staged --pretty -- "$path1" "$path2"
 ```
 
 Explicit paths limit the result. Otherwise `--staged` takes precedence over `--ref`;
-the default is current uncommitted work. Run from the user's current directory.
+the default is current uncommitted work. Add `--include-untracked` when a ref review
+must include repository-wide untracked additions, such as an unstaged implementation
+review. Run from the user's current directory.
 
 ## Interpret
 
 - Review `entries[].patch`; use `entries[].path` as the current path and `old_path`
   for rename or copy context.
-- Treat status `?` as a whole-file untracked addition. It appears outside default mode
-  only when explicitly named.
+- Treat status `?` as a whole-file untracked addition. It appears in default mode,
+  when `--include-untracked` is set, or when an untracked path is explicitly named.
+- A ref comparison contains all tracked worktree changes against the ref.
+  `--include-untracked` also includes all current untracked files. The result cannot
+  distinguish implementation changes from worktree changes that already existed.
 - In staged mode, treat `patch`, `mode`, and `blob_oid` as the source of truth. A
   nonempty `unstaged_patch` is context only, never staged code.
 - Read full staged regular-file content only when needed:

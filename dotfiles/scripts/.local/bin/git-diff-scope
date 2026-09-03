@@ -267,8 +267,8 @@ def status_entries(root, scope_kind, baseline_oid, paths):
     return parse_status(git(root, *arguments, literal=True).stdout)
 
 
-def untracked_entries(root, scope_kind, paths):
-    if scope_kind != "default" and not paths:
+def untracked_entries(root, scope_kind, paths, include_untracked):
+    if scope_kind != "default" and not paths and not include_untracked:
         return []
     output = git(
         root,
@@ -378,7 +378,12 @@ def resolve(arguments):
     known_paths = {entry["path"] for entry in raw_entries}
     raw_entries.extend(
         entry
-        for entry in untracked_entries(root, scope_kind, paths)
+        for entry in untracked_entries(
+            root,
+            scope_kind,
+            paths,
+            arguments.include_untracked,
+        )
         if entry["path"] not in known_paths
     )
     entries = [
@@ -393,6 +398,7 @@ def resolve(arguments):
             "baseline": baseline,
             "requested_paths": paths,
             "patch_context": arguments.patch_context,
+            "include_untracked": arguments.include_untracked,
         },
         "entries": entries,
         "requested_without_diff": requested_without_diff(root, paths, entries),
@@ -407,6 +413,11 @@ def parser():
     modes = result.add_mutually_exclusive_group()
     modes.add_argument("--staged", action="store_true", help="inspect index changes")
     modes.add_argument("--ref", help="compare the working tree with a commit ref")
+    result.add_argument(
+        "--include-untracked",
+        action="store_true",
+        help="include repository-wide untracked files in a ref or staged scope",
+    )
     result.add_argument(
         "--patch-context",
         type=int,
