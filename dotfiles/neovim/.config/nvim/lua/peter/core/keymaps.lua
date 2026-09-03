@@ -1,5 +1,6 @@
 local keymap = vim.keymap.set
 local opts = { noremap = true, silent = true }
+local multicursor_ns = vim.api.nvim_create_namespace("nvim.multicursor")
 
 -- Buffers: Navigation
 keymap("", "<C-n>", "<CMD>bnext<CR>", { desc = "Next Buffer" })
@@ -41,9 +42,11 @@ keymap("x", "gv", [[<Esc>/\%V]], {})
 -- ESC to turn off hlsearch
 keymap("n", "<ESC>", function()
     vim.cmd.nohlsearch()
+    vim.cmd.diffupdate()
+    vim.api.nvim_buf_clear_namespace(0, multicursor_ns, 0, -1)
     pcall(require("snacks").notifier.hide)
 end, {
-    desc = "Hide",
+    desc = "Clear",
 })
 
 -- Terminal
