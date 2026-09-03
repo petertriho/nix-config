@@ -42,7 +42,12 @@ in
         CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
         CLAUDE_CODE_NO_FLICKER = 1;
         CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION = 1;
+        # Native install self-updates ignore `autoUpdates: false`. These env
+        # vars are the only reliable lever, and teammate child processes that
+        # bypass the Nix wrapper only see them via settings.json / this block.
+        DISABLE_AUTOUPDATER = 1;
         DISABLE_TELEMETRY = 1;
+        DISABLE_UPDATES = 1;
         ENABLE_CLAUDEAI_MCP_SERVERS = "false";
       };
     };
