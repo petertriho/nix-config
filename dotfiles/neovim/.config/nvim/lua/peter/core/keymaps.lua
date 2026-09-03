@@ -99,7 +99,7 @@ keymap("", "qp", function()
     qf_navigate("prev")
 end, { unpack(opts), desc = "QF Prev" })
 
-keymap("", "Q", function()
+keymap("", "q<CR>", function()
     vim.fn.setqflist({}, "a", {
         items = {
             {
