@@ -7,8 +7,6 @@
 let
   cfg = config.programs.ai;
 
-  jsonFormat = pkgs.formats.json { };
-
   extensionMap = {
     sh = ".sh";
     bash = ".bash";
@@ -466,11 +464,9 @@ in
         piConfigDir = config.programs.pi-coding-agent.configDir;
       in
       {
-        home.file = skillFilesFor "pi" "${piConfigDir}/skills" // {
-          # Home-relative on purpose: pi-lens finds this via its upward config
-          # walk (.pi-lens/lsp.json) for any project under $HOME. A per-project
-          # .pi-lens.json would shadow it, dropping these servers there.
-          ".pi-lens/lsp.json".source = jsonFormat.generate "pi-lens-lsp.json" {
+        home.file = skillFilesFor "pi" "${piConfigDir}/skills";
+        programs.pi-coding-agent.piLensSettings = {
+          lsp = {
             servers = lib.mapAttrs toPiLensServer (enabledLspFor "pi");
             disabledServers = piLensDisabledServers;
           };

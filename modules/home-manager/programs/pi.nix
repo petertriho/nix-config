@@ -192,6 +192,15 @@ in
         `null` to leave {file}`APPEND_SYSTEM.md` unmanaged.
       '';
     };
+
+    piLensSettings = lib.mkOption {
+      type = jsonFormat.type;
+      default = { };
+      description = ''
+        Settings written to the global pi-lens {file}`config.json`. Other local
+        modules can add client-specific settings before the file is generated.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -215,13 +224,12 @@ in
     # `/cache-optimizer fix` rewrites it at runtime. The output style needs no
     # grant: `stripFrontmatter` copies it into the store at build time.
     #
-    # `$HOME/.pi-lens` is pi-lens's own state directory. It holds two nix-store
-    # symlinks (config.json here, lsp.json in ai.nix) plus runtime state that
-    # pi-lens writes (logs, projects/, instances.json). nono resolves the config
-    # symlinks to /nix/store and grants them there, but the kernel still has to
-    # traverse `$HOME/.pi-lens` to reach a symlink, and that traversal fails
-    # (EPERM opening lsp.json) unless the directory is granted. Grant it
-    # read-write so both the traversal and the runtime writes succeed.
+    # `$HOME/.pi-lens` is pi-lens's own state directory. It holds the nix-store
+    # config.json symlink plus runtime state that pi-lens writes (logs,
+    # projects/, instances.json). nono resolves the config symlink to /nix/store
+    # and grants it there, but the kernel still has to traverse
+    # `$HOME/.pi-lens` to reach the symlink. Grant the directory read-write so
+    # both the traversal and the runtime writes succeed.
     programs.nono.agentFilesystem.pi = {
       allow = [ "$HOME/.pi-lens" ];
       read = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions" ];
@@ -278,6 +286,24 @@ in
         theme = "stylix";
         tuiMode = "fullscreen";
       };
+      piLensSettings = {
+        widget.visible = false;
+        format = {
+          enabled = false;
+          mode = "deferred";
+        };
+        autofix.enabled = true;
+        actionableWarnings = {
+          enabled = true;
+          includeLspCodeActions = true;
+          deltaOnly = true;
+          autoFix = {
+            enabled = true;
+            maxFixes = 5;
+          };
+        };
+        contextInjection.enabled = false;
+      };
     };
     home = {
       file = {
@@ -307,24 +333,7 @@ in
         "${cfg.configDir}/models.json".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/models.json";
 
-        ".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" {
-          widget.visible = false;
-          format = {
-            enabled = false;
-            mode = "deferred";
-          };
-          autofix.enabled = true;
-          actionableWarnings = {
-            enabled = true;
-            includeLspCodeActions = true;
-            deltaOnly = true;
-            autoFix = {
-              enabled = true;
-              maxFixes = 5;
-            };
-          };
-          contextInjection.enabled = false;
-        };
+        ".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" cfg.piLensSettings;
 
         # Suppress the upstream module's read-only settings.json symlink; the
         # activation entry below owns the file instead.
