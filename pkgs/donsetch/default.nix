@@ -12,7 +12,7 @@ let
   assets = {
     x86_64-linux = {
       url = "https://github.com/dondai44423/donsetch/releases/download/v${version}/donsetch-linux-x64.tar.gz";
-      hash = "sha256-X+uwlPwxa6KKSXFu3NN1PQcZpN7N3C0IGGWMRVWpPyo=";
+      hash = "sha256-ASmHoURnyNlusl3zmi0s5wJZQowxyJ7vOZx16dSzJJA=";
     };
     aarch64-linux = {
       url = "https://github.com/dondai44423/donsetch/releases/download/v${version}/donsetch-linux-arm64.tar.gz";
@@ -27,7 +27,7 @@ let
       hash = "sha256-UZmaP1c/iHsSZg5IqX+SHSZC1H/qEEcfOGOskmOQKKk=";
     };
   };
-  version = "3.5.2";
+  version = "3.6.0";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "donsetch";
