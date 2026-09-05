@@ -10,6 +10,7 @@ let
   ];
   llmAgents = with pkgs.llm-agents; [
     claude-agent-acp
+    tokscale
     # kandev
     # kandev-desktop
     # openspec
@@ -26,7 +27,7 @@ in
         python3
         python3Packages.tiktoken
         tmuxai
-        tokscale
+        # tokscale
       ]
       ++ mcpServerPackages
       ++ llmAgents;
