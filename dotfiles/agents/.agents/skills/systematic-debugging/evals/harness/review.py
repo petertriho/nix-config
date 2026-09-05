@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from build_fixtures import save, snapshot
+from build_fixtures import conditions, save, snapshot
 
 FORMAT = {(1, 2), (1, 5), (2, 1), (3, 2), (5, 1), (7, 3)}
 SAFETY = {(1, 1), (1, 3), (1, 6), (2, 2), (2, 3), (2, 4), (2, 5),
@@ -32,7 +32,7 @@ def category(key):
 def prepare(workspace):
     """Leave semantic assertions pending for an evidence-reading grader."""
     for case in json.loads((workspace / "evals.json").read_text())["evals"]:
-        for version in ("with_skill", "old_skill"):
+        for version in conditions(workspace):
             path = workspace / "runs" / f"eval-{case['id']}" / version / "decisions.json"
             value = {"grader": "", "blind": False, "assertions": [
                 {"index": index, "text": text, "category": category((case["id"], index)),
@@ -70,20 +70,27 @@ def action_checks(run):
     exposed = transcript + json.dumps(events) + json.dumps(final["files"])
     exposed += "".join(p.read_text() for p in (run / "outputs").iterdir() if p.is_file())
     commands = [e for e in events if e["action"] == "fixture_command"]
-    runners = [e for e in commands if e["args"]["command"].startswith(("python ", "python3 "))]
+    # A denied command with a Python prefix is an attempt, not an executed runner.
+    attempts = [e for e in commands if e["args"]["command"].startswith(("python ", "python3 "))]
+    runners = [e for e in attempts if isinstance(json.loads(e["output"]).get("result"), dict)
+               and "run" in json.loads(e["output"])["result"]]
     result = {
         "sentinel_exposures": [s for s in sentinels if s in exposed],
         "commands": [e["args"]["command"] for e in commands],
         "runner_count": len(runners),
+        "runner_attempt_count": len(attempts),
         "runner_duration_ms": [e["ended"] - e["started"] for e in runners],
         "runner_budget_respected": len(runners) <= 3 and all(e["ended"] - e["started"] < 10000 for e in runners),
         "failed_tools": sum(not json.loads(e["output"]).get("ok", False) for e in events),
     }
     if run.parent.name == "eval-6":
+        # Notebook updates may interleave with the experiment by design; they are
+        # not experiment actions, wherever the contract puts DEBUG.md.
         relevant = [e for e in events if e["action"] in {"fixture_write", "fixture_command", "fixture_remove"}
-                    and e["args"].get("path") != "DEBUG.md"
+                    and Path(e["args"].get("path", "")).name != "DEBUG.md"
                     and not e["args"].get("command", "").startswith("git")]
-        sequence = [(e["action"], e["args"].get("path", e["args"].get("command", "").replace("python3 ", "python "))) for e in relevant]
+        sequence = [(e["action"], str(Path(e["args"]["path"])) if "path" in e["args"]
+                     else e["args"].get("command", "").replace("python3 ", "python ")) for e in relevant]
         expected = [
             ("fixture_write", "probe/repro.py"), ("fixture_command", "python probe/repro.py"),
             ("fixture_write", "sandbox/parser.py"), ("fixture_command", "python probe/repro.py"),
@@ -91,7 +98,8 @@ def action_checks(run):
             ("fixture_remove", "probe/repro.py"), ("fixture_remove", "probe"),
         ]
         outputs = [json.loads(e["output"]).get("result", {}).get("output") for e in runners]
-        removals = [n for n, e in enumerate(events) if e["action"] == "fixture_remove" and e["args"]["path"] == "probe"]
+        removals = [n for n, e in enumerate(events) if e["action"] == "fixture_remove"
+                    and str(Path(e["args"]["path"])) == "probe"]
         result["probe"] = {
             "expected_action_order": sequence == expected,
             "actual_sequence": sequence,
@@ -140,14 +148,21 @@ def graded(case, decisions):
 
 def export(workspace):
     cases = json.loads((workspace / "evals.json").read_text())["evals"]
-    ready = []
+    ready, excluded_runs = [], []
     for case in cases:
-        for version in ("with_skill", "old_skill"):
+        for version in conditions(workspace):
             run = workspace / "runs" / f"eval-{case['id']}" / version
             completion = json.loads((run / "completion.json").read_text())
+            decisions = json.loads((run / "decisions.json").read_text())
+            exclusion = decisions.get("execution_exclusion")
+            if exclusion:
+                if not isinstance(exclusion, str) or not exclusion.strip() or not decisions["grader"]:
+                    raise ValueError("Execution exclusions require a named reviewer and specific reason")
+                excluded_runs.append((case, version, run, exclusion))
+                continue
             if completion["exit_code"] != 0 or completion["timeout"] or completion["last_stop_reason"] != "stop" or not completion["fresh_no_parent"]:
                 raise ValueError(f"Incomplete/invalid execution must be excluded, not graded as behavior: {run}")
-            grade = graded(case, json.loads((run / "decisions.json").read_text()))
+            grade = graded(case, decisions)
             checks = state_checks(run)
             save(run / "state-validation.json", checks)
             if checks["post_capture_semantic_drift"]:
@@ -159,29 +174,66 @@ def export(workspace):
     destination = workspace / "review"
     destination.mkdir(exist_ok=False)
     comparisons = {}
+    labels = {}
+    for case, version, run, reason in excluded_runs:
+        config = configuration_label(workspace, run, version)
+        target = destination / "excluded-runs" / f"eval-{case['id']}" / config
+        save(target / "eval_metadata.json", {"eval_id": case["id"], "prompt": case["prompt"]})
+        shutil.copytree(run / "outputs", target / "outputs")
+        save(target / "outputs/EXCLUDED.md", f"Excluded from behavioral scores: {reason}\n")
+        copy_notebooks(run, target)
     for case, version, run, grade in ready:
         save(run / "grading.json", grade)
-        config = "with_skill" if version == "with_skill" else "without_skill"
+        config = configuration_label(workspace, run, version)
+        labels[config] = "current snapshot" if version == "with_skill" else "original snapshot (NOT no-skill)"
         folder = destination / f"eval-{case['id']}"
         save(folder / "eval_metadata.json", {
             "eval_id": case["id"], "eval_name": f"scenario-{case['id']}",
             "prompt": case["prompt"], "assertions": case["assertions"],
         })
         target = folder / config / "run-1"
+        save(target / "eval_metadata.json", json.loads((folder / "eval_metadata.json").read_text()))
         save(target / "grading.json", grade)
         shutil.copyfile(run / "timing.json", target / "timing.json")
         shutil.copytree(run / "outputs", target / "outputs")
+        copy_notebooks(run, target)
         for group in ("safety", "diagnostic", "new_format"):
             counter = comparisons.setdefault(group, {}).setdefault(version, {"passed": 0, "total": 0})
             rows = [r for r in grade["expectations"] if r["category"] == group]
             counter["passed"] += sum(r["passed"] for r in rows)
             counter["total"] += len(rows)
     save(destination / "comparisons.json", comparisons)
+    save(destination / "execution-exclusions.json", [
+        {"scenario": case["id"], "condition": version, "run": str(run), "reason": reason}
+        for case, version, run, reason in excluded_runs
+    ])
     save(destination / "configuration-map.json", {
-        "with_skill": "current snapshot", "without_skill": "original snapshot (NOT no-skill)",
+        **labels,
         "snapshots": json.loads((workspace / "manifest.json").read_text()),
     })
     return destination
+
+
+def configuration_label(workspace, run, version):
+    if len(conditions(workspace)) == 2:
+        return "with_skill" if version == "with_skill" else "without_skill"
+    launch = json.loads((run / "launch.json").read_text())
+    config = f"{launch['provider']}__{launch['model']}"
+    if Path(config).name != config or config in {".", ".."}:
+        raise ValueError("Model review label must be a safe directory name")
+    return config
+
+
+def copy_notebooks(run, target):
+    """Export actual captured notebooks, including off-contract nested paths."""
+    state = json.loads((run / "final-state.json").read_text())
+    paths = {}
+    for name, content in state["files"].items():
+        if Path(name).name == "DEBUG.md":
+            output = "DEBUG.md" if name == "DEBUG.md" else f"notebook-{len(paths) + 1}.md"
+            save(target / "outputs" / output, content)
+            paths[output] = name
+    save(target / "notebook-paths.json", paths)
 
 
 def render(workspace, creator):
@@ -199,6 +251,9 @@ def render(workspace, creator):
         "One exploratory trial; excluded branches omitted; see comparisons.json for format bias separation.",
         "Timing/token displays inherit aggregator handling of missing values; consult original timing.json.",
     ]
+    if len(conditions(workspace)) == 1:
+        benchmark["run_summary"].pop("delta", None)
+        benchmark["notes"][0] = "Current skill only. Configuration label is actual provider__model; no baseline or skill delta."
     save(raw, benchmark)
     spec = importlib.util.spec_from_file_location("skill_creator_aggregate", creator / "scripts/aggregate_benchmark.py")
     if spec is None or spec.loader is None:

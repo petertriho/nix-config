@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 
 from backend import dispatch
-from build_fixtures import SCENARIOS, save, snapshot
+from build_fixtures import SCENARIOS, conditions, save, snapshot
 
 
 def validate(workspace):
     rows = []
     for case in json.loads((workspace / "evals.json").read_text())["evals"]:
         states = []
-        for version in ("with_skill", "old_skill"):
+        for version in conditions(workspace):
             run = workspace / "runs" / f"eval-{case['id']}" / version
             actual = snapshot(run / "fixture")
             initial = json.loads((run / "initial-state.json").read_text())
@@ -23,9 +23,10 @@ def validate(workspace):
                 raise ValueError("Empty assigned skill")
             states.append(actual)
         for key in ("files", "directories", "symlinks", "index_entries", "cached_diff", "worktree_diff", "status"):
-            if states[0][key] != states[1][key]:
+            if any(states[0][key] != state[key] for state in states[1:]):
                 raise ValueError(f"Paired fixture mismatch: {case['id']}, {key}")
-        rows.append({"scenario": case["id"], "paired_equivalent": True})
+        rows.append({"scenario": case["id"], "conditions": list(conditions(workspace)),
+                     "paired_equivalent": True if len(states) == 2 else None})
     save(workspace / "fixture-validation.json", rows)
     return rows
 

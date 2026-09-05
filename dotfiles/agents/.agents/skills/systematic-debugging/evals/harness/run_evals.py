@@ -1,4 +1,4 @@
-"""Paired fresh Pi CLI sessions; dry-run is default, --execute permits model use."""
+"""Fresh paired or current-only Pi sessions; dry-run unless --execute is supplied."""
 import argparse
 import asyncio
 import json
@@ -9,7 +9,7 @@ import signal
 import sys
 import time
 
-from build_fixtures import save, snapshot
+from build_fixtures import conditions, save, snapshot
 
 SOURCE = Path(__file__).resolve().parent
 
@@ -45,7 +45,8 @@ async def subject(case, version, args):
                PI_TELEMETRY="0", PYTHONDONTWRITEBYTECODE="1")
     save(run / "subject-prompt.txt", prompt)
     save(run / "launch.json", {"command": command, "fork": False, "provider": args.provider,
-                              "model": args.model, "timeout_seconds": 480, "turn_limit": 24})
+                              "model": args.model, "thinking_requested": args.thinking,
+                              "timeout_seconds": 480, "turn_limit": 24})
     started = time.time()
     with (run / "events.jsonl").open("wb") as out, (run / "stderr.txt").open("wb") as err:
         process = await asyncio.create_subprocess_exec(
@@ -63,6 +64,15 @@ async def subject(case, version, args):
     messages = [entry["message"] for entry in entries if entry.get("type") == "message"]
     save(run / "transcript.json", messages)
     assistants = [m for m in messages if m.get("role") == "assistant"]
+    save(run / "model-evidence.json", {
+        "requested": {"provider": args.provider, "model": args.model, "thinking": args.thinking},
+        "model_changes": [e for e in entries if e.get("type") == "model_change"],
+        "thinking_changes": [e for e in entries if e.get("type") == "thinking_level_change"],
+        "assistant_models": sorted({(m.get("provider"), m.get("model"), m.get("api")) for m in assistants}),
+        "provider_errors": [m.get("errorMessage") for m in assistants if m.get("stopReason") == "error"],
+        "usage": [m.get("usage") for m in assistants],
+        "reasoning_comparability": "Same requested level is not evidence of equivalent provider reasoning.",
+    })
     tokens = [m.get("usage", {}).get("totalTokens") for m in assistants]
     duration = finished - started
     save(run / "timing.json", {
@@ -86,9 +96,9 @@ async def subject(case, version, args):
 
 async def main(args):
     cases = json.loads((args.workspace / "evals.json").read_text())["evals"]
-    # Validate the entire paired batch before launching any paid work.
+    # Validate the entire batch before launching any paid work.
     for case in cases:
-        for version in ("with_skill", "old_skill"):
+        for version in conditions(args.workspace):
             run = args.workspace / "runs" / f"eval-{case['id']}" / version
             if not (run / "initial-state.json").is_file():
                 raise ValueError(f"Build fixtures first: {run}")
@@ -96,9 +106,9 @@ async def main(args):
                 raise FileExistsError(f"Refusing to reuse a started run: {run}")
     if args.execute and not shutil.which(args.pi):
         raise ValueError("Pi executable unavailable")
-    # Each case launches both conditions together; avoids sixteen-way provider contention.
+    # Cases are sequenced; at most two conditions launch together.
     for case in cases:
-        await asyncio.gather(*(subject(case, version, args) for version in ("with_skill", "old_skill")))
+        await asyncio.gather(*(subject(case, version, args) for version in conditions(args.workspace)))
 
 
 if __name__ == "__main__":

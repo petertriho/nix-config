@@ -3,6 +3,9 @@
 No old generated fixtures, transcripts or Git histories are inputs.
 """
 import json
+import asyncio
+from contextlib import redirect_stdout
+import io
 import os
 from pathlib import Path
 import struct
@@ -10,11 +13,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "harness"))
 from backend import dispatch
 from build_fixtures import build, create_fixture, git, save, snapshot
-from review import export, graded, prepare
+from review import action_checks, export, graded, prepare
+from run_evals import main as run_main
+from validate_fixtures import validate
 
 
 def index_records(hex_data):
@@ -49,6 +55,32 @@ class HarnessChecks(unittest.TestCase):
 
     def call(self, action, **args):
         return dispatch(self.run, "with_skill", action, args)
+
+    def test_audit_counts_executed_runners_and_normalizes_directory_paths(self):
+        save(self.run.parents[2] / "grader-only/raw-logs.json", [])
+        save(self.run / "transcript.json", [])
+        save(self.run / "final-state.json", snapshot(self.root))
+        actions = [
+            ("fixture_command", {"command": "python run.py --help"}, {"denied": True, "executed": False}),
+            ("fixture_write", {"path": "probe/repro.py"}, "Done"),
+            ("fixture_command", {"command": "python probe/repro.py"}, {"run": 1, "output": "False\nTrue\n"}),
+            ("fixture_write", {"path": "sandbox/parser.py"}, "Done"),
+            ("fixture_command", {"command": "python probe/repro.py"}, {"run": 2, "output": "True\nTrue\n"}),
+            ("fixture_write", {"path": "sandbox/parser.py"}, "Done"),
+            ("fixture_command", {"command": "python probe/repro.py"}, {"run": 3, "output": "False\nTrue\n"}),
+            ("fixture_remove", {"path": "probe/repro.py"}, "Done"),
+            ("fixture_remove", {"path": "probe/"}, "Done"),
+            ("fixture_state", {}, {}),
+        ]
+        save(self.run / "tool-audit.jsonl", "\n".join(json.dumps({
+            "action": action, "args": args, "started": 0, "ended": 1,
+            "output": json.dumps({"ok": True, "result": result}),
+        }) for action, args, result in actions))
+        checks = action_checks(self.run)
+        self.assertEqual(checks["runner_count"], 3)
+        self.assertEqual(checks["runner_attempt_count"], 4)
+        self.assertTrue(checks["probe"]["state_after_directory_removal"])
+        self.assertTrue(checks["probe"]["original_restored_output_equal"])
 
     def test_traversal_root_and_git_guard(self):
         before = snapshot(self.root)
@@ -151,6 +183,50 @@ class HarnessChecks(unittest.TestCase):
 
 
 class ConstructionChecks(unittest.TestCase):
+    def test_single_current_dry_run_validation_and_export(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            save(base / "skill/SKILL.md", "Test-only current snapshot\n")
+            workspace = build(base / "workspace", base / "skill", scenarios=[2, 3, 6, 8])
+            self.assertFalse((workspace / "snapshots/original").exists())
+            self.assertEqual(len(validate(workspace)), 4)
+            args = SimpleNamespace(workspace=workspace, pi="pi", provider_extension=[],
+                                   provider="exact-provider", model="exact-model",
+                                   thinking="high", execute=False)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                asyncio.run(run_main(args))
+            commands = [json.loads(line) for line in output.getvalue().splitlines()]
+            self.assertEqual(len(commands), 4)
+            self.assertTrue(all("old_skill" not in row["run"] for row in commands))
+            self.assertTrue(all("--no-builtin-tools" in row["command"] for row in commands))
+            prepare(workspace)
+            for case in json.loads((workspace / "evals.json").read_text())["evals"]:
+                run = workspace / "runs" / f"eval-{case['id']}" / "with_skill"
+                decisions = json.loads((run / "decisions.json").read_text())
+                decisions["grader"] = "Synthetic offline test, not behavioral evidence"
+                for row in decisions["assertions"]:
+                    if row["status"] == "pending":
+                        row.update(status="fail", evidence="Synthetic plumbing test, no subject run.")
+                if case["id"] == 3:
+                    decisions["execution_exclusion"] = "Synthetic timeout exclusion; no model call."
+                save(run / "decisions.json", decisions)
+                save(run / "launch.json", {"provider": args.provider, "model": args.model})
+                save(run / "completion.json", {"exit_code": 0, "timeout": False,
+                     "last_stop_reason": "stop", "fresh_no_parent": True})
+                save(run / "final-state.json", snapshot(run / "fixture"))
+                save(run / "timing.json", {"total_tokens": 0, "total_duration_seconds": 0})
+                save(run / "tool-audit.jsonl", "")
+                save(run / "transcript.json", [])
+            destination = export(workspace)
+            self.assertEqual(len(list(destination.glob("eval-*/exact-provider__exact-model/run-1/grading.json"))), 3)
+            self.assertTrue(list(destination.glob("excluded-runs/eval-3/*/outputs/EXCLUDED.md")))
+            self.assertFalse(list(destination.glob("eval-*/without_skill")))
+            self.assertIn("exact-provider__exact-model",
+                          json.loads((destination / "configuration-map.json").read_text()))
+            with self.assertRaises(FileExistsError):
+                asyncio.run(run_main(args))
+
     def test_all_eight_paired_fixtures_and_private_evidence(self):
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp)

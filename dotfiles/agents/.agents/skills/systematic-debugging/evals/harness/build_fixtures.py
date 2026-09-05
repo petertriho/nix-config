@@ -170,11 +170,19 @@ def create_fixture(run, scenario):
     (run / "outputs").mkdir()
 
 
-def build(workspace, current, baseline, scenarios=tuple(range(1, 9))):
+def conditions(workspace):
+    """Single-current workspaces have no original snapshot; legacy pairs still work."""
+    manifest = json.loads((workspace / "manifest.json").read_text())
+    return ("with_skill", "old_skill") if "original" in manifest else ("with_skill",)
+
+
+def build(workspace, current, baseline=None, scenarios=tuple(range(1, 9))):
     scenarios = sorted(set(scenarios))
     if not scenarios or not set(scenarios) <= SCENARIOS.keys():
         raise ValueError("Choose scenario IDs 1 through 8")
-    sources = {"current": Path(current).resolve(), "original": Path(baseline).resolve()}
+    sources = {"current": Path(current).resolve()}
+    if baseline is not None:
+        sources["original"] = Path(baseline).resolve()
     for source in sources.values():
         if not (source / "SKILL.md").is_file():
             raise ValueError(f"Missing skill snapshot: {source}")
@@ -202,7 +210,7 @@ def build(workspace, current, baseline, scenarios=tuple(range(1, 9))):
     for case in cases["evals"]:
         folder = workspace / "runs" / f"eval-{case['id']}"
         save(folder / "eval_metadata.json", {"eval_id": case["id"], "eval_name": f"scenario-{case['id']}", "prompt": case["prompt"], "assertions": case["assertions"]})
-        for version in ("with_skill", "old_skill"):
+        for version in conditions(workspace):
             create_fixture(folder / version, case["id"])
     return workspace
 
@@ -211,7 +219,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", required=True, type=Path, help="New directory; existing paths refused")
     parser.add_argument("--current", required=True, type=Path)
-    parser.add_argument("--baseline", required=True, type=Path)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--baseline", type=Path)
+    mode.add_argument("--single-condition", action="store_true", help="Current skill only, no baseline")
     parser.add_argument("--scenarios", nargs="+", type=int, default=list(range(1, 9)))
     args = parser.parse_args()
     print(build(args.workspace, args.current, args.baseline, args.scenarios))
