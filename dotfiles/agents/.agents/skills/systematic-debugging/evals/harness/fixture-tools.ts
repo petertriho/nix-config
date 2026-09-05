@@ -54,7 +54,7 @@ export default function (pi: ExtensionAPI) {
   register("fixture_remove", "Remove owned file or empty owned directory, never pre-existing paths; children first.", { path: Type.String() });
   register("fixture_state", "Read actual files, directories and Git staging/status; may truncate at 24KB.", {});
   register("fixture_command", "Inert command interceptor; bounded Python and specific read-only Git only. See HARNESS.md.", { command: Type.String() });
-  register("log_query", "Source-side sanitized fields only: id,parent,error,component,redaction; limit 1–3.", {
+  register("log_query", "Source-side sanitized fields only: id,parent,error,component,redaction; limit 1 to 3.", {
     projection: Type.String(), fields: Type.Array(Type.String()), limit: Type.Integer(),
     id: Type.Optional(Type.String()),
   });

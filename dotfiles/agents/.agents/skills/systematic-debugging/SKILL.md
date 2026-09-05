@@ -51,13 +51,14 @@ impact or access changes; record the reason. An isolated local reproducer can
 support a shared/incident case without changing the case's profile.
 
 Record environment separately, such as `development`, `CI`, `QA`, `staging`, or
-`production`; record severity as assigned and its source, or `unassigned`.
+`production`; record severity as reported or assigned value plus source and
+assignment status. Use `unassigned` only when no severity was stated anywhere.
 Production remains read-only regardless of profile.
 Before any production observation, read the production safeguards in
 [incident response](references/incident-response.md), including for `shared`
 investigations without an active incident.
 
-## Incident fast entry — before the full notebook
+## Incident fast entry: before the full notebook
 
 For `incident`, immediately establish what is known about:
 
@@ -66,16 +67,21 @@ For `incident`, immediately establish what is known about:
 3. Authorized access, target environment, and observation limits.
 4. Evidence likely to expire or be changed by concurrent operational actions.
 
-Send a concise update immediately, using unknowns rather than waiting:
+Send a concise triage message immediately as user-visible text, using unknowns
+rather than waiting. Thinking-only reasoning or a notebook write does not count
+as the update:
 
 > Impact / current state / known facts / unknowns / next safe observation /
 > owner decision needed
+
+Do not call any notebook-write tool before this first visible triage message.
+Initialize the compact notebook after this first triage/update, not before.
 
 Read [incident response](references/incident-response.md) before production
 queries or containment advice. Escalate suspected serious harm early; do not
 wait for a cause or severity assignment. After the minimum safe fact/risk
 review, send advisory containment before independent review or full notebook
-work—not only in the final handoff. Give a supported option, rationale,
+work, not only in the final handoff. Give a supported option, rationale,
 reversibility, risks/preconditions, external decision owner, reversal signals,
 and bounded read-only verification (see the reference). If no responsible
 option is available, say why and name the next owner decision instead of
@@ -84,9 +90,8 @@ inventing advice. Confirmed cause is not required; never execute containment.
 Missing severity or an owner blocks decisions requiring that authority, not
 otherwise authorized safe observations. Preserve expiring evidence only
 through approved bounded, sanitized collection; do not bulk-export it.
-Initialize the compact notebook after this first triage/update, not before.
 
-## Execution safety gate — before every runnable diagnostic
+## Execution safety gate: before every runnable diagnostic
 
 Tests, builds, scripts, profilers, queries, and commands are not inherently
 read-only or cheap. Inspect their definition/configuration when necessary.

@@ -16,8 +16,8 @@ work; record that communication here rather than delaying it to fill a template.
 - Append meaningful results and corrections. Preserve contradictions, superseded
   findings, hypothesis transitions, authorization decisions, and cleanup history.
   Current summaries may change; do not erase the historical basis.
-- Use `Unknown — <gap>` for unknown facts. During work, use
-  `Pending — <next step>` where appropriate. At handoff, identify exact unresolved
+- Use `Unknown: <gap>` for unknown facts. During work, use
+  `Pending: <next step>` where appropriate. At handoff, identify exact unresolved
   work and its blocker/owner instead of leaving unexplained placeholders.
 - Omit irrelevant conditional sections entirely. If a section already contains
   history, retain it with its current or superseded disposition.
@@ -37,7 +37,9 @@ Diagnosis: unassessed | confirmed | probable | unresolved
 Cleanup: not needed | pending | verified | blocked
 Profile: local | shared | incident
 Environment: <actual environment; not inferred from profile>
-Severity: <assigned value and source, or unassigned>
+Severity: <value, source, and reported versus assigned status; unassigned
+only if none stated, for example: P0 (reported by user in initial request;
+assignment unconfirmed)>
 Artifact: <absolute DEBUG.md path>
 Created / updated: <timestamps with timezone>
 
@@ -53,9 +55,9 @@ Profile rationale, access, isolation evidence, and execution envelope:
 Relevant limits and unknowns:
 
 ## Evidence and hypotheses
-E1 — <time; source/target/context; command or observation; result/exit;
+E1: <time; source/target/context; command or observation; result/exit;
 interpretation; H# impact; limits/redactions>
-H1 — <specific mechanism; state; supporting and opposing E#;
+H1: <specific mechanism; state; supporting and opposing E#;
 predicted discriminating outcomes; result/state transitions>
 
 ## Outcome

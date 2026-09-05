@@ -80,7 +80,7 @@ observations. Automated `git bisect run <predicate-command>` is appropriate only
 when bounded, deterministic, and safely mapped:
 
 - `0`: target behavior good.
-- `1`–`127`, except `125`: defining bad signature occurred.
+- `1` to `127`, except `125`: defining bad signature occurred.
 - `125`: untestable revision; skip.
 - Other statuses: abort.
 

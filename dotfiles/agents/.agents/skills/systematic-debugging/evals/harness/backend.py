@@ -8,11 +8,11 @@ import contextlib
 import datetime
 import io
 import json
-from pathlib import Path
 import resource
 import subprocess
 import sys
 import types
+from pathlib import Path
 
 from build_fixtures import git, inventory, snapshot
 
@@ -172,7 +172,7 @@ def dispatch(run, version, action, args):
         fields = args.get("fields", [])
         allowed = {"id", "parent", "error", "component", "redaction"}
         if args.get("projection") != "sanitized" or not fields or not set(fields) <= allowed or not 1 <= args.get("limit", 0) <= 3:
-            raise ValueError("Only sanitized projection, allowlisted fields, limit 1–3 authorized")
+            raise ValueError("Only sanitized projection, allowlisted fields, limit 1 to 3 authorized")
         raw = json.loads((workspace / "grader-only/raw-logs.json").read_text())
         selected = raw if not args.get("id") else [row for row in raw if row["id"] == args["id"]]
         return [{key: ("credentials/customer/free-text excluded at source" if key == "redaction" else row[key]) for key in fields} for row in selected[:args["limit"]]]

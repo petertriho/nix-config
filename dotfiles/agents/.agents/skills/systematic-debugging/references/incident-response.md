@@ -14,7 +14,9 @@ access, and expiring evidence. Unknowns do not block the first update.
 
 Escalate suspected data loss, corruption, compromise, or safety impact early.
 Use the organization's incident process and assigned severity; do not invent
-authority or a severity. Missing severity/ownership blocks operational
+an assignment. Record a user-reported severity as reported, pending owner
+confirmation. A reported value needs confirmation and does not increase
+diagnostic certainty. Missing severity/ownership blocks operational
 decisions needing that authority, not otherwise authorized safe inspection.
 
 Agree a useful update cadence with the owner, or state when the next update
