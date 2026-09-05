@@ -21,7 +21,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "48e59dafc40f8046d0b788f0f70d2d27c4e20305",
+      "rev": "0bcd72a81f222596297c13923878a2c7fe0749fc",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -30,11 +30,11 @@
       "version": "'v1'"
     },
     "blink.lib": {
-      "rev": "c8fdc12c8a2fab6cf786dd7141a283f8079f902b",
+      "rev": "e12366919e3447e4227d61e2ce99e2374de76d6a",
       "src": "https://github.com/saghen/blink.lib"
     },
     "blink.pairs": {
-      "rev": "dd57684daf1297e854e46c85511e7875efb4de75",
+      "rev": "21c2ac9164b36ae5e22f84a2dd0f02eaf107f8fe",
       "src": "https://github.com/saghen/blink.pairs"
     },
     "bufjump.nvim": {
@@ -162,7 +162,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "85e732c62ac59ab7c12df71ddd020baa87948390",
+      "rev": "84252f9832fb5b9024fe9f7258e7c2aff915e6fb",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
