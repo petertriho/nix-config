@@ -2,6 +2,7 @@
 {
   imports = [
     ../profiles/desktop.nix
+    ../programs/easyeffects.nix
     ../programs/intel-gpu.nix
   ];
   home.packages = with pkgs; [
