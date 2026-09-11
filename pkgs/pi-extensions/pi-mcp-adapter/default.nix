@@ -10,13 +10,19 @@
 }:
 buildNpmPackage {
   pname = "pi-mcp-adapter";
+  # NOTE: do not bump to 5c1ea6b or later until upstream drops the pkg.pr.new
+  # dependencies. 5c1ea6b pins @modelcontextprotocol/client+core to
+  # https://pkg.pr.new/... PR-preview tarballs, which fetchNpmDeps cannot
+  # prefetch for the offline install (ENOTCACHED, only-if-cached) and which
+  # the vendored package-lock.json below does not cover. Re-bumping past
+  # this pin needs a regenerated lockfile plus a registry-published SDK.
   version = "2.32.1-unstable-2026-09-10";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "f6cabbdb762f1fd5ba30f02eecd3fe43ad0a3bd4";
-    hash = "sha256-BqdSfdYnqkf5RSA/LDV3aArG9/BuE45aXcFj0ZbM290=";
+    rev = "3ab9262229c2c8f669b21edf49ab07f5685ee9d2";
+    hash = "sha256-72pjx0M8tWqHmFoBgM91PVK0rqWcR4WGc8+BPKlPjxk=";
   };
 
   nodejs = nodejs_24;
