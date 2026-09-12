@@ -30,7 +30,7 @@
       "src": "https://github.com/saghen/blink.lib"
     },
     "blink.pairs": {
-      "rev": "c382bc4ba0229211c8ae19491bb7aa930c051a42",
+      "rev": "b463f00801a6661a74df97ecbc38c8df95954a9a",
       "src": "https://github.com/saghen/blink.pairs"
     },
     "bufjump.nvim": {
@@ -187,7 +187,7 @@
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
-      "rev": "d4d59cb369da46b95699bd2200efbcffc6dadb3b",
+      "rev": "de9f0f3dbdab1952f136dc7bd67ff3bafdf994da",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
       "version": "'main'"
     },
@@ -233,7 +233,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "e37abcf2f337dc2587aae9118f866b0cf8ed96b7",
+      "rev": "05e938c0aa5dfbdbb11972fa4c8a85f27f402ba0",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
