@@ -67,16 +67,16 @@ in
           '';
       }
       yank
-      {
-        plugin = easy-motion;
-        extraConfig =
-          # tmux
-          ''
-            set -g @easy-motion-prefix "Space"
-            set -g @easy-motion-verbose "true"
-            set -g @easy-motion-default-motion "bd-f"
-          '';
-      }
+      # {
+      #   plugin = easy-motion;
+      #   extraConfig =
+      #     # tmux
+      #     ''
+      #       set -g @easy-motion-prefix "Space"
+      #       set -g @easy-motion-verbose "true"
+      #       set -g @easy-motion-default-motion "bd-f"
+      #     '';
+      # }
       {
         plugin = fingers;
         extraConfig =
