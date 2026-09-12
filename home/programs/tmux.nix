@@ -142,6 +142,15 @@ in
             set -g @fuzzback-popup-size "80%"
           '';
       }
+      {
+        plugin = flash-tmux;
+        extraConfig =
+          # tmux
+          ''
+            set -g @flash-key "Space"
+            set -g @flash-copy-key "Space"
+          '';
+      }
       # TODO: investigate why this needs to be put after sensible (cannot put in the hm module)
       {
         plugin = agent-indicator;

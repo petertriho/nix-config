@@ -11,6 +11,7 @@ in
 {
   agent-indicator = callPackage ./agent-indicator { };
   easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
+  flash-tmux = callPackage ./flash-tmux { };
   sessionist-fork = callPackage ./sessionist-fork { };
   window-name = callPackage ./window-name { inherit pkgs pythonInputs; };
 }
