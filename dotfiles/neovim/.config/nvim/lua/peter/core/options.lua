@@ -161,8 +161,8 @@ if vim.fn.executable("rg") == 1 then
     opt.grepformat = "%f:%l:%c:%m,%f:%l:%m"
 end
 
--- Undo
-local undodir = vim.fn.expand("~/.undodir")
+-- Undo (default: ~/.local/state/nvim/undo)
+local undodir = vim.fn.stdpath("state") .. "/undo"
 
 if vim.fn.isdirectory(undodir) ~= 1 then
     vim.fn.mkdir(undodir, "p", "0700")
