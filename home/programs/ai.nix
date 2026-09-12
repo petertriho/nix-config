@@ -41,93 +41,93 @@ in
     };
   };
   programs = {
-    ai.lsp = {
-      bashls = {
-        command = "bash-language-server";
-        args = [ "start" ];
-        filetypes = [
-          "sh"
-          "bash"
-        ];
-      };
-      basedpyright = {
-        command = "basedpyright-langserver";
-        args = [
-          "--stdio"
-        ];
-        filetypes = [
-          "python"
-          "pyi"
-        ];
-      };
-      eslint = {
-        command = "vscode-eslint-language-server";
-        args = [ "--stdio" ];
-        filetypes = [
-          "javascript"
-          "javascriptreact"
-          "typescript"
-          "typescriptreact"
-          "vue"
-          "svelte"
-        ];
-        # pi-lens runs eslint natively (dispatch runner, config-gated) and has
-        # no eslint LSP built-in; as a custom server it would also be tried
-        # before tsgo (first-match, alphabetical), hijacking TS navigation.
-        clients.pi.enable = false;
-      };
-      lua-lsp = {
-        command = "lua-language-server";
-        args = [ ];
-        filetypes = [ "lua" ];
-      };
-      nil_ls = {
-        command = "nil";
-        args = [ ];
-        filetypes = [ "nix" ];
-      };
-      # pyrefly = {
-      #   command = "pyrefly";
-      #   args = [ "lsp" ];
-      #   filetypes = [
-      #     "python"
-      #     "pyi"
-      #   ];
-      # };
-      terraformls = {
-        command = "terraform-ls";
-        args = [
-          "serve"
-        ];
-        filetypes = [
-          "terraform"
-          "tf"
-        ];
-      };
-      tsc = {
-        command = "tsc";
-        args = [
-          "--lsp"
-          "--stdio"
-        ];
-        filetypes = [
-          "javascript"
-          "javascriptreact"
-          "typescript"
-          "typescriptreact"
-        ];
-      };
-      # vtsls = {
-      #   command = "vtsls";
-      #   args = [ "--stdio" ];
-      #   filetypes = [
-      #     "javascript"
-      #     "javascriptreact"
-      #     "typescript"
-      #     "typescriptreact"
-      #   ];
-      # };
-    };
+    # ai.lsp = {
+    #   bashls = {
+    #     command = "bash-language-server";
+    #     args = [ "start" ];
+    #     filetypes = [
+    #       "sh"
+    #       "bash"
+    #     ];
+    #   };
+    #   basedpyright = {
+    #     command = "basedpyright-langserver";
+    #     args = [
+    #       "--stdio"
+    #     ];
+    #     filetypes = [
+    #       "python"
+    #       "pyi"
+    #     ];
+    #   };
+    #   eslint = {
+    #     command = "vscode-eslint-language-server";
+    #     args = [ "--stdio" ];
+    #     filetypes = [
+    #       "javascript"
+    #       "javascriptreact"
+    #       "typescript"
+    #       "typescriptreact"
+    #       "vue"
+    #       "svelte"
+    #     ];
+    #     # pi-lens runs eslint natively (dispatch runner, config-gated) and has
+    #     # no eslint LSP built-in; as a custom server it would also be tried
+    #     # before tsgo (first-match, alphabetical), hijacking TS navigation.
+    #     clients.pi.enable = false;
+    #   };
+    #   lua-lsp = {
+    #     command = "lua-language-server";
+    #     args = [ ];
+    #     filetypes = [ "lua" ];
+    #   };
+    #   nil_ls = {
+    #     command = "nil";
+    #     args = [ ];
+    #     filetypes = [ "nix" ];
+    #   };
+    #   # pyrefly = {
+    #   #   command = "pyrefly";
+    #   #   args = [ "lsp" ];
+    #   #   filetypes = [
+    #   #     "python"
+    #   #     "pyi"
+    #   #   ];
+    #   # };
+    #   terraformls = {
+    #     command = "terraform-ls";
+    #     args = [
+    #       "serve"
+    #     ];
+    #     filetypes = [
+    #       "terraform"
+    #       "tf"
+    #     ];
+    #   };
+    #   tsc = {
+    #     command = "tsc";
+    #     args = [
+    #       "--lsp"
+    #       "--stdio"
+    #     ];
+    #     filetypes = [
+    #       "javascript"
+    #       "javascriptreact"
+    #       "typescript"
+    #       "typescriptreact"
+    #     ];
+    #   };
+    #   # vtsls = {
+    #   #   command = "vtsls";
+    #   #   args = [ "--stdio" ];
+    #   #   filetypes = [
+    #   #     "javascript"
+    #   #     "javascriptreact"
+    #   #     "typescript"
+    #   #     "typescriptreact"
+    #   #   ];
+    #   # };
+    # };
     mcp = {
       enable = true;
       servers = {

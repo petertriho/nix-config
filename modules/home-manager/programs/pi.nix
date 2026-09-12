@@ -24,7 +24,7 @@ let
     # persistent history / Ctrl+R / ghost completion silently stop working.
     pi-vim
     pi-history
-    pi-lens
+    # pi-lens
     pi-mcp-adapter
     # pi-subagents
     pi-tasks
