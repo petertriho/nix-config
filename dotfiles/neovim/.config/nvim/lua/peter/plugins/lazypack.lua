@@ -6,6 +6,7 @@ local group = vim.api.nvim_create_augroup("LazyPack", { clear = true })
 local specs = {}
 local by_name = {}
 local loaded = {}
+local plugins_sourced = {}
 local loading = {}
 local build_hooks = {}
 local module_loaders = {}
@@ -61,15 +62,30 @@ local function is_spec(value)
 end
 
 local function spec_enabled(spec)
-	if spec.enabled == false then
-		return false
-	end
-	if spec.cond == false then
+	local enabled = spec.enabled
+	if type(enabled) == "function" then
+		local ok, result = pcall(enabled)
+		if not ok then
+			vim.notify("lazypack: enabled() failed: " .. tostring(result), vim.log.levels.WARN)
+			return false
+		end
+		if result == false or result == nil then
+			return false
+		end
+	elseif enabled == false then
 		return false
 	end
 	if type(spec.cond) == "function" then
 		local ok, result = pcall(spec.cond)
-		return ok and result ~= false
+		if not ok then
+			vim.notify("lazypack: cond() failed: " .. tostring(result), vim.log.levels.WARN)
+			return false
+		end
+		if not result then
+			return false
+		end
+	elseif spec.cond == false then
+		return false
 	end
 	return true
 end
@@ -97,7 +113,24 @@ local function register_spec(spec, is_dependency)
 			table.insert(spec.dependencies, dep)
 		end
 		specs[spec.name] = spec
+	elseif existing._dep and is_dependency then
+		for _, dep in ipairs(spec.dependencies or {}) do
+			-- avoid duplicates
+			local found = false
+			for _, d in ipairs(existing.dependencies or {}) do
+				if d == dep then
+					found = true
+					break
+				end
+			end
+			if not found then
+				table.insert(existing.dependencies, dep)
+			end
+		end
+	elseif not existing._dep and not is_dependency then
+		vim.notify("lazypack: duplicate spec for " .. spec.name .. " (keeping first)", vim.log.levels.WARN)
 	end
+	-- full existing + stub new: do nothing (existing wins), correct
 end
 
 local function normalize(raw)
@@ -122,6 +155,9 @@ local function normalize(raw)
 		main = raw.main,
 		dependencies = {},
 	})
+	if spec[1] ~= nil then
+		spec[1] = nil
+	end
 
 	for _, dep in ipairs(list(raw.dependencies)) do
 		local normalized = normalize(dep)
@@ -149,7 +185,7 @@ local function import_specs(imports)
 				local child = stem == "init" and module or (module .. "." .. stem)
 				local child_ok, child_mod = pcall(require, child)
 				if not child_ok then
-					error(child_mod)
+					error(child_mod, 0)
 				end
 				table.insert(mod, child_mod)
 			end
@@ -157,17 +193,38 @@ local function import_specs(imports)
 			local ok
 			ok, mod = pcall(require, module)
 			if not ok then
-				error(mod)
+				error(mod, 0)
 			end
 		end
 
+		if mod == nil then
+			error("lazypack: expected spec table from import " .. tostring(module) .. ", got nil", 0)
+		end
 		local modules = is_spec(mod) and { mod } or mod
+		if type(modules) ~= "table" then
+			error("lazypack: expected spec table from import " .. tostring(module) .. ", got " .. type(modules), 0)
+		end
 		for _, raw in ipairs(modules) do
 			local raw_specs = is_spec(raw) and { raw } or raw
 			for _, raw_spec in ipairs(raw_specs) do
-				local spec = normalize(raw_spec)
-				if spec then
-					register_spec(spec, false)
+				if type(raw_spec) == "table" and raw_spec.import then
+					import_specs({ raw_spec })
+				else
+					local spec = normalize(raw_spec)
+					if spec then
+						register_spec(spec, false)
+					elseif type(raw_spec) == "table" and next(raw_spec) ~= nil then
+						-- Only warn for truly invalid entries. Specs disabled via
+						-- enabled/cond also normalize to nil but must stay silent.
+						local has_identity = type(raw_spec[1]) == "string"
+							or raw_spec.src
+							or raw_spec.url
+							or raw_spec.dir
+							or raw_spec.name
+						if not has_identity then
+							vim.notify("lazypack: ignoring invalid spec", vim.log.levels.WARN)
+						end
+					end
 				end
 			end
 		end
@@ -179,7 +236,12 @@ local function visit(name, visiting, visited, ordered)
 		return
 	end
 	if visiting[name] then
-		error("dependency cycle involving " .. name)
+		local chain = {}
+		for k, _ in pairs(visiting) do
+			table.insert(chain, k)
+		end
+		table.sort(chain)
+		error("dependency cycle involving " .. name .. " (in: " .. table.concat(chain, ", ") .. ")")
 	end
 	visiting[name] = true
 
@@ -221,23 +283,32 @@ local function pack_spec(spec)
 	end
 
 	local item = { src = source_to_url(spec.src), name = spec.name }
+	-- vim.pack.add uses version for tag/branch/commit.
 	item.version = spec.version or spec.tag or spec.branch
 	return item
 end
 
 local function plugin_dir(spec)
-	if spec.dir then
-		return expand_path(spec.dir)
+	if spec._dir then
+		return spec._dir
 	end
 
-	local pack_root = vim.fn.stdpath("data") .. "/site/pack/core"
-	for _, kind in ipairs({ "opt", "start" }) do
-		local dir = pack_root .. "/" .. kind .. "/" .. spec.name
-		if vim.fn.isdirectory(dir) == 1 then
-			return dir
+	local dir
+	if spec.dir then
+		dir = expand_path(spec.dir)
+	else
+		local pack_root = vim.fn.stdpath("data") .. "/site/pack/core"
+		dir = pack_root .. "/opt/" .. spec.name
+		for _, kind in ipairs({ "opt", "start" }) do
+			local candidate = pack_root .. "/" .. kind .. "/" .. spec.name
+			if vim.fn.isdirectory(candidate) == 1 then
+				dir = candidate
+				break
+			end
 		end
 	end
-	return pack_root .. "/opt/" .. spec.name
+	spec._dir = dir
+	return dir
 end
 
 local function nvim_lib_dir()
@@ -248,8 +319,11 @@ local function nvim_lib_dir()
 	return lib .. "/nvim"
 end
 
+local rtp_insert_pos = 2
+
 local function reset_paths()
-	vim.go.packpath = vim.env.VIMRUNTIME
+	-- Do not clobber packpath: vim.pack.add uses it for install location.
+	-- Only reset rtp.
 	local paths = {
 		config_dir,
 		vim.fn.stdpath("data") .. "/site",
@@ -262,14 +336,50 @@ local function reset_paths()
 	for _, path in ipairs(paths) do
 		rtp_seen[vim.fs.normalize(path)] = true
 	end
+	rtp_insert_pos = 2
 end
 
 local function prepend_runtime_dir(dir)
 	local normalized = vim.fs.normalize(dir)
-	if not rtp_seen[normalized] then
-		vim.opt.rtp:prepend(dir)
-		rtp_seen[normalized] = true
+	if rtp_seen[normalized] then
+		return
 	end
+	-- Single-insert path for runtime lazy loads (rare). Startup uses
+	-- batch_insert_runtime_dirs below to avoid one option update per plugin.
+	local rtp = vim.opt.rtp:get()
+	if rtp_insert_pos < 2 then
+		rtp_insert_pos = 2
+	end
+	if rtp_insert_pos > #rtp + 1 then
+		rtp_insert_pos = #rtp + 1
+	end
+	table.insert(rtp, rtp_insert_pos, dir)
+	vim.opt.rtp = rtp
+	rtp_seen[normalized] = true
+	rtp_insert_pos = rtp_insert_pos + 1
+end
+
+-- Insert many plugin dirs with a single option update. Preserves order:
+-- dirs[1] ends up closest to config_dir. Marks entries seen so later
+-- per-plugin prepends become hash-only no-ops.
+local function batch_insert_runtime_dirs(dirs)
+	local to_add = {}
+	for _, dir in ipairs(dirs) do
+		local normalized = vim.fs.normalize(dir)
+		if not rtp_seen[normalized] then
+			rtp_seen[normalized] = true
+			table.insert(to_add, dir)
+		end
+	end
+	if #to_add == 0 then
+		return
+	end
+	local rtp = vim.opt.rtp:get()
+	for i = #to_add, 1, -1 do
+		table.insert(rtp, 2, to_add[i])
+	end
+	vim.opt.rtp = rtp
+	rtp_insert_pos = 2 + #to_add
 end
 
 local function source_runtime_files(dir, patterns)
@@ -290,9 +400,38 @@ local function source_runtime_files(dir, patterns)
 	end
 end
 
-local function add_plugin_runtime(spec, opts)
+-- NOTE: after/plugin sourcing is per-plugin and immediate (each plugin's
+-- plugin/ and after/ files are sourced together at load time). This differs
+-- from Vim's two-phase order (all plugin/ first, then all after/plugin/).
+-- TODO: consider a two-phase pass for eager plugins; kept as-is for now to
+-- avoid regression risk.
+local plugin_patterns = {
+	"plugin/**/*.vim",
+	"plugin/**/*.lua",
+	"ftdetect/*.vim",
+	"ftdetect/*.lua",
+	"after/plugin/**/*.vim",
+	"after/plugin/**/*.lua",
+	"after/ftdetect/*.vim",
+	"after/ftdetect/*.lua",
+}
+
+local function source_plugin_files(spec)
 	local dir = plugin_dir(spec)
 	if vim.fn.isdirectory(dir) ~= 1 then
+		return
+	end
+	source_runtime_files(dir, plugin_patterns)
+end
+
+local function add_plugin_runtime(spec, opts)
+	local dir = plugin_dir(spec)
+	-- Use cached existence from startup batch when available (saves a stat).
+	local exists = spec._dir_exists
+	if exists == nil then
+		exists = vim.fn.isdirectory(dir) == 1
+	end
+	if exists ~= true then
 		if spec.dir then
 			vim.notify("Local plugin directory does not exist: " .. dir, vim.log.levels.WARN)
 		end
@@ -302,16 +441,7 @@ local function add_plugin_runtime(spec, opts)
 	prepend_runtime_dir(dir)
 
 	if not opts or opts.plugins ~= false then
-		source_runtime_files(dir, {
-			"plugin/**/*.vim",
-			"plugin/**/*.lua",
-			"ftdetect/*.vim",
-			"ftdetect/*.lua",
-			"after/plugin/**/*.vim",
-			"after/plugin/**/*.lua",
-			"after/ftdetect/*.vim",
-			"after/ftdetect/*.lua",
-		})
+		source_runtime_files(dir, plugin_patterns)
 	end
 end
 
@@ -321,11 +451,22 @@ end
 -- differs from the repo name (e.g. chrisgrieser/nvim-lsp-endhints exposes
 -- `require("lsp-endhints")`). Resolved lazily at load time, when the plugin is
 -- guaranteed to be on disk. Falls back to the source heuristic, then the name.
-local function find_main(spec)
-	local lua = plugin_dir(spec) .. "/lua"
-	if vim.fn.isdirectory(lua) == 1 then
-		local target = normname(spec.name)
-		for _, entry in ipairs(vim.fn.readdir(lua)) do
+local function find_main(spec, lua_dir)
+	local lua = lua_dir
+	if lua == nil then
+		lua = plugin_dir(spec) .. "/lua"
+		if vim.fn.isdirectory(lua) ~= 1 then
+			return (spec.src and source_to_main(spec.src)) or spec.name
+		end
+	end
+	-- When lua_dir is passed, the caller (cached_main) already verified it
+	-- exists. Call readdir directly: pcall would still leak E484 messages
+	-- for missing dirs even while catching the error.
+	local target = normname(spec.name)
+	local entries = vim.fn.readdir(lua)
+	if type(entries) == "table" then
+		table.sort(entries)
+		for _, entry in ipairs(entries) do
 			local mod = entry:gsub("%.lua$", "")
 			if normname(mod) == target then
 				return mod
@@ -340,8 +481,12 @@ local function add_local_dir(spec)
 	if not spec.dir then
 		return
 	end
-	local dir = expand_path(spec.dir)
-	if vim.fn.isdirectory(dir) == 1 then
+	local dir = plugin_dir(spec) -- memoized expand_path
+	local exists = spec._dir_exists
+	if exists == nil then
+		exists = vim.fn.isdirectory(dir) == 1
+	end
+	if exists == true then
 		prepend_runtime_dir(dir)
 	else
 		vim.notify("Local plugin directory does not exist: " .. dir, vim.log.levels.WARN)
@@ -349,10 +494,18 @@ local function add_local_dir(spec)
 end
 
 local function cached_main(spec)
-	if not spec._main then
-		spec._main = find_main(spec)
+	if spec._main_resolved then
+		return spec._main
 	end
-	return spec._main
+	local lua = plugin_dir(spec) .. "/lua"
+	if vim.fn.isdirectory(lua) == 1 then
+		spec._main = find_main(spec, lua)
+		spec._main_resolved = true
+		return spec._main
+	end
+	-- No lua/ dir (vim-only plugins like vim-abolish): return the heuristic
+	-- directly. Never call readdir on a missing dir; even pcall leaks E484.
+	return (spec.src and source_to_main(spec.src)) or spec.name
 end
 
 local function setup_plugin(spec)
@@ -369,7 +522,7 @@ local function setup_plugin(spec)
 end
 
 local function module_candidates(spec)
-	if spec._module_candidates then
+	if spec._main_resolved and spec._module_candidates then
 		return spec._module_candidates
 	end
 
@@ -393,7 +546,10 @@ local function module_candidates(spec)
 		add(spec.name)
 	end
 
-	spec._module_candidates = candidates
+	spec._module_candidates = nil
+	if spec._main_resolved then
+		spec._module_candidates = candidates
+	end
 	return candidates
 end
 
@@ -485,6 +641,7 @@ local function register_module_triggers(spec)
 	for _, module in ipairs(module_candidates(spec)) do
 		module_loaders[module] = spec.name
 	end
+	spec._has_module_triggers = true
 end
 
 local function suspend_module_triggers(spec)
@@ -504,7 +661,27 @@ end
 
 function M.load(name, opts)
 	local spec = by_name[name] or specs[name]
-	if not spec or loaded[spec.name] then
+	if not spec then
+		vim.notify("lazypack: unknown plugin " .. tostring(name), vim.log.levels.WARN)
+		return
+	end
+
+	local wants_plugins = not opts or opts.plugins ~= false
+
+	if loaded[spec.name] then
+		if wants_plugins and not plugins_sourced[spec.name] then
+			for _, dep in ipairs(spec.dependencies or {}) do
+				M.load(dep, opts)
+			end
+			-- No trigger suspend here: sourcing plugin files does not need
+				-- module candidates (avoids a lua/ readdir per call). The
+				-- loading[] guard in the searcher already prevents re-entry.
+				local ok, err = pcall(source_plugin_files, spec)
+			if not ok then
+				error(err)
+			end
+			plugins_sourced[spec.name] = true
+		end
 		return
 	end
 
@@ -514,16 +691,23 @@ function M.load(name, opts)
 
 	loaded[spec.name] = true
 	loading[spec.name] = true
-	local suspended = suspend_module_triggers(spec)
+	-- Only specs with registered module triggers need suspend (avoids a
+	-- lua/ readdir for every eager plugin via module_candidates).
+	local suspended = spec._has_module_triggers and suspend_module_triggers(spec) or nil
 	local ok, err = pcall(function()
 		add_plugin_runtime(spec, opts)
 		setup_plugin(spec)
 	end)
-	restore_module_triggers(suspended)
+	if suspended then
+		restore_module_triggers(suspended)
+	end
 	loading[spec.name] = nil
 	if not ok then
 		loaded[spec.name] = nil
 		error(err)
+	end
+	if wants_plugins then
+		plugins_sourced[spec.name] = true
 	end
 end
 
@@ -540,7 +724,35 @@ local function parse_event(event)
 end
 
 local function register_event(spec, event)
-	local event_name, pattern = parse_event(event)
+	local event_name, pattern = nil, nil
+	if type(event) == "table" then
+		event_name = event.event or event[1]
+		pattern = event.pattern or event[2]
+		-- Allow "VeryLazy" and "Event pattern" shorthands inside table form.
+		if pattern == nil and type(event_name) == "string" then
+			event_name, pattern = parse_event(event_name)
+		elseif event_name == "VeryLazy" then
+			event_name, pattern = "User", "VeryLazy"
+		end
+	else
+		event_name, pattern = parse_event(event)
+	end
+	if type(event_name) == "table" then
+		-- Multi-event table form: { event = { "BufRead", "BufNewFile" }, pattern = ... }.
+		for _, name in ipairs(event_name) do
+			if type(name) == "string" then
+				register_event(spec, { event = name, pattern = pattern })
+			else
+				vim.notify("lazypack: invalid event for " .. spec.name, vim.log.levels.WARN)
+				return
+			end
+		end
+		return
+	end
+	if type(event_name) ~= "string" then
+		vim.notify("lazypack: invalid event for " .. spec.name, vim.log.levels.WARN)
+		return
+	end
 	vim.api.nvim_create_autocmd(event_name, {
 		group = group,
 		pattern = pattern,
@@ -577,6 +789,9 @@ local function replay_command(name, args)
 	vim.cmd(table.concat(parts, " "))
 end
 
+-- Command shim: registered with generic complete=file, nargs=*, range=true
+-- placeholders; the real command's own completion/validation applies after
+-- the first invocation loads the plugin and replays the command.
 local function register_cmd(spec, name)
 	vim.api.nvim_create_user_command(name, function(args)
 		pcall(vim.api.nvim_del_user_command, name)
@@ -598,12 +813,19 @@ local function feed_lhs(mode, lhs)
 end
 
 local function keymap_opts(key)
+	local remap = key.remap
+	if remap == nil and key.noremap ~= nil then
+		remap = key.noremap == false
+	end
 	return {
 		desc = key.desc,
-		noremap = key.noremap ~= false,
+		remap = remap,
 		silent = key.silent ~= false,
 		expr = key.expr,
 		nowait = key.nowait,
+		replace_keycodes = key.replace_keycodes,
+		buffer = key.buffer,
+		script = key.script,
 	}
 end
 
@@ -644,13 +866,8 @@ local function register_key(spec, key)
 		if type(rhs) == "function" then
 			return rhs()
 		end
-		if type(rhs) == "string" then
-			local mode = type(modes) == "table" and modes[1] or modes
-			feed_lhs(mode, rhs)
-		elseif rhs == nil then
-			local mode = type(modes) == "table" and modes[1] or modes
-			feed_lhs(mode, lhs)
-		end
+		local mode = type(modes) == "table" and modes[1] or modes
+		feed_lhs(mode, lhs)
 	end, opts)
 end
 
@@ -664,8 +881,32 @@ local function has_lazy_trigger(spec)
 	return spec.event ~= nil or spec.cmd ~= nil or spec.ft ~= nil or spec.keys ~= nil or spec.lazy == true
 end
 
+-- Normalize spec.event into a list of single event items (string or table form).
+-- Distinguishes a single table-form event { event=..., pattern=... } or
+-- { "Event", "pattern" } from a list of events.
+local function event_items(value)
+	if value == nil then
+		return {}
+	end
+	if type(value) == "string" then
+		return { value }
+	end
+	if type(value) ~= "table" then
+		return {}
+	end
+	if value.event ~= nil then
+		return { value }
+	end
+	-- Positional single pair { "Event", "pattern" }: the pattern looks like a
+	-- glob/path (contains *, ?, ., /), while a list of two events does not.
+	if type(value[1]) == "string" and type(value[2]) == "string" and #value == 2 and value[2]:find("[*?%.%/]") then
+		return { value }
+	end
+	return value
+end
+
 local function register_triggers(spec)
-	for _, event in ipairs(list(spec.event)) do
+	for _, event in ipairs(event_items(spec.event)) do
 		register_event(spec, event)
 	end
 	for _, cmd in ipairs(list(spec.cmd)) do
@@ -680,14 +921,19 @@ local function register_triggers(spec)
 end
 
 local function setup_very_lazy()
+	local function fire()
+		vim.schedule(function()
+			vim.api.nvim_exec_autocmds("User", { pattern = "VeryLazy" })
+		end)
+	end
+	if vim.v.vim_did_enter ~= 0 then
+		fire()
+		return
+	end
 	vim.api.nvim_create_autocmd("VimEnter", {
 		group = group,
 		once = true,
-		callback = function()
-			vim.schedule(function()
-				vim.api.nvim_exec_autocmds("User", { pattern = "VeryLazy" })
-			end)
-		end,
+		callback = fire,
 		desc = "Fire VeryLazy",
 	})
 end
@@ -729,7 +975,7 @@ local function run_build(spec)
 	if type(spec.build) == "string" then
 		run_shell_build(spec, spec.build)
 	elseif type(spec.build) == "function" then
-		add_plugin_runtime(spec)
+		add_plugin_runtime(spec, { plugins = false })
 		spec.build()
 	end
 end
@@ -754,11 +1000,20 @@ function M.run_build_hooks(names)
 		local spec = by_name[name] or specs[name]
 		if spec then
 			run_build(spec)
+		else
+			vim.notify("lazypack: unknown plugin " .. tostring(name), vim.log.levels.WARN)
 		end
 	end
 end
 
 function M.setup(imports)
+	specs = {}
+	by_name = {}
+	loaded = {}
+	loading = {}
+	build_hooks = {}
+	module_loaders = {}
+	plugins_sourced = {}
 	reset_paths()
 	import_specs(imports)
 
@@ -776,15 +1031,46 @@ function M.setup(imports)
 	end
 
 	for _, spec in ipairs(ordered) do
-		add_local_dir(spec)
 		local item = pack_spec(spec)
 		if item then
 			table.insert(install, item)
 		end
 	end
 
+	-- Pre-seed rtp in one option update (fast path) after install, so fresh
+	-- clones are on disk and included. Later per-plugin prepends become
+	-- hash-only no-ops via rtp_seen. Order follows `ordered`.
 	if #install > 0 then
 		vim.pack.add(install, { load = function() end })
+		-- Install may have created dirs; drop memoized fallback paths so
+		-- re-resolution picks the real opt/start location.
+		for _, spec in ipairs(ordered) do
+			spec._dir = nil
+		end
+	end
+
+	do
+		local rtp_batch = {}
+		for _, spec in ipairs(ordered) do
+			-- Mirror startup rtp behavior: dir specs (add_local_dir adds all)
+			-- plus eager remote specs (added by M.load). Do NOT include lazy
+			-- remote specs: pre-seeding them lets Vim's "loading rtp plugins"
+			-- phase source their plugin/ files at startup, defeating laziness.
+			local eager = not spec._dep and not (has_lazy_trigger(spec) and spec.lazy ~= false)
+			if spec.dir or eager then
+				local dir = plugin_dir(spec)
+				local exists = vim.fn.isdirectory(dir) == 1
+				spec._dir_exists = exists
+				if exists then
+					table.insert(rtp_batch, dir)
+				end
+			end
+		end
+		batch_insert_runtime_dirs(rtp_batch)
+	end
+
+	for _, spec in ipairs(ordered) do
+		add_local_dir(spec)
 	end
 
 	for _, spec in ipairs(ordered) do
@@ -811,7 +1097,22 @@ function M.setup(imports)
 			register_module_triggers(spec)
 			register_triggers(spec)
 		else
-			M.load(spec.name)
+			-- Existence was recorded during batch pre-seed (no syscall here).
+			-- Fall back to a live check only when the flag is absent
+			-- (e.g. specs created after batch, which does not happen at
+				-- startup but keeps the guard correct if reused later).
+			local dir_ok = spec._dir_exists
+			if dir_ok == nil then
+				dir_ok = vim.fn.isdirectory(plugin_dir(spec)) == 1
+			end
+			if not dir_ok then
+				if not spec.dir then
+					vim.notify("lazypack: missing plugin, restart after install: " .. spec.name, vim.log.levels.WARN)
+				end
+			end
+			if dir_ok then
+				M.load(spec.name)
+			end
 			register_eager_keys(spec)
 		end
 	end
