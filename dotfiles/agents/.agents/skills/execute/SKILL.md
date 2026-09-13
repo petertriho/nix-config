@@ -94,6 +94,9 @@ When the user provides `TASKS.md`:
 
 ## TDD Decision Rule
 
+For a settled plan's explicit test-first handoff, use the exception in TDD
+Workflow. Otherwise, apply these defaults.
+
 Use test-driven development when the change affects observable behavior that can
 be exercised through a public interface. Default to TDD for:
 
@@ -122,8 +125,9 @@ being implemented now.
 
 ## TDD Workflow
 
-Execute vertical slices. Do not write all tests first and then all production
-code; bulk test-writing locks in imagined behavior and creates brittle tests.
+Execute vertical slices unless the settled plan explicitly requires the
+test-first handoff below. Otherwise, do not write all tests before production
+code. Bulk test-writing locks in imagined behavior and creates brittle tests.
 
 For each behavior:
 
@@ -138,6 +142,22 @@ For each behavior:
 
 Good tests verify behavior, not private implementation details. They should
 survive internal refactors that keep behavior unchanged.
+
+### Explicit Test-First Handoffs
+
+When the settled plan requires a separate test-only delivery before implementation:
+
+1. Write only the agreed tests and necessary test fixtures during the test-only task.
+2. Verify that expected failures demonstrate missing planned behavior, not setup
+   errors or unrelated regressions.
+3. When the test-only acceptance checks pass, mark that task complete.
+4. Report the expected failures as handoff evidence, not as a green implementation.
+5. In the dependent implementation tasks, make the delivered tests pass one
+   behavior at a time.
+
+Verified expected failures satisfy the test-only task's validation, not the
+implementation tasks' validation. Complete implementation only after all planned
+behavior and final validation pass.
 
 ## Optional Subagent Orchestration
 
@@ -156,8 +176,10 @@ Bundled role prompts live in `references/subagents/`:
 Before using a subagent role or following it inline, read the corresponding
 bundled prompt and apply its boundaries.
 
-If subagents are unavailable, follow the same role boundaries inline. Never let a
-test-writing phase become a horizontal all-tests-first batch.
+If subagents are unavailable, follow the same role boundaries inline.
+For explicit test-first handoffs, repeat the single-behavior test-writer role
+before starting implementation roles. Otherwise, never let a test-writing phase
+become a horizontal all-tests-first batch.
 
 ### Subagent Handoff Contract
 
@@ -172,8 +194,8 @@ Each subagent handoff should include:
 
 ## Blockers
 
-If a valid failing test cannot be made green without changing scope,
-requirements, or public interface:
+For implementation tasks, if a valid failing test cannot be made green without
+changing scope, requirements, or public interface:
 
 1. Stop the implementation loop.
 2. Preserve the failing test if it accurately captures desired behavior.

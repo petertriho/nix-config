@@ -14,13 +14,11 @@ clear scope, dependencies, and acceptance checks.
 
 1. Locate and read the source plan.
    - If the user named a file, read that file before producing tasks.
-   - If the source is `.artifacts/<plan-name>/PLAN.md`, use the same
-     `.artifacts/<plan-name>/` directory for the task file.
    - If the plan is only in the conversation, use the latest complete plan or
      planner output. Do not infer missing requirements from earlier brainstorms
      unless they were carried into the final plan.
    - Identify the goal, non-goals, assumptions, settled decisions, proposed
-     approach, validation requirements, risks, and open questions.
+     approach, validation requirements, risks, open questions, and Handoff Notes.
 
 2. Check whether the plan is task-ready.
    - Convert only settled plans. If the user is still shaping scope or asking
@@ -61,22 +59,48 @@ clear scope, dependencies, and acceptance checks.
      details.
    - Add explicit test, review, migration, rollout, monitoring, or cleanup tasks
      when the plan requires them.
+   - For an explicit test-first handoff, include verified expected failures in
+     the test-only task's `Acceptance`.
+   - Make the corresponding implementation tasks depend on that handoff.
    - Do not require TDD for every task. Leave the final TDD decision to the
      implementation skill, which can skip or adapt TDD for docs, config,
      mechanical refactors, generated files, and discovery work.
 
 6. Save or update the tasks.
-   - Write the final tasks to `.artifacts/<plan-name>/TASKS.md`.
-   - Create `.artifacts/<plan-name>/` if it does not already exist.
-   - If `TASKS.md` already exists, read it first and update it deliberately;
-     preserve completed checkboxes and user-authored context unless the user
-     explicitly asked for replacement.
-   - If no `.artifacts/<plan-name>/PLAN.md` exists, choose a concise kebab-case
-     `<plan-name>` based on the plan goal.
+   - Resolve `.artifacts/` from the project root, or the working directory
+     if no project root exists.
+   - Choose the destination in this order:
+     1. For an explicit revision, use the identified task file's existing path.
+     2. For a source `.artifacts/<plan-name>/PLAN.md`, use its sibling `TASKS.md`.
+     3. Otherwise, choose a new destination:
+        - Use `.artifacts/<plan-name>/TASKS.md` with a concise,
+          goal-based kebab-case name.
+        - If the directory exists, choose an unused suffix such as
+          `-2`, `-3`, or a timestamp.
+   - Do not infer a revision from matching goals or directory names.
+   - If the selected task file exists, read its latest contents before editing.
+   - For updates, unless the user explicitly requests replacement:
+     - Preserve user-authored context and completed task IDs, checkboxes, scope,
+       and acceptance criteria as history.
+     - Compare the revised plan, including Handoff Notes, against existing
+       tasks and dependencies.
+     - For invalidated or expanded completed work:
+       - Reuse a corrective task if it already covers the required change.
+       - Otherwise, append an unchecked corrective task with a new ID.
+     - Do not rewrite checked tasks to describe changed work.
+     - In `Why`, identify the historical task IDs and acceptance criteria
+       superseded by each correction.
+     - Update pending dependencies and Suggested Sequence to wait for corrections
+       where needed.
+     - Add corrective tasks for completed dependents when their guarantees are
+       also invalidated.
+   - During replacement, redefined work must start unchecked.
+   - Create the selected task directory only if needed.
+   - Write the selected task file using Task Output Format.
 
 ## Task Output Format
 
-Use these sections in `.artifacts/<plan-name>/TASKS.md`:
+Use these sections in the selected `TASKS.md`:
 
 1. Task Summary
    - One paragraph describing the execution path, important sequencing logic,

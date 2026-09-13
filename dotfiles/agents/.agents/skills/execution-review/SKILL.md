@@ -50,7 +50,7 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
    - From `PLAN.md`: goal, non-goals, assumptions, settled decisions, and the
      validation section.
    - From `TASKS.md`: every task with its checkbox state, scope, out-of-scope
-     notes, and acceptance lines.
+     notes, acceptance lines, and supersession links in `Why`.
 
 2. **Resolve the review scope.**
    - With a base ref:
@@ -68,7 +68,15 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
      is the behavior the patches introduce or change.
 
 3. **Check task conformance.**
-   - For each task, for each acceptance line, record `met`, `not met`, or
+   - Resolve explicit supersession links in `Why` against the revised plan.
+   - Treat acceptance as historical only when the plan authorizes its replacement
+     and a corrective task covers that replacement.
+   - Record superseded task IDs, acceptance lines, plan references, and corrective
+     task IDs in Review Limits.
+   - Exclude only that historical acceptance from current conformance and
+     checkbox mismatch checks.
+   - Check corrective tasks and all unsuperseded acceptance normally.
+   - For each current acceptance line, record `met`, `not met`, or
      `unverified`, with the evidence (`path:line`, command output, or the
      reason it could not be verified).
    - Confirm the checkbox state matches the diff: a `[x]` task whose acceptance
@@ -88,17 +96,18 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
      task covers the change.
 
 6. **Run validation.**
-   - Run the validation commands named in `PLAN.md` and `TASKS.md`. Record each
-     command, its exit status, and a short result. Do not run commands with
-     side effects on tracked files.
+   - Do not run commands with side effects on tracked files.
+   - Exclude commands that apply only to superseded acceptance.
+   - Run the remaining validation commands named in `PLAN.md` and `TASKS.md`.
+   - Record each command, its exit status, and a short result.
 
 7. **Write `REVIEW.md`.**
    - Follow `references/output-format.md` exactly: verdict header, Task
      Conformance table, Findings in severity order, Validation Run, Review
      Limits.
    - Verdict is `NEEDS CHANGES` when any CRITICAL or HIGH finding exists, any
-     acceptance line is `not met` for a `[x]` task, a non-goal was implemented,
-     or a settled decision was reversed. Otherwise `APPROVED`.
+     current acceptance line is `not met` for a `[x]` task, a non-goal was
+     implemented, or a settled decision was reversed. Otherwise `APPROVED`.
 
 8. **Report.**
    - Final message: the verdict, the count of findings per severity, and the
