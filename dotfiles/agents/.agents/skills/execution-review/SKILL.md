@@ -50,7 +50,8 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
    - From `PLAN.md`: goal, non-goals, assumptions, settled decisions, and the
      validation section.
    - From `TASKS.md`: every task with its checkbox state, scope, out-of-scope
-     notes, acceptance lines, and supersession links in `Why`.
+     notes, acceptance lines, supersession links in `Why`, validation notes,
+     and recorded handoff evidence.
 
 2. **Resolve the review scope.**
    - With a base ref:
@@ -69,19 +70,27 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
 
 3. **Check task conformance.**
    - Resolve explicit supersession links in `Why` against the revised plan.
-   - Treat acceptance as historical only when the plan authorizes its replacement
+   - Treat acceptance as superseded only when the plan authorizes its replacement
      and a corrective task covers that replacement.
    - Record superseded task IDs, acceptance lines, plan references, and corrective
      task IDs in Review Limits.
    - Exclude only that historical acceptance from current conformance and
      checkbox mismatch checks.
    - Check corrective tasks and all unsuperseded acceptance normally.
+   - For explicit test-first handoffs, assess delivery-time acceptance against
+     the saved `Handoff evidence`, not the later green implementation.
+   - Check that the recorded tests, command context, exit status, and failure
+     reason support the agreed pre-implementation handoff.
+   - Cite this as executor-reported evidence, separately from validation rerun
+     during review. Missing or insufficient historical evidence is `unverified`.
+   - Do not infer a past RED run from a checkbox or currently passing tests.
    - For each current acceptance line, record `met`, `not met`, or
      `unverified`, with the evidence (`path:line`, command output, or the
      reason it could not be verified).
    - Confirm the checkbox state matches the diff: a `[x]` task whose acceptance
-     is `not met` and a `[ ]` task whose work is present in the diff are both
-     findings.
+     is `not met` and a `[ ]` task whose current acceptance is fully `met` are
+     both findings. Work present in the diff is not sufficient when acceptance
+     is unmet or unverified.
    - Note work in the diff that no task covers.
 
 4. **Check non-goals and settled decisions.**
@@ -98,6 +107,8 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
 6. **Run validation.**
    - Do not run commands with side effects on tracked files.
    - Exclude commands that apply only to superseded acceptance.
+   - Use saved evidence for historical RED-only checks. Still run commands that
+     also validate current implementation, with the current expected outcome.
    - Run the remaining validation commands named in `PLAN.md` and `TASKS.md`.
    - Record each command, its exit status, and a short result.
 

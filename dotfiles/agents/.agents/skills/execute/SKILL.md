@@ -82,15 +82,37 @@ When the user explicitly asks to implement a plan:
 When the user provides `TASKS.md`:
 
 1. Read the full task file and the sibling `PLAN.md` if it exists.
-2. Identify pending tasks, dependencies, suggested sequence, acceptance checks,
-   open questions, and non-goals.
-3. Execute all unblocked pending tasks in suggested order unless the user names a
+2. Record which task IDs were already checked before this execution began.
+   Retain this baseline across continuations. If it is unavailable, do not guess
+   which checked tasks belong to this run.
+3. Identify pending tasks, dependencies, suggested sequence, acceptance checks,
+   validation notes, open questions, and non-goals.
+4. Execute all unblocked pending tasks in suggested order unless the user names a
    narrower subset.
-4. After each task's acceptance checks and relevant validation pass, immediately
-   edit `TASKS.md` on disk to mark that one checkbox complete, before starting
-   the next task. Update checkboxes incrementally as you go; never batch all
-   checkbox edits until the end of the run.
-5. Preserve completed checkboxes and user-authored context.
+5. After its acceptance checks and relevant validation pass, mark that task complete
+   in `TASKS.md`.
+   - For test-only handoffs, save the required handoff evidence before checking the task.
+   - Update each checkbox before starting the next task. Never batch checkbox edits at the end.
+6. Preserve user-authored context and completion history from before this run.
+
+### Later Validation Failures
+
+For task-file execution, if later validation disproves current acceptance:
+
+1. Pause work that depends on the invalidated guarantees.
+2. Reset affected checkboxes completed in this run to `[ ]`, including dependents
+   whose acceptance is also invalidated.
+3. Preserve pre-existing completed checkboxes, scope, and acceptance as history.
+4. Add a concise `Validation note` under each affected task with the failing command,
+   observed result, invalidated criterion, and blocked dependencies.
+5. Repair within the approved scope, or follow Blockers when a decision is needed.
+6. After acceptance checks and relevant validation pass, recheck each reset task.
+7. Mark the corresponding validation notes resolved.
+
+Unresolved notes about current acceptance block dependent work even when historical
+checkboxes stay checked. A broad failure or skipped validation does not justify clearing
+unrelated tasks. Do not treat acceptance superseded by an approved plan correction
+as a regression. A test-only handoff stays valid when implementation makes its tests green.
 
 ## TDD Decision Rule
 
@@ -150,9 +172,18 @@ When the settled plan requires a separate test-only delivery before implementati
 1. Write only the agreed tests and necessary test fixtures during the test-only task.
 2. Verify that expected failures demonstrate missing planned behavior, not setup
    errors or unrelated regressions.
-3. When the test-only acceptance checks pass, mark that task complete.
-4. Report the expected failures as handoff evidence, not as a green implementation.
-5. In the dependent implementation tasks, make the delivered tests pass one
+3. Before marking the task complete, save a `Handoff evidence` note under that task
+   in `TASKS.md`, if present. Include:
+   - Test paths and names.
+   - The command, working directory, and observed exit status.
+   - Expected versus observed failures and why they demonstrate missing planned behavior.
+   - The delivery stage, identifying the pre-implementation state and dependent task.
+   Keep the note concise and redact secrets. Preserve it after the tests turn green.
+   Without a task file, include this evidence in the completion report instead.
+   Do not create task artifacts unless requested.
+4. When the test-only acceptance checks pass and evidence is recorded, mark that task complete.
+5. Report the expected failures as handoff evidence, not as a green implementation.
+6. In the dependent implementation tasks, make the delivered tests pass one
    behavior at a time.
 
 Verified expected failures satisfy the test-only task's validation, not the

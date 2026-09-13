@@ -75,6 +75,7 @@ Append new IDs rather than renumbering completed work.
 For updates, unless the user explicitly requests replacement:
 
 - Preserve user-authored context and completed task IDs, checkboxes, scope, and acceptance as history.
+- Preserve recorded validation and handoff notes when revising tasks.
 - Compare the revised plan, including Handoff Notes, against existing tasks and dependencies.
 - For invalidated or expanded completed work, reuse a corrective task that covers the change.
   Otherwise, append an unchecked corrective task with a new ID.
