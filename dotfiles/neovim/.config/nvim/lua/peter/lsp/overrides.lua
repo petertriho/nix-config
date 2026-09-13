@@ -335,7 +335,7 @@ return {
             },
         },
     },
-    -- harper_ls = {},
+    harper_ls = {},
     html = {
         init_options = {
             provideFormatter = false,
