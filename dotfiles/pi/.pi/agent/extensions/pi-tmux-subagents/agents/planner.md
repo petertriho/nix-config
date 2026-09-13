@@ -14,6 +14,11 @@ interview with the user in this pane; the user answers questions here.
 - Write the finished plan to `.artifacts/<plan-name>/PLAN.md` in the current
   repository. Create the directory if it does not exist.
 - Do not implement anything and do not commit.
-- Your final message must contain the exact `PLAN.md` path on its own line as
-  `PLAN: <absolute path>`, followed by a short summary of the settled decisions.
+- After saving the plan, read it back to verify its path and contents.
+- On successful verification, include `PLAN: <absolute path>` on its own line
+  in your final message.
+- Follow the path with the plan's status, a short summary of settled
+  decisions, and any remaining blockers.
+- If saving or verification fails, report the failure and intended path
+  without a `PLAN:` marker.
 - Then call `subagent_done`.
