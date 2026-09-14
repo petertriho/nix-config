@@ -126,13 +126,10 @@ end
 return {
     {
         "folke/tokyonight.nvim",
+        enabled = theme.alias == "tokyonight",
         lazy = false,
         priority = 1000,
         config = function()
-            if theme.alias ~= "tokyonight" then
-                return
-            end
-
             require("tokyonight").setup({
                 style = "night",
                 sidebars = require("peter.core.filetypes").sidebars,
@@ -150,13 +147,10 @@ return {
     {
         "catppuccin/nvim",
         name = "catppuccin",
+        enabled = theme.alias == "catppuccin",
         lazy = false,
         priority = 1000,
         config = function()
-            if theme.alias ~= "catppuccin" then
-                return
-            end
-
             require("catppuccin").setup({
                 flavour = "mocha",
                 background = { dark = "mocha" },
@@ -171,14 +165,11 @@ return {
     {
         dir = vim.fn.stdpath("config"),
         name = "stylix-colorscheme",
-        dependencies = theme.alias ~= "tokyonight" and theme.alias ~= "catppuccin" and { "nvim-mini/mini.nvim" } or {},
+        enabled = theme.alias ~= "tokyonight" and theme.alias ~= "catppuccin",
+        dependencies = { "nvim-mini/mini.nvim" },
         lazy = false,
         priority = 1000,
         config = function()
-            if theme.alias == "tokyonight" or theme.alias == "catppuccin" then
-                return
-            end
-
             require("mini.base16").setup({
                 palette = theme.base16,
                 use_cterm = true,
