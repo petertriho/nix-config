@@ -189,8 +189,13 @@ rule above.
 
 1. Read `REVIEW.md`. Show the user the verdict and the findings grouped by
    severity (CRITICAL, HIGH, MEDIUM, INFO) with one line each.
-2. Ask the user whether to run one fix pass for the CRITICAL and HIGH
-   findings or to stop here. Wait.
+2. Explain the fix-pass scope to the user: every `CRITICAL` and `HIGH`
+   finding plus every independently verdict-blocking finding regardless of
+   severity: current acceptance `not met` for a checked (`[x]`) task,
+   implemented non-goals, or reversed settled decisions. Exclude ordinary
+   `MEDIUM` and `INFO` findings and `unverified` acceptance alone. Do not
+   inflate severity. Ask the user whether to run one fix pass for this scope
+   or to stop here. Wait.
 
 ## Phase 5: Fix pass (only after approval at Gate 3)
 
@@ -200,13 +205,14 @@ Rename the window to ` Executing`. `SendMessage` the executor with the
 ```
 SendMessage({
   to: "<executor agent name>",
-  message: "Fix the CRITICAL and HIGH findings in <absolute REVIEW.md path>. Keep TASKS.md checkboxes accurate. Do not commit. Report what changed and the validation run."
+  message: "Fix every CRITICAL and HIGH finding in <absolute REVIEW.md path>, plus every independently verdict-blocking finding regardless of severity: current acceptance not met for a checked ([x]) task, implemented non-goals, or reversed settled decisions. Exclude ordinary MEDIUM and INFO findings and unverified acceptance alone. Do not inflate severity. Keep TASKS.md checkboxes accurate. Never stage or commit. Report what changed and every validation command with its result."
 })
 ```
 
-If the continuation fails, spawn a fresh executor with the artifact paths
-and the base ref (the executor role's model applies again). Report the
-result. Then run Gate 4; never re-review automatically.
+If the continuation fails, spawn a fresh executor with the same fix-pass
+message, the artifact paths, and the base ref (the executor role's model
+applies again). Report the result. Then run Gate 4; never re-review
+automatically.
 
 ## Gate 4: Re-review choice (after every approved fix pass)
 

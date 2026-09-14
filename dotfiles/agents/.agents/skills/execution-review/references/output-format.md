@@ -1,7 +1,10 @@
 # REVIEW.md Format
 
-Write exactly one file. Keep the order of sections. Use `CRITICAL`, `HIGH`,
-`MEDIUM`, or `INFO` exactly.
+Write exactly one file when a review target is resolved.
+On an input failure with no explicit
+target or valid resolved `PLAN.md`, return the Nothing Reviewed format in the
+final response without creating a file. Keep the order of sections. Use
+`CRITICAL`, `HIGH`, `MEDIUM`, or `INFO` exactly.
 
 ## Review Written
 

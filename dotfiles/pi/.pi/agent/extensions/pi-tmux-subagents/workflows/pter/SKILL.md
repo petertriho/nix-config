@@ -243,8 +243,13 @@ Wait for the delivered result.
 1. Read `REVIEW.md`.
 2. Show the verdict and findings grouped by `CRITICAL`, `HIGH`, `MEDIUM`, and
    `INFO`, with one concise line per finding and a count for every severity.
-3. Ask whether to run one fix pass for the `CRITICAL` and `HIGH` findings or
-   to stop here. Wait.
+3. Explain the fix-pass scope to the user: every `CRITICAL` and `HIGH`
+   finding plus every independently verdict-blocking finding regardless of
+   severity: current acceptance `not met` for a checked (`[x]`) task,
+   implemented non-goals, or reversed settled decisions. Exclude ordinary
+   `MEDIUM` and `INFO` findings and `unverified` acceptance alone. Do not
+   inflate severity. Ask whether to run one fix pass for this scope or to
+   stop here. Wait.
 4. If the user chooses to stop here, proceed to **Done** without a fix pass.
 5. If the user approves a fix pass, continue to Phase 5.
 6. A cancellation or unrelated terminal stop aborts instead of continuing.
@@ -263,7 +268,7 @@ workflow_resume({
     review: "<absolute REVIEW.md path>",
     baseRef: "<base ref>"
   },
-  message: "Fix the CRITICAL and HIGH findings in <absolute REVIEW.md path>. Keep TASKS.md checkboxes accurate. Never stage or commit. Report what changed and every validation command with its result."
+  message: "Fix every CRITICAL and HIGH finding in <absolute REVIEW.md path>, plus every independently verdict-blocking finding regardless of severity: current acceptance not met for a checked ([x]) task, implemented non-goals, or reversed settled decisions. Exclude ordinary MEDIUM and INFO findings and unverified acceptance alone. Do not inflate severity. Keep TASKS.md checkboxes accurate. Never stage or commit. Report what changed and every validation command with its result."
 })
 ```
 

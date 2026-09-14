@@ -19,9 +19,25 @@ settled decisions, and it may write `REVIEW.md`. It never edits anything else.
   the output of `git rev-parse HEAD` taken before the run.
 - `REVIEW.md` target (optional). Defaults to `REVIEW.md` next to `PLAN.md`.
 
-If `PLAN.md` or `TASKS.md` cannot be found, list `.artifacts/` by modification
-time, pick the newest directory that contains both files, and state that
-choice in the review. If none exists, stop and report "Nothing Reviewed".
+Resolve inputs without replacing an explicit path:
+
+- If an explicitly supplied `PLAN.md` or `TASKS.md` path is missing or
+  unreadable, stop with "Nothing Reviewed". Never substitute another path.
+- If only one input is omitted, use the sibling file next to the supplied
+  input.
+- If that sibling is missing or unreadable, stop with "Nothing Reviewed".
+  Do not search another directory.
+- If both inputs are omitted, list the repository root's `.artifacts/` directories
+  by modification time.
+- For discovery, select the newest directory containing both readable
+  files.
+- State the choice in the review.
+- If no complete pair exists, stop with "Nothing Reviewed".
+
+For an input failure, use the Nothing Reviewed format in
+`references/output-format.md`. Write it only to an explicit `REVIEW.md` target
+or next to a valid resolved `PLAN.md`. Otherwise, report it in the final
+response without creating a file.
 
 ## References
 
@@ -42,7 +58,7 @@ choice in the review. If none exists, stop and report "Nothing Reviewed".
   (tests, typecheck, lint, build).
 - Do not commit or stage.
 - If the user asks to fix findings, stop, summarize the actionable findings,
-  and wait for approval before switching to `implement`.
+  and wait for approval before switching to `execute` as a separate workflow.
 
 ## Workflow
 

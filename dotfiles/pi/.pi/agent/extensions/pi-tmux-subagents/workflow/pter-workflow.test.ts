@@ -30,6 +30,12 @@ const EXECUTION_REVIEW_SKILL = fileURLToPath(
 		import.meta.url,
 	),
 );
+const CLAUDE_PTER_SKILL = fileURLToPath(
+	new URL(
+		"../../../../../../claude/.claude/skills/pter/SKILL.md",
+		import.meta.url,
+	),
+);
 
 function loadPter() {
 	const loaded = loadWorkflowDefinitionFromPackage(PACKAGE_ROOT);
@@ -150,6 +156,59 @@ test("Pter review scope includes untracked files without executor path bookkeepi
 	);
 	assert.match(executionReview, /changes that existed\s+before implementation/);
 });
+
+function assertFixPassScope(instruction: string) {
+	const text = instruction.replace(/`/g, "").replace(/\s+/g, " ");
+	assert.match(text, /every independently verdict-blocking findings? regardless of severity/);
+	assert.match(text, /every CRITICAL and HIGH finding/);
+	assert.match(text, /current acceptance not met for a checked \(\[x\]\) task/);
+	assert.match(text, /implemented non-goals/);
+	assert.match(text, /reversed settled decisions/);
+	assert.match(
+		text,
+		/Exclude ordinary MEDIUM and INFO findings and unverified acceptance alone/,
+	);
+	assert.match(text, /Do not inflate severity/);
+}
+
+for (const [variant, skillPath] of [
+	["Pi", join(PACKAGE_ROOT, "SKILL.md")],
+	["Claude", CLAUDE_PTER_SKILL],
+]) {
+	test(`${variant} Pter Gate 3 offers the full verdict-blocking fix scope only with approval`, () => {
+		const skill = readFileSync(skillPath, "utf8");
+		const gate = skill.match(/## Gate 3:[^\n]*\n([\s\S]*?)\n## Phase 5:/)?.[1];
+		assert.ok(gate, "missing Gate 3 before Phase 5");
+		assertFixPassScope(gate);
+		assert.match(
+			gate.replace(/\s+/g, " "),
+			/Ask (?:the user )?whether to run one fix pass for this scope or to stop here\. Wait\./,
+		);
+	});
+
+	test(`${variant} Pter Phase 5 sends a self-contained fix scope and preserves fix-pass boundaries`, () => {
+		const skill = readFileSync(skillPath, "utf8");
+		const phase = skill.match(/## Phase 5:[^\n]*\n([\s\S]*?)\n## Gate 4:/)?.[1];
+		assert.ok(phase, "missing Phase 5 before Gate 4");
+		const message = phase.match(/message: "([^"\n]+)"/)?.[1];
+		assert.ok(message, "missing executor message");
+		assertFixPassScope(message);
+		assert.match(message, /in <absolute REVIEW\.md path>/);
+		assert.match(message, /Keep TASKS\.md checkboxes accurate/);
+		assert.match(message, /Never stage or commit/);
+		assert.match(message, /Report what changed and every validation command with its result/);
+		assert.match(
+			phase.replace(/\s+/g, " "),
+			/Gate 4[.;] [Nn]ever re-review automatically/,
+		);
+		if (variant === "Claude") {
+			assert.match(
+				phase.replace(/\s+/g, " "),
+				/If the continuation fails, spawn a fresh executor with the same fix-pass message, the artifact paths, and the base ref/,
+			);
+		}
+	});
+}
 
 test("bundled discovery exposes /pter as the manifest alias and private startup uses the package snapshot", () => {
 	const emptyGlobal = mkdtempSync(join(tmpdir(), "pter-empty-global-"));
