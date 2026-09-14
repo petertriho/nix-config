@@ -30,12 +30,6 @@ keymap("n", "[d", function()
     vim.diagnostic.jump({ count = -1, float = true })
 end, { desc = "Prev Diagnostic" })
 
--- Line Text Objects
-keymap("v", "al", ":<C-u>norm!0v$h<CR>", { unpack(opts), desc = "Outer Line" })
-keymap("v", "il", ":<C-u>norm!^vg_<CR>", { unpack(opts), desc = "Inner Line" })
-keymap("o", "al", ":norm val<CR>", { unpack(opts), desc = "Outer Line" })
-keymap("o", "il", ":norm vil<CR>", { unpack(opts), desc = "Inner Line" })
-
 -- Search: In Visual Selection (gV avoids shadowing built-in gv reselect)
 keymap("x", "gV", [[<Esc>/\%V]], { unpack(opts), desc = "Search in visual selection" })
 
