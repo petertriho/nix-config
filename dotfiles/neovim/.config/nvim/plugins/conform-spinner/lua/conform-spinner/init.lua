@@ -52,6 +52,8 @@ M.spinner = {
 local format_msg = function(msg)
     if type(msg) == "table" then
         msg = vim.inspect(msg)
+    else
+        msg = tostring(msg)
     end
     return msg:gsub("(" .. string.rep(".", 80) .. ")", "%1\n")
 end
@@ -132,7 +134,7 @@ local refresh = function(bufnr, notif_id)
 
     vim.notify(msg, notif_level, {
         id = notif_id,
-        title = spinner_state.title,
+        title = spinner_state.failed_formatter and "Failed" or spinner_state.title,
         replace = true,
         opts = function(notif)
             if spinner_state.failed_formatter then
