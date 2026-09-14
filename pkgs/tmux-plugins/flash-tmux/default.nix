@@ -6,12 +6,12 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "flash";
-  version = "0.1.2-unstable-2026-09-11";
+  version = "0.1.4-unstable-2026-09-14";
   src = fetchFromGitHub {
     owner = "and-rs";
     repo = "flash.tmux";
-    rev = "ffde0ddb1c1173da96b313a709a66c90e76018c9";
-    sha256 = "sha256-+JSL1AB9rRb1oucEHTzBRw9tbkVf+RKZiJnpdCeIFK8=";
+    rev = "a0548461801a880b9b640ded951e9ddac42554d2";
+    sha256 = "sha256-8vhi1bseqE0jmOTj5a036KSccuLI8np3G9Kf/xuBFas=";
   };
   rtpFilePath = "flash.tmux";
   nativeBuildInputs = [ zig_0_16 ];

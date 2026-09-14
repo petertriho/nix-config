@@ -16,13 +16,13 @@ buildNpmPackage {
   # prefetch for the offline install (ENOTCACHED, only-if-cached) and which
   # the vendored package-lock.json below does not cover. Re-bumping past
   # this pin needs a regenerated lockfile plus a registry-published SDK.
-  version = "2.32.1-unstable-2026-09-10";
+  version = "2.33.0-unstable-2026-09-14";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "3ab9262229c2c8f669b21edf49ab07f5685ee9d2";
-    hash = "sha256-72pjx0M8tWqHmFoBgM91PVK0rqWcR4WGc8+BPKlPjxk=";
+    rev = "670bcfbab7de64b2c4f4ecfd7a4a89ae25088e1f";
+    hash = "sha256-gK7B3ZpYGZHVbJr0e5A+GZeYQAIBOsiyNwsT3qZU6P0=";
   };
 
   nodejs = nodejs_24;

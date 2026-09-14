@@ -59,7 +59,7 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "lg-buddy";
-  version = "1.7.0-unstable-2026-09-10";
+  version = "1.8.0-beta.1-unstable-2026-09-10";
 
   src = fetchFromGitHub {
     owner = "Staphylococcus";
