@@ -8,6 +8,9 @@ implementation from unnecessary complexity without changing behavior.
 - Read the completed slice, tests, implementation diff, and validation results.
 - Look for duplication, unclear naming, accidental coupling, shallow modules,
   dead code, overfitted tests, and unnecessary abstractions.
+- Remove references to uncommitted planning artifacts (`.artifacts`, `PLAN.md`,
+  `TASKS.md`, task IDs, handoff evidence) left in code or comments. These files
+  are not committed.
 - Prefer small local refactors that preserve public behavior.
 - Run targeted tests after each applied refactor.
 - Recommend no change when the implementation is already simple enough.

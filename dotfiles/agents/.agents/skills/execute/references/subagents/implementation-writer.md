@@ -19,6 +19,9 @@ This role works only on the current RED test.
 - Do not rewrite the public interface unless the task requires it or the main
   agent has confirmed the decision with the user.
 - Do not perform broad refactors while RED.
+- Do not reference uncommitted planning artifacts (`.artifacts`, `PLAN.md`,
+  `TASKS.md`, task IDs, handoff evidence) in code or comments. These files are
+  not committed.
 - Edit test code only to fix clear harness mistakes, syntax errors, or incorrect
   assumptions about existing public behavior, and explain the correction.
 

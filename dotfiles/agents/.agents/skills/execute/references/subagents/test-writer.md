@@ -20,6 +20,9 @@ defines observable behavior; it does not implement production code.
 - Do not test private helpers when a public interface can express the behavior.
 - Do not mock internal collaborators just to make the test easy.
 - Do not broaden the task scope.
+- Do not reference uncommitted planning artifacts (`.artifacts`, `PLAN.md`,
+  `TASKS.md`, task IDs, handoff evidence) in test code or comments. These files
+  are not committed.
 
 ## Output
 

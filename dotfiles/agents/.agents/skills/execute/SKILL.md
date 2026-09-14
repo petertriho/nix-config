@@ -43,6 +43,11 @@ accessibility basics, compatibility requirements, or explicitly protected behavi
 Document a shortcut's known ceiling and replacement condition in a brief comment
 or completion note, not comments on obvious code.
 
+Never reference uncommitted planning artifacts in committed code or comments.
+Examples: `.artifacts`, `PLAN.md`, `TASKS.md`, task IDs, and handoff evidence.
+These files are not committed, so the reference dangles. Keep the comment
+self-contained. Put any artifact reference in the completion note instead.
+
 ## Inputs
 
 - **Direct request:** understand current behavior and tests, then derive a short
