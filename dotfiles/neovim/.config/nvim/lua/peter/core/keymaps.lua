@@ -47,7 +47,7 @@ end, {
 keymap("t", "<C-q>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
 -- Incremental Selection
-vim.keymap.set({ "x", "o" }, "]v", function()
+vim.keymap.set("x", "<CR>", function()
     if vim.treesitter.get_parser(nil, nil, { error = false }) then
         vim.treesitter.select("parent", vim.v.count1)
     else
@@ -55,7 +55,7 @@ vim.keymap.set({ "x", "o" }, "]v", function()
     end
 end, { desc = "Select parent (outer) node" })
 
-vim.keymap.set({ "x", "o" }, "[v", function()
+vim.keymap.set("x", "<BS>", function()
     if vim.treesitter.get_parser(nil, nil, { error = false }) then
         vim.treesitter.select("child", vim.v.count1)
     else
