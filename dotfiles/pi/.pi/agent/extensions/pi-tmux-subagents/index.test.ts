@@ -57,6 +57,7 @@ import {
 const savedSubagentEnv = {
 	PI_SUBAGENT_ID: process.env.PI_SUBAGENT_ID,
 	PI_SUBAGENT_SESSION: process.env.PI_SUBAGENT_SESSION,
+	PI_SUBAGENT_SHELL_READY_DELAY_MS: process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS,
 };
 
 before(() => {
@@ -64,6 +65,11 @@ before(() => {
 	// happens to run inside a pi subagent that exported PI_SUBAGENT_*.
 	delete process.env.PI_SUBAGENT_ID;
 	delete process.env.PI_SUBAGENT_SESSION;
+	// Surface-launching tests must stay fast and independent of the
+	// production shell-ready default (5000ms for slow direnv/devenv
+	// shells). Pin the delay to zero here; the getShellReadyDelayMs test
+	// below sets and restores the variable itself.
+	process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS = "0";
 });
 
 after(() => {
@@ -3093,15 +3099,15 @@ test("subagent_ping renderer shows the help request", () => {
 
 // ── widget and misc ──
 
-test("getShellReadyDelayMs defaults to 500 and honors the env override", () => {
+test("getShellReadyDelayMs defaults to 5000 and honors the env override", () => {
 	const original = process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS;
 	try {
 		delete process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS;
-		assert.equal(testApi.getShellReadyDelayMs(), 500);
+		assert.equal(testApi.getShellReadyDelayMs(), 5000);
 		process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS = "2500";
 		assert.equal(testApi.getShellReadyDelayMs(), 2500);
 		process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS = "nope";
-		assert.equal(testApi.getShellReadyDelayMs(), 500);
+		assert.equal(testApi.getShellReadyDelayMs(), 5000);
 	} finally {
 		restoreEnvVar("PI_SUBAGENT_SHELL_READY_DELAY_MS", original);
 	}

@@ -353,7 +353,7 @@ export function formatElapsed(seconds: number): string {
 export function getShellReadyDelayMs(): number {
 	const raw = process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS?.trim();
 	const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
-	return Number.isFinite(parsed) && parsed >= 0 ? parsed : 500;
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : 5000;
 }
 
 function getArtifactDir(sessionDir: string, sessionId: string): string {

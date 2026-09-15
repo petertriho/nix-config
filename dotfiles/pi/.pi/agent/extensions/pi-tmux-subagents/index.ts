@@ -638,12 +638,12 @@ async function manageAgentModels(ctx: AgentModelsContext): Promise<void> {
 /**
  * Wait long enough for a freshly created pane to finish shell startup.
  * Configurable through PI_SUBAGENT_SHELL_READY_DELAY_MS for slow shell init
- * (direnv, devenv). Default 500ms.
+ * (direnv, devenv). Default 5000ms.
  */
 function getShellReadyDelayMs(): number {
   const raw = process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS?.trim();
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 500;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 5000;
 }
 
 function muxUnavailableResult() {

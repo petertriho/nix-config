@@ -169,7 +169,17 @@ export async function readScreenAsync(pane: string, lines = 50): Promise<string>
 
 export function closeSurface(pane: string): void {
   requireTmux();
-  tmux(["kill-pane", "-t", pane]);
+  try {
+    tmux(["kill-pane", "-t", pane]);
+  } catch (error) {
+    // Cleanup is idempotent: the pane may already be gone (user closed it,
+    // child exited, or a prior cleanup won the race). Swallowing only the
+    // "can't find pane" case keeps real tmux failures loud while a dead
+    // pane never masks the subagent's actual result.
+    const message = error instanceof Error ? error.message : String(error);
+    if (/can't find pane/.test(message)) return;
+    throw error;
+  }
 }
 
 /** Rename the tmux window that owns the parent pi pane. */
