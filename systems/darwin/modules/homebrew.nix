@@ -54,6 +54,7 @@ in
       "floorp"
       "font-jetbrains-mono-nerd-font"
       "ghostty"
+      "glide"
       "google-chrome"
       "helium-browser"
       "iina"
