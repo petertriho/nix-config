@@ -28,13 +28,13 @@ let
   src = fetchFromGitHub {
     owner = "nolabs-ai";
     repo = "nono-packs";
-    rev = "4e8f2f801c4d980664b598da9c4d74310b9d1980";
-    hash = "sha256-NKxg0XnArUw3D9w5EAxlBmgGgTzOUuv6K7zCf1OmQVE=";
+    rev = "42cc1291b5dec584c1f222775d82984d81a6f8b5";
+    hash = "sha256-pszvahUFEkGz1gSDzgmfswyppYztHH9B7LzXC4ujoIs=";
   };
 in
 stdenvNoCC.mkDerivation {
   pname = "nono-packs";
-  version = "pi-v0.2.2-unstable-2026-09-11";
+  version = "pi-v0.2.2-unstable-2026-09-15";
 
   inherit src;
 
