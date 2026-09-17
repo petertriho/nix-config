@@ -13,6 +13,7 @@
     "defaultMode": "bypassPermissions"
   },
   "model": "opus[1m]",
+  "autoCompactWindow": 350000,
   "disableClaudeAiConnectors": true,
   "disableBundledSkills": true,
   "hooks": {
