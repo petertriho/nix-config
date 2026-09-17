@@ -1,16 +1,17 @@
 ---
-name: pter
-description: "Orchestrate the planner -> plan-to-tasks -> execute -> execution-review chain through Claude Code subagents with four user gates: plan review, task review, review result, and re-review choice."
+name: peter
+description: "Orchestrate the planner -> plan-evaluate -> plan-to-tasks -> execute -> execution-review chain through Claude Code subagents with four user gates: plan review, task review, review result, and re-review choice."
 disable-model-invocation: true
 ---
 
-# pter
+# peter
 
-You are the orchestrator of a plan -> tasks -> execute -> review chain. The
-plan phase runs inline in this conversation through the `Skill` tool, because
-subagents cannot reach the user. The task writer, the executor, and the
-reviewer each run as a fresh general-purpose subagent spawned with the `Agent`
-tool. You coordinate; you do not do the phase work yourself.
+You are the orchestrator of a plan -> evaluate -> tasks -> execute -> review
+chain. The plan phase runs inline in this conversation through the `Skill`
+tool, because subagents cannot reach the user. The evaluator, the task writer,
+the executor, and the reviewer each run as a fresh general-purpose subagent
+spawned with the `Agent` tool. You coordinate; you do not do the phase work
+yourself.
 
 ## Rules
 
@@ -18,23 +19,28 @@ tool. You coordinate; you do not do the phase work yourself.
   commits after review.
 - Stop at every gate and wait for the user's answer. Do not continue on your
   own, and do not skip a gate.
-- Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `TASKS.md`,
-  `REVIEW.md`. Keep the agent name from every spawn; you need it to continue
-  that subagent with `SendMessage`.
-- Phase boundaries for the task writer and the reviewer are enforced with git
-  snapshots. Immediately before every task-writer or reviewer run — a fresh
-  spawn or a `SendMessage` continuation — run `git status --porcelain` and
-  keep the output. When the run finishes, run it again and compare. Only the
-  phase's expected artifact (`TASKS.md` or `REVIEW.md`) may change during that
-  phase. The baseline is the state at phase start, so pre-existing dirt the
-  phase does not touch never counts as a violation. On a violation, stop the
+- Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `EVALUATION.md`,
+  `TASKS.md`, `REVIEW.md`. Keep the agent name from every spawn; you need it
+  to continue that subagent with `SendMessage`.
+- Gate decision files live beside the plan directory in
+  `.artifacts/<plan-name>-decisions/`, never inside it: the Gate 1 folder
+  review lists every file in the plan directory, and decision JSON files
+  would clutter it.
+- Phase boundaries for the evaluator, the task writer, and the reviewer are
+  enforced with git snapshots. Immediately before every evaluator,
+  task-writer, or reviewer run — a fresh spawn or a `SendMessage`
+  continuation — run `git status --porcelain` and keep the output. When the
+  run finishes, run it again and compare. Only the phase's expected artifact
+  (`EVALUATION.md`, `TASKS.md`, or `REVIEW.md`) may change during that phase.
+  The baseline is the state at phase start, so pre-existing dirt the phase
+  does not touch never counts as a violation. On a violation, stop the
   workflow at once: show the user the exact unexpected paths, preserve every
-  change exactly as it is, and never revert, restore, delete, stage, or commit
-  anything. Do not start the next phase; the user decides how to continue.
-  The executor is exempt from this path rule: its scope is governed by
-  `TASKS.md`. The inline planner is governed by the planner skill's own write
-  rule.
-- The subagent phase skills (`plan-to-tasks`, `execute`,
+  change exactly as it is, and never revert, restore, delete, stage, or
+  commit anything. Do not start the next phase; the user decides how to
+  continue. The executor is exempt from this path rule: its scope is governed
+  by `TASKS.md`. The inline planner is governed by the planner skill's own
+  write rule.
+- The subagent phase skills (`plan-evaluate`, `plan-to-tasks`, `execute`,
   `execution-review`) set `disable-model-invocation: true`, so the
   `Skill` tool refuses every model-initiated load. Subagents must not call
   the `Skill` tool for them. Every spawn prompt instead tells the subagent to
@@ -49,31 +55,34 @@ tool. You coordinate; you do not do the phase work yourself.
   before retrying that phase. Do not retry silently.
 - At the start of each phase, if `$TMUX_PANE` is set, rename the tmux window
   through `bash`: `tmux rename-window -t "$TMUX_PANE" "<label>"`. Labels:
-  ` Planning`, ` Tasking`, ` Executing`, ` Reviewing`,
-  ` Workflow done`. If `$TMUX_PANE` is not set, skip every rename.
+  ` Planning`, ` Evaluating`, ` Tasking`, ` Executing`,
+  ` Reviewing`, ` Workflow done`. If `$TMUX_PANE` is not set, skip every
+  rename.
 - Only the orchestrator runs `plannotator`. Subagents never run it; every
   spawn prompt says so.
 
 ## Plannotator gate
 
 Gates 1, 2, and 3 review their artifact in the plannotator browser UI instead
-of a chat question. Inputs: the absolute artifact path, the gate label
-(`plan`, `tasks`, or `review`), and the gate's chat fallback question. When
-preflight found no `plannotator` binary, skip this procedure and ask the chat
-fallback question directly.
+of a chat question. Inputs: the absolute target (an artifact file, or for
+Gate 1 with an evaluation the plan directory), the gate label (`plan`,
+`tasks`, or `review`), and the gate's chat fallback question. When preflight
+found no `plannotator` binary, skip this procedure and ask the chat fallback
+question directly.
 
 1. Print the gate's chat summary as the gate describes it. Then tell the user
-   that the artifact is open in plannotator, that the browser decision decides
+   that the target is open in plannotator, that the browser decision decides
    the gate, and that closing the session falls back to the chat question. If
    the browser did not open, the session URL is in the background task
    output.
-2. Build the result path. Run `mkdir -p <artifact dir>/decisions`, then use
-   `<artifact dir>/decisions/<gate label>-$(date -u +%Y%m%dT%H%M%SZ).json`.
-   Never reuse a path: the CLI refuses an existing file.
+2. Build the result path. Run `mkdir -p .artifacts/<plan-name>-decisions`,
+   then use
+   `.artifacts/<plan-name>-decisions/<gate label>-$(date -u +%Y%m%dT%H%M%SZ).json`
+   as an absolute path. Never reuse a path: the CLI refuses an existing file.
 3. Run the review through `Bash` with `run_in_background: true`:
 
    ```
-   plannotator annotate <absolute artifact path> --gate --json --result-file <result path>
+   plannotator annotate <absolute target> --gate --json --result-file <result path>
    ```
 
    End the turn and wait for the command's exit notification. Do not poll,
@@ -92,6 +101,12 @@ fallback question directly.
      `dismissed`.
    - `dismissed`: ask the gate's chat fallback question and follow the answer.
 
+Folder feedback shape: for a directory target, `feedback` starts with a
+`Folder Feedback` section that repeats the active document's notes without a
+file name, followed by a `Linked Document Feedback` section with one heading
+per file under its absolute path. The per-file sections are authoritative.
+When forwarding folder feedback, say so and name the files it covers.
+
 ## Phase 0: Preflight
 
 1. Run `git rev-parse HEAD`. Store the output as the base ref. The executor
@@ -109,8 +124,8 @@ fallback question directly.
 
 Ask once, after preflight and before the plan phase, how to choose the
 subagent models. The inline planner always runs on the parent session's model
-(set it with `/model` before `/pter`); this gate covers only the task writer,
-the executor, and the reviewer. Offer three modes:
+(set it with `/model` before `/peter`); this gate covers the evaluator, the
+task writer, the executor, and the reviewer. Offer three modes:
 
 1. **Inherit**: every `Agent` spawn omits `model`; all subagents run on the
    parent session's model.
@@ -119,14 +134,21 @@ the executor, and the reviewer. Offer three modes:
 
    | Role        | Model   |
    | ----------- | ------- |
+   | Evaluator   | `fable` |
    | Task writer | `opus`  |
    | Executor    | `opus`  |
    | Reviewer    | `fable` |
 
-3. **Pick for this session**: ask one batched `AskUserQuestion` with three
-   questions, one per role (task writer, executor, reviewer). Options for
-   each role: inherit, `fable`, `opus`, `sonnet`; `haiku` is available through
-   the free-text "Other" answer.
+3. **Pick for this session**: ask one batched `AskUserQuestion` with four
+   questions, one per role (evaluator, task writer, executor, reviewer).
+   Options for each role: inherit, `fable`, `opus`, `sonnet`; `haiku` is
+   available through the free-text "Other" answer. The evaluator question
+   offers inherit, `fable`, `opus`, and `skip` instead; `sonnet` and `haiku`
+   are available through "Other".
+
+The evaluator role also accepts `skip`. With `skip`, Phase 2 and every
+re-evaluation are not run, and Gate 1 shows the plan alone. Put `skip` in the
+table to make it the default, or pick it for one session.
 
 Phrase the picks as the current `Agent` tool model options: today's set is
 `sonnet`, `opus`, `haiku`, and `fable`, but the installed Claude Code release
@@ -137,29 +159,70 @@ keeps its original model; only a fresh spawn applies a role's model.
 ## Phase 1: Plan (inline)
 
 Rename the window to ` Planning`. Then load the `planner` skill inline with
-the `Skill` tool, passing the user's `/pter` arguments as the request:
+the `Skill` tool, passing the user's `/peter` arguments as the request:
 
 ```
-Skill({ skill: "planner", args: "<the user's /pter arguments, verbatim>" })
+Skill({ skill: "planner", args: "<the user's /peter arguments, verbatim>" })
 ```
 
 Run the planner interview with the user in this conversation. The interview
 writes `.artifacts/<plan-name>/PLAN.md`. Store the exact `PLAN.md` path.
 
+## Phase 2: Evaluate
+
+Skip this phase when the evaluator role is `skip`. Otherwise rename the
+window to ` Evaluating`. Snapshot `git status --porcelain`. Then spawn the
+evaluator with that role's model (omit `model` for inherit):
+
+```
+Agent({
+  subagent_type: "general-purpose",
+  description: "Evaluate PLAN.md against the repository",
+  model: "<evaluator model, omitted for inherit>",
+  prompt: "Read ~/.claude/skills/plan-evaluate/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/plan-evaluate/. Evaluate <absolute PLAN.md path> against this repository. Write the evaluation to <same directory>/EVALUATION.md and edit nothing else. Do not run plannotator; the orchestrator owns the review gates. Final message: verdict, findings count per level, and the EVALUATION.md path as `EVALUATION: <absolute path>`."
+})
+```
+
+When the result arrives, run `git status --porcelain` again and diff the
+snapshot. Only `EVALUATION.md` may change. On a violation, follow the boundary
+rule above. Store the exact `EVALUATION.md` path.
+
+The evaluator never talks to the planner. Evaluation findings reach the
+planner only through the user's Gate 1 decision, which may point the planner
+at `EVALUATION.md` for the findings the user names.
+
 ## Gate 1: Plan review
 
-1. Read `PLAN.md`. Show the user the path, the goal, the non-goals, and the
-   settled decisions in a short summary.
-2. Run the Plannotator gate on `PLAN.md` with the label `plan`. Chat
-   fallback: ask the user to proceed to tasks or to give adjustment notes, and
-   wait.
+1. Read `PLAN.md`. Show the user the path, the plan status, the goal, the
+   non-goals, and the settled decisions in a short summary. Unless the
+   evaluator was skipped, also read `EVALUATION.md` and show its path, its
+   verdict, the count of refuted and unverified claims, and its findings
+   grouped by level (BLOCKING, NOTE) with one line each. Do not decide for
+   the user: a `NEEDS REVISION` verdict still goes to the gate.
+2. Run the Plannotator gate with the label `plan`. When the evaluator ran,
+   the target is the plan directory `.artifacts/<plan-name>/`, so `PLAN.md`
+   and `EVALUATION.md` are reviewed in one session; annotate the plan text,
+   the findings, or both. When the evaluator was skipped, the target is
+   `PLAN.md`. Chat fallback: ask the user to proceed to tasks or to give
+   adjustment notes, and wait. The notes may include, exclude, or dispute
+   evaluation findings.
 3. On `annotated` feedback or chat adjustment notes, rerun the planner steps
    inline on the same `PLAN.md` with the notes verbatim as the revision
-   request, then return to step 1.
+   request. When the evaluator ran, treat `EVALUATION.md` as reference
+   material for the findings the notes name: act only on what the notes ask
+   for, do not adopt other findings, and do not edit `EVALUATION.md`. For
+   folder feedback, the per-file sections are authoritative. Then, unless the
+   evaluator was skipped, re-evaluate: snapshot `git status --porcelain` and
+   `SendMessage` the evaluator: "Re-evaluate the revised plan at <absolute
+   PLAN.md path> against this repository. Overwrite <absolute EVALUATION.md
+   path> and edit nothing else. Final message: verdict, findings count per
+   level, and the EVALUATION.md path." Diff the snapshot after the result;
+   only `EVALUATION.md` may change. Then return to step 1.
 4. On approval, keep any approval notes for the task-writer spawn prompt and
-   continue to Phase 2.
+   continue to Phase 3. Evaluation findings the user did not act on are
+   accepted; they go to the Done summary, not to the task writer.
 
-## Phase 2: Tasks
+## Phase 3: Tasks
 
 Rename the window to ` Tasking`. Snapshot `git status --porcelain`. Then
 spawn the task writer with that role's model (omit `model` for inherit):
@@ -187,9 +250,9 @@ rule above.
    `SendMessage` the task writer with the notes verbatim, diff the snapshot
    after the result (only `TASKS.md` may change), and return to step 1.
 4. On approval, keep any approval notes for the executor spawn prompt and
-   continue to Phase 3.
+   continue to Phase 4.
 
-## Phase 3: Execute
+## Phase 4: Execute
 
 Rename the window to ` Executing`. Then spawn the executor with that
 role's model (omit `model` for inherit):
@@ -218,7 +281,7 @@ SendMessage({
 After that single continuation, report the outcome to the user, whatever it
 is. Do not loop.
 
-## Phase 4: Review
+## Phase 5: Review
 
 Rename the window to ` Reviewing`. Snapshot `git status --porcelain`. Then
 spawn the reviewer with that role's model (omit `model` for inherit):
@@ -250,15 +313,15 @@ rule above.
    fallback: ask the user whether to run one fix pass for this scope or to
    stop here, and wait.
 4. Map the decision:
-   - `approved` with a non-empty scope: run Phase 5 with the standard message
+   - `approved` with a non-empty scope: run Phase 6 with the standard message
      plus any approval notes.
    - `approved` with an empty scope: go to Done.
-   - `annotated`: run Phase 5 with the standard message plus the annotations
+   - `annotated`: run Phase 6 with the standard message plus the annotations
      block. The annotations may exclude, dispute, or add findings.
-   - `dismissed`: the chat fallback decides. A fix pass runs Phase 5 with the
+   - `dismissed`: the chat fallback decides. A fix pass runs Phase 6 with the
      standard message; stop goes to Done.
 
-## Phase 5: Fix pass (only after approval at Gate 3)
+## Phase 6: Fix pass (only after approval at Gate 3)
 
 Rename the window to ` Executing`. `SendMessage` the executor with the
 `REVIEW.md` path:
@@ -294,7 +357,7 @@ Ask the user to choose exactly one:
   severity, and the REVIEW.md path." Diff the snapshot after the result; only
   `REVIEW.md` may change.
 - **Start a fresh reviewer**: rename the window to ` Reviewing` and run
-  Phase 4 again with a fresh spawn (the reviewer role's model applies again).
+  Phase 5 again with a fresh spawn (the reviewer role's model applies again).
   Tell it to judge the fixed implementation independently and to use the
   previous `REVIEW.md`, if any, only as optional context.
 - **Stop without re-review**: launch no reviewer. Go to Done.
@@ -303,15 +366,18 @@ Wait for the answer. If no reviewer agent name is stored (for example the
 reviewer never completed), say so and offer only the fresh and stop choices.
 
 After either re-review result, run Gate 3 again with the new `REVIEW.md`. If
-the user approves another fix pass, run Phase 5 and this gate again; never
+the user approves another fix pass, run Phase 6 and this gate again; never
 loop without a fresh gate answer.
 
 ## Done
 
 Rename the window to ` Workflow done`. Give the final summary:
 
-- The three artifact paths: `PLAN.md`, `TASKS.md`, `REVIEW.md`, and the
-  `decisions/` directory when any gate ran in plannotator.
+- The artifact paths: `PLAN.md`, `EVALUATION.md` (when the evaluator ran),
+  `TASKS.md`, `REVIEW.md`, and the `.artifacts/<plan-name>-decisions/`
+  directory when any gate ran in plannotator.
 - Validation run, taken from the executor and reviewer results.
-- Unresolved findings: MEDIUM and INFO, plus anything not fixed.
+- Unresolved findings: MEDIUM and INFO from the review, plus anything not
+  fixed, plus evaluation findings the user accepted at Gate 1 without a plan
+  revision.
 - A reminder that nothing was committed. The user reviews and commits.

@@ -1,26 +1,26 @@
 ---
-name: pter-exp
-description: "Experimental agent-teams variant of pter: orchestrate the planner -> plan-to-tasks -> execute -> execution-review chain through named teammates (full Claude Code sessions) with four user gates: plan review, task review, review result, and re-review choice. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1."
+name: peter-exp
+description: "Experimental agent-teams variant of peter: orchestrate the planner -> plan-evaluate -> plan-to-tasks -> execute -> execution-review chain through named teammates (full Claude Code sessions) with four user gates: plan review, task review, review result, and re-review choice. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1."
 disable-model-invocation: true
 ---
 
-# pter-exp
+# peter-exp
 
-You are the team lead of a plan -> tasks -> execute -> review chain. This is
-the experimental agent-teams variant of `pter`. Every phase runs as a named
-teammate: a full, independent Claude Code session spawned with the `Agent`
-tool plus a `name`. In tmux split-pane mode each teammate gets its own pane,
-and the user can click into a pane and talk to that teammate directly. That
-is why the planner also runs as a teammate here instead of inline: the user
-runs the planner interview inside the planner's own session. You coordinate;
-you do not do the phase work yourself.
+You are the team lead of a plan -> evaluate -> tasks -> execute -> review
+chain. This is the experimental agent-teams variant of `peter`. Every phase
+runs as a named teammate: a full, independent Claude Code session spawned with
+the `Agent` tool plus a `name`. In tmux split-pane mode each teammate gets its
+own pane, and the user can click into a pane and talk to that teammate
+directly. That is why the planner also runs as a teammate here instead of
+inline: the user runs the planner interview inside the planner's own session.
+You coordinate; you do not do the phase work yourself.
 
 ## Teammate mechanics
 
 - A spawn becomes a teammate only when the `Agent` call has a `name`. Always
-  pass `name`. Role names: `planner`, `task-writer`, `executor`, `reviewer`.
-  When a role needs a fresh spawn — the teammate is gone, a continuation
-  failed, or the user chose a fresh reviewer — append a counter:
+  pass `name`. Role names: `planner`, `evaluator`, `task-writer`, `executor`,
+  `reviewer`. When a role needs a fresh spawn — the teammate is gone, a
+  continuation failed, or the user chose a fresh reviewer — append a counter:
   `executor-2`, `reviewer-2`.
 - A teammate that finishes its turn goes idle and sends an idle notification
   that contains its final answer. Treat that notification as the phase
@@ -39,15 +39,20 @@ you do not do the phase work yourself.
   commits after review.
 - Stop at every gate and wait for the user's answer. Do not continue on your
   own, and do not skip a gate.
-- Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `TASKS.md`,
-  `REVIEW.md`. Track each role's current teammate name; you need it to
-  continue that teammate with `SendMessage`.
-- Phase boundaries for the task writer and the reviewer are enforced with git
-  snapshots. Immediately before every task-writer or reviewer run — a fresh
-  spawn or a `SendMessage` continuation — run `git status --porcelain` and
-  keep the output. When the idle notification arrives, run it again and
-  compare. Only the phase's expected artifact (`TASKS.md` or `REVIEW.md`) may
-  change during that phase. The baseline is the state at phase start, so
+- Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `EVALUATION.md`,
+  `TASKS.md`, `REVIEW.md`. Track each role's current teammate name; you need
+  it to continue that teammate with `SendMessage`.
+- Gate decision files live beside the plan directory in
+  `.artifacts/<plan-name>-decisions/`, never inside it: the Gate 1 folder
+  review lists every file in the plan directory, and decision JSON files
+  would clutter it.
+- Phase boundaries for the evaluator, the task writer, and the reviewer are
+  enforced with git snapshots. Immediately before every evaluator,
+  task-writer, or reviewer run — a fresh spawn or a `SendMessage`
+  continuation — run `git status --porcelain` and keep the output. When the
+  idle notification arrives, run it again and compare. Only the phase's
+  expected artifact (`EVALUATION.md`, `TASKS.md`, or `REVIEW.md`) may change
+  during that phase. The baseline is the state at phase start, so
   pre-existing dirt the phase does not touch never counts as a violation. If
   the user works inside a teammate's pane during a phase, those changes land
   in the same diff; report them like any other unexpected path. On a
@@ -57,7 +62,7 @@ you do not do the phase work yourself.
   decides how to continue. The executor is exempt from this path rule: its
   scope is governed by `TASKS.md`. The planner teammate is governed by the
   planner skill's own write rule.
-- The teammate phase skills (`plan-to-tasks`, `execute`,
+- The teammate phase skills (`plan-evaluate`, `plan-to-tasks`, `execute`,
   `execution-review`) set `disable-model-invocation: true`, so the
   `Skill` tool refuses every model-initiated load. Teammates must not call
   the `Skill` tool for them. Every spawn prompt instead tells the teammate to
@@ -75,32 +80,35 @@ you do not do the phase work yourself.
   retrying that phase. Do not retry silently.
 - At the start of each phase, if `$TMUX_PANE` is set, rename the tmux window
   through `bash`: `tmux rename-window -t "$TMUX_PANE" "<label>"`. Labels:
-  ` Planning`, ` Tasking`, ` Executing`, ` Reviewing`,
-  ` Workflow done`. If `$TMUX_PANE` is not set, skip every rename. Claude
-  Code manages teammate panes: never split, resize, close, or retitle them.
+  ` Planning`, ` Evaluating`, ` Tasking`, ` Executing`,
+  ` Reviewing`, ` Workflow done`. If `$TMUX_PANE` is not set, skip every
+  rename. Claude Code manages teammate panes: never split, resize, close, or
+  retitle them.
 - Only the team lead runs `plannotator`. Teammates never run it; every spawn
   prompt says so.
 
 ## Plannotator gate
 
 Gates 1, 2, and 3 review their artifact in the plannotator browser UI instead
-of a chat question. Inputs: the absolute artifact path, the gate label
-(`plan`, `tasks`, or `review`), and the gate's chat fallback question. When
-preflight found no `plannotator` binary, skip this procedure and ask the chat
-fallback question directly.
+of a chat question. Inputs: the absolute target (an artifact file, or for
+Gate 1 with an evaluation the plan directory), the gate label (`plan`,
+`tasks`, or `review`), and the gate's chat fallback question. When preflight
+found no `plannotator` binary, skip this procedure and ask the chat fallback
+question directly.
 
 1. Print the gate's chat summary as the gate describes it. Then tell the user
-   that the artifact is open in plannotator, that the browser decision decides
+   that the target is open in plannotator, that the browser decision decides
    the gate, and that closing the session falls back to the chat question. If
    the browser did not open, the session URL is in the background task
    output.
-2. Build the result path. Run `mkdir -p <artifact dir>/decisions`, then use
-   `<artifact dir>/decisions/<gate label>-$(date -u +%Y%m%dT%H%M%SZ).json`.
-   Never reuse a path: the CLI refuses an existing file.
+2. Build the result path. Run `mkdir -p .artifacts/<plan-name>-decisions`,
+   then use
+   `.artifacts/<plan-name>-decisions/<gate label>-$(date -u +%Y%m%dT%H%M%SZ).json`
+   as an absolute path. Never reuse a path: the CLI refuses an existing file.
 3. Run the review through `Bash` with `run_in_background: true`:
 
    ```
-   plannotator annotate <absolute artifact path> --gate --json --result-file <result path>
+   plannotator annotate <absolute target> --gate --json --result-file <result path>
    ```
 
    End the turn and wait for the command's exit notification. Do not poll,
@@ -119,10 +127,16 @@ fallback question directly.
      `dismissed`.
    - `dismissed`: ask the gate's chat fallback question and follow the answer.
 
+Folder feedback shape: for a directory target, `feedback` starts with a
+`Folder Feedback` section that repeats the active document's notes without a
+file name, followed by a `Linked Document Feedback` section with one heading
+per file under its absolute path. The per-file sections are authoritative.
+When forwarding folder feedback, say so and name the files it covers.
+
 ## Phase 0: Preflight
 
 1. Run `printenv CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. If the output is
-   empty, agent teams are disabled: tell the user to run `/pter` (the
+   empty, agent teams are disabled: tell the user to run `/peter` (the
    subagent variant) or to enable the flag, and stop.
 2. Run `git rev-parse HEAD`. Store the output as the base ref. The executor
    and the reviewer both receive it. If this fails, the directory is not a git
@@ -138,8 +152,8 @@ fallback question directly.
 ## Model gate
 
 Ask once, after preflight and before the plan phase, how to choose the
-teammate models. This gate covers all four roles: the planner, the task
-writer, the executor, and the reviewer. Offer three modes:
+teammate models. This gate covers all five roles: the planner, the evaluator,
+the task writer, the executor, and the reviewer. Offer three modes:
 
 1. **Inherit**: every `Agent` spawn omits `model`; all teammates run on the
    lead session's model.
@@ -149,14 +163,21 @@ writer, the executor, and the reviewer. Offer three modes:
    | Role        | Model   |
    | ----------- | ------- |
    | Planner     | `fable` |
+   | Evaluator   | `fable` |
    | Task writer | `opus`  |
    | Executor    | `opus`  |
    | Reviewer    | `fable` |
 
-3. **Pick for this session**: ask one batched `AskUserQuestion` with four
-   questions, one per role (planner, task writer, executor, reviewer).
-   Options for each role: inherit, `fable`, `opus`, `sonnet`; `haiku` is
-   available through the free-text "Other" answer.
+3. **Pick for this session**: ask one batched `AskUserQuestion` with five
+   questions, one per role (planner, evaluator, task writer, executor,
+   reviewer). Options for each role: inherit, `fable`, `opus`, `sonnet`;
+   `haiku` is available through the free-text "Other" answer. The evaluator
+   question offers inherit, `fable`, `opus`, and `skip` instead; `sonnet` and
+   `haiku` are available through "Other".
+
+The evaluator role also accepts `skip`. With `skip`, Phase 2 and every
+re-evaluation are not run, and Gate 1 shows the plan alone. Put `skip` in the
+table to make it the default, or pick it for one session.
 
 Phrase the picks as the current `Agent` tool model options: today's set is
 `sonnet`, `opus`, `haiku`, and `fable`, but the installed Claude Code release
@@ -176,7 +197,7 @@ Agent({
   name: "planner",
   description: "Run the planner interview",
   model: "<planner model, omitted for inherit>",
-  prompt: "Load the planner skill with the Skill tool, passing this request as its args, verbatim: <the user's /pter-exp arguments>. Run the skill's interview with the user directly in your own session; the user answers in your pane, not through the team lead. Do not spawn teammates or background subagents. Do not run plannotator; the team lead owns the review gates. The interview writes .artifacts/<plan-name>/PLAN.md. When the plan file is complete, end your turn and report the path as `PLAN: <absolute path>`."
+  prompt: "Load the planner skill with the Skill tool, passing this request as its args, verbatim: <the user's /peter-exp arguments>. Run the skill's interview with the user directly in your own session; the user answers in your pane, not through the team lead. Do not spawn teammates or background subagents. Do not run plannotator; the team lead owns the review gates. The interview writes .artifacts/<plan-name>/PLAN.md. When the plan file is complete, end your turn and report the path as `PLAN: <absolute path>`."
 })
 ```
 
@@ -188,22 +209,65 @@ notification that contains `PLAN: <absolute path>` as the phase result. On
 any other planner notification, keep waiting; if nothing moves, remind the
 user to answer in the planner's session. Store the exact `PLAN.md` path.
 
+## Phase 2: Evaluate (teammate)
+
+Skip this phase when the evaluator role is `skip`. Otherwise rename the
+window to ` Evaluating`. Snapshot `git status --porcelain`. Then spawn the
+evaluator as a teammate with that role's model (omit `model` for inherit):
+
+```
+Agent({
+  subagent_type: "general-purpose",
+  name: "evaluator",
+  description: "Evaluate PLAN.md against the repository",
+  model: "<evaluator model, omitted for inherit>",
+  prompt: "Read ~/.claude/skills/plan-evaluate/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/plan-evaluate/. Evaluate <absolute PLAN.md path> against this repository. Write the evaluation to <same directory>/EVALUATION.md and edit nothing else. Do not spawn teammates or background subagents. Do not run plannotator; the team lead owns the review gates. Final message: verdict, findings count per level, and the EVALUATION.md path as `EVALUATION: <absolute path>`."
+})
+```
+
+When the idle notification arrives, run `git status --porcelain` again and
+diff the snapshot. Only `EVALUATION.md` may change. On a violation, follow the
+boundary rule above. Store the exact `EVALUATION.md` path.
+
+The evaluator never talks to the planner. Evaluation findings reach the
+planner only through the user's Gate 1 decision, which may point the planner
+at `EVALUATION.md` for the findings the user names.
+
 ## Gate 1: Plan review
 
-1. Read `PLAN.md`. Show the user the path, the goal, the non-goals, and the
-   settled decisions in a short summary.
-2. Run the Plannotator gate on `PLAN.md` with the label `plan`. Chat
-   fallback: ask the user to proceed to tasks or to give adjustment notes, and
-   wait.
+1. Read `PLAN.md`. Show the user the path, the plan status, the goal, the
+   non-goals, and the settled decisions in a short summary. Unless the
+   evaluator was skipped, also read `EVALUATION.md` and show its path, its
+   verdict, the count of refuted and unverified claims, and its findings
+   grouped by level (BLOCKING, NOTE) with one line each. Do not decide for
+   the user: a `NEEDS REVISION` verdict still goes to the gate.
+2. Run the Plannotator gate with the label `plan`. When the evaluator ran,
+   the target is the plan directory `.artifacts/<plan-name>/`, so `PLAN.md`
+   and `EVALUATION.md` are reviewed in one session; annotate the plan text,
+   the findings, or both. When the evaluator was skipped, the target is
+   `PLAN.md`. Chat fallback: ask the user to proceed to tasks or to give
+   adjustment notes, and wait. The notes may include, exclude, or dispute
+   evaluation findings.
 3. On `annotated` feedback or chat adjustment notes, `SendMessage` the
-   planner teammate with the notes verbatim and the `PLAN.md` path, wait for
-   its next `PLAN: <absolute path>` notification, then return to step 1. The
-   user can also give the notes directly in the planner's pane; the gate
-   re-reads `PLAN.md` either way.
+   planner teammate with the notes verbatim and the `PLAN.md` path, and wait
+   for its next `PLAN: <absolute path>` notification. When the evaluator
+   ran, add: "EVALUATION.md at <absolute path> is reference material for the
+   findings these notes name. Act only on what the notes ask for; do not
+   adopt other findings, and do not edit EVALUATION.md." For folder feedback,
+   also pass on the folder feedback shape note from the Plannotator gate. The
+   user can also give the notes directly in the planner's pane. Then, unless
+   the evaluator was skipped, re-evaluate: snapshot `git status --porcelain`
+   and `SendMessage` the evaluator teammate: "Re-evaluate the revised plan at
+   <absolute PLAN.md path> against this repository. Overwrite <absolute
+   EVALUATION.md path> and edit nothing else. Final message: verdict,
+   findings count per level, and the EVALUATION.md path." Diff the snapshot
+   after its idle notification; only `EVALUATION.md` may change. Then return
+   to step 1.
 4. On approval, keep any approval notes for the task-writer spawn prompt and
-   continue to Phase 2.
+   continue to Phase 3. Evaluation findings the user did not act on are
+   accepted; they go to the Done summary, not to the task writer.
 
-## Phase 2: Tasks
+## Phase 3: Tasks
 
 Rename the window to ` Tasking`. Snapshot `git status --porcelain`. Then
 spawn the task writer as a teammate with that role's model (omit `model` for
@@ -234,9 +298,9 @@ boundary rule above.
    snapshot after its idle notification (only `TASKS.md` may change), and
    return to step 1.
 4. On approval, keep any approval notes for the executor spawn prompt and
-   continue to Phase 3.
+   continue to Phase 4.
 
-## Phase 3: Execute
+## Phase 4: Execute
 
 Rename the window to ` Executing`. Then spawn the executor with that
 role's model as a teammate (omit `model` for inherit):
@@ -268,7 +332,7 @@ SendMessage({
 After that single continuation, report the outcome to the user, whatever it
 is. Do not loop.
 
-## Phase 4: Review
+## Phase 5: Review
 
 Rename the window to ` Reviewing`. Snapshot `git status --porcelain`. Then
 spawn the reviewer as a teammate with that role's model (omit `model` for
@@ -302,15 +366,15 @@ boundary rule above.
    fallback: ask the user whether to run one fix pass for this scope or to
    stop here, and wait.
 4. Map the decision:
-   - `approved` with a non-empty scope: run Phase 5 with the standard message
+   - `approved` with a non-empty scope: run Phase 6 with the standard message
      plus any approval notes.
    - `approved` with an empty scope: go to Done.
-   - `annotated`: run Phase 5 with the standard message plus the annotations
+   - `annotated`: run Phase 6 with the standard message plus the annotations
      block. The annotations may exclude, dispute, or add findings.
-   - `dismissed`: the chat fallback decides. A fix pass runs Phase 5 with the
+   - `dismissed`: the chat fallback decides. A fix pass runs Phase 6 with the
      standard message; stop goes to Done.
 
-## Phase 5: Fix pass (only after approval at Gate 3)
+## Phase 6: Fix pass (only after approval at Gate 3)
 
 Rename the window to ` Executing`. `SendMessage` the executor with the
 `REVIEW.md` path:
@@ -346,7 +410,7 @@ Ask the user to choose exactly one:
   severity, and the REVIEW.md path." Diff the snapshot after its idle
   notification; only `REVIEW.md` may change.
 - **Start a fresh reviewer**: rename the window to ` Reviewing` and run
-  Phase 4 again with a fresh teammate under the next counter name (the
+  Phase 5 again with a fresh teammate under the next counter name (the
   reviewer role's model applies again). Tell it to judge the fixed
   implementation independently and to use the previous `REVIEW.md`, if any,
   only as optional context.
@@ -356,15 +420,18 @@ Wait for the answer. If no reviewer teammate exists (for example the
 reviewer never completed), say so and offer only the fresh and stop choices.
 
 After either re-review result, run Gate 3 again with the new `REVIEW.md`. If
-the user approves another fix pass, run Phase 5 and this gate again; never
+the user approves another fix pass, run Phase 6 and this gate again; never
 loop without a fresh gate answer.
 
 ## Done
 
 Rename the window to ` Workflow done`. Give the final summary:
 
-- The three artifact paths: `PLAN.md`, `TASKS.md`, `REVIEW.md`, and the
-  `decisions/` directory when any gate ran in plannotator.
+- The artifact paths: `PLAN.md`, `EVALUATION.md` (when the evaluator ran),
+  `TASKS.md`, `REVIEW.md`, and the `.artifacts/<plan-name>-decisions/`
+  directory when any gate ran in plannotator.
 - Validation run, taken from the executor and reviewer results.
-- Unresolved findings: MEDIUM and INFO, plus anything not fixed.
+- Unresolved findings: MEDIUM and INFO from the review, plus anything not
+  fixed, plus evaluation findings the user accepted at Gate 1 without a plan
+  revision.
 - A reminder that nothing was committed. The user reviews and commits.

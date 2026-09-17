@@ -31,9 +31,9 @@ in
       # };
       file.".claude/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
-      file.".claude/skills/pter".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pter";
-      file.".claude/skills/pter-exp".source =
-        config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pter-exp";
+      file.".claude/skills/peter".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter";
+      file.".claude/skills/peter-exp".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter-exp";
       sessionVariables = {
         CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
         CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
@@ -57,8 +57,8 @@ in
     # granted as well.
     programs.nono.agentFilesystem.claude = {
       read = [
-        "$HOME/.nix-config/dotfiles/claude/.claude/skills/pter"
-        "$HOME/.nix-config/dotfiles/claude/.claude/skills/pter-exp"
+        "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter"
+        "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter-exp"
       ];
       read_file = [
         "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"

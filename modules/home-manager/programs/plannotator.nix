@@ -19,7 +19,7 @@ in
       {
         # Drafts, version history, and the feedback archive live in
         # ~/.plannotator. The nono Claude profile needs the directory writable
-        # for the plannotator gates in the `pter` skills.
+        # for the plannotator gates in the `peter` skills.
         programs.nono.agentFilesystem.claude.allow = [ "$HOME/.plannotator" ];
       }
     #   {

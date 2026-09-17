@@ -13,7 +13,6 @@
     "defaultMode": "bypassPermissions"
   },
   "model": "opus[1m]",
-  "autoCompactWindow": 350000,
   "disableClaudeAiConnectors": true,
   "disableBundledSkills": true,
   "hooks": {
@@ -110,6 +109,7 @@
   },
   "outputStyle": "ste",
   "effortLevel": "xhigh",
+  "autoCompactWindow": 350000,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-ansi",
