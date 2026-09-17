@@ -51,6 +51,46 @@ tool. You coordinate; you do not do the phase work yourself.
   through `bash`: `tmux rename-window -t "$TMUX_PANE" "<label>"`. Labels:
   ` Planning`, ` Tasking`, ` Executing`, ` Reviewing`,
   ` Workflow done`. If `$TMUX_PANE` is not set, skip every rename.
+- Only the orchestrator runs `plannotator`. Subagents never run it; every
+  spawn prompt says so.
+
+## Plannotator gate
+
+Gates 1, 2, and 3 review their artifact in the plannotator browser UI instead
+of a chat question. Inputs: the absolute artifact path, the gate label
+(`plan`, `tasks`, or `review`), and the gate's chat fallback question. When
+preflight found no `plannotator` binary, skip this procedure and ask the chat
+fallback question directly.
+
+1. Print the gate's chat summary as the gate describes it. Then tell the user
+   that the artifact is open in plannotator, that the browser decision decides
+   the gate, and that closing the session falls back to the chat question. If
+   the browser did not open, the session URL is in the background task
+   output.
+2. Build the result path. Run `mkdir -p <artifact dir>/decisions`, then use
+   `<artifact dir>/decisions/<gate label>-$(date -u +%Y%m%dT%H%M%SZ).json`.
+   Never reuse a path: the CLI refuses an existing file.
+3. Run the review through `Bash` with `run_in_background: true`:
+
+   ```
+   plannotator annotate <absolute artifact path> --gate --json --result-file <result path>
+   ```
+
+   End the turn and wait for the command's exit notification. Do not poll,
+   sleep, or read the result file before the command exits.
+4. When the notification arrives, read the result file. If it is missing
+   (exit code 2, a startup failure, or a missing binary), show the command
+   output to the user and ask the gate's chat fallback question instead.
+5. Map the decision:
+   - `{"decision":"approved"}` without `feedback`: advance to the next phase.
+   - `approved` with `feedback`: advance, and pass the notes verbatim into the
+     next phase's spawn prompt or message as non-blocking guidance. Do not
+     revise the artifact over them.
+   - `annotated`: send the `feedback` verbatim to the gate's responsible agent
+     as the gate describes. For Gates 1 and 2, run this procedure again on
+     the revised artifact with a new result path. Repeat until `approved` or
+     `dismissed`.
+   - `dismissed`: ask the gate's chat fallback question and follow the answer.
 
 ## Phase 0: Preflight
 
@@ -62,6 +102,8 @@ tool. You coordinate; you do not do the phase work yourself.
    anything. Wait for the answer. A dirty start is safe to accept: each phase
    boundary compares against the state at phase start, not a clean worktree,
    so only paths a phase itself changes are checked.
+3. Run `command -v plannotator`. If it fails, tell the user once that this run
+   uses chat gates, and ask each gate's chat fallback question directly.
 
 ## Model gate
 
@@ -108,9 +150,14 @@ writes `.artifacts/<plan-name>/PLAN.md`. Store the exact `PLAN.md` path.
 
 1. Read `PLAN.md`. Show the user the path, the goal, the non-goals, and the
    settled decisions in a short summary.
-2. Ask the user to proceed to tasks or to give adjustment notes. Wait.
-3. On adjustment notes, rerun the planner steps inline on the same `PLAN.md`,
-   then return to step 1.
+2. Run the Plannotator gate on `PLAN.md` with the label `plan`. Chat
+   fallback: ask the user to proceed to tasks or to give adjustment notes, and
+   wait.
+3. On `annotated` feedback or chat adjustment notes, rerun the planner steps
+   inline on the same `PLAN.md` with the notes verbatim as the revision
+   request, then return to step 1.
+4. On approval, keep any approval notes for the task-writer spawn prompt and
+   continue to Phase 2.
 
 ## Phase 2: Tasks
 
@@ -122,7 +169,7 @@ Agent({
   subagent_type: "general-purpose",
   description: "Convert PLAN.md to TASKS.md",
   model: "<task-writer model, omitted for inherit>",
-  prompt: "Read ~/.claude/skills/plan-to-tasks/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/plan-to-tasks/. Convert <absolute PLAN.md path> into TASKS.md in the same directory. Do not change PLAN.md or any other file. Report the TASKS.md path as `TASKS: <absolute path>`, the task count, and any blocking assumptions."
+  prompt: "Read ~/.claude/skills/plan-to-tasks/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/plan-to-tasks/. Convert <absolute PLAN.md path> into TASKS.md in the same directory. Do not change PLAN.md or any other file. Do not run plannotator; the orchestrator owns the review gates. Approval notes from the plan review (non-blocking guidance; omit this sentence when there are none): <plan approval notes>. Report the TASKS.md path as `TASKS: <absolute path>`, the task count, and any blocking assumptions."
 })
 ```
 
@@ -134,9 +181,13 @@ rule above.
 
 1. Read `TASKS.md`. Show the user the task IDs and titles, the suggested
    sequence, and any open questions the task writer raised.
-2. Ask the user for a go. Wait. On change notes, snapshot git state,
-   `SendMessage` the task writer with the notes, diff the snapshot after the
-   result (only `TASKS.md` may change), and return to step 1.
+2. Run the Plannotator gate on `TASKS.md` with the label `tasks`. Chat
+   fallback: ask the user for a go or for change notes, and wait.
+3. On `annotated` feedback or chat change notes, snapshot git state,
+   `SendMessage` the task writer with the notes verbatim, diff the snapshot
+   after the result (only `TASKS.md` may change), and return to step 1.
+4. On approval, keep any approval notes for the executor spawn prompt and
+   continue to Phase 3.
 
 ## Phase 3: Execute
 
@@ -148,7 +199,7 @@ Agent({
   subagent_type: "general-purpose",
   description: "Implement TASKS.md",
   model: "<executor model, omitted for inherit>",
-  prompt: "Read ~/.claude/skills/execute/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/execute/. Implement <absolute TASKS.md path> against <absolute PLAN.md path>. Base ref: <base ref>. Do not commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: tasks completed with IDs, validation commands run with results, blockers or unchecked tasks."
+  prompt: "Read ~/.claude/skills/execute/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/execute/. Implement <absolute TASKS.md path> against <absolute PLAN.md path>. Base ref: <base ref>. Do not commit. Do not run plannotator; the orchestrator owns the review gates. Approval notes from the task review (non-blocking guidance; omit this sentence when there are none): <tasks approval notes>. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: tasks completed with IDs, validation commands run with results, blockers or unchecked tasks."
 })
 ```
 
@@ -177,7 +228,7 @@ Agent({
   subagent_type: "general-purpose",
   description: "Review the implementation",
   model: "<reviewer model, omitted for inherit>",
-  prompt: "Read ~/.claude/skills/execution-review/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/execution-review/. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Write the review to <same directory>/REVIEW.md and edit nothing else. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
+  prompt: "Read ~/.claude/skills/execution-review/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/execution-review/. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Write the review to <same directory>/REVIEW.md and edit nothing else. Do not run plannotator; the orchestrator owns the review gates. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
 })
 ```
 
@@ -194,8 +245,18 @@ rule above.
    severity: current acceptance `not met` for a checked (`[x]`) task,
    implemented non-goals, or reversed settled decisions. Exclude ordinary
    `MEDIUM` and `INFO` findings and `unverified` acceptance alone. Do not
-   inflate severity. Ask the user whether to run one fix pass for this scope
-   or to stop here. Wait.
+   inflate severity. State whether the scope is empty.
+3. Run the Plannotator gate on `REVIEW.md` with the label `review`. Chat
+   fallback: ask the user whether to run one fix pass for this scope or to
+   stop here, and wait.
+4. Map the decision:
+   - `approved` with a non-empty scope: run Phase 5 with the standard message
+     plus any approval notes.
+   - `approved` with an empty scope: go to Done.
+   - `annotated`: run Phase 5 with the standard message plus the annotations
+     block. The annotations may exclude, dispute, or add findings.
+   - `dismissed`: the chat fallback decides. A fix pass runs Phase 5 with the
+     standard message; stop goes to Done.
 
 ## Phase 5: Fix pass (only after approval at Gate 3)
 
@@ -208,6 +269,12 @@ SendMessage({
   message: "Fix every CRITICAL and HIGH finding in <absolute REVIEW.md path>, plus every independently verdict-blocking finding regardless of severity: current acceptance not met for a checked ([x]) task, implemented non-goals, or reversed settled decisions. Exclude ordinary MEDIUM and INFO findings and unverified acceptance alone. Do not inflate severity. Keep TASKS.md checkboxes accurate. Never stage or commit. Report what changed and every validation command with its result."
 })
 ```
+
+Append to the message when Gate 3 returned approval notes: `Approval notes
+(non-blocking guidance): <approval notes>`. Append when Gate 3 returned
+`annotated`: `User annotations on REVIEW.md. They may exclude, dispute, or add
+findings and override the standard scope where they conflict: <feedback
+verbatim>`.
 
 If the continuation fails, spawn a fresh executor with the same fix-pass
 message, the artifact paths, and the base ref (the executor role's model
@@ -243,7 +310,8 @@ loop without a fresh gate answer.
 
 Rename the window to ` Workflow done`. Give the final summary:
 
-- The three artifact paths: `PLAN.md`, `TASKS.md`, `REVIEW.md`.
+- The three artifact paths: `PLAN.md`, `TASKS.md`, `REVIEW.md`, and the
+  `decisions/` directory when any gate ran in plannotator.
 - Validation run, taken from the executor and reviewer results.
 - Unresolved findings: MEDIUM and INFO, plus anything not fixed.
 - A reminder that nothing was committed. The user reviews and commits.
