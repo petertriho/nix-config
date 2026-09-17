@@ -294,7 +294,7 @@ in
     hallmark.enable = true;
     impeccable.enable = true;
     jscpd.enable = true;
-    plannotator.enable = false;
+    plannotator.enable = true;
     playwriter.enable = false;
     repowise.enable = false;
     spawnpoint.enable = false;

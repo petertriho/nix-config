@@ -17,27 +17,33 @@ in
     lib.mkMerge [
       { home.packages = [ plannotator ]; }
       {
-        programs.ai.skills.plannotator-compound = {
-          source = "${plannotatorSource}/apps/skills/extra/plannotator-compound";
-          clients = {
-            opencode = {
-              pluginEntries = [ "@plannotator/opencode" ];
-              files = lib.mapAttrs' (
-                name: _:
-                lib.nameValuePair "opencode/commands/${name}" {
-                  source = "${plannotatorSource}/apps/opencode-plugin/commands/${name}";
-                }
-              ) (builtins.readDir "${plannotatorSource}/apps/opencode-plugin/commands");
-            };
-            "claude-code" = {
-              enable = false;
-              pluginPaths = [
-                "${plannotatorSource}/apps/hook"
-              ];
-            };
-          };
-        };
+        # Drafts, version history, and the feedback archive live in
+        # ~/.plannotator. The nono Claude profile needs the directory writable
+        # for the plannotator gates in the `pter` skills.
+        programs.nono.agentFilesystem.claude.allow = [ "$HOME/.plannotator" ];
       }
+    #   {
+    #     programs.ai.skills.plannotator-compound = {
+    #       source = "${plannotatorSource}/apps/skills/extra/plannotator-compound";
+    #       clients = {
+    #         opencode = {
+    #           pluginEntries = [ "@plannotator/opencode" ];
+    #           files = lib.mapAttrs' (
+    #             name: _:
+    #             lib.nameValuePair "opencode/commands/${name}" {
+    #               source = "${plannotatorSource}/apps/opencode-plugin/commands/${name}";
+    #             }
+    #           ) (builtins.readDir "${plannotatorSource}/apps/opencode-plugin/commands");
+    #         };
+    #         "claude-code" = {
+    #           enable = false;
+    #           pluginPaths = [
+    #             "${plannotatorSource}/apps/hook"
+    #           ];
+    #         };
+    #       };
+    #     };
+    #   }
       (lib.mkIf config.programs.opencode.enable {
         home.sessionVariables.PLANNOTATOR_ALLOW_SUBAGENTS = "1";
       })
