@@ -6,17 +6,18 @@
 }:
 let
   configFile = "${config.homePath}/.config/lg-buddy/config.env";
-  keyFile = "${config.homePath}/.config/lg-buddy/.aiopylgtv.sqlite";
+  # Native token store derives its owner from the config file itself
+  # (resolve_config_owner in the pinned upstream sources), so only the
+  # config path needs exporting.
   lgBuddyEnv = {
-    LG_BUDDY_BSCPYLGTV_KEY_FILE = keyFile;
-    LG_BUDDY_BSCPYLGTV_OWNER_USER = config.user;
     LG_BUDDY_CONFIG = configFile;
   };
 
   # Compares the MAC stored in config.env against the live neighbour cache
   # entry for the TV's IP. When they disagree (the TV has roamed between
-  # Wi-Fi radios on a multi-band LG OLED), re-runs lg-buddy-configure so the
-  # Wake-on-LAN target tracks the active radio.
+  # Wi-Fi radios on a multi-band LG OLED), log the drift and leave repair to
+  # the operator using the native `lg-buddy settings set tv.mac` command.
+  # Never run interactive setup or apply a drift repair unattended.
   #
   # Also appends every distinct observed MAC to known_macs so the startup
   # wrapper can retry with historical candidates if the TV is unreachable
@@ -61,7 +62,7 @@ let
 
     # Record the observed MAC in the history file. Deduplication preserves the
     # most-recently-observed order: move the entry to the end so the startup
-    # wrapper iterates oldest-to-newest when retrying.
+    # wrapper iterates newest-to-oldest when retrying.
     known_macs_file="$(dirname "$config_file")/known_macs"
     touch "$known_macs_file"
     chmod 600 "$known_macs_file" 2>/dev/null || true
@@ -75,9 +76,12 @@ let
       exit 0
     fi
 
-    printf 'lg-buddy-mac-sync: TV MAC drift detected (configured=%s current=%s); running lg-buddy-configure\n' \
+    printf 'lg-buddy-mac-sync: TV MAC drift detected (configured=%s current=%s); manually update the Wake-on-LAN target: ' \
       "$configured_mac" "$current_mac"
-    exec ${pkgs.lg-buddy}/bin/lg-buddy-configure
+    printf 'sudo -u %q -- %q %q %q settings set tv.mac %q\n' \
+      ${lib.escapeShellArg config.user} "${pkgs.coreutils}/bin/env" \
+      "LG_BUDDY_CONFIG=$config_file" "${pkgs.lg-buddy}/bin/lg-buddy" "$current_mac"
+    exit 0
   '';
 
   # Wraps `lg-buddy startup auto` so that if the currently configured MAC fails
@@ -100,8 +104,6 @@ let
     config_dir="$(dirname "$config_file")"
     known_macs_file="$config_dir/known_macs"
     lg_buddy="${pkgs.lg-buddy}/bin/lg-buddy"
-    bscpylgtv="${pkgs.lg-buddy.passthru.bscpylgtv}/bin/bscpylgtvcommand"
-    key_file="${keyFile}"
 
     read_cfg() {
       local key="$1"
@@ -146,8 +148,7 @@ let
         }
       ' "$config_file" > "$tmp"
       # Use cat to overwrite in place; preserves the file's existing owner and
-      # mode, which matters because lg-buddy.service runs as root while the
-      # config file is owned by the user.
+      # mode; lg-buddy.service and the config file both belong to config.user.
       cat "$tmp" > "$config_file"
       rm -f "$tmp"
     }
@@ -165,12 +166,9 @@ let
     }
 
     run_diagnostic() {
-      # lg-buddy's startup loop only logs "Attempt N failed" and discards the
-      # underlying set_input error, so on overall failure we replay the WebOS
-      # command directly to surface *why* it failed (handshake timeout, auth
-      # refusal, SSL error, ...). Read-only (get_input) so TV state is never
-      # changed, and bounded by `timeout` in case the TV is fully unreachable.
-      local tv_ip neigh diag
+      # Keep unattended diagnostics to neighbour/ICMP checks. Native TV queries
+      # can invoke PairIfNeeded and trigger interactive pairing.
+      local tv_ip neigh
       tv_ip="$(read_cfg tvs_primary_ip)"
       tv_ip="''${tv_ip:-$(read_cfg tv_ip)}"
       printf 'lg-buddy-startup-wrapper: --- diagnostic after startup failure ---\n' >&2
@@ -184,11 +182,6 @@ let
         printf 'lg-buddy-startup-wrapper: %s responds to ICMP (TV network stack is up)\n' "$tv_ip" >&2
       else
         printf 'lg-buddy-startup-wrapper: %s does NOT respond to ICMP (TV offline or in deep standby)\n' "$tv_ip" >&2
-      fi
-      if [[ -x "$bscpylgtv" ]]; then
-        printf 'lg-buddy-startup-wrapper: bscpylgtv get_input against %s (reveals the WebOS error lg-buddy hid):\n' "$tv_ip" >&2
-        diag="$(timeout 20 "$bscpylgtv" -p "$key_file" "$tv_ip" get_input 2>&1)" || true
-        printf '%s\n' "$diag" >&2
       fi
     }
 
@@ -252,9 +245,9 @@ in
       User = config.user;
       RemainAfterExit = true;
       SuccessExitStatus = [ 1 ];
-      # Refresh the Wake-on-LAN MAC before startup so we target the radio the
-      # TV is currently associated on (handles Wi-Fi band roaming). Falls
-      # through silently if the TV is unreachable at boot.
+      # Record the observed TV radio MAC for fallback attempts and log drift
+      # without changing config. Falls through silently if the TV is
+      # unreachable at boot.
       ExecStartPre = macSyncScript;
       # Try the configured MAC first; on failure, fall back to other MACs
       # previously observed for this TV.
@@ -280,13 +273,12 @@ in
   };
 
   systemd.services."lg-buddy-mac-sync" = {
-    description = "LG Buddy TV MAC drift auto-correction";
+    description = "LG Buddy TV MAC drift check";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     environment = lgBuddyEnv;
     unitConfig.ConditionPathExists = configFile;
-    # Run as the user so the known_macs history file stays user-owned and
-    # lg-buddy-configure's writes to config.env don't change its owner.
+    # Run as the user so the known_macs history file stays user-owned.
     serviceConfig = {
       Type = "oneshot";
       ExecStart = macSyncScript;
@@ -319,8 +311,6 @@ in
           exit 0
         fi
 
-        export LG_BUDDY_BSCPYLGTV_KEY_FILE=${lib.escapeShellArg keyFile}
-        export LG_BUDDY_BSCPYLGTV_OWNER_USER=${lib.escapeShellArg config.user}
         export LG_BUDDY_CONFIG=${lib.escapeShellArg configFile}
 
         exec ${pkgs.lg-buddy}/bin/lg-buddy nm-pre-down
