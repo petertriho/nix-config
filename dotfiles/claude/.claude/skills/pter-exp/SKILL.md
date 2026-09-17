@@ -32,9 +32,6 @@ you do not do the phase work yourself.
 - One team per session. Teammates cannot spawn their own teammates, and they
   must not spawn background subagents; every spawn prompt repeats this.
 - Teammates inherit the lead's permission mode at spawn.
-- Shutdown is graceful and can be slow: a teammate finishes its current
-  request before it exits. Never kill a teammate's pane or process; use the
-  shutdown requests in Done.
 
 ## Rules
 
@@ -364,11 +361,7 @@ loop without a fresh gate answer.
 
 ## Done
 
-Rename the window to ` Workflow done`. Send every live teammate a
-shutdown request through `SendMessage`: "The workflow is complete. Please
-shut down." A teammate finishes its current request first, so shutdown can
-lag; do not wait for panes to close, and never kill a pane. Then give the
-final summary:
+Rename the window to ` Workflow done`. Give the final summary:
 
 - The three artifact paths: `PLAN.md`, `TASKS.md`, `REVIEW.md`, and the
   `decisions/` directory when any gate ran in plannotator.
