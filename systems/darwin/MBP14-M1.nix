@@ -5,7 +5,7 @@
       "sane-backends"
     ];
     casks = [
-      "bartender"
+      # "bartender"
       "betterdisplay"
       "jellyfin-media-player"
     ];
