@@ -12,8 +12,8 @@ buildNpmPackage {
   src = fetchFromGitHub {
     owner = "fitchmultz";
     repo = "pi-agent-browser-native";
-    rev = "62d0b6b02700112ebd11ee15f8c9ac6aa5a4f013"; # tag v0.5.0
-    hash = "sha256-cJh7+z7fzxyB/29pYyPsvJtLEx4CRoeF55XooPz2rx0=";
+    rev = "6319a4e71dc5d0a389abd22d0be7477f6d593769"; # tag v0.5.0
+    hash = "sha256-6lFJXXGBKKNzBtYoVI2Wea8KGniNZtuxQpyUaSQtZxs=";
   };
 
   nodejs = nodejs_24;

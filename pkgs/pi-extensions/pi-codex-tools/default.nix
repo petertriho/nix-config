@@ -9,13 +9,13 @@ let
   src = fetchFromGitHub {
     owner = "jvm";
     repo = "pi-mono";
-    rev = "9da0118dbe649aa57ff4e3417d752e788991d60a";
-    hash = "sha256-1m9yrQtGXCh8zzomV6Kv8PplvPtdkZ6Sj0t1v7Ts85A=";
+    rev = "3e45d80d7d7ca89581710cc05e2e343cd1380348";
+    hash = "sha256-sp+sZGxH2KVfVRF3hw+LMs9HaCUNQG3zr12s1Ip/x5Y=";
   };
 in
 buildNpmPackage {
   pname = "pi-codex-tools";
-  version = "pi-web-kit@0.3.0-unstable-2026-09-17";
+  version = "pi-web-kit@0.3.0-unstable-2026-09-18";
   inherit src;
 
   sourceRoot = "${src.name}/packages/pi-codex-tools";
