@@ -20,8 +20,8 @@ stdenv.mkDerivation {
   # directly, and its package.json declares NO `dependencies` at all — only
   # peerDependencies (@earendil-works/pi-coding-agent, @earendil-works/pi-tui),
   # both of which pi injects at runtime. buildNpmPackage would therefore install
-  # nothing, so a plain copy is sufficient and correct (mirrors pi-history /
-  # pi-vcc / pi-autoresearch).
+  # nothing, so a plain copy is sufficient and correct (mirrors pi-vcc /
+  # pi-autoresearch).
   #
   # At runtime it shells out to `fd` and `fzf`, discovered via a pure-filesystem
   # PATH walk. Those binaries are provided globally by home/programs/tools.nix

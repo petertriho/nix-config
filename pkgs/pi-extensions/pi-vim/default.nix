@@ -23,8 +23,8 @@ stdenv.mkDerivation {
   # peer deps at runtime (the installed pi ships @mariozechner/* in its
   # node_modules), the optional dep is coordinated via pi.events not npm
   # resolution, and dev deps are test-only. buildNpmPackage would therefore
-  # install nothing, so a plain copy is sufficient and correct (mirrors pi-history
-  # / pi-vcc / pi-autoresearch).
+  # install nothing, so a plain copy is sufficient and correct (mirrors pi-vcc
+  # / pi-autoresearch).
   #
   # Upstream's `files` field spells out the runtime set; test/ and
   # package-lock.json are dev-only. The install path matches pi's piPackageRoot

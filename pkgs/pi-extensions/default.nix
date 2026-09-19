@@ -15,7 +15,6 @@ in
     inherit stripNpmManifest;
   };
   pi-fzfp = callPackage ./pi-fzfp { };
-  pi-history = callPackage ./pi-history { };
   pi-lens = callPackage ./pi-lens {
     inherit stripNpmManifest;
   };

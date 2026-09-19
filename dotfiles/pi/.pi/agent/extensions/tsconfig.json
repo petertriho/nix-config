@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["*.ts", "pi-tmux-subagents/**/*.ts"]
+  "include": ["*.ts", "pi-history/**/*.ts", "pi-tmux-subagents/**/*.ts"]
 }

@@ -23,7 +23,7 @@ stdenv.mkDerivation {
   # devDependencies — zero runtime dependencies. Pi injects the peers at
   # runtime, so there is nothing to install and no build step: a plain copy of
   # the files upstream declares in its `files` field is sufficient and correct
-  # (mirrors pi-history). The install path matches pi's piPackageRoot helper,
+  # (mirrors pi-vcc). The install path matches pi's piPackageRoot helper,
   # which resolves lib/node_modules/<pname>.
   installPhase = ''
     runHook preInstall

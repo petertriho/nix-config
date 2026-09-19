@@ -8,6 +8,7 @@ let
   cfg = config.programs.pi-coding-agent;
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
+  piHistoryStateDir = "${config.xdg.stateHome}/pi";
   piExtensions = with pkgs.piExtensions; [
     omp-undo-redo
     rpiv-args
@@ -17,12 +18,7 @@ let
     pi-cache-optimizer
     pi-codex-tools
     pi-fzfp
-    # pi-vim must load before pi-history: pi-vim *replaces* the editor (no
-    # preservation of a prior factory), while pi-history *wraps* whatever is
-    # current. If pi-history loads first, pi-vim clobbers its HistoryEditor and
-    # persistent history / Ctrl+R / ghost completion silently stop working.
     pi-vim
-    pi-history
     # pi-lens
     pi-mcp-adapter
     # pi-subagents
@@ -230,7 +226,10 @@ in
     # `$HOME/.pi-lens` to reach the symlink. Grant the directory read-write so
     # both the traversal and the runtime writes succeed.
     programs.nono.agentFilesystem.pi = {
-      allow = [ "$HOME/.pi-lens" ];
+      allow = [
+        "$HOME/.pi-lens"
+        piHistoryStateDir
+      ];
       read = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions" ];
       allow_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/models.json" ];
     };
@@ -322,6 +321,8 @@ in
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
         "${cfg.configDir}/extensions/pi-tmux-subagents".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tmux-subagents";
+        "${cfg.configDir}/extensions/pi-history".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-history";
 
         ".pi/web-search.json".source = config.lib.meta.mkDotfilesSymlink "pi/.pi/web-search.json";
 
@@ -344,6 +345,10 @@ in
       # replaces arrays wholesale, so `packages` is fully nix-controlled
       # (the nono Pi pack is now part of the declaration, not appended).
       # Ordered after linkGeneration, which removes the pre-migration symlink.
+      activation.piHistoryState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piHistoryStateDir}
+      '';
+
       activation.piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         piSettingsFile=${lib.escapeShellArg "${cfg.configDir}/settings.json"}
         piSettingsNix=${settingsJson}

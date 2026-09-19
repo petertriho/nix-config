@@ -1344,9 +1344,9 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       this.borderColor = border;
       // Render hints (vim mode, native autocomplete visibility) live on the
       // *leaf* editor (e.g. VimEditor), not necessarily on the immediate
-      // `inner` — a transparent wrapper (pi-history's HistoryEditor) between us
-      // and the leaf hides them. Resolve the leaf; keep rendering via `inner`
-      // so the wrapper's own overlays (e.g. pi-history search) are preserved.
+      // `inner` — a transparent wrapper between us and the leaf can hide them.
+      // Resolve the leaf for capability reads, but keep rendering via `inner`
+      // so the wrapper's own behavior is preserved.
       const leaf = leafEditor(this.inner);
       const mode = (leaf as { vimState?: { mode?: string } }).vimState?.mode;
       const innerLines = this.inner.render(nativeWidth);
@@ -1384,11 +1384,10 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     insertTextAtCursor(text: string): void {
       this.inner.insertTextAtCursor?.(text);
     }
-    // Ghost-completion capability surface: pi-history's HistoryEditor only
-    // enables ghost text when its wrapped editor exposes getLines/getCursor/
-    // insertTextAtCursor (see missingGhostMethodReason). insertTextAtCursor is
-    // already proxied above; expose the other two so the capability check
-    // passes. EditorComponent doesn't declare them, so widen via a cast.
+    // Optional editor capability surface. Transparent wrappers may inspect
+    // lines/cursor position or insert at the cursor even though EditorComponent
+    // does not declare those methods, so forward them without coupling the
+    // shell to a particular wrapper implementation.
     getLines(): string[] {
       const fn = (this.inner as { getLines?(): string[] }).getLines;
       return fn ? fn.call(this.inner) : this.getText().split("\n");
@@ -1623,12 +1622,11 @@ export default function piTuiShell(pi: ExtensionAPI): void {
    * is one of our framing editors (`NativePiEditorFrame` / `FrameWrapper`).
    *
    * Another extension can install a *transparent* editor wrapper in its own
-   * `session_start` (pi-history's `HistoryEditor` does this) that encloses the
-   * editor we framed in ours. Such a wrapper hides our `FRAME_TAG` (the tag
-   * lives on our factory, not its), so the idempotent unwrap in
-   * `installFramedEditor` can't see it — and naively re-wrapping would stack a
-   * second frame. This inspection lets us detect that case and pass the editor
-   * through unchanged instead.
+   * `session_start` that encloses the editor we framed in ours. Such a wrapper
+   * hides our `FRAME_TAG` (the tag lives on our factory, not its), so the
+   * idempotent unwrap in `installFramedEditor` can't see it — and naively
+   * re-wrapping would stack a second frame. This inspection lets us detect that
+   * case and pass the editor through unchanged instead.
    */
   function chainHasOurFrame(editor: unknown): boolean {
     let node: unknown = editor;
@@ -1648,11 +1646,9 @@ export default function piTuiShell(pi: ExtensionAPI): void {
    *
    * `FrameWrapper` renders the editor it holds and reads two render-time hints
    * — the vim mode label and native autocomplete visibility — that live on the
-   * leaf editor (e.g. `VimEditor`). When a transparent wrapper such as
-   * pi-history's `HistoryEditor` sits between us and the leaf, those hints are
-   * invisible on the immediate `inner`: `HistoryEditor` has no `vimState`, and
-   * its inherited `isShowingAutocomplete` reports its own (unused) CustomEditor
-   * state rather than the leaf's. Walk to the leaf for those reads.
+   * leaf editor (e.g. `VimEditor`). When a transparent wrapper sits between us
+   * and the leaf, those hints may be invisible on the immediate `inner`. Walk
+   * to the leaf for those reads.
    */
   function leafEditor(editor: unknown): unknown {
     let node: unknown = editor;
@@ -1676,12 +1672,12 @@ export default function piTuiShell(pi: ExtensionAPI): void {
    * `resources_discover` re-frames it (resources_discover fires ~40ms after
    * that first un-framed paint) — a flash of the old editor. Framing at install
    * closes the window. It also makes the pi-vim layout match the native one:
-   * pi-history ends up wrapping a *framed* editor (`HistoryEditor(Frame…)`),
-   * exactly as it wraps the framed native editor when pi-vim is absent.
+   * later transparent wrappers receive an already-framed editor just as they
+   * do when the native editor is active.
    *
-   * `getEditorComponent` is left untouched, so pi-history still captures the
-   * (now framed) factory and wraps it. Guarded so repeated `session_start`s
-   * (new sessions) don't stack wrappers on the same `ctx.ui`.
+   * `getEditorComponent` is left untouched so later extensions can capture and
+   * compose the current factory. Guarded so repeated `session_start`s (new
+   * sessions) don't stack wrappers on the same `ctx.ui`.
    */
   function createFramedEditorFactory(
     candidate: EditorFactory | undefined,

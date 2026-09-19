@@ -21,7 +21,7 @@ stdenv.mkDerivation {
   # peerDependencies (@earendil-works/pi-coding-agent, typebox), both of which
   # pi injects at runtime (see the "Available Imports" table in pi's
   # docs/extensions.md). buildNpmPackage would therefore install nothing, so a
-  # plain copy is sufficient and correct (mirrors pi-history / pi-autoresearch).
+  # plain copy is sufficient and correct (mirrors pi-autoresearch).
   #
   # Upstream declares no `files` field, so the runtime set is spelled out here:
   # tests/, benchmarks/ and scripts/ are dev-only, and demo.gif is a 16MB
