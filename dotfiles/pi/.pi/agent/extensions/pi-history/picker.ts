@@ -12,7 +12,9 @@ import {
 	matchesKey,
 	type SelectItem,
 	SelectList,
+	type SelectListLayoutOptions,
 	type TUI,
+	truncateToWidth,
 } from "@earendil-works/pi-tui";
 import {
 	DEFAULT_STASH_ENTER_ACTION,
@@ -22,8 +24,6 @@ import {
 	type PromptAction,
 	type PromptItem,
 	promptMatchIndexes,
-	promptPreview,
-	promptSourceLabel,
 	sanitizePlainTerminalText,
 	searchPrompts,
 } from "./model.ts";
@@ -126,6 +126,10 @@ interface PickerConfig {
 		query: string,
 		theme: Theme,
 	) => Pick<SelectItem, "label" | "description">;
+	layoutFactory?: (
+		width: number,
+		items: readonly SelectItem[],
+	) => SelectListLayoutOptions;
 	descriptionStyle: (text: string, theme: Theme) => string;
 	emptyText: (context: PickerRenderContext) => string;
 	statusText?: () => string | undefined;
@@ -152,6 +156,17 @@ interface PickerConfig {
 const PICKER_TERMINAL_HOST_RESERVE = 7;
 const PICKER_SCROLL_ROW_RESERVE = 1;
 
+function truncateAtBoundary(text: string, width: number): string {
+	return truncateToWidth(text, width, width > 0 ? "…" : "");
+}
+
+function singleColumnListLayout(): SelectListLayoutOptions {
+	return {
+		truncatePrimary: ({ text, maxWidth }) =>
+			truncateAtBoundary(text, maxWidth),
+	};
+}
+
 /**
  * Concrete picker engine shared by the stash and history construction
  * adapters. Mode-specific code supplies search, rows, actions, and live state;
@@ -174,6 +189,7 @@ export class PromptPicker implements Component, Focusable {
 	private focusedValue = false;
 	private finished = false;
 	private disposed = false;
+	private listContentWidth: number | undefined;
 	private cachedWidth: number | undefined;
 	private cachedLines: string[] | undefined;
 
@@ -283,6 +299,7 @@ export class PromptPicker implements Component, Focusable {
 
 		const panelWidth = Math.max(0, width - 2);
 		const contentWidth = Math.max(1, panelWidth - 4);
+		this.syncListWidth(contentWidth);
 		const lines: string[] = [
 			renderPanelTop(
 				this.theme,
@@ -401,16 +418,35 @@ export class PromptPicker implements Component, Focusable {
 				this.theme,
 			),
 		}));
-		const list = new SelectList(selectItems, this.visibleRows, {
-			selectedPrefix: (text) => this.theme.fg("accent", text),
-			selectedText: (text) => selectedRowText(this.theme, text),
-			description: (text) =>
-				this.config.descriptionStyle(text, this.theme),
-			scrollInfo: (text) => this.theme.fg("dim", text),
-			noMatch: (text) => this.theme.fg("warning", text),
-		});
+		const layout = this.listContentWidth === undefined
+			? undefined
+			: this.config.layoutFactory?.(
+					this.listContentWidth,
+					selectItems,
+				);
+		const list = new SelectList(
+			selectItems,
+			this.visibleRows,
+			{
+				selectedPrefix: (text) => this.theme.fg("accent", text),
+				selectedText: (text) =>
+					selectedRowText(this.theme, text),
+				description: (text) =>
+					this.config.descriptionStyle(text, this.theme),
+				scrollInfo: (text) => this.theme.fg("dim", text),
+				noMatch: (text) => this.theme.fg("warning", text),
+			},
+			layout,
+		);
 		list.setSelectedIndex(this.selectedIndex);
 		return list;
+	}
+
+	private syncListWidth(width: number): void {
+		if (width === this.listContentWidth) return;
+		this.listContentWidth = width;
+		if (!this.config.layoutFactory) return;
+		this.list = this.createList();
 	}
 
 	private syncVisibleRows(): void {
@@ -506,24 +542,28 @@ export function createStashPicker(
 	theme: Theme,
 	keybindings: KeybindingsManager,
 	done: (result: PickerResult | null) => void,
+	cwd: string,
 	items: readonly PromptItem[],
 	selected?: PromptItem["id"],
 ): PromptPicker {
 	return new PromptPicker(tui, theme, keybindings, done, items, {
 		title: "Prompt stash",
-		info: () => formatSavedCount(items.length),
+		info: () => `${formatSavedCount(items.length)} · ${displayCwd(cwd)}`,
 		inputPrompt: "Filter: ",
 		inputPlaceholder: "stash text or directory",
 		filterInitiallyActive: false,
 		search: (source, query) =>
 			searchPrompts(source, query, source.length, { includeCwd: true }),
 		identity: stashIdentity,
-		renderItem: (item) => ({
-			label: promptPreview(item.text, 52),
-			description: [dateLabel(item.timestamp), displayCwd(item.cwd)]
+		renderItem: (item, _query, pickerTheme) => ({
+			label: [
+				styledMetadata(pickerTheme, dateLabel(item.timestamp)),
+				sanitizePlainTerminalText(item.text),
+			]
 				.filter(Boolean)
-				.join(" · "),
+				.join(` ${formatSeparator(pickerTheme)} `),
 		}),
+		layoutFactory: singleColumnListLayout,
 		descriptionStyle: (text, pickerTheme) =>
 			styledMetadata(pickerTheme, text),
 		emptyText: ({ sourceCount }) =>
@@ -705,6 +745,7 @@ export function openStashPicker(
 				theme,
 				keybindings,
 				done,
+				ctx.cwd,
 				items,
 				selected,
 			),
@@ -736,16 +777,25 @@ function highlighted(text: string, query: string, theme: Theme): string {
 }
 
 function historyLabel(item: PromptItem, query: string, theme: Theme): string {
-	const source = highlighted(promptSourceLabel(item), query, theme);
-	const preview = highlighted(promptPreview(item.text, 70), query, theme);
-	const image = item.hasImages ? theme.fg("warning", " 🖼") : "";
-	const metadata = [dateLabel(item.timestamp), displayCwd(item.cwd)]
-		.filter(Boolean)
-		.join(" · ");
+	const sessionName = sanitizePlainTerminalText(item.sessionName ?? "");
+	const image = item.hasImages ? theme.fg("warning", "🖼") : "";
+	const source = sessionName
+		? `${theme.bold(
+				theme.fg(
+					"accent",
+					highlighted(sessionName, query, theme),
+				),
+			)}${image ? ` ${image}` : ""}`
+		: image;
+	const prompt = highlighted(
+		sanitizePlainTerminalText(item.text),
+		query,
+		theme,
+	);
 	return [
-		`${theme.bold(theme.fg("accent", source))}${image}`,
-		styledMetadata(theme, metadata),
-		preview,
+		styledMetadata(theme, dateLabel(item.timestamp)),
+		source,
+		prompt,
 	]
 		.filter(Boolean)
 		.join(` ${formatSeparator(theme)} `);
@@ -798,6 +848,7 @@ export function createHistoryPicker(
 
 	picker = new PromptPicker(tui, theme, keybindings, done, sourceItems, {
 		title: "Prompt History",
+		info: () => displayCwd(cwd),
 		inputPrompt: "Search: ",
 		inputPlaceholder: "prompt text or session name",
 		filterInitiallyActive: true,
@@ -807,6 +858,7 @@ export function createHistoryPicker(
 		renderItem: (item, query, pickerTheme) => ({
 			label: historyLabel(item, query, pickerTheme),
 		}),
+		layoutFactory: singleColumnListLayout,
 		descriptionStyle: (text, pickerTheme) =>
 			pickerTheme.fg("muted", text),
 		emptyText: ({ sourceCount }) =>

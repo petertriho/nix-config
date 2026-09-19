@@ -34,6 +34,15 @@ function stash(id: number, text: string, cwd = "/repo"): PromptItem {
 	return { kind: "stash", id, text, cwd, timestamp: id };
 }
 
+function formattedDate(timestamp: number): string {
+	return new Date(timestamp).toLocaleString("en-GB", {
+		day: "2-digit",
+		month: "short",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}
+
 function history(
 	id: string,
 	text: string,
@@ -86,6 +95,7 @@ function createHarness(
 	items = [stash(3, "third"), stash(2, "second"), stash(1, "first")],
 	bindings?: Record<string, string[]>,
 	selected?: PromptItem["id"],
+	cwd = "/repo",
 ) {
 	const results: Array<PickerResult | null> = [];
 	let renders = 0;
@@ -99,6 +109,7 @@ function createHarness(
 		theme(),
 		keybindings(bindings),
 		(result) => results.push(result),
+		cwd,
 		items,
 		selected,
 	);
@@ -144,6 +155,7 @@ test("stash picker renders above the editor with a zero-line focus controller", 
 		terminal: { rows: 24 },
 	} as unknown as TUI;
 	const ctx = {
+		cwd: "/picker/scope",
 		ui: {
 			setWidget(key: string, value: unknown, options?: unknown) {
 				widgetUpdates.push({ key, value, options });
@@ -177,7 +189,7 @@ test("stash picker renders above the editor with a zero-line focus controller", 
 	const controller = new AbortController();
 	const result = openStashPicker(
 		ctx,
-		[stash(1, "one")],
+		[stash(1, "one", "/row/path")],
 		undefined,
 		controller.signal,
 	);
@@ -189,7 +201,10 @@ test("stash picker renders above the editor with a zero-line focus controller", 
 	assert.equal(widgetUpdates[0]?.key, PI_HISTORY_WIDGET_KEY);
 	assert.deepEqual(widgetUpdates[0]?.options, { placement: "aboveEditor" });
 	assert.ok(pickerWidget);
-	assert.match(pickerWidget.render(60).join("\n"), /Prompt stash/);
+	const renderedPicker = pickerWidget.render(60).join("\n");
+	assert.match(renderedPicker, /Prompt stash/);
+	assert.match(renderedPicker, /\/picker\/scope/);
+	assert.doesNotMatch(renderedPicker, /\/row\/path/);
 	assert.ok(inputController);
 	assert.deepEqual(inputController.render(60), []);
 
@@ -326,6 +341,7 @@ test("stash picker budgets rows from terminal height and pages by the visible co
 		theme(),
 		keybindings(),
 		(result) => results.push(result),
+		"/repo",
 		items,
 	);
 
@@ -347,6 +363,7 @@ test("stash picker budgets rows from terminal height and pages by the visible co
 		theme(),
 		keybindings(),
 		() => {},
+		"/repo",
 		items,
 	);
 	assert.equal(compact.render(80).length, 7);
@@ -365,6 +382,7 @@ test("shared picker leaves seven terminal rows for host chrome", () => {
 		theme(),
 		keybindings(),
 		() => {},
+		"/repo",
 		items,
 	);
 	assert.ok(stashPicker.render(90).length <= 11);
@@ -598,6 +616,7 @@ test("stash picker invalidates themed/layout caches and keeps lines in bounds", 
 		mutableTheme,
 		keybindings(),
 		() => {},
+		"/repo",
 		[stash(1, "a very long multiline\nstash value that must be clipped")],
 	);
 	const oldLines = picker.render(28);
@@ -635,6 +654,7 @@ test("stash picker uses the shared transparent semantic panel contract", () => {
 		pickerTheme,
 		keybindings(),
 		() => {},
+		"/repo",
 		[stash(2, "latest", "/repo"), stash(1, "older", "/other")],
 	);
 
@@ -659,8 +679,8 @@ test("stash picker uses the shared transparent semantic panel contract", () => {
 		plain.split("\n")[0] ?? "",
 		/╭.*Prompt stash.*2 saved.*╮/,
 	);
-	assert.match(plain, /latest\s+\d{2} \w{3}/);
-	assert.match(plain, /older\s+\d{2} \w{3}/);
+	assert.match(plain, /\d{2} \w{3}.*latest/);
+	assert.match(plain, /\d{2} \w{3}.*older/);
 	assert.match(plain, /├─+┤/);
 	assert.match(plain, /Ctrl\+P\/N/);
 	assert.doesNotMatch(plain, /j\/k/);
@@ -686,19 +706,154 @@ test("stash picker uses the shared transparent semantic panel contract", () => {
 	);
 });
 
-test("stash picker sanitizes persisted text and cwd before styling", () => {
-	const picker = createHarness([
+test("stash rows lead with dates, expand prompts, and show their shared cwd only on the border", () => {
+	const firstTimestamp = Date.UTC(2026, 0, 2, 3, 4);
+	const secondTimestamp = Date.UTC(2026, 1, 3, 4, 5);
+	const sentinel = "POST_FIFTY_TWO_SENTINEL";
+	const items = [
 		stash(
-			1,
-			"draft\u001b[2J\u0007\nline",
-			"/repo/\u001b]52;c;SGVsbG8=\u0007unsafe\u009b",
+			2,
+			`${"wide stash prompt ".repeat(4)}${sentinel}`,
+			"/repo/shared",
 		),
-	]).picker;
+		stash(1, "short prompt", "/repo/shared"),
+	];
+	items[0] = { ...items[0], timestamp: firstTimestamp };
+	items[1] = { ...items[1], timestamp: secondTimestamp };
+	const picker = createStashPicker(
+		{ requestRender() {} } as TUI,
+		theme(),
+		keybindings(),
+		() => {},
+		"/repo/shared",
+		items,
+	);
+	const lines = picker.render(160).map(stripTerminalSequences);
+	const firstRow = lines.find((line) => line.includes(sentinel)) ?? "";
+	const secondRow = lines.find((line) => line.includes("short prompt")) ?? "";
+	const firstDate = formattedDate(firstTimestamp);
+	const secondDate = formattedDate(secondTimestamp);
+
+	assert.match(lines[0] ?? "", /Prompt stash.*2 saved.*\/repo\/shared/u);
+	assert.ok(firstRow, "stash result row should expose text beyond the old cap");
+	assert.match(firstRow, new RegExp(`${firstDate}.*${sentinel}`));
+	assert.match(secondRow, new RegExp(`${secondDate}.*short prompt`));
+	assert.equal(firstRow.indexOf(firstDate), secondRow.indexOf(secondDate));
+	assert.doesNotMatch(firstRow, /\/repo\/shared/u);
+	assert.doesNotMatch(secondRow, /\/repo\/shared/u);
+	assert.equal(lines.join("\n").match(/\/repo\/shared/gu)?.length, 1);
+});
+
+test("stash rows keep leading dates across responsive layouts without losing state", () => {
+	const items = [
+		{ ...stash(3, `match ${"wide ".repeat(20)}third`), timestamp: 3 },
+		{ ...stash(2, `match ${"wide ".repeat(20)}second`), timestamp: 2 },
+		stash(1, "excluded"),
+	];
+
+	for (const widths of [
+		[46, 140],
+		[140, 46],
+	]) {
+		const results: Array<PickerResult | null> = [];
+		const picker = createStashPicker(
+			{ requestRender() {} } as TUI,
+			theme(),
+			keybindings(),
+			(result) => results.push(result),
+			"/repo",
+			items,
+		);
+		picker.handleInput("/");
+		for (const character of "match") picker.handleInput(character);
+		picker.handleInput("down");
+
+		const frames = widths.map((width) =>
+			picker.render(width).map(stripTerminalSequences),
+		);
+		const narrow = frames[widths.indexOf(46)] ?? [];
+		const wide = frames[widths.indexOf(140)] ?? [];
+		const narrowRow =
+			narrow.find((line) => line.includes("wide")) ?? "";
+		const wideRow = wide.find((line) => line.includes("wide")) ?? "";
+
+		assert.match(narrowRow, /…/u);
+		assert.match(
+			narrowRow,
+			new RegExp(formattedDate(items[0]?.timestamp ?? 0)),
+		);
+		assert.match(
+			wideRow,
+			new RegExp(formattedDate(items[0]?.timestamp ?? 0)),
+		);
+		assertLinesFit(narrow, 46);
+		assertLinesFit(wide, 140);
+		picker.handleInput("enter");
+		assert.equal(results[0]?.item.id, 2);
+	}
+});
+
+test("stash border truncates a long scoped cwd without changing row width allocation", () => {
+	const items = [
+		{ ...stash(2, "prompt with stable allocation"), timestamp: 2 },
+		{ ...stash(1, "another prompt"), timestamp: 1 },
+	];
+	const longCwd = `/repo/${"deeply-nested-directory/".repeat(8)}`;
+	const longPicker = createStashPicker(
+		{ requestRender() {} } as TUI,
+		theme(),
+		keybindings(),
+		() => {},
+		longCwd,
+		items,
+	);
+	const shortPicker = createStashPicker(
+		{ requestRender() {} } as TUI,
+		theme(),
+		keybindings(),
+		() => {},
+		"/repo",
+		items,
+	);
+	const longLines = longPicker.render(80).map(stripTerminalSequences);
+	const shortLines = shortPicker.render(80).map(stripTerminalSequences);
+	const top = longLines[0] ?? "";
+	const longRow =
+		longLines.find((line) => line.includes("stable allocation")) ?? "";
+	const shortRow =
+		shortLines.find((line) => line.includes("stable allocation")) ?? "";
+
+	assert.match(top, /Prompt stash.*2 saved.*\/repo\/.*…/u);
+	assert.equal(longRow, shortRow);
+	assert.doesNotMatch(longRow, /\/repo/u);
+	assertLinesFit(longLines, 80);
+
+	longPicker.handleInput("/");
+	for (const character of "missing") longPicker.handleInput(character);
+	const empty = longPicker.render(80).map(stripTerminalSequences);
+	assert.match(empty.join("\n"), /No matching stashes\./u);
+	assert.match(empty[0] ?? "", /2 saved.*\/repo\/.*…/u);
+});
+
+test("stash picker sanitizes persisted text and cwd before styling", () => {
+	const picker = createHarness(
+		[
+			stash(
+				1,
+				"draft 世界\u001b[2J\u0007\nline",
+				"/row/path/that/must/not/render",
+			),
+		],
+		undefined,
+		undefined,
+		"/repo/\u001b]52;c;SGVsbG8=\u0007unsafe\u009b",
+	).picker;
 	const lines = picker.render(80);
 
 	assertNoTerminalControls(lines);
-	assert.match(lines.join("\n"), /draft line/);
+	assert.match(lines.join("\n"), /draft 世界 line/);
 	assert.match(lines.join("\n"), /unsafe/);
+	assert.doesNotMatch(lines.join("\n"), /row\/path/);
 });
 
 test("stash picker requests renders after state changes", () => {
@@ -746,6 +901,7 @@ function createHistoryHarness(options: {
 	pickerTheme?: Theme;
 	bindings?: Record<string, string[]>;
 	terminalRows?: number;
+	cwd?: string;
 }) {
 	let items = options.items ?? [];
 	const results: Array<PickerResult | null> = [];
@@ -763,7 +919,7 @@ function createHistoryHarness(options: {
 		options.pickerTheme ?? theme(),
 		keybindings(options.bindings),
 		(result) => results.push(result),
-		"/repo",
+		options.cwd ?? "/repo",
 		() => items,
 		index.view,
 		(terminalEmpty) => terminalEmptyChanges.push(terminalEmpty),
@@ -803,6 +959,99 @@ test("stash and history adapters construct the same concrete picker engine", () 
 	assert.equal(stashPicker.constructor, historyPicker.constructor);
 	historyPicker.dispose();
 	assert.equal(index.getSubscriberCount(), 0);
+});
+
+test("shared picker reapplies width-aware layouts without losing filtered selection", () => {
+	const items = [
+		stash(3, "match third"),
+		stash(2, "match second"),
+		stash(1, "excluded"),
+	];
+	const results: Array<PickerResult | null> = [];
+	const layouts: Array<{ width: number; values: string[] }> = [];
+	const terminal = { rows: 18 };
+	const picker = new PromptPicker(
+		{
+			requestRender() {},
+			terminal,
+		} as unknown as TUI,
+		theme(),
+		keybindings(),
+		(result) => results.push(result),
+		items,
+		{
+			title: "Test picker",
+			inputPrompt: "Filter: ",
+			inputPlaceholder: "prompt",
+			filterInitiallyActive: true,
+			search: (source, query) =>
+				source.filter((item) => item.text.includes(query)),
+			identity: (item) => String(item.id),
+			renderItem: (item) => ({
+				label: item.text,
+				description: `item ${item.id}`,
+			}),
+			layoutFactory: (width, renderedItems) => {
+				layouts.push({
+					width,
+					values: renderedItems.map((item) => item.value),
+				});
+				return {
+					minPrimaryColumnWidth: Math.max(1, width - 16),
+					maxPrimaryColumnWidth: Math.max(1, width - 16),
+				};
+			},
+			descriptionStyle: (text) => text,
+			emptyText: () => "empty",
+			footerHints: [[["Esc", "cancel"]]],
+			confirmAction: "apply",
+			result: (item) => ({ item, action: "apply" }),
+		},
+	);
+
+	picker.render(60);
+	assert.deepEqual(layouts.at(-1), {
+		width: 54,
+		values: ["3", "2", "1"],
+	});
+
+	for (const character of "match") picker.handleInput(character);
+	picker.handleInput("down");
+	picker.render(44);
+	assert.deepEqual(layouts.at(-1), {
+		width: 38,
+		values: ["3", "2"],
+	});
+
+	terminal.rows = 16;
+	picker.render(44);
+	assert.deepEqual(layouts.at(-1), {
+		width: 38,
+		values: ["3", "2"],
+	});
+
+	picker.replaceItems([
+		stash(4, "match newest"),
+		...items,
+	]);
+	assert.deepEqual(layouts.at(-1), {
+		width: 38,
+		values: ["4", "3", "2"],
+	});
+
+	picker.invalidate();
+	assert.deepEqual(layouts.at(-1), {
+		width: 38,
+		values: ["4", "3", "2"],
+	});
+
+	picker.render(72);
+	assert.deepEqual(layouts.at(-1), {
+		width: 66,
+		values: ["4", "3", "2"],
+	});
+	picker.handleInput("enter");
+	assert.equal(results[0]?.item.id, 2);
 });
 
 test("history picker renders above the editor with the shared zero-line host", async () => {
@@ -1175,12 +1424,105 @@ test("history picker filters and renders ranking metadata, images, and exact hig
 	assert.match(rendered, /Exact/);
 	assert.match(rendered, /Editor work/);
 	assert.match(rendered, /🖼/);
-	assert.match(rendered, /subdir/);
+	assert.match(rendered, /\/repo/);
+	assert.doesNotMatch(rendered, /subdir/);
 	assert.match(rendered, /⟦cursor⟧/i);
 	assert.ok(
 		rendered.indexOf("Exact") < rendered.indexOf("Editor work"),
 		"exact match should render before substring match",
 	);
+});
+
+test("history rows use the full prompt and move their invariant cwd to the border", () => {
+	const sentinel = "POST_SEVENTY_SENTINEL";
+	const prompt = `${"long history prompt ".repeat(5)}${sentinel}`;
+	const timestamp = Date.UTC(2026, 0, 2, 3, 4);
+	const harness = createHistoryHarness({
+		cwd: "/repo/shared",
+		items: [history("unnamed", prompt, timestamp)],
+	});
+	const lines = harness.picker.render(180).map(stripTerminalSequences);
+	const top = lines[0] ?? "";
+	const row = lines.find((line) => line.includes(sentinel)) ?? "";
+
+	assert.match(top, /Prompt History/);
+	assert.match(top, /\/repo\/shared/);
+	assert.ok(row, "history result row should expose text beyond the old cap");
+	assert.doesNotMatch(row, /History/);
+	assert.doesNotMatch(row, /\/repo\/shared/);
+	assert.match(
+		row,
+		new RegExp(`${formattedDate(timestamp)}.*${sentinel}`),
+	);
+	assert.equal(
+		lines.join("\n").match(/\/repo\/shared/gu)?.length,
+		1,
+	);
+});
+
+test("history rows keep sanitized searchable session names and exact highlights", () => {
+	const taggedTheme = {
+		fg: (color: string, text: string) =>
+			color === "searchMatchText" ? `⟦${text}⟧` : text,
+		bg: (_color: string, text: string) => text,
+		bold: (text: string) => text,
+	} as unknown as Theme;
+	const harness = createHistoryHarness({
+		pickerTheme: taggedTheme,
+		items: [
+			history("named", "review the release plan", 1, {
+				sessionName: "Team\u001b[2J\nSession",
+			}),
+		],
+	});
+	for (const character of "session") harness.picker.handleInput(character);
+	const lines = harness.picker.render(100);
+	const plain = lines.map(stripTerminalSequences);
+	const row = plain.find((line) => line.includes("release plan")) ?? "";
+
+	assertNoTerminalControls(lines);
+	assert.match(
+		row,
+		new RegExp(`${formattedDate(1)}.*Team ⟦Session⟧`),
+	);
+	assert.doesNotMatch(row, /History/);
+});
+
+test("history row truncation follows the rendered boundary and preserves state on resize", () => {
+	const items = [
+		history("first", `match ${"boundary ".repeat(20)}first`, 2),
+		history("second", `match ${"boundary ".repeat(20)}second`, 1),
+	];
+	const harness = createHistoryHarness({ items });
+	for (const character of "match") harness.picker.handleInput(character);
+	harness.picker.handleInput("down");
+
+	const narrow = harness.picker.render(42).map(stripTerminalSequences);
+	const resultRow = narrow.find((line) => line.includes("boundary")) ?? "";
+	assert.ok(resultRow);
+	assert.match(resultRow, /…/u);
+	assert.doesNotMatch(resultRow, /→\s*·/u);
+	assertLinesFit(narrow, 42);
+
+	const wide = harness.picker.render(180).map(stripTerminalSequences);
+	assert.match(wide.join("\n"), /boundary boundary boundary/u);
+	assertLinesFit(wide, 180);
+	harness.picker.handleInput("enter");
+	assert.equal(harness.results[0]?.item.id, "second");
+});
+
+test("history border path survives empty filtering without entering result rows", () => {
+	const harness = createHistoryHarness({
+		cwd: "/repo/shared",
+		items: [history("one", "one prompt", 1)],
+	});
+	for (const character of "missing") harness.picker.handleInput(character);
+	const lines = harness.picker.render(90).map(stripTerminalSequences);
+	const rendered = lines.join("\n");
+
+	assert.match(rendered, /No matching prompts\./);
+	assert.equal(rendered.match(/\/repo\/shared/gu)?.length, 1);
+	assert.match(lines[0] ?? "", /\/repo\/shared/);
 });
 
 test("history picker displays both progress phases and re-queries live results", () => {
@@ -1445,10 +1787,11 @@ test("history picker caps rows and every rendered line to the supplied width", (
 
 test("history picker sanitizes prompt, session, and cwd metadata before styling", () => {
 	const harness = createHistoryHarness({
+		cwd: "/repo/\u001b]52;c;SGVsbG8=\u0007unsafe\u009b31mred\u009c",
 		items: [
 			history("unsafe", "prompt\u001b[2J\u0007\ntext", 1, {
 				sessionName: "session\u001b]52;c;SGVsbG8=\u0007 name",
-				cwd: "/repo/\u009b31mred\u009c",
+				cwd: "/row/path/that/must/not/render",
 			}),
 		],
 	});
@@ -1458,6 +1801,7 @@ test("history picker sanitizes prompt, session, and cwd metadata before styling"
 	assert.match(lines.join("\n"), /prompt text/);
 	assert.match(lines.join("\n"), /session name/);
 	assert.match(lines.join("\n"), /31mred/);
+	assert.doesNotMatch(lines.join("\n"), /row\/path/);
 });
 
 test("history picker uses the shared live-theme transparent panel contract", () => {
@@ -1505,7 +1849,8 @@ test("history picker uses the shared live-theme transparent panel contract", () 
 	const plain = oldLines.map(stripTerminalSequences).join("\n");
 	assert.match(plain.split("\n")[0] ?? "", /╭.*Prompt History.*╮/);
 	assert.match(plain, /Session/);
-	assert.match(plain, /subdir/);
+	assert.match(plain, /\/repo/);
+	assert.doesNotMatch(plain, /subdir/);
 	assert.match(plain, /Ctrl\+P\/N/);
 	assert.match(plain, /Arrows/);
 	assert.match(plain, /Page/);

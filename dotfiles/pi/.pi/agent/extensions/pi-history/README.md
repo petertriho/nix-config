@@ -37,6 +37,12 @@ The stash picker supports:
 After a drop, selection returns to the row above; dropping the first row
 selects the next remaining row.
 
+The expanded picker is scoped to the exact directory where Pi started. Its top
+border shows the saved count and that shared working directory once, rather
+than repeating an invariant path in every row. Stash rows remain single-line:
+the save date appears first, followed by a prompt that expands with available
+width and truncates only at the rendered boundary.
+
 Applying or popping over a different non-empty draft first stores that draft in
 the same atomic SQLite mutation. The transient widget feedback includes
 `current draft auto-stashed`. A failed mutation does not replace the editor
@@ -83,9 +89,12 @@ rank before substring matches, which rank before fuzzy matches; equally relevant
 results are newest first. Exact query tokens are highlighted. The picker returns
 at most **120 results**.
 
-Rows include the session name (or `History`), timestamp, prompt preview, exact
-working directory, and an image marker when the original user message contained
-an image. Slash commands are included.
+History results are scoped to the exact directory where Pi started, and the
+picker shows that shared working directory once on its top border instead of in
+every row. Rows include a session name only when one is available, plus the
+prompt, an image marker when the original user message contained an image, and
+a leading timestamp. Prompt text uses the available single-line row width and
+truncates only at the rendered boundary. Slash commands are included.
 
 Current-session user prompts are merged live by session-path and entry identity.
 Other session files are indexed lazily. While work is active, the picker

@@ -103,8 +103,19 @@ export function renderPanelTop(
 		fullWidth <= innerWidth
 			? `${left}${border("─".repeat(innerWidth - fullWidth))}${right}`
 			: "";
-	const compact = safeInfo
-		? `${titleText}${span(theme, "dim", " · ")}${infoText}`
+	const compactSeparator = span(theme, "dim", " · ");
+	const compactInfoWidth = Math.max(
+		0,
+		innerWidth -
+			visibleWidth(titleText) -
+			visibleWidth(compactSeparator),
+	);
+	const compactInfo =
+		safeInfo && compactInfoWidth > 0
+			? truncateToWidth(infoText, compactInfoWidth, "…")
+			: "";
+	const compact = compactInfo
+		? `${titleText}${compactSeparator}${compactInfo}`
 		: titleText;
 	const content = chooseWidthCandidate(
 		full ? [full, compact, titleText] : [compact, titleText],
