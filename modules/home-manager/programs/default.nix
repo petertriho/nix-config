@@ -3,7 +3,6 @@
     ./agent-indicator.nix
     ./agents.nix
     ./ai.nix
-    ./agent-browser.nix
     ./annot.nix
     ./anthropic-skills.nix
     ./autoresearch.nix

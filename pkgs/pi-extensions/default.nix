@@ -9,9 +9,6 @@ let
 in
 {
   omp-undo-redo = callPackage ./omp-undo-redo { };
-  pi-agent-browser-native = callPackage ./pi-agent-browser-native {
-    inherit stripNpmManifest;
-  };
   pi-autoresearch = callPackage ./pi-autoresearch { };
   pi-cache-optimizer = callPackage ./pi-cache-optimizer { };
   pi-codex-tools = callPackage ./pi-codex-tools {

@@ -14,7 +14,6 @@ let
     rpiv-ask-user-question
     # rpiv-todo
     pi-autoresearch
-    # pi-agent-browser-native
     pi-cache-optimizer
     pi-codex-tools
     pi-fzfp
