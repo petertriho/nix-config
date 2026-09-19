@@ -60,20 +60,13 @@ printf '%s' "$OPENROUTER_API_KEY" | codexbar config set-api-key --provider openr
 OpenRouter is shown as a **cost row** (account balance) and is excluded from the bar's
 auto-selected "most critical" meter, which only considers quota-window providers.
 
-## 4. OpenCode Go — manual browser cookie
+## 4. OpenCode Go — API key
 
-OpenCode Go uses the `auth` or `__Host-auth` session cookie from `opencode.ai`;
-its quota row shows the service's 5-hour, weekly, and 30-day usage windows.
-
-```json
-{
-  "id": "opencodego",
-  "enabled": true,
-  "source": "web",
-  "cookieSource": "manual",
-  "cookieHeader": "auth=YOUR_COOKIE_VALUE"
-}
+```sh
+printf '%s' "$OPENCODE_API_KEY" | codexbar config set-api-key --provider opencodego --stdin
 ```
+
+Its quota row shows the service's 5-hour, weekly, and 30-day usage windows.
 
 ## Verify
 
