@@ -278,7 +278,6 @@ in
       };
     };
     agents.skills.enable = true;
-    annot.enable = false;
     anthropic-skills = {
       enable = true;
       skills = [
