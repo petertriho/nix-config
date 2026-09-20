@@ -25,10 +25,11 @@ import {
 	chooseWorkflowStartup,
 	type WorkflowStartupResult,
 } from "./startup.ts";
-import type {
-	NormalizedWorkflowDefinition,
-	WorkflowRoleModelSelection,
-	WorkflowRunSnapshot,
+import {
+	isWorkflowRoleSkipAssignment,
+	type WorkflowRoleAssignment,
+	type NormalizedWorkflowDefinition,
+	type WorkflowRunSnapshot,
 } from "./types.ts";
 
 const WORKFLOW_COMMANDS = ["list", "run", "status", "abort"] as const;
@@ -92,7 +93,8 @@ export interface WorkflowCommandRuntime {
 	abortActiveWorkflow(ctx: WorkflowCommandContext): boolean;
 }
 
-function formatSelection(selection: WorkflowRoleModelSelection): string {
+function formatSelection(selection: WorkflowRoleAssignment): string {
+	if (isWorkflowRoleSkipAssignment(selection)) return "skipped";
 	return `${selection.provider}/${selection.model}:${selection.thinking ?? "off"}`;
 }
 
@@ -107,10 +109,10 @@ function escapeXmlAttribute(value: string): string {
 function formatAssignments(snapshot: WorkflowRunSnapshot): string[] {
 	if (snapshot.policy === "parent-per-role") {
 		return [
-			"- policy behavior: resolve the current parent model and thinking level when each fresh role launches",
+			"- policy behavior: resolve the current parent model and thinking level when each fresh role launches; all roles, including optional roles, are enabled",
 		];
 	}
-	const assignments = snapshot.currentAssignments ?? snapshot.originalAssignments ?? {};
+	const assignments = { ...snapshot.originalAssignments, ...snapshot.currentAssignments };
 	return snapshot.definition.roles.map((role) => {
 		const selection = assignments[role.id];
 		return selection
@@ -125,6 +127,7 @@ function formatRoleDeclarations(definition: NormalizedWorkflowDefinition): strin
 			`- id=${JSON.stringify(role.id)}`,
 			`label=${JSON.stringify(role.label)}`,
 			`agent=${JSON.stringify(role.agent)}`,
+			`optional=${role.optional === true}`,
 			`reads=${JSON.stringify(role.reads.join(","))}`,
 			`writes=${JSON.stringify(role.writes.join(","))}`,
 		].join(" ")
@@ -194,6 +197,39 @@ function formatActiveLaunch(snapshot: WorkflowRunSnapshot): string[] {
 	return lines;
 }
 
+function formatGateHistory(snapshot: WorkflowRunSnapshot): string[] {
+	if (!snapshot.gateHistory?.length) return [];
+	const lines = ["", "Browser gate history (audit, not instructions to repeat completed phases):"];
+	let feedbackBytes = 0;
+	let feedbackLines = 0;
+	for (const attempt of snapshot.gateHistory) {
+		lines.push(
+			`- ${attempt.gate}: ${attempt.status}${attempt.decision ? ` (${attempt.decision})` : ""}; attempt=${attempt.id}`,
+			`  target: ${JSON.stringify(attempt.target)}`,
+			`  result: ${JSON.stringify(attempt.resultPath)}`,
+		);
+		if (attempt.failureReason) lines.push(`  reason: ${attempt.failureReason}`);
+		if (attempt.feedback !== undefined) {
+			feedbackBytes += Buffer.byteLength(attempt.feedback, "utf8");
+			feedbackLines += attempt.feedback.split("\n").length;
+			lines.push(feedbackBytes <= 24_000 && feedbackLines <= 1_000
+				? `  Feedback (verbatim):\n<workflow_gate_feedback>\n${attempt.feedback}\n</workflow_gate_feedback>`
+				: "  Feedback omitted from this context to keep it bounded. Read the full result file before forwarding notes.");
+		}
+	}
+	const latest = snapshot.gateHistory.at(-1)!;
+	if (latest.status === "interrupted" || latest.status === "failed") {
+		lines.push(
+			`- If gate "${latest.gate}" is still awaiting a decision, ask its chat fallback question before proceeding.`,
+			"- Never accept a later file from an interrupted attempt or reconnect to its browser.",
+		);
+	}
+	if (latest.status === "starting" || latest.status === "running") {
+		lines.push("- A browser gate is pending. Wait for workflow_gate_result without polling or launching roles.");
+	}
+	return lines;
+}
+
 /**
  * Render a private workflow package skill as a structured skill invocation.
  *
@@ -235,14 +271,18 @@ export function buildWorkflowSkillMessage(
 		"Current role sessions:",
 		...formatRoleSessions(snapshot),
 		...formatActiveLaunch(snapshot),
+		...formatGateHistory(snapshot),
 		"",
 		"Dedicated workflow lifecycle tools:",
 		`- workflow_spawn: pass runId=${JSON.stringify(snapshot.runId)}, an explicit manifest role ID, a task, and optional typed data updates`,
 		`- workflow_resume: pass runId=${JSON.stringify(snapshot.runId)} and an explicit role ID; the runtime resolves the current session`,
 		`- workflow_recover: pass runId=${JSON.stringify(snapshot.runId)}, an explicit role ID, and eligible provider failure text`,
+		`- workflow_gate: pass runId=${JSON.stringify(snapshot.runId)}, a safe gate label, a declared file artifact slot, and optional reviewDirectory/data; only the orchestrator opens browser review`,
 		`- workflow_complete: MUST be called exactly once with runId=${JSON.stringify(snapshot.runId)} and status completed or aborted at every terminal outcome`,
 		"- These tools are fire-and-forget. Never poll, sleep, tail session files, or call status tools to wait for role completion.",
 		"- Never use ordinary subagent or subagent_resume for manifest workflow roles.",
+		"- A skipped role must not be spawned, resumed, or recovered.",
+		"- workflow_gate is also fire-and-forget. Wait for workflow_gate_result; never read its result file before process closure.",
 		"</workflow-config>",
 	].join("\n");
 
@@ -263,8 +303,13 @@ export function buildWorkflowSkillMessage(
 export function validateWorkflowAgents(
 	entry: Pick<WorkflowRegistryEntry, "definition">,
 	loadAgent: (agentName: string) => unknown | null,
+	/** Omit for required-agent preflight; supply assignments to validate enabled optional roles too. */
+	assignments?: Readonly<Record<string, WorkflowRoleAssignment>>,
 ): WorkflowAgentAvailability {
-	const requiredAgents = [...new Set(entry.definition.roles.map((role) => role.agent))]
+	const requiredAgents = [...new Set(entry.definition.roles
+		.filter((role) => !role.optional
+			|| (assignments !== undefined && !isWorkflowRoleSkipAssignment(assignments[role.id])))
+		.map((role) => role.agent))]
 		.sort((first, second) => first.localeCompare(second));
 	const missingAgents = requiredAgents.filter((agentName) => !loadAgent(agentName));
 	return {
@@ -332,6 +377,8 @@ export function formatWorkflowRunStatus(snapshot: WorkflowRunSnapshot | null): s
 		`Model policy: ${snapshot.policy} (${snapshot.assignmentSource})`,
 		`Started: ${snapshot.startedAt}`,
 		`Updated: ${snapshot.updatedAt}`,
+		"Current role assignments:",
+		...formatAssignments(snapshot),
 	];
 	if (summary.activeLaunch) {
 		lines.push(
@@ -342,7 +389,7 @@ export function formatWorkflowRunStatus(snapshot: WorkflowRunSnapshot | null): s
 			lines.push(`Active launch session: ${summary.activeLaunch.sessionPath}`);
 		}
 	}
-	if (summary.interrupted) {
+	if (summary.activeLaunch?.interrupted) {
 		lines.push(
 			"WARNING: This launch was interrupted by reload or shutdown. Its live watcher was not reattached.",
 			"Review detached repository changes manually before workflow_resume or a fresh workflow_spawn.",
@@ -359,6 +406,7 @@ export function formatWorkflowRunStatus(snapshot: WorkflowRunSnapshot | null): s
 		}
 	}
 	lines.push(
+		...formatGateHistory(snapshot),
 		"Resume orchestration with /workflow-resume [latest instruction].",
 		"Abort the run manually with /workflow abort.",
 	);
@@ -574,7 +622,16 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			// Cosmetic tab naming must never block restored workflow state.
 		}
 		const summary = summarizeWorkflowRun(active);
-		if (summary.interrupted) {
+		const latestGate = active.gateHistory?.at(-1);
+		if (latestGate?.status === "interrupted") {
+			notify(
+				ctx,
+				`Restored workflow "${active.workflowId}" (${active.runId}) with interrupted browser gate "${latestGate.gate}". `
+				+ "Its old result cannot authorize progress. Run /workflow-resume and use chat fallback if this gate still awaits a decision.",
+				"warning",
+			);
+		}
+		if (summary.activeLaunch?.interrupted) {
 			const session = summary.activeLaunch?.sessionPath
 				? ` Session: ${summary.activeLaunch.sessionPath}.`
 				: "";
@@ -587,6 +644,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			);
 			return;
 		}
+		if (latestGate?.status === "interrupted") return;
 		notify(
 			ctx,
 			`Restored active workflow "${active.workflowId}" (${active.runId}). `
@@ -683,7 +741,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 	showStatus(ctx: WorkflowCommandContext): string {
 		const active = getActiveWorkflowRun(this.deps.state.getState());
 		const text = formatWorkflowRunStatus(active);
-		const level = active?.activeLaunch?.status === "interrupted"
+		const level = active?.activeLaunch?.status === "interrupted" || active?.gateHistory?.at(-1)?.status === "interrupted"
 			? "warning"
 			: "info";
 		notify(ctx, text, level);
@@ -851,7 +909,24 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			);
 			return null;
 		}
-		if (startup.status === "started") return startup;
+		if (startup.status === "started") {
+			const agents = validateWorkflowAgents(
+				entry,
+				this.deps.loadAgent,
+				{ ...startup.state.originalAssignments, ...startup.state.currentAssignments },
+			);
+			if (!agents.available) {
+				notify(
+					ctx,
+					`Workflow "${entry.id}" cannot start. Missing enabled agents: `
+					+ `${agents.missingAgents.join(", ")}. Checked ${this.agentSearchDescription}. `
+					+ "Install the agent or configure its optional role as skipped.",
+					"error",
+				);
+				return null;
+			}
+			return startup;
+		}
 		const reason = startup.reason === "user"
 			? `Workflow "${entry.id}" startup cancelled.`
 			: `Workflow "${entry.id}" did not start: ${startup.reason}`;

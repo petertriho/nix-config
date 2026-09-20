@@ -332,3 +332,70 @@ test("workflow preset assignment validation enforces exact role keys and availab
 		assert.match(mismatchErrors[0], /unexpected: reviewer/);
 	});
 });
+
+test("optional skips round trip, edit both ways, and bypass only skipped model validation", () => {
+	withTempDir((dir) => {
+		const manifest = workflowManifest();
+		const definition = loadDefinition(writeWorkflowPackage(dir, {
+			...manifest,
+			roles: manifest.roles.map((role) => role.id === "verifier" ? { ...role, optional: true } : role),
+		}));
+		const enabled = roles(definition);
+		const skipped = editWorkflowPresetRoles(definition, enabled, { verifier: { skip: true } });
+		assert.deepEqual(skipped.verifier, { skip: true });
+		assert.deepEqual(skipped.author, enabled.author);
+		assert.equal(Object.isFrozen(skipped.verifier), true);
+		const preset = makeWorkflowModelPreset(definition, dir, skipped);
+		assert.equal(preset.version, 1);
+		writeWorkflowModelPreset(preset, join(dir, "agent"));
+		const restored = readWorkflowModelPreset(definition, dir, join(dir, "agent"));
+		assert.equal(restored.status, "ok");
+		assert.deepEqual(restored.preset.roles, skipped);
+		assert.deepEqual(validateWorkflowPresetRoles(definition, skipped, [model("test", "echo")]), []);
+		assert.equal(validateWorkflowPresetRoles(definition, skipped, []).length, 2);
+
+		const unavailable = editWorkflowPresetRoles(definition, skipped, {
+			verifier: { provider: "gone", model: "unavailable", thinking: "off" },
+		});
+		assert.match(validateWorkflowPresetRoles(definition, unavailable, [model("test", "echo")])[0], /^verifier:/);
+		assert.deepEqual(
+			editWorkflowPresetRoles(definition, skipped, { verifier: enabled.verifier }),
+			normalizeWorkflowPresetRoles(definition, enabled),
+		);
+	});
+});
+
+test("skip presets reject required roles, unknown roles, false skips, and mixed model objects", () => {
+	withTempDir((dir) => {
+		const manifest = workflowManifest();
+		const definition = loadDefinition(writeWorkflowPackage(dir, {
+			...manifest,
+			roles: manifest.roles.map((role) => ({ ...role, optional: role.id === "verifier" })),
+		}));
+		const enabled = roles(definition);
+		assert.throws(
+			() => editWorkflowPresetRoles(definition, enabled, { author: { skip: true } }),
+			/Required workflow role "author" cannot be skipped/,
+		);
+		assert.throws(
+			() => normalizeWorkflowPresetRoles(definition, { ...enabled, unknown: { skip: true } }),
+			/unexpected: unknown/,
+		);
+		assert.throws(
+			() => editWorkflowPresetRoles(definition, enabled, { constructor: { skip: true as const } }),
+			/has no role "constructor"/,
+		);
+		const valid = makeWorkflowModelPreset(definition, dir, enabled);
+		for (const assignment of [
+			{ skip: false },
+			{ skip: "true" },
+			{ skip: true, provider: "test", model: "echo", thinking: "off" },
+			{ skip: true, thinking: "off" },
+			{ skip: true, extra: true },
+		]) {
+			const invalid = { ...valid, roles: { ...enabled, verifier: assignment } };
+			assert.equal(validateWorkflowModelPreset(invalid), false);
+			assert.throws(() => normalizeWorkflowPresetRoles(definition, invalid.roles as never), /must contain/);
+		}
+	});
+});

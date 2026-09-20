@@ -5,10 +5,19 @@ import {
 	mkdtempSync,
 	rmSync,
 	writeFileSync,
+	readFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
+import {
+	createAgentSession,
+	DefaultResourceLoader,
+	ModelRuntime,
+	SessionManager,
+	SettingsManager,
+} from "@earendil-works/pi-coding-agent";
 import {
 	fingerprintStrings,
 	readLaunchProfile,
@@ -25,16 +34,20 @@ import type {
 } from "../subagent-services.ts";
 import { createStatusState } from "../status.ts";
 import { loadWorkflowDefinitionFromPackage } from "./schema.ts";
+import { buildWorkflowRolloverHandoffForRun } from "./handoff.ts";
+import { buildWorkflowRecoveryMessage, buildWorkflowRecoveryLabels } from "./recovery.ts";
 import {
 	createWorkflowRunState,
 	getActiveWorkflowRun,
 	recordWorkflowRunRoleSession,
+	restoreWorkflowRunStateFromBranch,
 	startWorkflowRun,
 	type WorkflowRunState,
 	type WorkflowRunTransitionResult,
 } from "./state.ts";
 import {
 	createWorkflowLifecycleTools,
+	registerWorkflowLifecycleTools,
 	type WorkflowSubagentExecution,
 	type WorkflowToolDependencies,
 	type WorkflowToolStateStore,
@@ -77,6 +90,12 @@ const TEST_MODELS = [
 	},
 ] as any[];
 
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((done) => { resolve = done; });
+	return { promise, resolve };
+}
+
 async function withTempDir<T>(
 	run: (root: string) => Promise<T> | T,
 ): Promise<T> {
@@ -89,7 +108,7 @@ async function withTempDir<T>(
 	}
 }
 
-function writeWorkflowPackage(root: string): string {
+function writeWorkflowPackage(root: string, verifierOptional?: boolean): string {
 	const packageDir = join(root, "docs-review");
 	mkdirSync(packageDir, { recursive: true });
 	writeFileSync(
@@ -128,6 +147,7 @@ function writeWorkflowPackage(root: string): string {
 					id: "verifier",
 					label: "Documentation verifier",
 					agent: "fact-checker",
+					...(verifierOptional !== undefined ? { optional: verifierOptional } : {}),
 					reads: ["draft", "ticket", "report"],
 					writes: ["file:report"],
 					handoff: "Verify the current draft independently and update only the report.",
@@ -151,8 +171,8 @@ function writeWorkflowPackage(root: string): string {
 	return packageDir;
 }
 
-function loadDefinition(root: string): NormalizedWorkflowDefinition {
-	const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root));
+function loadDefinition(root: string, verifierOptional?: boolean): NormalizedWorkflowDefinition {
+	const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, verifierOptional));
 	assert.equal(loaded.status, "ok");
 	if (loaded.status !== "ok") throw new Error("workflow fixture failed to load");
 	return loaded.definition;
@@ -177,6 +197,9 @@ class StateStore implements WorkflowToolStateStore {
 }
 
 class FakeExecution implements WorkflowSubagentExecution {
+	stopSubagent(running: RunningSubagent): void {
+		running.abortController?.abort();
+	}
 	launch?: {
 		params: SubagentLaunchParams;
 		options: {
@@ -528,6 +551,304 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 	});
 });
 
+test("tree navigation waits for a pending spawn and stops it without publishing late role state", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const execution = new FakeExecution();
+		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
+		const { ctx } = toolContext(root);
+		const launch = execution.launchSubagent.bind(execution);
+		const started = deferred<void>();
+		const release = deferred<void>();
+		const stopped: RunningSubagent[] = [];
+		execution.launchSubagent = async (...args) => {
+			started.resolve();
+			await release.promise;
+			return launch(...args);
+		};
+		execution.stopSubagent = (running) => { stopped.push(running); };
+		const pending = lifecycle.spawn({ runId: "run-docs", role: "author", task: "draft" }, ctx);
+		const outcome = pending.catch((error: Error) => error);
+		await started.promise;
+		const persistedBefore = store.persisted.length;
+		let navigated = false;
+		const navigation = Promise.resolve(lifecycle.stopBeforeTree()).then(() => { navigated = true; });
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(navigated, false, "navigation must await the in-flight child launch");
+		release.resolve();
+		await navigation;
+		assert.match(String(await outcome), /branch|navigation/i);
+		assert.equal(stopped.length, 1);
+		assert.equal(execution.watch, undefined);
+		assert.equal(store.persisted.length, persistedBefore + 1, "only the stop may persist an interrupted transition");
+		assert.equal(store.persisted.at(-1)?.activeLaunch?.status, "interrupted");
+		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.author, undefined);
+	});
+});
+
+test("stopping for tree navigation persists interruption even when navigation is later cancelled", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const execution = new FakeExecution();
+		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
+		const { ctx } = toolContext(root);
+		await lifecycle.spawn({ runId: "run-docs", role: "author", task: "draft" }, ctx);
+		const sessionPath = getActiveWorkflowRun(store.state)?.roleSessions.author?.current;
+		await lifecycle.stopBeforeTree();
+		// Another extension can cancel after this handler, so session_tree may never fire.
+		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "interrupted");
+		assert.equal(store.persisted.at(-1)?.activeLaunch?.status, "interrupted");
+		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.author?.current, sessionPath);
+	});
+});
+
+for (const phase of ["later handler", "cancelled handler", "summarizer", "failed summarizer", "aborted summarizer"]) {
+test(`SDK navigation blocks ordinary-completion role launches during ${phase} and releases at a safe idle boundary`, async () => {
+	await withTempDir(async (root) => {
+		const summarize = phase.includes("summarizer");
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const execution = new FakeExecution();
+		const { ctx } = toolContext(root);
+		let lifecycle!: ReturnType<typeof createWorkflowLifecycleTools>;
+		let launchCount = 0;
+		const launch = execution.launchSubagent.bind(execution);
+		execution.launchSubagent = async (...args) => { launchCount++; return launch(...args); };
+		const laterHandler = deferred<void>();
+		const releaseHandler = deferred<void>();
+		const outcomes: unknown[] = [];
+		let navigationSignal: AbortSignal | undefined;
+		let branch: any[] = [];
+		let treeEvents = 0;
+		const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } });
+		const resourceLoader = new DefaultResourceLoader({
+			cwd: root, agentDir: root, settingsManager,
+			noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true,
+			extensionFactories: [
+				(pi) => {
+					pi.registerProvider("anthropic", {
+						baseUrl: "https://unused.test", apiKey: "test-only", api: "anthropic-messages",
+						models: [TEST_MODELS[0]],
+					});
+					lifecycle = registerWorkflowLifecycleTools(pi, dependencies(store, execution));
+					pi.on("session_before_tree", async (event) => {
+						navigationSignal = event.signal;
+						await lifecycle.stopBeforeTree();
+					});
+					pi.on("session_tree", () => {
+						treeEvents++;
+						store.state = restoreWorkflowRunStateFromBranch(branch).state;
+					});
+				},
+				(pi) => {
+					pi.on("session_before_tree", async () => {
+						if (!summarize) {
+							laterHandler.resolve();
+							await releaseHandler.promise;
+							if (phase === "cancelled handler") return { cancel: true };
+						}
+					});
+				},
+			],
+		});
+		await resourceLoader.reload();
+		const modelRuntime = await ModelRuntime.create({
+			authPath: join(root, "auth.json"), modelsPath: join(root, "models.json"),
+			modelsStorePath: join(root, "models-store.json"),
+		});
+		await modelRuntime.setRuntimeApiKey("anthropic", "test-only");
+		const sessionManager = SessionManager.create(root, join(root, "sessions"));
+		const target = sessionManager.appendCustomEntry("target", {});
+		sessionManager.appendMessage({ role: "user", content: "abandoned work", timestamp: 1 });
+		const { session } = await createAgentSession({
+			cwd: root, agentDir: root, model: TEST_MODELS[0], modelRuntime,
+			sessionManager, settingsManager, resourceLoader, noTools: "builtin",
+		});
+		let summaryStarted = false;
+		session.subscribe((event) => {
+			if (event.type === "tool_execution_end" && event.toolName === "workflow_spawn") {
+				outcomes.push(event.result);
+			}
+		});
+		let toolCall = 0;
+		session.agent.streamFunction = (_model, context) => {
+			const stream = createAssistantMessageEventStream();
+			const message: any = {
+				role: "assistant", content: [{ type: "text", text: "done" }],
+				api: "anthropic-messages", provider: "anthropic", model: "author-model",
+				usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+				stopReason: "stop", timestamp: 2,
+			};
+			if (summarize && !summaryStarted) {
+				summaryStarted = true;
+				laterHandler.resolve();
+				void releaseHandler.promise.then(() => {
+					if (phase === "failed summarizer" || phase === "aborted summarizer") {
+						message.stopReason = phase === "failed summarizer" ? "error" : "aborted";
+						message.errorMessage = "summary failed";
+						stream.push({ type: "error", reason: message.stopReason, error: message });
+					} else {
+						stream.push({ type: "done", reason: "stop", message });
+					}
+				});
+			} else {
+				if (context.messages.at(-1)?.role !== "toolResult") {
+					message.content = [{
+						type: "toolCall", id: `spawn-${++toolCall}`, name: "workflow_spawn",
+						arguments: { runId: "run-docs", role: "author", task: "late draft" },
+					}];
+					message.stopReason = "toolUse";
+				}
+				stream.push({ type: "done", reason: message.stopReason, message });
+			}
+			return stream;
+		};
+		await session.bindExtensions({});
+		ctx.isIdle = () => session.isIdle;
+		try {
+			await lifecycle.spawn({ runId: "run-docs", role: "author", task: "initial draft" }, ctx);
+			branch = [{ type: "custom", customType: "pi-tmux-subagents.workflow-run", data: getActiveWorkflowRun(store.state) }];
+			const old = execution.watch!;
+			const navigation = session.navigateTree(target, { summarize }).catch((error: Error) => error);
+			await laterHandler.promise;
+			assert.equal(session.isIdle, false);
+			if (phase === "aborted summarizer") session.abortBranchSummary();
+			await session.sendCustomMessage({
+				customType: "subagent_result", content: "An ordinary subagent completed.", display: true,
+			}, { triggerTurn: true, deliverAs: "steer" });
+			assert.match((outcomes[0] as any).content[0].text, /branch navigation/i);
+			assert.equal(launchCount, 1, "no child may start after the workflow stop and before navigation completes");
+			releaseHandler.resolve();
+			const outcome = await navigation;
+			const succeeded = phase === "later handler" || phase === "summarizer";
+			if (phase === "failed summarizer") assert.match(String(outcome), /summary failed/);
+			else assert.equal((outcome as any).cancelled, !succeeded);
+			assert.equal(treeEvents, succeeded ? 1 : 0);
+			assert.equal(navigationSignal!.aborted, phase === "aborted summarizer",
+				"native cancellation/errors do not reliably abort the navigation signal");
+			const persisted = store.persisted.length;
+			const result = { name: "Author", task: "draft", summary: "late", exitCode: 0, elapsed: 1 };
+			await old.onSuccess({ result });
+			await old.onError("late failure");
+			await old.onPing!({ result: { ...result, ping: { name: "Author", message: "help" } } });
+			assert.equal(store.persisted.length, persisted);
+			assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "interrupted");
+			await session.prompt("Continue the restored workflow.");
+			assert.equal((outcomes[1] as any).details.status, "started", "a settled navigation must not wedge the next prompt");
+		} finally {
+			releaseHandler.resolve();
+			session.dispose();
+		}
+	});
+});
+}
+
+test("old spawn success, error, and ping callbacks cannot change the restored interrupted role", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const execution = new FakeExecution();
+		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
+		const { ctx } = toolContext(root);
+		await lifecycle.spawn({ runId: "run-docs", role: "author", task: "draft" }, ctx);
+		const branch = [{
+			type: "custom",
+			customType: "pi-tmux-subagents.workflow-run",
+			data: getActiveWorkflowRun(store.state),
+		}] as any;
+		const old = execution.watch!;
+		await lifecycle.stopBeforeTree();
+		store.state = restoreWorkflowRunStateFromBranch(branch).state;
+		const restored = store.state;
+		assert.equal(getActiveWorkflowRun(restored)?.activeLaunch?.status, "interrupted");
+		const count = store.persisted.length;
+		const result = { name: "Author", task: "draft", summary: "late", exitCode: 0, elapsed: 1 };
+		await old.onSuccess({ result });
+		await old.onError("late failure");
+		await old.onPing!({ result: { ...result, ping: { name: "Author", message: "help" } } });
+		assert.equal(store.state, restored);
+		assert.equal(store.persisted.length, count);
+	});
+});
+
+test("tree navigation ends recovery ownership even when the restored branch has identical role session IDs", async () => {
+	await withTempDir(async (root) => {
+		const definition = loadDefinition(root);
+		const store = new StateStore(startState(root, definition));
+		const sessionPath = join(root, "author.jsonl");
+		writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
+		recordSession(store, "run-docs", "author", sessionPath);
+		const execution = new FakeExecution();
+		const stopped: RunningSubagent[] = [];
+		execution.stopSubagent = (running) => { stopped.push(running); };
+		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
+		const { ctx } = toolContext(root);
+		// Use the actual recovery gate label without depending on its presentation.
+		ctx.ui.select = async (_title: string, choices: string[]) => choices[0];
+		await lifecycle.recover({ runId: "run-docs", role: "author", failure: "quota exceeded" }, ctx);
+		assert.ok(execution.resume?.lifecycle);
+		const old = execution.resume;
+		const restored = structuredClone(store.state);
+		await lifecycle.stopBeforeTree();
+		assert.equal(stopped.length, 1, "recovery children are owned workflow roles too");
+		store.state = restored;
+		const before = structuredClone(store.state);
+		const persistedBefore = store.persisted.length;
+		const profileBefore = readLaunchProfile(sessionPath);
+		await old.lifecycle!.onResult!({
+			result: { name: "Author", task: "recover", summary: "late", exitCode: 0, elapsed: 1 },
+			replacement: false, originalSessionPath: sessionPath, sessionPath,
+		});
+		await old.lifecycle!.onError!({
+			message: "late failure", replacement: false, originalSessionPath: sessionPath, sessionPath,
+		});
+		await old.recovery!.onSuccessfulResponse!({ provider: "other", model: "recovery-model", thinking: "high" });
+		assert.deepEqual(store.state, before);
+		assert.equal(store.persisted.length, persistedBefore);
+		assert.deepEqual(readLaunchProfile(sessionPath), profileBefore);
+	});
+});
+
+for (const replacement of [false, true]) {
+	test(`tree navigation drains a pending ${replacement ? "rollover" : "same-session resume"} without recording stale session state`, async () => {
+		await withTempDir(async (root) => {
+			const definition = loadDefinition(root);
+			const store = new StateStore(startState(root, definition));
+			const sessionPath = join(root, "author.jsonl");
+			writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
+			recordSession(store, "run-docs", "author", sessionPath);
+			const execution = new FakeExecution();
+			if (replacement) execution.replacementSessionPath = join(root, "replacement.jsonl");
+			const started = deferred<void>();
+			const release = deferred<void>();
+			const resume = execution.executeSubagentResume.bind(execution);
+			execution.executeSubagentResume = async (...args) => {
+				started.resolve();
+				await release.promise;
+				return resume(...args);
+			};
+			const stopped: RunningSubagent[] = [];
+			execution.stopSubagent = (running) => { stopped.push(running); };
+			const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
+			const { ctx } = toolContext(root);
+			const outcome = lifecycle.resume({ runId: "run-docs", role: "author" }, ctx).catch((error: Error) => error);
+			await started.promise;
+			const persistedBefore = store.persisted.length;
+			let navigated = false;
+			const navigation = lifecycle.stopBeforeTree().then(() => { navigated = true; });
+			await new Promise((resolve) => setImmediate(resolve));
+			assert.equal(navigated, false);
+			release.resolve();
+			await navigation;
+			assert.match(String(await outcome), /branch|navigation/i);
+			assert.equal(stopped.length, 1);
+			assert.equal(stopped[0].sessionFile, replacement ? execution.replacementSessionPath : sessionPath);
+			assert.equal(store.persisted.length, persistedBefore + 1, "only the stop may persist an interrupted transition");
+			assert.equal(store.persisted.at(-1)?.activeLaunch?.status, "interrupted");
+			assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.author?.current, sessionPath);
+		});
+	});
+}
+
 test("workflow_resume resolves the current role session and fresh replacements preserve history", async () => {
 	await withTempDir(async (root) => {
 		const definition = loadDefinition(root);
@@ -828,5 +1149,77 @@ test("workflow lifecycle rejects unknown roles and invalid typed data before lau
 			/absolute path/,
 		);
 		assert.equal(execution.launch, undefined);
+	});
+});
+
+test("skipped spawn, resume, recovery, and handoffs reject before any data, sidecar, state, UI, or process mutation", async () => {
+	await withTempDir(async (root) => {
+		const definition = loadDefinition(root, true);
+		const state = startWorkflowRun(createWorkflowRunState(), {
+			runId: "run-skipped",
+			source: "project",
+			definition,
+			projectRoot: root,
+			policy: "per-role",
+			assignmentSource: "preset",
+			originalAssignments: {
+				author: { provider: "anthropic", model: "author-model", thinking: "low" },
+				verifier: { skip: true },
+			},
+			data: { ticket: "original" },
+		}).state;
+		const store = new StateStore(state);
+		const execution = new FakeExecution();
+		const deps = dependencies(store, execution);
+		deps.loadAgentDefaults = () => { throw new Error("must not load skipped agent"); };
+		const lifecycle = createWorkflowLifecycleTools({ sendMessage() {} } as any, deps);
+		const { ctx, notifications, selectionCalls } = toolContext(root);
+		const sessionPath = join(root, "skipped.jsonl");
+		writeRoleSession({ root, definition, runId: "run-skipped", roleId: "verifier", sessionPath });
+		const sidecar = readLaunchProfile(sessionPath);
+		const before = JSON.stringify(store.state);
+		const common = { runId: "run-skipped", role: "verifier", data: { ticket: "must not persist" } };
+		await assert.rejects(lifecycle.spawn({ ...common, task: "Must not run" }, ctx), /"verifier" is skipped/);
+		await assert.rejects(lifecycle.resume({ ...common, model: "parent" }, ctx), /"verifier" is skipped/);
+		await assert.rejects(lifecycle.recover({ ...common, failure: "quota exceeded" }, ctx), /"verifier" is skipped/);
+		const snapshot = getActiveWorkflowRun(state)!;
+		assert.throws(() => buildWorkflowRolloverHandoffForRun({ snapshot, roleId: "verifier" }), /is skipped/);
+		assert.throws(() => buildWorkflowRecoveryMessage({ snapshot, roleId: "verifier" }), /is skipped/);
+		assert.throws(() => buildWorkflowRecoveryLabels(snapshot, "verifier"), /is skipped/);
+		assert.equal(JSON.stringify(store.state), before);
+		assert.deepEqual(store.persisted, []);
+		assert.deepEqual(readLaunchProfile(sessionPath), sidecar);
+		assert.equal(readFileSync(sessionPath, "utf8"), "{}\n");
+		assert.equal(execution.launch, undefined);
+		assert.equal(execution.resume, undefined);
+		assert.equal(execution.watch, undefined);
+		assert.deepEqual(notifications, []);
+		assert.deepEqual(selectionCalls, []);
+	});
+});
+
+test("enabled optional roles launch and roll over with model-only metadata and declared readable handoffs", async () => {
+	await withTempDir(async (root) => {
+		const definition = loadDefinition(root, true);
+		const store = new StateStore(startState(root, definition));
+		const execution = new FakeExecution();
+		execution.nextSessionPath = join(root, "verifier.jsonl");
+		const lifecycle = createWorkflowLifecycleTools({ sendMessage() {} } as any, dependencies(store, execution));
+		const { ctx } = toolContext(root);
+		await lifecycle.spawn({ runId: "run-docs", role: "verifier", task: "Verify" }, ctx);
+		assert.deepEqual(execution.launch?.options.workflow?.originalDefault, {
+			provider: "openai", model: "verify-model", thinking: "minimal",
+		});
+		assert.equal(JSON.stringify(execution.launch?.options.workflow).includes('"skip"'), false);
+		writeRoleSession({
+			root, definition, runId: "run-docs", roleId: "verifier", sessionPath: execution.nextSessionPath,
+		});
+		execution.replacementSessionPath = join(root, "verifier-rollover.jsonl");
+		await lifecycle.resume({ runId: "run-docs", role: "verifier", message: "Check latest draft" }, ctx);
+		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /fresh same-role rollover/);
+		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /update only the report/);
+		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /Check latest draft/);
+		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.verifier?.current, execution.replacementSessionPath);
+		assert.deepEqual(getActiveWorkflowRun(store.state)?.roleSessions.verifier?.history, [execution.nextSessionPath]);
 	});
 });

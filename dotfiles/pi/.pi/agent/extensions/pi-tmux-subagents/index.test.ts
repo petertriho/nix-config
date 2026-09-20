@@ -21,6 +21,7 @@ import { readAgentModelConfig, writeAgentModelConfig } from "./agent-models.ts";
 import {
 	fingerprintStrings,
 	hashText,
+	profilePathForSession,
 	readLaunchProfile,
 	validateLaunchProfile,
 	writeLaunchProfile,
@@ -670,6 +671,7 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 		"Explore.md",
 		"Plan.md",
 		"claude-code.md",
+		"evaluator.md",
 		"executor.md",
 		"general-purpose.md",
 		"planner.md",
@@ -687,31 +689,32 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 		}),
 	);
 	assert.ok(byName.get("executor")!.spawning === undefined || byName.get("executor")!.spawning === true);
-	for (const name of ["planner", "task-writer", "reviewer", "worker", "scout", "claude-code"]) {
+	for (const name of ["planner", "evaluator", "task-writer", "reviewer", "worker", "scout", "claude-code"]) {
 		assert.equal(byName.get(name)!.spawning, false, name);
 	}
 	assert.equal(byName.get("planner")!.autoExit, false);
 	assert.equal(byName.get("planner")!.interactive, true);
 	assert.equal(byName.get("planner")!.skills, "planner");
+	assert.equal(byName.get("evaluator")!.skills, "plan-evaluate");
 	assert.equal(byName.get("task-writer")!.skills, "plan-to-tasks");
 	assert.equal(byName.get("executor")!.skills, "execute");
 	assert.equal(byName.get("reviewer")!.skills, "execution-review");
-	for (const name of ["task-writer", "executor", "reviewer", "worker", "scout"]) {
+	for (const name of ["evaluator", "task-writer", "executor", "reviewer", "worker", "scout"]) {
 		assert.equal(byName.get(name)!.autoExit, true, name);
 		assert.equal(byName.get(name)!.model, undefined, `${name} inherits the session model`);
 		assert.equal(byName.get(name)!.systemPromptMode, "append", name);
 	}
 	assert.equal(byName.get("claude-code")!.cli, "claude");
-	for (const name of ["planner", "worker", "scout", "reviewer", "task-writer", "executor"]) {
+	for (const name of ["planner", "evaluator", "worker", "scout", "reviewer", "task-writer", "executor"]) {
 		assert.equal(testApi.resolveEffectiveInteractive({ name, task: "" }, byName.get(name)!), name === "planner", name);
 	}
 });
 
-test("task writer and reviewer no longer declare maintained tool lists", () => {
+test("workflow roles keep discovery without maintained tool lists", () => {
 	const dir = testApi.getBundledAgentsDir();
 	// Workflow roles and the worker delegate keep full current tool discovery;
 	// worker dropped its frontmatter list when it took on write work.
-	for (const name of ["planner", "task-writer", "executor", "reviewer", "worker"]) {
+	for (const name of ["planner", "evaluator", "task-writer", "executor", "reviewer", "worker"]) {
 		const content = readFileSync(join(dir, `${name}.md`), "utf8");
 		assert.doesNotMatch(content, /^tools:/m, `${name} must not maintain a tools list`);
 		const parsed = testApi.parseAgentDefinition(content, name);
@@ -724,9 +727,31 @@ test("task writer and reviewer no longer declare maintained tool lists", () => {
 	assert.ok(scout.tools, "scout keeps its tools list");
 });
 
+test("bundled evaluator honors read-only skill commands and every Peter role leaves browser gates to the parent", () => {
+	const dir = testApi.getBundledAgentsDir();
+	for (const role of ["planner", "evaluator", "task-writer", "executor", "reviewer"]) {
+		const text = readFileSync(join(dir, `${role}.md`), "utf8");
+		assert.match(text, /\/peter/);
+		assert.doesNotMatch(text, /\/pter/);
+		assert.match(text, /Do not run Plannotator or `workflow_gate`; the parent owns the review gates/);
+	}
+	const evaluator = readFileSync(join(dir, "evaluator.md"), "utf8");
+	assert.match(evaluator, /read-only command rule/);
+	assert.match(evaluator, /Do not run tests, builds, fixers, formatters, generators/);
+	assert.match(evaluator, /EVALUATION: <absolute path>/);
+	assert.match(evaluator, /NOTHING EVALUATED/);
+	assert.match(evaluator, /Never substitute another plan/);
+	const executor = readFileSync(join(dir, "executor.md"), "utf8");
+	assert.match(executor, /agent: "worker"/);
+	assert.match(executor, /agent: "scout"/);
+	assert.doesNotMatch(executor, /^spawning: false/m, "executor delegation must remain available");
+	const writer = readFileSync(join(dir, "task-writer.md"), "utf8");
+	assert.match(writer, /Do not read `EVALUATION.md`/);
+});
+
 // ── registration and commands ──
 
-test("registers the eight tools, three renderers, and the commands", () => {
+test("registers nine parent tools, three renderers, and the commands", () => {
 	const { registeredTools, registeredCommands, registeredMessageRenderers } = createMockExtensionApi();
 	assert.deepEqual(
 		registeredTools.map((tool) => tool.name).sort(),
@@ -736,6 +761,7 @@ test("registers the eight tools, three renderers, and the commands", () => {
 			"subagent_resume",
 			"subagents_list",
 			"workflow_complete",
+			"workflow_gate",
 			"workflow_recover",
 			"workflow_resume",
 			"workflow_spawn",
@@ -761,6 +787,7 @@ test("registers the eight tools, three renderers, and the commands", () => {
 	assert.ok(commandNames.includes("workflows"));
 	assert.ok(commandNames.includes("workflow-resume"));
 	assert.equal(commandNames.includes("pter"), false);
+	assert.equal(commandNames.includes("peter"), false, "alias is discovered at session start, not hard-coded");
 	assert.equal(commandNames.includes("plan"), false);
 });
 
@@ -1026,13 +1053,198 @@ test("PI_DENY_TOOLS gates tool registration", () => {
 	const { registeredTools } = createMockExtensionApi({
 		env: {
 			PI_DENY_TOOLS:
-				"subagent,subagent_resume,workflow_spawn,workflow_resume,workflow_recover,workflow_complete",
+				"subagent,subagent_resume,workflow_spawn,workflow_resume,workflow_recover,workflow_complete,workflow_gate",
 		},
 	});
 	assert.deepEqual(
 		registeredTools.map((tool) => tool.name).sort(),
 		["subagent_interrupt", "subagents_list"],
 	);
+});
+
+for (const completion of ["running", "spawn", "resume", "recovery"]) {
+const completionCleanupFails = completion !== "running";
+test(`tree navigation stops only the owned workflow role and preserves its interrupted branch and files${completionCleanupFails ? ` after failed completion cleanup (${completion})` : ""}`, async () => {
+	await withIsolatedAgentEnv(async ({ projectAgentsDir, globalAgentsDir }) => {
+		const root = dirname(globalAgentsDir);
+		const project = process.cwd();
+		execFileSync("git", ["init", "-q", project]);
+		writeAgentFile(projectAgentsDir, "scribe", "name: scribe\nauto-exit: true");
+		writeWorkflowFixture(join(root, "workflows"));
+		const loaded = loadWorkflowDefinitionFromPackage(join(root, "workflows", "docs-review"));
+		assert.equal(loaded.status, "ok");
+		const bin = join(root, "bin");
+		mkdirSync(bin);
+		const calls = join(root, "tmux-calls");
+		const counter = join(root, "pane-count");
+		const refuseStop = join(root, "refuse-stop");
+		writeFileSync(join(bin, "tmux"), `#!/bin/sh
+printf '%s\\n' "$*" >> '${calls}'
+if [ "$1" = kill-pane ] && [ -f '${refuseStop}' ]; then exit 1; fi
+if [ "$1" = split-window ]; then
+  n=0; [ ! -f '${counter}' ] || read -r n < '${counter}'
+  n=$((n+1)); printf '%s\\n' "$n" > '${counter}'
+  printf '%%%s\\n' "$n"
+fi
+`);
+		chmodSync(join(bin, "tmux"), 0o755);
+		const previous = { PATH: process.env.PATH, TMUX: process.env.TMUX };
+		process.env.PATH = `${bin}:${previous.PATH}`;
+		process.env.TMUX = "fake-workflow-tree";
+		const { api, registeredTools, eventHandlers, sentMessages } = createMockExtensionApi();
+		const persisted: AnyRecord[] = [];
+		(api as any).appendEntry = (customType: string, data: unknown) =>
+			persisted.push({ type: "custom", customType, data: structuredClone(data) });
+		let branch: AnyRecord[] = [];
+		const notifications: string[] = [];
+		const ctx: AnyRecord = policyContext({
+			cwd: project,
+			sessionManager: {
+				getSessionFile: () => join(root, "parent.jsonl"),
+				getSessionId: () => "tree-parent",
+				getSessionDir: () => root,
+				getBranch: () => branch,
+			},
+			ui: { notify(message: string) { notifications.push(message); }, setWidget() {} },
+		});
+		try {
+			testApi.setWorkflowRunStateForTests(startWorkflowRun(createWorkflowRunState(), {
+				runId: "tree-run", source: "project", definition: loaded.definition,
+				projectRoot: project, policy: "per-role", assignmentSource: "preset",
+				originalAssignments: { author: { provider: "anthropic", model: "claude", thinking: "off" } },
+			}).state);
+			const runTool = (name: string, params: AnyRecord) =>
+				registeredTools.find((tool) => tool.name === name)!.execute("call", params, undefined, undefined, ctx);
+			const ordinary = await runTool("subagent", { name: "Unrelated", task: "ordinary work" });
+			const launched = await runTool("workflow_spawn", { runId: "tree-run", role: "author", task: "write docs" });
+			assert.equal(launched.details.status, "started", JSON.stringify(launched));
+			let owned = testApi.runningSubagents.get(launched.details.id)!;
+			const unrelated = testApi.runningSubagents.get(ordinary.details.id)!;
+			assert.ok(owned.abortController);
+			writeFileSync(owned.sessionFile, '{"type":"session","version":3,"id":"child"}\n');
+			if (completion === "resume" || completion === "recovery") {
+				await eventHandlers.get("session_before_tree")![0]({}, ctx);
+				ctx.isIdle = () => true;
+				for (const handler of eventHandlers.get("before_agent_start") ?? []) {
+					await handler({ systemPrompt: "" }, ctx);
+				}
+				ctx.hasUI = true;
+				ctx.ui.select = async (_title: string, choices: string[]) => choices[0];
+				const next = completion === "resume"
+					? await runTool("workflow_resume", { runId: "tree-run", role: "author" })
+					: await runTool("workflow_recover", { runId: "tree-run", role: "author", failure: "quota exceeded" });
+				assert.equal(next.details.status, "started", JSON.stringify(next));
+				owned = testApi.runningSubagents.get(next.details.id)!;
+			}
+			const profile = readLaunchProfile(owned.sessionFile);
+			assert.equal(profile.status, "ok");
+			const profileBytes = readFileSync(profilePathForSession(owned.sessionFile), "utf8");
+			const sessionBytes = readFileSync(owned.sessionFile, "utf8");
+			const scriptBytes = readFileSync(owned.launchScriptFile!, "utf8");
+			// Restore the same run/role/session IDs: ID matching alone is not ownership.
+			branch = [persisted.at(-1)!];
+
+			writeFileSync(refuseStop, "");
+			if (completionCleanupFails) {
+				const send = api.sendMessage;
+				await new Promise<void>((resolve) => {
+					api.sendMessage = (message, options) => {
+						send(message, options);
+						resolve();
+					};
+					writeFileSync(`${owned.sessionFile}.exit`, JSON.stringify({ type: "done" }));
+				});
+				api.sendMessage = send;
+				const closeAttempts = readFileSync(calls, "utf8").split("\n")
+					.filter((line) => line === `kill-pane -t ${owned.surface}`);
+				assert.equal(closeAttempts.length, 2, "the shared watcher tried and failed to close the completed child twice");
+			}
+			const failedStop = await eventHandlers.get("session_before_tree")![0]({}, ctx);
+			assert.equal((failedStop as any)?.cancel, true, "a failed stop must leave navigation cancelled");
+			if (completionCleanupFails) {
+				const closeAttempts = readFileSync(calls, "utf8").split("\n")
+					.filter((line) => line === `kill-pane -t ${owned.surface}`);
+				assert.equal(closeAttempts.length, 3, "navigation must make its own strict stop attempt after watcher cleanup fails");
+			}
+			assert.ok(notifications.some((message) => /could not stop.*saved sessions and artifacts are preserved/i.test(message)));
+			assert.equal(testApi.runningSubagents.get(owned.id), owned, "retain ownership so the stop can be retried");
+			const notify = ctx.ui.notify;
+			ctx.ui.notify = () => { throw new Error("UI unavailable"); };
+			try {
+				const withoutUi = await eventHandlers.get("session_before_tree")![0]({}, ctx);
+				assert.equal((withoutUi as any)?.cancel, true, "notification failure must not bypass the stop failure");
+			} finally {
+				ctx.ui.notify = notify;
+			}
+			rmSync(refuseStop);
+			const before = await eventHandlers.get("session_before_tree")![0]({}, ctx);
+			assert.notEqual((before as any)?.cancel, true, "a running role must not block navigation");
+			assert.equal(owned.abortController!.signal.aborted, true, "old role watcher must be detached before switching");
+			assert.equal(testApi.runningSubagents.has(owned.id), false);
+			assert.match(readFileSync(calls, "utf8"), new RegExp(`kill-pane -t ${owned.surface}`));
+			assert.equal(unrelated.abortController!.signal.aborted, false);
+			assert.equal(testApi.runningSubagents.get(unrelated.id), unrelated);
+			await eventHandlers.get("session_tree")![0]({}, ctx);
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			assert.equal(getActiveWorkflowRun(testApi.getWorkflowRunStateForTests())?.activeLaunch?.status, "interrupted");
+			assert.equal(sentMessages.length, completionCleanupFails ? 1 : 0, "old cancellation/result must not enter the restored branch");
+			assert.equal(readFileSync(owned.sessionFile, "utf8"), sessionBytes);
+			assert.equal(readFileSync(owned.launchScriptFile!, "utf8"), scriptBytes);
+			assert.deepEqual(readLaunchProfile(owned.sessionFile), profile);
+			assert.equal(readFileSync(profilePathForSession(owned.sessionFile), "utf8"), profileBytes);
+			// The SDK stays non-idle until navigateTree finally returns. The next
+			// normal prompt supplies the safe release boundary, not session_tree.
+			ctx.isIdle = () => true;
+			for (const handler of eventHandlers.get("before_agent_start") ?? []) {
+				await handler({ systemPrompt: "" }, ctx);
+			}
+			const resumed = await runTool("workflow_resume", { runId: "tree-run", role: "author" });
+			assert.equal(resumed.details.status, "started", JSON.stringify(resumed));
+			const resumedChild = testApi.runningSubagents.get(resumed.details.id)!;
+			assert.equal(resumedChild.sessionFile, owned.sessionFile, "explicit resume still uses the preserved role session");
+			assert.equal(resumedChild.abortController!.signal.aborted, false);
+			await eventHandlers.get("session_before_tree")![0]({}, ctx);
+			assert.equal(resumedChild.abortController!.signal.aborted, true);
+			assert.equal(unrelated.abortController!.signal.aborted, false);
+		} finally {
+			await eventHandlers.get("session_shutdown")![0]({}, ctx);
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			// This module is shared by the suite. Re-arm through the native session
+			// lifecycle so later launch tests do not inherit an aborted poll signal.
+			const previousChild = process.env.PI_SUBAGENT_ID;
+			process.env.PI_SUBAGENT_ID = "tree-test-cleanup";
+			branch = [];
+			try {
+				await eventHandlers.get("session_start")![0]({ reason: "new" }, ctx);
+			} finally {
+				restoreEnvVar("PI_SUBAGENT_ID", previousChild);
+			}
+			restoreEnvVar("PATH", previous.PATH);
+			restoreEnvVar("TMUX", previous.TMUX);
+		}
+	});
+});
+}
+
+test("workflow_gate is parent-only and honors its denied-tool policy", () => {
+	const parent = createMockExtensionApi();
+	const gate = parent.registeredTools.find((tool) => tool.name === "workflow_gate");
+	assert.ok(gate);
+	assert.deepEqual(Object.keys(gate.parameters.properties).sort(), [
+		"artifact", "data", "gate", "reviewDirectory", "runId",
+	]);
+	const childOrDeniedEnvironments: Array<Record<string, string>> = [
+		{ PI_SUBAGENT_ID: "child" },
+		{ PI_SUBAGENT_SESSION: "/tmp/child.jsonl" },
+		{ PI_DENY_TOOLS: "workflow_gate" },
+	];
+	for (const env of childOrDeniedEnvironments) {
+		assert.equal(
+			createMockExtensionApi({ env }).registeredTools.some((tool) => tool.name === "workflow_gate"),
+			false,
+			JSON.stringify(env),
+		);
+	}
 });
 
 test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards", () => {
@@ -1048,6 +1260,7 @@ test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards
 				"subagent_resume",
 				"subagents_list",
 				"workflow_complete",
+				"workflow_gate",
 				"workflow_recover",
 				"workflow_resume",
 				"workflow_spawn",
@@ -1510,6 +1723,7 @@ test("ordinary subagent launches keep agent model config precedence for workflow
 					version: 1,
 					agents: {
 						planner: "missing/gone:high",
+						evaluator: "missing/gone:high",
 						"task-writer": "missing/gone:high",
 						executor: "missing/gone:high",
 						reviewer: "missing/gone:high",
@@ -1517,7 +1731,7 @@ test("ordinary subagent launches keep agent model config precedence for workflow
 			},
 				agentDir,
 			);
-			for (const agent of ["planner", "task-writer", "executor", "reviewer"]) {
+			for (const agent of ["planner", "evaluator", "task-writer", "executor", "reviewer"]) {
 				const result: AnyRecord = await executeWithoutSubagentIdentity(() =>
 					tool.execute("c", { name: agent, task: "t", agent }, undefined, undefined, policyContext()),
 				);
@@ -1693,6 +1907,7 @@ test("/agent-models lists discovered agents with current values and annotations"
 		assert.ok(choices.includes("scout — anthropic/claude:high"), choices.join("\n"));
 		assert.ok(choices.includes("claude-code — parent default · frontmatter only"), choices.join("\n"));
 		assert.ok(choices.includes("planner — parent default"), choices.join("\n"));
+		assert.ok(choices.includes("evaluator — parent default"), choices.join("\n"));
 		assert.ok(choices.includes("task-writer — parent default"), choices.join("\n"));
 		assert.ok(choices.includes("executor — parent default"), choices.join("\n"));
 		assert.ok(choices.includes("reviewer — parent default"), choices.join("\n"));

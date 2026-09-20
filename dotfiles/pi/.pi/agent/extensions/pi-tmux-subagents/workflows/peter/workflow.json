@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "id": "peter",
+  "command": {
+    "name": "peter",
+    "description": "Run the plan to evaluate to tasks to execute to review workflow",
+    "argumentHint": "<request>"
+  },
+  "skill": "SKILL.md",
+  "data": {
+    "plan": {
+      "kind": "file",
+      "label": "PLAN.md",
+      "constraint": {
+        "under": ".artifacts",
+        "basename": "PLAN.md"
+      }
+    },
+    "evaluation": {
+      "kind": "file",
+      "label": "EVALUATION.md",
+      "constraint": {
+        "under": ".artifacts",
+        "basename": "EVALUATION.md"
+      }
+    },
+    "tasks": {
+      "kind": "file",
+      "label": "TASKS.md",
+      "constraint": {
+        "under": ".artifacts",
+        "basename": "TASKS.md"
+      }
+    },
+    "review": {
+      "kind": "file",
+      "label": "REVIEW.md",
+      "constraint": {
+        "under": ".artifacts",
+        "basename": "REVIEW.md"
+      }
+    },
+    "baseRef": {
+      "kind": "string",
+      "label": "Base ref"
+    }
+  },
+  "roles": [
+    {
+      "id": "planner",
+      "label": " Planner",
+      "agent": "planner",
+      "reads": [
+        "baseRef",
+        "plan",
+        "evaluation"
+      ],
+      "writes": [
+        "file:plan"
+      ],
+      "handoff": "Continue planning from the current PLAN.md state and the user's latest adjustment, preserving its feedback block verbatim. EVALUATION.md is reference material only for findings the user's notes name; do not adopt other findings or edit EVALUATION.md. Do not implement or change any other repository file. Do not run Plannotator; the parent owns the gates."
+    },
+    {
+      "id": "evaluator",
+      "label": " Evaluator",
+      "agent": "evaluator",
+      "optional": true,
+      "reads": [
+        "plan",
+        "evaluation"
+      ],
+      "writes": [
+        "file:evaluation"
+      ],
+      "handoff": "Re-read the exact PLAN.md and previous EVALUATION.md, then evaluate the current plan with plan-evaluate using read-only commands. Overwrite only the declared EVALUATION.md. Never substitute another plan or run Plannotator. Report the verdict, finding counts, and EVALUATION: <absolute path>; report NOTHING EVALUATED on input failure."
+    },
+    {
+      "id": "task-writer",
+      "label": " Task writer",
+      "agent": "task-writer",
+      "reads": [
+        "plan",
+        "tasks"
+      ],
+      "writes": [
+        "file:tasks"
+      ],
+      "handoff": "Re-read PLAN.md and TASKS.md, then continue task writing from the current artifacts and latest instruction, preserving its feedback block verbatim. Do not change PLAN.md or implement anything. Do not run Plannotator; the parent owns the gates."
+    },
+    {
+      "id": "executor",
+      "label": " Executor",
+      "agent": "executor",
+      "reads": [
+        "plan",
+        "tasks",
+        "review",
+        "baseRef"
+      ],
+      "writes": [
+        "worktree",
+        "file:tasks"
+      ],
+      "handoff": "Re-read PLAN.md, TASKS.md, the base ref, and REVIEW.md when present. Continue from the first unchecked task or the latest authorized fix scope, preserving its feedback block verbatim; user annotations override the standard fix scope where they conflict. Keep TASKS.md accurate and never commit or stage. Do not run Plannotator; the parent owns the gates."
+    },
+    {
+      "id": "reviewer",
+      "label": " Reviewer",
+      "agent": "reviewer",
+      "reads": [
+        "plan",
+        "tasks",
+        "review",
+        "baseRef"
+      ],
+      "writes": [
+        "file:review"
+      ],
+      "handoff": "Perform an independent review from the current PLAN.md, TASKS.md, implementation, and base ref. Use the previous REVIEW.md only as optional context and edit nothing except REVIEW.md. Do not run Plannotator; the parent owns the gates."
+    }
+  ]
+}

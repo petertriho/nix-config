@@ -120,6 +120,7 @@ import {
 } from "./workflow/state.ts";
 import { registerWorkflowLifecycleTools } from "./workflow/tools.ts";
 import { registerWorkflowCommands } from "./workflow/runtime.ts";
+import { registerWorkflowGateTool } from "./workflow/gate-tools.ts";
 
 /**
  * pi-tmux-subagents: a tmux-only port of pi-interactive-subagents
@@ -308,6 +309,7 @@ const SPAWNING_TOOLS = new Set([
   "workflow_resume",
   "workflow_recover",
   "workflow_complete",
+  "workflow_gate",
 ]);
 
 /**
@@ -1767,13 +1769,26 @@ function renderToolFallback(result: ToolRenderResult, theme: UiTheme): Text {
 
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
   workflowRunState = createWorkflowRunState();
+  const deniedTools = new Set(
+    (process.env.PI_DENY_TOOLS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  const shouldRegister = (name: string) => !deniedTools.has(name);
+  const workflowGates = registerWorkflowGateTool(pi, {
+    getState: () => workflowRunState,
+    commit: (transition) => commitWorkflowRunTransition(pi, transition),
+  }, {
+    shouldRegister,
+    onError: (error) => {
+      try { latestCtx?.ui.notify(error.message, "error"); } catch { /* Session closed. */ }
+    },
+  });
   const workflowCommands = registerWorkflowCommands(
     pi,
     {
-      state: {
-        getState: () => workflowRunState,
-        commit: (transition) => commitWorkflowRunTransition(pi, transition),
-      },
+      state: workflowGates.state,
       loadAgent: loadAgentDefaults,
       isTmuxAvailable,
       muxSetupHint,
@@ -1782,6 +1797,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
   );
 
   pi.on("session_start", (_event, ctx) => {
+    workflowGates.startSession(ctx.sessionManager.getSessionFile());
     latestCtx = ctx;
     // /new, /resume, and /fork tore the previous session down through
     // session_shutdown without re-importing this module. Re-arm the poll-abort
@@ -1827,6 +1843,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
   });
 
   pi.on("session_shutdown", () => {
+    workflowGates.shutdown();
     if (widgetInterval) {
       clearInterval(widgetInterval);
       widgetInterval = null;
@@ -1849,15 +1866,35 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     workflowRunState = createWorkflowRunState();
   });
 
-  // Tools denied via PI_DENY_TOOLS (set by the parent from agent frontmatter).
-  const deniedTools = new Set(
-    (process.env.PI_DENY_TOOLS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
-  );
-
-  const shouldRegister = (name: string) => !deniedTools.has(name);
+  // Tree navigation changes the active persistence branch without shutdown.
+  // Stop owned workflow work before navigating, then restore only the new branch.
+  pi.on("session_before_tree", async (_event, ctx) => {
+    workflowGates.startSession(ctx.sessionManager.getSessionFile());
+    try {
+      await workflowLifecycle.stopBeforeTree();
+    } catch (error) {
+      try {
+        ctx.ui.notify(
+          `Tree navigation cancelled: could not stop the workflow role: ${error instanceof Error ? error.message : String(error)}. `
+          + "Retry after stopping it; saved sessions and artifacts are preserved.",
+          "error",
+        );
+      } catch {
+        // A failed notification must not let navigation bypass a failed stop.
+      }
+      return { cancel: true };
+    }
+  });
+  pi.on("session_tree", (_event, ctx) => {
+    const restored = restoreWorkflowRunStateFromSession(ctx.sessionManager);
+    workflowRunState = restored.state;
+    try {
+      persistWorkflowRunSnapshots(pi, restored.snapshots);
+    } catch {
+      ctx.ui.notify("Workflow branch restored in memory; interrupted state could not be persisted.", "warning");
+    }
+    workflowCommands.restoreActiveRunUx(ctx);
+  });
 
   // ── subagent tool ──
   if (shouldRegister("subagent"))
@@ -2266,13 +2303,10 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       },
     });
 
-  registerWorkflowLifecycleTools(
+  const workflowLifecycle = registerWorkflowLifecycleTools(
     pi,
     {
-      state: {
-        getState: () => workflowRunState,
-        commit: (transition) => commitWorkflowRunTransition(pi, transition),
-      },
+      state: workflowGates.state,
       execution: subagentExecution,
       loadAgentDefaults,
       isTmuxAvailable,

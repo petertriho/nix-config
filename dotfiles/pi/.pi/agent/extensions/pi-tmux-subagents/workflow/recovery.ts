@@ -5,6 +5,7 @@ import type {
 } from "../launch-profile.ts";
 import {
 	overrideWorkflowRunAssignment,
+	assertWorkflowRoleEnabled,
 	type WorkflowRunState,
 	type WorkflowRunTransitionOptions,
 	type WorkflowRunTransitionResult,
@@ -97,6 +98,7 @@ function resolveWorkflowRecoveryRoleId(
 		);
 	}
 	resolveWorkflowRole(snapshot.definition, resolvedRoleId);
+	assertWorkflowRoleEnabled(snapshot, resolvedRoleId);
 	return resolvedRoleId;
 }
 

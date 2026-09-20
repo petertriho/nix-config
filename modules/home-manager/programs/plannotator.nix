@@ -18,9 +18,10 @@ in
       { home.packages = [ plannotator ]; }
       {
         # Drafts, version history, and the feedback archive live in
-        # ~/.plannotator. The nono Claude profile needs the directory writable
-        # for the plannotator gates in the `peter` skills.
+        # ~/.plannotator. The nono Claude and Pi profiles need it writable
+        # for their `peter` workflow gates.
         programs.nono.agentFilesystem.claude.allow = [ "$HOME/.plannotator" ];
+        programs.nono.agentFilesystem.pi.allow = [ "$HOME/.plannotator" ];
       }
     #   {
     #     programs.ai.skills.plannotator-compound = {

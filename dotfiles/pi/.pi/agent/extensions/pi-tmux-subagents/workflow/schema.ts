@@ -68,6 +68,7 @@ export const WorkflowRoleSchema = Type.Object(
 		id: Type.String({ minLength: 1 }),
 		label: Type.String({ minLength: 1 }),
 		agent: Type.String({ minLength: 1 }),
+		optional: Type.Optional(Type.Boolean()),
 		reads: Type.Array(Type.String({ minLength: 1 })),
 		writes: Type.Array(Type.String({ minLength: 1 })),
 		handoff: Type.String({ minLength: 1 }),
@@ -357,11 +358,11 @@ function normalizeRoles(
 	const roles: WorkflowRoleDefinition[] = [];
 	for (const [index, rawRole] of value.entries()) {
 		const rolePath = `${path}[${index}]`;
-		if (!isRecord(rawRole) || !hasExactKeys(rawRole, ["id", "label", "agent", "reads", "writes", "handoff"])) {
+		if (!isRecord(rawRole) || !hasExactKeys(rawRole, ["id", "label", "agent", "reads", "writes", "handoff"], ["optional"])) {
 			pushDiagnostic(
 				diagnostics,
 				rolePath,
-				"Workflow roles must contain `id`, `label`, `agent`, `reads`, `writes`, and `handoff` only.",
+				"Workflow roles must contain `id`, `label`, `agent`, `reads`, `writes`, `handoff`, and optional boolean `optional` only.",
 			);
 			continue;
 		}
@@ -386,6 +387,10 @@ function normalizeRoles(
 			pushDiagnostic(diagnostics, `${rolePath}.agent`, `Workflow role ${id} agent must be a non-empty string.`);
 			continue;
 		}
+		if (rawRole.optional !== undefined && typeof rawRole.optional !== "boolean") {
+			pushDiagnostic(diagnostics, `${rolePath}.optional`, `Workflow role ${id} optional must be a boolean when present.`);
+			continue;
+		}
 		if (!Array.isArray(rawRole.reads) || !rawRole.reads.every(isNonEmptyString)) {
 			pushDiagnostic(diagnostics, `${rolePath}.reads`, `Workflow role ${id} reads must be an array of data slot IDs.`);
 			continue;
@@ -400,6 +405,7 @@ function normalizeRoles(
 			id,
 			label: normalizeNonEmptyString(rawRole.label),
 			agent: normalizeNonEmptyString(rawRole.agent),
+			...(rawRole.optional !== undefined ? { optional: rawRole.optional } : {}),
 			reads: rawRole.reads.map(normalizeNonEmptyString),
 			writes,
 			handoff: normalizeNonEmptyString(rawRole.handoff),

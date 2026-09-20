@@ -7,7 +7,9 @@ import {
 	loadWorkflowDefinitionFromPackage,
 	parseWorkflowPrivateSkill,
 	resolveWorkflowRoleWriteCapabilities,
+	WorkflowRoleSchema,
 } from "./schema.ts";
+import { Value } from "typebox/value";
 
 function withTempDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-workflow-schema-"));
@@ -129,6 +131,28 @@ function pterLikeManifest() {
 		],
 	};
 }
+
+test("role optional flag accepts booleans only in both schema and package normalization", () => {
+	withTempDir((root) => {
+		for (const optional of [true, false, undefined, "true", 1, null, {}]) {
+			const manifest = pterLikeManifest();
+			const role = { ...manifest.roles[0], ...(optional !== undefined ? { optional } : {}) };
+			const valid = optional === undefined || typeof optional === "boolean";
+			assert.equal(Value.Check(WorkflowRoleSchema, role), valid);
+			const result = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, {
+				...manifest,
+				roles: [role, ...manifest.roles.slice(1)],
+			}));
+			if (valid) {
+				assert.equal(result.status, "ok");
+				assert.equal(result.definition.roleById.planner.optional, optional);
+				assert.equal(result.definition.roleById.reviewer.optional, undefined);
+			} else {
+				assertInvalid(result, /roles\[0\]\.optional/, /must be a boolean/);
+			}
+		}
+	});
+});
 
 test("loadWorkflowDefinitionFromPackage accepts a Pter-like manifest and deep-freezes it", () => {
 	withTempDir((root) => {

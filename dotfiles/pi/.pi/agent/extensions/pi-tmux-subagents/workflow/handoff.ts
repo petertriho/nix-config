@@ -1,3 +1,4 @@
+import { assertWorkflowRoleEnabled } from "./state.ts";
 import type {
 	NormalizedWorkflowDefinition,
 	WorkflowDataSlot,
@@ -35,7 +36,7 @@ export function resolveWorkflowRole(
 	roleId: string,
 ): WorkflowRoleDefinition {
 	const role = definition.roleById[roleId];
-	if (!role) throw new Error(`Workflow ${definition.id} has no role "${roleId}".`);
+	if (!Object.hasOwn(definition.roleById, roleId)) throw new Error(`Workflow ${definition.id} has no role "${roleId}".`);
 	return role;
 }
 
@@ -85,7 +86,9 @@ export function buildWorkflowRoleContinuation(
 		dataSlots: input.dataSlots,
 		data: input.data,
 	});
-	const latestInstruction = normalizeValue(input.userMessage);
+	// Continuation notes can contain browser feedback. Validate presence without
+	// trimming the bytes that the user supplied.
+	const latestInstruction = input.userMessage?.trim() ? input.userMessage : undefined;
 
 	return [
 		input.opening,
@@ -137,6 +140,7 @@ export function buildWorkflowRolloverHandoffForRun(input: {
 			`Workflow run "${input.snapshot.runId}" has no active role for rollover handoff.`,
 		);
 	}
+	assertWorkflowRoleEnabled(input.snapshot, roleId);
 	return buildWorkflowRolloverHandoffForRole({
 		definition: input.snapshot.definition,
 		roleId,

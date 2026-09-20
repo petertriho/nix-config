@@ -68,7 +68,7 @@ import {
 	type WorkflowToolDependencies,
 	type WorkflowToolStateStore,
 } from "./tools.ts";
-import type { NormalizedWorkflowDefinition } from "./types.ts";
+import { isWorkflowRoleSkipAssignment, type NormalizedWorkflowDefinition } from "./types.ts";
 import {
 	describeWorkflowWriteBoundaryReport,
 	evaluateWorkflowWriteBoundarySnapshot,
@@ -250,6 +250,9 @@ class StateStore implements WorkflowCommandStateStore, WorkflowToolStateStore {
 }
 
 class FakeExecution implements WorkflowSubagentExecution {
+	stopSubagent(running: RunningSubagent): void {
+		running.abortController?.abort();
+	}
 	launch?: {
 		params: SubagentLaunchParams;
 		options: {
@@ -880,7 +883,9 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.equal(restoredActive.data.ticket, "DOC-43");
 		assert.equal(restoredActive.data.report, reportPath);
 		assert.equal(restoredActive.roleSessions.verifier?.current, replacement);
-		assert.equal(restoredActive.currentAssignments?.verifier?.model, "relay-lite");
+		const restoredVerifier = restoredActive.currentAssignments?.verifier;
+		assert.ok(restoredVerifier && !isWorkflowRoleSkipAssignment(restoredVerifier));
+		assert.equal(restoredVerifier.model, "relay-lite");
 		assert.equal(restoredActive.activeLaunch?.status, "interrupted");
 		assert.equal(restoredActive.activeLaunch?.roleId, "verifier");
 		const status = formatWorkflowRunStatus(restoredActive);

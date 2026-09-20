@@ -186,7 +186,7 @@ later `Agent` spawn omits `model`. A teammate keeps its session model for its
 whole life; `SendMessage` never changes it, and only a fresh spawn applies a
 role's model.
 
-## Phase 1: Plan (teammate)
+## Phase 1: Plan
 
 Rename the window to ` Planning`. Then spawn the planner as a
 teammate with that role's model (omit `model` for inherit):
@@ -209,7 +209,7 @@ notification that contains `PLAN: <absolute path>` as the phase result. On
 any other planner notification, keep waiting; if nothing moves, remind the
 user to answer in the planner's session. Store the exact `PLAN.md` path.
 
-## Phase 2: Evaluate (teammate)
+## Phase 2: Evaluate
 
 Skip this phase when the evaluator role is `skip`. Otherwise rename the
 window to ` Evaluating`. Snapshot `git status --porcelain`. Then spawn the

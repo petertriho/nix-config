@@ -20,6 +20,7 @@ import {
 	restoreWorkflowRunStateFromBranch,
 	restoreWorkflowRunStateFromSession,
 	startWorkflowRun,
+	setWorkflowRunActiveLaunch,
 	summarizeWorkflowRun,
 	type StartWorkflowRunInput,
 	type WorkflowRunBranchReader,
@@ -420,5 +421,107 @@ test("recordWorkflowRunRoleSession keeps history and overrideWorkflowRunAssignme
 			model: "claude-opus-4",
 			thinking: "medium",
 		});
+	});
+});
+
+test("skip assignments and optional definitions survive persisted run restoration unchanged", () => {
+	withTempDir((root) => {
+		const manifest = workflowManifest();
+		const definition = loadDefinition(writeWorkflowPackage(root, {
+			...manifest,
+			roles: manifest.roles.map((role) => role.id === "verifier" ? { ...role, optional: true } : role),
+		}));
+		const input = startInput(root, definition);
+		const originalAssignments = { ...input.originalAssignments, verifier: { skip: true as const } };
+		let transition = startWorkflowRun(createWorkflowRunState(), { ...input, originalAssignments });
+		const capture = capturePersistedSnapshots();
+		appendTransition(capture, transition);
+		transition = overrideWorkflowRunAssignment(transition.state, "run-a", "author", {
+			provider: "other", model: "replacement",
+		});
+		appendTransition(capture, transition);
+		const restored = restoreWorkflowRunStateFromBranch(toBranchEntries(capture.appended));
+		const active = getActiveWorkflowRun(restored.state)!;
+		assert.equal(active.version, 1);
+		assert.equal(active.definition.roleById.verifier.optional, true);
+		assert.equal(active.definition.roles[1].optional, true);
+		assert.deepEqual(active.originalAssignments?.verifier, { skip: true });
+		assert.deepEqual(active.currentAssignments?.verifier, { skip: true });
+		assert.deepEqual(active.currentAssignments?.author, { provider: "other", model: "replacement" });
+		assert.deepEqual(restored.snapshots, []);
+		const before = JSON.stringify(restored.state);
+		assert.throws(() => setWorkflowRunActiveLaunch(restored.state, "run-a", {
+			roleId: "verifier", status: "starting",
+		}), /is skipped/);
+		assert.throws(() => recordWorkflowRunRoleSession(restored.state, "run-a", "verifier", "/tmp/skipped.jsonl"), /is skipped/);
+		assert.throws(() => overrideWorkflowRunAssignment(restored.state, "run-a", "verifier", {
+			provider: "other", model: "replacement",
+		}), /is skipped/);
+		assert.equal(JSON.stringify(restored.state), before);
+	});
+});
+
+test("assignment parsers reject invalid skips on both new runs and restored snapshots", () => {
+	withTempDir((root) => {
+		const manifest = workflowManifest();
+		const definition = loadDefinition(writeWorkflowPackage(root, {
+			...manifest,
+			roles: manifest.roles.map((role) => ({ ...role, optional: role.id === "verifier" })),
+		}));
+		const input = startInput(root, definition);
+		const validSnapshot = startWorkflowRun(createWorkflowRunState(), input).snapshots[0];
+		for (const bad of [
+			{ author: { skip: true } },
+			{ unknown: { skip: true } },
+			{ constructor: { skip: true } },
+			{ constructor: { provider: "test", model: "echo" } },
+			{ verifier: { skip: false } },
+			{ verifier: { skip: "true" } },
+			{ verifier: { skip: true, provider: "test", model: "echo" } },
+			{ verifier: { skip: true, thinking: "off" } },
+		]) {
+			for (const field of ["originalAssignments", "currentAssignments"]) {
+				assert.throws(() => startWorkflowRun(createWorkflowRunState(), { ...input, [field]: bad }));
+				const restored = restoreWorkflowRunStateFromBranch(toBranchEntries([{
+					customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE,
+					data: { ...validSnapshot, [field]: bad },
+				}]));
+				assert.equal(getActiveWorkflowRun(restored.state), null);
+			}
+		}
+		for (const optional of ["true", 1, null]) {
+			const bad = structuredClone(validSnapshot) as any;
+			bad.definition.roles[1].optional = optional;
+			bad.definition.roleById.verifier.optional = optional;
+			const restored = restoreWorkflowRunStateFromBranch(toBranchEntries([{
+				customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE, data: bad,
+			}]));
+			assert.equal(getActiveWorkflowRun(restored.state), null);
+		}
+	});
+});
+
+test("historical version-one snapshots without optional fields or thinking still restore", () => {
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root, workflowManifest()));
+		const input = startInput(root, definition);
+		const started = startWorkflowRun(createWorkflowRunState(), {
+			...input,
+			originalAssignments: {
+				author: { provider: "test", model: "old-author" },
+				verifier: { provider: "test", model: "old-verifier" },
+			},
+		});
+		const historical = JSON.parse(JSON.stringify(started.snapshots[0]));
+		delete historical.currentAssignments;
+		const restored = restoreWorkflowRunStateFromBranch(toBranchEntries([{
+			customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE, data: historical,
+		}]));
+		const active = getActiveWorkflowRun(restored.state)!;
+		assert.ok(active);
+		assert.equal(active.definition.roles.every((role) => !Object.hasOwn(role, "optional")), true);
+		assert.deepEqual(active.originalAssignments?.verifier, { provider: "test", model: "old-verifier" });
+		assert.equal(active.currentAssignments, undefined);
+		assert.equal(recordWorkflowRunRoleSession(restored.state, "run-a", "verifier", "/tmp/old.jsonl").snapshots.length, 1);
 	});
 });

@@ -141,6 +141,8 @@ export interface RunningSubagent {
 		error?: string;
 	};
 	abortController?: AbortController;
+	/** Set only after closeSurface succeeds (including an already-absent pane). */
+	surfaceClosed?: boolean;
 	cli?: string;
 	sentinelFile?: string;
 	statusState: SubagentStatusState;
@@ -222,6 +224,8 @@ export interface ResumeRecoveryContext {
 }
 
 export interface ResumeLifecycleContext {
+	/** A workflow resume must not publish into a branch it no longer owns. */
+	isOwned?: () => boolean;
 	/** Details merged into acknowledgements and asynchronous result messages. */
 	details?: Record<string, unknown>;
 	/** Authoritative workflow sidecar metadata for this resume/rollover. */
@@ -256,6 +260,8 @@ export interface TaskRuntimeOptions {
 }
 
 export interface BackgroundWatchOptions {
+	/** Workflow branch ownership; ordinary subagents have no branch restriction. */
+	isOwned?: () => boolean;
 	pi: ExtensionAPI;
 	ctx: LaunchContext;
 	running: RunningSubagent;
@@ -1018,7 +1024,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 					}
 				}
 
-				deps.closeSurface(surface);
+				closeSubagentSurface(running);
 				deps.runningSubagents.delete(running.id);
 
 				return {
@@ -1046,7 +1052,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				summary = fallbackSummary(result);
 			}
 
-			deps.closeSurface(surface);
+			closeSubagentSurface(running);
 			deps.runningSubagents.delete(running.id);
 
 			return {
@@ -1064,11 +1070,12 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			};
 		} catch (error) {
 			try {
-				deps.closeSurface(surface);
+				closeSubagentSurface(running);
 			} catch {
-				// The pane may already be gone after a tmux failure.
+				// A failed close is not evidence the child stopped. Retain it so
+				// callers (notably branch navigation) can retry a strict stop.
 			}
-			deps.runningSubagents.delete(running.id);
+			if (running.surfaceClosed) deps.runningSubagents.delete(running.id);
 
 			const message = error instanceof Error ? error.message : String(error);
 			if (signal.aborted) {
@@ -1101,11 +1108,13 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 
 		void watchSubagent(options.running, watcherAbort.signal)
 			.then(async (result) => {
+				if (options.isOwned?.() === false) return;
 				deps.updateWidget();
 
 				const boundary = deps.describeBoundary?.(options.running);
 				if (result.ping) {
 					await options.onPing?.({ result, boundary });
+					if (options.isOwned?.() === false) return;
 					sendSubagentPing(
 						options.pi,
 						result,
@@ -1117,6 +1126,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				}
 
 				const presentation = await options.onSuccess({ result, boundary });
+				if (options.isOwned?.() === false) return;
 				options.pi.sendMessage(
 					{
 						customType: "subagent_result",
@@ -1128,10 +1138,12 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				);
 			})
 			.catch(async (error) => {
+				if (options.isOwned?.() === false) return;
 				deps.updateWidget();
 				const message = error instanceof Error ? error.message : String(error);
 				try {
 					const presentation = await options.onError(message);
+					if (options.isOwned?.() === false) return;
 					options.pi.sendMessage(
 						{
 							customType: "subagent_result",
@@ -1142,6 +1154,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 						{ triggerTurn: true, deliverAs: "steer" },
 					);
 				} catch {
+					if (options.isOwned?.() === false) return;
 					options.pi.sendMessage(
 						{
 							customType: "subagent_result",
@@ -1157,17 +1170,30 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		return watcherAbort;
 	}
 
+	function closeSubagentSurface(running: RunningSubagent): void {
+		deps.closeSurface(running.surface);
+		running.surfaceClosed = true;
+	}
+
+	function stopSubagent(running: RunningSubagent): void {
+		// Do not forget a live child if tmux refuses the stop; navigation must fail.
+		closeSubagentSurface(running);
+		running.abortController?.abort();
+		deps.runningSubagents.delete(running.id);
+		deps.updateWidget();
+	}
+
 	function cleanupFailedPostLaunch(
 		running: RunningSubagent,
 		watcherAbort?: AbortController,
 	): void {
 		watcherAbort?.abort();
 		try {
-			deps.closeSurface(running.surface);
+			closeSubagentSurface(running);
 		} catch {
 			// The watcher or child process may already have closed the surface.
 		}
-		deps.runningSubagents.delete(running.id);
+		if (running.surfaceClosed) deps.runningSubagents.delete(running.id);
 		deps.updateWidget();
 	}
 
@@ -1178,6 +1204,11 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		recovery?: ResumeRecoveryContext,
 		lifecycle?: ResumeLifecycleContext,
 	): Promise<SubagentToolResult> {
+		const assertOwned = () => {
+			if (lifecycle?.isOwned?.() === false) {
+				throw new Error("Workflow resume interrupted by branch navigation; saved files are preserved.");
+			}
+		};
 		const name = params.name ?? "Resume";
 		const startTime = Date.now();
 		const id = Math.random().toString(16).slice(2, 10);
@@ -1391,6 +1422,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			break;
 		}
 
+		assertOwned();
 		if (!deps.isTmuxAvailable()) {
 			return deps.muxUnavailableResult();
 		}
@@ -1434,6 +1466,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			let watcherAbort: AbortController | undefined;
 			try {
 				watcherAbort = watchInBackground({
+					isOwned: lifecycle?.isOwned,
 					pi,
 					ctx,
 					running,
@@ -1520,12 +1553,14 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 					originalSessionPath: params.sessionPath,
 					sessionPath: running.sessionFile,
 				});
+				assertOwned();
 				await deps.onRolloverLaunched?.({
 					running,
 					rolloverProfile,
 					params,
 					...(recovery ? { recovery } : {}),
 				});
+				assertOwned();
 
 				lineageWarnings = linkRolloverLineage(params.sessionPath, running.sessionFile);
 				if (lineageWarnings.length > 0) {
@@ -1655,6 +1690,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		let watcherAbort: AbortController | undefined;
 		try {
 			watcherAbort = watchInBackground({
+				isOwned: lifecycle?.isOwned,
 				pi,
 				ctx,
 				running,
@@ -1754,6 +1790,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				originalSessionPath: params.sessionPath,
 				sessionPath: params.sessionPath,
 			});
+			assertOwned();
 		} catch (error) {
 			cleanupFailedPostLaunch(running, watcherAbort);
 			throw error;
@@ -1779,6 +1816,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		launchSubagent,
 		watchSubagent,
 		watchInBackground,
+		stopSubagent,
 		executeSubagentResume,
 	};
 }

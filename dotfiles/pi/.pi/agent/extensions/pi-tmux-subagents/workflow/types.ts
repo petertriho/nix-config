@@ -1,4 +1,5 @@
 import type { ModelSelection } from "../launch-profile.ts";
+import type { WorkflowGateAttempt } from "./plannotator.ts";
 
 export const WORKFLOW_MANIFEST_VERSION = 1 as const;
 export const WORKFLOW_RUN_SNAPSHOT_VERSION = 1 as const;
@@ -19,6 +20,16 @@ export type WorkflowManifestVersion = typeof WORKFLOW_MANIFEST_VERSION;
 export type WorkflowWriteCapability = "worktree" | `file:${string}`;
 export type WorkflowDataValueMap = Partial<Record<string, string>>;
 export type WorkflowRoleModelSelection = Readonly<ModelSelection>;
+export interface WorkflowRoleSkipAssignment {
+	readonly skip: true;
+}
+export type WorkflowRoleAssignment = WorkflowRoleModelSelection | WorkflowRoleSkipAssignment;
+
+export function isWorkflowRoleSkipAssignment(
+	assignment: WorkflowRoleAssignment | undefined,
+): assignment is WorkflowRoleSkipAssignment {
+	return assignment !== undefined && "skip" in assignment && assignment.skip === true;
+}
 export type WorkflowSourceScope = "bundled" | "global" | "project";
 export type WorkflowRunStatus = "active" | "completed" | "aborted";
 export type WorkflowRunLaunchStatus =
@@ -70,6 +81,8 @@ export interface WorkflowRoleDefinition {
 	readonly id: string;
 	readonly label: string;
 	readonly agent: string;
+	/** Required by default; only optional roles may receive a skip assignment. */
+	readonly optional?: boolean;
 	readonly reads: readonly string[];
 	readonly writes: readonly WorkflowWriteCapability[];
 	readonly handoff: string;
@@ -142,11 +155,12 @@ export interface WorkflowRunSnapshot {
 	readonly skillHash: string;
 	readonly policy: WorkflowRunModelPolicy;
 	readonly assignmentSource: WorkflowRunAssignmentSource;
-	readonly originalAssignments?: Readonly<Record<string, WorkflowRoleModelSelection>>;
-	readonly currentAssignments?: Readonly<Record<string, WorkflowRoleModelSelection>>;
+	readonly originalAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
+	readonly currentAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
 	readonly data: WorkflowDataValueMap;
 	readonly roleSessions: Readonly<Record<string, WorkflowRoleSessionSnapshot>>;
 	readonly activeLaunch?: WorkflowRunActiveLaunch;
+	readonly gateHistory?: readonly WorkflowGateAttempt[];
 	readonly startedAt: string;
 	readonly updatedAt: string;
 	readonly finishedAt?: string;
@@ -165,6 +179,9 @@ export interface WorkflowRunStatusSummary {
 	readonly updatedAt?: string;
 	readonly finishedAt?: string;
 	readonly currentRoleSessions: Readonly<Record<string, string>>;
+	readonly latestGate?: Pick<WorkflowGateAttempt, "id" | "gate" | "status" | "resultPath"> & {
+		readonly interrupted: boolean;
+	};
 	readonly activeLaunch?: {
 		readonly roleId: string;
 		readonly roleLabel?: string;

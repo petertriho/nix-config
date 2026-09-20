@@ -18,7 +18,7 @@ import {
 	writeWorkflowModelPreset,
 	type WorkflowPresetRoles,
 } from "./presets.ts";
-import type { NormalizedWorkflowDefinition } from "./types.ts";
+import { isWorkflowRoleSkipAssignment, type NormalizedWorkflowDefinition } from "./types.ts";
 
 const ECHO = {
 	provider: "test",
@@ -446,7 +446,11 @@ test("invalid saved role sets are ignored and unavailable saved models cannot la
 
 		const fixed = readWorkflowModelPreset(definition, root, agentDir);
 		assert.equal(fixed.status, "ok");
-		if (fixed.status === "ok") assert.equal(fixed.preset.roles.publisher.provider, "test");
+		if (fixed.status === "ok") {
+			const publisher = fixed.preset.roles.publisher;
+			assert.ok(!isWorkflowRoleSkipAssignment(publisher));
+			assert.equal(publisher.provider, "test");
+		}
 	});
 });
 
@@ -576,4 +580,93 @@ test("final assignment confirmation handles its explicit Cancel choice without p
 		);
 		assert.equal(readWorkflowModelPreset(definition, root, agentDir).status, "missing");
 	});
+});
+
+function optionalManifest() {
+	const manifest = workflowManifest();
+	return {
+		...manifest,
+		roles: manifest.roles.map((role) => role.id === "verifier" ? { ...role, optional: true } : role),
+	};
+}
+
+const ENABLE = "Enable role and choose model";
+const SKIP = "Skip this optional role";
+
+test("optional role skip is configured, saved, reused, and editable back to the shared model picker", async () => {
+	await withTempDir(async (root, agentDir, definition) => {
+		const configured = startupContext([CONFIGURE, echoRow, "off", SKIP, echoRow, "off", START]);
+		const result = await chooseWorkflowStartup(configured.ctx, definition, root, { agentDir });
+		assert.equal(result.status, "started");
+		assert.deepEqual(result.state.originalAssignments?.verifier, { skip: true });
+		assert.deepEqual(result.state.currentAssignments?.verifier, { skip: true });
+		assert.deepEqual(configured.remaining, []);
+		assert.equal(configured.selectCalls.filter((call) => call.choices.includes(SKIP)).length, 1);
+		assert.equal(configured.selectCalls.some((call) => call.title.startsWith("Model for Verifier")), false);
+		assert.match(configured.selectCalls.at(-1)!.title, /Verifier skipped/);
+
+		const reuse = startupContext([REUSE]);
+		const reused = await chooseWorkflowStartup(reuse.ctx, definition, root, { agentDir });
+		assert.equal(reused.status, "started");
+		assert.deepEqual(reused.state.currentAssignments?.verifier, { skip: true });
+		assert.match(reuse.selectCalls[0].title, /Verifier skipped/);
+		await assert.rejects(
+			resolveWorkflowRoleSelection(reuse.ctx, definition, reused.state, "verifier"),
+			/is skipped/,
+		);
+		assert.throws(() => updateWorkflowActiveSession(reused.state, "verifier", "/tmp/forbidden"), /is skipped/);
+		assert.throws(() => applyWorkflowRecoveryOverride(reused.state, "verifier", {
+			provider: "test", model: "echo",
+		}), /is skipped/);
+
+		const edit = startupContext([EDIT, "Verifier (verifier)", ENABLE, altRow, "high", START], [ECHO, ALT]);
+		const edited = await chooseWorkflowStartup(edit.ctx, definition, root, { agentDir });
+		assert.equal(edited.status, "started");
+		assert.deepEqual(edited.state.currentAssignments?.verifier, { provider: "other", model: "alt", thinking: "high" });
+		assert.match(edit.selectCalls[2].title, /currently skipped/);
+		assert.equal(edit.selectCalls.some((call) => call.title === "Model for Verifier"), true);
+		assert.deepEqual(edit.remaining, []);
+
+		const skipAgain = startupContext([REUSE, EDIT, "Verifier (verifier)", SKIP, START], [ECHO]);
+		const skipped = await chooseWorkflowStartup(skipAgain.ctx, definition, root, { agentDir });
+		assert.equal(skipped.status, "started");
+		assert.deepEqual(skipped.state.currentAssignments?.verifier, { skip: true });
+		assert.deepEqual(skipAgain.remaining, []);
+		assert.equal(skipAgain.notifications.length, 1);
+		assert.match(skipAgain.notifications[0][0], /Saved preset has unavailable assignments.*\nverifier:/);
+	}, optionalManifest());
+});
+
+test("optional roles are enabled in parent mode and use the normal picker when enabled per-role", async () => {
+	await withTempDir(async (root, agentDir, definition) => {
+		const parent = startupContext([PARENT]);
+		const started = await chooseWorkflowStartup(parent.ctx, definition, root, { agentDir });
+		assert.equal(started.status, "started");
+		assert.equal(started.state.currentAssignments, undefined);
+		assert.equal((await resolveWorkflowRoleSelection(parent.ctx, definition, started.state, "verifier")).argument, "test/echo:off");
+
+		const perRole = startupContext([CONFIGURE, echoRow, "off", ENABLE, echoRow, "off", echoRow, "off", START]);
+		const enabled = await chooseWorkflowStartup(perRole.ctx, definition, root, { agentDir });
+		assert.equal(enabled.status, "started");
+		assert.deepEqual(enabled.state.currentAssignments, roles(definition));
+		assert.deepEqual(perRole.remaining, []);
+		assert.equal(perRole.selectCalls.find((call) => call.choices.includes(SKIP))?.choices[0], ENABLE);
+	}, optionalManifest());
+});
+
+test("cancelling optional setup or skip confirmation never saves a preset", async () => {
+	await withTempDir(async (root, agentDir, definition) => {
+		for (const selections of [
+			[CONFIGURE, echoRow, "off", CANCEL],
+			[CONFIGURE, echoRow, "off", undefined],
+			[CONFIGURE, echoRow, "off", SKIP, echoRow, "off", CANCEL],
+		]) {
+			const cancelled = startupContext(selections);
+			assert.deepEqual(await chooseWorkflowStartup(cancelled.ctx, definition, root, { agentDir }), {
+				status: "cancelled", reason: "user",
+			});
+			assert.equal(readWorkflowModelPreset(definition, root, agentDir).status, "missing");
+			assert.deepEqual(cancelled.remaining, []);
+		}
+	}, optionalManifest());
 });

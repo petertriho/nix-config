@@ -42,6 +42,8 @@ import {
 } from "./recovery.ts";
 import {
 	abortWorkflowRun,
+	assertNoPendingWorkflowGate,
+	assertWorkflowRoleEnabled,
 	completeWorkflowRun,
 	getActiveWorkflowRun,
 	getWorkflowRunSnapshot,
@@ -55,9 +57,11 @@ import {
 import { resolveWorkflowRoleSelection } from "./startup.ts";
 import type {
 	WorkflowPresetRoles,
-	WorkflowRoleSelection,
+	WorkflowPresetAssignment,
 } from "./presets.ts";
+import { isWorkflowRoleSkipAssignment } from "./types.ts";
 import type {
+	WorkflowRoleAssignment,
 	WorkflowRoleDefinition,
 	WorkflowRunSnapshot,
 } from "./types.ts";
@@ -143,6 +147,7 @@ export interface WorkflowToolStateStore {
 }
 
 export interface WorkflowSubagentExecution {
+	stopSubagent(running: RunningSubagent): void;
 	launchSubagent(
 		params: SubagentLaunchParams,
 		ctx: LaunchContext,
@@ -184,8 +189,8 @@ function formatDiagnostics(
 	return diagnostics.map((diagnostic) => `${diagnostic.path}: ${diagnostic.message}`).join("\n");
 }
 
-function cloneSelection(selection: ModelSelection | undefined): ModelSelection | undefined {
-	if (!selection) return undefined;
+function cloneSelection(selection: WorkflowRoleAssignment | undefined): ModelSelection | undefined {
+	if (!selection || isWorkflowRoleSkipAssignment(selection)) return undefined;
 	return {
 		provider: selection.provider,
 		model: selection.model,
@@ -194,11 +199,15 @@ function cloneSelection(selection: ModelSelection | undefined): ModelSelection |
 }
 
 function startupAssignments(
-	assignments: Readonly<Record<string, ModelSelection>> | undefined,
+	assignments: Readonly<Record<string, WorkflowRoleAssignment>> | undefined,
 ): WorkflowPresetRoles | undefined {
 	if (!assignments) return undefined;
-	const normalized: Record<string, WorkflowRoleSelection> = {};
+	const normalized: Record<string, WorkflowPresetAssignment> = {};
 	for (const [roleId, selection] of Object.entries(assignments)) {
+		if (isWorkflowRoleSkipAssignment(selection)) {
+			normalized[roleId] = { skip: true };
+			continue;
+		}
 		normalized[roleId] = {
 			provider: selection.provider,
 			model: selection.model,
@@ -243,11 +252,13 @@ function roleForRun(
 	roleId: string,
 ): WorkflowRoleDefinition {
 	const role = snapshot.definition.roleById[roleId];
-	if (!role) {
+	if (!Object.hasOwn(snapshot.definition.roleById, roleId)) {
 		throw new Error(
 			`Workflow "${snapshot.workflowId}" has no role "${roleId}". Valid roles: ${snapshot.definition.roleIds.join(", ")}.`,
 		);
 	}
+	assertWorkflowRoleEnabled(snapshot, roleId);
+	assertNoPendingWorkflowGate(snapshot);
 	return role;
 }
 
@@ -284,8 +295,8 @@ function assignmentSourceForRole(
 	snapshot: WorkflowRunSnapshot,
 	roleId: string,
 ): LaunchProfileWorkflowMetadata["assignmentSource"] {
-	const original = snapshot.originalAssignments?.[roleId];
-	const current = snapshot.currentAssignments?.[roleId];
+	const original = cloneSelection(snapshot.originalAssignments?.[roleId]);
+	const current = cloneSelection(snapshot.currentAssignments?.[roleId]);
 	if (current && (!original || !sameSelection(original, current))) return "recovery";
 	return snapshot.assignmentSource;
 }
@@ -543,6 +554,59 @@ export function createWorkflowLifecycleTools(
 	pi: ExtensionAPI,
 	deps: WorkflowToolDependencies,
 ) {
+	let branchGeneration = 0;
+	let navigating = false;
+	const ownedChildren = new Set<RunningSubagent>();
+	const pendingLaunches = new Set<Promise<unknown>>();
+
+	async function stopBeforeTree(): Promise<void> {
+		// A restored branch can contain the exact same run/role/session IDs.
+		// Invalidate callbacks before stopping children or restoring snapshots.
+		branchGeneration++;
+		navigating = true;
+		await Promise.allSettled([...pendingLaunches]);
+		for (const running of ownedChildren) {
+			deps.execution.stopSubagent(running);
+			ownedChildren.delete(running);
+		}
+		const active = getActiveWorkflowRun(deps.state.getState());
+		if (active?.activeLaunch?.status === "starting" || active?.activeLaunch?.status === "running") {
+			// Navigation can still be cancelled by another handler after we stop.
+			deps.state.commit(setWorkflowRunActiveLaunch(deps.state.getState(), active.runId, {
+				...active.activeLaunch,
+				status: "interrupted",
+			}));
+		}
+		// Returning from this handler does not finish navigation: Pi still awaits
+		// other before-tree handlers and may summarize the abandoned branch.
+	}
+
+	function releaseNavigationWhenIdle(ctx: Pick<ExtensionContext, "isIdle">): void {
+		// Pi has no tree-cancelled event. Its public idle predicate remains false
+		// throughout navigateTree(), including cancellation/error unwinding.
+		// Release at the next idle prompt/settled boundary, never on signal abort
+		// or session_tree (both can precede navigation's actual completion).
+		// A failed strict stop must be retried before launches are allowed again.
+		if (navigating && pendingLaunches.size === 0 && ownedChildren.size === 0 && ctx.isIdle()) {
+			navigating = false;
+		}
+	}
+
+	function trackLaunch<T>(operation: () => Promise<T>): Promise<T> {
+		if (navigating) return Promise.reject(new Error("Workflow branch navigation is stopping its roles; retry after navigation."));
+		const pending = operation();
+		pendingLaunches.add(pending);
+		void pending.then(
+			() => pendingLaunches.delete(pending),
+			() => pendingLaunches.delete(pending),
+		);
+		return pending;
+	}
+
+	function assertOwned(isOwned: () => boolean): void {
+		if (!isOwned()) throw new Error("Workflow role interrupted by branch navigation; saved files are preserved.");
+	}
+
 	async function spawn(
 		params: {
 			runId: string;
@@ -552,6 +616,8 @@ export function createWorkflowLifecycleTools(
 		},
 		ctx: WorkflowToolExecutionContext,
 	): Promise<SubagentToolResult> {
+		const generation = branchGeneration;
+		const isOwned = () => generation === branchGeneration;
 		let snapshot = activeRunForToken(deps.state.getState(), params.runId);
 		const role = roleForRun(snapshot, params.role);
 		snapshot = mergeDataUpdates(deps, params.runId, params.data);
@@ -582,6 +648,7 @@ export function createWorkflowLifecycleTools(
 			},
 			role.id,
 		);
+		assertOwned(isOwned);
 		const metadata = workflowMetadataForRole(
 			snapshot,
 			role.id,
@@ -602,7 +669,7 @@ export function createWorkflowLifecycleTools(
 				{ workflow: metadata, resolvedModel },
 			);
 		} catch (error) {
-			finishLaunch(deps, {
+			if (isOwned()) finishLaunch(deps, {
 				runId: snapshot.runId,
 				roleId: role.id,
 				status: "failed",
@@ -610,15 +677,20 @@ export function createWorkflowLifecycleTools(
 			throw error;
 		}
 		if (boundary) running.boundary = boundary;
+		ownedChildren.add(running);
+		assertOwned(isOwned);
 		recordLaunchedSession(deps, snapshot.runId, role.id, running.sessionFile);
 
 		deps.execution.watchInBackground({
+			isOwned,
 			pi,
 			ctx,
 			running,
 			pingAgent: role.agent,
 			pingSessionPath: running.sessionFile,
 			onPing: ({ result, boundary: outcome }) => {
+				if (!isOwned()) return;
+				if (running.surfaceClosed) ownedChildren.delete(running);
 				finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
@@ -627,12 +699,13 @@ export function createWorkflowLifecycleTools(
 				});
 			},
 			onSuccess: ({ result, boundary: outcome }) => {
-				finishLaunch(deps, {
+				if (isOwned()) finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
 					sessionPath: running.sessionFile,
 					status: launchFinishedStatus(result, outcome),
 				});
+				if (isOwned() && running.surfaceClosed) ownedChildren.delete(running);
 				return asynchronousPresentation(
 					snapshot,
 					role,
@@ -643,12 +716,13 @@ export function createWorkflowLifecycleTools(
 				);
 			},
 			onError: (message) => {
-				finishLaunch(deps, {
+				if (isOwned()) finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
 					sessionPath: running.sessionFile,
 					status: "failed",
 				});
+				if (isOwned() && running.surfaceClosed) ownedChildren.delete(running);
 				return {
 					content: `Workflow role "${role.label}" error: ${message}`,
 					details: workflowDetails(snapshot, role, {
@@ -683,16 +757,24 @@ export function createWorkflowLifecycleTools(
 		boundary: WorkflowWriteBoundarySnapshot | undefined,
 		rolloverMessage: string,
 		workflowMetadata: LaunchProfileWorkflowMetadata,
+		isOwned: () => boolean,
 	): ResumeLifecycleContext {
+		let child: RunningSubagent | undefined;
 		return {
+			isOwned,
 			details: workflowDetails(snapshot, role),
 			workflowMetadata,
 			...(boundary ? { boundary } : {}),
 			rolloverMessage,
-			onLaunched: ({ sessionPath }) => {
+			onLaunched: ({ running, sessionPath }) => {
+				child = running;
+				ownedChildren.add(running);
+				if (!isOwned()) return;
 				recordLaunchedSession(deps, snapshot.runId, role.id, sessionPath);
 			},
 			onResult: ({ result, boundary: outcome, sessionPath }) => {
+				if (!isOwned()) return;
+				if (child?.surfaceClosed) ownedChildren.delete(child);
 				finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
@@ -701,6 +783,8 @@ export function createWorkflowLifecycleTools(
 				});
 			},
 			onError: ({ sessionPath }) => {
+				if (!isOwned()) return;
+				if (child?.surfaceClosed) ownedChildren.delete(child);
 				finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
@@ -721,6 +805,8 @@ export function createWorkflowLifecycleTools(
 		},
 		ctx: WorkflowToolExecutionContext,
 	): Promise<SubagentToolResult> {
+		const generation = branchGeneration;
+		const isOwned = () => generation === branchGeneration;
 		let snapshot = activeRunForToken(deps.state.getState(), params.runId);
 		const role = roleForRun(snapshot, params.role);
 		snapshot = mergeDataUpdates(deps, params.runId, params.data);
@@ -734,7 +820,7 @@ export function createWorkflowLifecycleTools(
 			role.id,
 			session.profile.runtime.lastModel
 				?? session.workflow.currentDefault
-				?? snapshot.currentAssignments?.[role.id],
+				?? cloneSelection(snapshot.currentAssignments?.[role.id]),
 		);
 		const rolloverMessage = buildWorkflowRolloverHandoffForRun({
 			snapshot,
@@ -755,10 +841,10 @@ export function createWorkflowLifecycleTools(
 				},
 				{ ...ctx, pi },
 				undefined,
-				resumeLifecycle(snapshot, role, boundary, rolloverMessage, metadata),
+				resumeLifecycle(snapshot, role, boundary, rolloverMessage, metadata, isOwned),
 			);
 		} catch (error) {
-			finishLaunch(deps, {
+			if (isOwned()) finishLaunch(deps, {
 				runId: snapshot.runId,
 				roleId: role.id,
 				sessionPath,
@@ -766,6 +852,7 @@ export function createWorkflowLifecycleTools(
 			});
 			throw error;
 		}
+		assertOwned(isOwned);
 		if (result.details.status !== "started") {
 			finishLaunch(deps, {
 				runId: snapshot.runId,
@@ -793,6 +880,8 @@ export function createWorkflowLifecycleTools(
 		},
 		ctx: WorkflowToolExecutionContext,
 	): Promise<SubagentToolResult> {
+		const generation = branchGeneration;
+		const isOwned = () => generation === branchGeneration;
 		let snapshot = activeRunForToken(deps.state.getState(), params.runId);
 		const role = roleForRun(snapshot, params.role);
 		snapshot = mergeDataUpdates(deps, params.runId, params.data);
@@ -871,10 +960,12 @@ export function createWorkflowLifecycleTools(
 			}),
 			"error",
 		);
+		assertOwned(isOwned);
 		const choice = await ctx.ui.select(
 			labels.gatePrompt,
 			[RECOVERY_SELECT_MODEL, RECOVERY_STOP],
 		);
+		assertOwned(isOwned);
 		if (choice !== RECOVERY_SELECT_MODEL) {
 			return {
 				content: [{
@@ -898,7 +989,7 @@ export function createWorkflowLifecycleTools(
 			role.id,
 			session.profile.runtime.lastModel
 				?? session.workflow.currentDefault
-				?? snapshot.currentAssignments?.[role.id],
+				?? cloneSelection(snapshot.currentAssignments?.[role.id]),
 		);
 		const continuation = buildWorkflowRecoveryMessage({
 			snapshot,
@@ -911,6 +1002,7 @@ export function createWorkflowLifecycleTools(
 			boundary,
 			continuation,
 			metadata,
+			isOwned,
 		);
 		const recovery: ResumeRecoveryContext = {
 			failure,
@@ -933,6 +1025,7 @@ export function createWorkflowLifecycleTools(
 					data: { ...snapshot.data },
 				}),
 			onSuccessfulResponse: (selection) => {
+				if (!isOwned()) return;
 				deps.state.commit(
 					overrideWorkflowRunAssignment(
 						deps.state.getState(),
@@ -987,7 +1080,7 @@ export function createWorkflowLifecycleTools(
 				lifecycle,
 			);
 		} catch (error) {
-			finishLaunch(deps, {
+			if (isOwned()) finishLaunch(deps, {
 				runId: snapshot.runId,
 				roleId: role.id,
 				sessionPath,
@@ -995,6 +1088,7 @@ export function createWorkflowLifecycleTools(
 			});
 			throw error;
 		}
+		assertOwned(isOwned);
 		if (result.details.status !== "started") {
 			finishLaunch(deps, {
 				runId: snapshot.runId,
@@ -1043,9 +1137,11 @@ export function createWorkflowLifecycleTools(
 	}
 
 	return {
-		spawn,
-		resume,
-		recover,
+		stopBeforeTree,
+		releaseNavigationWhenIdle,
+		spawn: (...args: Parameters<typeof spawn>) => trackLaunch(() => spawn(...args)),
+		resume: (...args: Parameters<typeof resume>) => trackLaunch(() => resume(...args)),
+		recover: (...args: Parameters<typeof recover>) => trackLaunch(() => recover(...args)),
 		complete,
 	};
 }
@@ -1054,9 +1150,11 @@ export function registerWorkflowLifecycleTools(
 	pi: ExtensionAPI,
 	deps: WorkflowToolDependencies,
 	options: { shouldRegister?: (name: string) => boolean } = {},
-): void {
+) {
 	const lifecycle = createWorkflowLifecycleTools(pi, deps);
 	const shouldRegister = options.shouldRegister ?? (() => true);
+	pi.on("before_agent_start", (_event, ctx) => lifecycle.releaseNavigationWhenIdle(ctx));
+	pi.on("agent_settled", (_event, ctx) => lifecycle.releaseNavigationWhenIdle(ctx));
 
 	if (shouldRegister("workflow_spawn")) {
 		pi.registerTool({
@@ -1140,4 +1238,5 @@ export function registerWorkflowLifecycleTools(
 			},
 		});
 	}
+	return lifecycle;
 }

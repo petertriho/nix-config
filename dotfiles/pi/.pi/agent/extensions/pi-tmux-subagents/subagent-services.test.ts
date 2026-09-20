@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
 	mkdtempSync,
+	readFileSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
@@ -9,6 +10,8 @@ import { join } from "node:path";
 import test from "node:test";
 import {
 	fingerprintStrings,
+	profilePathForSession,
+	readLaunchProfile,
 	writeLaunchProfile,
 } from "./launch-profile.ts";
 import {
@@ -28,6 +31,12 @@ const TEST_MODEL = {
 	contextWindow: 100,
 	maxTokens: 100,
 } as any;
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((done) => { resolve = done; });
+	return { promise, resolve };
+}
 
 async function withTempDir<T>(
 	run: (root: string) => Promise<T> | T,
@@ -102,6 +111,7 @@ function createHarness(
 	root: string,
 	options: {
 		pollForExit?: SubagentServiceDependencies["pollForExit"];
+		closeSurface?: SubagentServiceDependencies["closeSurface"];
 		select?: (title: string, choices: string[]) => Promise<string | undefined>;
 	} = {},
 ) {
@@ -141,9 +151,9 @@ function createHarness(
 		}),
 		createSurface: () => `%${++surfaceCount}`,
 		sendLongCommand() {},
-		closeSurface: (surface) => {
+		closeSurface: options.closeSurface ?? ((surface) => {
 			closedSurfaces.push(surface);
-		},
+		}),
 		pollForExit: options.pollForExit
 			?? (async () => ({ exitCode: 0 })),
 		readScreen: () => "",
@@ -222,6 +232,35 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 	}
 	assert.fail("condition not met before timeout");
+}
+
+for (const failedCloses of [0, 1, 2]) {
+	test(`ordinary watcher confirms closure only after a successful close (${failedCloses} failed attempts)`, async () => {
+		await withTempDir(async (root) => {
+			let attempts = 0;
+			const harness = createHarness(root, {
+				closeSurface: () => {
+					if (++attempts <= failedCloses) throw new Error("tmux unavailable");
+				},
+			});
+			const running = await harness.services.launchSubagent({ name: "Worker", task: "work" }, harness.ctx);
+			writeSession(running.sessionFile);
+			const sessionBytes = readFileSync(running.sessionFile, "utf8");
+			const profileBytes = readFileSync(profilePathForSession(running.sessionFile), "utf8");
+			const result = await harness.services.watchSubagent(running, new AbortController().signal);
+			assert.equal(result.exitCode, failedCloses === 0 ? 0 : 1);
+			assert.equal(running.surfaceClosed === true, failedCloses < 2);
+			assert.equal(harness.runningSubagents.has(running.id), failedCloses === 2);
+			if (failedCloses === 2) {
+				harness.services.stopSubagent(running);
+				assert.equal(attempts, 3);
+				assert.equal(running.surfaceClosed, true);
+				assert.equal(harness.runningSubagents.has(running.id), false);
+			}
+			assert.equal(readFileSync(running.sessionFile, "utf8"), sessionBytes);
+			assert.equal(readFileSync(profilePathForSession(running.sessionFile), "utf8"), profileBytes);
+		});
+	});
 }
 
 test("same-session resume classifies quota failures in the asynchronous result", async () => {
@@ -324,6 +363,148 @@ test("recovery resume preserves recovery details and classifies provider failure
 		assert.equal(harness.sentMessages[0].details.failureKind, "retry-exhausted");
 	});
 });
+
+test("a resumed workflow role cannot publish a late success or update its recovery sidecar after navigation", async () => {
+	await withTempDir(async (root) => {
+		const exit = deferred<{ exitCode: number }>();
+		const harness = createHarness(root, { pollForExit: () => exit.promise });
+		const sessionPath = join(root, "owned-resume.jsonl");
+		writeSession(sessionPath);
+		writeProfile(harness, root, sessionPath);
+		let owned = true;
+		const callbacks: string[] = [];
+		await harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+			{
+				failure: buildProviderFailureRecord({ kind: "usage", message: "quota" }),
+				onSuccessfulResponse: () => { callbacks.push("recovery"); },
+			},
+			{
+				isOwned: () => owned,
+				onResult: () => { callbacks.push("result"); },
+			},
+		);
+		const running = [...harness.runningSubagents.values()][0];
+		owned = false;
+		harness.services.stopSubagent(running);
+		const profile = readLaunchProfile(sessionPath);
+		// Simulate an already queued response winning the race with watcher abort.
+		writeSession(sessionPath, 10);
+		exit.resolve({ exitCode: 0 });
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.deepEqual(callbacks, []);
+		assert.deepEqual(readLaunchProfile(sessionPath), profile);
+		assert.deepEqual(harness.sentMessages, []);
+	});
+});
+
+test("a pending workflow resume cannot launch after its context-fit gate loses branch ownership", async () => {
+	await withTempDir(async (root) => {
+		const entered = deferred<void>();
+		const release = deferred<string>();
+		const harness = createHarness(root, {
+			select: async () => {
+				entered.resolve();
+				return release.promise;
+			},
+		});
+		const sessionPath = join(root, "pending-rollover.jsonl");
+		writeSession(sessionPath, 80);
+		writeProfile(harness, root, sessionPath);
+		let owned = true;
+		let launched = false;
+		const pending = harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx, undefined,
+			{ isOwned: () => owned, onLaunched: () => { launched = true; } },
+		);
+		const outcome = pending.catch((error: Error) => error);
+		await entered.promise;
+		owned = false;
+		release.resolve("Start a fresh same-role session (recommended)");
+		assert.match(String(await outcome), /branch|navigation/i);
+		assert.equal(launched, false);
+		assert.equal(harness.runningSubagents.size, 0);
+		assert.equal(harness.sentMessages.length, 0);
+	});
+});
+
+test("a late workflow rollover is cleaned before it can publish lineage into saved sidecars", async () => {
+	await withTempDir(async (root) => {
+		const exit = deferred<{ exitCode: number }>();
+		const harness = createHarness(root, {
+			select: async () => "Start a fresh same-role session (recommended)",
+			pollForExit: () => exit.promise,
+		});
+		const sessionPath = join(root, "late-rollover.jsonl");
+		writeSession(sessionPath, 80);
+		writeProfile(harness, root, sessionPath);
+		const profile = readLaunchProfile(sessionPath);
+		let owned = true;
+		let child: any;
+		try {
+			await assert.rejects(harness.services.executeSubagentResume(
+				harness.pi, { sessionPath, model: "previous" }, harness.ctx, undefined,
+				{
+					isOwned: () => owned,
+					onLaunched: async ({ running }) => {
+						child = running;
+						// Navigation can begin while an asynchronous launch callback settles.
+						owned = false;
+					},
+				},
+			), /branch|navigation/i);
+			assert.equal(child.abortController.signal.aborted, true);
+			assert.ok(harness.closedSurfaces.includes(child.surface));
+			assert.equal(harness.runningSubagents.size, 0);
+			assert.deepEqual(readLaunchProfile(sessionPath), profile);
+			assert.equal(readLaunchProfile(child.sessionFile).status, "ok", "keep the new role sidecar for explicit recovery");
+		} finally {
+			exit.resolve({ exitCode: 0 });
+			await new Promise((resolve) => setImmediate(resolve));
+		}
+		assert.deepEqual(harness.sentMessages, []);
+	});
+});
+
+for (const outcome of ["success", "ping", "error"] as const) {
+	test(`workflow ${outcome} delivery rechecks ownership after an asynchronous callback`, async () => {
+		await withTempDir(async (root) => {
+			const entered = deferred<void>();
+			const release = deferred<void>();
+			const harness = createHarness(root, {
+				pollForExit: async () => ({
+					exitCode: 0,
+					...(outcome === "ping" ? { ping: { name: "Worker", message: "help" } } : {}),
+				}),
+			});
+			const running = await harness.services.launchSubagent({ name: "Worker", task: "work" }, harness.ctx);
+			let owned = true;
+			const pause = async () => {
+				entered.resolve();
+				await release.promise;
+			};
+			harness.services.watchInBackground({
+				pi: harness.pi, ctx: harness.ctx, running, isOwned: () => owned,
+				onPing: pause,
+				onSuccess: async () => {
+					if (outcome === "error") throw new Error("presentation failed");
+					await pause();
+					return { content: "late success", details: {} };
+				},
+				onError: async () => {
+					await pause();
+					// Also exercise the fallback error notification after rejection.
+					throw new Error("late error");
+				},
+			});
+			await entered.promise;
+			owned = false;
+			release.resolve();
+			await new Promise((resolve) => setImmediate(resolve));
+			assert.deepEqual(harness.sentMessages, []);
+		});
+	});
+}
 
 test("same-session persistence callback failure aborts and cleans the launched child", async () => {
 	await withTempDir(async (root) => {

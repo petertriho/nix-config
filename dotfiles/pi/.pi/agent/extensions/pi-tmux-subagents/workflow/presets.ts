@@ -19,8 +19,8 @@ import {
 	type SubagentThinkingLevel,
 } from "../launch-profile.ts";
 import { parseExplicitModelSelection } from "../model-picker.ts";
-import type { NormalizedWorkflowDefinition } from "./types.ts";
-import { WORKFLOW_IDENTIFIER_PATTERN } from "./types.ts";
+import type { NormalizedWorkflowDefinition, WorkflowRoleSkipAssignment } from "./types.ts";
+import { WORKFLOW_IDENTIFIER_PATTERN, isWorkflowRoleSkipAssignment } from "./types.ts";
 
 export const WORKFLOW_MODEL_PRESET_VERSION = 1 as const;
 
@@ -30,7 +30,8 @@ export interface WorkflowRoleSelection {
 	thinking: SubagentThinkingLevel;
 }
 
-export type WorkflowPresetRoles = Readonly<Record<string, WorkflowRoleSelection>>;
+export type WorkflowPresetAssignment = WorkflowRoleSelection | WorkflowRoleSkipAssignment;
+export type WorkflowPresetRoles = Readonly<Record<string, WorkflowPresetAssignment>>;
 
 export interface WorkflowModelPreset {
 	version: typeof WORKFLOW_MODEL_PRESET_VERSION;
@@ -88,10 +89,15 @@ function isSelection(value: unknown): value is WorkflowRoleSelection {
 		&& isThinking(value.thinking);
 }
 
+function isAssignment(value: unknown): value is WorkflowPresetAssignment {
+	return isSelection(value)
+		|| (isRecord(value) && hasExactKeys(value, ["skip"]) && value.skip === true);
+}
+
 function isRoles(value: unknown): value is WorkflowPresetRoles {
 	if (!isRecord(value) || Object.keys(value).length === 0) return false;
 	return Object.entries(value).every(
-		([roleId, selection]) => WORKFLOW_IDENTIFIER_PATTERN.test(roleId) && isSelection(selection),
+		([roleId, selection]) => WORKFLOW_IDENTIFIER_PATTERN.test(roleId) && isAssignment(selection),
 	);
 }
 
@@ -147,7 +153,8 @@ function normalizeWorkflowId(workflowId: string): string {
 	return normalized;
 }
 
-function cloneSelection(selection: WorkflowRoleSelection): WorkflowRoleSelection {
+function cloneSelection(selection: WorkflowPresetAssignment): WorkflowPresetAssignment {
+	if (isWorkflowRoleSkipAssignment(selection)) return { skip: true };
 	return {
 		provider: selection.provider,
 		model: selection.model,
@@ -157,12 +164,12 @@ function cloneSelection(selection: WorkflowRoleSelection): WorkflowRoleSelection
 
 function exactRoleSetError(
 	definition: NormalizedWorkflowDefinition,
-	roles: Readonly<Record<string, WorkflowRoleSelection>>,
+	roles: WorkflowPresetRoles,
 ): string | null {
 	const actualRoleIds = Object.keys(roles);
 	const missing = definition.roleIds.filter((roleId) => !Object.hasOwn(roles, roleId));
 	const unexpected = actualRoleIds
-		.filter((roleId) => !definition.roleById[roleId])
+		.filter((roleId) => !Object.hasOwn(definition.roleById, roleId))
 		.sort((first, second) => first.localeCompare(second));
 	if (missing.length === 0 && unexpected.length === 0 && actualRoleIds.length === definition.roleIds.length) {
 		return null;
@@ -175,16 +182,19 @@ function exactRoleSetError(
 
 export function normalizeWorkflowPresetRoles(
 	definition: NormalizedWorkflowDefinition,
-	roles: Readonly<Record<string, WorkflowRoleSelection>>,
+	roles: WorkflowPresetRoles,
 ): WorkflowPresetRoles {
 	const mismatch = exactRoleSetError(definition, roles);
 	if (mismatch) throw new Error(mismatch);
 
-	const normalized: Record<string, WorkflowRoleSelection> = {};
+	const normalized: Record<string, WorkflowPresetAssignment> = {};
 	for (const roleId of definition.roleIds) {
 		const selection = roles[roleId];
-		if (!isSelection(selection)) {
-			throw new Error(`Workflow model preset role "${roleId}" must contain provider, model, and thinking.`);
+		if (!isAssignment(selection)) {
+			throw new Error(`Workflow model preset role "${roleId}" must contain provider, model, and thinking, or only { skip: true }.`);
+		}
+		if (isWorkflowRoleSkipAssignment(selection) && !definition.roleById[roleId]?.optional) {
+			throw new Error(`Required workflow role "${roleId}" cannot be skipped.`);
 		}
 		normalized[roleId] = cloneSelection(selection);
 	}
@@ -321,7 +331,7 @@ export function writeWorkflowModelPreset(
 export function makeWorkflowModelPreset(
 	definition: NormalizedWorkflowDefinition,
 	projectRoot: string,
-	roles: Readonly<Record<string, WorkflowRoleSelection>>,
+	roles: WorkflowPresetRoles,
 	now = new Date(),
 ): WorkflowModelPreset {
 	return freezeDeep({
@@ -335,30 +345,30 @@ export function makeWorkflowModelPreset(
 
 export function editWorkflowPresetRoles(
 	definition: NormalizedWorkflowDefinition,
-	roles: Readonly<Record<string, WorkflowRoleSelection>>,
-	updates: Partial<Record<string, WorkflowRoleSelection>>,
+	roles: WorkflowPresetRoles,
+	updates: Partial<Record<string, WorkflowPresetAssignment>>,
 ): WorkflowPresetRoles {
 	const current = normalizeWorkflowPresetRoles(definition, roles);
-	const normalized: Record<string, WorkflowRoleSelection> = {};
+	const normalized: Record<string, WorkflowPresetAssignment> = {};
 	for (const updateRoleId of Object.keys(updates)) {
-		if (!definition.roleById[updateRoleId]) {
+		if (!Object.hasOwn(definition.roleById, updateRoleId)) {
 			throw new Error(`Workflow "${definition.id}" has no role "${updateRoleId}".`);
 		}
 		const update = updates[updateRoleId];
-		if (update !== undefined && !isSelection(update)) {
-			throw new Error(`Workflow model preset role "${updateRoleId}" must contain provider, model, and thinking.`);
+		if (update !== undefined && !isAssignment(update)) {
+			throw new Error(`Workflow model preset role "${updateRoleId}" must contain provider, model, and thinking, or only { skip: true }.`);
 		}
 	}
 	for (const roleId of definition.roleIds) {
 		const update = updates[roleId];
 		normalized[roleId] = cloneSelection(update ?? current[roleId]!);
 	}
-	return freezeDeep(normalized);
+	return normalizeWorkflowPresetRoles(definition, normalized);
 }
 
 export function validateWorkflowPresetRoles(
 	definition: NormalizedWorkflowDefinition,
-	roles: Readonly<Record<string, WorkflowRoleSelection>>,
+	roles: WorkflowPresetRoles,
 	available: readonly Model<Api>[],
 ): string[] {
 	let normalized: WorkflowPresetRoles;
@@ -371,6 +381,7 @@ export function validateWorkflowPresetRoles(
 	const errors: string[] = [];
 	for (const roleId of definition.roleIds) {
 		const selection = normalized[roleId]!;
+		if (isWorkflowRoleSkipAssignment(selection)) continue;
 		try {
 			parseExplicitModelSelection(
 				`${selection.provider}/${selection.model}:${selection.thinking}`,

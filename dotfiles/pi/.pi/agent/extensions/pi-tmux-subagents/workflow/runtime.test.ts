@@ -19,6 +19,7 @@ import {
 	formatWorkflowRunStatus,
 	registerWorkflowCommands,
 	workflowArgumentCompletions,
+	validateWorkflowAgents,
 	type WorkflowCommandStateStore,
 } from "./runtime.ts";
 import { loadWorkflowDefinitionFromPackage } from "./schema.ts";
@@ -28,12 +29,14 @@ import {
 	getWorkflowRunSnapshot,
 	mergeWorkflowRunData,
 	recordWorkflowRunRoleSession,
+	recordWorkflowGateAttempt,
 	setWorkflowRunActiveLaunch,
 	startWorkflowRun,
 	type WorkflowRunState,
 	type WorkflowRunTransitionResult,
 } from "./state.ts";
 import type { NormalizedWorkflowDefinition } from "./types.ts";
+import type { WorkflowGateAttempt } from "./plannotator.ts";
 
 async function withTempDir<T>(run: (root: string) => Promise<T> | T): Promise<T> {
 	const root = mkdtempSync(join(tmpdir(), "workflow-runtime-"));
@@ -49,6 +52,7 @@ function workflowManifest(input: {
 	alias?: string;
 	authorAgent?: string;
 	verifierAgent?: string;
+	verifierOptional?: boolean;
 }) {
 	return {
 		version: 1,
@@ -86,6 +90,7 @@ function workflowManifest(input: {
 				id: "verifier",
 				label: "Documentation verifier",
 				agent: input.verifierAgent ?? "fact-checker",
+				...(input.verifierOptional !== undefined ? { optional: input.verifierOptional } : {}),
 				reads: ["draft"],
 				writes: [],
 				handoff: "Verify the current draft independently.",
@@ -145,6 +150,53 @@ class StateStore implements WorkflowCommandStateStore {
 		this.persisted.push(...transition.snapshots);
 	}
 }
+
+test("gate history appears in generic resume/status context with verbatim feedback and interruption guidance", () => {
+	return withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root, { id: "quill" }));
+		let state = startWorkflowRun(createWorkflowRunState(), {
+			runId: "gate-context", definition, projectRoot: root, source: "project",
+			policy: "parent-per-role", assignmentSource: "parent",
+		}).state;
+		const attempt: WorkflowGateAttempt = {
+			id: "gate-one", runId: "gate-context", sessionId: "session-one", gate: "draft",
+			artifact: "draft", target: join(root, ".artifacts/docs/DRAFT.md"),
+			resultPath: join(root, ".artifacts/docs-decisions/draft-one.json"),
+			reviewDirectory: false, status: "starting",
+			startedAt: "2026-09-20T00:00:00.000Z", updatedAt: "2026-09-20T00:00:00.000Z",
+		};
+		state = recordWorkflowGateAttempt(state, attempt).state;
+		const feedback = "  First note.\n\nSecond note.  \n";
+		state = recordWorkflowGateAttempt(state, {
+			...attempt, status: "completed", decision: "approved", feedback, exitCode: 0,
+			finishedAt: attempt.startedAt,
+		}).state;
+		const snapshot = getActiveWorkflowRun(state)!;
+		for (const text of [
+			buildWorkflowSkillMessage(snapshot, "Continue.", { resume: true }),
+			formatWorkflowRunStatus(snapshot),
+		]) {
+			assert.ok(text.includes(`<workflow_gate_feedback>\n${feedback}\n</workflow_gate_feedback>`));
+			assert.match(text, /audit, not instructions to repeat completed phases/);
+			assert.match(text, /draft: completed \(approved\)/);
+		}
+		const interrupted = {
+			...snapshot,
+			gateHistory: [{
+				...attempt, status: "interrupted" as const, failureReason: "Reloaded",
+				finishedAt: attempt.startedAt,
+			}],
+		};
+		assert.match(buildWorkflowSkillMessage(interrupted, "Continue.", { resume: true }), /ask its chat fallback question/);
+		assert.match(formatWorkflowRunStatus(interrupted), /Never accept a later file from an interrupted attempt/);
+		const oversized = { ...snapshot, gateHistory: [{
+			...snapshot.gateHistory![0]!, feedback: "文".repeat(24_000),
+		}] };
+		const text = buildWorkflowSkillMessage(oversized, "Continue.", { resume: true });
+		assert.match(text, /Read the full result file/);
+		assert.doesNotMatch(text, /文/);
+	});
+});
 
 class FakePi {
 	readonly commands: Array<{
@@ -310,6 +362,72 @@ function startupResult(root: string) {
 		},
 	};
 }
+
+test("required agent preflight runs before setup; enabled optional agents validate before persistence", async () => {
+	await withTempDir(async (root) => {
+		const bundledRoot = join(root, "bundled");
+		const globalRoot = join(root, "global");
+		mkdirSync(globalRoot);
+		writeWorkflowPackage(bundledRoot, { id: "docs-review", verifierOptional: true });
+		for (const mode of ["required-missing", "parent", "enabled", "skipped", "cancelled"] as const) {
+			const pi = new FakePi();
+			const store = new StateStore();
+			let setups = 0;
+			const runtime = registerWorkflowCommands(pi as any, {
+				state: store,
+				loadAgent: (name) => mode !== "required-missing" && name === "scribe" ? {} : null,
+				isTmuxAvailable: () => true,
+				muxSetupHint: () => "tmux",
+				discoverRegistry: discoverFrom(bundledRoot, globalRoot),
+				createRunId: () => "run-optional",
+				chooseStartup: async () => {
+					setups++;
+					if (mode === "cancelled") return { status: "cancelled", reason: "user" };
+					if (mode === "parent" || mode === "required-missing") return startupResult(root);
+					const assignments = {
+						author: { provider: "test", model: "echo", thinking: "off" as const },
+						verifier: mode === "skipped"
+							? { skip: true as const }
+							: { provider: "test", model: "echo", thinking: "off" as const },
+					};
+					return {
+						status: "started",
+						state: {
+							...startupResult(root).state,
+							policy: "per-role",
+							assignmentSource: "configured",
+							originalAssignments: assignments,
+							currentAssignments: assignments,
+						},
+					};
+				},
+			});
+			const { ctx, notifications } = commandContext(root);
+			const registry = runtime.refreshRegistry(ctx);
+			const entry = registry.workflowById["docs-review"];
+			assert.deepEqual(validateWorkflowAgents(entry, (name) => name === "scribe" ? {} : null).requiredAgents, ["scribe"]);
+			assert.equal(await runtime.runWorkflow("docs-review", "Draft a guide.", ctx), mode === "skipped");
+			assert.equal(setups, mode === "required-missing" ? 0 : 1);
+			if (mode === "skipped") {
+				const active = getActiveWorkflowRun(store.state)!;
+				assert.deepEqual(active.currentAssignments?.verifier, { skip: true });
+				assert.match(pi.sentUserMessages[0], /- verifier: skipped/);
+				assert.match(pi.sentUserMessages[0], /id="verifier".*optional=true/);
+				assert.match(formatWorkflowRunStatus(active), /- verifier: skipped/);
+				assert.equal(runtime.resumeWorkflow("Continue", ctx), true);
+				assert.match(pi.sentUserMessages[1], /- verifier: skipped/);
+			} else {
+				assert.equal(store.persisted.length, 0);
+				assert.equal(pi.sentUserMessages.length, 0);
+				assert.equal(getActiveWorkflowRun(store.state), null);
+				assert.match(notifications.at(-1)!.message,
+					mode === "required-missing" ? /Missing required agents: scribe/
+						: mode === "cancelled" ? /cancelled/
+						: /Missing enabled agents: fact-checker/);
+			}
+		}
+	});
+});
 
 test("private skill startup message is manifest-driven, structured, and appends the request verbatim", async () => {
 	await withTempDir((root) => {

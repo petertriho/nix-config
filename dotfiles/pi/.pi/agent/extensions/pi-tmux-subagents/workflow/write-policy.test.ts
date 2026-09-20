@@ -6,12 +6,14 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readFileSync,
 	renameSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadWorkflowDefinitionFromPackage } from "./schema.ts";
 import {
 	captureWorkflowWriteBoundarySnapshot,
@@ -143,13 +145,13 @@ function quillManifest(options: {
 	};
 }
 
-function pterLikeManifest() {
+function peterLikeManifest() {
 	return {
 		version: 1,
-		id: "pter",
+		id: "peter",
 		command: {
-			name: "pter",
-			description: "Run the plan to tasks to execute to review workflow",
+			name: "peter",
+			description: "Run the plan to evaluate to tasks to execute to review workflow",
 			argumentHint: "<request>",
 		},
 		skill: "SKILL.md",
@@ -160,6 +162,14 @@ function pterLikeManifest() {
 				constraint: {
 					under: ".artifacts",
 					basename: "PLAN.md",
+				},
+			},
+			evaluation: {
+				kind: "file",
+				label: "EVALUATION.md",
+				constraint: {
+					under: ".artifacts",
+					basename: "EVALUATION.md",
 				},
 			},
 			tasks: {
@@ -188,9 +198,18 @@ function pterLikeManifest() {
 				id: "planner",
 				label: "Planner",
 				agent: "planner",
-				reads: ["baseRef", "plan"],
+				reads: ["baseRef", "plan", "evaluation"],
 				writes: ["file:plan"],
 				handoff: "Continue planning from the current plan and the user's latest adjustment.",
+			},
+			{
+				id: "evaluator",
+				label: "Evaluator",
+				agent: "evaluator",
+				optional: true,
+				reads: ["plan", "evaluation"],
+				writes: ["file:evaluation"],
+				handoff: "Re-evaluate the exact plan and overwrite only its evaluation.",
 			},
 			{
 				id: "task-writer",
@@ -384,24 +403,25 @@ test("resolveWorkflowWritePolicy rejects missing writable paths and worktree pro
 });
 
 test("executor-like roles can change code and their declared task file but not other protected workflow files", () => {
-	const definition = loadDefinition(pterLikeManifest());
+	const definition = loadDefinition(peterLikeManifest());
 	withTempRepo((root) => {
 		const values = {
 			plan: join(root, ".artifacts", "demo", "PLAN.md"),
+			evaluation: join(root, ".artifacts", "demo", "EVALUATION.md"),
 			tasks: join(root, ".artifacts", "demo", "TASKS.md"),
 			review: join(root, ".artifacts", "demo", "REVIEW.md"),
 			baseRef: "main",
 		};
 		const result = resolveWorkflowWritePolicy(definition, "executor", values, { projectRoot: root });
 		assert.equal(result.status, "ok");
-		assert.equal(result.policy.workflowId, "pter");
+		assert.equal(result.policy.workflowId, "peter");
 		assert.equal(result.policy.roleId, "executor");
 		assert.equal(result.policy.roleLabel, "Executor");
 		assert.deepEqual(
 			result.policy.resolvedWrites.map((rule) => rule.capability),
 			["worktree", "file:tasks"],
 		);
-		assert.equal(result.policy.protectedFiles.length, 3);
+		assert.equal(result.policy.protectedFiles.length, 4);
 
 		const snapshot = captureWorkflowWriteBoundarySnapshot(result.policy, root);
 		assert.ok(snapshot);
@@ -420,15 +440,107 @@ test("executor-like roles can change code and their declared task file but not o
 		report = evaluateWorkflowWriteBoundarySnapshot(snapshot);
 		assert.ok(report);
 		assert.equal(report.violated, true);
-		assert.equal(report.workflowId, "pter");
+		assert.equal(report.workflowId, "peter");
 		assert.equal(report.roleId, "executor");
 		assert.equal(report.roleLabel, "Executor");
 		assert.ok(report.unexpectedPaths.includes(".artifacts/demo/REVIEW.md"));
+		writeFileSync(values.evaluation, "executor may not overwrite evaluation\n");
+		report = evaluateWorkflowWriteBoundarySnapshot(snapshot);
+		assert.equal(report.violated, true);
+		assert.ok(report.unexpectedPaths.includes(".artifacts/demo/EVALUATION.md"));
+		assert.equal(readFileSync(values.evaluation, "utf8"), "executor may not overwrite evaluation\n");
 	});
 });
 
+test("bundled Peter evaluator may only write its exact evaluation, including on a new boundary baseline", () => {
+	const loaded = loadWorkflowDefinitionFromPackage(
+		fileURLToPath(new URL("../workflows/peter/", import.meta.url)),
+	);
+	assert.equal(loaded.status, "ok");
+	withTempRepo((root) => {
+		const dir = join(root, ".artifacts", "demo");
+		mkdirSync(dir, { recursive: true });
+		const data = {
+			plan: join(dir, "PLAN.md"),
+			evaluation: join(dir, "EVALUATION.md"),
+			tasks: join(dir, "TASKS.md"),
+		};
+		writeFileSync(data.plan, "approved plan\n");
+		appendFileSync(join(root, "tracked.txt"), "pre-existing dirt\n");
+		writeFileSync(join(root, "old-dirt.ts"), "untouched\n");
+		const policy = resolveWorkflowWritePolicy(loaded.definition, "evaluator", data, { projectRoot: root });
+		assert.equal(policy.status, "ok");
+		assert.deepEqual(policy.policy.resolvedWrites.map((write) => write.capability), ["file:evaluation"]);
+
+		for (const text of ["READY\n", "NEEDS REVISION\n"]) {
+			const snapshot = captureWorkflowWriteBoundarySnapshot(policy.policy, root);
+			assert.ok(snapshot);
+			writeFileSync(data.evaluation, text);
+			const report = evaluateWorkflowWriteBoundarySnapshot(snapshot);
+			assert.equal(report.violated, false);
+			assert.deepEqual(report.allowedPaths, [".artifacts/demo/EVALUATION.md"]);
+			assert.deepEqual(report.unexpectedPaths, []);
+		}
+
+		const snapshot = captureWorkflowWriteBoundarySnapshot(policy.policy, root);
+		assert.ok(snapshot);
+		writeFileSync(data.evaluation, "updated evaluation\n");
+		writeFileSync(data.plan, "unexpected plan edit\n");
+		writeFileSync(data.tasks, "unexpected task edit\n");
+		appendFileSync(join(root, "tracked.txt"), "unexpected source edit\n");
+		mkdirSync(join(root, ".artifacts", "unrelated"), { recursive: true });
+		writeFileSync(join(root, ".artifacts", "unrelated", "EVALUATION.md"), "wrong target\n");
+		const statusBefore = execFileSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], {
+			cwd: root,
+			encoding: "utf8",
+		});
+		const report = evaluateWorkflowWriteBoundarySnapshot(snapshot);
+		assert.equal(report.violated, true);
+		assert.deepEqual(report.allowedPaths, [".artifacts/demo/EVALUATION.md"]);
+		assert.deepEqual(report.unexpectedPaths, [
+			".artifacts/demo/PLAN.md",
+			".artifacts/demo/TASKS.md",
+			".artifacts/unrelated/EVALUATION.md",
+			"tracked.txt",
+		]);
+		assert.equal(readFileSync(data.plan, "utf8"), "unexpected plan edit\n");
+		assert.equal(readFileSync(data.evaluation, "utf8"), "updated evaluation\n");
+		assert.equal(execFileSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], {
+			cwd: root,
+			encoding: "utf8",
+		}), statusBefore, "violation detection must preserve every change");
+	});
+});
+
+for (const roleId of ["planner", "executor"]) {
+	test(`bundled Peter ${roleId} cannot edit evaluation even when artifacts are ignored`, () => {
+		const loaded = loadWorkflowDefinitionFromPackage(
+			fileURLToPath(new URL("../workflows/peter/", import.meta.url)),
+		);
+		assert.equal(loaded.status, "ok");
+		withTempRepo((root) => {
+			writeFileSync(join(root, ".gitignore"), ".artifacts/\n");
+			const dir = join(root, ".artifacts", "demo");
+			mkdirSync(dir, { recursive: true });
+			const evaluation = join(dir, "EVALUATION.md");
+			writeFileSync(evaluation, "pre-existing evaluation\n");
+			// No exact evaluation value: the manifest constraint must protect it,
+			// including when the evaluator was skipped.
+			const policy = resolveWorkflowWritePolicy(loaded.definition, roleId, {}, { projectRoot: root });
+			assert.equal(policy.status, "ok");
+			const snapshot = captureWorkflowWriteBoundarySnapshot(policy.policy, root);
+			assert.ok(snapshot);
+			writeFileSync(evaluation, "unauthorized overwrite\n");
+			const report = evaluateWorkflowWriteBoundarySnapshot(snapshot);
+			assert.equal(report.violated, true);
+			assert.deepEqual(report.unexpectedPaths, [".artifacts/demo/EVALUATION.md"]);
+			assert.equal(readFileSync(evaluation, "utf8"), "unauthorized overwrite\n");
+		});
+	});
+}
+
 test("workflow boundaries detect ignored declared files under active ignore rules", () => {
-	const definition = loadDefinition(pterLikeManifest());
+	const definition = loadDefinition(peterLikeManifest());
 	withTempRepo((root) => {
 		writeFileSync(join(root, ".gitignore"), ".artifacts/\n");
 		execFileSync("git", ["add", ".gitignore"], { cwd: root });

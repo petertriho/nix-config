@@ -12,11 +12,13 @@ import {
 	validateWorkflowPresetRoles,
 	writeWorkflowModelPreset,
 	type WorkflowPresetRoles,
-	type WorkflowRoleSelection,
+	type WorkflowPresetAssignment,
 } from "./presets.ts";
+import { assertWorkflowRoleEnabled } from "./state.ts";
+import { isWorkflowRoleSkipAssignment } from "./types.ts";
 import type {
 	NormalizedWorkflowDefinition,
-	WorkflowRoleModelSelection,
+	WorkflowRoleAssignment,
 	WorkflowRunAssignmentSource,
 	WorkflowRunModelPolicy,
 } from "./types.ts";
@@ -34,7 +36,7 @@ export interface WorkflowStartupState {
 	 * workflow. Partial because parent-per-role workflows gain entries only
 	 * through recovery.
 	 */
-	readonly currentAssignments?: Readonly<Record<string, WorkflowRoleModelSelection>>;
+	readonly currentAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
 	/** Latest active session path per workflow role (spawn or rollover). */
 	readonly activeSessions?: Readonly<Record<string, string>>;
 	readonly updatedAt: string;
@@ -50,12 +52,13 @@ type StartupContext = Pick<
 >;
 
 function cloneAssignments(
-	assignments: WorkflowPresetRoles | Readonly<Record<string, WorkflowRoleModelSelection>>,
-): Record<string, WorkflowRoleModelSelection> {
+	assignments: Readonly<Record<string, WorkflowRoleAssignment>>,
+): Record<string, WorkflowRoleAssignment> {
 	return structuredClone(assignments);
 }
 
-function formatSelection(selection: { provider: string; model: string; thinking?: string }) {
+function formatSelection(selection: WorkflowRoleAssignment) {
+	if (isWorkflowRoleSkipAssignment(selection)) return "skipped";
 	return `${selection.provider}/${selection.model}:${selection.thinking ?? "off"}`;
 }
 
@@ -87,8 +90,16 @@ async function selectRoleAssignments(
 	ctx: StartupContext,
 	definition: NormalizedWorkflowDefinition,
 ): Promise<WorkflowPresetRoles | undefined> {
-	const current: Record<string, WorkflowRoleSelection> = {};
+	const current: Record<string, WorkflowPresetAssignment> = {};
 	for (const [index, role] of definition.roles.entries()) {
+		if (role.optional) {
+			const choice = await chooseOptionalRole(ctx, role.label);
+			if (choice === undefined) return undefined;
+			if (choice === "skip") {
+				current[role.id] = { skip: true };
+				continue;
+			}
+		}
 		let picked: Awaited<ReturnType<typeof resolveModelPolicy>>;
 		try {
 			picked = await resolveModelPolicy("pick", ctx, {
@@ -114,6 +125,22 @@ async function selectRoleAssignments(
 		};
 	}
 	return editWorkflowPresetRoles(definition, current, {});
+}
+
+async function chooseOptionalRole(
+	ctx: StartupContext,
+	label: string,
+	current?: WorkflowPresetAssignment,
+): Promise<"enable" | "skip" | undefined> {
+	const enable = "Enable role and choose model";
+	const skip = "Skip this optional role";
+	const choice = await ctx.ui.select(
+		`${label} (optional)${current ? ` — currently ${formatSelection(current)}` : ""}`,
+		[enable, skip, "Cancel"],
+	);
+	if (choice === enable) return "enable";
+	if (choice === skip) return "skip";
+	return undefined;
 }
 
 async function confirmAssignments(
@@ -152,6 +179,14 @@ async function editAssignments(
 	if (!roleId) return undefined;
 
 	const role = definition.roleById[roleId]!;
+	const current = roles[roleId]!;
+	if (role.optional) {
+		const optionalChoice = await chooseOptionalRole(ctx, role.label, current);
+		if (optionalChoice === undefined) return undefined;
+		if (optionalChoice === "skip") {
+			return editWorkflowPresetRoles(definition, roles, { [roleId]: { skip: true } });
+		}
+	}
 	let picked: Awaited<ReturnType<typeof resolveModelPolicy>>;
 	try {
 		picked = await resolveModelPolicy("pick", ctx, {
@@ -159,7 +194,7 @@ async function editAssignments(
 			picker: {
 				title: `Model for ${role.label}`,
 				subject: role.label,
-				currentRef: formatSelection(roles[roleId]!),
+				...(!isWorkflowRoleSkipAssignment(current) ? { currentRef: formatSelection(current) } : {}),
 			},
 		});
 	} catch (error) {
@@ -356,6 +391,7 @@ export function updateWorkflowActiveSession(
 	sessionPath: string,
 ): WorkflowStartupState | null {
 	if (!state) return null;
+	assertWorkflowRoleEnabled(state, roleId);
 	return {
 		...state,
 		activeSessions: { ...state.activeSessions, [roleId]: sessionPath },
@@ -369,6 +405,7 @@ export function applyWorkflowRecoveryOverride(
 	selection: ModelSelection,
 ): WorkflowStartupState | null {
 	if (!state) return null;
+	assertWorkflowRoleEnabled(state, roleId);
 	return {
 		...state,
 		currentAssignments: {
@@ -390,10 +427,11 @@ export async function resolveWorkflowRoleSelection(
 	roleId: string,
 ): Promise<ResolvedModelSelection> {
 	const role = definition.roleById[roleId];
-	if (!role) throw new Error(`Workflow ${definition.id} has no role "${roleId}".`);
+	if (!Object.hasOwn(definition.roleById, roleId)) throw new Error(`Workflow ${definition.id} has no role "${roleId}".`);
+	assertWorkflowRoleEnabled(state, roleId);
 
-	const currentDefault = state.currentAssignments?.[roleId];
-	if (currentDefault?.provider && currentDefault?.model) {
+	const currentDefault = state.currentAssignments?.[roleId] ?? state.originalAssignments?.[roleId];
+	if (currentDefault && !isWorkflowRoleSkipAssignment(currentDefault)) {
 		const resolution = await resolveModelPolicy(
 			`${currentDefault.provider}/${currentDefault.model}:${currentDefault.thinking ?? "off"}`,
 			ctx,

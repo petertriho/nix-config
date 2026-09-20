@@ -7,8 +7,16 @@ import {
 } from "../launch-profile.ts";
 import { normalizeWorkflowDataValues } from "./schema.ts";
 import {
+	getPendingWorkflowGate,
+	interruptWorkflowGateHistory,
+	isWorkflowGatePending,
+	parseWorkflowGateHistory,
+	type WorkflowGateAttempt,
+} from "./plannotator.ts";
+import {
 	WORKFLOW_MANIFEST_VERSION,
 	WORKFLOW_RUN_SNAPSHOT_VERSION,
+	isWorkflowRoleSkipAssignment,
 	type NormalizedWorkflowDefinition,
 	type WorkflowCommandDefinition,
 	type WorkflowDataSlot,
@@ -17,6 +25,7 @@ import {
 	type WorkflowPrivateSkill,
 	type WorkflowPrivateSkillFrontmatter,
 	type WorkflowRoleDefinition,
+	type WorkflowRoleAssignment,
 	type WorkflowRoleModelSelection,
 	type WorkflowRoleSessionSnapshot,
 	type WorkflowRunActiveLaunch,
@@ -87,8 +96,8 @@ export interface StartWorkflowRunInput {
 	readonly projectRoot: string;
 	readonly policy: WorkflowRunModelPolicy;
 	readonly assignmentSource: WorkflowRunAssignmentSource;
-	readonly originalAssignments?: Readonly<Record<string, ModelSelection>>;
-	readonly currentAssignments?: Readonly<Record<string, ModelSelection>>;
+	readonly originalAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
+	readonly currentAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
 	readonly data?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -232,6 +241,9 @@ function transition(
 
 function normalizeModelSelection(value: unknown, context: string): WorkflowRoleModelSelection {
 	const record = expectRecord(value, context);
+	if (Object.keys(record).some((key) => !["provider", "model", "thinking"].includes(key))) {
+		throw new Error(`${context} must contain provider, model, and optional thinking only.`);
+	}
 	const provider = expectString(record.provider, `${context}.provider`);
 	const model = expectString(record.model, `${context}.model`);
 	const thinking = record.thinking;
@@ -251,15 +263,26 @@ function normalizeAssignmentMap(
 	definition: NormalizedWorkflowDefinition,
 	value: unknown,
 	context: string,
-): Readonly<Record<string, WorkflowRoleModelSelection>> | undefined {
+): Readonly<Record<string, WorkflowRoleAssignment>> | undefined {
 	if (value === undefined) return undefined;
 	const record = expectRecord(value, context);
-	const normalized: Record<string, WorkflowRoleModelSelection> = {};
+	const normalized: Record<string, WorkflowRoleAssignment> = {};
 	for (const [roleId, selection] of Object.entries(record)) {
-		if (!definition.roleById[roleId]) {
+		if (!Object.hasOwn(definition.roleById, roleId)) {
 			throw new Error(`${context} references unknown workflow role "${roleId}".`);
 		}
-		normalized[roleId] = normalizeModelSelection(selection, `${context}.${roleId}`);
+		const assignment = expectRecord(selection, `${context}.${roleId}`);
+		if (Object.hasOwn(assignment, "skip")) {
+			if (assignment.skip !== true || Object.keys(assignment).length !== 1) {
+				throw new Error(`${context}.${roleId} skip assignment must contain only { skip: true }.`);
+			}
+			if (!definition.roleById[roleId].optional) {
+				throw new Error(`Required workflow role "${roleId}" cannot be skipped.`);
+			}
+			normalized[roleId] = { skip: true };
+		} else {
+			normalized[roleId] = normalizeModelSelection(assignment, `${context}.${roleId}`);
+		}
 	}
 	return freezeDeep(normalized);
 }
@@ -279,8 +302,28 @@ function normalizeWorkflowData(
 
 function expectRole(definition: NormalizedWorkflowDefinition, roleId: string): WorkflowRoleDefinition {
 	const role = definition.roleById[roleId];
-	if (!role) throw new Error(`Workflow ${definition.id} has no role "${roleId}".`);
+	if (!Object.hasOwn(definition.roleById, roleId)) throw new Error(`Workflow ${definition.id} has no role "${roleId}".`);
 	return role;
+}
+
+/** Check before data, launch state, sidecars, or processes are changed. */
+export function assertWorkflowRoleEnabled(
+	assignments: Pick<WorkflowRunSnapshot, "currentAssignments" | "originalAssignments">,
+	roleId: string,
+): void {
+	const assignment = assignments.currentAssignments?.[roleId] ?? assignments.originalAssignments?.[roleId];
+	if (isWorkflowRoleSkipAssignment(assignment)) {
+		throw new Error(`Workflow role "${roleId}" is skipped for this run.`);
+	}
+}
+
+export function assertNoPendingWorkflowGate(snapshot: WorkflowRunSnapshot): void {
+	const pending = getPendingWorkflowGate(snapshot);
+	if (pending) {
+		throw new Error(
+			`Workflow gate "${pending.gate}" is pending. Wait for workflow_gate_result without polling, or abort the run.`,
+		);
+	}
 }
 
 function normalizeRoleSessionPath(sessionPath: unknown, context: string): string {
@@ -424,6 +467,9 @@ function parseRoleDefinition(value: unknown, context: string): WorkflowRoleDefin
 	const id = expectString(record.id, `${context}.id`);
 	const label = expectString(record.label, `${context}.label`);
 	const agent = expectString(record.agent, `${context}.agent`);
+	if (record.optional !== undefined && typeof record.optional !== "boolean") {
+		throw new Error(`${context}.optional must be a boolean when present.`);
+	}
 	if (!Array.isArray(record.reads)) throw new Error(`${context}.reads must be an array.`);
 	if (!Array.isArray(record.writes)) throw new Error(`${context}.writes must be an array.`);
 	const reads = record.reads.map((entry, index) => expectString(entry, `${context}.reads[${index}]`));
@@ -439,6 +485,7 @@ function parseRoleDefinition(value: unknown, context: string): WorkflowRoleDefin
 		id,
 		label,
 		agent,
+		...(record.optional !== undefined ? { optional: record.optional } : {}),
 		reads,
 		writes,
 		handoff,
@@ -509,6 +556,9 @@ function parseNormalizedDefinitionSnapshot(
 	for (const role of roles) {
 		if (!roleById[role.id]) {
 			throw new Error(`${context}.roleById is missing "${role.id}".`);
+		}
+		if (role.optional !== roleById[role.id].optional) {
+			throw new Error(`${context}.roleById.${role.id}.optional must match the declared role.`);
 		}
 	}
 	return freezeDeep({
@@ -590,6 +640,7 @@ function parseWorkflowRunSnapshot(value: unknown): WorkflowRunSnapshot {
 		record.activeLaunch,
 		"workflow run snapshot.activeLaunch",
 	);
+	const gateHistory = parseWorkflowGateHistory(record.gateHistory, { runId, definition, projectRoot });
 	const startedAt = expectIsoDate(record.startedAt, "workflow run snapshot.startedAt");
 	const updatedAt = expectIsoDate(record.updatedAt, "workflow run snapshot.updatedAt");
 	const finishedAt = record.finishedAt === undefined
@@ -613,6 +664,7 @@ function parseWorkflowRunSnapshot(value: unknown): WorkflowRunSnapshot {
 		data,
 		roleSessions,
 		...(activeLaunch ? { activeLaunch } : {}),
+		...(gateHistory ? { gateHistory } : {}),
 		startedAt,
 		updatedAt,
 		...(finishedAt ? { finishedAt } : {}),
@@ -664,8 +716,8 @@ function buildSnapshot(input: {
 	projectRoot: string;
 	policy: WorkflowRunModelPolicy;
 	assignmentSource: WorkflowRunAssignmentSource;
-	originalAssignments?: Readonly<Record<string, WorkflowRoleModelSelection>>;
-	currentAssignments?: Readonly<Record<string, WorkflowRoleModelSelection>>;
+	originalAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
+	currentAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
 	data: WorkflowDataValueMap;
 	roleSessions?: Readonly<Record<string, WorkflowRoleSessionSnapshot>>;
 	activeLaunch?: WorkflowRunActiveLaunch;
@@ -740,9 +792,14 @@ export function summarizeWorkflowRun(
 			interrupted: snapshot.activeLaunch.status === "interrupted",
 		}
 		: undefined;
+	const latest = snapshot.gateHistory?.at(-1);
+	const latestGate = latest ? {
+		id: latest.id, gate: latest.gate, status: latest.status, resultPath: latest.resultPath,
+		interrupted: latest.status === "interrupted",
+	} : undefined;
 	return freezeDeep({
 		active: snapshot.status === "active",
-		interrupted: snapshot.activeLaunch?.status === "interrupted",
+		interrupted: snapshot.activeLaunch?.status === "interrupted" || latestGate?.interrupted === true,
 		runId: snapshot.runId,
 		workflowId: snapshot.workflowId,
 		status: snapshot.status,
@@ -754,6 +811,7 @@ export function summarizeWorkflowRun(
 		...(snapshot.finishedAt ? { finishedAt: snapshot.finishedAt } : {}),
 		currentRoleSessions,
 		...(activeLaunch ? { activeLaunch } : {}),
+		...(latestGate ? { latestGate } : {}),
 	});
 }
 
@@ -779,17 +837,22 @@ export function restoreWorkflowRunStateFromBranch(
 	}
 
 	const active = getActiveWorkflowRun(state);
-	if (!active?.activeLaunch) return { state, snapshots: freezeDeep([]) };
-	if (active.activeLaunch.status !== "starting" && active.activeLaunch.status !== "running") {
+	if (!active) return { state, snapshots: freezeDeep([]) };
+	const launchInterrupted = active.activeLaunch?.status === "starting" || active.activeLaunch?.status === "running";
+	if (!launchInterrupted && !getPendingWorkflowGate(active)) {
 		return { state, snapshots: freezeDeep([]) };
 	}
 
 	const interrupted = freezeSnapshot({
 		...active,
-		activeLaunch: {
+		...(launchInterrupted ? { activeLaunch: {
 			...active.activeLaunch,
+			roleId: active.activeLaunch!.roleId,
 			status: "interrupted",
-		},
+		} } : {}),
+		...(active.gateHistory ? {
+			gateHistory: interruptWorkflowGateHistory(active.gateHistory, undefined, options.now),
+		} : {}),
 		updatedAt: nowIso(options.now),
 	});
 	return transition(state, [interrupted]);
@@ -839,6 +902,11 @@ export function startWorkflowRun(
 			...active,
 			status: "aborted",
 			activeLaunch: normalizeCompletedOrAbortedLaunch(active.activeLaunch),
+			...(active.gateHistory ? {
+				gateHistory: interruptWorkflowGateHistory(
+					active.gateHistory, "Workflow replaced; browser decision is no longer valid.", () => new Date(startedAt),
+				),
+			} : {}),
 			updatedAt: startedAt,
 			finishedAt: startedAt,
 		});
@@ -879,6 +947,7 @@ export function mergeWorkflowRunData(
 	options: WorkflowRunTransitionOptions = {},
 ): WorkflowRunTransitionResult {
 	const current = requireActiveRun(state, runId);
+	assertNoPendingWorkflowGate(current);
 	const normalizedUpdates = normalizeWorkflowData(current.definition, current.projectRoot, updates);
 	const snapshot = freezeSnapshot({
 		...current,
@@ -891,6 +960,49 @@ export function mergeWorkflowRunData(
 	return transition(state, [snapshot]);
 }
 
+/** Persist a gate attempt and its initial data together, before exposing it. */
+export function recordWorkflowGateAttempt(
+	state: WorkflowRunState,
+	attempt: WorkflowGateAttempt,
+	data?: WorkflowDataValueMap,
+): WorkflowRunTransitionResult {
+	const current = requireActiveRun(state, attempt.runId);
+	const history = [...(current.gateHistory ?? [])];
+	const index = history.findIndex((entry) => entry.id === attempt.id);
+	if (index < 0) {
+		assertNoPendingWorkflowGate(current);
+		if (current.activeLaunch?.status === "starting" || current.activeLaunch?.status === "running") {
+			throw new Error("A browser gate cannot overlap an active workflow role.");
+		}
+		if (attempt.status !== "starting") throw new Error("A new gate attempt must start in starting status.");
+		history.push(attempt);
+	} else {
+		const previous = history[index]!;
+		if (index !== history.length - 1 || !isWorkflowGatePending(previous)) {
+			throw new Error("A final or historical gate attempt cannot be updated.");
+		}
+		for (const key of ["runId", "sessionId", "gate", "artifact", "target", "resultPath", "reviewDirectory", "startedAt"] as const) {
+			if (previous[key] !== attempt[key]) throw new Error(`Gate attempt identity changed: ${key}.`);
+		}
+		if (data !== undefined) throw new Error("Gate data can only be set when an attempt starts.");
+		if (attempt.updatedAt < previous.updatedAt || (previous.status === "running" && attempt.status === "starting")) {
+			throw new Error("Gate attempt state cannot move backwards.");
+		}
+		history[index] = attempt;
+	}
+	const gateHistory = parseWorkflowGateHistory(history, current)!;
+	const snapshot = freezeSnapshot({
+		...current,
+		data: data === undefined ? current.data : {
+			...current.data,
+			...normalizeWorkflowData(current.definition, current.projectRoot, data),
+		},
+		gateHistory,
+		updatedAt: attempt.updatedAt,
+	});
+	return transition(state, [snapshot]);
+}
+
 export function setWorkflowRunActiveLaunch(
 	state: WorkflowRunState,
 	runId: string,
@@ -898,6 +1010,8 @@ export function setWorkflowRunActiveLaunch(
 	options: WorkflowRunTransitionOptions = {},
 ): WorkflowRunTransitionResult {
 	const current = requireActiveRun(state, runId);
+	if (launch?.status === "starting" || launch?.status === "running") assertNoPendingWorkflowGate(current);
+	if (launch) assertWorkflowRoleEnabled(current, launch.roleId);
 	const normalizedLaunch = normalizeActiveLaunch(
 		current.definition,
 		launch,
@@ -920,6 +1034,8 @@ export function recordWorkflowRunRoleSession(
 ): WorkflowRunTransitionResult {
 	const current = requireActiveRun(state, runId);
 	expectRole(current.definition, expectString(roleId, "workflow role ID"));
+	assertWorkflowRoleEnabled(current, roleId);
+	if (options.launchStatus === "starting" || options.launchStatus === "running") assertNoPendingWorkflowGate(current);
 	const normalizedSessionPath = normalizeRoleSessionPath(sessionPath, "workflow role session path");
 	const existing = current.roleSessions[roleId];
 	const history = existing?.current && existing.current !== normalizedSessionPath
@@ -963,6 +1079,7 @@ export function overrideWorkflowRunAssignment(
 ): WorkflowRunTransitionResult {
 	const current = requireActiveRun(state, runId);
 	expectRole(current.definition, expectString(roleId, "workflow role ID"));
+	assertWorkflowRoleEnabled(current, roleId);
 	const normalizedSelection = normalizeModelSelection(
 		selection,
 		`workflow assignment override.${roleId}`,
@@ -986,6 +1103,7 @@ function finalizeWorkflowRun(
 	options: WorkflowRunTransitionOptions = {},
 ): WorkflowRunTransitionResult {
 	const current = requireActiveRun(state, runId);
+	if (status === "completed") assertNoPendingWorkflowGate(current);
 	const finishedAt = nowIso(options.now);
 	const snapshot = freezeSnapshot({
 		...current,
@@ -993,6 +1111,11 @@ function finalizeWorkflowRun(
 		activeLaunch: status === "aborted"
 			? normalizeCompletedOrAbortedLaunch(current.activeLaunch)
 			: current.activeLaunch,
+		...(current.gateHistory ? {
+			gateHistory: interruptWorkflowGateHistory(
+				current.gateHistory, "Workflow ended; browser decision is no longer valid.", () => new Date(finishedAt),
+			),
+		} : {}),
 		updatedAt: finishedAt,
 		finishedAt,
 	});

@@ -15,6 +15,7 @@ import {
 	startWorkflowRun,
 } from "./state.ts";
 import type { NormalizedWorkflowDefinition } from "./types.ts";
+import { buildWorkflowRecoveryMessage } from "./recovery.ts";
 
 function withTempDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-workflow-handoff-"));
@@ -197,5 +198,24 @@ test("run-snapshot handoff works for arbitrary role IDs without Pter phase names
 		assert.doesNotMatch(handoff, /planner|task-writer|executor|reviewer/);
 		assert.doesNotMatch(handoff, /Hidden brief/);
 		assert.doesNotMatch(handoff, /Ticket slug/);
+	});
+});
+
+test("rollover and provider recovery preserve user feedback bytes", () => {
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root));
+		const state = startWorkflowRun(createWorkflowRunState(), {
+			runId: "feedback-handoff", definition, projectRoot: root, source: "project",
+			policy: "parent-per-role", assignmentSource: "parent",
+		}).state;
+		const snapshot = getActiveWorkflowRun(state)!;
+		const notes = "  Approval guidance:\n\nKeep this whitespace.  \n\n";
+		const input = { snapshot, roleId: "author", userMessage: notes };
+		for (const message of [
+			buildWorkflowRolloverHandoffForRun(input),
+			buildWorkflowRecoveryMessage(input),
+		]) {
+			assert.ok(message.endsWith(`Latest user instruction:\n${notes}`));
+		}
 	});
 });
