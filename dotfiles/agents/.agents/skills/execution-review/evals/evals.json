@@ -1,0 +1,108 @@
+{
+  "skill_name": "execution-review",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "APPROVED, no actionable findings. Both checked tasks have met acceptance backed by path:line and command output.",
+      "files": [],
+      "assertions": [
+        "The report has verdict APPROVED and says No actionable findings under Findings.",
+        "Task Conformance records every current acceptance line as met with path:line or command-output evidence.",
+        "Checkbox mismatches is none and Non-goals and settled decisions is respected.",
+        "No CRITICAL, HIGH, MEDIUM, or INFO findings exist.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "NEEDS CHANGES. T1 is checked but its prefix acceptance is not met because the implementation still uses tag:.",
+      "files": [],
+      "assertions": [
+        "The report has verdict NEEDS CHANGES.",
+        "Task Conformance records T1 prefix acceptance as not met with app.mjs evidence showing the old prefix.",
+        "Checkbox mismatches flags T1 as [x] with not met acceptance.",
+        "The finding carries T1 in its title and cites the exact acceptance line and file evidence.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "NEEDS CHANGES. The implementation uppercases labels, violating the explicit preserve-casing non-goal, even though the prefix change is correct.",
+      "files": [],
+      "assertions": [
+        "The report has verdict NEEDS CHANGES.",
+        "Non-goals and settled decisions reports the implemented casing non-goal with impl.mjs or app.mjs evidence.",
+        "At least one finding is tagged with the covering task ID and cites the non-goal violation, not merely a style preference.",
+        "The correct prefix change is still recorded as met where its acceptance holds; the non-goal violation alone blocks approval.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "NEEDS CHANGES. The implementation rewrites the export chain that the settled decisions require to stay unchanged.",
+      "files": [],
+      "assertions": [
+        "The report has verdict NEEDS CHANGES.",
+        "Non-goals and settled decisions reports the reversed export-chain decision with api.mjs patch evidence.",
+        "At least one finding cites the settled-decision source and the exact changed export behavior.",
+        "The finding does not reframe the settled decision as a new design preference.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, or checkboxes.",
+      "expected_output": "NOTHING REVIEWED artifact at the explicit target for the missing TASKS.md. The readable decoy pair must never be substituted.",
+      "files": [],
+      "assertions": [
+        "outputs/REVIEW.md has verdict NOTHING REVIEWED and Scope: none, with Reason and Next action sections.",
+        "The reason identifies the explicitly selected missing TASKS.md, not a lack of all task files.",
+        "The readable decoy is not selected or reviewed and its task contents do not appear in conformance.",
+        "Only outputs/REVIEW.md is written; the selected TASKS.md stays absent and all repository inputs remain unchanged."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "APPROVED with an unverified line. The manual TUI acceptance cannot be rerun offline, so it is unverified, not met or not met-inflated.",
+      "files": [],
+      "assertions": [
+        "The report has verdict APPROVED and contains no CRITICAL or HIGH findings.",
+        "Task Conformance records the manual TUI acceptance line as unverified with a concrete reason why verification was impossible.",
+        "The unverified line is not elevated to not met and does not produce a checkbox mismatch for the checked task.",
+        "Review Limits records the skipped manual validation and why.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "APPROVED. The plan-faithful prefix implementation stands; the unplanned uppercase preference is not a finding without a supersession link.",
+      "files": [],
+      "assertions": [
+        "The report has verdict APPROVED and says No actionable findings.",
+        "No finding requests uppercase conversion or any other scope outside the plan, tasks, non-goals, and settled decisions.",
+        "Task Conformance records the planned prefix acceptance as met with file evidence.",
+        "Review Limits does not invent a supersession authorization for unplanned scope.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "APPROVED. T1 checked and met; T2 correctly left unchecked with not met docs acceptance and a block note. No mismatch.",
+      "files": [],
+      "assertions": [
+        "The report has verdict APPROVED.",
+        "Task Conformance records T1 acceptance as met and T2 docs acceptance as not met with what is missing.",
+        "Checkbox mismatches is none: the unchecked T2 with not met acceptance is correct, not a finding.",
+        "No finding inflates the correctly deferred T2 into a CRITICAL or HIGH defect.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    }
+  ]
+}

@@ -83,6 +83,11 @@ response without creating a file.
 11. **Apply `review-checklists.md` to the patches.**
     Keep only concrete problems with exact evidence, impact, and a correction.
     Tag each finding with its task ID or `untracked`.
+    When the finding breaks a checked task's acceptance, tag the affected
+    task ID and name the out-of-scope change in the body. This covers
+    untracked changes, implemented non-goals, and reversed decisions that
+    break acceptance. Reserve `(untracked)` for changes that break no task
+    acceptance.
 12. **Run read-only validation named in `PLAN.md` and `TASKS.md`.**
     - Skip commands solely for superseded acceptance.
     - Use saved evidence for historical RED-only checks.
