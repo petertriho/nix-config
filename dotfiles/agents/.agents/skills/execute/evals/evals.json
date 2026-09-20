@@ -1,0 +1,80 @@
+{
+  "skill_name": "execute",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
+      "expected_output": "Prefix switched in code and docs, both tasks checked after acceptance passes, validation reported.",
+      "files": [],
+      "assertions": [
+        "app.mjs passes label: as the prefix option and docs/labels.md shows label:blue and label:.",
+        "T1 and T2 are checked only after their acceptance holds in the worktree.",
+        "The final message names the validation commands run and their results.",
+        "Only app.mjs, docs/labels.md, and TASKS.md checkboxes differ from the base commit; PLAN.md is unchanged.",
+        "Nothing is staged or committed."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
+      "expected_output": "Fix lands with a public-interface regression test that passes under node --test.",
+      "files": [],
+      "assertions": [
+        "A new test file under test/ covers the prefix behavior through the public previewLabel export.",
+        "node --test passes with the new test included.",
+        "app.mjs passes label: and the traced outputs are label:blue and label:.",
+        "T1 and T2 are checked with acceptance holding.",
+        "Only app.mjs, docs/labels.md, the new test file, and TASKS.md checkboxes differ from the base commit; PLAN.md is unchanged and nothing is staged or committed."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
+      "expected_output": "Prefix fixed without touching casing: no uppercase conversion anywhere, trimming preserved.",
+      "files": [],
+      "assertions": [
+        "No file in the diff uppercases values; Blue stays Blue through the public export.",
+        "Whitespace trimming behavior is preserved for the spaced input.",
+        "app.mjs passes label: and docs show the label: examples.",
+        "Only app.mjs, docs/labels.md, and TASKS.md checkboxes differ from the base commit; impl.mjs and api.mjs are unchanged and nothing is staged or committed."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
+      "expected_output": "T2 left unchecked with a Validation note: it demands an export-shape change the plan forbids. Blocker reported, api.mjs untouched.",
+      "files": [],
+      "assertions": [
+        "T2 remains unchecked and carries a Validation note naming the conflict between its scope and the plan non-goal.",
+        "api.mjs still re-exports from impl.mjs; the export chain is unchanged.",
+        "T1 is checked with its prefix acceptance holding.",
+        "The final message states the blocker and the user decision needed instead of silently expanding scope.",
+        "Nothing is staged or committed."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
+      "expected_output": "T1 checked with validation; T2 unchecked with a Validation note because the live TUI check cannot run offline.",
+      "files": [],
+      "assertions": [
+        "T1 is checked with its prefix acceptance holding in the worktree.",
+        "T2 remains unchecked and carries a Validation note with the failing or unavailable command, observed result, and blocked dependents.",
+        "T2 is not batch-checked alongside T1; each checkbox reflects its own acceptance state.",
+        "The final message lists the skipped validation and why it was skipped."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
+      "expected_output": "One-line prefix fix, nothing else: no new files, dependencies, or abstractions.",
+      "files": [],
+      "assertions": [
+        "The source diff touches only app.mjs with the prefix string change.",
+        "No new files, dependencies, abstractions, or config surfaces are added.",
+        "Traced outputs are label:blue and label: with casing and trimming preserved.",
+        "T1 is checked with acceptance holding and nothing is staged or committed."
+      ]
+    }
+  ]
+}
