@@ -11,8 +11,8 @@ let
   llmAgents = with pkgs.llm-agents; [
     claude-agent-acp
     tokscale
-    # kandev
-    # kandev-desktop
+    # docker-sbx
+    # terminal-browser
     # openspec
     # zat # code outline viewer
   ];
@@ -240,7 +240,7 @@ in
           "./plugins/skills-sidebar.tsx"
           "@ishaksebsib/opencode-tree"
           # "@slkiser/opencode-quota"
-        #   "oc-tps"
+          #   "oc-tps"
         ];
       };
     };
