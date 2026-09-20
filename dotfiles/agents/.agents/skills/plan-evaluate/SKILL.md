@@ -1,127 +1,115 @@
 ---
 name: plan-evaluate
-description: "Evaluate a finished PLAN.md against the repository before it becomes tasks and write .artifacts/<plan-name>/EVALUATION.md. Use for the evaluate phase of /peter, \"evaluate this plan\", \"fact-check PLAN.md against the code\", or \"is this plan ready for tasking\". Verifies every repository claim with file evidence, checks each step against non-goals and settled decisions, checks step concreteness, validation coverage, and status honesty, and writes one evaluation artifact. Not for writing or revising a plan (planner), converting a plan to tasks (plan-to-tasks), or reviewing an implementation (execution-review)."
+description: "Evaluate PLAN.md against repository evidence before tasking and write EVALUATION.md. Use for /peter evaluation, \"evaluate this plan\", \"fact-check PLAN.md\", or \"is this plan ready for tasking\". Not for authoring or revising plans (planner), generating tasks (plan-to-tasks), or reviewing implementations (execution-review)."
 disable-model-invocation: true
 ---
 
 # Plan Evaluate
 
-Evaluate a plan with fresh context before anyone converts it to tasks. The
-planner is both author and interviewer; this skill is the independent reader
-that checks the plan against the repository and against itself. The result is
-one artifact with a verdict and evidence-backed findings for the user's plan
-review. It does not revise the plan.
+Independently evaluate the plan with fresh context. Produce an evidence-backed
+verdict for user review, not a revised plan.
 
 ## Inputs
 
-Require a readable `PLAN.md`, usually in `.artifacts/<plan-name>/`. Optional
-input: an `EVALUATION.md` target (default: next to `PLAN.md`).
+Require readable `PLAN.md`. Default output: its sibling `EVALUATION.md`, unless
+the user supplies an `EVALUATION.md` target.
 
-- If an explicitly supplied `PLAN.md` path is missing or unreadable, stop with
-  "Nothing Evaluated". Never substitute another path.
-- If no path is given, list the repository root's `.artifacts/` directories by
-  modification time and select the newest directory with a readable `PLAN.md`.
-  State the choice in the evaluation. If none exists, stop with "Nothing
-  Evaluated".
+- Never substitute for an explicitly supplied missing or unreadable plan.
+- Without a plan path, select the newest repository-root `.artifacts/`
+  directory by directory modification time containing readable `PLAN.md`.
+  State the selection in the evaluation.
 
-On input failure, use the Nothing Evaluated format in
-`references/output-format.md`. Write it only to an explicit `EVALUATION.md`
-target. Otherwise, report it in the final response without creating a file.
+Empty input or text with neither an identifiable goal nor implementation work
+is not evaluable. Never substitute another plan for unusable input.
 
-## References
-
-- Before writing: `references/output-format.md` (required structure).
+If no evaluable plan resolves, use Nothing Evaluated from
+`references/output-format.md`. Write it only to an explicit output target;
+otherwise return that format in chat without creating a file.
 
 ## Boundaries
 
-- Write only `EVALUATION.md`. Never edit `PLAN.md`, `TASKS.md`, source, tests,
-  or configuration. Report problems instead.
-- Run only read-only commands: file reads, searches, `git log`, `git show`,
-  `readlink`, `command -v`, `--help`, `--version`, and script listings. Do
-  not run tests, builds, fixers, formatters, generators, or migrations.
-- Do not commit or stage.
-- Judge the plan the user settled, not the plan you would have written. Do not
-  reopen a settled decision on preference; flag it only when evidence refutes
-  its premise. Do not propose alternative designs or add scope.
-- Do not manufacture findings for a clean plan.
+- Write only the `EVALUATION.md` target. Keep plans, tasks, source, tests, and
+  configuration unchanged. Never stage or commit.
+- Use only read-only file reads, searches, `git log`, `git show`, `readlink`,
+  `command -v`, `--help`, `--version`, and script listings.
+  Invoke flags only when execution is known or inspected to be read-only;
+  otherwise inspect source or mark the claim unverified.
+  Never run tests, builds, fixers, formatters, generators, or migrations.
+- Judge settled scope, not your preferred design. Challenge a settled
+  decision only when evidence refutes its premise. Do not add scope or
+  propose alternative designs.
 
 ## Workflow
 
-1. **Read `PLAN.md` in full:** status and its reason, goal, non-goals,
-   assumptions, settled decisions, proposed approach, implementation plan,
-   validation, risks, handoff notes, and open questions. Note the planner's
-   own labels: verified assumptions, unapproved defaults, blockers.
-2. **Collect claims.** A claim is any statement about the repository or the
-   machine that the plan relies on: a file or symbol exists, a function has a
-   given signature, a pattern or convention is used, a command or script
-   exists, a tool behaves in a stated way, a config value is set. Collect
-   them from Assumptions, Proposed Approach, Implementation Plan, Validation,
-   and Handoff Notes. Number them.
-3. **Verify each claim with direct evidence.**
-   - Read the named files. Search for the named symbols, patterns, and
-     scripts. Follow indirections to the end: resolve symlinks with
-     `readlink -f`, follow re-exports and wrappers, and read the source of
-     generated or templated files before judging the generated output.
-   - Record `verified` with `path:line` or read-only command output,
-     `refuted` with the evidence that contradicts the claim, or `unverified`
-     with the reason the check was not possible. A claim about an external
-     service, a runtime, or a tool you cannot run is `unverified`, not
-     `refuted`.
-   - Treat the planner's "verified" label as a claim to re-check, not as
-     evidence.
-4. **Check each implementation step against the plan's own boundaries.**
-   - A step that implements a non-goal or reverses a settled decision is a
-     boundary violation.
-   - A settled decision that no step carries out is a gap, unless the decision
-     is explicitly a non-implementation decision.
-   - A step that depends on an open question must reference it.
-5. **Check step concreteness.** For each step, ask whether a task writer could
-   define scope and acceptance without inventing a requirement. Flag a step
-   that hides a decision: unnamed files or interfaces where the code offers
-   several candidates, an unspecified data shape, an unstated error or
-   migration path, or "as appropriate" wording where the choice matters.
-6. **Check validation coverage.**
-   - Every named command or script exists in the repository or on the machine.
-     Use read-only checks: script tables, task runner files, `command -v`,
-     `--help`.
-   - The validation proves the goal, not only that the code runs.
-   - Every risk in Risks and Mitigations and every risky step has a check
-     that would detect its failure.
-7. **Check status honesty.**
-   - `Status: Ready` with a blocking open question, or with an implementation
-     step that depends on an unresolved decision, is dishonest.
-   - An unapproved default listed under Settled Decisions, or an interview
-     recommendation the plan records as accepted without the user's answer,
-     is dishonest.
-   - `Status: Draft` must state why directly under the status.
-8. **Record omitted risks.** From the code read in step 3, note what the plan
-   does not mention but a step would affect: other callers of a changed
-   interface, tests that exercise changed behavior, configuration or
-   generated files derived from a changed source, migrations, and platform
-   or sandbox constraints.
-9. **Classify findings.**
-   - `BLOCKING`: a `refuted` claim that a step depends on, a step that
-     implements a non-goal or reverses a settled decision, an internal
-     contradiction between sections, `Status: Ready` with a blocker, or an
-     unapproved default recorded as settled.
-   - `NOTE`: everything else with concrete impact on tasking or execution: an
-     `unverified` claim a step depends on, a step that hides a decision, a
-     validation gap, an omitted risk, or a settled decision without a step.
-   - Merge duplicate symptoms into one finding with one root cause.
-10. **Set the verdict.** `NEEDS REVISION` when any `BLOCKING` finding exists.
-    Otherwise `READY`. The verdict does not change the plan's `Status`;
-    report both.
-11. **Write `EVALUATION.md` exactly per `references/output-format.md`.**
-12. **Report only the verdict, finding counts per level, and the path as
-    `EVALUATION: <absolute path>`.**
+1. **Read the full plan.** Note verified assumptions, unapproved defaults,
+   and blockers. Resolve explicit supersession before assessing active decisions
+   and steps; superseded text is history, not a contradiction.
+   Flag ambiguous supersession rather than choosing silently.
+2. **Collect claims throughout the plan.** Number repository and machine
+   claims: paths, symbols, signatures, conventions, commands, tool behavior,
+   and configuration values. Distinguish current facts from planned changes.
+   Planned additions need producing steps, not present existence.
+3. **Verify each factual claim directly**, including the planner's "verified" claims.
+   Read named files and search named symbols, patterns, and scripts.
+   Resolve symlinks (`readlink -f`), re-exports, wrappers, and generation
+   sources before judging output.
+   - `verified`: cite `path:line` or read-only command output.
+   - `refuted`: cite the contradicting evidence.
+   - `unverified`: explain why verification was impossible.
+     A claim about an external service, runtime, or tool you cannot run is
+     `unverified`, not `refuted`.
+   Label inference separately from plan statements. Redact secret-like
+   values; cite only their kind and location.
+4. **Check every active implementation step.**
+   - Flag implemented non-goals and reversed settled decisions.
+   - Flag settled decisions without a step, except explicitly
+     non-implementation decisions.
+   - Require steps depending on open questions to reference them.
+   - Can a task writer define scope and acceptance without inventing
+     requirements? Flag hidden decisions: ambiguous files/interfaces,
+     unspecified data shapes, missing error/migration paths, or consequential
+     "as appropriate" choices.
+5. **Check validation and risks.**
+   - Inspect every named command/script, including its working directory and
+     script/task-runner definition. Verify existing commands; for planned
+     commands, verify creation before use. Record planned checks in Step Checks,
+     not as verified existing capabilities.
+   - Validation must prove the goal, not merely that code runs.
+   - Require a failure-detecting check for every listed risk and risky step.
+   - Record code-grounded omitted risks: affected callers, tests, derived
+     configuration/generated files, migrations, and platform/sandbox constraints.
+6. **Check status consistency and decision provenance.**
+   - Flag `Ready` with blocking questions or steps depending on unresolved
+     decisions.
+   - Flag unapproved defaults recorded as settled or recommendations recorded
+     as accepted without the user's answer.
+     Use supplied approval evidence; missing interview history is a limit,
+     not proof that approval was absent.
+   - Require the reason for `Draft` immediately below its status.
+   - Report missing essential content in otherwise evaluable plans as findings.
+     Report missing or invalid status literally; never invent `Ready` or `Draft`.
 
-## Discipline
+## Findings and verdict
 
-- Cite evidence, not intuition. Every `refuted` result quotes or references
-  the contradicting evidence.
-- A first look is not a verification. Resolve the whole chain before calling
-  a claim refuted.
-- Do not inflate a `NOTE` into `BLOCKING` to make the verdict feel earned, and
-  do not add `NOTE` findings to fill an empty section.
-- Separate what the plan says from what you infer. Label inference.
-- Redact secret-like values; cite their kind and location only.
+- `BLOCKING`: a refuted claim a step depends on; an implemented non-goal or
+  reversed settled decision; a contradiction between sections; `Ready` with a
+  blocker; or an unapproved default recorded as settled.
+- `NOTE`: other concrete impacts on tasking/execution, including unverified
+  dependencies, hidden decisions, validation gaps, omitted risks, or settled
+  decisions without steps.
+- Do not manufacture findings or inflate severity.
+- Verdict: `NEEDS REVISION` if any `BLOCKING` finding exists; otherwise `READY`.
+  Report the plan's status separately without changing it.
+  Evaluation `READY` means no blocking findings under this rubric, not that
+  a Draft or unverified dependency is cleared for implementation.
+
+## Output
+
+Read `references/output-format.md` before writing. Follow its exact structure,
+including root-cause deduplication and empty sections.
+
+Read back the saved artifact to verify its target and required contents.
+After a successful save and verification, report only the verdict, counts per
+level, and `EVALUATION: <absolute path>`.
+On write or verification failure, report the failure and intended path without
+an `EVALUATION:` handoff. An old artifact is not a successful current evaluation.

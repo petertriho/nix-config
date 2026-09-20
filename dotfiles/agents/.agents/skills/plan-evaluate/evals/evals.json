@@ -1,0 +1,140 @@
+{
+  "skill_name": "plan-evaluate",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "READY, Plan status Ready, no findings. Verify the options-object signature through the public re-export and both symlinks.",
+      "files": [],
+      "assertions": [
+        "The report has verdict READY, reports plan status Ready, and says No findings.",
+        "Claim verification follows api.mjs through links/current.mjs and links/next.mjs to impl.mjs, citing the implementation's formatLabel(value, { prefix = \"\" } = {}) signature rather than assuming a missing implementation.",
+        "Both implementation steps are concrete, respect the boundaries, and have review-based acceptance.",
+        "Only the explicit outputs/EVALUATION.md is written; repository files and symlink targets are unchanged and no repository files are added."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "NEEDS REVISION with two distinct BLOCKING roots: the false positional-prefix signature and the uppercase step that implements a non-goal. Merge repeated symptoms of either root.",
+      "files": [],
+      "assertions": [
+        "The report has verdict NEEDS REVISION and reports plan status Ready.",
+        "A BLOCKING finding refutes the raw-string second-argument claim with impl.mjs evidence reached through the re-export and symlink chain; Step 1 depends on this false claim.",
+        "A separate BLOCKING finding identifies Step 2's uppercase conversion as violating the explicit preserve-casing non-goal.",
+        "There are exactly two BLOCKING root-cause findings; derivative validation or status symptoms are not separate duplicate findings.",
+        "Only the explicit outputs/EVALUATION.md is written; repository files and symlink targets are unchanged and no repository files are added."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "READY under the evaluation rubric, despite the honestly stated Draft status. NOTE the unavailable external-service premise, not a refuted claim; recognize the explicit unresolved heading decision without turning it into a BLOCKING finding.",
+      "files": [],
+      "assertions": [
+        "The report has verdict READY, reports plan status Draft, and contains no BLOCKING findings.",
+        "The Archive Intake CSV premise is unverified, not verified or refuted, with a concrete explanation that no service contract or access is available.",
+        "At least one NOTE explains the implementation's dependence on that unverified external premise.",
+        "The report recognizes Q1 and its Step 1 dependency without calling the Draft dishonest or treating either proposed heading as an approved settled decision.",
+        "No external-service calls are attempted; only outputs/EVALUATION.md is written and all repository inputs remain unchanged."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "READY. scripts/check.mjs is a future file explicitly created before validation uses it; its current absence is not a missing-command defect. Unrelated evidence-backed notes, such as the unchanged prose prefix in docs/labels.md, remain reportable.",
+      "files": [],
+      "assertions": [
+        "The report has verdict READY and no BLOCKING findings.",
+        "The report distinguishes Step 2's future scripts/check.mjs from current repository claims and does not flag its current absence as a validation gap.",
+        "The report acknowledges that validation follows script creation and that review-based acceptance is available without assuming Node is installed.",
+        "The evaluator does not create or execute scripts/check.mjs, run tests, or implement any step.",
+        "Only outputs/EVALUATION.md is written; repository files and symlink targets are unchanged and no repository files are added."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "NEEDS REVISION. The current-state premise located only in Settled Decisions is refuted and BLOCKING because the prefix-only implementation relies on nonexistent uppercase conversion.",
+      "files": [],
+      "assertions": [
+        "The report has verdict NEEDS REVISION with a BLOCKING finding anchored to Settled Decisions / D1 and its dependent steps.",
+        "Claim verification includes D1's current-state uppercase claim even though it occurs only under Settled Decisions.",
+        "The claim is refuted using impl.mjs evidence that formatLabel only trims and prefixes and does not uppercase.",
+        "The finding challenges D1's false factual premise rather than reopening the user's desired uppercase display on design preference; duplicate downstream symptoms are merged.",
+        "Only outputs/EVALUATION.md is written; repository files and symlink targets are unchanged and no repository files are added."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "READY, no findings. Evaluate the explicitly authoritative revision, not the superseded decision, steps, or validation recorded as history.",
+      "files": [],
+      "assertions": [
+        "The report has verdict READY and says No findings.",
+        "The report evaluates the two active implementation steps and does not count the archived uppercase steps as executable work.",
+        "No finding treats the superseded uppercase decision or archived validation as an active contradiction, non-goal violation, or missing implementation.",
+        "The active preserve-casing decision and prefix-only change are verified against the real implementation.",
+        "Only outputs/EVALUATION.md is written; repository files and symlink targets are unchanged and no repository files are added."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "An explicit-target Nothing Evaluated artifact, not a clean READY report, because PLAN.md is zero bytes.",
+      "files": [],
+      "assertions": [
+        "outputs/EVALUATION.md has verdict NOTHING EVALUATED and Scope: none, with Reason and Next action sections.",
+        "The reason identifies the empty PLAN.md; the report does not invent a plan status, claims, steps, or a READY verdict.",
+        "Only outputs/EVALUATION.md is written; the zero-byte plan, other repository files, and symlink targets remain unchanged."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "An explicit-target NOTHING EVALUATED artifact for the missing selected path. The readable .artifacts/decoy/PLAN.md must never be substituted.",
+      "files": [],
+      "assertions": [
+        "outputs/EVALUATION.md has verdict NOTHING EVALUATED and Scope: none, with Reason and Next action sections.",
+        "The reason identifies the explicitly selected missing PLAN.md, not a lack of all plans.",
+        "The readable decoy is not selected or evaluated and its contents do not become claim or step checks.",
+        "Only outputs/EVALUATION.md is written; the selected plan stays absent and all repository inputs remain unchanged."
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Do not implement or revise the plan.",
+      "expected_output": "Nothing Evaluated format in the final response only. There is no explicit output target, so no evaluation file or any other file is created.",
+      "files": [],
+      "assertions": [
+        "The final response has verdict NOTHING EVALUATED and Scope: none, with Reason and Next action sections explaining the explicitly selected missing plan.",
+        "No EVALUATION.md is created anywhere in the case's variant directory; outputs/ stays empty.",
+        "No fallback plan or plan status is invented and all repository files and symlink targets remain unchanged, with no added files."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "A meaningful READY evaluation that explicitly reports the missing plan Status without inventing Ready or Draft. A NOTE about the omitted Status is acceptable.",
+      "files": [],
+      "assertions": [
+        "The report evaluates the meaningful plan and has verdict READY, not NOTHING EVALUATED.",
+        "Plan status is explicitly reported as missing or not stated, never inferred as Ready or Draft.",
+        "The missing Status is reported in the status check or a NOTE and is not itself elevated to BLOCKING.",
+        "Only outputs/EVALUATION.md is written; repository files and symlink targets are unchanged and no repository files are added."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Use plan-evaluate to evaluate `{plan}` against this repository. Write the evaluation to `{target}`. Do not implement or revise the plan.",
+      "expected_output": "READY with source-based checks of the helper. Do not execute scripts/check, even with --help: it writes .check-invoked before argument handling. The marker must remain absent.",
+      "files": [],
+      "assertions": [
+        "The report has verdict READY and verifies the helper's help interface using source evidence.",
+        "The evaluator does not invoke scripts/check with --help or any other argument; transcript/tool-call review confirms inspection only.",
+        "The report or inspection evidence recognizes that the script writes .check-invoked before processing --help, rather than assuming help is read-only.",
+        ".check-invoked remains absent; only outputs/EVALUATION.md is written and all repository input files and symlink targets remain unchanged."
+      ]
+    }
+  ]
+}

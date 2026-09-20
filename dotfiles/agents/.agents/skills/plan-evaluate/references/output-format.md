@@ -11,7 +11,7 @@ final response without creating a file. Keep the order of sections. Use
 # Plan Evaluation: <plan-name>
 
 Verdict: READY | NEEDS REVISION
-Plan status: Ready | Draft
+Plan status: Ready | Draft | missing | invalid (<literal value>)
 Scope: <PLAN.md path, N claims checked, N steps checked>
 Date: YYYY-MM-DD
 
@@ -72,8 +72,8 @@ Rules:
 
 ## Nothing Evaluated
 
-Use this when the plan cannot be read (missing or unreadable `PLAN.md`, or no
-`.artifacts/` plan to select). It is not a clean result.
+Use this when no evaluable plan resolves: missing/unreadable `PLAN.md`, no
+`.artifacts/` plan to select, or empty/non-plan input. It is not a clean result.
 
 ```markdown
 # Plan Evaluation: <plan-name or "unknown">

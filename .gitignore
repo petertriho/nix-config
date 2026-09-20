@@ -1,2 +1,3 @@
-# Generated debugging evaluation artifacts; existing tracked files remain tracked.
+# Generated skill evaluation artifacts; existing tracked files remain tracked.
 /dotfiles/agents/.agents/skills/systematic-debugging-workspace/
+/dotfiles/agents/.agents/skills/plan-evaluate-workspace/

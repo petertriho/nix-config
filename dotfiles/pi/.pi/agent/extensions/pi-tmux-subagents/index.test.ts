@@ -741,6 +741,10 @@ test("bundled evaluator honors read-only skill commands and every Peter role lea
 	assert.match(evaluator, /EVALUATION: <absolute path>/);
 	assert.match(evaluator, /NOTHING EVALUATED/);
 	assert.match(evaluator, /Never substitute another plan/);
+	assert.match(evaluator, /flags\s+alone do not establish read-only behavior/);
+	assert.match(evaluator, /missing, unreadable, empty, or non-plan input/);
+	assert.match(evaluator, /After saving and reading back the artifact/);
+	assert.match(evaluator, /On write or verification failure,[\s\S]*without\s+that handoff marker/);
 	const executor = readFileSync(join(dir, "executor.md"), "utf8");
 	assert.match(executor, /agent: "worker"/);
 	assert.match(executor, /agent: "scout"/);
