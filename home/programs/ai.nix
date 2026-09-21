@@ -315,6 +315,7 @@ in
       ];
     };
     workmux.enable = true;
+    write-better.enable = true;
   };
   xdg.configFile = {
     "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";

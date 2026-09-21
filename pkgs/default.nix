@@ -38,4 +38,5 @@ with pkgs;
   taste-skill = callPackage ./taste-skill { };
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
+  write-better = callPackage ./write-better { };
 }

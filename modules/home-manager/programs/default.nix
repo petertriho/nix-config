@@ -23,5 +23,6 @@
     ./superpowers.nix
     ./taste-skill.nix
     ./workmux.nix
+    ./write-better.nix
   ];
 }
