@@ -47,6 +47,7 @@ in
       "terminal-notifier"
     ];
     casks = [
+      "codex-app"
       "cyberduck"
       "displaylink"
       "easy-move+resize"
@@ -75,7 +76,6 @@ in
       # "badgeify"
       # "bartender"
       # "betterdisplay"
-      # "codex-app"
       # "cursorsense"
       # "doll"
       # "istat-menus"
