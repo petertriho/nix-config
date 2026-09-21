@@ -16,17 +16,17 @@ buildNpmPackage {
   # prefetch for the offline install (ENOTCACHED, only-if-cached) and which
   # the vendored package-lock.json below does not cover. Re-bumping past
   # this pin needs a regenerated lockfile plus a registry-published SDK.
-  version = "2.34.0-unstable-2026-09-19";
+  version = "2.35.0-unstable-2026-09-21";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "97435aabf74e5fbcf1112e7244f931172b9db624";
-    hash = "sha256-EcdxpQbRXG/x+2lOi6Me1CrtMA5wLS5psDLSBx0rMaY=";
+    rev = "d5ca66b99232b092e24d5fecca174f34458e2b7e";
+    hash = "sha256-gn6iCTdPuzDJeX4361POWusFZ8BEm3gOyOqKVJ1b59s=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-H27c87dtJCtL0zy7aWVoWi2iDY5LedR2ZhMvFYP4wO8=";
+  npmDepsHash = "sha256-APZTwt1tZFwhMKM+pPWDpwnT0zBQF7Cr+R0GA+xJ6g4=";
   npmDepsFetcherVersion = 2;
   # Upstream (post-2.27.0) added `prepare: npm run build:public` — tsc
   # emitting dist/ declaration files for embedding hosts that import the

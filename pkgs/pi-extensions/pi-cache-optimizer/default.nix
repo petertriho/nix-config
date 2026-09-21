@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-cache-optimizer";
-  version = "2.8.10-unstable-2026-09-12";
+  version = "2.8.10-unstable-2026-09-20";
 
   src = fetchFromGitHub {
     owner = "jiangge";
     repo = "pi-cache-optimizer";
-    rev = "89ed5b78c4dbabb86de6b9aa5567fbba07e4c173";
-    hash = "sha256-QLRW0y/yEvUEfSPOKZOxUXxYlD/rJPr8bTvIUkB9Pvg=";
+    rev = "0e59a256f1403ecc11c8b7337452981abec54bbb";
+    hash = "sha256-cZj8GCsSKhWdC7Br/cghbGpZD/2k1Iafksov/3RTDok=";
   };
 
   # Zero runtime dependencies (peer dep @earendil-works/pi-coding-agent is

@@ -10,7 +10,7 @@ let
   jsonFormat = pkgs.formats.json { };
   piHistoryStateDir = "${config.xdg.stateHome}/pi";
   piExtensions = with pkgs.piExtensions; [
-    omp-undo-redo
+    # omp-undo-redo
     rpiv-args
     rpiv-ask-user-question
     # rpiv-todo
