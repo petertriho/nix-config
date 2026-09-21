@@ -132,6 +132,8 @@ lib.mkMerge [
         ProcessType = "Background";
         RunAtLoad = true;
         ThrottleInterval = 5;
+        StandardOutPath = "${config.home.homeDirectory}/Library/Logs/cli-proxy-api.stdout.log";
+        StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/cli-proxy-api.stderr.log";
       };
     };
 
@@ -147,6 +149,8 @@ lib.mkMerge [
         ProcessType = "Background";
         RunAtLoad = true;
         ThrottleInterval = 5;
+        StandardOutPath = "${config.home.homeDirectory}/Library/Logs/cpa-usage-keeper.stdout.log";
+        StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/cpa-usage-keeper.stderr.log";
       };
     };
   })
