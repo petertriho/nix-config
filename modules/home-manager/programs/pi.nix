@@ -19,7 +19,7 @@ let
     pi-codex-tools
     pi-fzfp
     pi-vim
-    # pi-lens
+    pi-lens
     pi-mcp-adapter
     # pi-subagents
     pi-tasks
