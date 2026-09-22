@@ -10,23 +10,22 @@
 }:
 buildNpmPackage {
   pname = "pi-mcp-adapter";
-  # NOTE: do not bump to 5c1ea6b or later until upstream drops the pkg.pr.new
-  # dependencies. 5c1ea6b pins @modelcontextprotocol/client+core to
+  # NOTE: revs past 5c1ea6b pinned @modelcontextprotocol/client+core to
   # https://pkg.pr.new/... PR-preview tarballs, which fetchNpmDeps cannot
-  # prefetch for the offline install (ENOTCACHED, only-if-cached) and which
-  # the vendored package-lock.json below does not cover. Re-bumping past
-  # this pin needs a regenerated lockfile plus a registry-published SDK.
-  version = "2.35.0-unstable-2026-09-21";
+  # prefetch for the offline install (ENOTCACHED, only-if-cached). 0e88e19
+  # (2.36.0) was verified free of pkg.pr.new refs before bumping; re-check
+  # on the next bump and regenerate the vendored lockfile alongside it.
+  version = "2.36.0-unstable-2026-09-22";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "d5ca66b99232b092e24d5fecca174f34458e2b7e";
-    hash = "sha256-gn6iCTdPuzDJeX4361POWusFZ8BEm3gOyOqKVJ1b59s=";
+    rev = "0e88e19e6dc0a72847d4ab8740c02f42d5aeecab";
+    hash = "sha256-+S/JEA5QjrSBl40UtMIwdAenauZTjSQUNq6f/pZ2EOQ=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-APZTwt1tZFwhMKM+pPWDpwnT0zBQF7Cr+R0GA+xJ6g4=";
+  npmDepsHash = "sha256-3ZttAsJOaQPiZ1DT1I1Z01z2/bSVo5Jn1bmEK1lTNag=";
   npmDepsFetcherVersion = 2;
   # Upstream (post-2.27.0) added `prepare: npm run build:public` — tsc
   # emitting dist/ declaration files for embedding hosts that import the
