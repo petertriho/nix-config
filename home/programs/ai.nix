@@ -9,7 +9,6 @@ let
     # pkgs.terraform-mcp-server
   ];
   llmAgents = with pkgs.llm-agents; [
-    claude-agent-acp
     tokscale
     # docker-sbx
     # terminal-browser
@@ -151,7 +150,7 @@ in
       };
     };
     claude-code = {
-      enable = true;
+      enable = false;
       package = pkgs.llm-agents.claude-code;
       enableMcpIntegration = true;
     };

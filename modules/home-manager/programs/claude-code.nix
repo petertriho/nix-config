@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 let
@@ -26,6 +27,7 @@ in
       '';
 
     home = {
+      packages = [ pkgs.llm-agents.claude-agent-acp ];
       # file.".claude/skills/context7" = {
       #   source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/context7";
       # };
