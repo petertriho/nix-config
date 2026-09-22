@@ -34,7 +34,6 @@ in
     file = {
       ".config/opencode/plugins/skills-sidebar.tsx".source =
         config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/plugins/skills-sidebar.tsx";
-      ".codex/config.toml".source = config.lib.meta.mkDotfilesSymlink "codex/.codex/config.toml";
     };
     sessionVariables = {
       OPENSPEC_TELEMETRY = 0;
@@ -160,25 +159,6 @@ in
       enable = true;
       package = pkgs.llm-agents.codex;
       enableMcpIntegration = false;
-      # settings = {
-      #   theme = "ansi";
-      #   features = {
-      #     multi_agent = true;
-      #   };
-      #   tui = {
-      #     status_line = [
-      #       "model-with-reasoning"
-      #       "context-remaining"
-      #       "current-dir"
-      #       "five-hour-limit"
-      #       "weekly-limit"
-      #       "context-window-size"
-      #       "used-tokens"
-      #       "total-input-tokens"
-      #       "total-output-tokens"
-      #     ];
-      #   };
-      # };
     };
     opencode = {
       enable = true;

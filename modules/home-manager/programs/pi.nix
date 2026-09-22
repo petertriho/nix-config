@@ -335,36 +335,33 @@ in
 
         ".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" cfg.piLensSettings;
 
-        # Suppress the upstream module's read-only settings.json symlink; the
-        # activation entry below owns the file instead.
+        # The activation entry owns this mutable file.
         "${cfg.configDir}/settings.json".enable = false;
       };
 
-      # Re-assert the nix-declared settings into the mutable settings.json on
-      # every switch. Deep merge with nix winning on declared keys; jq `*`
-      # replaces arrays wholesale, so `packages` is fully nix-controlled
-      # (the nono Pi pack is now part of the declaration, not appended).
-      # Ordered after linkGeneration, which removes the pre-migration symlink.
       activation.piHistoryState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piHistoryStateDir}
       '';
 
+      # Preserve runtime keys. Nix values take precedence, and jq replaces arrays.
       activation.piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         piSettingsFile=${lib.escapeShellArg "${cfg.configDir}/settings.json"}
         piSettingsNix=${settingsJson}
         piJq=${pkgs.jq}/bin/jq
 
-        # Atomic write: temp file in the same directory + rename, so a running
-        # pi never observes a torn file.
+        # Replace the target atomically and remove a failed temporary file.
         function piWriteSettings {
+          local target="$1"
           local tmp
-          tmp=$(mktemp "$1.tmp.XXXXXX")
-          printf '%s\n' "$2" > "$tmp"
-          mv "$tmp" "$1"
+          tmp=$(mktemp "$target.tmp.XXXXXX") || return 1
+
+          if ! cat > "$tmp" || ! mv "$tmp" "$target"; then
+            rm -f "$tmp"
+            return 1
+          fi
         }
 
-        # Leftover symlink at the target (linkGeneration normally cleans up the
-        # previous generation's link; belt and braces for the first migration).
+        # Remove a stale symlink if linkGeneration did not remove it.
         if [[ -L "$piSettingsFile" ]]; then
           run rm $VERBOSE_ARG "$piSettingsFile"
         fi
@@ -383,7 +380,7 @@ in
           piSettingsMerged=$(cat "$piSettingsNix")
         fi
 
-        run piWriteSettings "$piSettingsFile" "$piSettingsMerged"
+        run piWriteSettings "$piSettingsFile" <<< "$piSettingsMerged"
         unset piSettingsFile piSettingsNix piJq piSettingsMerged
         unset -f piWriteSettings
       '';

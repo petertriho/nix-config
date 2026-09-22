@@ -8,6 +8,7 @@
     ./betterfox.nix
     ./bladebro.nix
     ./claude-code.nix
+    ./codex.nix
     ./crush.nix
     ./donsetch.nix
     ./effective-html.nix
