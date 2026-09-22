@@ -98,7 +98,7 @@ in
     ++ (
       if pkgs.stdenv.hostPlatform.isAarch64 then
         [
-          "battery"
+        #   "battery"
           "vorssaint"
         ]
       else
