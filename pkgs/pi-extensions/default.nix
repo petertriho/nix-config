@@ -21,6 +21,7 @@ in
   pi-mcp-adapter = callPackage ./pi-mcp-adapter {
     inherit stripNpmManifest;
   };
+  pine-of-glass = callPackage ./pine-of-glass { };
   pi-subagents = callPackage ./pi-subagents {
     inherit stripNpmManifest;
   };

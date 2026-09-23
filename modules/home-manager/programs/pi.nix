@@ -24,6 +24,7 @@ let
     # pi-subagents
     pi-tasks
     pi-vcc
+    pine-of-glass
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
@@ -231,6 +232,7 @@ in
         piHistoryStateDir
       ];
       read = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions" ];
+      read_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/pi-meantime.json" ];
       allow_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/models.json" ];
     };
 
@@ -311,6 +313,8 @@ in
         );
         "${cfg.configDir}/themes/stylix.json".source =
           jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
+        "${cfg.configDir}/pi-meantime.json".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/pi-meantime.json";
         "${cfg.configDir}/extensions/pi-context-window-cap.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-context-window-cap.ts";
         "${cfg.configDir}/extensions/pi-dashboard.ts".source =
