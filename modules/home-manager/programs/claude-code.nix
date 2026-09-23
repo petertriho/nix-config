@@ -36,6 +36,8 @@ in
       file.".claude/skills/peter".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter";
       file.".claude/skills/peter-exp".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter-exp";
+      file.".claude/skills/pi-subagent".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pi-subagent";
       sessionVariables = {
         CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
         CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
@@ -61,6 +63,7 @@ in
       read = [
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter"
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter-exp"
+        "$HOME/.nix-config/dotfiles/claude/.claude/skills/pi-subagent"
       ];
       read_file = [
         "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"

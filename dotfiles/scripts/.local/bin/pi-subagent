@@ -1,0 +1,501 @@
+#!/usr/bin/env bash
+#
+# pi-subagent: run pi as an interactive subagent in a tmux pane beside the
+# caller, and return the final assistant text of each pi turn.
+# The child extension pi-turn-signal.ts appends one JSON line per settled
+# pi run to <state>/<id>/turns.jsonl; wait and send read that file.
+#
+# SC2016: single-quoted $ is intended in jq filters and in generated code.
+# shellcheck disable=SC2016
+
+set -euo pipefail
+
+prog=pi-subagent
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/pi-subagent"
+extension="${PI_SUBAGENT_EXTENSION:-$HOME/.claude/skills/pi-subagent/scripts/pi-turn-signal.ts}"
+session_root="${PI_CODING_AGENT_SESSION_DIR:-$HOME/.pi/agent/sessions}"
+
+# Set by load or spawn.
+id=""
+dir=""
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  pi-subagent spawn [--name <label>] [--model <provider/id[:thinking]>]
+                    [--thinking <level>] [--cwd <dir>] <task|-> [-- <pi args>...]
+  pi-subagent wait <id> [--timeout <seconds>]
+  pi-subagent send <id> <message|->
+  pi-subagent stop <id>
+  pi-subagent list
+  pi-subagent session <id> [--path] [--last <n>]
+
+Runs pi in a new tmux pane beside the current pane ($TMUX_PANE), on a
+persistent pi session whose id is the subagent id. Run it inside tmux.
+
+spawn  Open a pane, start pi with the task, and print the subagent id.
+       --model and --thinking go to pi. pi defaults apply when omitted.
+       --cwd sets the working directory (default: the current directory).
+       Arguments after -- go to pi verbatim, without validation
+       (example: -- --no-lens).
+       Task - reads the task from stdin. Use a quoted heredoc for multi-line
+       text and for text with backticks, $, or quotes. Bash does no
+       substitution inside it:
+         pi-subagent spawn --name <label> - <<'EOF'
+         <task>
+         EOF
+       A task that starts with @ is a pi file include (@path): rephrase the
+       task or add a prefix. A task that starts with - must use stdin.
+wait   Block until pi ends its next turn. Print the final assistant text on
+       stdout and this trailer on stderr:
+         pi-subagent: id=<id> pane=<pane> turn=<seq> stop=<stopReason>
+       The trailer adds error=<message> when pi reports one.
+send   Deliver a follow-up message, then behave like wait. A pane that still
+       runs pi gets the message pasted into the pi editor (a leading / or !
+       is a pi command there). A stopped pane, a dead pane, and a pane whose
+       pi already exited are reopened on the same pi session with the same
+       cwd, model, thinking, and pi args.
+       Message - reads stdin:
+         pi-subagent send <id> - <<'EOF'
+         <message>
+         EOF
+stop   Close the pane and mark the subagent stopped. The pi session stays.
+list   Print id, name, pane, status (alive, dead, stopped), and last turn.
+session
+       Read the pi session file of a subagent. This command only reads.
+       It prints the full transcript condensed: one block per message with
+       the role, the tool name, the stop reason, the text, and one line per
+       tool call. Thinking blocks are counted, not printed, and text longer
+       than 400 characters is clipped.
+       --path prints only the path of the session file. Read that file with
+       your own tools for the unclipped transcript. It is JSONL: one JSON
+       object per line, and a line with "type":"message" holds one message.
+       --last <n> prints only the last n messages.
+
+Exit codes of wait and send:
+  0    the turn ended with stopReason stop
+  1    any other stopReason (error, aborted, length, ...); the trailer names it
+  2    pi or its pane exited without a new turn; captured pane lines on stdout
+  124  --timeout expired
+Other exit codes:
+  2    preflight failure: not in tmux, or pi, tmux, jq, or the extension
+       missing; or session found no session file for the id
+  64   usage error or unknown id
+
+Environment:
+  XDG_STATE_HOME              state is in
+                              ${XDG_STATE_HOME:-~/.local/state}/pi-subagent/<id>/
+  PI_SUBAGENT_EXTENSION       path of pi-turn-signal.ts (default:
+                              ~/.claude/skills/pi-subagent/scripts/pi-turn-signal.ts)
+  PI_CODING_AGENT_SESSION_DIR pi session store that session reads
+                              (default: ~/.pi/agent/sessions)
+USAGE
+}
+
+fail() {
+    local code=$1
+    shift
+    printf '%s: %s\n' "$prog" "$*" >&2
+    exit "$code"
+}
+
+usage_error() {
+    fail 64 "$* (see $prog --help)"
+}
+
+need_cmd() {
+    command -v "$1" >/dev/null 2>&1 || fail 2 "$1 is not on PATH: install it or fix PATH, then retry"
+}
+
+preflight() {
+    local cmd
+    [ -n "${TMUX_PANE:-}" ] || fail 2 "not inside tmux (TMUX_PANE is unset): start Claude in a tmux pane, then retry"
+    for cmd in tmux pi jq; do
+        need_cmd "$cmd"
+    done
+    [ -f "$extension" ] || fail 2 "extension not found at $extension: install the pi-subagent skill or set PI_SUBAGENT_EXTENSION"
+}
+
+load() {
+    id=$1
+    [[ $id =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || usage_error "invalid id: $id"
+    dir=$state_root/$id
+    [ -f "$dir/meta.json" ] || usage_error "unknown id: $id"
+}
+
+meta_get() {
+    jq -r "$1" "$dir/meta.json"
+}
+
+# meta_update [jq options] <filter>
+meta_update() {
+    local tmp
+    tmp=$(mktemp "$dir/meta.json.XXXXXX")
+    jq "$@" "$dir/meta.json" >"$tmp"
+    mv "$tmp" "$dir/meta.json"
+}
+
+# The pane option guards against a pane id that tmux reused for another pane.
+pane_alive() {
+    local pane
+    pane=$(meta_get '.pane // ""')
+    [ -n "$pane" ] || return 1
+    [ "$(tmux display-message -p -t "$pane" '#{pane_dead} #{@pi_subagent_id}' 2>/dev/null)" = "0 $id" ]
+}
+
+# A pane that still runs pi. On a nonzero exit launch.sh keeps the pane open at
+# its Enter prompt, so a live pane with a pi.exit marker no longer holds pi.
+pane_running() {
+    [ ! -f "$dir/pi.exit" ] && pane_alive
+}
+
+# Last complete line of turns.jsonl. A partial line without its newline is skipped.
+latest_line() {
+    local count
+    count=$(wc -l <"$dir/turns.jsonl" | tr -d ' ')
+    [ "$count" -gt 0 ] || return 0
+    sed -n "${count}p" "$dir/turns.jsonl"
+}
+
+latest_seq() {
+    local line turn
+    line=$(latest_line)
+    turn=$(jq -r '.seq // 0' <<<"$line" 2>/dev/null) || turn=0
+    [[ $turn =~ ^[0-9]+$ ]] || turn=0
+    printf '%s' "$turn"
+}
+
+# write_launch <message>: write launch.sh that starts pi on the session with <message>.
+write_launch() {
+    local message=$1 pi_bin model thinking arg
+    local -a pi_args=() extra=()
+    pi_bin=$(command -v pi)
+    model=$(meta_get '.model // ""')
+    thinking=$(meta_get '.thinking // ""')
+    while IFS= read -r -d '' arg; do
+        extra+=("$arg")
+    done < <(jq -j '.args[] | . + "\u0000"' "$dir/meta.json")
+
+    pi_args=(--session-id "$id")
+    [ -z "$model" ] || pi_args+=(--model "$model")
+    [ -z "$thinking" ] || pi_args+=(--thinking "$thinking")
+    pi_args+=(-e "$extension" "${extra[@]}" -- "$message")
+
+    {
+        printf '#!/usr/bin/env bash\n'
+        # Every preamble line starts with "#": the name is untrusted input.
+        printf '%s\n' "pi-subagent launch script" "id: $id" "name: $(meta_get .name)" \
+            "generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" | sed 's/^/# /'
+        printf 'cd %q || exit 1\n' "$(meta_get .cwd)"
+        printf 'PI_SUBAGENT_TURNS_FILE=%q' "$dir/turns.jsonl"
+        printf ' %q' "$pi_bin" "${pi_args[@]}"
+        printf '\nstatus=$?\n'
+        printf 'echo "$status" >%q\n' "$dir/pi.exit"
+        cat <<'EOF'
+if [ "$status" -ne 0 ]; then
+    printf '\npi exited with status %s. Press Enter to close this pane.\n' "$status"
+    read -r _
+fi
+exit "$status"
+EOF
+    } >"$dir/launch.sh"
+}
+
+open_pane() {
+    local pane
+    rm -f "$dir/pi.exit"
+    pane=$(tmux split-window -d -h -P -F '#{pane_id}' -t "$TMUX_PANE" -c "$(meta_get .cwd)" \
+        bash "$dir/launch.sh")
+    tmux set-option -p -t "$pane" @pi_subagent_id "$id" 2>/dev/null || true
+    tmux select-pane -t "$pane" -T "$(meta_get .name)" 2>/dev/null || true
+    meta_update --arg pane "$pane" '.pane = $pane | .stopped = false'
+}
+
+paste_message() {
+    local pane buffer="pi-subagent-$id"
+    pane=$(meta_get .pane)
+    printf '%s' "$1" >"$dir/message.txt"
+    tmux load-buffer -b "$buffer" "$dir/message.txt"
+    # -p: bracketed paste keeps multi-line text as one editor input.
+    # -r: keep LF; a CR would submit each line when bracketed paste is off.
+    tmux paste-buffer -p -r -d -b "$buffer" -t "$pane"
+    tmux send-keys -t "$pane" Enter
+}
+
+report_turn() {
+    local line turn stop err pane trailer
+    line=$(latest_line)
+    turn=$(jq -r '.seq' <<<"$line")
+    stop=$(jq -r '.stopReason // "none"' <<<"$line")
+    err=$(jq -r '.errorMessage // "" | gsub("\n"; " ")' <<<"$line")
+    pane=$(meta_get .pane)
+    meta_update --argjson turn "$turn" '.consumed = $turn'
+    jq -r '.text // ""' <<<"$line"
+    trailer="$prog: id=$id pane=$pane turn=$turn stop=$stop"
+    [ -z "$err" ] || trailer+=" error=$err"
+    printf '%s\n' "$trailer" >&2
+    if [ "$stop" = stop ]; then
+        exit 0
+    fi
+    exit 1
+}
+
+report_exit() {
+    local pane status=""
+    pane=$(meta_get .pane)
+    [ ! -f "$dir/pi.exit" ] || status=$(<"$dir/pi.exit")
+    if pane_alive; then
+        # Up to 40 lines, ending at the last non-blank line.
+        tmux capture-pane -p -J -t "$pane" -S -200 2>/dev/null |
+            awk '{ l[NR] = $0 } NF { last = NR } END { for (i = (last > 40 ? last - 39 : 1); i <= last; i++) print l[i] }'
+    fi
+    if [ -n "$status" ]; then
+        fail 2 "id=$id pane=$pane pi exited with status $status without a new turn"
+    fi
+    fail 2 "id=$id pane=$pane the pane is gone without a new turn"
+}
+
+# wait_turn <after-seq> [timeout-seconds]
+wait_turn() {
+    local after=$1 timeout=${2:-} start=$SECONDS
+    while :; do
+        if [ "$(latest_seq)" -gt "$after" ]; then
+            report_turn
+        fi
+        if ! pane_running; then
+            # pi can write its last turn just before it exits.
+            if [ "$(latest_seq)" -gt "$after" ]; then
+                report_turn
+            fi
+            report_exit
+        fi
+        if [ -n "$timeout" ] && [ $((SECONDS - start)) -ge "$timeout" ]; then
+            fail 124 "id=$id pane=$(meta_get .pane) timed out after ${timeout}s without a new turn"
+        fi
+        sleep 1
+    done
+}
+
+new_id() {
+    { uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid; } | tr '[:upper:]' '[:lower:]'
+}
+
+cmd_spawn() {
+    local name=pi model="" thinking="" cwd=$PWD task="" have_task=0
+    local -a extra=()
+    while [ $# -gt 0 ]; do
+        case $1 in
+            --name | --model | --thinking | --cwd)
+                [ $# -ge 2 ] || usage_error "$1 needs a value"
+                case $1 in
+                    --name) name=$2 ;;
+                    --model) model=$2 ;;
+                    --thinking) thinking=$2 ;;
+                    --cwd) cwd=$2 ;;
+                esac
+                shift 2
+                ;;
+            -h | --help)
+                usage
+                exit 0
+                ;;
+            --)
+                shift
+                extra=("$@")
+                break
+                ;;
+            -)
+                [ "$have_task" -eq 0 ] || usage_error "spawn takes one task"
+                task=$(cat)
+                have_task=1
+                shift
+                ;;
+            -*) usage_error "unknown option: $1 (a task that starts with - must use stdin)" ;;
+            *)
+                [ "$have_task" -eq 0 ] || usage_error "spawn takes one task: quote it or use stdin"
+                task=$1
+                have_task=1
+                shift
+                ;;
+        esac
+    done
+    [ "$have_task" -eq 1 ] || usage_error "spawn needs a task, or - to read it from stdin"
+    [[ $task =~ [^[:space:]] ]] || usage_error "the task is empty"
+    [ -d "$cwd" ] || usage_error "--cwd is not a directory: $cwd"
+    cwd=$(cd "$cwd" && pwd)
+    preflight
+
+    id=$(new_id)
+    dir=$state_root/$id
+    mkdir -p "$dir"
+    printf '%s\n' "$task" >"$dir/task.md"
+    : >"$dir/turns.jsonl"
+    jq -n --arg name "$name" --arg cwd "$cwd" --arg model "$model" --arg thinking "$thinking" \
+        --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{name: $name, cwd: $cwd, pane: "", model: $model, thinking: $thinking,
+          args: $ARGS.positional, consumed: 0, stopped: false, created: $created}' \
+        --args -- "${extra[@]}" >"$dir/meta.json"
+    write_launch "$task"
+    open_pane
+    printf '%s\n' "$id"
+    printf '%s: id=%s pane=%s\n' "$prog" "$id" "$(meta_get .pane)" >&2
+}
+
+cmd_wait() {
+    local timeout=""
+    [ $# -ge 1 ] || usage_error "wait needs an id"
+    load "$1"
+    shift
+    while [ $# -gt 0 ]; do
+        case $1 in
+            --timeout)
+                [ $# -ge 2 ] || usage_error "--timeout needs a value"
+                timeout=$2
+                shift 2
+                ;;
+            *) usage_error "unknown argument: $1" ;;
+        esac
+    done
+    [[ -z $timeout || $timeout =~ ^[0-9]+$ ]] || usage_error "--timeout needs whole seconds"
+    need_cmd tmux
+    wait_turn "$(meta_get .consumed)" "$timeout"
+}
+
+cmd_send() {
+    local message after
+    [ $# -eq 2 ] || usage_error "send needs an id and a message, or - to read it from stdin"
+    load "$1"
+    message=$2
+    [ "$message" != - ] || message=$(cat)
+    [[ $message =~ [^[:space:]] ]] || usage_error "the message is empty"
+    preflight
+    # Wait for a turn newer than every recorded one, so an unread user-driven
+    # turn is not returned as the answer to this message.
+    after=$(latest_seq)
+    if [ "$(meta_get .stopped)" != true ] && pane_running; then
+        paste_message "$message"
+    else
+        # Close a pane that only holds the exit prompt of a finished pi, so the
+        # message reaches the reopened session instead of that prompt.
+        if pane_alive; then
+            tmux kill-pane -t "$(meta_get .pane)"
+        fi
+        write_launch "$message"
+        open_pane
+    fi
+    wait_turn "$after"
+}
+
+cmd_stop() {
+    [ $# -eq 1 ] || usage_error "stop needs an id"
+    load "$1"
+    need_cmd tmux
+    if pane_alive; then
+        tmux kill-pane -t "$(meta_get .pane)"
+    fi
+    meta_update '.stopped = true'
+    printf '%s: id=%s stopped\n' "$prog" "$id" >&2
+}
+
+# Path of the pi session file of the loaded id. pi names it
+# <session root>/--<encoded cwd>--/<timestamp>_<session id>.jsonl, and the
+# subagent id is the session id.
+session_file() {
+    local f newest=""
+    # The directory encodes pi's resolved working directory, which can differ
+    # from meta.json through symlinks, so every project directory is searched.
+    for f in "$session_root"/*/*_"$id".jsonl; do
+        [ -f "$f" ] || continue
+        if [ -z "$newest" ] || [ "$f" -nt "$newest" ]; then
+            newest=$f
+        fi
+    done
+    [ -n "$newest" ] || fail 2 "no pi session file for id=$id under $session_root: pi may not have started yet"
+    printf '%s' "$newest"
+}
+
+cmd_session() {
+    local file path_only=0 last=0 max=400
+    [ $# -ge 1 ] || usage_error "session needs an id"
+    load "$1"
+    shift
+    while [ $# -gt 0 ]; do
+        case $1 in
+            --path)
+                path_only=1
+                shift
+                ;;
+            --last)
+                [ $# -ge 2 ] || usage_error "--last needs a value"
+                last=$2
+                shift 2
+                ;;
+            *) usage_error "unknown argument: $1" ;;
+        esac
+    done
+    [[ $last =~ ^[0-9]+$ ]] || usage_error "--last needs a whole number of messages"
+    need_cmd jq
+    file=$(session_file)
+    if [ "$path_only" -eq 1 ]; then
+        printf '%s\n' "$file"
+        return 0
+    fi
+    # Read only. One block per message: header, text, and one line per tool
+    # call. Thinking blocks are counted, not printed. Long text is clipped;
+    # --path plus your own reader gives the unclipped file.
+    jq -s -r --argjson last "$last" --argjson max "$max" '
+        def clip: if $max > 0 and (length > $max) then (.[0:$max] + "…[clipped]") else . end;
+        [ .[] | select(.type == "message") ]
+        | to_entries
+        | (if $last > 0 then .[-$last:] else . end)
+        | .[]
+        | (.key + 1) as $n
+        | .value.message as $m
+        | ($m.content | if type == "string" then [{type: "text", text: .}] else . end) as $blocks
+        | ([ $blocks[] | select(.type == "text") | .text ] | join("\n")) as $text
+        | ([ $blocks[] | select(.type == "toolCall")
+             | "  -> " + .name + " " + ((.arguments // {}) | tojson | clip) ]) as $calls
+        | "#\($n) \($m.role)"
+          + (if $m.toolName then " " + $m.toolName else "" end)
+          + (if $m.stopReason then " (" + $m.stopReason + ")" else "" end)
+          + (if $m.isError == true then " ERROR" else "" end)
+          + (if ([ $blocks[] | select(.type == "thinking") ] | length) > 0 then " [thinking]" else "" end)
+          + (if ($text | length) > 0 then "\n" + ($text | clip | split("\n") | map("  " + .) | join("\n")) else "" end)
+          + (if ($calls | length) > 0 then "\n" + ($calls | join("\n")) else "" end)
+    ' "$file"
+    printf '%s: id=%s session=%s\n' "$prog" "$id" "$file" >&2
+}
+
+cmd_list() {
+    local meta status
+    [ $# -eq 0 ] || usage_error "list takes no arguments"
+    printf 'ID\tNAME\tPANE\tSTATUS\tTURN\n'
+    for meta in "$state_root"/*/meta.json; do
+        [ -f "$meta" ] || continue
+        dir=${meta%/meta.json}
+        id=${dir##*/}
+        if pane_running; then
+            status=alive
+        elif [ "$(meta_get .stopped)" = true ]; then
+            status=stopped
+        else
+            status=dead
+        fi
+        jq -r --arg id "$id" --arg status "$status" \
+            '[$id, .name, .pane, $status, (.consumed | tostring)] | @tsv' "$meta"
+    done
+}
+
+case ${1:-} in
+    spawn | wait | send | stop | list | session)
+        command=$1
+        shift
+        "cmd_$command" "$@"
+        ;;
+    -h | --help | help) usage ;;
+    "")
+        usage >&2
+        exit 64
+        ;;
+    *) usage_error "unknown command: $1" ;;
+esac

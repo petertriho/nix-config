@@ -10,8 +10,9 @@ You are the orchestrator of a plan -> evaluate -> tasks -> execute -> review
 chain. The plan phase runs inline in this conversation through the `Skill`
 tool, because subagents cannot reach the user. The evaluator, the task writer,
 the executor, and the reviewer each run as a fresh general-purpose subagent
-spawned with the `Agent` tool. You coordinate; you do not do the phase work
-yourself.
+spawned with the `Agent` tool, or as a pi subagent in a tmux pane when the
+model gate sets the role to `pi` (see pi roles). You coordinate; you do not
+do the phase work yourself.
 
 ## Rules
 
@@ -20,8 +21,9 @@ yourself.
 - Stop at every gate and wait for the user's answer. Do not continue on your
   own, and do not skip a gate.
 - Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `EVALUATION.md`,
-  `TASKS.md`, `REVIEW.md`. Keep the agent name from every spawn; you need it
-  to continue that subagent with `SendMessage`.
+  `TASKS.md`, `REVIEW.md`. Keep a handle for every role from its spawn: the
+  agent name of a Claude subagent, or the subagent id of a pi role. You need
+  it to continue that role with `SendMessage` or `pi-subagent send`.
 - Gate decision files live beside the plan directory in
   `.artifacts/<plan-name>-decisions/`, never inside it: the Gate 1 folder
   review lists every file in the plan directory, and decision JSON files
@@ -49,8 +51,10 @@ yourself.
   `~/.claude/skills/<name>/`; the direct read is the intended loading path
   for this workflow.
 - To continue a finished subagent, use `SendMessage` with its stored agent
-  name. If the continuation fails or the agent is gone, spawn a fresh
-  subagent of the same role and pass it the artifact paths and the base ref.
+  name, or `pi-subagent send` with its stored id for a pi role. If the
+  continuation fails or the agent is gone, spawn a fresh subagent of the same
+  role and pass it the artifact paths and the base ref. For a pi role, the
+  fresh spawn is a new `pi-subagent spawn`.
 - On any other subagent failure, report the failure to the user and ask
   before retrying that phase. Do not retry silently.
 - At the start of each phase, if `$TMUX_PANE` is set, rename the tmux window
@@ -62,6 +66,40 @@ yourself.
   is not set, skip every rename and the reset.
 - Only the orchestrator runs `plannotator`. Subagents never run it; every
   spawn prompt says so.
+
+## pi roles
+
+A role whose model value is `pi`, `pi:<provider/model>`, or
+`pi:<provider/model>:<thinking>` runs as a pi subagent through the
+`pi-subagent` script instead of the `Agent` tool. pi roles exist only when the
+Phase 0 pi check passed.
+
+- Spawn: run `pi-subagent spawn` in the foreground with the role as `--name`
+  and the pi prompt on stdin through a quoted heredoc. For `pi:<value>`, add
+  `--model <value>` with everything after `pi:`. For plain `pi`, omit
+  `--model`; pi's defaults apply. The heredoc is mandatory: the prompts
+  contain backticks and gate notes pass verbatim, so a double-quoted argument
+  would run command substitution. The command prints the subagent id. Store
+  it as the role's handle.
+- Result: run `pi-subagent wait <id>` through `Bash` with
+  `run_in_background: true` and end the turn. The result arrives as a Bash
+  exit notification, not as an `Agent` result: stdout is pi's final message,
+  and stderr ends with a `pi-subagent:` trailer. Exit 0 is the phase result.
+  Any other exit code is a subagent failure (1: a stop reason other than
+  `stop`; 2: pi or its pane exited), and for a continuation it is a failed
+  continuation. Do not poll, sleep, or read the pi state files.
+- Continuation: run `pi-subagent send <id> - <<'EOF'`, the same message as the
+  `SendMessage` branch, and `EOF`, through `Bash` with
+  `run_in_background: true`. It pastes into the live pane, or reopens the
+  session in a new pane with the same model. The result arrives as for
+  `wait`.
+- Prompt: adapt the Claude prompt, do not copy it. The skill path is
+  `~/.agents/skills/<name>/SKILL.md`, the prompt says "Read the file directly
+  and follow it as your operating instructions; do not run `/skill:<name>`.",
+  and it says "Do not spawn subagents."
+- The boundary snapshot rule is unchanged: snapshot before the spawn or the
+  `send`, and diff when the exit notification arrives.
+- pi panes stay open after their phase. Done lists them.
 
 ## Plannotator gate
 
@@ -121,6 +159,10 @@ When forwarding folder feedback, say so and name the files it covers.
    so only paths a phase itself changes are checked.
 3. Run `command -v plannotator`. If it fails, tell the user once that this run
    uses chat gates, and ask each gate's chat fallback question directly.
+4. Run the pi check: `command -v pi-subagent` and `printenv TMUX_PANE`. The
+   check passes when both print a value. Store the result. If it fails, tell
+   the user once that pi roles are unavailable in this session and why:
+   `pi-subagent` is not on PATH, or this session does not run inside tmux.
 
 ## Model gate
 
@@ -141,12 +183,27 @@ task writer, the executor, and the reviewer. Offer three modes:
    | Executor    | `opus`  |
    | Reviewer    | `fable` |
 
+   The table may name a pi value only when the Phase 0 pi check passed. When
+   the check failed and the table names a pi value for a role, tell the user
+   that the entry is unavailable in this session and ask for a Claude model
+   for that role.
+
 3. **Pick for this session**: ask one batched `AskUserQuestion` with four
    questions, one per role (evaluator, task writer, executor, reviewer).
-   Options for each role: inherit, `fable`, `opus`, `sonnet`; `haiku` is
-   available through the free-text "Other" answer. The evaluator question
-   offers inherit, `fable`, `opus`, and `skip` instead; `sonnet` and `haiku`
-   are available through "Other".
+   When the Phase 0 pi check passed, the options for the task writer, the
+   executor, and the reviewer are inherit, `fable`, `opus`, `pi`; `sonnet`
+   and `haiku` are available through the free-text "Other" answer. The
+   evaluator question offers inherit, `fable`, `pi`, and `skip` instead;
+   `opus`, `sonnet`, and `haiku` are available through "Other". A custom pi
+   model, `pi:<provider/model>[:<thinking>]`, is also entered through
+   "Other". When the pi check failed, offer no `pi`: the options for each
+   role are inherit, `fable`, `opus`, `sonnet`, with `haiku` through "Other",
+   and the evaluator question offers inherit, `fable`, `opus`, and `skip`,
+   with `sonnet` and `haiku` through "Other".
+
+A role value of `pi`, `pi:<provider/model>`, or
+`pi:<provider/model>:<thinking>` runs that role as a pi subagent (see pi
+roles). `pi` uses pi's default model and thinking level.
 
 The evaluator role also accepts `skip`. With `skip`, Phase 2 and every
 re-evaluation are not run, and Gate 1 shows the plan alone. Put `skip` in the
@@ -155,8 +212,10 @@ table to make it the default, or pick it for one session.
 Phrase the picks as the current `Agent` tool model options: today's set is
 `sonnet`, `opus`, `haiku`, and `fable`, but the installed Claude Code release
 is authoritative. Store the resolved role-to-model answers; inherit means the
-later `Agent` spawn omits `model`. A subagent continued with `SendMessage`
-keeps its original model; only a fresh spawn applies a role's model.
+later `Agent` spawn omits `model`, and a pi value means the later spawn is a
+`pi-subagent spawn`. A subagent continued with `SendMessage` keeps its
+original model, and a pi role continued with `pi-subagent send` keeps its
+model too; only a fresh spawn applies a role's model.
 
 ## Phase 1: Plan (inline)
 
@@ -183,6 +242,15 @@ Agent({
   model: "<evaluator model, omitted for inherit>",
   prompt: "Read ~/.claude/skills/plan-evaluate/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/plan-evaluate/. Evaluate <absolute PLAN.md path> against this repository. Write the evaluation to <same directory>/EVALUATION.md and edit nothing else. Do not run plannotator; the orchestrator owns the review gates. Final message: verdict, findings count per level, and the EVALUATION.md path as `EVALUATION: <absolute path>`."
 })
+```
+
+**If the role is pi:** run this spawn instead of the `Agent` call, then
+`pi-subagent wait <id>` in the background (see pi roles):
+
+```
+pi-subagent spawn --name evaluator [--model <provider/model[:thinking]>] - <<'EOF'
+The skill file is ~/.agents/skills/plan-evaluate/SKILL.md. Read the file directly and follow it as your operating instructions; do not run `/skill:plan-evaluate`. Resolve the skill's relative references against ~/.agents/skills/plan-evaluate/. Evaluate <absolute PLAN.md path> against this repository. Write the evaluation to <same directory>/EVALUATION.md and edit nothing else. Do not spawn subagents. Do not run plannotator; the orchestrator owns the review gates. Final message: verdict, findings count per level, and the EVALUATION.md path as `EVALUATION: <absolute path>`.
+EOF
 ```
 
 When the result arrives, run `git status --porcelain` again and diff the
@@ -218,8 +286,17 @@ at `EVALUATION.md` for the findings the user names.
    `SendMessage` the evaluator: "Re-evaluate the revised plan at <absolute
    PLAN.md path> against this repository. Overwrite <absolute EVALUATION.md
    path> and edit nothing else. Final message: verdict, findings count per
-   level, and the EVALUATION.md path." Diff the snapshot after the result;
-   only `EVALUATION.md` may change. Then return to step 1.
+   level, and the EVALUATION.md path." For a pi role, send the same message
+   in the background instead (see pi roles):
+
+   ```
+   pi-subagent send <id> - <<'EOF'
+   <same message>
+   EOF
+   ```
+
+   Diff the snapshot after the result; only `EVALUATION.md` may change. Then
+   return to step 1.
 4. On approval, keep any approval notes for the task-writer spawn prompt and
    continue to Phase 3. Evaluation findings the user did not act on are
    accepted; they go to the Done summary, not to the task writer.
@@ -238,6 +315,15 @@ Agent({
 })
 ```
 
+**If the role is pi:** run this spawn instead of the `Agent` call, then
+`pi-subagent wait <id>` in the background (see pi roles):
+
+```
+pi-subagent spawn --name task-writer [--model <provider/model[:thinking]>] - <<'EOF'
+The skill file is ~/.agents/skills/plan-to-tasks/SKILL.md. Read the file directly and follow it as your operating instructions; do not run `/skill:plan-to-tasks`. Resolve the skill's relative references against ~/.agents/skills/plan-to-tasks/. Convert <absolute PLAN.md path> into TASKS.md in the same directory. Do not change PLAN.md or any other file. Do not spawn subagents. Do not run plannotator; the orchestrator owns the review gates. Approval notes from the plan review (non-blocking guidance; omit this sentence when there are none): <plan approval notes>. Report the TASKS.md path as `TASKS: <absolute path>`, the task count, and any blocking assumptions.
+EOF
+```
+
 When the result arrives, run `git status --porcelain` again and diff the
 snapshot. Only `TASKS.md` may change. On a violation, follow the boundary
 rule above.
@@ -250,7 +336,14 @@ rule above.
    fallback: ask the user for a go or for change notes, and wait.
 3. On `annotated` feedback or chat change notes, snapshot git state,
    `SendMessage` the task writer with the notes verbatim, diff the snapshot
-   after the result (only `TASKS.md` may change), and return to step 1.
+   after the result (only `TASKS.md` may change), and return to step 1. For a
+   pi role, send the same message in the background instead (see pi roles):
+
+   ```
+   pi-subagent send <id> - <<'EOF'
+   <same message>
+   EOF
+   ```
 4. On approval, keep any approval notes for the executor spawn prompt and
    continue to Phase 4.
 
@@ -268,6 +361,15 @@ Agent({
 })
 ```
 
+**If the role is pi:** run this spawn instead of the `Agent` call, then
+`pi-subagent wait <id>` in the background (see pi roles):
+
+```
+pi-subagent spawn --name executor [--model <provider/model[:thinking]>] - <<'EOF'
+The skill file is ~/.agents/skills/execute/SKILL.md. Read the file directly and follow it as your operating instructions; do not run `/skill:execute`. Resolve the skill's relative references against ~/.agents/skills/execute/. Implement <absolute TASKS.md path> against <absolute PLAN.md path>. Base ref: <base ref>. Do not commit. Do not spawn subagents. Do not run plannotator; the orchestrator owns the review gates. Approval notes from the task review (non-blocking guidance; omit this sentence when there are none): <tasks approval notes>. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: tasks completed with IDs, validation commands run with results, blockers or unchecked tasks.
+EOF
+```
+
 There is no boundary check for this phase: `TASKS.md` governs its scope.
 
 If the result reports a stall or unchecked tasks without a named blocker,
@@ -278,6 +380,15 @@ SendMessage({
   to: "<executor agent name>",
   message: "Continue from the first unchecked task in <TASKS.md path>. Do not commit. Report tasks completed, validation run, and blockers."
 })
+```
+
+For a pi role, send the same message in the background instead (see pi
+roles):
+
+```
+pi-subagent send <id> - <<'EOF'
+<same message>
+EOF
 ```
 
 After that single continuation, report the outcome to the user, whatever it
@@ -295,6 +406,15 @@ Agent({
   model: "<reviewer model, omitted for inherit>",
   prompt: "Read ~/.claude/skills/execution-review/SKILL.md and follow it as your operating instructions. Do not call the Skill tool for it: the skill disables model invocation, and the direct read is the intended loading path. Resolve the skill's relative references against ~/.claude/skills/execution-review/. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Write the review to <same directory>/REVIEW.md and edit nothing else. Do not run plannotator; the orchestrator owns the review gates. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`."
 })
+```
+
+**If the role is pi:** run this spawn instead of the `Agent` call, then
+`pi-subagent wait <id>` in the background (see pi roles):
+
+```
+pi-subagent spawn --name reviewer [--model <provider/model[:thinking]>] - <<'EOF'
+The skill file is ~/.agents/skills/execution-review/SKILL.md. Read the file directly and follow it as your operating instructions; do not run `/skill:execution-review`. Resolve the skill's relative references against ~/.agents/skills/execution-review/. Base ref: <base ref>. PLAN.md: <absolute path>. TASKS.md: <absolute path>. Write the review to <same directory>/REVIEW.md and edit nothing else. Do not spawn subagents. Do not run plannotator; the orchestrator owns the review gates. Final message: verdict, findings count per severity, and the REVIEW.md path as `REVIEW: <absolute path>`.
+EOF
 ```
 
 When the result arrives, run `git status --porcelain` again and diff the
@@ -341,10 +461,19 @@ Append to the message when Gate 3 returned approval notes: `Approval notes
 findings and override the standard scope where they conflict: <feedback
 verbatim>`.
 
+For a pi role, send the same message in the background instead (see pi
+roles):
+
+```
+pi-subagent send <id> - <<'EOF'
+<same message>
+EOF
+```
+
 If the continuation fails, spawn a fresh executor with the same fix-pass
 message, the artifact paths, and the base ref (the executor role's model
-applies again). Report the result. Then run Gate 4; never re-review
-automatically.
+applies again; for a pi role, a new `pi-subagent spawn`). Report the
+result. Then run Gate 4; never re-review automatically.
 
 ## Gate 4: Re-review choice (after every approved fix pass)
 
@@ -356,15 +485,23 @@ Ask the user to choose exactly one:
   pass. Base ref: <base ref>. PLAN.md: <path>. TASKS.md: <path>. Previous
   REVIEW.md (optional input): <path>. Write the re-review to <same REVIEW.md
   path> and edit nothing else. Final message: verdict, findings count per
-  severity, and the REVIEW.md path." Diff the snapshot after the result; only
-  `REVIEW.md` may change.
+  severity, and the REVIEW.md path." For a pi role, send the same message in
+  the background instead (see pi roles):
+
+  ```
+  pi-subagent send <id> - <<'EOF'
+  <same message>
+  EOF
+  ```
+
+  Diff the snapshot after the result; only `REVIEW.md` may change.
 - **Start a fresh reviewer**: rename the window to ` Reviewing` and run
   Phase 5 again with a fresh spawn (the reviewer role's model applies again).
   Tell it to judge the fixed implementation independently and to use the
   previous `REVIEW.md`, if any, only as optional context.
 - **Stop without re-review**: launch no reviewer. Go to Done.
 
-Wait for the answer. If no reviewer agent name is stored (for example the
+Wait for the answer. If no reviewer handle is stored (for example the
 reviewer never completed), say so and offer only the fresh and stop choices.
 
 After either re-review result, run Gate 3 again with the new `REVIEW.md`. If
@@ -383,4 +520,7 @@ Give the final summary:
 - Unresolved findings: MEDIUM and INFO from the review, plus anything not
   fixed, plus evaluation findings the user accepted at Gate 1 without a plan
   revision.
+- The pi panes of this run, when any role ran on pi: run `pi-subagent list`
+  and show the id and pane of each stored pi handle with status `alive`, so
+  the user can stop them with `pi-subagent stop <id>`.
 - A reminder that nothing was committed. The user reviews and commits.
