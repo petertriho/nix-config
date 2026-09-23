@@ -8,17 +8,17 @@
 }:
 buildNpmPackage {
   pname = "pi-acp";
-  version = "0.0.33-unstable-2026-07-30";
+  version = "0.0.33-unstable-2026-09-22";
 
   src = fetchFromGitHub {
     owner = "svkozak";
     repo = "pi-acp";
-    rev = "d1cffc047ab37a096ee70ca39cfc1de463db8d12";
-    hash = "sha256-y8QE91ZbRxzoaV8ITw95OqUEpsxkTI9eicygEF1GUFc=";
+    rev = "42926ccd6a319531ffc5b46b90f8ab78931bcbf5";
+    hash = "sha256-/EOD0xg9M9V7GaAzC1b0aPWn5WTK4yiKDcHtVBdPNiE=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-g7D7AYqGRC9NZns1K/Y0oyHs8RsLwjOWcn9It7rmrIk=";
+  npmDepsHash = "sha256-cTx7OHLG+hvkMNNsNylBVc8iR7kQHvZEajHx/kUabms=";
   npmDepsFetcherVersion = 2;
 
   # tsup and typescript are devDependencies, so the install must NOT be

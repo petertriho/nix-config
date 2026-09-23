@@ -15,13 +15,13 @@ buildNpmPackage {
   # prefetch for the offline install (ENOTCACHED, only-if-cached). 0e88e19
   # (2.36.0) was verified free of pkg.pr.new refs before bumping; re-check
   # on the next bump and regenerate the vendored lockfile alongside it.
-  version = "2.36.0-unstable-2026-09-22";
+  version = "2.37.0-unstable-2026-09-23";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "0e88e19e6dc0a72847d4ab8740c02f42d5aeecab";
-    hash = "sha256-+S/JEA5QjrSBl40UtMIwdAenauZTjSQUNq6f/pZ2EOQ=";
+    rev = "28049dee20cd0ee809cf5a78442cf35dfa36659c";
+    hash = "sha256-fZ6sAJhNjSMz/KVsuuNtjkomkI5rQ0qlWMpvFVPinEc=";
   };
 
   nodejs = nodejs_24;
