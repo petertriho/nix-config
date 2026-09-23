@@ -68,7 +68,13 @@ review yourself.
   ```
 
   Labels are exactly ` Planning`, ` Evaluating`, ` Tasking`, ` Executing`,
-  ` Reviewing`, and ` Workflow done`.
+  and ` Reviewing`. A rename turns off tmux automatic renaming for the
+  window. At Done, if `$TMUX_PANE` is set, reset the window name with `bash`
+  so tmux manages it again (otherwise skip the reset):
+
+  ```bash
+  tmux set-option -w -u -t "$TMUX_PANE" automatic-rename
+  ```
 
 ## Role failure and recovery
 
@@ -535,7 +541,8 @@ and every fix pass is followed by Gate 4. Never loop without a fresh user answer
 
 ## Done
 
-Rename the window to ` Workflow done`. Give the final summary:
+Reset the window name so tmux manages it again (see the rename rule).
+Give the final summary:
 
 - absolute paths for `PLAN.md`, `EVALUATION.md` when produced, `TASKS.md`,
   and `REVIEW.md` (say `not produced` for any missing artifact and explicitly

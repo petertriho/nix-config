@@ -81,9 +81,11 @@ You coordinate; you do not do the phase work yourself.
 - At the start of each phase, if `$TMUX_PANE` is set, rename the tmux window
   through `bash`: `tmux rename-window -t "$TMUX_PANE" "<label>"`. Labels:
   ` Planning`, ` Evaluating`, ` Tasking`, ` Executing`,
-  ` Reviewing`, ` Workflow done`. If `$TMUX_PANE` is not set, skip every
-  rename. Claude Code manages teammate panes: never split, resize, close, or
-  retitle them.
+  ` Reviewing`. A rename turns off tmux automatic renaming for the window. At
+  Done, reset the window name so tmux manages it again:
+  `tmux set-option -w -u -t "$TMUX_PANE" automatic-rename`. If `$TMUX_PANE`
+  is not set, skip every rename and the reset. Claude Code manages teammate
+  panes: never split, resize, close, or retitle them.
 - Only the team lead runs `plannotator`. Teammates never run it; every spawn
   prompt says so.
 
@@ -425,7 +427,8 @@ loop without a fresh gate answer.
 
 ## Done
 
-Rename the window to ` Workflow done`. Give the final summary:
+Reset the window name so tmux manages it again (see the rename rule).
+Give the final summary:
 
 - The artifact paths: `PLAN.md`, `EVALUATION.md` (when the evaluator ran),
   `TASKS.md`, `REVIEW.md`, and the `.artifacts/<plan-name>-decisions/`

@@ -145,7 +145,7 @@ test("Peter private skill preserves all gates and six phases using dedicated wor
 		" Tasking",
 		" Executing",
 		" Reviewing",
-		" Workflow done",
+		'tmux set-option -w -u -t "$TMUX_PANE" automatic-rename',
 		"nothing was staged or committed",
 		"Include untracked files in the base-ref scope",
 		"attribution limit is accepted",
@@ -168,6 +168,7 @@ test("Peter private skill preserves all gates and six phases using dedicated wor
 	assert.match(skill, /status: "completed"/);
 	assert.match(skill, /WORKFLOW WRITE POLICY VIOLATION/);
 	assert.match(skill, /Never re-review automatically/);
+	assert.doesNotMatch(skill, /Workflow done/);
 });
 
 test("Peter review scope includes untracked files without executor path bookkeeping", () => {
