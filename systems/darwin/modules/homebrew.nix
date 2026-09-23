@@ -31,10 +31,9 @@ in
         HOMEBREW_DOWNLOAD_CONCURRENCY = "auto";
         HOMEBREW_NO_ANALYTICS = "1";
         HOMEBREW_NO_ASK = "1";
-        HOMEBREW_NO_REQUIRE_TAP_TRUST = "1";
       };
     };
-    taps = [
+    taps = map (name: { inherit name; trusted = true; }) [
       "gromgit/brewtils"
       "nikitabobko/tap"
       "steipete/tap"
@@ -120,7 +119,6 @@ in
       HOMEBREW_DOWNLOAD_CONCURRENCY = "auto";
       HOMEBREW_NO_ANALYTICS = "1";
       HOMEBREW_NO_ASK = "1";
-      HOMEBREW_NO_REQUIRE_TAP_TRUST = "1";
     };
     systemPath = [
       "${HOMEBREW_PREFIX}/bin"
