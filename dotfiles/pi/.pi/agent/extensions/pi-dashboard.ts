@@ -720,6 +720,26 @@ export function renderDashboard(
   );
 }
 
+export function renderDashboardWithContext(
+  theme: ShellTheme,
+  data: DashboardData,
+  width: number,
+  contextLines: readonly string[],
+  frameIndex = DASHBOARD_LOGO_FRAME_COUNT - 1,
+): string[] {
+  const lines = renderDashboardContent(theme, data, width, frameIndex);
+  const boxWidth = Math.max(0, width - 2);
+  if (contextLines.length && boxWidth >= DASHBOARD_MIN_BOX_WIDTH) {
+    lines.splice(
+      lines.length - 1,
+      0,
+      renderDashboardDivider(theme, boxWidth),
+      ...contextLines.map((line) => renderDashboardBoxRow(theme, boxWidth, line)),
+    );
+  }
+  return applyOuterMargin(lines, width);
+}
+
 export type DashboardAnimationTimers = {
   setInterval(
     callback: () => void,
@@ -847,7 +867,9 @@ type DashboardRuntime = {
   pi: ExtensionAPI;
   animationTimers: DashboardAnimationTimers | undefined;
   activeTui: TUI | undefined;
-  activeComponent: DashboardComponent | undefined;
+  chatBlock: DashboardChatBlock | undefined;
+  chatContainer: DashboardChatContainer | undefined;
+  chatInstallTimer: ReturnType<typeof setTimeout> | undefined;
   commands: DashboardCommand[];
   commandsLoading: boolean;
   commandPoolKey: string;
@@ -856,15 +878,90 @@ type DashboardRuntime = {
   tuiSessionActive: boolean;
 };
 
+type DashboardChatContainer = {
+  children: unknown[];
+  addChild(child: Component): void;
+  removeChild?(child: Component): void;
+};
+
+type DashboardChatBlock = Component & {
+  readonly __piDashboardChatBlock: true;
+  startAnimation(): void;
+  dispose(): void;
+  setExpanded(expanded: boolean): void;
+};
+
+type ContextimateBlock = Component & {
+  setExpanded?(expanded: boolean): void;
+};
+
+function contextimateBlock(): ContextimateBlock | undefined {
+  // The pinned Pine of Glass release keeps its computed panel on globalThis.
+  // Reuse that renderer instead of copying its token and tool-schema heuristics.
+  const block = (globalThis as { __piContextimateBlock?: ContextimateBlock }).__piContextimateBlock;
+  return block && typeof block.render === "function" ? block : undefined;
+}
+
+function findDashboardChatContainer(tui: TUI): DashboardChatContainer | undefined {
+  // Pi 0.87.1 keeps the chat after the header and resource list inside its
+  // scrollable document. Root siblings include pinned pending-message UI.
+  const children = (tui as TUI & { children?: unknown[] }).children;
+  if (!Array.isArray(children)) return undefined;
+  const document = children[0] as { children?: unknown[] } | undefined;
+  if (!Array.isArray(document?.children) || document.children.length !== 3) return undefined;
+  const resources = document.children[1] as { children?: unknown[] } | undefined;
+  const chat = document.children[2] as Partial<DashboardChatContainer> | undefined;
+  if (!Array.isArray(resources?.children) || !Array.isArray(chat?.children) ||
+      typeof chat.addChild !== "function") return undefined;
+  return chat as DashboardChatContainer;
+}
+
+function removeDashboardChatBlock(runtime: DashboardRuntime): void {
+  if (runtime.chatInstallTimer) clearTimeout(runtime.chatInstallTimer);
+  runtime.chatInstallTimer = undefined;
+  const chat = runtime.chatContainer;
+  const block = runtime.chatBlock;
+  if (chat && block && chat.children.includes(block)) {
+    if (chat.removeChild) chat.removeChild(block);
+    else chat.children.splice(chat.children.indexOf(block), 1);
+  }
+  block?.dispose();
+  runtime.chatContainer = undefined;
+  runtime.chatBlock = undefined;
+}
+
+function installDashboardChatBlock(runtime: DashboardRuntime): void {
+  runtime.chatInstallTimer = undefined;
+  const tui = runtime.activeTui;
+  const block = runtime.chatBlock;
+  if (!runtime.tuiSessionActive || !tui || !block) return;
+  const chat = findDashboardChatContainer(tui);
+  if (!chat) return;
+  runtime.chatContainer = chat;
+  if (chat.children.includes(block)) return;
+  chat.children
+    .filter((child): child is DashboardChatBlock =>
+      !!child && typeof child === "object" &&
+      (child as DashboardChatBlock).__piDashboardChatBlock === true)
+    .forEach((child) => {
+      if (chat.removeChild) chat.removeChild(child);
+      else chat.children.splice(chat.children.indexOf(child), 1);
+      child.dispose();
+    });
+  chat.addChild(block);
+  block.startAnimation();
+  tui.requestRender();
+}
+
+function scheduleDashboardChatBlock(runtime: DashboardRuntime): void {
+  if (runtime.chatInstallTimer || !runtime.tuiSessionActive) return;
+  runtime.chatInstallTimer = setTimeout(() => installDashboardChatBlock(runtime), 0);
+}
+
 function dashboardCommandPoolKey(commands: readonly DashboardCommand[]): string {
   return commands
     .map((command) => `${command.name}\u0000${command.description ?? ""}`)
     .join("\u0001");
-}
-
-function disposeActiveDashboard(runtime: DashboardRuntime): void {
-  runtime.activeComponent?.dispose();
-  runtime.activeComponent = undefined;
 }
 
 function resetDashboardRuntimeData(runtime: DashboardRuntime): void {
@@ -938,33 +1035,6 @@ function dashboardData(
   };
 }
 
-function mountDashboard(
-  runtime: DashboardRuntime,
-  ctx: ExtensionContext,
-  tui: TUI,
-  theme: ShellTheme,
-): DashboardComponent {
-  disposeActiveDashboard(runtime);
-  runtime.activeTui = tui;
-  let component: DashboardComponent;
-  component = createDashboardComponent(
-    theme,
-    () => dashboardData(runtime, ctx),
-    () => {
-      if (
-        !runtime.tuiSessionActive ||
-        runtime.activeComponent !== component
-      ) {
-        return;
-      }
-      tui.requestRender();
-    },
-    runtime.animationTimers,
-  );
-  runtime.activeComponent = component;
-  return component;
-}
-
 function startDashboardSession(
   runtime: DashboardRuntime,
   ctx: ExtensionContext,
@@ -972,7 +1042,7 @@ function startDashboardSession(
   runtime.discoveryAbort?.abort();
   runtime.discoveryAbort = undefined;
   runtime.generation += 1;
-  disposeActiveDashboard(runtime);
+  removeDashboardChatBlock(runtime);
   runtime.activeTui = undefined;
   resetDashboardRuntimeData(runtime);
 
@@ -988,9 +1058,63 @@ function startDashboardSession(
     controller,
     runtime.generation,
   );
-  ctx.ui.setHeader((tui, theme) =>
-    mountDashboard(runtime, ctx, tui, theme),
-  );
+  let animation: DashboardAnimationState | undefined;
+  const chatBlock: DashboardChatBlock = {
+    __piDashboardChatBlock: true,
+    render(width) {
+      const contextLines = contextimateBlock()?.render(Math.max(20, width - 4)) ??
+        ["[Contextimate] waiting for Pine of Glass"];
+      return renderDashboardWithContext(
+        ctx.ui.theme,
+        dashboardData(runtime, ctx),
+        width,
+        contextLines,
+        animation?.frameIndex ?? 0,
+      );
+    },
+    invalidate() {},
+    startAnimation() {
+      if (animation) return;
+      animation = createDashboardAnimation(
+        () => {
+          if (runtime.tuiSessionActive && runtime.chatBlock === chatBlock) {
+            runtime.activeTui?.requestRender();
+          }
+        },
+        runtime.animationTimers ?? { setInterval, clearInterval },
+      );
+    },
+    dispose() {
+      animation?.dispose();
+    },
+    setExpanded(expanded) {
+      const block = contextimateBlock();
+      const upstreamChat = (globalThis as {
+        __piContextimateChat?: { children?: unknown[] };
+      }).__piContextimateChat;
+      // With visible startup resources, Pi also visits Contextimate's own
+      // component. Avoid cycling its mode twice for a single Ctrl+O.
+      if (!block || !upstreamChat?.children?.includes(block)) {
+        block?.setExpanded?.(expanded);
+      }
+      runtime.activeTui?.requestRender();
+    },
+  };
+  runtime.chatBlock = chatBlock;
+  ctx.ui.setWidget("__pi_dashboard_chat_capture", (tui) => {
+    runtime.activeTui = tui;
+    scheduleDashboardChatBlock(runtime);
+    return {
+      render: () => {
+        const currentChat = findDashboardChatContainer(tui);
+        if (runtime.chatBlock && currentChat && !currentChat.children.includes(runtime.chatBlock)) {
+          scheduleDashboardChatBlock(runtime);
+        }
+        return [];
+      },
+      invalidate() {},
+    };
+  });
 }
 
 function shutdownDashboardSession(runtime: DashboardRuntime): void {
@@ -998,7 +1122,7 @@ function shutdownDashboardSession(runtime: DashboardRuntime): void {
   runtime.discoveryAbort = undefined;
   runtime.tuiSessionActive = false;
   runtime.generation += 1;
-  disposeActiveDashboard(runtime);
+  removeDashboardChatBlock(runtime);
   runtime.activeTui = undefined;
   resetDashboardRuntimeData(runtime);
 }
@@ -1016,7 +1140,9 @@ export default function piDashboard(
     pi,
     animationTimers,
     activeTui: undefined,
-    activeComponent: undefined,
+    chatBlock: undefined,
+    chatContainer: undefined,
+    chatInstallTimer: undefined,
     commands: [],
     commandsLoading: false,
     commandPoolKey: "",

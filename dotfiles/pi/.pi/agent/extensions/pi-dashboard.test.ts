@@ -35,6 +35,7 @@ import piDashboard, {
 	renderDashboardBoxRow,
 	renderDashboardDivider,
 	renderDashboard,
+	renderDashboardWithContext,
 	renderDashboardLogo,
 	renderDashboardTopBorder,
 	renderCompactWideDashboardSidebar,
@@ -49,6 +50,28 @@ const plainTheme = {
 	getBgAnsi: () => "",
 	getThinkingBorderColor: () => (text: string) => text,
 } as unknown as ShellTheme;
+
+test("the complete Contextimate rows fit inside the dashboard at each width", () => {
+	const data: DashboardData = {
+		version: "0.87.1",
+		cwd: "/tmp",
+		commands: [],
+		commandsLoading: false,
+	};
+	for (const width of [52, 80, 120]) {
+		const rows = renderDashboardWithContext(
+			plainTheme,
+			data,
+			width,
+			["[Contextimate] expanded", "  ▸ Runtime system prompt  ~2.9k tokens", "  ▸ Tools (32/45 active)  ~11.6k tokens"],
+		);
+		const text = rows.map(stripTerminalSequences).join("\n");
+		assert.match(text, /\[Contextimate\] expanded/);
+		assert.match(text, /Runtime system prompt/);
+		assert.match(text, /Tools \(32\/45 active\)/);
+		assert.ok(rows.every((row) => visibleWidth(row) === width));
+	}
+});
 
 function createDashboardHarness() {
 	const handlers = new Map<string, Array<(...args: unknown[]) => unknown>>();
@@ -65,27 +88,40 @@ function createDashboardHarness() {
 		getThinkingLevel: () => thinkingLevel,
 	} as unknown as ExtensionAPI;
 
-	let headerFactory:
-		| ((
-				tui: TUI,
-				theme: ShellTheme,
-		  ) => Component & { dispose?(): void })
-		| undefined;
-	let activeHeader: (Component & { dispose?(): void }) | undefined;
+	let headerRegistered = false;
+	let widgetFactory: ((tui: TUI) => Component) | undefined;
 	let autocompleteProviderFactory:
 		| ((provider: AutocompleteProvider) => AutocompleteProvider)
 		| undefined;
 	let entriesCalls = 0;
 	let contextCalls = 0;
 	let requestRenderCount = 0;
+	const chat = {
+		children: [] as Component[],
+		addChild(component: Component) {
+			this.children.push(component);
+		},
+		removeChild(component: Component) {
+			this.children.splice(this.children.indexOf(component), 1);
+		},
+	};
 	const tui = {
+		children: [
+			{ children: [{ children: [] }, { children: [] }, chat] },
+			{ children: [] },
+			{ children: [] },
+			{ children: [] },
+		],
 		requestRender() {
 			requestRenderCount += 1;
 		},
 	} as TUI;
 	const ui = {
-		setHeader(factory: typeof headerFactory) {
-			headerFactory = factory;
+		setHeader() {
+			headerRegistered = true;
+		},
+		setWidget(_key: string, factory: typeof widgetFactory) {
+			widgetFactory = factory;
 		},
 		addAutocompleteProvider(
 			factory: (provider: AutocompleteProvider) => AutocompleteProvider,
@@ -123,17 +159,24 @@ function createDashboardHarness() {
 			assert.ok(autocompleteProviderFactory);
 			return autocompleteProviderFactory(provider);
 		},
-		mountHeader() {
-			assert.ok(headerFactory);
-			activeHeader = headerFactory(tui, plainTheme);
-			return activeHeader;
+		mountChat() {
+			assert.ok(widgetFactory);
+			return widgetFactory(tui);
 		},
-		renderHeader(width = 80) {
-			activeHeader ??= this.mountHeader();
-			return activeHeader.render(width);
+		async mountChatBlock() {
+			this.mountChat();
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+			assert.equal(chat.children.length, 1);
+			return chat.children[0];
 		},
-		getHeader: () => activeHeader,
-		hasHeaderFactory: () => headerFactory !== undefined,
+		renderChat(width = 80) {
+			assert.equal(chat.children.length, 1);
+			return chat.children[0].render(width);
+		},
+		getChat: () => chat,
+		getPendingMessages: () => tui.children[1],
+		hasHeaderFactory: () => headerRegistered,
+		hasWidgetFactory: () => widgetFactory !== undefined,
 		hasAutocompleteProvider: () => autocompleteProviderFactory !== undefined,
 		getRequestRenderCount: () => requestRenderCount,
 		resetRequestRenderCount() {
@@ -171,6 +214,84 @@ function emit(
 ): void {
 	for (const handler of handlers.get(event) ?? []) handler(...args);
 }
+
+test("a quiet startup mounts the full Contextimate renderer in the chat dashboard", async () => {
+	const global = globalThis as { __piContextimateBlock?: Component & { setExpanded(value: boolean): void } };
+	const previous = global.__piContextimateBlock;
+	let expanded = false;
+	global.__piContextimateBlock = {
+		render: () => [
+			"[Contextimate] summary → compact → expanded",
+			"  ctrl+o: cycle view",
+			"  ▸ Skill frontmatter (36)  ~4.8k tokens",
+			"  ▸ Tools (32/45 active)  ~11.6k tokens",
+			"  Total harness  ~19.2k tokens",
+		],
+		invalidate() {},
+		setExpanded() {
+			expanded = true;
+		},
+	};
+	try {
+		const harness = createDashboardHarness();
+		emit(harness.handlers, "session_start", { reason: "startup" }, harness.ctx);
+		const widget = harness.mountChat();
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		const chat = harness.getChat();
+		assert.equal(chat.children.length, 1);
+		assert.deepEqual(harness.getPendingMessages().children, []);
+		const text = chat.children[0].render(100).map(stripTerminalSequences).join("\n");
+		assert.match(text, /Pi v0\.87\.1/);
+		assert.match(text, /\[Contextimate\]/);
+		assert.match(text, /Skill frontmatter/);
+		assert.match(text, /Tools \(32\/45 active\)/);
+		assert.match(text, /Total harness/);
+		assert.match(text, /ctrl\+o: cycle view/);
+
+		(chat.children[0] as Component & { setExpanded(value: boolean): void }).setExpanded(true);
+		assert.equal(expanded, true);
+
+		chat.children.length = 0;
+		widget.render(100);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		assert.equal(chat.children.length, 1);
+		emit(harness.handlers, "session_shutdown", {}, harness.ctx);
+		assert.equal(chat.children.length, 0);
+	} finally {
+		global.__piContextimateBlock = previous;
+	}
+});
+
+test("the single chat dashboard animates once and stops its timer on shutdown", async () => {
+	const harness = createDashboardHarness();
+	emit(harness.handlers, "session_start", { reason: "startup" }, harness.ctx);
+	const block = await harness.mountChatBlock();
+	assert.equal(harness.hasHeaderFactory(), false);
+	assert.equal(harness.timers.activeCount, 1);
+	assert.deepEqual(harness.timers.delays, [DASHBOARD_ANIMATION_INTERVAL_MS]);
+
+	const initial = block.render(120).join("\n");
+	const initialBlocks = (initial.match(/█/g) ?? []).length;
+	const frames = new Set([initial]);
+	harness.resetRequestRenderCount();
+	for (let frame = 1; frame < DASHBOARD_LOGO_FRAME_COUNT; frame += 1) {
+		harness.timers.advance();
+		assert.equal(harness.getRequestRenderCount(), frame);
+		frames.add(block.render(120).join("\n"));
+		assert.equal(harness.getChat().children.length, 1);
+	}
+	const final = block.render(120).join("\n");
+	assert.ok(frames.size > 1);
+	assert.ok((final.match(/█/g) ?? []).length > initialBlocks);
+	assert.equal(harness.timers.activeCount, 0);
+	assert.equal(harness.timers.clearCount, 1);
+	harness.timers.advance();
+	assert.equal(harness.getRequestRenderCount(), DASHBOARD_LOGO_FRAME_COUNT - 1);
+
+	emit(harness.handlers, "session_shutdown", {}, harness.ctx);
+	assert.equal(harness.getChat().children.length, 0);
+	assert.equal(harness.timers.clearCount, 1);
+});
 
 function createCommandProvider(
 	items: AutocompleteItem[],
@@ -1555,22 +1676,24 @@ test("extension discovers commands without reading session history", async () =>
 	const originalRandom = Math.random;
 	try {
 		Math.random = () => 0;
+		await harness.mountChatBlock();
+		assert.equal(harness.hasHeaderFactory(), false);
 		assert.strictEqual(harness.applyAutocompleteProvider(provider), provider);
 		await Promise.resolve();
 		await Promise.resolve();
 
-		const header = harness.renderHeader(100).join("\n");
-		assert.match(header, /\/model.*Select model/);
-		assert.match(header, /\/ext:doctor.*Run doctor/);
-		assert.match(header, /\/review.*Review changes/);
-		assert.match(header, /\/skill:test.*Run tests/);
+		const chat = harness.renderChat(100).join("\n");
+		assert.match(chat, /\/model.*Select model/);
+		assert.match(chat, /\/ext:doctor.*Run doctor/);
+		assert.match(chat, /\/review.*Review changes/);
+		assert.match(chat, /\/skill:test.*Run tests/);
 		assert.deepEqual(harness.getAccountingCalls(), { entries: 0, context: 0 });
 
 		Math.random = () => 1 - Number.EPSILON;
 		assert.strictEqual(harness.applyAutocompleteProvider(provider), provider);
 		await Promise.resolve();
 		await Promise.resolve();
-		assert.equal(harness.renderHeader(100).join("\n"), header);
+		assert.equal(harness.renderChat(100).join("\n"), chat);
 	} finally {
 		Math.random = originalRandom;
 		emit(
@@ -1582,7 +1705,7 @@ test("extension discovers commands without reading session history", async () =>
 	}
 });
 
-test("extension rerenders live model, thinking, and cwd metadata without session text", () => {
+test("chat dashboard rerenders live model, thinking, and cwd metadata without session text", async () => {
 	const harness = createDashboardHarness();
 	emit(
 		harness.handlers,
@@ -1590,16 +1713,16 @@ test("extension rerenders live model, thinking, and cwd metadata without session
 		{ type: "session_start", reason: "startup" },
 		harness.ctx,
 	);
-	const mounted = harness.mountHeader();
-	assert.equal(harness.timers.activeCount, 1);
-	const initial = harness.renderHeader(120).join("\n");
+	const mounted = await harness.mountChatBlock();
+	assert.equal(harness.hasHeaderFactory(), false);
+	const initial = harness.renderChat(120).join("\n");
 	assert.match(initial, /claude-sonnet-4 · think high/);
 	assert.doesNotMatch(initial, /Untitled session/);
 
 	// Session renames still request a render, but no rendered line changes.
 	harness.resetRequestRenderCount();
 	harness.setSessionName("Renamed session");
-	const beforeRename = harness.renderHeader(120).join("\n");
+	const beforeRename = harness.renderChat(120).join("\n");
 	emit(
 		harness.handlers,
 		"session_info_changed",
@@ -1607,8 +1730,8 @@ test("extension rerenders live model, thinking, and cwd metadata without session
 		harness.ctx,
 	);
 	assert.equal(harness.getRequestRenderCount(), 1);
-	assert.strictEqual(harness.getHeader(), mounted);
-	assert.equal(harness.renderHeader(120).join("\n"), beforeRename);
+	assert.strictEqual(harness.getChat().children[0], mounted);
+	assert.equal(harness.renderChat(120).join("\n"), beforeRename);
 	assert.doesNotMatch(beforeRename, /Renamed session/);
 
 	harness.setModel("openai", "gpt-test");
@@ -1620,7 +1743,7 @@ test("extension rerenders live model, thinking, and cwd metadata without session
 	);
 	assert.equal(harness.getRequestRenderCount(), 2);
 	assert.match(
-		harness.renderHeader(120).join("\n"),
+		harness.renderChat(120).join("\n"),
 		/openai\/gpt-test · think high/,
 	);
 
@@ -1632,11 +1755,11 @@ test("extension rerenders live model, thinking, and cwd metadata without session
 		harness.ctx,
 	);
 	assert.equal(harness.getRequestRenderCount(), 3);
-	assert.match(harness.renderHeader(120).join("\n"), /gpt-test · think low/);
+	assert.match(harness.renderChat(120).join("\n"), /gpt-test · think low/);
 
 	harness.setCwd("/tmp/renamed-dashboard");
-	assert.match(harness.renderHeader(120).join("\n"), /\/tmp\/renamed-dashboard/);
-	assert.strictEqual(harness.getHeader(), mounted);
+	assert.match(harness.renderChat(120).join("\n"), /\/tmp\/renamed-dashboard/);
+	assert.strictEqual(harness.getChat().children[0], mounted);
 
 	emit(
 		harness.handlers,
@@ -1644,10 +1767,10 @@ test("extension rerenders live model, thinking, and cwd metadata without session
 		{ type: "session_shutdown" },
 		harness.ctx,
 	);
-	assert.equal(harness.timers.activeCount, 0);
+	assert.equal(harness.getChat().children.length, 0);
 });
 
-test("extension disposes replaced and shut down dashboard components", () => {
+test("reload replaces the chat dashboard and shutdown removes it", async () => {
 	const harness = createDashboardHarness();
 	emit(
 		harness.handlers,
@@ -1655,7 +1778,7 @@ test("extension disposes replaced and shut down dashboard components", () => {
 		{ type: "session_start", reason: "startup" },
 		harness.ctx,
 	);
-	const first = harness.mountHeader();
+	const first = await harness.mountChatBlock();
 	assert.equal(harness.timers.activeCount, 1);
 
 	emit(
@@ -1664,9 +1787,12 @@ test("extension disposes replaced and shut down dashboard components", () => {
 		{ type: "session_start", reason: "reload" },
 		harness.ctx,
 	);
+	assert.equal(harness.getChat().children.length, 0);
 	assert.equal(harness.timers.activeCount, 0);
-	const replacement = harness.mountHeader();
+	assert.equal(harness.timers.clearCount, 1);
+	const replacement = await harness.mountChatBlock();
 	assert.notStrictEqual(replacement, first);
+	assert.equal(harness.getChat().children.length, 1);
 	assert.equal(harness.timers.activeCount, 1);
 
 	emit(
@@ -1675,11 +1801,12 @@ test("extension disposes replaced and shut down dashboard components", () => {
 		{ type: "session_shutdown" },
 		harness.ctx,
 	);
+	assert.equal(harness.getChat().children.length, 0);
 	assert.equal(harness.timers.activeCount, 0);
 	assert.equal(harness.timers.clearCount, 2);
 });
 
-test("non-TUI sessions install neither dashboard resources nor timers", () => {
+test("non-TUI sessions install neither dashboard resources nor a header", () => {
 	const harness = createDashboardHarness();
 	harness.setMode("rpc");
 	emit(
@@ -1690,6 +1817,7 @@ test("non-TUI sessions install neither dashboard resources nor timers", () => {
 	);
 	assert.equal(harness.hasHeaderFactory(), false);
 	assert.equal(harness.hasAutocompleteProvider(), false);
+	assert.equal(harness.hasWidgetFactory(), false);
 	assert.equal(harness.timers.activeCount, 0);
 });
 
@@ -1724,7 +1852,7 @@ test("stale command discovery cannot update a newer dashboard generation", async
 		{ type: "session_start", reason: "startup" },
 		harness.ctx,
 	);
-	harness.mountHeader();
+	await harness.mountChatBlock();
 	harness.applyAutocompleteProvider(staleProvider);
 	assert.equal(staleSignal?.aborted, false);
 
@@ -1735,7 +1863,7 @@ test("stale command discovery cannot update a newer dashboard generation", async
 		harness.ctx,
 	);
 	assert.equal(staleSignal?.aborted, true);
-	harness.mountHeader();
+	await harness.mountChatBlock();
 	harness.applyAutocompleteProvider(
 		createCommandProvider([
 			{ value: "fresh", label: "fresh", description: "Current generation" },
@@ -1743,7 +1871,7 @@ test("stale command discovery cannot update a newer dashboard generation", async
 	);
 	await Promise.resolve();
 	await Promise.resolve();
-	assert.match(harness.renderHeader(120).join("\n"), /\/fresh/);
+	assert.match(harness.renderChat(120).join("\n"), /\/fresh/);
 
 	resolveStale?.({
 		items: [{ value: "stale", label: "stale", description: "Old generation" }],
@@ -1751,7 +1879,7 @@ test("stale command discovery cannot update a newer dashboard generation", async
 	});
 	await Promise.resolve();
 	await Promise.resolve();
-	const rendered = harness.renderHeader(120).join("\n");
+	const rendered = harness.renderChat(120).join("\n");
 	assert.match(rendered, /\/fresh/);
 	assert.doesNotMatch(rendered, /\/stale/);
 
@@ -1794,7 +1922,7 @@ test("shutdown aborts pending discovery and ignores late completion", async () =
 		{ type: "session_start", reason: "startup" },
 		harness.ctx,
 	);
-	harness.mountHeader();
+	await harness.mountChatBlock();
 	harness.applyAutocompleteProvider(provider);
 	harness.resetRequestRenderCount();
 	emit(
@@ -1804,7 +1932,7 @@ test("shutdown aborts pending discovery and ignores late completion", async () =
 		harness.ctx,
 	);
 	assert.equal(discoverySignal?.aborted, true);
-	assert.equal(harness.timers.activeCount, 0);
+	assert.equal(harness.getChat().children.length, 0);
 
 	resolveDiscovery?.({
 		items: [{ value: "late", label: "late", description: "Too late" }],
@@ -1814,7 +1942,7 @@ test("shutdown aborts pending discovery and ignores late completion", async () =
 	await Promise.resolve();
 	await new Promise<void>((resolve) => setImmediate(resolve));
 	assert.equal(harness.getRequestRenderCount(), 0);
-	assert.doesNotMatch(harness.renderHeader(120).join("\n"), /\/late/);
+	assert.equal(harness.getChat().children.length, 0);
 });
 
 test("command discovery failure is nonfatal and keeps slash guidance", async () => {
@@ -1825,7 +1953,7 @@ test("command discovery failure is nonfatal and keeps slash guidance", async () 
 		{ type: "session_start", reason: "startup" },
 		harness.ctx,
 	);
-	harness.mountHeader();
+	await harness.mountChatBlock();
 	harness.applyAutocompleteProvider({
 		async getSuggestions() {
 			throw new Error("discovery failed");
@@ -1838,7 +1966,7 @@ test("command discovery failure is nonfatal and keeps slash guidance", async () 
 	await Promise.resolve();
 	await new Promise<void>((resolve) => setImmediate(resolve));
 
-	const rendered = harness.renderHeader(120).join("\n");
+	const rendered = harness.renderChat(120).join("\n");
 	assert.match(rendered, /Type \/ to browse commands/);
 	assert.match(rendered, /No suggestions yet/);
 	assert.doesNotMatch(rendered, /discovery failed/);
