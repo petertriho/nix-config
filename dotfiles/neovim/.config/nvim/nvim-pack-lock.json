@@ -126,7 +126,7 @@
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
-      "rev": "e7afbdf63a75ace6ccc6202d58a4f6f9ac09db92",
+      "rev": "9b0b52625d1a23b624bb07a004c667ae2142a42d",
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
