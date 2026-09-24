@@ -109,7 +109,7 @@
   },
   "outputStyle": "ste",
   "effortLevel": "xhigh",
-  "autoCompactWindow": 350000,
+  "autoCompactWindow": 400000,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-ansi",
