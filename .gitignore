@@ -4,4 +4,5 @@
 /dotfiles/agents/.agents/skills/execution-review-workspace/
 /dotfiles/agents/.agents/skills/plan-to-tasks-workspace/
 /dotfiles/agents/.agents/skills/execute-workspace/
+/dotfiles/agents/.agents/skills/planner-workspace/
 __pycache__/

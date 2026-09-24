@@ -1,0 +1,93 @@
+{
+  "skill_name": "planner",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "User: I want to add an export command to this notes CLI so I can get my notes into a spreadsheet. Help me plan it before anyone writes code.",
+      "expected_output": "Reads the code, then asks exactly one question with a recommendation first. No plan yet.",
+      "files": [],
+      "assertions": [
+        "The response asks exactly one planning question (one recorded AskUserQuestion call that holds one question).",
+        "The question has 2-3 options, and the first option is the recommended one.",
+        "The question includes a recommendation with a short reason.",
+        "The run read project source files (for example src/store.mjs or src/cli.mjs) before it asked the question.",
+        "No plan file exists, and the response contains no plan or list of implementation steps.",
+        "No EnterPlanMode or ExitPlanMode call is recorded.",
+        "The repo source files are unchanged, and there is no new commit."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "User: I want to add an export command to this notes CLI so I can get my notes into a spreadsheet. Help me plan it before anyone writes code.",
+      "expected_output": "With no question tool, asks one plain-text question with a recommendation, then ends the turn.",
+      "files": [],
+      "assertions": [
+        "The response asks exactly one planning question in plain text, and no tool call is recorded.",
+        "The question includes a recommendation with a short reason.",
+        "The turn ends after the question: the response adds no further questions, plan, or implementation steps.",
+        "The run read project source files before it asked the question.",
+        "No plan file exists, and the repo source files are unchanged."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "User: I want to add an export command to this notes CLI so I can get my notes into a spreadsheet. Help me plan it before anyone writes code.\n\nAssistant (after reading src/store.mjs, src/cli.mjs, src/format.mjs, README.md) called AskUserQuestion:\n{\"question\": \"Which export format should the first version support?\", \"options\": [\n  {\"label\": \"CSV only (Recommended)\", \"description\": \"Every spreadsheet opens CSV. Notes are flat records, so CSV fits with no extra dependency.\"},\n  {\"label\": \"CSV and JSON\", \"description\": \"Also useful for scripts, but doubles the formatter and test work.\"},\n  {\"label\": \"XLSX\", \"description\": \"Native spreadsheet file, but needs a third-party library.\"}]}\nUser answer: \"CSV only (Recommended)\"\n\nAssistant called AskUserQuestion:\n{\"question\": \"Where should `notes export` write its output?\", \"options\": [\n  {\"label\": \"stdout, with --out <file> (Recommended)\", \"description\": \"Matches `list`, works with pipes, and still lets users save a file directly.\"},\n  {\"label\": \"Always write a file\", \"description\": \"Simpler for non-technical users, but needs a default path and overwrite rules.\"}]}\nUser answer: \"stdout, with --out <file> (Recommended)\"\n\nAssistant called AskUserQuestion:\n{\"question\": \"Should export accept the same --query filter as `list`?\", \"options\": [\n  {\"label\": \"Yes, reuse searchNotes (Recommended)\", \"description\": \"Users can export a subset, and export results match list results exactly.\"},\n  {\"label\": \"No, always export every note\", \"description\": \"Smaller first version. Users filter in the spreadsheet.\"}]}\n\nUser: Sorry, I have to jump into a meeting. Just write up what we have so far and I'll pick it up later.",
+      "expected_output": "Saves a Draft plan. The unanswered filter recommendation is a proposed default, not a settled decision.",
+      "files": [],
+      "assertions": [
+        "A plan is saved at <repo>/.artifacts/<kebab-case-name>/PLAN.md.",
+        "The plan has `Status: Draft`, and the lines immediately below the status say why the plan is not ready.",
+        "Settled Decisions records the format decision (CSV only) and the output decision (stdout with --out), each with question, recommendation, user answer, and tradeoff.",
+        "The unanswered filter recommendation (reuse searchNotes / --query) is not recorded as a settled decision. It appears as a proposed default that is labeled as not approved, or as an open question.",
+        "Open Questions separates blockers from nonblockers, and each blocker names the affected steps and the decision needed.",
+        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions (a clearly irrelevant section can be missing).",
+        "The final response has a `PLAN: <absolute path>` line, `Status: Draft`, and lists the remaining blockers.",
+        "The response asks no further interview question.",
+        "The repo source files are unchanged, and there is no new commit."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "User: I want to add an export command to this notes CLI so I can get my notes into a spreadsheet. Help me plan it before anyone writes code.\n\nAssistant (after reading src/store.mjs, src/cli.mjs, src/format.mjs, README.md) called AskUserQuestion:\n{\"question\": \"Which export format should the first version support?\", \"options\": [\n  {\"label\": \"CSV only (Recommended)\", \"description\": \"Every spreadsheet opens CSV. Notes are flat records, so CSV fits with no extra dependency.\"},\n  {\"label\": \"CSV and JSON\", \"description\": \"Also useful for scripts, but doubles the formatter and test work.\"},\n  {\"label\": \"XLSX\", \"description\": \"Native spreadsheet file, but needs a third-party library.\"}]}\nUser answer: \"CSV only (Recommended)\"\n\nAssistant called AskUserQuestion:\n{\"question\": \"Where should `notes export` write its output?\", \"options\": [\n  {\"label\": \"stdout, with --out <file> (Recommended)\", \"description\": \"Matches `list`, works with pipes, and still lets users save a file directly.\"},\n  {\"label\": \"Always write a file\", \"description\": \"Simpler for non-technical users, but needs a default path and overwrite rules.\"}]}\nUser answer: \"stdout, with --out <file> (Recommended)\"\n\nAssistant called AskUserQuestion:\n{\"question\": \"Should export accept the same --query filter as `list`?\", \"options\": [\n  {\"label\": \"Yes, reuse searchNotes (Recommended)\", \"description\": \"Users can export a subset, and export results match list results exactly.\"},\n  {\"label\": \"No, always export every note\", \"description\": \"Smaller first version. Users filter in the spreadsheet.\"}]}\nUser answer: \"Yes, reuse searchNotes (Recommended)\"\n\nAssistant called AskUserQuestion:\n{\"question\": \"Which columns should the CSV have, and how should tags appear?\", \"options\": [\n  {\"label\": \"id,title,body,tags,createdAt with tags joined by ; (Recommended)\", \"description\": \"Matches the store fields in order. A semicolon avoids clashes with the CSV comma.\"},\n  {\"label\": \"One column per tag\", \"description\": \"Easier to filter by tag in a sheet, but the column count changes with the data.\"}]}\nUser answer: \"id,title,body,tags,createdAt with tags joined by ; (Recommended)\"\n\nAssistant called AskUserQuestion:\n{\"question\": \"How should export handle cells that a spreadsheet can run as formulas (text that starts with =, +, -, or @)?\", \"options\": [\n  {\"label\": \"Prefix those cells with ' (Recommended)\", \"description\": \"Stops formula injection when the file opens in a spreadsheet. The cost is one visible character in rare cells.\"},\n  {\"label\": \"Export text unchanged\", \"description\": \"Exact data, but a note title such as =HYPERLINK(...) runs when opened.\"}]}\nUser answer: \"Prefix those cells with ' (Recommended)\"\n\nUser: That covers everything I care about. Write it up.",
+      "expected_output": "Saves a Ready plan in a new directory and leaves the unrelated Markdown-export plan untouched.",
+      "files": [],
+      "assertions": [
+        "A new plan is saved at <repo>/.artifacts/<name>/PLAN.md, and it is not .artifacts/notes-export/PLAN.md.",
+        "The existing .artifacts/notes-export/PLAN.md is byte-identical to the fixture.",
+        "The plan has `Status: Ready`.",
+        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions (a clearly irrelevant section can be missing).",
+        "Settled Decisions records all five answered decisions (format, output, filter, columns, formula guard), each with question, recommendation, user answer, and tradeoff.",
+        "The final response has a `PLAN: <absolute path>` line, `Status: Ready`, and `Blockers: None`.",
+        "The repo source files are unchanged, and there is no new commit."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "User: Revise the plan at .artifacts/csv-export/PLAN.md. The ops team is moving from Google Sheets to BigQuery, so the export needs to be JSON Lines instead of CSV.\n\nAssistant (after reading .artifacts/csv-export/PLAN.md, .artifacts/csv-export/TASKS.md, src/csv.mjs, and src/cli.mjs) called AskUserQuestion:\n{\"question\": \"Should JSON Lines replace CSV, or should export support both formats?\", \"options\": [\n  {\"label\": \"Replace CSV with JSON Lines (Recommended)\", \"description\": \"The only consumer is moving to BigQuery. One format keeps the command and tests small.\"},\n  {\"label\": \"Support both with --format csv|jsonl\", \"description\": \"Keeps Sheets users working, but adds a flag and a second formatter to maintain.\"}]}\nUser answer: \"Replace CSV with JSON Lines (Recommended)\"\n\nUser: Everything else stays the same. That's the only change, so go ahead and update the plan.",
+      "expected_output": "Edits the plan in place, keeps unaffected decisions and user context, lists invalidated tasks, and leaves TASKS.md unchanged.",
+      "files": [],
+      "assertions": [
+        "The revised plan is at .artifacts/csv-export/PLAN.md, and no other plan directory was created.",
+        "The user-authored context note from Peter (2026-09-10) is still in the plan.",
+        "The output decision (stdout with --out) and the filter decision (reuse searchNotes) are still settled decisions.",
+        "Settled Decisions records the JSON Lines decision with question, recommendation, user answer, and tradeoff.",
+        "Handoff Notes names the completed tasks that the revision invalidates (at least T1 and T2).",
+        ".artifacts/csv-export/TASKS.md is byte-identical to the fixture.",
+        "The final response has a `PLAN: <absolute path>` line and says that TASKS.md needs review.",
+        "The repo source files are unchanged, and there is no new commit."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "User: I want to add an export command to this notes CLI so I can get my notes into a spreadsheet. Help me plan it before anyone writes code.",
+      "expected_output": "Asks the user to switch out of native plan mode before the interview. No plan-mode tool calls.",
+      "files": [],
+      "assertions": [
+        "The response asks the user to switch to normal mode (leave plan mode) before the planning continues.",
+        "The response asks no planning question about the export feature.",
+        "No EnterPlanMode or ExitPlanMode call is recorded.",
+        "No plan file exists, and the repo source files are unchanged."
+      ]
+    }
+  ]
+}
