@@ -81,48 +81,6 @@ NOGOAL_PLAN = CLEAN_PLAN.replace(
     "No case normalization to uppercase, new input types, API changes,\ndependencies, or persistence. An uppercase display was explicitly rejected\nin review.",
 )
 
-DRAFT_PLAN = text('''
-    # Write the intake guide
-
-    Status: Draft
-    The heading decision Q1 is unresolved; this document records no approval
-    for either option.
-
-    ## Goal
-    Prepare a short, local guide for exporting hand-authored label CSV.
-    No application behavior changes.
-
-    ## Non-goals
-    No service integration, network requests, credentials, deployment, or
-    implementation of an exporter.
-
-    ## Assumptions
-    `docs/labels.md` describes the local preview format used in examples.
-
-    ## Settled Decisions
-    Keep all work in a new `docs/import.md`. Preserve `docs/labels.md`
-    unchanged.
-
-    ## Implementation Plan
-    1. After the owner answers Q1, create `docs/import.md` using that heading.
-       Include exactly the sample lines `label` and `blue`, a final newline,
-       UTF-8 encoding, and a link to `labels.md`.
-    2. Add a compatibility paragraph explaining the unconfirmed Archive
-       Intake premise. Do not present the example as tested against it.
-
-    ## Validation
-    Review the sample column and value, encoding instruction, relative link,
-    chosen heading, and explicit compatibility qualification.
-
-    ## Risks and Mitigations
-    Readers might mistake the guide for a service guarantee; the qualification
-    and review prevent that. Resolve Q1 before drafting, without guessing.
-
-    ## Open Questions
-    Q1 (blocker, affects step 1): Should the owner choose "Upload labels" or
-    "Import labels"? Neither option is approved.
-''')
-
 ASSUMPTION_PLAN = CLEAN_PLAN.replace(
     "## Open Questions\nNone.",
     "## Open Questions\nNonblocker: preferred docs example wording (owner favors\nlowercase-first examples). Does not affect sequencing or cost.",
@@ -168,59 +126,14 @@ PARALLEL_PLAN = text('''
     None.
 ''')
 
-REVISED_PLAN = CLEAN_PLAN.replace(
-    'Change the preview label prefix from `tag:` to `label:`.',
-    'Change the preview label prefix from `tag:` to `tag/v2:`.',
-) + text('''
-    ## Handoff Notes
-    Revision 2 supersedes the `label:` prefix target agreed earlier. Completed
-    prefix work must be corrected to `tag/v2:`.
-''')
-
-EXISTING_TASKS = text('''
-    # Tasks — label preview prefix
-
-    ## Task Summary
-    Switch the preview prefix to `label:` in code and docs.
-
-    ## Tasks
-
-    - [x] T1: Switch preview prefix to label:
-      - Why: The plan requires the `label:` prefix for preview labels.
-      - Depends on: None
-      - Scope: In `app.mjs`, change only the prefix option to `"label:"`.
-      - Out of scope: Casing changes, API changes, export-chain rewrites.
-      - Acceptance: `app.mjs` passes `"label:"` as the prefix option; `" blue "` traces to `"label:blue"`.
-
-    - [ ] T2: Update preview docs
-      - Why: Docs must match the new prefix before handoff.
-      - Depends on: T1
-      - Scope: Update both examples in `docs/labels.md` to `label:` outputs.
-      - Out of scope: New guides, API docs, unrelated copy edits.
-      - Acceptance: `docs/labels.md` shows `"label:blue"` and `"label:"`.
-
-    ## Suggested Sequence
-    T1, then T2.
-
-    ## Validation Plan
-    Diff review of `app.mjs` and `docs/labels.md`.
-
-    ## Remaining Open Questions
-    None.
-''')
-
 
 def plan_text(case_id):
     if case_id in (1, 4):
         return CLEAN_PLAN
     if case_id == 2:
         return NOGOAL_PLAN
-    if case_id == 3:
-        return DRAFT_PLAN
     if case_id == 5:
         return ASSUMPTION_PLAN
-    if case_id == 6:
-        return REVISED_PLAN
     if case_id == 7:
         return None  # Missing plan; decoy lives elsewhere.
     if case_id == 8:
@@ -232,10 +145,8 @@ def plan_text(case_id):
 CASES = {
     1: "prefix-tasks",
     2: "nongoal-guard",
-    3: "blocked-question",
     4: "observable-acceptance",
     5: "explicit-assumption",
-    6: "revised-tasks",
     7: "missing-plan",
     8: "parallel-safe",
 }
@@ -291,7 +202,7 @@ def prepare(workspace, case_ids):
         raise ValueError("workspace parent must already exist")
     case_ids = list(case_ids)
     if not case_ids or any(type(case_id) is not int or case_id not in CASES for case_id in case_ids):
-        raise ValueError("cases must be integer IDs from 1 through 8")
+        raise ValueError(f"cases must be integer IDs from {sorted(CASES)}")
     if len(set(case_ids)) != len(case_ids):
         raise ValueError("duplicate case IDs")
     evals = load_evals()
@@ -319,8 +230,6 @@ def prepare(workspace, case_ids):
             text_value = plan_text(case_id)
             if text_value is not None:
                 files[plan_relative] = text_value
-            if case_id == 6:
-                files[f".artifacts/{slug}/TASKS.md"] = EXISTING_TASKS
             if case_id == 7:
                 files[".artifacts/decoy/PLAN.md"] = CLEAN_PLAN
             for name, content in files.items():
@@ -328,11 +237,6 @@ def prepare(workspace, case_ids):
             if case_id == 7:
                 prompt = case["prompt"].format(plan=plan)
                 target = None
-            elif case_id == 6:
-                existing = str(repo / f".artifacts/{slug}/TASKS.md")
-                prompt = case["prompt"].format(plan=plan, target=str(outputs / "TASKS.md"))
-                prompt += f" Revise the existing task file at {existing}."
-                target = str(outputs / "TASKS.md")
             else:
                 prompt = case["prompt"].format(plan=plan, target=str(outputs / "TASKS.md"))
                 target = str(outputs / "TASKS.md")

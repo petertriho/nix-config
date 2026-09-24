@@ -29,7 +29,7 @@ class PrepareTests(unittest.TestCase):
 
     def test_eval_schema(self):
         evals = prepare.load_evals()
-        self.assertEqual(set(evals), set(range(1, 9)))
+        self.assertEqual(set(evals), {1, 2, 4, 5, 7, 8})
         self.assertEqual(len(prepare.CASES), len(evals))
         raw = json.loads((HERE / "evals.json").read_text(encoding="utf-8"))
         self.assertEqual(raw["skill_name"], "plan-to-tasks")
@@ -47,8 +47,8 @@ class PrepareTests(unittest.TestCase):
                 self.assertRegex(slug, r"^[a-z]+(?:-[a-z]+)*$")
 
     def test_all_pairs_paths_bytes_hashes_and_metadata(self):
-        prepare.prepare(self.workspace, range(1, 9))
-        self.assertEqual(len(list(self.workspace.iterdir())), 8)
+        prepare.prepare(self.workspace, sorted(prepare.CASES))
+        self.assertEqual(len(list(self.workspace.iterdir())), len(prepare.CASES))
         for case_id, case in prepare.load_evals().items():
             with self.subTest(case=case_id):
                 slug = prepare.CASES[case_id]
@@ -76,9 +76,6 @@ class PrepareTests(unittest.TestCase):
                     self.assertFalse((repo / ".git").exists())
                     self.assertNotIn("assertions", run)
                     self.assertNotIn("expected_output", run)
-                    if case_id == 6:
-                        self.assertIn("Revise the existing task file at", run["prompt"])
-                        self.assertIn(str(repo / ".artifacts" / slug / "TASKS.md"), run["prompt"])
                     blobs = {}
                     for path in repo.rglob("*"):
                         name = path.relative_to(repo).as_posix()
@@ -100,22 +97,13 @@ class PrepareTests(unittest.TestCase):
                 self.assertEqual(inventories[0], inventories[1])
 
     def test_case_shapes(self):
-        prepare.prepare(self.workspace, range(1, 9))
+        prepare.prepare(self.workspace, sorted(prepare.CASES))
         run2 = self.run_data(2)
         self.assertIn("uppercase", Path(run2["cwd"]).joinpath(
             ".artifacts/nongoal-guard/PLAN.md").read_text().lower())
-        run3 = self.run_data(3)
-        draft = Path(run3["cwd"]).joinpath(".artifacts/blocked-question/PLAN.md").read_text()
-        self.assertIn("Status: Draft", draft)
-        self.assertIn("Q1", draft)
         run5 = self.run_data(5)
         self.assertIn("Nonblocker", Path(run5["cwd"]).joinpath(
             ".artifacts/explicit-assumption/PLAN.md").read_text())
-        run6 = self.run_data(6)
-        existing = Path(run6["cwd"]).joinpath(".artifacts/revised-tasks/TASKS.md")
-        self.assertIn("- [x] T1", existing.read_text())
-        self.assertIn("tag/v2", Path(run6["cwd"]).joinpath(
-            ".artifacts/revised-tasks/PLAN.md").read_text())
         run7 = self.run_data(7)
         self.assertFalse(Path(run7["plan"]).exists())
         self.assertIsNone(run7["target"])
@@ -149,7 +137,7 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(len(list(self.workspace.iterdir())), 1)
 
     def test_invalid_ids_do_not_create_workspace(self):
-        for ids in ([], [0], [9], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
+        for ids in ([], [0], [3], [6], [9], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
             with self.subTest(ids=ids), self.assertRaises(ValueError):
                 prepare.prepare(self.workspace, ids)
             self.assertFalse(self.workspace.exists())

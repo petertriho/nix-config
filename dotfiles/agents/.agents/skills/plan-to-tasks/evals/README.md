@@ -11,7 +11,7 @@ From this directory:
 
 ```sh
 python prepare.py --workspace /absolute/path/to/fresh-workspace \
-  --cases 1 2 3 4 5 6 7 8
+  --cases 1 2 4 5 7 8
 ```
 
 Select any nonempty subset of IDs. The workspace must be an **absolute,
@@ -39,9 +39,8 @@ fresh-workspace/
 
 Every `run.json` contains absolute `cwd`, `plan`, and `target` paths and a
 fully resolved `prompt`. `target` is `outputs/TASKS.md`, except case 7, where
-it is JSON `null` and the prompt supplies **no output destination**. Case 6
-carries an existing task file beside the plan plus a revision sentence in the
-prompt. Missing-plan cases still record the explicit requested absolute path.
+it is JSON `null` and the prompt supplies **no output destination**.
+Missing-plan cases still record the explicit requested absolute path.
 Repos have no `.git`, skill snapshots, evaluation metadata, or
 expected-answer files.
 
@@ -60,15 +59,20 @@ controls what each subject can access.
 |---|---|---|
 | 1 | Clean prefix plan | Faithful tasks, full fields, sane order, no invented scope |
 | 2 | Explicitly rejected uppercase display | No uppercase task; non-goal carried in Out of scope |
-| 3 | Draft with blocking Q1 | Gated tasks naming Q1; nothing invented as settled |
 | 4 | Behavior change | Observable acceptance on every implementation task |
 | 5 | Nonblocking docs wording gap | Explicit assumption in summary; sequencing unaffected |
-| 6 | Revised plan plus existing checked tasks | Unchecked corrective task appended; IDs stable |
 | 7 | Explicit missing plan alongside a readable decoy | No file anywhere; never substitute decoy |
 | 8 | Two disjoint slices plus rollout | Disjoint tasks parallel; rollout depends on both |
 
 Plans are short and local. No fixture requires Node, a TUI, or network
 access.
+
+IDs 3 and 6 were removed on 2026-09-24. The other IDs keep their numbers so
+that recorded results stay comparable. Case 3 expected gated tasks for a
+blocking question, but the skill says to ask one question for a blocking
+detail. Case 6 told the subject to revise the existing task file, but graded
+an in-place edit as a write-boundary failure. Both variants failed both
+cases in every trial. See `RESULTS.md`.
 
 ## Integrity and grading
 
@@ -80,10 +84,8 @@ checking only saved hashes would miss newly created files. Deleted or
 changed files also fail integrity. The inventory does not track empty
 directories or file modes. Check that `outputs/` contains only `TASKS.md`
 (or is empty for case 7), and that no additional task artifact was written
-elsewhere. For case 6, the existing task file beside the plan must be
-byte-identical after the run: revision output goes only to `outputs/`.
-Preserve the pre-run metadata/inventories as caller-owned records, not
-subject-editable input.
+elsewhere. Preserve the pre-run metadata/inventories as caller-owned
+records, not subject-editable input.
 
 Grade the assertions in `eval_metadata.json` against the report, final
 response, transcript/tool calls, and integrity checks. Task-count matching
@@ -102,7 +104,7 @@ python -B -m unittest discover \
 
 Tests create temporary workspaces beneath this directory and clean them up.
 They check JSON shape, paired identical bytes, resolved paths, hashes,
-missing/empty inputs, revision-file construction, mutation detection, CLI
+missing/empty inputs, removed-ID rejection, mutation detection, CLI
 selection, and overwrite/traversal rejection. They never execute fixture
 source.
 

@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Convert {plan} into {target} with plan-to-tasks. Do not change PLAN.md, implement, stage, or commit.",
-      "expected_output": "Faithful task set for the prefix change: code plus docs tasks with full fields, sane dependencies, and no invented scope.",
+      "expected_output": "Faithful task set for the prefix change that covers the code edit and the docs edit, with full fields, sane dependencies, and no invented scope.",
       "files": [],
       "assertions": [
         "TASKS.md has a Task Summary, Tasks with stable IDs, Suggested Sequence, Validation Plan, and Remaining Open Questions.",
@@ -23,18 +23,6 @@
         "No task title, Scope, or Acceptance requires uppercase conversion or any other listed non-goal.",
         "At least one task records the casing non-goal under Out of scope.",
         "Acceptance lines for the prefix tasks remain observable through files, behavior, or review.",
-        "Only outputs/TASKS.md is written; PLAN.md and all other repository files remain unchanged."
-      ]
-    },
-    {
-      "id": 3,
-      "prompt": "Convert {plan} into {target} with plan-to-tasks. Do not change PLAN.md, implement, stage, or commit.",
-      "expected_output": "Draft plan with blocking Q1 becomes gated tasks that reference the question instead of inventing the heading.",
-      "files": [],
-      "assertions": [
-        "Tasks that depend on the unresolved heading name Q1 and the decision needed.",
-        "No task invents an approved heading or records a recommendation as settled.",
-        "Remaining Open Questions keeps Q1 as a blocker with affected tasks named.",
         "Only outputs/TASKS.md is written; PLAN.md and all other repository files remain unchanged."
       ]
     },
@@ -60,18 +48,6 @@
         "No task presents the assumed wording as a settled plan decision.",
         "Sequencing and dependencies do not wait on the nonblocking detail.",
         "Only outputs/TASKS.md is written; PLAN.md and all other repository files remain unchanged."
-      ]
-    },
-    {
-      "id": 6,
-      "prompt": "Convert {plan} into {target} with plan-to-tasks, revising the existing task file beside the plan. Do not change PLAN.md, implement, stage, or commit.",
-      "expected_output": "Revision appends an unchecked corrective task for the new prefix target, keeps checked history stable, and links supersession in Why.",
-      "files": [],
-      "assertions": [
-        "Completed task IDs, checkboxes, scope, and acceptance stay unchanged; no task is renumbered.",
-        "A new unchecked corrective task covers the changed prefix target with the historical task IDs named in Why.",
-        "Affected pending dependencies and the Suggested Sequence wait for the correction.",
-        "Only outputs/TASKS.md is written; PLAN.md, the existing task file, and all other repository files remain unchanged."
       ]
     },
     {

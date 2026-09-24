@@ -6,106 +6,140 @@ disable-model-invocation: true
 
 # Plan To Tasks
 
-Convert settled plans into tasks a fresh agent or developer can execute without
-reopening planning or rereading the conversation.
+Convert a settled plan into tasks that a fresh agent or developer can
+execute. They must not need to reopen planning or reread the conversation.
 
 ## Workflow
 
-1. Read the named plan file, or the latest complete conversation plan or planner output.
-   - Ignore earlier brainstorm requirements absent from the final plan.
-   - Identify goals, non-goals, assumptions, decisions, approach, validation,
-     risks, open questions, and Handoff Notes.
+1. Read the plan.
+   - If the user names a plan file, read that file. Otherwise, read the
+     latest complete plan or planner output in the conversation.
+   - Ignore requirements from earlier brainstorms that are not in the final
+     plan.
+   - Identify the goals, non-goals, assumptions, decisions, approach,
+     validation, risks, open questions, and Handoff Notes.
 
-2. Check readiness.
-   - If scope or approach is unsettled, use the planner skill instead.
-   - If a missing detail blocks sequencing or task definition, ask exactly one
-     question before producing tasks.
-   - For nonblocking missing details, continue with explicit assumptions.
+2. Decide whether the plan is ready.
+   - If the scope or the approach is not settled, use the planner skill
+     instead.
+   - If a missing detail blocks sequencing or task definition, ask exactly
+     one question before you write tasks.
+   - If a missing detail is nonblocking, continue with an explicit
+     assumption.
 
-3. Preserve boundaries.
-   - Do not add features, broaden scope, or reopen settled decisions.
-   - Carry forward non-goals, risks, constraints, and decisions.
-   - Keep questions affecting sequencing, ownership, risk, or cost visible.
-   - Use concrete repository paths, commands, schemas, APIs, and components
-     from the plan when available.
+3. Keep the boundaries of the plan.
+   - Do not add features, broaden the scope, or reopen settled decisions.
+   - Carry the non-goals, risks, constraints, and decisions of the plan into
+     the tasks.
+   - Keep each question that affects sequencing, ownership, risk, or cost
+     visible.
+   - When the plan gives concrete repository paths, commands, schemas, APIs,
+     or components, use them.
 
 4. Define executable tasks.
-   - Prefer fewer, clear outcome-oriented tasks that can be completed and
-     verified independently, one vertical behavior slice at a time.
-   - Aim for a task set that is easy to review in one pass.
-   - Split at real handoff, risk, ownership, dependency, or validation boundaries,
-     not individual code edits.
-   - Separate discovery, implementation, and validation for risky, irreversible,
-     exploratory, migration, or ambiguous work as needed.
+   - Prefer fewer, clear tasks, each defined by its outcome.
+   - Prefer tasks that can be completed and verified independently, each with
+     one vertical slice of behavior.
+   - Make the task set easy to review in one pass.
+   - Split tasks at real boundaries of handoff, risk, ownership, dependency,
+     or validation. Do not split at individual code edits.
+   - For risky, irreversible, exploratory, migration, or ambiguous work, you
+     can put discovery, implementation, and validation in separate tasks.
    - Do not create tasks for non-goals.
-   - Add planning tasks only when discovery is explicitly needed before implementation.
-   - Add dependencies only when work cannot start without another task.
+   - Add a planning task only when discovery is explicitly needed before
+     implementation.
+   - Add a dependency only when a task cannot start until another task is
+     complete.
    - Use specific titles, not "implement backend" or "update UI".
-   - Put decisions in `Scope` or `Acceptance`, not only titles.
-   - For tickets, make each task independently assignable with enough context for an issue tracker.
+   - Put each decision in `Scope` or `Acceptance`, not only in the title.
+   - If the user asks for tickets, make each task independently assignable.
+     Give each task enough context for an issue tracker.
 
 5. Define validation.
-   - Give every implementation task observable acceptance checks through tests,
-     review, files changed, behavior, logs, metrics, or rollout state.
-   - Prefer public interfaces or user-visible outcomes over private implementation details for behavior checks.
-   - Include explicit test, review, migration, rollout, monitoring, or cleanup
-     tasks when the plan requires them.
-   - Leave TDD and red-green-refactor to the implementation skill, including
-     skipping or adapting TDD for docs, config, mechanical refactors, generated files, and discovery.
-   - Do not create horizontal test/implementation tasks solely for TDD unless
-     the plan explicitly requires that handoff.
-   - For explicit test-first handoffs, include verified expected failures in the test-only task's `Acceptance`.
-   - Make corresponding implementation tasks depend on that handoff.
+   - Give every implementation task observable acceptance checks. Use tests,
+     review, changed files, behavior, logs, metrics, or rollout state.
+   - For behavior checks, prefer public interfaces or user-visible outcomes
+     to private implementation details.
+   - When the plan requires test, review, migration, rollout, monitoring, or
+     cleanup tasks, include those tasks explicitly.
+   - Leave TDD and red-green-refactor to the implementation skill. That skill
+     also decides when to skip or adapt TDD for docs, config, mechanical
+     refactors, generated files, and discovery.
+   - Unless the plan explicitly requires a test-first handoff, do not create
+     horizontal test and implementation tasks only for TDD.
+   - If the plan explicitly requires a test-first handoff:
+     - Put verified expected failures in the `Acceptance` of the test-only
+       task.
+     - Make the corresponding implementation tasks depend on the test-only
+       task.
 
 ## Saving and Revisions
 
-Resolve `.artifacts/` from the project root, or the working directory if no
-project root exists. Choose the destination in this order:
+Use the `.artifacts/` directory in the project root. If there is no project
+root, use the working directory.
 
-1. Explicit revision: the identified task file's existing path.
-2. Source `.artifacts/<plan-name>/PLAN.md`: its sibling `TASKS.md`.
-3. Otherwise: `.artifacts/<plan-name>/TASKS.md` with a concise, goal-based kebab-case name.
-   If the directory exists, choose an unused suffix such as `-2`, `-3`, or a timestamp.
+Choose the path of the task file in this order:
 
-Do not infer revisions from matching goals or directory names.
-Read the selected task file's latest contents before editing, if it exists.
-Keep existing task IDs stable when updating.
-Append new IDs rather than renumbering completed work.
+1. If the user explicitly asks you to revise an identified task file, use the
+   existing path of that file.
+2. If the source plan is `.artifacts/<plan-name>/PLAN.md`, use its sibling
+   `TASKS.md`.
+3. Otherwise, use `.artifacts/<plan-name>/TASKS.md`. Use a short kebab-case
+   `<plan-name>` that describes the goal. If that directory exists, add an
+   unused suffix such as `-2`, `-3`, or a timestamp.
 
-For updates, unless the user explicitly requests replacement:
+Do not infer a revision from a matching goal or directory name.
 
-- Preserve user-authored context and completed task IDs, checkboxes, scope, and acceptance as history.
-- Preserve recorded validation and handoff notes when revising tasks.
-- Compare the revised plan, including Handoff Notes, against existing tasks and dependencies.
-- For invalidated or expanded completed work, reuse a corrective task that covers the change.
-  Otherwise, append an unchecked corrective task with a new ID.
-- Do not rewrite checked tasks to describe changed work.
-- In each correction's `Why`, identify the historical task IDs and acceptance criteria it supersedes.
-- Update affected pending dependencies and Suggested Sequence to wait for corrections.
-- Add corrective tasks for completed dependents whose guarantees are also invalidated.
+If the selected task file exists, read its latest contents before you edit
+it. When you update an existing task file:
 
-During replacement, redefined work must start unchecked.
-Create the selected directory only if needed.
-Write `TASKS.md` using the format below.
+- Keep the existing task IDs stable.
+- Append new task IDs. Do not renumber completed tasks.
+
+A completed task has a checked box (`- [x]`). Unless the user explicitly asks
+for a replacement, also obey these rules:
+
+- Keep the context that the user wrote.
+- Keep the IDs, checkboxes, scope, and acceptance of completed tasks as
+  history.
+- Keep the recorded validation and handoff notes.
+- Compare the revised plan, including its Handoff Notes, with the existing
+  tasks and dependencies.
+- If the revised plan invalidates or expands the work of a completed task:
+  - If an existing corrective task covers the change, reuse that task.
+  - Otherwise, append an unchecked corrective task with a new ID.
+- Do not rewrite a completed task to describe the changed work.
+- In the `Why` of each corrective task, name the historical task IDs and
+  acceptance criteria that it supersedes.
+- Update the dependencies of affected pending tasks, and the Suggested
+  Sequence, so that they wait for the corrective tasks.
+- If the change also invalidates the guarantees of a completed dependent
+  task, add a corrective task for that task too.
+
+In a replacement, every redefined task must start unchecked.
+
+Create the selected directory only if it does not exist. Write the task file
+in the Task Output Format.
 
 ## Task Output Format
 
-Use these sections in the selected `TASKS.md`:
+Use these sections in the selected `TASKS.md`, in this order:
 
 1. Task Summary
-   - One paragraph describing the execution path, important sequencing logic,
-     and assumptions used.
+   - One paragraph that describes the execution path, the important
+     sequencing logic, and the assumptions that you used.
 
 2. Tasks
-   - Use Markdown task checkboxes with stable IDs: `- [ ] T1: <title>`.
-   - Keep the checkbox line as the task's canonical completion marker, so it
-     can be changed to `- [x]` during implementation.
-   - Under each checkbox task include:
-      - `Why`: the planner decision or goal this serves.
-      - `Depends on`: task IDs or `None`.
-      - `Scope`: the exact work included.
-      - `Out of scope`: nearby work intentionally excluded.
-      - `Acceptance`: concrete checks that prove completion.
+   - Give each task a Markdown checkbox with a stable ID:
+     `- [ ] T1: <title>`.
+   - Use the checkbox line as the canonical completion marker of the task,
+     so that implementation can change it to `- [x]`.
+   - Under each checkbox task, include these fields:
+      - `Why`: the decision or goal in the plan that this task serves.
+      - `Depends on`: task IDs, or `None`.
+      - `Scope`: the exact work that the task includes.
+      - `Out of scope`: nearby work that the task intentionally excludes.
+      - `Acceptance`: concrete checks that prove the task is complete.
 
    Example:
 
@@ -129,7 +163,8 @@ Use these sections in the selected `TASKS.md`:
      set.
 
 5. Remaining Open Questions
-   - Only questions that still affect sequencing, ownership, risk, or cost.
+   - Only the questions that still affect sequencing, ownership, risk, or
+     cost.
 
-After writing or updating `TASKS.md`, summarize the file path and any blocking
-assumptions or open questions in the final response.
+After you write or update `TASKS.md`, report its file path in the final
+response. Also report any blocking assumptions or open questions.
