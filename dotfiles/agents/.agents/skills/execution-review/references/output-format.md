@@ -1,10 +1,11 @@
 # REVIEW.md Format
 
-Write exactly one file when a review target is resolved.
-On an input failure with no explicit
-target or valid resolved `PLAN.md`, return the Nothing Reviewed format in the
-final response without creating a file. Keep the order of sections. Use
-`CRITICAL`, `HIGH`, `MEDIUM`, or `INFO` exactly.
+If the review target is known, write exactly one file to it. If it is not
+known, do not create a file. Give the Nothing Reviewed report in the final
+response. `SKILL.md` defines the review target.
+
+Keep the sections in the order below. Write each severity exactly as
+`CRITICAL`, `HIGH`, `MEDIUM`, or `INFO`.
 
 ## Review Written
 
@@ -67,20 +68,22 @@ Non-goals and settled decisions: <respected, or one line per violation>
 
 Rules:
 
-- Order findings `CRITICAL`, `HIGH`, `MEDIUM`, `INFO`. Number them across the
-  whole section.
-- Every finding ends its title with the task ID in parentheses, or
-  `(untracked)`.
-- One root cause per finding. Merge duplicate symptoms with one correction.
-- When there are no findings, write `No actionable findings.` under
-  `## Findings` and keep every other section.
-- Omit table rows that do not apply, but keep every section header.
-- `Review Limits` may say `None.` when coverage was complete.
+- Order the findings `CRITICAL`, `HIGH`, `MEDIUM`, then `INFO`. Number them
+  in one sequence across the whole section.
+- End each finding title with the task ID in parentheses, or with
+  `(untracked)`. Step 11 of `SKILL.md` gives the tag rules.
+- Give each finding one root cause. If several symptoms have the same root
+  cause, merge them into one finding with one correction.
+- If there are no findings, write `No actionable findings.` under
+  `## Findings`. Keep every other section.
+- Omit table rows that do not apply. Keep every section heading.
+- If the review covered everything, `Review Limits` can say `None.`
 
 ## Nothing Reviewed
 
-Use this when the scope cannot be established (resolver missing or failed,
-invalid base ref, `PLAN.md` or `TASKS.md` not found). It is not a clean result.
+Use this format when you cannot establish the scope. Examples: the resolver
+is missing or fails, the base ref is not valid, or `PLAN.md` or `TASKS.md` is
+not found. A Nothing Reviewed report is not a clean result.
 
 ```markdown
 # Implementation Review: <plan-name or "unknown">
@@ -99,5 +102,5 @@ concrete blocker>
 <the smallest user decision or repository action needed>
 ```
 
-Do not recommend staging or committing only to expose untracked files. A
-base-ref execution review must first use `--include-untracked`.
+Do not recommend staging or committing only to make untracked files
+visible. A review with a base ref must use `--include-untracked` instead.

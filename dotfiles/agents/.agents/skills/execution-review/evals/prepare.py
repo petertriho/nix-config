@@ -189,6 +189,223 @@ FIX_REVERSED_EXPORTS = dict(
 )
 
 
+REVISED_PLAN = text("""
+    # Label preview prefix
+
+    Status: Ready (Revision 1, 2026-09-18)
+
+    ## Goal
+    Change the preview label prefix from `tag:` to `lbl:`. Keep the
+    string-only input contract and synchronous return value.
+
+    ## Non-goals
+    No case normalization, new input types, API changes, dependencies, or
+    persistence. Do not change the export structure.
+
+    ## Assumptions
+    `app.mjs` defines `previewLabel(value)` and calls `formatLabel` through
+    `api.mjs` from `impl.mjs`. The implementation accepts
+    `formatLabel(value, { prefix = "" } = {})`, trims value, then prefixes it.
+    `docs/labels.md` documents the current preview.
+
+    ## Settled Decisions
+    Use the existing options object. Preserve whitespace trimming and casing.
+    Leave `api.mjs` and the export chain unchanged.
+
+    Revision 1 (2026-09-18): Use `lbl:` instead of `label:`. The picker column
+    shows 12 characters, and `label:` cut off real labels. This revision
+    replaces the earlier `label:` prefix in code and docs.
+
+    ## Implementation Plan
+    1. In `app.mjs`, change only the prefix option from `"tag:"` to `"lbl:"`.
+    2. In `docs/labels.md`, replace the documented prefix and update the two
+       examples to `"lbl:blue"` and `"lbl:"`; retain the string-input rule.
+
+    ## Validation
+    Review the diff and trace `" blue "` and `""` through the public export
+    to confirm those exact outputs. Check that no other source changes occur.
+    Confirm `node --test` passes when a runtime is provisioned.
+
+    ## Risks and Mitigations
+    Accidentally changing casing or trimming would break existing semantics;
+    the spaced, lowercase example and unchanged implementation check cover both.
+
+    ## Open Questions
+    None.
+""")
+
+TASKS_REVISED = TASKS_CLEAN_CHECKED.replace(
+    "Switch the preview prefix to `label:` in code and docs, then run the\nnarrowest automated check.",
+    "Switch the preview prefix in code and docs. Plan Revision 1 replaced\n`label:` with `lbl:`; T3 applies the correction.",
+).replace(
+    "\n## Suggested Sequence\nT1, then T2.",
+    text("""
+        - [x] T3: Switch preview prefix to lbl:
+          - Why: PLAN.md Revision 1 replaces `label:` with `lbl:`. Supersedes the `label:` criteria in the T1 acceptance and the `"label:blue"` and `"label:"` criteria in the T2 acceptance.
+          - Depends on: T1, T2
+          - Scope: In `app.mjs` and `docs/labels.md`, change `label:` to `lbl:`.
+          - Out of scope: Casing changes, API changes, export-chain rewrites.
+          - Acceptance: `app.mjs` passes `"lbl:"` as the prefix option; `" blue "` traces to `"lbl:blue"`; `docs/labels.md` shows `"lbl:blue"` and `"lbl:"`.
+
+        ## Suggested Sequence
+        T1, T2, then T3.
+    """).rstrip("\n").join(["\n", ""]),
+)
+
+HANDOFF_PLAN = text("""
+    # Label preview prefix, test first
+
+    Status: Ready
+
+    ## Goal
+    Change the preview label prefix from `tag:` to `label:`. Keep the
+    string-only input contract and synchronous return value.
+
+    ## Non-goals
+    No case normalization, new input types, API changes, dependencies, or
+    persistence. Do not change the export structure. Leave `docs/labels.md`
+    for a later docs pass.
+
+    ## Assumptions
+    `app.mjs` defines `previewLabel(value)` and calls `formatLabel` through
+    `api.mjs` from `impl.mjs`. The implementation accepts
+    `formatLabel(value, { prefix = "" } = {})`, trims value, then prefixes it.
+    The repo has no tests yet; the built-in `node --test` runner is available.
+
+    ## Settled Decisions
+    Use the existing options object. Preserve whitespace trimming and casing.
+    Leave `api.mjs` and the export chain unchanged. Deliver the regression
+    test as a separate test-only handoff before the implementation, so a
+    reviewer can see it fail against the current code.
+
+    ## Implementation Plan
+    1. Test-only handoff: add `test/previewLabel.test.mjs` with `node:test`.
+       Import `previewLabel` from `app.mjs` and assert that `" blue "` gives
+       `"label:blue"` and `""` gives `"label:"`. It must fail against the
+       current `tag:` prefix. Do not change production code in this step.
+    2. In `app.mjs`, change only the prefix option from `"tag:"` to `"label:"`.
+
+    ## Validation
+    `node --test` fails after step 1 only because of the old prefix, and
+    passes after step 2 with the test unchanged.
+
+    ## Risks and Mitigations
+    A test that fails for a setup reason proves nothing about the prefix;
+    confirm the failure reason before the implementation starts.
+
+    ## Open Questions
+    None.
+""")
+
+TASKS_HANDOFF = text("""
+    # Tasks — label preview prefix, test first
+
+    ## Task Summary
+    Deliver a failing regression test as a test-only handoff, then switch the
+    prefix.
+
+    ## Tasks
+
+    - [x] T1: Add failing previewLabel regression test (test-only handoff)
+      - Why: The plan requires a test-only handoff that fails against the current `tag:` prefix.
+      - Depends on: None
+      - Scope: Add `test/previewLabel.test.mjs` with `node:test`; assert `" blue "` gives `"label:blue"` and `""` gives `"label:"`. No production code changes.
+      - Out of scope: Production code, docs, other tests.
+      - Acceptance: Before `app.mjs` changes, `node --test` fails only because `previewLabel` returns `tag:` outputs instead of `label:` outputs.
+      - Handoff evidence: Added the test and ran the tests. They failed as expected.
+
+    - [x] T2: Switch preview prefix to label:
+      - Why: The plan requires the `label:` prefix for preview labels.
+      - Depends on: T1
+      - Scope: In `app.mjs`, change only the prefix option to `"label:"`.
+      - Out of scope: Test edits, docs, casing changes, API changes, export-chain rewrites.
+      - Acceptance: `node --test` passes; `app.mjs` passes `"label:"` as the prefix option.
+
+    ## Suggested Sequence
+    T1, then T2.
+
+    ## Validation Plan
+    `node --test` fails after T1 for the prefix reason only and passes after T2.
+
+    ## Remaining Open Questions
+    None.
+""")
+
+HANDOFF_TEST = text("""
+    import { test } from "node:test";
+    import assert from "node:assert/strict";
+    import { previewLabel } from "../app.mjs";
+
+    test("previewLabel uses the label: prefix", () => {
+      assert.equal(previewLabel(" blue "), "label:blue");
+      assert.equal(previewLabel(""), "label:");
+    });
+""")
+
+DOCS_REFRESH_PLAN = text("""
+    # Label docs refresh
+
+    Status: Ready
+
+    ## Goal
+    Add an `## Examples` section to `docs/labels.md` with three worked inputs.
+
+    ## Non-goals
+    No source changes.
+
+    ## Implementation Plan
+    1. Add `## Examples` with `" blue "`, `""`, and `" Blue "`.
+
+    ## Validation
+    Read `docs/labels.md`.
+
+    ## Open Questions
+    None.
+""")
+
+DOCS_REFRESH_TASKS = text("""
+    # Tasks — label docs refresh
+
+    ## Tasks
+
+    - [x] T1: Add label examples section
+      - Why: The plan requires worked examples in the docs.
+      - Depends on: None
+      - Scope: Add `## Examples` to `docs/labels.md`.
+      - Out of scope: Source changes.
+      - Acceptance: `docs/labels.md` has an `## Examples` section that shows `" blue "`, `""`, and `" Blue "`.
+
+    ## Suggested Sequence
+    T1.
+
+    ## Validation Plan
+    Docs review.
+
+    ## Remaining Open Questions
+    None.
+""")
+
+CASING_FOLLOWUP_PLAN = text("""
+    # Optional label casing
+
+    Status: Draft
+
+    ## Goal
+    Add an optional `casing` option to `formatLabel`.
+
+    ## Open Questions
+    Should the default stay `preserve`?
+""")
+
+# Case 11 directories and modification times: the newest directory has no
+# TASKS.md, so the selected pair is the middle one.
+IMPLICIT_ARTIFACTS = {
+    "docs-refresh": ({"PLAN.md": DOCS_REFRESH_PLAN, "TASKS.md": DOCS_REFRESH_TASKS}, 1786000000),
+    "prefix-rollout": ({"PLAN.md": CLEAN_PLAN, "TASKS.md": TASKS_CLEAN_CHECKED}, 1788000000),
+    "casing-followup": ({"PLAN.md": CASING_FOLLOWUP_PLAN}, 1789000000),
+}
+
+
 def impl_overlay(case_id):
     """Worktree source changes applied after the base commit, before review."""
     if case_id == 1:
@@ -207,6 +424,15 @@ def impl_overlay(case_id):
         return dict(FIX_CLEAN)
     if case_id == 8:
         return {"app.mjs": FIX_CLEAN["app.mjs"]}  # Docs deferred by design.
+    if case_id == 9:
+        return {
+            name: content.replace("label:", "lbl:")
+            for name, content in FIX_CLEAN.items()
+        }
+    if case_id == 10:
+        return {"app.mjs": FIX_CLEAN["app.mjs"], "test/previewLabel.test.mjs": HANDOFF_TEST}
+    if case_id == 11:
+        return dict(FIX_CLEAN)
     raise ValueError(f"unknown case: {case_id}")
 
 
@@ -219,6 +445,12 @@ def tasks_text(case_id, slug):
         return TASKS_MANUAL_UNVERIFIED
     if case_id == 8:
         return TASKS_DEFERRED_T2
+    if case_id == 9:
+        return TASKS_REVISED
+    if case_id == 10:
+        return TASKS_HANDOFF
+    if case_id == 11:
+        return TASKS_CLEAN_CHECKED  # Selected pair; see IMPLICIT_ARTIFACTS.
     raise ValueError(f"unknown case: {case_id}")
 
 
@@ -232,7 +464,18 @@ CASES = {
     6: "manual-unverified",
     7: "unplanned-scope",
     8: "deferred-docs",
+    9: "prefix-revision",
+    10: "test-first-prefix",
+    11: "prefix-rollout",
 }
+
+
+def plan_text(case_id):
+    if case_id == 9:
+        return REVISED_PLAN
+    if case_id == 10:
+        return HANDOFF_PLAN
+    return CLEAN_PLAN
 
 
 def load_evals():
@@ -262,12 +505,17 @@ def write_json(root, relative, value):
     write_file(root, relative, json.dumps(value, indent=2, ensure_ascii=False) + "\n")
 
 
+FIXED_DATE = "2026-01-01T00:00:00+00:00"
+
+
 def run_git(repo, *args):
+    env = {**os.environ, "GIT_AUTHOR_DATE": FIXED_DATE, "GIT_COMMITTER_DATE": FIXED_DATE}
     result = subprocess.run(
         ["git", *args],
         cwd=repo,
         capture_output=True,
         text=True,
+        env=env,
     )
     if result.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
@@ -302,7 +550,7 @@ def prepare(workspace, case_ids):
         raise ValueError("workspace parent must already exist")
     case_ids = list(case_ids)
     if not case_ids or any(type(case_id) is not int or case_id not in CASES for case_id in case_ids):
-        raise ValueError("cases must be integer IDs from 1 through 8")
+        raise ValueError(f"cases must be integer IDs from 1 through {max(CASES)}")
     if len(set(case_ids)) != len(case_ids):
         raise ValueError("duplicate case IDs")
     evals = load_evals()
@@ -325,16 +573,19 @@ def prepare(workspace, case_ids):
             outputs.mkdir()
             plan_relative = f".artifacts/{slug}/PLAN.md"
             tasks_relative = f".artifacts/{slug}/TASKS.md"
-            plan_text = CLEAN_PLAN
             tasks = tasks_text(case_id, slug)
             # Base commit: sources plus plan, plus tasks when present.
             base_files = dict(BASE_SOURCES)
-            base_files[plan_relative] = plan_text
+            base_files[plan_relative] = plan_text(case_id)
             if tasks is not None:
                 base_files[tasks_relative] = tasks
             if case_id == 5:
                 base_files[".artifacts/decoy/PLAN.md"] = CLEAN_PLAN
                 base_files[".artifacts/decoy/TASKS.md"] = TASKS_CLEAN_CHECKED
+            if case_id == 11:
+                for directory, (files, _) in IMPLICIT_ARTIFACTS.items():
+                    for name, content in files.items():
+                        base_files[f".artifacts/{directory}/{name}"] = content
             for name, content in base_files.items():
                 write_file(repo, name, content)
             run_git(repo, "init", "-q")
@@ -345,8 +596,15 @@ def prepare(workspace, case_ids):
             base_ref = run_git(repo, "rev-parse", "HEAD")
             # Worktree implementation overlay: uncommitted changes under review.
             for name, content in impl_overlay(case_id).items():
-                target = repo / name
+                target = inside(repo, name)
+                target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content, encoding="utf-8", newline="\n")
+            if case_id == 11:
+                for directory, (files, stamp) in IMPLICIT_ARTIFACTS.items():
+                    folder = repo / ".artifacts" / directory
+                    for name in files:
+                        os.utime(folder / name, (stamp, stamp))
+                    os.utime(folder, (stamp, stamp))
             plan = repo / plan_relative
             tasks_path = repo / tasks_relative
             target = str(outputs / "REVIEW.md")

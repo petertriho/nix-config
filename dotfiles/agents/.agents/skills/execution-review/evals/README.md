@@ -11,7 +11,7 @@ From this directory:
 
 ```sh
 python prepare.py --workspace /absolute/path/to/fresh-workspace \
-  --cases 1 2 3 4 5 6 7 8
+  --cases 1 2 3 4 5 6 7 8 9 10 11
 ```
 
 Select any nonempty subset of IDs. The workspace must be an **absolute,
@@ -42,7 +42,11 @@ Every `run.json` contains absolute `cwd`, `plan`, `tasks`, and `target`
 paths, the base-commit `baseRef`, and a fully resolved `prompt`. `target` is
 always `outputs/REVIEW.md`. The repo is a real git repository: the base
 commit holds sources plus `PLAN.md`/`TASKS.md`, and the implementation under
-review is uncommitted worktree state. Run each subject agent with its
+review is uncommitted worktree state. `prepare.py` sets fixed commit dates,
+so every preparation of a case gets the same `baseRef`. The case-11 prompt
+gives no `PLAN.md` or `TASKS.md` path. For that case, `plan` and `tasks`
+record the expected selection, `.artifacts/prefix-rollout/`, for graders
+only. Run each subject agent with its
 variant's `cwd` and `prompt`, loading the appropriate skill version. The
 subject must resolve scope with:
 
@@ -69,9 +73,16 @@ security sandbox; the caller controls what each subject can access.
 | 6 | Correct code, manual TUI acceptance cannot rerun offline | APPROVED; unverified line, not inflated |
 | 7 | Clean implementation; unplanned uppercase is not required | APPROVED; no imported scope |
 | 8 | T1 checked and met; T2 correctly unchecked with block note | APPROVED; no mismatch |
+| 9 | Revised plan replaces `label:` with `lbl:`; corrective T3 supersedes checked T1/T2 criteria | APPROVED; supersession recorded, not a mismatch |
+| 10 | Test-first handoff with insufficient `Handoff evidence`; test passes now | APPROVED; T1 handoff line unverified |
+| 11 | No plan paths; newest `.artifacts` directory has only `PLAN.md` | APPROVED; selects `prefix-rollout/` and states it |
 
-Cases 1–4 and 6–8 use the same small label-preview plan. Case 5 tests input
-handling only. No fixture requires Node, a TUI, or network access.
+Cases 1–4 and 6–11 use the same small label-preview plan or a variant of
+it. Case 5 tests input handling only. Case 11 sets the modification times of
+its three `.artifacts` directories from `IMPLICIT_ARTIFACTS`. Case 10 adds a
+`node:test` file. Without Node, a reviewer cannot rerun `node --test`, and
+the T2 acceptance becomes unverified. No fixture requires a TUI or network
+access.
 
 ## Integrity and grading
 
@@ -83,7 +94,9 @@ with the saved `run.json` field. Compare key sets too: checking only saved
 hashes would miss newly created files. Deleted or changed files also fail
 integrity. Check that `outputs/` contains only `REVIEW.md`, that no other
 review artifact was written elsewhere, and that `PLAN.md`/`TASKS.md`
-checkboxes are unchanged. Preserve the pre-run metadata/inventories as
+checkboxes are unchanged. Also check that `git stash list` is empty. In case
+11, check that the modification times of the `.artifacts` directories are
+unchanged. Preserve the pre-run metadata/inventories as
 caller-owned records, not subject-editable input.
 
 Grade the assertions in `eval_metadata.json` against the report, final
@@ -104,7 +117,8 @@ python -B -m unittest discover \
 Tests create temporary workspaces beneath this directory and clean them up.
 They check JSON shape, paired identical bytes and git history, resolved
 paths, hashes, missing-input construction, mutation detection, CLI
-selection, and overwrite/traversal rejection. They never execute fixture
+selection, overwrite/traversal rejection, the shapes of cases 9–11, and
+equal base refs across preparations. They never execute fixture
 source.
 
 **Passing these tests validates fixture infrastructure, not model behavior.**

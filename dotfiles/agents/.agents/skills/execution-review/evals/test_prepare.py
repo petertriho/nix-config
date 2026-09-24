@@ -29,7 +29,7 @@ class PrepareTests(unittest.TestCase):
 
     def test_eval_schema(self):
         evals = prepare.load_evals()
-        self.assertEqual(set(evals), set(range(1, 9)))
+        self.assertEqual(set(evals), set(range(1, 12)))
         self.assertEqual(len(prepare.CASES), len(evals))
         raw = json.loads((HERE / "evals.json").read_text(encoding="utf-8"))
         self.assertEqual(raw["skill_name"], "execution-review")
@@ -41,16 +41,20 @@ class PrepareTests(unittest.TestCase):
                 self.assertTrue(case["expected_output"])
                 self.assertTrue(case["assertions"])
                 self.assertTrue(all(isinstance(item, str) and item for item in case["assertions"]))
-                self.assertIn("{plan}", case["prompt"])
-                self.assertIn("{tasks}", case["prompt"])
+                if case_id == 11:  # Implicit selection: no input paths.
+                    self.assertNotIn("{plan}", case["prompt"])
+                    self.assertNotIn("{tasks}", case["prompt"])
+                else:
+                    self.assertIn("{plan}", case["prompt"])
+                    self.assertIn("{tasks}", case["prompt"])
                 self.assertIn("{target}", case["prompt"])
                 self.assertIn("{baseRef}", case["prompt"])
                 slug = prepare.CASES[case_id]
                 self.assertRegex(slug, r"^[a-z]+(?:-[a-z]+)*$")
 
     def test_all_pairs_paths_refs_hashes_and_metadata(self):
-        prepare.prepare(self.workspace, range(1, 9))
-        self.assertEqual(len(list(self.workspace.iterdir())), 8)
+        prepare.prepare(self.workspace, range(1, 12))
+        self.assertEqual(len(list(self.workspace.iterdir())), 11)
         for case_id, case in prepare.load_evals().items():
             with self.subTest(case=case_id):
                 slug = prepare.CASES[case_id]
@@ -121,7 +125,7 @@ class PrepareTests(unittest.TestCase):
                 self.assertEqual(refs[0], refs[1])
 
     def test_case_shapes(self):
-        prepare.prepare(self.workspace, range(1, 9))
+        prepare.prepare(self.workspace, range(1, 12))
         # Case 2: no source change; T1 checked but unimplemented.
         run2 = self.run_data(2)
         repo2 = Path(run2["cwd"])
@@ -152,6 +156,31 @@ class PrepareTests(unittest.TestCase):
         self.assertIn("- [ ] T2", tasks8)
         self.assertIn("Deferred", tasks8)
         self.assertIn("tag:", (repo8 / "docs/labels.md").read_text())
+        # Case 9: lbl: implementation; T3 supersedes the label: criteria.
+        repo9 = Path(self.run_data(9)["cwd"])
+        self.assertIn('"lbl:"', (repo9 / "app.mjs").read_text())
+        self.assertIn('"lbl:blue"', (repo9 / "docs/labels.md").read_text())
+        self.assertIn("Revision 1", (repo9 / ".artifacts/prefix-revision/PLAN.md").read_text())
+        tasks9 = (repo9 / ".artifacts/prefix-revision/TASKS.md").read_text()
+        for task in ("T1", "T2", "T3"):
+            self.assertIn(f"- [x] {task}", tasks9)
+        self.assertIn("Supersedes", tasks9)
+        # Case 10: untracked handoff test, insufficient handoff evidence.
+        repo10 = Path(self.run_data(10)["cwd"])
+        self.assertIn('"label:"', (repo10 / "app.mjs").read_text())
+        self.assertIn("label:blue", (repo10 / "test/previewLabel.test.mjs").read_text())
+        tasks10 = (repo10 / ".artifacts/test-first-prefix/TASKS.md").read_text()
+        self.assertIn("Handoff evidence: Added the test and ran the tests.", tasks10)
+        status10 = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"], cwd=repo10,
+            capture_output=True, text=True).stdout
+        self.assertIn("?? test/previewLabel.test.mjs", status10)
+        # Case 11: the newest artifacts directory has no TASKS.md.
+        repo11 = Path(self.run_data(11)["cwd"])
+        folders = sorted((repo11 / ".artifacts").iterdir(), key=lambda path: path.stat().st_mtime)
+        self.assertEqual([path.name for path in folders], ["docs-refresh", "prefix-rollout", "casing-followup"])
+        self.assertFalse((folders[-1] / "TASKS.md").exists())
+        self.assertTrue((folders[1] / "TASKS.md").is_file())
 
     def test_manifest_detects_mutations_and_added_files(self):
         prepare.prepare(self.workspace, [1])
@@ -166,6 +195,16 @@ class PrepareTests(unittest.TestCase):
         old_repo = Path(self.run_data(1, "old_skill")["cwd"])
         self.assertIn("label:", (old_repo / "app.mjs").read_text())
 
+    def test_base_refs_are_the_same_across_preparations(self):
+        prepare.prepare(self.workspace, [1, 10])
+        other = self.root / "other"
+        prepare.prepare(other, [1, 10])
+        for case_id in (1, 10):
+            slug = prepare.CASES[case_id]
+            with self.subTest(case=case_id):
+                again = json.loads((other / f"eval-{case_id}-{slug}" / "with_skill" / "run.json").read_text())
+                self.assertEqual(self.run_data(case_id)["baseRef"], again["baseRef"])
+
     def test_existing_workspace_is_never_overwritten(self):
         prepare.prepare(self.workspace, [1])
         run = self.run_data(1)
@@ -176,7 +215,7 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(len(list(self.workspace.iterdir())), 1)
 
     def test_invalid_ids_do_not_create_workspace(self):
-        for ids in ([], [0], [9], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
+        for ids in ([], [0], [12], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
             with self.subTest(ids=ids), self.assertRaises(ValueError):
                 prepare.prepare(self.workspace, ids)
             self.assertFalse(self.workspace.exists())

@@ -8,100 +8,146 @@ disable-model-invocation: true
 
 ## Inputs
 
-Require readable `PLAN.md` and `TASKS.md`, usually in `.artifacts/<plan-name>/`.
-Optional inputs: the implementation's starting commit as base ref and a
-`REVIEW.md` target (default: next to `PLAN.md`).
+The review needs a readable `PLAN.md` and a readable `TASKS.md`. They are
+usually in `.artifacts/<plan-name>/`. Two inputs are optional:
 
-- If an explicitly supplied `PLAN.md` or `TASKS.md` path is missing or
-  unreadable, stop with "Nothing Reviewed". Never substitute another path.
-- If only one input is omitted, use the sibling file next to the supplied
-  input. If that sibling is missing or unreadable, stop with "Nothing Reviewed".
-  Do not search another directory.
-- If both inputs are omitted, list the repository root's `.artifacts/` directories
-  by modification time. Select the newest directory containing both readable
-  files. State the choice in the review.
-  If no complete pair exists, stop with "Nothing Reviewed".
+- The base ref: the commit where the implementation started.
+- The review target: the path of `REVIEW.md`. The default is `REVIEW.md`
+  next to `PLAN.md`.
 
-On input failure, use the Nothing Reviewed format in `references/output-format.md`.
-Write it only to an explicit `REVIEW.md` target
-or next to a valid resolved `PLAN.md`. Otherwise, report it in the final
-response without creating a file.
+Resolve `PLAN.md` and `TASKS.md` with these rules:
+
+- If the user gives a path to `PLAN.md` or `TASKS.md` and the file is missing
+  or unreadable, stop with Nothing Reviewed. Never use a different path.
+- If the user gives only one of the two files, use the other file from the
+  same directory. If that file is missing or unreadable, stop with Nothing
+  Reviewed. Do not search other directories.
+- If the user gives neither file, sort the directories in `.artifacts/` at the
+  repository root by modification time. Select the newest directory in which
+  both files are readable. In the review, state which directory you
+  selected. If no directory contains both readable files, stop with Nothing
+  Reviewed.
+
+To stop with Nothing Reviewed:
+
+1. Use the Nothing Reviewed format in `references/output-format.md`.
+2. If the user gave a review target, write the report there.
+3. If the user gave no review target and a readable `PLAN.md` is resolved,
+   write the report to `REVIEW.md` next to that `PLAN.md`.
+4. Otherwise, do not create a file. Give the report in the final response.
 
 ## References
 
-- Before writing: `references/output-format.md` (required structure).
-- Before evaluating findings: `../code-review/references/review-checklists.md`
-  (severity and review checks).
-- For resolver output: `../code-review/references/diff-scope.md`.
+- `references/output-format.md`: the required structure of `REVIEW.md`. Read
+  it before you write the review.
+- `../code-review/references/review-checklists.md`: the severity definitions
+  and the review checks. Read it before you assess findings.
+- `../code-review/references/diff-scope.md`: how to read the output of the
+  resolver. Read it before you use that output.
 
 ## Boundaries
 
 - Write only `REVIEW.md`. Never edit source, tests, `PLAN.md`, `TASKS.md`, or
-  checkboxes. Report mismatches instead.
-- Do not run fixers, formatters, generators, migrations, or commands that
-  rewrite tracked files.
-- Do not commit or stage.
-- For requested fixes, stop and summarize actionable findings.
-  Then wait for approval before switching to `execute` as a separate workflow.
+  checkboxes. Report each mismatch in the review instead.
+- Do not run fixers, formatters, generators, migrations, or other commands
+  that rewrite tracked files.
+- Do not stage or commit.
+- If the user asks for fixes, summarize the actionable findings and stop. Wait
+  for approval before you start `execute` as a separate workflow.
 
 ## Workflow
 
-1. **Read `PLAN.md`:** goal, non-goals, assumptions, settled decisions, and validation.
-2. **Read every task:** checkbox, scope, out-of-scope notes, acceptance, `Why`
-   supersession links, validation notes, and `Handoff evidence`.
-3. **Resolve scope from the repository root:**
-   - Base ref: `git-diff-scope --ref "$base" --include-untracked --pretty`.
-   - No base ref: `git-diff-scope --pretty`.
-   - If unavailable or failing, write Nothing Reviewed per the output format and stop.
-     Never substitute another ref.
-   - Review regular `?` entries as whole-file additions.
-   - Base-ref scope includes all current untracked files and may include tracked/untracked
-     changes that existed before implementation. Review the combined scope and record
-     this attribution limit in `Review Limits`.
-4. **Read every `entries[].patch` before final files.** Review the behavior introduced
-   or changed by the patches.
-5. **Resolve supersession links in `Why` against the revised plan.**
-   - Supersession requires plan authorization and a corrective task covering the replacement.
-   - Record superseded task IDs, acceptance lines, plan references, and corrective task IDs
-     in `Review Limits`.
-   - Exclude only that historical acceptance from conformance and checkbox mismatch checks.
-   - Check corrective tasks and all unsuperseded acceptance normally.
-6. **Assess explicit test-first delivery-time acceptance from saved `Handoff evidence`, not later green tests.**
-   - Verify the recorded tests, command context, exit status, and failure reason support
-     the agreed pre-implementation handoff.
-   - Cite executor-reported evidence separately from review reruns.
-     Missing or insufficient historical evidence is `unverified`.
-   - Do not infer a past RED run from a checkbox or currently passing tests.
-7. **Record each current acceptance line as `met`, `not met`, or `unverified`.**
-   Include `path:line`, command output, or why verification was impossible.
-8. **Check checkbox accuracy against the diff.**
-   - Report `[x]` with `not met` acceptance and `[ ]` with fully `met` current acceptance as findings.
-   - Diff presence is insufficient when acceptance is unmet or unverified.
-9. **Note changes that no task covers.**
-10. **Check non-goals and settled decisions.**
-    Report implemented non-goals and reversed decisions, even when the code is correct.
-11. **Apply `review-checklists.md` to the patches.**
-    Keep only concrete problems with exact evidence, impact, and a correction.
-    Tag each finding with its task ID or `untracked`.
-    When the finding breaks a checked task's acceptance, tag the affected
-    task ID and name the out-of-scope change in the body. This covers
-    untracked changes, implemented non-goals, and reversed decisions that
-    break acceptance. Reserve `(untracked)` for changes that break no task
-    acceptance.
-12. **Run read-only validation named in `PLAN.md` and `TASKS.md`.**
-    - Skip commands solely for superseded acceptance.
-    - Use saved evidence for historical RED-only checks.
-    - Run commands also validating current implementation with the current expected outcome.
-    - Record each command, exit status, and short result.
-13. **Write `REVIEW.md` exactly per `references/output-format.md`.**
-    Verdict is `NEEDS CHANGES` when any CRITICAL or HIGH finding exists, any
-    current acceptance line is `not met` for a `[x]` task, a non-goal was
-    implemented, or a settled decision was reversed. Otherwise `APPROVED`.
-14. **Report only the verdict, finding counts per severity, and `REVIEW.md` path.**
+In this workflow, a checked task has `[x]` and an unchecked task has `[ ]`.
+
+1. **Read `PLAN.md`.** Note the goal, non-goals, assumptions, settled
+   decisions, and validation.
+2. **Read every task in `TASKS.md`.** Note the checkbox, scope, out-of-scope
+   notes, acceptance, supersession links in `Why`, each `Validation note`, and
+   the `Handoff evidence`.
+3. **Resolve the scope from the repository root.**
+   - If you have a base ref, run
+     `git-diff-scope --ref "$base" --include-untracked --pretty`.
+   - If you have no base ref, run `git-diff-scope --pretty`.
+   - If the resolver is not available or fails, stop with Nothing Reviewed.
+     Never use a different ref.
+   - A scope with a base ref includes all current untracked files. It can
+     also include tracked and untracked changes that existed before the
+     implementation. Review the full scope. Record this attribution limit in
+     `Review Limits`.
+4. **Read every `entries[].patch` before you read the final version of a
+   file.** Review the behavior that the patches add or change. Review each
+   regular entry with status `?` as a whole-file addition.
+5. **Verify each supersession link in `Why` against the revised plan.**
+   A supersession is valid only if the plan authorizes it and a corrective
+   task covers the replacement. For each valid supersession:
+   - In `Review Limits`, record the superseded task IDs, the superseded
+     acceptance lines, the plan references, and the corrective task IDs.
+   - Exclude only the superseded acceptance from the conformance check and
+     the checkbox mismatch check.
+
+   Current acceptance is all acceptance that no valid supersession replaces.
+   Assess the corrective tasks and all current acceptance normally.
+6. **Assess the delivery-time acceptance of an explicit test-first handoff
+   only from the saved `Handoff evidence`.** Delivery-time acceptance
+   describes the state at the handoff, before the implementation. An example
+   is a new test that fails against the old code.
+   - Verify that the recorded tests, command context, exit status, and
+     failure reason support the agreed handoff.
+   - Cite the evidence that the executor reported separately from the
+     results of your own reruns.
+   - If the historical evidence is missing or insufficient, record the line
+     as `unverified`.
+   - Do not infer a past RED run from a checkbox or from tests that pass now.
+7. **Record each current acceptance line as `met`, `not met`, or
+   `unverified`.** Give the evidence: a `path:line`, the command output, or
+   the reason why you could not verify the line.
+8. **Compare each checkbox with the acceptance results.** Only these states
+   are checkbox mismatches. Report each one as a finding:
+   - A checked task with a current acceptance line that is `not met`.
+   - An unchecked task with all current acceptance `met`.
+
+   A related change in the diff does not make a `not met` or `unverified`
+   line `met`.
+9. **List the changes that no task covers in `Untracked changes`.** Here,
+   "untracked" means that no task covers the change. It does not mean that
+   Git does not track the file.
+10. **Compare the diff with the non-goals and settled decisions.** Report each
+    implemented non-goal and each reversed decision, even when the code is
+    correct.
+11. **Apply `review-checklists.md` to the patches.** Keep only concrete
+    problems. Give each problem exact evidence, the impact, and a correction.
+    Tag each finding with one task ID or with `(untracked)`:
+    - If the finding breaks the acceptance of a checked task, use the ID of
+      that task. This rule also applies to untracked changes, implemented
+      non-goals, and reversed decisions. If the change is out of the scope of
+      the task, name the change in the body of the finding.
+    - If the finding breaks no acceptance and a task covers the change, use
+      the ID of that task.
+    - Use `(untracked)` only for a change that no task covers and that breaks
+      no task acceptance.
+12. **Run the read-only validation commands that `PLAN.md` and `TASKS.md`
+    name.**
+    - If a command validates only superseded acceptance, skip it.
+    - If a command only proves a historical RED state, do not run it. Use the
+      saved evidence.
+    - If a command also validates the current implementation, run it. Compare
+      the result with the current expected outcome.
+    - Record each command, its exit status, and a short result.
+13. **Write `REVIEW.md` exactly as `references/output-format.md` specifies.**
+    The verdict is `NEEDS CHANGES` if one or more of these conditions is true:
+    - A CRITICAL or HIGH finding exists.
+    - A checked task has a current acceptance line that is `not met`.
+    - The diff implements a non-goal.
+    - The diff reverses a settled decision.
+
+    Otherwise, the verdict is `APPROVED`.
+14. **In the final response, give only the verdict, the number of findings
+    for each severity, and the path of `REVIEW.md`.**
 
 ## Discipline
 
 - Cite evidence, not intuition.
-- Do not inflate severity or manufacture INFO findings for a clean result.
-- Mark unreachable runtime checks `unverified` and explain why.
-- Redact secret-like values; cite their kind and location only.
+- Do not inflate severity. Do not add INFO findings to a clean result.
+- If you cannot do a runtime check, mark it `unverified` and give the reason.
+- Redact values that look like secrets. Cite only the kind of value and its
+  location.

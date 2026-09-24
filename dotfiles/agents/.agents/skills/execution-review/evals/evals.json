@@ -103,6 +103,47 @@
         "No finding inflates the correctly deferred T2 into a CRITICAL or HIGH defect.",
         "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
       ]
+    },
+    {
+      "id": 9,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "APPROVED. PLAN.md Revision 1 replaced label: with lbl:, and corrective task T3 supersedes the label: criteria of checked T1 and T2. The superseded criteria are excluded from conformance and checkbox checks and recorded in Review Limits.",
+      "files": [],
+      "assertions": [
+        "The report has verdict APPROVED.",
+        "Review Limits records the superseded label: criteria of T1 and T2, the PLAN.md Revision 1 reference, and corrective task T3.",
+        "Checkbox mismatches is none, and no finding or not met row treats the superseded label: criteria of the checked T1 or T2 as unmet.",
+        "Task Conformance records T3 acceptance as met with lbl: evidence from app.mjs and docs/labels.md.",
+        "The T2 criterion that the diff shows no other source change is still assessed as current acceptance, not excluded as superseded.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. PLAN.md: {plan}. TASKS.md: {tasks}. Write the review to {target}. Do not edit source, PLAN.md, TASKS.md, or checkboxes.",
+      "expected_output": "APPROVED with an unverified line. T1 is an explicit test-only handoff whose saved Handoff evidence lacks the command, exit status, and failure reason, so its pre-implementation failure acceptance is unverified even though the test passes now. T2 is met by a node --test rerun.",
+      "files": [],
+      "assertions": [
+        "The report has verdict APPROVED and contains no CRITICAL or HIGH findings.",
+        "Task Conformance records the T1 pre-implementation failure acceptance as unverified, and the reason names what the saved Handoff evidence lacks, such as the command, exit status, or failure reason.",
+        "The review does not use the currently passing test or the T1 checkbox as proof of the historical failure.",
+        "The review keeps the executor-reported Handoff evidence separate from its own node --test rerun, and Validation Run records the rerun command, exit status, and result.",
+        "Task Conformance records T2 acceptance as met with the current node --test result and app.mjs evidence.",
+        "Only outputs/REVIEW.md is written; repository files, git history, git stash, and checkboxes remain unchanged."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Review the implementation with execution-review. Base ref: {baseRef}. Write the review to {target}. Do not edit source, plans, task files, or checkboxes.",
+      "expected_output": "APPROVED, no actionable findings. No PLAN.md or TASKS.md path is given. The newest .artifacts directory has only PLAN.md, so the review selects .artifacts/prefix-rollout/, the newest directory with both files, and states the choice.",
+      "files": [],
+      "assertions": [
+        "The review selects .artifacts/prefix-rollout/ and states the selected directory in the report.",
+        "The review does not use .artifacts/casing-followup/, the newest directory, because it has no TASKS.md, and the report is not NOTHING REVIEWED.",
+        "The older .artifacts/docs-refresh/ pair is not reviewed, and its Examples-section task does not appear in Task Conformance.",
+        "The report has verdict APPROVED and says No actionable findings.",
+        "Only outputs/REVIEW.md is written; repository files, git history, and checkboxes remain unchanged."
+      ]
     }
   ]
 }
