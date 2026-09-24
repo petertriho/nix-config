@@ -1,9 +1,9 @@
 # EVALUATION.md Format
 
-Write exactly one file when an evaluation target is resolved. On an input
-failure with no explicit target, return the Nothing Evaluated format in the
-final response without creating a file. Keep the order of sections. Use
-`BLOCKING` or `NOTE` exactly.
+When an evaluation target resolves, write exactly one file. If the input
+fails and there is no explicit target, return the Nothing Evaluated format in
+the final response. Do not create a file. Keep the sections in order. Write
+each level exactly as `BLOCKING` or `NOTE`.
 
 ## Evaluation Written
 
@@ -60,20 +60,27 @@ Status: <consistent, or one line per mismatch>
 
 Rules:
 
-- Order findings `BLOCKING` then `NOTE`. Number them across the whole section.
-- Every finding title ends with its anchor in parentheses: a plan section
-  name, `Step N`, `Validation`, or `Status`.
-- One root cause per finding. Merge duplicate symptoms with one correction.
-- When there are no findings, write `No findings.` under `## Findings` and keep
+- Put all `BLOCKING` findings before all `NOTE` findings. Number the findings
+  in one sequence across the whole section.
+- End every finding title with its anchor in parentheses. The anchor is a
+  plan section name, `Step N`, `Validation`, or `Status`.
+- Give each finding one root cause. If duplicate symptoms have one
+  correction, merge them into one finding.
+- If there are no findings, write `No findings.` under `## Findings`. Keep
   every other section.
-- `Omitted Risks` and `Evaluation Limits` may say `None.` when there is
-  nothing to record.
-- Omit table rows that do not apply, but keep every section header.
+- If `Omitted Risks` or `Evaluation Limits` has nothing to record, the
+  section can say `None.`
+- Omit table rows that do not apply. Keep every section header.
 
 ## Nothing Evaluated
 
-Use this when no evaluable plan resolves: missing/unreadable `PLAN.md`, no
-`.artifacts/` plan to select, or empty/non-plan input. It is not a clean result.
+Use this format when no evaluable plan resolves:
+
+- `PLAN.md` is missing or unreadable.
+- There is no plan in `.artifacts/` to select.
+- The input is empty or is not a plan.
+
+Nothing Evaluated is not a clean result.
 
 ```markdown
 # Plan Evaluation: <plan-name or "unknown">
