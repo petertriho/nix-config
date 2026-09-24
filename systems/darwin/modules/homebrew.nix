@@ -34,16 +34,16 @@ in
       };
     };
     taps = map (name: { inherit name; trusted = true; }) [
-      "gromgit/brewtils"
+      # "gromgit/brewtils"
       "nikitabobko/tap"
       "steipete/tap"
       # "TabularisDB/tabularis"
     ];
     brews = [
-      "gromgit/brewtils/taproom"
-      "mas"
+      # "gromgit/brewtils/taproom"
+      # "mas"
       "mole"
-      "terminal-notifier"
+      # "terminal-notifier"
     ];
     casks = [
       "codex-app"
