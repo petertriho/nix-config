@@ -20,8 +20,8 @@ buildNpmPackage {
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "28049dee20cd0ee809cf5a78442cf35dfa36659c";
-    hash = "sha256-fZ6sAJhNjSMz/KVsuuNtjkomkI5rQ0qlWMpvFVPinEc=";
+    rev = "86f3e201446c3d6e88cb47809472b7d0d20c1634";
+    hash = "sha256-j/PrLaZHIbiHs7W0lHWEC/Q6M/w8ASK8CzlLumbWrZg=";
   };
 
   nodejs = nodejs_24;

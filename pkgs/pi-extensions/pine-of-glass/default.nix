@@ -6,13 +6,13 @@
 stdenvNoCC.mkDerivation {
   pname = "pine-of-glass";
   # The requested current-main snapshot also carries the v0.12.1 tag.
-  version = "0.12.1-unstable-2026-09-21";
+  version = "0.12.1-unstable-2026-09-23";
 
   src = fetchFromGitHub {
     owner = "tmustier";
     repo = "pine-of-glass";
-    rev = "bdbcb1b8f44d58c74afce5443fda7170f9422369";
-    hash = "sha256-QWT1DbKsDBFKDCNWHjdtWEoCtY1OsEEkiq6P9Uaa1FU=";
+    rev = "1e7e23aafb2b98aa381521ae1c708752907d4e0b";
+    hash = "sha256-vi7tRqaExRj25+tIN7mB88q7TXzMTVcjcivLuHAyT4w=";
   };
 
   # Pi >=0.86.0 provides the optional peers and loads the raw TypeScript.
