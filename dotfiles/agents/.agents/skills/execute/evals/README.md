@@ -15,7 +15,7 @@ From this directory:
 
 ```sh
 python prepare.py --workspace /absolute/path/to/fresh-workspace \
-  --cases 1 2 3 4 5 6
+  --cases 1 2 3 4 5 6 7 8
 ```
 
 Select any nonempty subset of IDs. The workspace must be an **absolute,
@@ -46,7 +46,12 @@ Every `run.json` contains absolute `cwd`, `plan`, and `tasks` paths, the
 base-commit `baseRef`, and a fully resolved `prompt`. `target` is JSON
 `null`: there is no review-style output file. The subject implements
 `TASKS.md` in the worktree, updates checkboxes, and reports validation in
-its final message.
+its final message. Case 8 is a direct request: its repo has no
+`.artifacts`, `plan` and `tasks` are JSON `null`, and the prompt names the
+repo path instead of a task file.
+
+Base commits use a fixed author and committer date. The two variants of a
+case, and every workspace, therefore get the same `baseRef`.
 
 Run each subject agent with its variant's `cwd` and `prompt`, loading the
 appropriate skill version plus `references/subagents/` role prompts. Do
@@ -64,9 +69,11 @@ caller controls what each subject can access.
 | 1 | Prefix change in code and docs | Both tasks checked, trace validated, tight diff |
 | 2 | Prefix change with required regression test | New `test/` file, `node --test` green |
 | 3 | Prefix change beside casing/API non-goals | No uppercase, trim preserved, chain untouched |
-| 4 | Second task demands a forbidden export rewrite | T2 unchecked with Validation note; blocker reported |
-| 5 | Second task needs an unavailable live TUI | T2 unchecked with Validation note; skips reported |
+| 4 | Second task demands a forbidden export rewrite | T2 unchecked; blocker and decision reported |
+| 5 | Second task needs an unavailable live TUI | T2 unchecked; skipped check reported |
 | 6 | One-line prefix fix | Only `app.mjs` changes; no new files or scaffolding |
+| 7 | Plan requires a test-only handoff before the fix | T1 `Handoff evidence` with every field; test unchanged; evidence kept after green |
+| 8 | Direct request with no plan or task file | No `.artifacts` or task files; TDD choice and validation reported |
 
 All fixtures need only `node` for validation. No fixture requires network
 access, a live TUI, or installed dependencies.
@@ -85,7 +92,7 @@ git -C <repo> diff HEAD --stat
 
 Grade per-case allowed scope from `evals.json` assertions: which files may
 change, which must not (especially `PLAN.md`, `api.mjs`, `impl.mjs` where
-forbidden), required checkbox states, required `Validation note` contents,
+forbidden), required checkbox states, required `Handoff evidence` contents,
 and forbidden extras (new dependencies, scaffolding, staged or committed
 changes). `PLAN.md` must be byte-identical to base in every case. `TASKS.md`
 checkbox and note changes are expected; all other `TASKS.md` text must be

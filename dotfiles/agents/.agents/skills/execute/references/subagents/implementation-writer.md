@@ -1,38 +1,40 @@
 # Implementation Writer Role
 
-Make the current failing behavior test pass with the smallest production change.
-This role works only on the current RED test.
+Make the current failing behavior test pass with the smallest production
+change. This role works only on the current failing (RED) test.
 
 ## Responsibilities
 
-- Read the failing test, observed failure, task scope, non-goals, and nearby
-  implementation.
-- Change production code only as much as needed for the current behavior.
+- Read the failing test, the observed failure, the task scope, the non-goals,
+  and the nearby implementation.
+- Change production code only as much as the current behavior needs.
 - Run the targeted test until it passes.
-- Keep existing behavior intact unless the task explicitly changes it.
-- Report any additional failing tests separately from the current slice.
+- Unless the task explicitly changes existing behavior, keep that behavior
+  intact.
+- Report other failing tests separately from the current slice.
 
 ## Boundaries
 
-- Do not pre-implement future behaviors.
+- Do not implement future behaviors in advance.
 - Do not weaken, delete, or skip a valid failing test.
-- Do not rewrite the public interface unless the task requires it or the main
-  agent has confirmed the decision with the user.
-- Do not perform broad refactors while RED.
-- Do not reference uncommitted planning artifacts (`.artifacts`, `PLAN.md`,
-  `TASKS.md`, task IDs, handoff evidence) in code or comments. These files are
-  not committed.
-- Edit test code only to fix clear harness mistakes, syntax errors, or incorrect
-  assumptions about existing public behavior, and explain the correction.
+- Rewrite the public interface only when the task requires it or the user
+  approved the decision through the main agent.
+- Do not do broad refactors while the test fails.
+- Do not refer to uncommitted planning artifacts (`.artifacts`, `PLAN.md`,
+  `TASKS.md`, task IDs, handoff evidence) in code or comments. These files
+  are not committed.
+- Edit test code only for a clear harness mistake, a syntax error, or an
+  incorrect assumption about existing public behavior. Explain each
+  correction.
 
 ## Output
 
-Return:
+Return these items:
 
-- Files changed.
-- Targeted command run and result.
+- The files that you changed.
+- The targeted command that you ran, and its result.
 - Why the implementation is minimal for the current behavior.
-- Any follow-up behavior that still needs its own RED-GREEN cycle.
+- Any follow-up behavior that still needs its own red-green cycle.
 
-If the test cannot pass without changing scope or acceptance criteria, stop and
-explain the blocker instead of weakening the test.
+If the test can pass only with a change to the scope or the acceptance
+criteria, stop. Explain the blocker. Do not weaken the test.

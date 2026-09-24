@@ -239,6 +239,87 @@ TASKS_MINIMAL = text('''
 ''')
 
 
+HANDOFF_PLAN = text('''
+    # Label preview prefix, test first
+
+    Status: Ready
+
+    ## Goal
+    Change the preview label prefix from `tag:` to `label:`. Keep the
+    string-only input contract and synchronous return value.
+
+    ## Non-goals
+    No case normalization, new input types, API changes, dependencies, or
+    persistence. Do not change the export structure. Leave `docs/labels.md`
+    for a later docs pass.
+
+    ## Assumptions
+    `app.mjs` defines `previewLabel(value)` and calls `formatLabel` through
+    `api.mjs` from `impl.mjs`. The implementation accepts
+    `formatLabel(value, { prefix = "" } = {})`, trims value, then prefixes it.
+    The repo has no tests yet; the built-in `node --test` runner is available.
+
+    ## Settled Decisions
+    Use the existing options object. Preserve whitespace trimming and casing.
+    Leave `api.mjs` and the export chain unchanged. Deliver the regression
+    test as a separate test-only handoff before the implementation, so a
+    reviewer can see it fail against the current code.
+
+    ## Implementation Plan
+    1. Test-only handoff: add `test/previewLabel.test.mjs` with `node:test`.
+       Import `previewLabel` from `app.mjs` and assert that `" blue "` gives
+       `"label:blue"` and `""` gives `"label:"`. It must fail against the
+       current `tag:` prefix. Do not change production code in this step.
+    2. In `app.mjs`, change only the prefix option from `"tag:"` to `"label:"`.
+
+    ## Validation
+    `node --test` fails after step 1 only because of the old prefix, and
+    passes after step 2 with the test unchanged.
+
+    ## Risks and Mitigations
+    A test that fails for a setup reason proves nothing about the prefix;
+    confirm the failure reason before the implementation starts.
+
+    ## Open Questions
+    None.
+''')
+
+TASKS_HANDOFF = text('''
+    # Tasks — label preview prefix, test first
+
+    ## Task Summary
+    Deliver a failing public-interface regression test as a test-only
+    handoff, then switch the prefix so the test passes.
+
+    ## Tasks
+
+    - [ ] T1: Add failing prefix regression test (test-only)
+      - Why: The plan requires a separate test-only delivery before the implementation.
+      - Depends on: None
+      - Scope: Add `test/previewLabel.test.mjs`. Import `previewLabel` from
+        `app.mjs`. Assert `" blue "` gives `"label:blue"` and `""` gives
+        `"label:"`. Do not change production code.
+      - Out of scope: Production code, docs, private-helper tests.
+      - Acceptance: `node --test` fails because the output still has the `tag:` prefix, not because of a setup error.
+
+    - [ ] T2: Switch preview prefix to label:
+      - Why: The plan requires the `label:` prefix for preview labels.
+      - Depends on: T1
+      - Scope: In `app.mjs`, change only the prefix option to `"label:"`.
+      - Out of scope: Test edits, docs, casing changes, API changes, export-chain rewrites.
+      - Acceptance: `node --test` passes with the T1 test unchanged; `" blue "` traces to `"label:blue"`.
+
+    ## Suggested Sequence
+    T1, then T2.
+
+    ## Validation Plan
+    `node --test` fails after T1 and passes after T2.
+
+    ## Remaining Open Questions
+    None.
+''')
+
+
 def tasks_for(case_id):
     if case_id == 1:
         return TASKS_SIMPLE
@@ -252,7 +333,13 @@ def tasks_for(case_id):
         return TASKS_MANUAL
     if case_id == 6:
         return TASKS_MINIMAL
+    if case_id == 7:
+        return TASKS_HANDOFF
     raise ValueError(f"unknown case: {case_id}")
+
+
+def plan_for(case_id):
+    return HANDOFF_PLAN if case_id == 7 else CLEAN_PLAN
 
 
 # Slugs describe the work, not the expected implementation shape.
@@ -263,7 +350,12 @@ CASES = {
     4: "blocked-scope",
     5: "manual-deferred",
     6: "minimal-diff",
+    7: "test-first-handoff",
+    8: "direct-request",
 }
+
+# Direct-request cases have no plan or task file; the prompt names the repo.
+DIRECT_CASES = {8}
 
 
 def load_evals():
@@ -293,12 +385,18 @@ def write_json(root, relative, value):
     write_file(root, relative, json.dumps(value, indent=2, ensure_ascii=False) + "\n")
 
 
+# A fixed commit date keeps paired base commits identical across a clock tick.
+FIXED_DATE = "2026-01-01T00:00:00+00:00"
+
+
 def run_git(repo, *args):
+    env = {**os.environ, "GIT_AUTHOR_DATE": FIXED_DATE, "GIT_COMMITTER_DATE": FIXED_DATE}
     result = subprocess.run(
         ["git", *args],
         cwd=repo,
         capture_output=True,
         text=True,
+        env=env,
     )
     if result.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
@@ -332,7 +430,7 @@ def prepare(workspace, case_ids):
         raise ValueError("workspace parent must already exist")
     case_ids = list(case_ids)
     if not case_ids or any(type(case_id) is not int or case_id not in CASES for case_id in case_ids):
-        raise ValueError("cases must be integer IDs from 1 through 6")
+        raise ValueError("cases must be integer IDs from 1 through 8")
     if len(set(case_ids)) != len(case_ids):
         raise ValueError("duplicate case IDs")
     evals = load_evals()
@@ -353,11 +451,12 @@ def prepare(workspace, case_ids):
             repo.mkdir(parents=True)
             outputs = run_dir / "outputs"
             outputs.mkdir()
-            plan_relative = f".artifacts/{slug}/PLAN.md"
-            tasks_relative = f".artifacts/{slug}/TASKS.md"
             base_files = dict(SOURCES)
-            base_files[plan_relative] = CLEAN_PLAN
-            base_files[tasks_relative] = tasks_for(case_id)
+            if case_id not in DIRECT_CASES:
+                plan_relative = f".artifacts/{slug}/PLAN.md"
+                tasks_relative = f".artifacts/{slug}/TASKS.md"
+                base_files[plan_relative] = plan_for(case_id)
+                base_files[tasks_relative] = tasks_for(case_id)
             for name, content in base_files.items():
                 write_file(repo, name, content)
             run_git(repo, "init", "-q")
@@ -366,17 +465,21 @@ def prepare(workspace, case_ids):
             run_git(repo, "add", "-A")
             run_git(repo, "commit", "-qm", f"eval {case_id} {slug} base")
             base_ref = run_git(repo, "rev-parse", "HEAD")
-            plan = repo / plan_relative
-            tasks = repo / tasks_relative
+            if case_id in DIRECT_CASES:
+                plan = tasks = None
+            else:
+                plan = repo / plan_relative
+                tasks = repo / tasks_relative
             write_json(run_dir, "run.json", {
                 "eval_id": case_id,
                 "variant": variant,
                 "cwd": str(repo),
-                "plan": str(plan),
-                "tasks": str(tasks),
+                "plan": None if plan is None else str(plan),
+                "tasks": None if tasks is None else str(tasks),
                 "baseRef": base_ref,
                 "target": None,
-                "prompt": case["prompt"].format(plan=plan, tasks=tasks, baseRef=base_ref),
+                "prompt": case["prompt"].format(
+                    plan=plan, tasks=tasks, baseRef=base_ref, cwd=repo),
                 **input_manifest(repo),
             })
     return workspace

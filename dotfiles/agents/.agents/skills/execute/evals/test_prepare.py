@@ -29,7 +29,7 @@ class PrepareTests(unittest.TestCase):
 
     def test_eval_schema(self):
         evals = prepare.load_evals()
-        self.assertEqual(set(evals), set(range(1, 7)))
+        self.assertEqual(set(evals), set(range(1, 9)))
         self.assertEqual(len(prepare.CASES), len(evals))
         raw = json.loads((HERE / "evals.json").read_text(encoding="utf-8"))
         self.assertEqual(raw["skill_name"], "execute")
@@ -41,15 +41,20 @@ class PrepareTests(unittest.TestCase):
                 self.assertTrue(case["expected_output"])
                 self.assertTrue(case["assertions"])
                 self.assertTrue(all(isinstance(item, str) and item for item in case["assertions"]))
-                self.assertIn("{plan}", case["prompt"])
-                self.assertIn("{tasks}", case["prompt"])
+                if case_id in prepare.DIRECT_CASES:
+                    self.assertIn("{cwd}", case["prompt"])
+                    self.assertNotIn("{plan}", case["prompt"])
+                    self.assertNotIn("{tasks}", case["prompt"])
+                else:
+                    self.assertIn("{plan}", case["prompt"])
+                    self.assertIn("{tasks}", case["prompt"])
                 self.assertIn("{baseRef}", case["prompt"])
                 slug = prepare.CASES[case_id]
                 self.assertRegex(slug, r"^[a-z]+(?:-[a-z]+)*$")
 
     def test_all_pairs_paths_refs_hashes_and_metadata(self):
-        prepare.prepare(self.workspace, range(1, 7))
-        self.assertEqual(len(list(self.workspace.iterdir())), 6)
+        prepare.prepare(self.workspace, range(1, 9))
+        self.assertEqual(len(list(self.workspace.iterdir())), 8)
         for case_id, case in prepare.load_evals().items():
             with self.subTest(case=case_id):
                 slug = prepare.CASES[case_id]
@@ -65,15 +70,16 @@ class PrepareTests(unittest.TestCase):
                     run = self.run_data(case_id, variant)
                     repo = case_dir / variant / "repo"
                     outputs = repo.parent / "outputs"
-                    plan = repo / ".artifacts" / slug / "PLAN.md"
-                    tasks = repo / ".artifacts" / slug / "TASKS.md"
+                    direct = case_id in prepare.DIRECT_CASES
+                    plan = None if direct else repo / ".artifacts" / slug / "PLAN.md"
+                    tasks = None if direct else repo / ".artifacts" / slug / "TASKS.md"
                     self.assertEqual(run["cwd"], str(repo))
-                    self.assertEqual(run["plan"], str(plan))
-                    self.assertEqual(run["tasks"], str(tasks))
+                    self.assertEqual(run["plan"], None if direct else str(plan))
+                    self.assertEqual(run["tasks"], None if direct else str(tasks))
                     self.assertIsNone(run["target"])
                     self.assertEqual(run["prompt"], case["prompt"].format(
-                        plan=plan, tasks=tasks, baseRef=run["baseRef"]))
-                    for marker in ("{plan}", "{tasks}", "{baseRef}"):
+                        plan=plan, tasks=tasks, baseRef=run["baseRef"], cwd=repo))
+                    for marker in ("{plan}", "{tasks}", "{baseRef}", "{cwd}"):
                         self.assertNotIn(marker, run["prompt"])
                     self.assertTrue(Path(run["cwd"]).is_absolute())
                     self.assertTrue((repo / ".git").is_dir())
@@ -109,13 +115,17 @@ class PrepareTests(unittest.TestCase):
                         self.assertEqual(run[key], value)
                     # The bug is present at base: prefix still tag:.
                     self.assertIn('"tag:"', (repo / "app.mjs").read_text())
-                    self.assertIn("- [ ] T1", (repo / tasks.relative_to(repo)).read_text())
+                    if direct:
+                        self.assertFalse((repo / ".artifacts").exists())
+                        self.assertIn(str(repo), run["prompt"])
+                    else:
+                        self.assertIn("- [ ] T1", tasks.read_text())
                     inventories.append(blobs)
                 self.assertEqual(inventories[0], inventories[1])
                 self.assertEqual(refs[0], refs[1])
 
     def test_case_shapes(self):
-        prepare.prepare(self.workspace, range(1, 7))
+        prepare.prepare(self.workspace, range(1, 9))
         run2 = self.run_data(2)
         tasks2 = Path(run2["cwd"]).joinpath(".artifacts/tdd-regression/TASKS.md").read_text()
         self.assertIn("test/", tasks2)
@@ -130,6 +140,18 @@ class PrepareTests(unittest.TestCase):
         tasks6 = Path(run6["cwd"]).joinpath(".artifacts/minimal-diff/TASKS.md").read_text()
         self.assertIn("only the prefix option", tasks6)
         self.assertNotIn("T2", tasks6)
+        run7 = self.run_data(7)
+        plan7 = Path(run7["plan"]).read_text()
+        tasks7 = Path(run7["tasks"]).read_text()
+        self.assertIn("test-only handoff", plan7)
+        self.assertIn("(test-only)", tasks7)
+        self.assertIn("Depends on: T1", tasks7)
+        self.assertNotIn("Handoff evidence", tasks7)
+        self.assertNotEqual(plan7, prepare.CLEAN_PLAN)
+        run8 = self.run_data(8)
+        self.assertIsNone(run8["plan"])
+        self.assertIsNone(run8["tasks"])
+        self.assertEqual(sorted(run8["fixture_input_hashes"]), sorted(prepare.SOURCES))
 
     def test_workspace_rejects_dirty_subject_state(self):
         # Simulate a subject run, then confirm the grader primitives see it.
@@ -158,7 +180,7 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(len(list(self.workspace.iterdir())), 1)
 
     def test_invalid_ids_do_not_create_workspace(self):
-        for ids in ([], [0], [7], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
+        for ids in ([], [0], [9], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
             with self.subTest(ids=ids), self.assertRaises(ValueError):
                 prepare.prepare(self.workspace, ids)
             self.assertFalse(self.workspace.exists())

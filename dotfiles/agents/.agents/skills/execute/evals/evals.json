@@ -42,10 +42,10 @@
     {
       "id": 4,
       "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
-      "expected_output": "T2 left unchecked with a Validation note: it demands an export-shape change the plan forbids. Blocker reported, api.mjs untouched.",
+      "expected_output": "T2 left unchecked because it demands an export-shape change the plan forbids. The final message reports the blocker and the decision needed. api.mjs untouched.",
       "files": [],
       "assertions": [
-        "T2 remains unchecked and carries a Validation note naming the conflict between its scope and the plan non-goal.",
+        "T2 remains unchecked, and the final message names the conflict between its scope and the plan non-goal.",
         "api.mjs still re-exports from impl.mjs; the export chain is unchanged.",
         "T1 is checked with its prefix acceptance holding.",
         "The final message states the blocker and the user decision needed instead of silently expanding scope.",
@@ -55,11 +55,11 @@
     {
       "id": 5,
       "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
-      "expected_output": "T1 checked with validation; T2 unchecked with a Validation note because the live TUI check cannot run offline.",
+      "expected_output": "T1 checked with validation; T2 unchecked because the live TUI check cannot run offline. The final message reports the skipped check.",
       "files": [],
       "assertions": [
         "T1 is checked with its prefix acceptance holding in the worktree.",
-        "T2 remains unchecked and carries a Validation note with the failing or unavailable command, observed result, and blocked dependents.",
+        "T2 remains unchecked, and no substitute check, such as the code trace, is reported as meeting its manual acceptance.",
         "T2 is not batch-checked alongside T1; each checkbox reflects its own acceptance state.",
         "The final message lists the skipped validation and why it was skipped."
       ]
@@ -74,6 +74,34 @@
         "No new files, dependencies, abstractions, or config surfaces are added.",
         "Traced outputs are label:blue and label: with casing and trimming preserved.",
         "T1 is checked with acceptance holding and nothing is staged or committed."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Implement {tasks} against {plan} with the execute skill. Base ref: {baseRef}. Never stage or commit. Mark each task checkbox in TASKS.md as soon as its acceptance checks pass. Final message: completed task IDs, validation commands and results, blockers, and unchecked tasks.",
+      "expected_output": "T1 delivers a failing public-interface test with Handoff evidence under the task; T2 turns it green without editing the test; the evidence survives.",
+      "files": [],
+      "assertions": [
+        "T1 in TASKS.md has a Handoff evidence entry with the test path and test names, the node --test command with its working directory, and the observed nonzero exit status.",
+        "The Handoff evidence states the expected versus observed failure (the old tag: prefix, not a setup error) and the delivery stage: pre-implementation state with T2 as the dependent task.",
+        "The transcript shows node --test failing because of the tag: prefix before app.mjs is edited.",
+        "At the end, the T1 test still asserts label:blue and label: through previewLabel; T2 did not weaken or rewrite it.",
+        "The Handoff evidence is still under T1 at the end of the run, after node --test passes.",
+        "At the end, node --test passes, app.mjs passes label:, and T1 and T2 are both checked.",
+        "Only app.mjs, the new test file under test/, and TASKS.md differ from the base commit; PLAN.md and docs/labels.md are unchanged and nothing is staged or committed."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "With the execute skill, change the label preview in {cwd} to use the label: prefix instead of tag:, in the code and in docs/labels.md. Base ref: {baseRef}. Never stage or commit. Final message: what changed, validation commands and results, and anything skipped.",
+      "expected_output": "Prefix switched in code and docs from a direct request, with no plan or task files created and a completion report that covers TDD and validation.",
+      "files": [],
+      "assertions": [
+        "app.mjs passes label: as the prefix option and docs/labels.md shows label:blue and label:.",
+        "Through the public export, ' blue ' gives label:blue, '' gives label:, and ' Blue ' gives label:Blue; impl.mjs and api.mjs are unchanged.",
+        "No .artifacts directory, PLAN.md, TASKS.md, or other planning or progress file is created in the repo.",
+        "The final message names the validation commands with their results and says whether TDD was used or skipped, with a reason.",
+        "Only app.mjs, docs/labels.md, and at most one new regression test file under test/ differ from the base commit; nothing is staged or committed."
       ]
     }
   ]
