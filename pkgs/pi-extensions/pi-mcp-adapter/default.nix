@@ -15,17 +15,17 @@ buildNpmPackage {
   # prefetch for the offline install (ENOTCACHED, only-if-cached). 0e88e19
   # (2.36.0) was verified free of pkg.pr.new refs before bumping; re-check
   # on the next bump and regenerate the vendored lockfile alongside it.
-  version = "2.37.0-unstable-2026-09-23";
+  version = "2.37.0-unstable-2026-09-24";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "86f3e201446c3d6e88cb47809472b7d0d20c1634";
-    hash = "sha256-j/PrLaZHIbiHs7W0lHWEC/Q6M/w8ASK8CzlLumbWrZg=";
+    rev = "7bf2332932b652416ea717e154352baed7420b66";
+    hash = "sha256-Q9LXw3JQ0Fv23DKF88Pt5sgUS3q5lX60PK3DtY8TlGI=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-3ZttAsJOaQPiZ1DT1I1Z01z2/bSVo5Jn1bmEK1lTNag=";
+  npmDepsHash = "sha256-JQfB8yCWGU0uJTNWUfF5ZoM87SdnOinR7iEzwG65vhM=";
   npmDepsFetcherVersion = 2;
   # Upstream (post-2.27.0) added `prepare: npm run build:public` — tsc
   # emitting dist/ declaration files for embedding hosts that import the
