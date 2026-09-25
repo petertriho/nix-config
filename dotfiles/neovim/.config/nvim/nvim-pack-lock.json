@@ -229,7 +229,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "76faabd8d091e4316ec8e1e90aa9371210b574b3",
+      "rev": "12dd0de1f15d598db2cc0d075f4f0d13a3290d4d",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
