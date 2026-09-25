@@ -277,7 +277,7 @@ in
     spawnpoint.enable = false;
     superpowers.enable = false;
     taste-skill = {
-      enable = true;
+      enable = false;
       skills = [
         "taste-skill"
         "gpt-tasteskill"
