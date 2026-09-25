@@ -30,7 +30,7 @@ import {
 	readLaunchProfile,
 	writeLaunchProfile,
 	type LaunchProfileWorkflowMetadata,
-} from "../launch-profile.ts";
+} from "../../workflow-provider/launch-profile.ts";
 import type {
 	BackgroundWatchOptions,
 	ResumeLifecycleContext,
@@ -38,8 +38,8 @@ import type {
 	RunningSubagent,
 	SubagentLaunchParams,
 	SubagentResumeParams,
-} from "../subagent-services.ts";
-import { createStatusState } from "../status.ts";
+} from "../../pi-tmux-subagents/subagent-services.ts";
+import { createStatusState } from "../../pi-tmux-subagents/status.ts";
 import { buildWorkflowRolloverHandoffForRole } from "./handoff.ts";
 import { discoverWorkflowRegistry } from "./registry.ts";
 import {
@@ -915,7 +915,7 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 
 		// ── Completion invalidates the token, keeps the audit snapshot, and
 		//    survives a final reload as a non-active run ──
-		const completed = lifecycle.complete({
+		const completed = await lifecycle.complete({
 			runId,
 			status: "completed",
 			summary: "Guide drafted and verified.",

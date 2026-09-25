@@ -363,6 +363,30 @@ function startupResult(root: string) {
 	};
 }
 
+test("provider selection precedes model setup and cancellation leaves an active run unchanged", async () => {
+	await withTempDir(async (root) => {
+		const bundled = join(root, "bundled");
+		const definition = loadDefinition(writeWorkflowPackage(bundled, { id: "quill" }));
+		const store = new StateStore(startedState(root, definition));
+		const before = store.state;
+		const order: string[] = [];
+		let selected: string | null = null;
+		const runtime = createWorkflowCommandRuntime(new FakePi() as any, {
+			state: store, loadAgent: () => ({}), isTmuxAvailable: () => true, muxSetupHint: () => "",
+			discoverRegistry: discoverFrom(bundled, join(root, "global")),
+			chooseProvider: async () => { order.push("provider"); return selected; },
+			chooseStartup: async () => { order.push("model"); return startupResult(root); },
+		});
+		assert.equal(await runtime.runWorkflow("quill", "work", commandContext(root).ctx), false);
+		assert.equal(store.state, before);
+		assert.deepEqual(order, ["provider"]);
+		selected = "fake";
+		assert.equal(await runtime.runWorkflow("quill", "work", commandContext(root, { confirm: [true] }).ctx), true);
+		assert.deepEqual(order, ["provider", "provider", "model"]);
+		assert.equal(getActiveWorkflowRun(store.state)?.providerId, "fake");
+	});
+});
+
 test("required agent preflight runs before setup; enabled optional agents validate before persistence", async () => {
 	await withTempDir(async (root) => {
 		const bundledRoot = join(root, "bundled");
@@ -811,7 +835,7 @@ test("generic workflow startup validates idle state and tmux before model select
 		);
 		assert.match(
 			outsideTmux.notifications[0]?.message ?? "",
-			/needs tmux\. start pi inside tmux/,
+			/needs an execution provider\. start pi inside tmux/,
 		);
 		assert.equal(outsideTmux.notifications[0]?.level, "error");
 		assert.equal(startupCalls, 0);

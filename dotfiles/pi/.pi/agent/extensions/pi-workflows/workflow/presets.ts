@@ -4,6 +4,7 @@ import {
 	chmodSync,
 	existsSync,
 	mkdirSync,
+	linkSync,
 	readFileSync,
 	realpathSync,
 	renameSync,
@@ -17,8 +18,8 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import {
 	THINKING_LEVELS,
 	type SubagentThinkingLevel,
-} from "../launch-profile.ts";
-import { parseExplicitModelSelection } from "../model-picker.ts";
+} from "../../workflow-provider/launch-profile.ts";
+import { parseExplicitModelSelection } from "../../workflow-provider/model-picker.ts";
 import type { NormalizedWorkflowDefinition, WorkflowRoleSkipAssignment } from "./types.ts";
 import { WORKFLOW_IDENTIFIER_PATTERN, isWorkflowRoleSkipAssignment } from "./types.ts";
 
@@ -42,7 +43,7 @@ export interface WorkflowModelPreset {
 }
 
 export type WorkflowPresetReadResult =
-	| { status: "ok"; preset: WorkflowModelPreset; path: string }
+	| { status: "ok"; preset: WorkflowModelPreset; path: string; warnings?: readonly string[] }
 	| { status: "missing"; path: string }
 	| { status: "invalid"; error: string; path: string };
 
@@ -215,7 +216,7 @@ export function workflowPresetPath(
 	return join(
 		agentDir,
 		"state",
-		"pi-tmux-subagents",
+		"pi-workflows",
 		"workflow-presets",
 		`${workflowPresetKey(projectRoot, workflowId)}.json`,
 	);
@@ -228,12 +229,41 @@ export function readWorkflowModelPreset(
 ): WorkflowPresetReadResult {
 	const canonicalRoot = canonicalProjectRoot(projectRoot);
 	const path = workflowPresetPath(canonicalRoot, definition.id, agentDir);
-	if (!existsSync(path)) return { status: "missing", path };
+	const legacyPath = join(agentDir, "state/pi-tmux-subagents/workflow-presets", `${workflowPresetKey(canonicalRoot, definition.id)}.json`);
+	const current = readPresetAt(definition, canonicalRoot, path);
+	if (current.status === "invalid") return current;
+	const legacy = readPresetAt(definition, canonicalRoot, legacyPath);
+	if (current.status === "ok") {
+		const warnings = legacy.status === "invalid" ? [legacy.error]
+			: legacy.status === "ok" && JSON.stringify(legacy.preset) !== JSON.stringify(current.preset)
+				? [`Legacy workflow preset differs from ${path}; the new file wins and both files are retained: ${legacyPath}`] : [];
+		return { ...current, ...(warnings.length ? { warnings } : {}) };
+	}
+	if (legacy.status === "missing") return { status: "missing", path };
+	if (legacy.status === "invalid") return legacy;
+	const temporaryPath = `${path}.migrate-${process.pid}-${randomBytes(6).toString("hex")}`;
+	try {
+		mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+		writeFileSync(temporaryPath, `${JSON.stringify(legacy.preset, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+		// Publish the complete file exclusively. A concurrent new file is never replaced.
+		linkSync(temporaryPath, path);
+		return { status: "ok", path, preset: legacy.preset };
+	} catch (error) {
+		return { status: "invalid", path, error: `Workflow preset migration failed; legacy retained at ${legacyPath}: ${String(error)}` };
+	} finally {
+		rmSync(temporaryPath, { force: true });
+	}
+}
+
+function readPresetAt(
+	definition: NormalizedWorkflowDefinition, canonicalRoot: string, path: string,
+): WorkflowPresetReadResult {
 
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(readFileSync(path, "utf8"));
 	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return { status: "missing", path };
 		return {
 			status: "invalid",
 			path,

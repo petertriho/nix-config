@@ -457,7 +457,7 @@ test("invalid saved role sets are ignored and unavailable saved models cannot la
 test("role-set mismatches in the saved preset fall back to fresh choices without offering reuse", async () => {
 	await withTempDir(async (root, agentDir, definition) => {
 		const savedPath = readWorkflowModelPreset(definition, root, agentDir).path;
-		mkdirSync(join(agentDir, "state", "pi-tmux-subagents", "workflow-presets"), {
+		mkdirSync(join(agentDir, "state", "pi-workflows", "workflow-presets"), {
 			recursive: true,
 		});
 		writeFileSync(

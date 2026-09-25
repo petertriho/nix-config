@@ -12,6 +12,12 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import {
+	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_DELIVERY_CHANNEL,
+	WORKFLOW_PROVIDER_REQUEST_CHANNEL, WORKFLOW_PROVIDER_VERSION,
+	type WorkflowEventBus, type WorkflowProvider,
+} from "../../workflow-provider/contract.ts";
+import { createWorkflowEventClient } from "../event-client.ts";
+import {
 	createAgentSession,
 	DefaultResourceLoader,
 	ModelRuntime,
@@ -23,7 +29,7 @@ import {
 	readLaunchProfile,
 	writeLaunchProfile,
 	type LaunchProfileWorkflowMetadata,
-} from "../launch-profile.ts";
+} from "../../workflow-provider/launch-profile.ts";
 import type {
 	BackgroundWatchOptions,
 	ResumeLifecycleContext,
@@ -31,8 +37,8 @@ import type {
 	RunningSubagent,
 	SubagentLaunchParams,
 	SubagentResumeParams,
-} from "../subagent-services.ts";
-import { createStatusState } from "../status.ts";
+} from "./legacy-execution.ts";
+import { createStatusState } from "../../pi-tmux-subagents/status.ts";
 import { loadWorkflowDefinitionFromPackage } from "./schema.ts";
 import { buildWorkflowRolloverHandoffForRun } from "./handoff.ts";
 import { buildWorkflowRecoveryMessage, buildWorkflowRecoveryLabels } from "./recovery.ts";
@@ -551,6 +557,156 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 	});
 });
 
+test("event-backed spawn delivers correlated result and tree navigation requires confirmed owned stop", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const listeners = new Map<string, Set<(value: unknown) => void>>();
+		const events: WorkflowEventBus = {
+			on(channel, handler) {
+				const handlers = listeners.get(channel) ?? new Set();
+				handlers.add(handler);
+				listeners.set(channel, handlers);
+				return () => handlers.delete(handler);
+			},
+			emit(channel, value) { for (const handler of [...(listeners.get(channel) ?? [])]) handler(value); },
+		};
+		const provider: WorkflowProvider = {
+			providerId: "pi-tmux-subagents", instanceId: "one",
+			version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
+		};
+		const client = createWorkflowEventClient(events, provider, { requestTimeoutMs: 30, livenessIntervalMs: 1_000 });
+		const requests: Array<any> = [];
+		let stopReply: ((confirmed: boolean) => void) | undefined;
+		const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+			const request = value as any;
+			requests.push(request);
+			if (request.operation === "stop") {
+				stopReply = (confirmed) => events.emit(`pi-workflows:provider:reply:${request.requestId}`, {
+					...request, ok: true, data: { stopped: confirmed },
+				});
+				return;
+			}
+			if (request.operation === "ping" || request.operation === "profiles") {
+				events.emit(`pi-workflows:provider:reply:${request.requestId}`, {
+					...request, ok: true, data: request.operation === "ping"
+						? { alive: true }
+						: { profiles: [{ agentId: "scribe", path: "/agents/scribe.md", hash: "profile" }] },
+				});
+				return;
+			}
+			if (request.operation !== "launch") return;
+			events.emit(`pi-workflows:provider:reply:${request.requestId}`, {
+				...request, ok: true, data: {
+					accepted: true, sessionPath: join(root, "role.jsonl"),
+					profile: { agentId: "scribe", path: "/agents/scribe.md", hash: "profile" },
+					model: request.payload.model,
+					context: { tokens: 10, source: "saved" }, metadataConfirmed: true,
+				},
+			});
+		});
+		const messages: any[] = [];
+		const deps = {
+			...dependencies(store, new FakeExecution()), execution: undefined, eventExecution: client,
+			loadAgentDefaults: () => null, isTmuxAvailable: () => false,
+		};
+		const lifecycle = createWorkflowLifecycleTools({ sendMessage: (message: unknown) => messages.push(message) } as any, deps);
+		const { ctx } = toolContext(root);
+		const started = await lifecycle.spawn({ runId: "run-docs", role: "author", task: "draft" }, ctx);
+		assert.equal(started.details.status, "started");
+		const launch = requests.find((request) => request.operation === "launch");
+		assert.equal(launch.owner.sessionId, "parent");
+		assert.equal(launch.owner.roleId, "author");
+		assert.equal(launch.payload.agentId, "scribe");
+		assert.equal(launch.payload.repositoryRoot, root);
+		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "running");
+		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+			...launch, kind: "ping", message: "Need input", changedFiles: [],
+		});
+		assert.equal(messages[0]?.customType, "subagent_ping");
+		assert.match(messages[0]?.content ?? "", /Need input/);
+		let navigationDone = false;
+		const failed = lifecycle.stopBeforeTree().then(() => { navigationDone = true; });
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(navigationDone, false);
+		stopReply?.(false);
+		await assert.rejects(failed, /unconfirmed/);
+		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "running");
+		const stopped = lifecycle.stopBeforeTree();
+		await new Promise((resolve) => setImmediate(resolve));
+		stopReply?.(true);
+		await stopped;
+		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "interrupted");
+		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+			...launch, kind: "result", result: {
+				sessionPath: join(root, "role.jsonl"), status: "completed", message: "late", changedFiles: [],
+			},
+		});
+		assert.equal(messages.length, 1, "a late result cannot publish after stop");
+		off();
+		client.dispose();
+	});
+});
+
+test("event-backed completion applies the workflow write boundary before sending a steer result", async () => {
+	await withTempDir(async (root) => {
+		writeFileSync(join(root, "README.md"), "before\n");
+		execFileSync("git", ["-C", root, "add", "README.md"]);
+		execFileSync("git", ["-C", root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const execution = new FakeExecution();
+		const listeners = new Map<string, Set<(value: unknown) => void>>();
+		const events: WorkflowEventBus = {
+			on(channel, handler) {
+				const set = listeners.get(channel) ?? new Set();
+				set.add(handler);
+				listeners.set(channel, set);
+				return () => set.delete(handler);
+			},
+			emit(channel, value) { for (const handler of [...(listeners.get(channel) ?? [])]) handler(value); },
+		};
+		const client = createWorkflowEventClient(events, {
+			providerId: "pi-tmux-subagents", instanceId: "one",
+			version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
+		}, { requestTimeoutMs: 30, livenessIntervalMs: 1_000 });
+		let launched: any;
+		const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+			const request = value as any;
+			const data = request.operation === "ping" ? { alive: true }
+				: request.operation === "profiles" ? { profiles: [{ agentId: "fact-checker", path: "/agents/fact-checker.md", hash: "profile" }] }
+				: {
+					accepted: true, sessionPath: join(root, "role.jsonl"),
+					profile: { agentId: "fact-checker", path: "/agents/fact-checker.md", hash: "profile" },
+					model: request.payload.model, context: { tokens: 10, source: "saved" },
+					metadataConfirmed: true,
+				};
+			if (request.operation === "launch") launched = request;
+			events.emit(`pi-workflows:provider:reply:${request.requestId}`, { ...request, ok: true, data });
+		});
+		const messages: any[] = [];
+		const lifecycle = createWorkflowLifecycleTools(
+			{ sendMessage: (message: unknown) => messages.push(message) } as any,
+			{ ...dependencies(store, execution), eventExecution: client },
+		);
+		const { ctx } = toolContext(root);
+		await lifecycle.spawn({ runId: "run-docs", role: "verifier", task: "verify" }, ctx);
+		assert.ok(launched.payload.repositoryBoundary);
+		writeFileSync(join(root, "README.md"), "after\n");
+		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+			...launched, kind: "result", result: {
+				sessionPath: join(root, "role.jsonl"), status: "completed",
+				message: "Draft complete", changedFiles: ["README.md"],
+			},
+		});
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(messages.length, 1);
+		assert.match(messages[0].content, /WORKFLOW WRITE POLICY VIOLATION/);
+		assert.equal(messages[0].customType, "subagent_result");
+		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "failed");
+		off();
+		client.dispose();
+	});
+});
+
 test("tree navigation waits for a pending spawn and stops it without publishing late role state", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
@@ -716,7 +872,8 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 			await session.sendCustomMessage({
 				customType: "subagent_result", content: "An ordinary subagent completed.", display: true,
 			}, { triggerTurn: true, deliverAs: "steer" });
-			assert.match((outcomes[0] as any).content[0].text, /branch navigation/i);
+			assert.ok(outcomes.length > 0);
+			for (const outcome of outcomes) assert.match((outcome as any).content[0].text, /branch navigation/i);
 			assert.equal(launchCount, 1, "no child may start after the workflow stop and before navigation completes");
 			releaseHandler.resolve();
 			const outcome = await navigation;
@@ -734,7 +891,8 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 			assert.equal(store.persisted.length, persisted);
 			assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "interrupted");
 			await session.prompt("Continue the restored workflow.");
-			assert.equal((outcomes[1] as any).details.status, "started", "a settled navigation must not wedge the next prompt");
+			assert.equal((outcomes.at(-1) as any).details.status, "started", JSON.stringify(outcomes));
+			assert.equal(launchCount, 2, "the next idle prompt launches exactly one fresh role");
 		} finally {
 			releaseHandler.resolve();
 			session.dispose();
@@ -1078,7 +1236,7 @@ test("workflow_complete and abort invalidate old run tokens while preserving aud
 		);
 		const { ctx } = toolContext(root);
 
-		const completed = lifecycle.complete({
+		const completed = await lifecycle.complete({
 			runId: "run-complete",
 			status: "completed",
 			summary: "Docs verified.",
@@ -1105,7 +1263,7 @@ test("workflow_complete and abort invalidate old run tokens while preserving aud
 				assignmentSource: "parent",
 			},
 		).state;
-		const aborted = lifecycle.complete({
+		const aborted = await lifecycle.complete({
 			runId: "run-abort",
 			status: "aborted",
 		});
@@ -1221,5 +1379,48 @@ test("enabled optional roles launch and roll over with model-only metadata and d
 		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /Check latest draft/);
 		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.verifier?.current, execution.replacementSessionPath);
 		assert.deepEqual(getActiveWorkflowRun(store.state)?.roleSessions.verifier?.history, [execution.nextSessionPath]);
+	});
+});
+
+test("event resume preserves historical sessions and records a confirmed rollover", async () => {
+	await withTempDir(async (root) => {
+		const definition = loadDefinition(root);
+		const store = new StateStore(startState(root, definition));
+		const sessionPath = join(root, "historical.jsonl");
+		recordSession(store, "run-docs", "author", sessionPath);
+		const result = deferred<any>();
+		const facts = {
+			sessionPath, profile: { agentId: "scribe", path: "/agents/scribe.md", hash: "hash" },
+			model: { provider: "anthropic", model: "author-model" },
+			context: { tokens: 42, source: "saved" }, metadataConfirmed: true,
+		};
+		const replacement = join(root, "replacement.jsonl");
+		const messages: any[] = [];
+		let request: any;
+		const lifecycle = createWorkflowLifecycleTools({ sendMessage: (m: any) => messages.push(m) } as any, {
+			...dependencies(store, new FakeExecution()), execution: undefined,
+			eventExecution: {
+				provider: { providerId: "pi-tmux-subagents" },
+				preflight: async () => [facts.profile],
+				inspect: async () => facts,
+				resume: async (_owner: any, payload: any) => {
+					request = payload;
+					return { facts: { ...facts, sessionPath: replacement, originalSessionPath: sessionPath, replacement: true },
+						active: false, result: result.promise, stop: async () => {}, dispose() {} };
+				},
+			} as any,
+		});
+		const { ctx } = toolContext(root);
+		const ack = await lifecycle.resume({ runId: "run-docs", role: "author", message: "Continue." }, ctx);
+		assert.equal(ack.details.status, "started");
+		assert.equal(request.sessionPath, sessionPath);
+		assert.equal(request.expected.contextTokens, 42);
+		assert.equal(request.allowRollover, true);
+		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.author.current, replacement);
+		assert.ok(getActiveWorkflowRun(store.state)?.roleSessions.author.history.includes(sessionPath));
+		result.resolve({ sessionPath: replacement, status: "completed", message: "done", changedFiles: [] });
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "completed");
+		assert.equal(messages[0]?.customType, "subagent_result");
 	});
 });

@@ -180,7 +180,7 @@ test("Peter review scope includes untracked files without executor path bookkeep
 		executionReview,
 		/git-diff-scope --ref "\$base" --include-untracked --pretty/,
 	);
-	assert.match(executionReview, /changes that existed\s+before implementation/);
+	assert.match(executionReview, /changes that existed before the\s+implementation/);
 });
 
 function assertFixPassScope(instruction: string) {

@@ -186,6 +186,22 @@ function startInput(root: string, definition: NormalizedWorkflowDefinition, runI
 	};
 }
 
+test("snapshots preserve selected provider IDs and legacy snapshots bind only to tmux", () => {
+	withTempDir((root) => {
+		const packageDir = writeWorkflowPackage(root, workflowManifest());
+		const input = { ...startInput(root, loadDefinition(packageDir)), providerId: "fake-provider" };
+		const snapshot = getActiveWorkflowRun(startWorkflowRun(createWorkflowRunState(), input).state)!;
+		assert.equal(snapshot.providerId, "fake-provider");
+		const restored = restoreWorkflowRunStateFromBranch([{ type: "custom", customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE, data: snapshot }] as any);
+		assert.equal(getActiveWorkflowRun(restored.state)?.providerId, "fake-provider");
+		const legacy = { ...snapshot } as any;
+		delete legacy.providerId;
+		assert.equal(getActiveWorkflowRun(restoreWorkflowRunStateFromBranch([
+			{ type: "custom", customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE, data: legacy },
+		] as any).state)?.providerId, "pi-tmux-subagents");
+	});
+});
+
 test("restoreWorkflowRunStateFromSession reconstructs the latest active run snapshot from branch entries", () => {
 	withTempDir((root) => {
 		const definition = loadDefinition(writeWorkflowPackage(root, workflowManifest()));

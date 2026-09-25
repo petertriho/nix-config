@@ -28,6 +28,7 @@ import {
 } from "./launch-profile.ts";
 import piTmuxSubagents, { __test__ as testApi } from "./index.ts";
 import { closeSurface } from "./tmux.ts";
+import { discoverWorkflowProviders } from "../workflow-provider/contract.ts";
 import {
 	classifyStatus,
 	createStatusState,
@@ -42,13 +43,13 @@ import {
 	resolveResultPresentation as sharedResolveResultPresentation,
 	resolveResumeLaunchBehavior as sharedResolveResumeLaunchBehavior,
 } from "./subagent-services.ts";
-import { loadWorkflowDefinitionFromPackage } from "./workflow/schema.ts";
+import { loadWorkflowDefinitionFromPackage } from "../pi-workflows/workflow/schema.ts";
 import {
 	createWorkflowRunState,
 	getActiveWorkflowRun,
 	recordWorkflowRunRoleSession,
 	startWorkflowRun,
-} from "./workflow/state.ts";
+} from "../pi-workflows/workflow/state.ts";
 
 // Hermetic guard: when this suite runs inside a pi-spawned agent session the
 // test process inherits PI_SUBAGENT_ID/PI_SUBAGENT_SESSION, isTaskRpcChildSession()
@@ -755,7 +756,7 @@ test("bundled evaluator honors read-only skill commands and every Peter role lea
 
 // ── registration and commands ──
 
-test("registers nine parent tools, three renderers, and the commands", () => {
+test("registers four subagent tools and three renderers without workflow command ownership", () => {
 	const { registeredTools, registeredCommands, registeredMessageRenderers } = createMockExtensionApi();
 	assert.deepEqual(
 		registeredTools.map((tool) => tool.name).sort(),
@@ -764,11 +765,6 @@ test("registers nine parent tools, three renderers, and the commands", () => {
 			"subagent_interrupt",
 			"subagent_resume",
 			"subagents_list",
-			"workflow_complete",
-			"workflow_gate",
-			"workflow_recover",
-			"workflow_resume",
-			"workflow_spawn",
 		],
 	);
 	assert.deepEqual(
@@ -782,275 +778,17 @@ test("registers nine parent tools, three renderers, and the commands", () => {
 	assert.equal(resume?.parameters.properties.workflowArtifacts, undefined);
 	for (const name of ["workflow_spawn", "workflow_resume", "workflow_recover"]) {
 		const tool = registeredTools.find((entry) => entry.name === name);
-		assert.match(tool?.description ?? "", /do not poll/i);
+		assert.equal(tool, undefined);
 	}
 	const commandNames = registeredCommands.map((command) => command.name);
 	assert.ok(commandNames.includes("iterate"));
 	assert.ok(commandNames.includes("subagent"));
-	assert.ok(commandNames.includes("workflow"));
-	assert.ok(commandNames.includes("workflows"));
-	assert.ok(commandNames.includes("workflow-resume"));
+	assert.equal(commandNames.includes("workflow"), false);
+	assert.equal(commandNames.includes("workflows"), false);
+	assert.equal(commandNames.includes("workflow-resume"), false);
 	assert.equal(commandNames.includes("pter"), false);
 	assert.equal(commandNames.includes("peter"), false, "alias is discovered at session start, not hard-coded");
 	assert.equal(commandNames.includes("plan"), false);
-});
-
-test("session_start discovers workflows and registers a generated alias once across reloads", async () => {
-	const root = mkdtempSync(join(tmpdir(), "pi-workflow-command-integration-"));
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-	const previousSubagentId = process.env.PI_SUBAGENT_ID;
-	const agentDir = join(root, "agent");
-	const projectDir = join(root, "project");
-	mkdirSync(projectDir, { recursive: true });
-	writeWorkflowFixture(join(agentDir, "workflows"));
-	writeAgentFile(join(agentDir, "agents"), "scribe", "name: Scribe");
-	process.env.PI_CODING_AGENT_DIR = agentDir;
-	process.env.PI_SUBAGENT_ID = "command-test-child";
-	try {
-		const { registeredCommands, eventHandlers } = createMockExtensionApi();
-		const notifications: Array<[string, string]> = [];
-		const ctx = {
-			...policyContext({ cwd: projectDir }),
-			isIdle: () => true,
-			isProjectTrusted: () => true,
-			sessionManager: {
-				getSessionFile: () => join(root, "parent.jsonl"),
-				getBranch: () => [],
-			},
-			ui: {
-				notify: (message: string, level: string) =>
-					notifications.push([message, level]),
-			},
-		};
-		const handlers = eventHandlers.get("session_start") ?? [];
-		assert.equal(handlers.length, 1);
-		await handlers[0]({ reason: "startup" }, ctx);
-		await handlers[0]({ reason: "reload" }, ctx);
-
-		assert.equal(
-			registeredCommands.filter((command) => command.name === "docs").length,
-			1,
-		);
-		const workflow = registeredCommands.find(
-			(command) => command.name === "workflow",
-		);
-		assert.ok(workflow);
-		assert.deepEqual(
-			workflow
-				.getArgumentCompletions("run doc")
-				.map((item: AnyRecord) => item.value),
-			["run docs-review "],
-		);
-
-		const workflows = registeredCommands.find(
-			(command) => command.name === "workflows",
-		);
-		assert.ok(workflows);
-		await workflows.handler("", ctx);
-		assert.match(notifications.at(-1)?.[0] ?? "", /docs-review/);
-		assert.match(notifications.at(-1)?.[0] ?? "", /alias \/docs/);
-		assert.match(notifications.at(-1)?.[0] ?? "", /source global/);
-	} finally {
-		restoreEnvVar("PI_CODING_AGENT_DIR", previousAgentDir);
-		restoreEnvVar("PI_SUBAGENT_ID", previousSubagentId);
-		rmSync(root, { recursive: true, force: true });
-	}
-});
-
-test("/workflow requires a lifecycle subcommand and /workflow-resume requires an active run", async () => {
-	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
-	const command = registeredCommands.find((entry) => entry.name === "workflow");
-	const resume = registeredCommands.find((entry) => entry.name === "workflow-resume");
-	assert.ok(command);
-	assert.ok(resume);
-	const notifications: Array<[string, string]> = [];
-	const ctx = {
-		...policyContext(),
-		isIdle: () => true,
-		ui: { notify: (text: string, level: string) => notifications.push([text, level]) },
-	};
-
-	await command.handler("   ", ctx);
-	assert.deepEqual(
-		notifications[0],
-		["Usage: /workflow list | run <id> <request> | status | abort", "warning"],
-	);
-	await resume.handler("", ctx);
-	assert.deepEqual(notifications[1], ["No active workflow run to resume.", "warning"]);
-	assert.equal(sentUserMessages.length, 0);
-});
-
-test("/workflow status is available before any generic run starts", async () => {
-	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
-	const command = registeredCommands.find((entry) => entry.name === "workflow");
-	assert.ok(command);
-	const notifications: Array<[string, string]> = [];
-	const ctx = {
-		...policyContext(),
-		ui: {
-			notify: (text: string, level: string) => notifications.push([text, level]),
-		},
-	};
-	await command.handler("status", ctx);
-	assert.equal(sentUserMessages.length, 0);
-	assert.equal(testApi.runningSubagents.size, 0);
-	assert.match(notifications[0]?.[0] ?? "", /No active workflow run/);
-});
-
-test("workflow commits publish only after durable append and fail closed after a partial append", () => {
-	const emptyState = {
-		activeRunId: null,
-		runsById: {},
-		runOrder: [],
-	} as any;
-	const previousState = {
-		activeRunId: "old",
-		runsById: { old: { runId: "old" } },
-		runOrder: ["old"],
-	} as any;
-	const nextState = {
-		activeRunId: "next",
-		runsById: { next: { runId: "next" } },
-		runOrder: ["next"],
-	} as any;
-	const snapshots = [{ runId: "old" }, { runId: "next" }] as any;
-
-	try {
-		testApi.setWorkflowRunStateForTests(previousState);
-		const observedDuringAppend: unknown[] = [];
-		testApi.commitWorkflowRunTransition(
-			{
-				appendEntry() {
-					observedDuringAppend.push(testApi.getWorkflowRunStateForTests());
-				},
-			} as any,
-			{ state: nextState, snapshots } as any,
-		);
-		assert.deepEqual(observedDuringAppend, [previousState, previousState]);
-		assert.equal(testApi.getWorkflowRunStateForTests(), nextState);
-
-		testApi.setWorkflowRunStateForTests(previousState);
-		assert.throws(
-			() =>
-				testApi.commitWorkflowRunTransition(
-					{
-						appendEntry() {
-							throw new Error("disk full");
-						},
-					} as any,
-					{ state: nextState, snapshots: [snapshots[0]] } as any,
-				),
-			/before any snapshot was appended; live workflow state was left unchanged/i,
-		);
-		assert.equal(testApi.getWorkflowRunStateForTests(), previousState);
-
-		testApi.setWorkflowRunStateForTests(previousState);
-		let appendCount = 0;
-		assert.throws(
-			() =>
-				testApi.commitWorkflowRunTransition(
-					{
-						appendEntry() {
-							appendCount += 1;
-							if (appendCount === 2) throw new Error("disk full");
-						},
-					} as any,
-					{ state: nextState, snapshots } as any,
-				),
-			/appending 1 of 2 snapshots; live workflow state was cleared/i,
-		);
-		assert.deepEqual(testApi.getWorkflowRunStateForTests(), emptyState);
-	} finally {
-		testApi.setWorkflowRunStateForTests(emptyState);
-	}
-});
-
-test("session_start keeps the restored run in memory and warns when snapshot persistence fails", async () => {
-	const root = mkdtempSync(join(tmpdir(), "pi-workflow-restore-persist-"));
-	const projectDir = join(root, "project");
-	mkdirSync(projectDir, { recursive: true });
-	writeWorkflowFixture(join(root, "agent", "workflows"));
-	const definitionResult = loadWorkflowDefinitionFromPackage(
-		join(root, "agent", "workflows", "docs-review"),
-	);
-	assert.equal(definitionResult.status, "ok");
-	// Fabricate the persisted branch entry through the real state machine so the
-	// snapshot round-trips through restoreWorkflowRunStateFromSession.
-	const started = startWorkflowRun(createWorkflowRunState(), {
-		runId: "run-docs",
-		source: "project",
-		definition: definitionResult.definition,
-		projectRoot: projectDir,
-		policy: "per-role",
-		assignmentSource: "preset",
-		originalAssignments: {
-			author: { provider: "test", model: "echo", thinking: "off" },
-		},
-	});
-	const launched = recordWorkflowRunRoleSession(
-		started.state,
-		"run-docs",
-		"author",
-		join(root, "author-1.jsonl"),
-		{ launchStatus: "running" },
-	);
-	const runningSnapshot = getActiveWorkflowRun(launched.state);
-	assert.equal(runningSnapshot?.activeLaunch?.status, "running");
-
-	const previousSubagentId = process.env.PI_SUBAGENT_ID;
-	process.env.PI_SUBAGENT_ID = "restore-persist-test-child";
-	const { api, eventHandlers } = createMockExtensionApi();
-	const notifications: Array<[string, string]> = [];
-	const appendedTypes: string[] = [];
-	// The shared appendEntry mock throws only for workflow-run snapshot entries.
-	(api as any).appendEntry = (customType: string) => {
-		appendedTypes.push(customType);
-		if (customType === "pi-tmux-subagents.workflow-run") {
-			throw new Error("parent log busy");
-		}
-	};
-	const ctx = {
-		...policyContext({ cwd: projectDir }),
-		isIdle: () => true,
-		isProjectTrusted: () => true,
-		sessionManager: {
-			getSessionFile: () => join(root, "parent.jsonl"),
-			getBranch: () => [
-				{
-					type: "custom",
-					customType: "pi-tmux-subagents.workflow-run",
-					data: runningSnapshot,
-				},
-			],
-		},
-		ui: {
-			notify: (message: string, level: string) => notifications.push([message, level]),
-		},
-	};
-	try {
-		const handlers = eventHandlers.get("session_start") ?? [];
-		assert.equal(handlers.length, 1);
-		await handlers[0]({ reason: "reload" }, ctx);
-
-		const state = testApi.getWorkflowRunStateForTests();
-		assert.equal(state.activeRunId, "run-docs");
-		const restored = state.runsById["run-docs"];
-		assert.ok(restored);
-		assert.equal(restored.status, "active");
-		assert.equal(restored.activeLaunch?.status, "interrupted");
-		assert.deepEqual(appendedTypes, ["pi-tmux-subagents.workflow-run"]);
-		const persistWarning = notifications
-			.map(([message]) => message)
-			.find((message) => /restored in memory/i.test(message));
-		assert.ok(persistWarning);
-		assert.match(persistWarning, /session log failed: parent log busy/i);
-		assert.match(persistWarning, /re-derived on the next reload/i);
-	} finally {
-		restoreEnvVar("PI_SUBAGENT_ID", previousSubagentId);
-		delete (api as any).appendEntry;
-		testApi.setWorkflowRunStateForTests(createWorkflowRunState());
-		rmSync(root, { recursive: true, force: true });
-	}
 });
 
 test("PI_DENY_TOOLS gates tool registration", () => {
@@ -1066,190 +804,7 @@ test("PI_DENY_TOOLS gates tool registration", () => {
 	);
 });
 
-for (const completion of ["running", "spawn", "resume", "recovery"]) {
-const completionCleanupFails = completion !== "running";
-test(`tree navigation stops only the owned workflow role and preserves its interrupted branch and files${completionCleanupFails ? ` after failed completion cleanup (${completion})` : ""}`, async () => {
-	await withIsolatedAgentEnv(async ({ projectAgentsDir, globalAgentsDir }) => {
-		const root = dirname(globalAgentsDir);
-		const project = process.cwd();
-		execFileSync("git", ["init", "-q", project]);
-		writeAgentFile(projectAgentsDir, "scribe", "name: scribe\nauto-exit: true");
-		writeWorkflowFixture(join(root, "workflows"));
-		const loaded = loadWorkflowDefinitionFromPackage(join(root, "workflows", "docs-review"));
-		assert.equal(loaded.status, "ok");
-		const bin = join(root, "bin");
-		mkdirSync(bin);
-		const calls = join(root, "tmux-calls");
-		const counter = join(root, "pane-count");
-		const refuseStop = join(root, "refuse-stop");
-		writeFileSync(join(bin, "tmux"), `#!/bin/sh
-printf '%s\\n' "$*" >> '${calls}'
-if [ "$1" = kill-pane ] && [ -f '${refuseStop}' ]; then exit 1; fi
-if [ "$1" = split-window ]; then
-  n=0; [ ! -f '${counter}' ] || read -r n < '${counter}'
-  n=$((n+1)); printf '%s\\n' "$n" > '${counter}'
-  printf '%%%s\\n' "$n"
-fi
-`);
-		chmodSync(join(bin, "tmux"), 0o755);
-		const previous = { PATH: process.env.PATH, TMUX: process.env.TMUX };
-		process.env.PATH = `${bin}:${previous.PATH}`;
-		process.env.TMUX = "fake-workflow-tree";
-		const { api, registeredTools, eventHandlers, sentMessages } = createMockExtensionApi();
-		const persisted: AnyRecord[] = [];
-		(api as any).appendEntry = (customType: string, data: unknown) =>
-			persisted.push({ type: "custom", customType, data: structuredClone(data) });
-		let branch: AnyRecord[] = [];
-		const notifications: string[] = [];
-		const ctx: AnyRecord = policyContext({
-			cwd: project,
-			sessionManager: {
-				getSessionFile: () => join(root, "parent.jsonl"),
-				getSessionId: () => "tree-parent",
-				getSessionDir: () => root,
-				getBranch: () => branch,
-			},
-			ui: { notify(message: string) { notifications.push(message); }, setWidget() {} },
-		});
-		try {
-			testApi.setWorkflowRunStateForTests(startWorkflowRun(createWorkflowRunState(), {
-				runId: "tree-run", source: "project", definition: loaded.definition,
-				projectRoot: project, policy: "per-role", assignmentSource: "preset",
-				originalAssignments: { author: { provider: "anthropic", model: "claude", thinking: "off" } },
-			}).state);
-			const runTool = (name: string, params: AnyRecord) =>
-				registeredTools.find((tool) => tool.name === name)!.execute("call", params, undefined, undefined, ctx);
-			const ordinary = await runTool("subagent", { name: "Unrelated", task: "ordinary work" });
-			const launched = await runTool("workflow_spawn", { runId: "tree-run", role: "author", task: "write docs" });
-			assert.equal(launched.details.status, "started", JSON.stringify(launched));
-			let owned = testApi.runningSubagents.get(launched.details.id)!;
-			const unrelated = testApi.runningSubagents.get(ordinary.details.id)!;
-			assert.ok(owned.abortController);
-			writeFileSync(owned.sessionFile, '{"type":"session","version":3,"id":"child"}\n');
-			if (completion === "resume" || completion === "recovery") {
-				await eventHandlers.get("session_before_tree")![0]({}, ctx);
-				ctx.isIdle = () => true;
-				for (const handler of eventHandlers.get("before_agent_start") ?? []) {
-					await handler({ systemPrompt: "" }, ctx);
-				}
-				ctx.hasUI = true;
-				ctx.ui.select = async (_title: string, choices: string[]) => choices[0];
-				const next = completion === "resume"
-					? await runTool("workflow_resume", { runId: "tree-run", role: "author" })
-					: await runTool("workflow_recover", { runId: "tree-run", role: "author", failure: "quota exceeded" });
-				assert.equal(next.details.status, "started", JSON.stringify(next));
-				owned = testApi.runningSubagents.get(next.details.id)!;
-			}
-			const profile = readLaunchProfile(owned.sessionFile);
-			assert.equal(profile.status, "ok");
-			const profileBytes = readFileSync(profilePathForSession(owned.sessionFile), "utf8");
-			const sessionBytes = readFileSync(owned.sessionFile, "utf8");
-			const scriptBytes = readFileSync(owned.launchScriptFile!, "utf8");
-			// Restore the same run/role/session IDs: ID matching alone is not ownership.
-			branch = [persisted.at(-1)!];
 
-			writeFileSync(refuseStop, "");
-			if (completionCleanupFails) {
-				const send = api.sendMessage;
-				await new Promise<void>((resolve) => {
-					api.sendMessage = (message, options) => {
-						send(message, options);
-						resolve();
-					};
-					writeFileSync(`${owned.sessionFile}.exit`, JSON.stringify({ type: "done" }));
-				});
-				api.sendMessage = send;
-				const closeAttempts = readFileSync(calls, "utf8").split("\n")
-					.filter((line) => line === `kill-pane -t ${owned.surface}`);
-				assert.equal(closeAttempts.length, 2, "the shared watcher tried and failed to close the completed child twice");
-			}
-			const failedStop = await eventHandlers.get("session_before_tree")![0]({}, ctx);
-			assert.equal((failedStop as any)?.cancel, true, "a failed stop must leave navigation cancelled");
-			if (completionCleanupFails) {
-				const closeAttempts = readFileSync(calls, "utf8").split("\n")
-					.filter((line) => line === `kill-pane -t ${owned.surface}`);
-				assert.equal(closeAttempts.length, 3, "navigation must make its own strict stop attempt after watcher cleanup fails");
-			}
-			assert.ok(notifications.some((message) => /could not stop.*saved sessions and artifacts are preserved/i.test(message)));
-			assert.equal(testApi.runningSubagents.get(owned.id), owned, "retain ownership so the stop can be retried");
-			const notify = ctx.ui.notify;
-			ctx.ui.notify = () => { throw new Error("UI unavailable"); };
-			try {
-				const withoutUi = await eventHandlers.get("session_before_tree")![0]({}, ctx);
-				assert.equal((withoutUi as any)?.cancel, true, "notification failure must not bypass the stop failure");
-			} finally {
-				ctx.ui.notify = notify;
-			}
-			rmSync(refuseStop);
-			const before = await eventHandlers.get("session_before_tree")![0]({}, ctx);
-			assert.notEqual((before as any)?.cancel, true, "a running role must not block navigation");
-			assert.equal(owned.abortController!.signal.aborted, true, "old role watcher must be detached before switching");
-			assert.equal(testApi.runningSubagents.has(owned.id), false);
-			assert.match(readFileSync(calls, "utf8"), new RegExp(`kill-pane -t ${owned.surface}`));
-			assert.equal(unrelated.abortController!.signal.aborted, false);
-			assert.equal(testApi.runningSubagents.get(unrelated.id), unrelated);
-			await eventHandlers.get("session_tree")![0]({}, ctx);
-			await new Promise((resolve) => setTimeout(resolve, 30));
-			assert.equal(getActiveWorkflowRun(testApi.getWorkflowRunStateForTests())?.activeLaunch?.status, "interrupted");
-			assert.equal(sentMessages.length, completionCleanupFails ? 1 : 0, "old cancellation/result must not enter the restored branch");
-			assert.equal(readFileSync(owned.sessionFile, "utf8"), sessionBytes);
-			assert.equal(readFileSync(owned.launchScriptFile!, "utf8"), scriptBytes);
-			assert.deepEqual(readLaunchProfile(owned.sessionFile), profile);
-			assert.equal(readFileSync(profilePathForSession(owned.sessionFile), "utf8"), profileBytes);
-			// The SDK stays non-idle until navigateTree finally returns. The next
-			// normal prompt supplies the safe release boundary, not session_tree.
-			ctx.isIdle = () => true;
-			for (const handler of eventHandlers.get("before_agent_start") ?? []) {
-				await handler({ systemPrompt: "" }, ctx);
-			}
-			const resumed = await runTool("workflow_resume", { runId: "tree-run", role: "author" });
-			assert.equal(resumed.details.status, "started", JSON.stringify(resumed));
-			const resumedChild = testApi.runningSubagents.get(resumed.details.id)!;
-			assert.equal(resumedChild.sessionFile, owned.sessionFile, "explicit resume still uses the preserved role session");
-			assert.equal(resumedChild.abortController!.signal.aborted, false);
-			await eventHandlers.get("session_before_tree")![0]({}, ctx);
-			assert.equal(resumedChild.abortController!.signal.aborted, true);
-			assert.equal(unrelated.abortController!.signal.aborted, false);
-		} finally {
-			await eventHandlers.get("session_shutdown")![0]({}, ctx);
-			await new Promise((resolve) => setTimeout(resolve, 30));
-			// This module is shared by the suite. Re-arm through the native session
-			// lifecycle so later launch tests do not inherit an aborted poll signal.
-			const previousChild = process.env.PI_SUBAGENT_ID;
-			process.env.PI_SUBAGENT_ID = "tree-test-cleanup";
-			branch = [];
-			try {
-				await eventHandlers.get("session_start")![0]({ reason: "new" }, ctx);
-			} finally {
-				restoreEnvVar("PI_SUBAGENT_ID", previousChild);
-			}
-			restoreEnvVar("PATH", previous.PATH);
-			restoreEnvVar("TMUX", previous.TMUX);
-		}
-	});
-});
-}
-
-test("workflow_gate is parent-only and honors its denied-tool policy", () => {
-	const parent = createMockExtensionApi();
-	const gate = parent.registeredTools.find((tool) => tool.name === "workflow_gate");
-	assert.ok(gate);
-	assert.deepEqual(Object.keys(gate.parameters.properties).sort(), [
-		"artifact", "data", "gate", "reviewDirectory", "runId",
-	]);
-	const childOrDeniedEnvironments: Array<Record<string, string>> = [
-		{ PI_SUBAGENT_ID: "child" },
-		{ PI_SUBAGENT_SESSION: "/tmp/child.jsonl" },
-		{ PI_DENY_TOOLS: "workflow_gate" },
-	];
-	for (const env of childOrDeniedEnvironments) {
-		assert.equal(
-			createMockExtensionApi({ env }).registeredTools.some((tool) => tool.name === "workflow_gate"),
-			false,
-			JSON.stringify(env),
-		);
-	}
-});
 
 test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards", () => {
 	const previous = process.env.PI_DENY_TOOLS;
@@ -1263,11 +818,6 @@ test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards
 				"subagent_interrupt",
 				"subagent_resume",
 				"subagents_list",
-				"workflow_complete",
-				"workflow_gate",
-				"workflow_recover",
-				"workflow_resume",
-				"workflow_spawn",
 			],
 		);
 		// scrub window closed: ambient value visible again to execute()-time readers
@@ -1852,7 +1402,8 @@ test("configured agent defaults reach the child --model and launch profile over 
 		}
 		process.chdir(previousCwd);
 		restoreEnvVar("PI_CODING_AGENT_DIR", previousAgentDir);
-		rmSync(root, { recursive: true, force: true });
+		// The pane's EXIT trap can still write its sentinel after closeSurface.
+		rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 	}
 });
 
@@ -3641,6 +3192,32 @@ test("ordinary launches keep their profile interaction, auto-exit, and prompt be
 });
 
 // ── pi-tasks RPC bridge wiring (root session lifecycle) ──
+
+test("tmux workflow provider root registration is idempotent and shutdown unsubscribes", async () => {
+	const events = createRecordingEventBus();
+	const api = createTaskBridgeMockApi(events);
+	const ctx = taskBridgeContext();
+	const originalTmux = process.env.TMUX;
+	try {
+		process.env.TMUX = originalTmux ?? "/tmp/test-tmux";
+		testApi.attachWorkflowProvider(api, ctx as never);
+		const first = await discoverWorkflowProviders(events, { timeoutMs: 5 });
+		assert.equal(first.length, 1);
+		assert.equal(first[0].providerId, "pi-tmux-subagents");
+		testApi.attachWorkflowProvider(api, ctx as never);
+		assert.equal((await discoverWorkflowProviders(events, { timeoutMs: 5 })).length, 1);
+		testApi.shutdownWorkflowProvider();
+		assert.deepEqual(await discoverWorkflowProviders(events, { timeoutMs: 5 }), []);
+		process.env.PI_SUBAGENT_ID = "child";
+		testApi.attachWorkflowProvider(api, ctx as never);
+		assert.deepEqual(await discoverWorkflowProviders(events, { timeoutMs: 5 }), []);
+	} finally {
+		testApi.shutdownWorkflowProvider?.();
+		delete process.env.PI_SUBAGENT_ID;
+		if (originalTmux === undefined) delete process.env.TMUX;
+		else process.env.TMUX = originalTmux;
+	}
+});
 
 function createRecordingEventBus() {
 	const handlers = new Map<string, Set<(data: unknown) => void>>();

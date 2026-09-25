@@ -325,6 +325,12 @@ in
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
         "${cfg.configDir}/extensions/pi-tmux-subagents".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tmux-subagents";
+        "${cfg.configDir}/extensions/pi-workflows".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-workflows";
+        # Transport-neutral imports are siblings of both extension entry points.
+        # This directory has no index.ts, so Pi does not load it as an extension.
+        "${cfg.configDir}/extensions/workflow-provider".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/workflow-provider";
         "${cfg.configDir}/extensions/pi-history".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-history";
 

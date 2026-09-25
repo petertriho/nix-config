@@ -59,7 +59,7 @@ import {
 	type SubagentUsageSummary,
 	withContextWindow,
 } from "./usage.ts";
-import { classifyProviderFailure } from "./workflow/recovery.ts";
+import { classifyProviderFailure } from "../workflow-provider/failure.ts";
 
 export interface LaunchContext {
 	pi?: ExtensionAPI;
@@ -236,6 +236,8 @@ export interface ResumeLifecycleContext {
 	rolloverMessage?: string;
 	onLaunched?: (input: {
 		running: RunningSubagent;
+		selection?: ModelSelection;
+		userSelectedModel?: boolean;
 		replacement: boolean;
 		originalSessionPath: string;
 		sessionPath: string;
@@ -1549,6 +1551,8 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 
 				await lifecycle?.onLaunched?.({
 					running,
+					selection: resolvedModel?.selection,
+					userSelectedModel: resolvedModel?.source === "picker",
 					replacement: true,
 					originalSessionPath: params.sessionPath,
 					sessionPath: running.sessionFile,
@@ -1786,6 +1790,8 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 
 			await lifecycle?.onLaunched?.({
 				running,
+				selection: resolvedModel?.selection,
+				userSelectedModel: resolvedModel?.source === "picker",
 				replacement: false,
 				originalSessionPath: params.sessionPath,
 				sessionPath: params.sessionPath,

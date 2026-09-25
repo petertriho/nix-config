@@ -1,4 +1,4 @@
-import type { ModelSelection } from "../launch-profile.ts";
+import type { ModelSelection } from "../../workflow-provider/launch-profile.ts";
 import type { WorkflowGateAttempt } from "./plannotator.ts";
 
 export const WORKFLOW_MANIFEST_VERSION = 1 as const;
@@ -144,6 +144,8 @@ export interface WorkflowRunActiveLaunch {
 
 export interface WorkflowRunSnapshot {
 	readonly version: typeof WORKFLOW_RUN_SNAPSHOT_VERSION;
+	/** Missing only in pre-extraction snapshots, which are tmux-backed. */
+	readonly providerId?: string;
 	readonly runId: string;
 	readonly workflowId: string;
 	readonly status: WorkflowRunStatus;

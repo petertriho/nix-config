@@ -2,7 +2,7 @@
 
 The registry discovers workflow packages from three non-recursive roots:
 
-1. bundled `workflows/`
+1. bundled `pi-workflows/workflows/`
 2. global `${getAgentDir()}/workflows/`
 3. trusted project `${canonicalProjectRoot}/${CONFIG_DIR_NAME}/workflows/`
 

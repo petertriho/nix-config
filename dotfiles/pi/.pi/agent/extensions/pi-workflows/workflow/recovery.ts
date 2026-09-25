@@ -1,8 +1,8 @@
-import type { SavedContextEstimate } from "../context-fit.ts";
 import type {
 	ModelSelection,
 	ProviderFailureRecord,
-} from "../launch-profile.ts";
+} from "../../workflow-provider/launch-profile.ts";
+import { classifyProviderFailure, type ProviderFailureKind } from "../../workflow-provider/failure.ts";
 import {
 	overrideWorkflowRunAssignment,
 	assertWorkflowRoleEnabled,
@@ -16,6 +16,13 @@ import {
 } from "./handoff.ts";
 import type { WorkflowRunSnapshot } from "./types.ts";
 
+type RecoveryContextEstimate = {
+	readonly tokens: number;
+	readonly usageTokens: number;
+	readonly trailingTokens: number;
+	readonly source: "usage+estimate" | "conservative";
+};
+
 /**
  * Workflow provider-failure recovery helpers.
  *
@@ -25,45 +32,8 @@ import type { WorkflowRunSnapshot } from "./types.ts";
  * or phase names.
  */
 
-export type ProviderFailureKind = ProviderFailureRecord["kind"];
-
-/**
- * Quota/usage-exhaustion markers. These failures are not transient: the
- * account ran out of quota, credits, or spend allowance and retrying cannot
- * succeed until the limit resets or is raised.
- */
-const USAGE_FAILURE_PATTERNS: readonly RegExp[] = [
-	/\bquota\b/i,
-	/\busage[ _-]?limit/i,
-	/\bcredit/i,
-	/\bbilling\b/i,
-	/\bspend(ing)? limit/i,
-	/\bprepaid\b/i,
-	/\bmonthly limit\b/i,
-	/\bdaily limit\b/i,
-	/insufficient[_ -]?funds/i,
-	/purchase (more )?(credits?|a plan)/i,
-	/\bplan limit\b/i,
-];
-
-/**
- * Transient failure markers. When one of these reaches the parent, the
- * child's normal retries are already exhausted.
- */
-const TRANSIENT_FAILURE_PATTERNS: readonly RegExp[] = [
-	/\bretr(y|ies|ying)\b[^\n]*\b(exhaust|exceeded|failed|gave up|stopped)/i,
-	/\b(exhaust|gave up|stopped)\b[^\n]*\bretr(y|ies|ying)\b/i,
-	/\boverload/i,
-	/\brate[ _-]?limit/i,
-	/\btimeout\b|\btimed out\b|etimedout/i,
-	/\bconnection\b.*\b(error|reset|refused|closed|lost)\b/i,
-	/econnreset|econnrefused|enotfound|epipe/i,
-	/\bnetwork\b/i,
-	/\btemporar(ily|y)\b/i,
-	/\btry again\b/i,
-	/\bserver error\b|\binternal server\b|service unavailable|\bapi[ _-]?error\b/i,
-	/\b(500|502|503|504|529|429)\b/,
-];
+export { classifyProviderFailure };
+export type { ProviderFailureKind };
 
 const FAILURE_KIND_LABELS: Record<ProviderFailureKind, string> = {
 	usage: "quota/usage exhaustion",
@@ -108,14 +78,6 @@ function resolveWorkflowRecoveryRoleId(
  * failure is `other`, which keeps the existing report-and-ask behavior
  * instead of a model-switch gate.
  */
-export function classifyProviderFailure(message: string): ProviderFailureKind {
-	const text = message.trim();
-	if (!text) return "other";
-	if (USAGE_FAILURE_PATTERNS.some((pattern) => pattern.test(text))) return "usage";
-	if (TRANSIENT_FAILURE_PATTERNS.some((pattern) => pattern.test(text))) return "retry-exhausted";
-	return "other";
-}
-
 export function formatFailureKind(kind: ProviderFailureKind): string {
 	return FAILURE_KIND_LABELS[kind];
 }
@@ -219,7 +181,7 @@ export function formatWorkflowRecoverySummaryForRoleLabel(input: {
 	sessionPath?: string;
 	provider?: string;
 	model?: string;
-	estimate?: SavedContextEstimate;
+	estimate?: RecoveryContextEstimate;
 }): string {
 	const providerModel = input.provider && input.model
 		? `${input.provider}/${input.model}`
@@ -245,7 +207,7 @@ export function formatWorkflowRecoverySummary(input: {
 	sessionPath?: string;
 	provider?: string;
 	model?: string;
-	estimate?: SavedContextEstimate;
+	estimate?: RecoveryContextEstimate;
 }): string {
 	const labels = buildWorkflowRecoveryLabels(input.snapshot, input.roleId);
 	return formatWorkflowRecoverySummaryForRoleLabel({

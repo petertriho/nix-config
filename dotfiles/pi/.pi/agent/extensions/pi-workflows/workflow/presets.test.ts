@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Model } from "@earendil-works/pi-ai";
@@ -138,6 +138,62 @@ function model(provider: string, id: string, reasoning = true): Model<any> {
 		thinkingLevelMap: reasoning ? { high: "high" } : undefined,
 	};
 }
+
+test("validated legacy presets migrate to pi-workflows without deleting legacy files", () => {
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root));
+		const preset = makeWorkflowModelPreset(definition, root, roles(definition));
+		const legacy = join(root, "state/pi-tmux-subagents/workflow-presets", `${workflowPresetKey(root, definition.id)}.json`);
+		mkdirSync(dirname(legacy), { recursive: true });
+		const bytes = JSON.stringify(preset);
+		writeFileSync(legacy, bytes);
+		const result = readWorkflowModelPreset(definition, root, root);
+		assert.equal(result.status, "ok");
+		assert.match(result.path, /state\/pi-workflows\/workflow-presets/);
+		assert.equal(readFileSync(legacy, "utf8"), bytes);
+		assert.deepEqual(JSON.parse(readFileSync(result.path, "utf8")), preset);
+	});
+});
+
+test("preset conflicts report legacy differences and invalid new files never fall back", () => {
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root));
+		const preset = makeWorkflowModelPreset(definition, root, roles(definition));
+		const legacy = join(root, "state/pi-tmux-subagents/workflow-presets", `${workflowPresetKey(root, definition.id)}.json`);
+		mkdirSync(dirname(legacy), { recursive: true });
+		writeFileSync(legacy, JSON.stringify(preset));
+		const newer = makeWorkflowModelPreset(definition, root, roles(definition, "new", "model"));
+		const path = writeWorkflowModelPreset(newer, root);
+		const current = readWorkflowModelPreset(definition, root, root);
+		assert.equal(current.status, "ok");
+		if (current.status !== "ok") throw new Error("Expected new preset");
+		assert.deepEqual(current.preset, newer);
+		assert.match(current.warnings?.join("\n") ?? "", /differs/);
+		writeFileSync(path, "{invalid");
+		assert.equal(readWorkflowModelPreset(definition, root, root).status, "invalid");
+		assert.deepEqual(JSON.parse(readFileSync(legacy, "utf8")), preset);
+	});
+});
+
+test("legacy migration rejects invalid content and never replaces a colliding new path", () => {
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root));
+		const legacy = join(root, "state/pi-tmux-subagents/workflow-presets", `${workflowPresetKey(root, definition.id)}.json`);
+		mkdirSync(dirname(legacy), { recursive: true });
+		writeFileSync(legacy, "{}");
+		assert.equal(readWorkflowModelPreset(definition, root, root).status, "invalid");
+		const preset = makeWorkflowModelPreset(definition, root, roles(definition));
+		writeFileSync(legacy, JSON.stringify(preset));
+		const path = workflowPresetPath(root, definition.id, root);
+		mkdirSync(dirname(path), { recursive: true });
+		// A dangling concurrent path is absent to the reader but occupied for exclusive publish.
+		symlinkSync(join(root, "not-created"), path);
+		const collided = readWorkflowModelPreset(definition, root, root);
+		assert.equal(collided.status, "invalid");
+		if (collided.status === "invalid") assert.match(collided.error, /EEXIST/);
+		assert.deepEqual(JSON.parse(readFileSync(legacy, "utf8")), preset);
+	});
+});
 
 test("workflow presets are keyed by canonical project root and workflow ID and ignore legacy fixed-role files", () => {
 	withTempDir((dir) => {

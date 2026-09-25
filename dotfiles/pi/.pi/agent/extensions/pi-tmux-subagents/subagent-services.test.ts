@@ -18,7 +18,7 @@ import {
 	createSubagentExecutionServices,
 	type SubagentServiceDependencies,
 } from "./subagent-services.ts";
-import { buildProviderFailureRecord } from "./workflow/recovery.ts";
+import { buildProviderFailureRecord } from "../pi-workflows/workflow/recovery.ts";
 
 const TEST_MODEL = {
 	provider: "test-provider",

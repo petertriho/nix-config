@@ -1,10 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import {
-	calculateContextTokens,
-	estimateTokens,
-	SessionManager,
-} from "@earendil-works/pi-coding-agent";
+export { estimateSavedSessionContext } from "../workflow-provider/context-estimate.ts";
+export type { SavedContextEstimate } from "../workflow-provider/context-estimate.ts";
 import {
 	type ContextEstimateRecord,
 	type LaunchProfile,
@@ -18,13 +14,6 @@ import {
  * with Pi. */
 export const RESUME_ROLLOVER_THRESHOLD = 0.65;
 
-export interface SavedContextEstimate {
-	tokens: number;
-	usageTokens: number;
-	trailingTokens: number;
-	source: "usage+estimate" | "conservative";
-}
-
 export interface ContextFit {
 	contextTokens: number;
 	contextWindow: number;
@@ -35,94 +24,6 @@ export interface ContextFit {
 export type ResumeGateAction = "fresh" | "resume" | "choose" | "stop";
 
 type GateContext = Pick<ExtensionContext, "hasUI" | "ui">;
-
-type AssistantUsage = Parameters<typeof calculateContextTokens>[0];
-
-interface AssistantUsageCandidate {
-	usage: AssistantUsage;
-	stopReason?: string;
-}
-
-function assistantUsage(message: unknown): AssistantUsageCandidate | undefined {
-	if (!message || typeof message !== "object") return undefined;
-	const candidate = message as { role?: unknown; usage?: unknown; stopReason?: unknown };
-	if (candidate.role !== "assistant" || !candidate.usage) return undefined;
-	return {
-		usage: candidate.usage as AssistantUsage,
-		...(typeof candidate.stopReason === "string"
-			? { stopReason: candidate.stopReason }
-			: {}),
-	};
-}
-
-/**
- * Estimate the saved session's active context without mutating the file.
- *
- * Opens the session read-only through Pi's session utilities. Pi may rewrite
- * the file while opening (empty-file initialization or version migration), so
- * the original bytes are snapshotted first and restored if Pi touched them.
- * Prefers the latest completed assistant usage plus an estimate of trailing
- * messages; falls back to a conservative estimate over every message when no
- * usage exists.
- */
-export function estimateSavedSessionContext(sessionPath: string): SavedContextEstimate {
-	const before = readFileSync(sessionPath, "utf8");
-	try {
-		return estimateFromManager(SessionManager.open(sessionPath));
-	} finally {
-		if (existsSync(sessionPath) && readFileSync(sessionPath, "utf8") !== before) {
-			// Pi only rewrites on initialization or migration; estimation must not.
-			writeFileSync(sessionPath, before, "utf8");
-		}
-	}
-}
-
-function estimateFromManager(
-	session: ReturnType<typeof SessionManager.open>,
-): SavedContextEstimate {
-	const messages = session.buildSessionContext().messages;
-
-	let lastUsageIndex = -1;
-	let usageTokens = 0;
-	for (let index = messages.length - 1; index >= 0; index -= 1) {
-		const candidate = assistantUsage(messages[index]);
-		if (!candidate) continue;
-		try {
-			const candidateTokens = calculateContextTokens(candidate.usage);
-			if (
-				candidateTokens === 0
-				&& (candidate.stopReason === "error" || candidate.stopReason === "aborted")
-			) {
-				continue;
-			}
-			usageTokens = candidateTokens;
-			lastUsageIndex = index;
-			break;
-		} catch {
-			// Fall through to the conservative full-message estimate.
-		}
-	}
-
-	if (lastUsageIndex >= 0) {
-		const trailingTokens = messages
-			.slice(lastUsageIndex + 1)
-			.reduce((sum, message) => sum + estimateTokens(message), 0);
-		return {
-			tokens: Math.max(0, usageTokens + trailingTokens),
-			usageTokens,
-			trailingTokens,
-			source: "usage+estimate",
-		};
-	}
-
-	const tokens = messages.reduce((sum, message) => sum + estimateTokens(message), 0);
-	return {
-		tokens,
-		usageTokens: 0,
-		trailingTokens: tokens,
-		source: "conservative",
-	};
-}
 
 /** Persistable form of a context-fit decision for the launch profile. */
 export function toContextEstimateRecord(fit: ContextFit): ContextEstimateRecord {

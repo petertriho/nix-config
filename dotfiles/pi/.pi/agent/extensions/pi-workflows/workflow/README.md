@@ -1,7 +1,7 @@
 # Workflow subsystem modules
 
 This directory holds the generic workflow runtime pieces for
-`pi-tmux-subagents`, with each module's tests beside it as `*.test.ts`.
+`pi-workflows`, with each module's tests beside it as `*.test.ts`.
 
 `synthetic-docs-review.test.ts` is the generality proof: it authors a
 temporary, never-bundled `docs-review` package (roles `author`/`verifier`, data
@@ -114,9 +114,12 @@ explicit later resume. Old watchers cannot update or notify the new branch.
 Unrelated ordinary subagents are not stopped. If stopping the workflow role
 fails, navigation is cancelled rather than leaving that role running.
 
-This is a clean rename: no bundled `/pter` alias and no old-preset migration.
-Configure a new five-role Peter preset. Historical runs keep their saved
-workflow definition and identity, including the old name and role set.
+Peter has no bundled `/pter` alias or migration from obsolete fixed-role
+presets. The extension move does migrate valid generic workflow presets
+from `state/pi-tmux-subagents/workflow-presets` to
+`state/pi-workflows/workflow-presets`. Legacy files remain intact.
+Historical runs keep their saved workflow definition and identity,
+including the old name and role set.
 
 Key rules in v1:
 

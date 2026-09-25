@@ -115,7 +115,7 @@ function createDashboardHarness() {
 		requestRender() {
 			requestRenderCount += 1;
 		},
-	} as TUI;
+	};
 	const ui = {
 		setHeader() {
 			headerRegistered = true;
@@ -161,7 +161,7 @@ function createDashboardHarness() {
 		},
 		mountChat() {
 			assert.ok(widgetFactory);
-			return widgetFactory(tui);
+			return widgetFactory(tui as unknown as TUI);
 		},
 		async mountChatBlock() {
 			this.mountChat();

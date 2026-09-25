@@ -1,9 +1,9 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { ModelSelection } from "../launch-profile.ts";
+import type { ModelSelection } from "../../workflow-provider/launch-profile.ts";
 import {
 	resolveModelPolicy,
 	type ResolvedModelSelection,
-} from "../model-picker.ts";
+} from "../../workflow-provider/model-picker.ts";
 import {
 	canonicalProjectRoot,
 	editWorkflowPresetRoles,
@@ -275,6 +275,9 @@ export async function chooseWorkflowStartup(
 	const root = canonicalProjectRoot(projectRoot);
 	const presetRead = readWorkflowModelPreset(definition, root, options.agentDir);
 	if (presetRead.status === "invalid") ctx.ui.notify(presetRead.error, "warning");
+	if (presetRead.status === "ok") {
+		for (const warning of presetRead.warnings ?? []) ctx.ui.notify(warning, "warning");
+	}
 
 	const parentChoice = "Use the current parent model for each role launch";
 	const configureChoice = "Configure each role before starting";

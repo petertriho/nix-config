@@ -3,10 +3,26 @@ import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	discoverWorkflowRegistry,
 } from "./registry.ts";
+
+test("workflow registry is owned by the pi-workflows extension", () => {
+	assert.equal(
+		dirname(fileURLToPath(import.meta.url)),
+		fileURLToPath(new URL("../../pi-workflows/workflow/", import.meta.url)).replace(/\/$/, ""),
+	);
+});
+
+test("default bundled registry discovers Peter beneath the pi-workflows extension", () => {
+	const registry = discoverWorkflowRegistry({ projectTrusted: false });
+	const peterPackage = fileURLToPath(new URL("../workflows/peter/", import.meta.url));
+	assert.equal(registry.sources[0].root, fileURLToPath(new URL("../workflows/", import.meta.url)).replace(/\/$/, ""));
+	assert.equal(registry.workflowById.peter?.packagePath, peterPackage.replace(/\/$/, ""));
+	assert.equal(registry.aliases.peter, "peter");
+});
 
 function withTempDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-workflow-registry-"));

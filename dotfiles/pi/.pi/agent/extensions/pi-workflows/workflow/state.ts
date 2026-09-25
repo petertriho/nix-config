@@ -4,7 +4,7 @@ import {
 	THINKING_LEVELS,
 	type ModelSelection,
 	type SubagentThinkingLevel,
-} from "../launch-profile.ts";
+} from "../../workflow-provider/launch-profile.ts";
 import { normalizeWorkflowDataValues } from "./schema.ts";
 import {
 	getPendingWorkflowGate,
@@ -91,6 +91,7 @@ export interface WorkflowRunTransitionResult {
 
 export interface StartWorkflowRunInput {
 	readonly runId: string;
+	readonly providerId?: string;
 	readonly source: WorkflowSourceScope;
 	readonly definition: NormalizedWorkflowDefinition;
 	readonly projectRoot: string;
@@ -155,6 +156,14 @@ function expectRecord(value: unknown, context: string): UnknownRecord {
 function expectString(value: unknown, context: string): string {
 	if (!isNonEmptyString(value)) throw new Error(`${context} must be a non-empty string.`);
 	return value.trim();
+}
+
+function providerId(value: unknown): string {
+	if (value === undefined) return "pi-tmux-subagents";
+	if (typeof value !== "string" || !/^[a-z0-9][a-z0-9._-]*$/.test(value)) {
+		throw new Error("Workflow provider ID is invalid.");
+	}
+	return value;
 }
 
 function expectIsoDate(value: unknown, context: string): string {
@@ -659,6 +668,7 @@ function parseWorkflowRunSnapshot(value: unknown): WorkflowRunSnapshot {
 		skillHash,
 		policy,
 		assignmentSource,
+		providerId: providerId(record.providerId),
 		...(originalAssignments ? { originalAssignments } : {}),
 		...(currentAssignments ? { currentAssignments } : {}),
 		data,
@@ -711,6 +721,7 @@ function requireActiveRun(state: WorkflowRunState, runId: string): WorkflowRunSn
 
 function buildSnapshot(input: {
 	runId: string;
+	providerId?: string;
 	source: WorkflowSourceScope;
 	definition: NormalizedWorkflowDefinition;
 	projectRoot: string;
@@ -729,6 +740,7 @@ function buildSnapshot(input: {
 	return freezeSnapshot({
 		version: WORKFLOW_RUN_SNAPSHOT_VERSION,
 		runId: input.runId,
+		providerId: providerId(input.providerId),
 		workflowId: input.definition.id,
 		status: input.status,
 		projectRoot: resolve(input.projectRoot),
@@ -916,6 +928,7 @@ export function startWorkflowRun(
 
 	const started = buildSnapshot({
 		runId,
+		providerId: providerId(input.providerId),
 		source: expectOneOf(input.source, WORKFLOW_SOURCE_SCOPES, "workflow run source"),
 		definition,
 		projectRoot: input.projectRoot,

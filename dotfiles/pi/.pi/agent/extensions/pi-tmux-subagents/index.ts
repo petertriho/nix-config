@@ -41,8 +41,8 @@ import {
 	describeWorkflowWriteBoundaryReport,
 	evaluateWorkflowWriteBoundarySnapshot,
 	type WorkflowWriteBoundarySnapshot,
-} from "./workflow/write-policy.ts";
-import { classifyProviderFailure } from "./workflow/recovery.ts";
+} from "../pi-workflows/workflow/write-policy.ts";
+import { classifyProviderFailure } from "../workflow-provider/failure.ts";
 import { findLastAssistantMessage, getNewEntries } from "./session.ts";
 import {
 	attachTaskRpc,
@@ -112,15 +112,9 @@ import {
   resolveResumeLaunchBehavior,
 } from "./subagent-services.ts";
 import {
-	createWorkflowRunState,
-	persistWorkflowRunSnapshots,
-	restoreWorkflowRunStateFromSession,
-	type WorkflowRunState,
-	type WorkflowRunTransitionResult,
-} from "./workflow/state.ts";
-import { registerWorkflowLifecycleTools } from "./workflow/tools.ts";
-import { registerWorkflowCommands } from "./workflow/runtime.ts";
-import { registerWorkflowGateTool } from "./workflow/gate-tools.ts";
+  attachTmuxWorkflowProvider,
+  tmuxWorkflowProviderIO,
+} from "./workflow-provider.ts";
 
 /**
  * pi-tmux-subagents: a tmux-only port of pi-interactive-subagents
@@ -132,8 +126,7 @@ import { registerWorkflowGateTool } from "./workflow/gate-tools.ts";
  * nono sandbox profile, children are not sandboxed.
  *
  * Tools: `subagent`, `subagent_interrupt`, `subagents_list`, `subagent_resume`.
- * Commands: `/iterate`, `/subagent`, `/workflow`, `/workflows`,
- * `/workflow-resume`, plus collision-free aliases from discovered manifests.
+ * Commands: `/iterate`, `/subagent`. pi-workflows owns workflow commands.
  * Agents are discovered from `<this dir>/agents`, `~/.pi/agent/agents`
  * (`PI_CODING_AGENT_DIR`), and `./.pi/agents`; later sources win.
  * See NOTES.md for the pi 0.84.3 prompt-argument findings behind
@@ -968,45 +961,50 @@ function resetTaskRpcForTests(): void {
 	shutdownPiTasksRpcBridge();
 }
 
-/** Persisted generic workflow lifecycle state for dedicated workflow tools. */
-let workflowRunState: WorkflowRunState = createWorkflowRunState();
+/** The workflow event adapter is separate from the ordinary subagent and task tools. */
+let attachedWorkflowProvider: ReturnType<typeof attachTmuxWorkflowProvider> = null;
 
-function commitWorkflowRunTransition(
-  pi: ExtensionAPI,
-  transition: WorkflowRunTransitionResult,
-): void {
-  let appended = 0;
-  try {
-    for (const snapshot of transition.snapshots) {
-      persistWorkflowRunSnapshots(pi, [snapshot]);
-      appended += 1;
-    }
-  } catch (error) {
-    const cause = error instanceof Error ? error.message : String(error);
-    if (appended > 0) {
-      // A multi-snapshot transition (currently active-run replacement) can
-      // fail after its durable prefix was appended. The final transition
-      // state is not durable, while the previous live state is now stale.
-      // Fail closed until session reload reconstructs the appended prefix.
-      workflowRunState = createWorkflowRunState();
-      throw new Error(
-        `Workflow state persistence failed after appending ${appended} of ${transition.snapshots.length} snapshots; `
-        + `live workflow state was cleared to avoid publishing an undurable or stale active run. ${cause}`,
-      );
-    }
-    throw new Error(
-      `Workflow state persistence failed before any snapshot was appended; live workflow state was left unchanged. ${cause}`,
-    );
-  }
-  workflowRunState = transition.state;
+function attachWorkflowProvider(pi: ExtensionAPI, ctx: ExtensionContext): void {
+  if (attachedWorkflowProvider || !pi.events || !isTmuxAvailable()
+    || process.env.PI_SUBAGENT_ID || process.env.PI_SUBAGENT_SESSION
+    || !ctx.sessionManager.getSessionFile()) return;
+  const io = tmuxWorkflowProviderIO();
+  const attached = attachTmuxWorkflowProvider({
+    events: pi.events,
+    sessionId: ctx.sessionManager.getSessionId(),
+    env: process.env,
+    isAvailable: isTmuxAvailable,
+    resolveProfile(agentId) {
+      // Match the ordinary spawn lookup, including project > global > bundled.
+      const paths = [
+        join(process.cwd(), ".pi", "agents", `${agentId}.md`),
+        join(getAgentConfigDir(), "agents", `${agentId}.md`),
+        join(getBundledAgentsDir(), `${agentId}.md`),
+      ];
+      for (const path of paths) {
+        if (!existsSync(path)) continue;
+        const contents = readFileSync(path, "utf8");
+        const definition = parseAgentDefinition(contents, agentId);
+        if (definition?.body) return io.resolveFile(agentId, path, definition.body);
+      }
+      return null;
+    },
+    readProfile: io.readProfile,
+    updateProfile: io.updateProfile,
+    recordLaunchedModel: io.recordLaunchedModel,
+    estimateContext: io.estimateContext,
+    captureEvidence: io.captureEvidence,
+    finishEvidence: io.finishEvidence,
+    services: subagentExecution,
+    ctx: { ...ctx, pi },
+    pi,
+  });
+  if (attached) attachedWorkflowProvider = attached;
 }
 
-function getWorkflowRunStateForTests(): WorkflowRunState {
-  return workflowRunState;
-}
-
-function setWorkflowRunStateForTests(state: WorkflowRunState): void {
-  workflowRunState = state;
+function shutdownWorkflowProvider(): void {
+  attachedWorkflowProvider?.detach();
+  attachedWorkflowProvider = null;
 }
 
 // ── Widget management ──
@@ -1682,9 +1680,6 @@ export const __test__ = {
   buildResumePiArgs,
   buildLaunchProfile,
   describeRunningBoundary,
-  getWorkflowRunStateForTests,
-  setWorkflowRunStateForTests,
-  commitWorkflowRunTransition,
   collectResourceFingerprints,
   parseLegacyModelSelection,
   resolvePrimarySkill,
@@ -1699,6 +1694,8 @@ export const __test__ = {
   createTaskRpcRuntimeHooks,
   resolveAndLaunchTaskRpc,
   readTaskPartialResult,
+  attachWorkflowProvider,
+  shutdownWorkflowProvider,
 };
 
 const ASYNC_TOOL_CONTRACT =
@@ -1768,7 +1765,6 @@ function renderToolFallback(result: ToolRenderResult, theme: UiTheme): Text {
 }
 
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
-  workflowRunState = createWorkflowRunState();
   const deniedTools = new Set(
     (process.env.PI_DENY_TOOLS ?? "")
       .split(",")
@@ -1776,64 +1772,13 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       .filter(Boolean),
   );
   const shouldRegister = (name: string) => !deniedTools.has(name);
-  const workflowGates = registerWorkflowGateTool(pi, {
-    getState: () => workflowRunState,
-    commit: (transition) => commitWorkflowRunTransition(pi, transition),
-  }, {
-    shouldRegister,
-    onError: (error) => {
-      try { latestCtx?.ui.notify(error.message, "error"); } catch { /* Session closed. */ }
-    },
-  });
-  const workflowCommands = registerWorkflowCommands(
-    pi,
-    {
-      state: workflowGates.state,
-      loadAgent: loadAgentDefaults,
-      isTmuxAvailable,
-      muxSetupHint,
-      renameTab: renameCurrentTab,
-    },
-  );
-
   pi.on("session_start", (_event, ctx) => {
-    workflowGates.startSession(ctx.sessionManager.getSessionFile());
     latestCtx = ctx;
     // /new, /resume, and /fork tore the previous session down through
     // session_shutdown without re-importing this module. Re-arm the poll-abort
     // controller so subagent spawns in this session can watch their panes.
     rearmModuleAbortController();
-    const restored = restoreWorkflowRunStateFromSession(ctx.sessionManager);
-    // Restore the in-memory state first so a transient parent-session append
-    // failure cannot leave the restored run unreachable for this session.
-    workflowRunState = restored.state;
-    try {
-      persistWorkflowRunSnapshots(pi, restored.snapshots);
-    } catch (error) {
-      const cause = error instanceof Error ? error.message : String(error);
-      try {
-        ctx.ui.notify(
-          `Workflow run restored in memory, but persisting the interrupted transition to the session log failed: `
-          + `${cause}. The status is re-derived on the next reload.`,
-          "warning",
-        );
-      } catch {
-        // Workflow snapshot persistence must not block unrelated session startup services.
-      }
-    }
-    try {
-      workflowCommands.refreshRegistry(ctx);
-    } catch (error) {
-      try {
-        ctx.ui.notify(
-          `Workflow discovery failed: ${error instanceof Error ? error.message : String(error)}`,
-          "error",
-        );
-      } catch {
-        // Workflow discovery must not block unrelated session startup services.
-      }
-    }
-    workflowCommands.restoreActiveRunUx(ctx);
+    attachWorkflowProvider(pi, ctx);
     // pi-tasks protocol bridge: root sessions register the task RPC handlers
     // (children abstain via PI_SUBAGENT_* env; foreign providers win).
     void attachPiTasksRpcBridge(pi, ctx).catch(() => {
@@ -1843,7 +1788,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
   });
 
   pi.on("session_shutdown", () => {
-    workflowGates.shutdown();
+    shutdownWorkflowProvider();
     if (widgetInterval) {
       clearInterval(widgetInterval);
       widgetInterval = null;
@@ -1863,37 +1808,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     // terminate adapter-owned panes, and clear the task-run records.
     shutdownPiTasksRpcBridge();
     runningSubagents.clear();
-    workflowRunState = createWorkflowRunState();
-  });
-
-  // Tree navigation changes the active persistence branch without shutdown.
-  // Stop owned workflow work before navigating, then restore only the new branch.
-  pi.on("session_before_tree", async (_event, ctx) => {
-    workflowGates.startSession(ctx.sessionManager.getSessionFile());
-    try {
-      await workflowLifecycle.stopBeforeTree();
-    } catch (error) {
-      try {
-        ctx.ui.notify(
-          `Tree navigation cancelled: could not stop the workflow role: ${error instanceof Error ? error.message : String(error)}. `
-          + "Retry after stopping it; saved sessions and artifacts are preserved.",
-          "error",
-        );
-      } catch {
-        // A failed notification must not let navigation bypass a failed stop.
-      }
-      return { cancel: true };
-    }
-  });
-  pi.on("session_tree", (_event, ctx) => {
-    const restored = restoreWorkflowRunStateFromSession(ctx.sessionManager);
-    workflowRunState = restored.state;
-    try {
-      persistWorkflowRunSnapshots(pi, restored.snapshots);
-    } catch {
-      ctx.ui.notify("Workflow branch restored in memory; interrupted state could not be persisted.", "warning");
-    }
-    workflowCommands.restoreActiveRunUx(ctx);
   });
 
   // ── subagent tool ──
@@ -2302,18 +2216,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         return executeSubagentResume(pi, params, ctx);
       },
     });
-
-  const workflowLifecycle = registerWorkflowLifecycleTools(
-    pi,
-    {
-      state: workflowGates.state,
-      execution: subagentExecution,
-      loadAgentDefaults,
-      isTmuxAvailable,
-      muxUnavailableResult,
-    },
-    { shouldRegister },
-  );
 
   // /iterate: fork the session into a subagent
   pi.registerCommand("iterate", {

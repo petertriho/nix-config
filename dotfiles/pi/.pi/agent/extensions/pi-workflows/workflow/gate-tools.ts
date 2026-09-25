@@ -31,6 +31,7 @@ export interface WorkflowGateRuntimeOptions {
 	readonly shouldRegister?: (name: string) => boolean;
 	readonly isParent?: () => boolean;
 	readonly onError?: (error: Error) => void;
+	readonly hasOwnedRole?: () => boolean;
 	/** Dependency injection for process tests. Production uses the installed CLI. */
 	readonly transport?: Pick<WorkflowGateDependencies, "spawn" | "now" | "newId">;
 }
@@ -132,6 +133,7 @@ export function registerWorkflowGateTool(
 			parameters: WorkflowGateParams,
 			async execute(_toolCallId, params, signal, _onUpdate, ctx) {
 				if (!isParent()) throw new Error("Only the parent orchestrator can open workflow gates.");
+				if (options.hasOwnedRole?.()) throw new Error("A workflow role still owns execution or needs explicit provider recovery; no browser gate may overlap it.");
 				if (signal?.aborted) throw new Error("Workflow gate launch cancelled.");
 				if (!sessionId || !sessionFile || ctx.sessionManager.getSessionFile() !== sessionFile) {
 					throw new Error("Workflow gates require the current persistent parent session.");

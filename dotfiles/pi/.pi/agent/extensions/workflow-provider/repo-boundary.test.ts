@@ -18,7 +18,7 @@ import {
 	compareRepoBoundaryRules,
 	evaluateRepoBoundarySnapshot,
 	resolveGitRoot,
-} from "./repo-postconditions.ts";
+} from "./repo-boundary.ts";
 
 function withTempRepo(run: (root: string) => void): void {
 	const root = mkdtempSync(join(tmpdir(), "pi-repo-boundaries-"));

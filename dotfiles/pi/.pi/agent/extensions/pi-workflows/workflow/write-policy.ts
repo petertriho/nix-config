@@ -4,7 +4,7 @@ import {
 	type RepoBoundaryDefinition,
 	type RepoBoundaryFileRule,
 	type RepoState,
-} from "../repo-postconditions.ts";
+} from "../../workflow-provider/repo-boundary.ts";
 import { resolveWorkflowRoleWriteCapabilities } from "./schema.ts";
 import type {
 	NormalizedWorkflowDefinition,

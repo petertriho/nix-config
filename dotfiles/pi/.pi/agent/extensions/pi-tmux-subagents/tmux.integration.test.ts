@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { closeSurface, createSurface, pollForExit, sendLongCommand } from "./tmux.ts";
 import piTmuxSubagentsModule, { __test__ as testApi } from "./index.ts";
+import piWorkflows from "../pi-workflows/index.ts";
 import {
 	fingerprintStrings,
 	hashText,
@@ -13,12 +14,12 @@ import {
 	readLaunchProfile,
 	writeLaunchProfile,
 } from "./launch-profile.ts";
-import { loadWorkflowDefinitionFromPackage } from "./workflow/schema.ts";
+import { loadWorkflowDefinitionFromPackage } from "../pi-workflows/workflow/schema.ts";
 import {
 	createWorkflowRunState,
 	getActiveWorkflowRun,
 	startWorkflowRun,
-} from "./workflow/state.ts";
+} from "../pi-workflows/workflow/state.ts";
 
 const insideTmux = !!process.env.TMUX;
 
@@ -515,31 +516,47 @@ function registerToolsWithMessages(): {
 	tools: any[];
 	sentMessages: any[];
 	restoreEnv: () => void;
+	api: any;
+	handlers: Map<string, Array<(...args: any[]) => any>>;
 } {
 	const tools: any[] = [];
 	const sentMessages: any[] = [];
+	const handlers = new Map<string, Array<(...args: any[]) => any>>();
+	const bus = new Map<string, Set<(value: any) => void>>();
+	const commands: any[] = [];
 	const { restore } = scrubPiEnv();
-	try {
-		piTmuxSubagentsModule({
-			on() {},
+	const api = {
+			on(name: string, fn: (...args: any[]) => any) {
+				const group = handlers.get(name) ?? []; group.push(fn); handlers.set(name, group);
+			},
+			events: {
+				on(name: string, fn: (value: any) => void) {
+					const group = bus.get(name) ?? new Set(); group.add(fn); bus.set(name, group);
+					return () => group.delete(fn);
+				},
+				emit(name: string, value: any) { for (const fn of [...(bus.get(name) ?? [])]) fn(value); },
+			},
 			registerTool(tool: any) {
 				tools.push(tool);
 			},
-			registerCommand() {},
+			registerCommand(name: string, command: any) { commands.push({ name, source: "extension", ...command }); },
+			getCommands: () => commands,
 			registerMessageRenderer() {},
 			registerShortcut() {},
 			sendUserMessage() {},
 			sendMessage(message: any) {
 				sentMessages.push(message);
 			},
-			appendEntry() {},
+			appendEntry(_type: string, _data: any) {},
 			getAllTools: () => [],
-		} as any);
+	};
+	try {
+		piTmuxSubagentsModule(api as any);
 	} catch (error) {
 		restore();
 		throw error;
 	}
-	return { tools, sentMessages, restoreEnv: restore };
+	return { tools, sentMessages, restoreEnv: restore, api, handlers };
 }
 
 async function waitFor(predicate: () => boolean, timeoutMs = 15_000): Promise<void> {
@@ -567,6 +584,7 @@ function integrationContext() {
 		ui: {
 			select: async () => undefined,
 			notify: async () => {},
+			setWidget() {},
 		},
 	};
 }
@@ -649,9 +667,22 @@ test(
 					},
 				},
 			);
-			const { tools, sentMessages, restoreEnv } = registerToolsWithMessages();
+			const { tools, sentMessages, restoreEnv, api, handlers } = registerToolsWithMessages();
 			t.after(restoreEnv);
-			testApi.setWorkflowRunStateForTests(started.state);
+			let state = started.state;
+			api.appendEntry = (_type: string, snapshot: any) => {
+				state = { ...state, runsById: { [snapshot.runId]: snapshot }, activeRunId: snapshot.runId };
+			};
+			piWorkflows(api);
+			const ctx = {
+				...integrationContext(), cwd: root, isIdle: () => true, isProjectTrusted: () => true,
+				sessionManager: { ...integrationContext().sessionManager, getBranch: () => [{
+					type: "custom", customType: "pi-tmux-subagents.workflow-run", data: getActiveWorkflowRun(started.state),
+				}] },
+			};
+			for (const handler of handlers.get("session_start") ?? []) await handler({}, ctx);
+			for (const handler of handlers.get("before_agent_start") ?? []) await handler({}, ctx);
+			t.after(async () => { for (const handler of handlers.get("session_shutdown") ?? []) await handler({}, ctx); });
 			const spawnTool = tools.find((entry) => entry.name === "workflow_spawn");
 			assert.ok(spawnTool);
 
@@ -664,16 +695,19 @@ test(
 				},
 				undefined,
 				undefined,
-				integrationContext(),
+				ctx,
 			);
 			assert.equal(result.details.status, "started");
-			runningId = result.details.id;
+			runningId = [...testApi.runningSubagents.values()].find((child) => child.sessionFile === result.details.sessionFile)?.id;
 			if (!runningId) throw new Error("workflow_spawn did not return a running ID");
 			const running = testApi.runningSubagents.get(runningId);
 			assert.ok(running);
 			pane = running.surface;
 
-			const active = getActiveWorkflowRun(testApi.getWorkflowRunStateForTests());
+			const active = getActiveWorkflowRun(state);
+			writeFileSync(running.sessionFile, `${JSON.stringify({
+				type: "session", version: 3, id: "historical-workflow-role", timestamp: new Date().toISOString(), cwd: root,
+			})}\n`);
 			assert.equal(active?.roleSessions.architect?.current, result.details.sessionFile);
 			assert.equal(active?.activeLaunch?.status, "running");
 			const sidecar = readLaunchProfile(result.details.sessionFile);
@@ -700,11 +734,39 @@ test(
 			assert.equal(delivered.details.failureKind, "usage");
 			assert.match(delivered.content, /quota/i);
 			assert.equal(
-				getActiveWorkflowRun(testApi.getWorkflowRunStateForTests())?.activeLaunch?.status,
+				getActiveWorkflowRun(state)?.activeLaunch?.status,
 				"failed",
 			);
+			for (const name of ["workflow_resume", "workflow_recover"]) {
+				(ctx.ui as any).select = async (_title: string, choices: string[]) => choices[0];
+				const next = await tools.find((tool) => tool.name === name).execute("c", {
+					runId: "run-generic-it", role: "architect", failure: providerFailure,
+				}, undefined, undefined, ctx);
+				assert.equal(next.details.status, "started", JSON.stringify(next));
+				assert.equal(next.details.sessionFile, result.details.sessionFile);
+				const child = [...testApi.runningSubagents.values()].find((item) => item.sessionFile === next.details.sessionFile);
+				assert.ok(child);
+				runningId = child.id;
+				pane = child.surface;
+				const prior = sentMessages.filter((message) => message.customType === "subagent_result").length;
+				writeFileSync(`${child.sessionFile}.exit`, JSON.stringify({ type: "error", errorMessage: providerFailure }));
+				await waitFor(() => sentMessages.filter((message) => message.customType === "subagent_result").length > prior);
+				assert.equal(getActiveWorkflowRun(state)?.activeLaunch?.status, "failed");
+			}
+			const heavy = writeHeavySession(root);
+			writeFileSync(result.details.sessionFile, readFileSync(heavy, "utf8"));
+			const rolled = await tools.find((tool) => tool.name === "workflow_resume").execute("c", {
+				runId: "run-generic-it", role: "architect", message: "Continue the saved plan.",
+			}, undefined, undefined, ctx);
+			assert.equal(rolled.details.status, "started", JSON.stringify(rolled));
+			assert.equal(rolled.details.rollover, "fresh");
+			assert.notEqual(rolled.details.sessionFile, result.details.sessionFile);
+			const replacement = [...testApi.runningSubagents.values()].find((child) => child.sessionFile === rolled.details.sessionFile);
+			assert.ok(replacement);
+			runningId = replacement.id; pane = replacement.surface;
+			assert.match(readFileSync(replacement.launchScriptFile!, "utf8"), /Continue the saved plan/);
+			assert.ok(getActiveWorkflowRun(state)?.roleSessions.architect.history.includes(result.details.sessionFile));
 		} finally {
-			testApi.setWorkflowRunStateForTests(createWorkflowRunState());
 			if (runningId) {
 				const running = testApi.runningSubagents.get(runningId);
 				running?.abortController?.abort();
@@ -730,8 +792,11 @@ test(
 			let pane: string | undefined;
 			let runningId: string | undefined;
 			try {
-				const { tools, sentMessages, restoreEnv } = registerToolsWithMessages();
+				const { tools, sentMessages, restoreEnv, handlers } = registerToolsWithMessages();
 				t.after(restoreEnv);
+				const ctx = integrationContext();
+				for (const handler of handlers.get("session_start") ?? []) await handler({}, ctx);
+				t.after(async () => { for (const handler of handlers.get("session_shutdown") ?? []) await handler({}, ctx); });
 				const subagentTool = tools.find((entry) => entry.name === "subagent");
 				assert.ok(subagentTool);
 
@@ -740,7 +805,7 @@ test(
 					{ name: "Usage probe", task: "Produce usage entries." },
 					undefined,
 					undefined,
-					integrationContext(),
+					ctx,
 				);
 				assert.equal(result.details.status, "started");
 				const watcherId: string = result.details.id;

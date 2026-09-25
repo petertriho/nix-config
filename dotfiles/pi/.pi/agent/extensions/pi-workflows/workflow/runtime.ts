@@ -55,6 +55,10 @@ export interface WorkflowCommandStateStore {
 
 export interface WorkflowCommandRuntimeDependencies {
 	readonly state: WorkflowCommandStateStore;
+	readonly stopOwnedRole?: () => Promise<void>;
+	readonly chooseProvider?: (definition: NormalizedWorkflowDefinition, ctx: WorkflowCommandContext) => Promise<string | null>;
+	readonly validateProvider?: (snapshot: WorkflowRunSnapshot) => void;
+	readonly validateProviderAgents?: (providerId: string, agents: readonly string[], ctx: WorkflowCommandContext) => Promise<void>;
 	readonly loadAgent: (agentName: string) => unknown | null;
 	readonly isTmuxAvailable: () => boolean;
 	readonly muxSetupHint: () => string;
@@ -90,7 +94,7 @@ export interface WorkflowCommandRuntime {
 	resumeWorkflow(request: string, ctx: WorkflowCommandContext): boolean;
 	listWorkflows(ctx: WorkflowCommandContext): string;
 	showStatus(ctx: WorkflowCommandContext): string;
-	abortActiveWorkflow(ctx: WorkflowCommandContext): boolean;
+	abortActiveWorkflow(ctx: WorkflowCommandContext): Promise<boolean>;
 }
 
 function formatSelection(selection: WorkflowRoleAssignment): string {
@@ -667,11 +671,38 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		);
 		if (!entry) return false;
 
+		let providerId = "pi-tmux-subagents";
+		if (this.deps.chooseProvider) {
+			try {
+				const chosen = await this.deps.chooseProvider(entry.definition, ctx);
+				if (!chosen) return false;
+				providerId = chosen;
+			} catch (error) {
+				notify(ctx, `Workflow provider setup failed: ${String(error)}`, "error");
+				return false;
+			}
+		}
 		const replaceActive = await this.confirmReplacement(entry, ctx);
 		if (replaceActive === null) return false;
 
 		const startup = await this.selectStartup(entry, ctx);
 		if (!startup) return false;
+		try {
+			const assignments = { ...startup.state.originalAssignments, ...startup.state.currentAssignments };
+			await this.deps.validateProviderAgents?.(providerId, entry.definition.roles
+				.filter((role) => !isWorkflowRoleSkipAssignment(assignments[role.id]))
+				.map((role) => role.agent), ctx);
+		} catch (error) {
+			notify(ctx, `Workflow agent preflight failed: ${String(error)}`, "error");
+			return false;
+		}
+		if (replaceActive) {
+			try { await this.deps.stopOwnedRole?.(); }
+			catch (error) {
+				notify(ctx, `Workflow replacement cancelled: ${String(error)}`, "error");
+				return false;
+			}
+		}
 
 		const runId = this.createRunId();
 		const started = this.persistStartedRun({
@@ -679,6 +710,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			startup,
 			runId,
 			replaceActive,
+			providerId,
 			ctx,
 		});
 		if (!started) return false;
@@ -712,6 +744,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			// Cosmetic only.
 		}
 		try {
+			this.deps.validateProvider?.(active);
 			this.pi.sendUserMessage(
 				buildWorkflowSkillMessage(active, instruction, { resume: true }),
 			);
@@ -748,13 +781,14 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		return text;
 	}
 
-	abortActiveWorkflow(ctx: WorkflowCommandContext): boolean {
+	async abortActiveWorkflow(ctx: WorkflowCommandContext): Promise<boolean> {
 		const active = getActiveWorkflowRun(this.deps.state.getState());
 		if (!active) {
 			notify(ctx, "No active workflow run to abort.", "warning");
 			return false;
 		}
 		try {
+			await this.deps.stopOwnedRole?.();
 			this.deps.state.commit(
 				abortWorkflowRun(this.deps.state.getState(), active.runId),
 			);
@@ -838,7 +872,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			return null;
 		}
 		const agents = validateWorkflowAgents(entry, this.deps.loadAgent);
-		if (!agents.available) {
+		if (!this.deps.chooseProvider && !agents.available) {
 			notify(
 				ctx,
 				`Workflow "${entry.id}" cannot start. Missing required agents: `
@@ -850,7 +884,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		if (!this.deps.isTmuxAvailable()) {
 			notify(
 				ctx,
-				`Workflow "${entry.id}" needs tmux. ${this.deps.muxSetupHint()}`,
+				`Workflow "${entry.id}" needs an execution provider. ${this.deps.muxSetupHint()}`,
 				"error",
 			);
 			return null;
@@ -915,7 +949,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 				this.deps.loadAgent,
 				{ ...startup.state.originalAssignments, ...startup.state.currentAssignments },
 			);
-			if (!agents.available) {
+			if (!this.deps.validateProviderAgents && !agents.available) {
 				notify(
 					ctx,
 					`Workflow "${entry.id}" cannot start. Missing enabled agents: `
@@ -939,12 +973,14 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		startup: StartedWorkflowStartupResult;
 		runId: string;
 		replaceActive: boolean;
+		providerId: string;
 		ctx: WorkflowCommandContext;
 	}): WorkflowRunSnapshot | null {
 		const { entry, startup, runId, replaceActive, ctx } = options;
 		try {
 			const startInput: Parameters<typeof startWorkflowRun>[1] = {
 				runId,
+				providerId: options.providerId,
 				source: entry.source,
 				definition: entry.definition,
 				projectRoot: startup.state.projectRoot,
@@ -1053,7 +1089,7 @@ export function registerWorkflowCommands(
 				return;
 			}
 			if (parsed.action === "abort") {
-				runtime.abortActiveWorkflow(ctx);
+				await runtime.abortActiveWorkflow(ctx);
 				return;
 			}
 			if (parsed.action === "run") {
