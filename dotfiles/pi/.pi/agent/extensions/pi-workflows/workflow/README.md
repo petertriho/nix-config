@@ -1,7 +1,8 @@
 # Workflow subsystem modules
 
 This directory holds the generic workflow runtime pieces for
-`pi-workflows`, with each module's tests beside it as `*.test.ts`.
+`pi-workflows`. Their tests live in `../__tests__/workflow/` with the same
+`*.test.ts` basenames.
 
 `synthetic-docs-review.test.ts` is the generality proof: it authors a
 temporary, never-bundled `docs-review` package (roles `author`/`verifier`, data

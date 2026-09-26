@@ -87,9 +87,15 @@ npm run typecheck
 npm test
 ```
 
-`installed-loader.test.ts` uses Pi's real resource loader and installed
-symlinks when available. It covers both load orders, fresh runs, historical
-resume, and the missing-provider case. Its model uses an in-memory stream.
+Tests live in each extension's `__tests__/` directory. The workflow module
+tests live in `pi-workflows/__tests__/workflow/`; integration tests run with
+the same Node test command. These directories remain inside installed,
+directory-symlinked extensions.
+
+`pi-workflows/__tests__/installed-loader.test.ts` uses Pi's real resource
+loader and installed symlinks when available. It covers both load orders,
+fresh runs, historical resume, and the missing-provider case. Its model
+uses an in-memory stream.
 The tmux integration tests exercise the real execution adapter.
 
 See [runtime modules](workflow/README.md), [discovery roots](workflow/registry.md),
