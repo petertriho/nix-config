@@ -24,7 +24,7 @@ let
     # pi-subagents
     pi-tasks
     pi-vcc
-    pine-of-glass
+    (pine-of-glass.override { enableContextimate = false; })
   ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 

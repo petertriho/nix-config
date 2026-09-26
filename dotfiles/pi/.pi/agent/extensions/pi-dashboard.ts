@@ -1062,8 +1062,11 @@ function startDashboardSession(
   const chatBlock: DashboardChatBlock = {
     __piDashboardChatBlock: true,
     render(width) {
-      const contextLines = contextimateBlock()?.render(Math.max(20, width - 4)) ??
-        ["[Contextimate] waiting for Pine of Glass"];
+      // No placeholder when Contextimate is absent: an empty array makes
+      // renderDashboardWithContext skip the context section, so the
+      // dashboard works identically whether pi-contextimate is still
+      // loading or deliberately disabled (e.g. pine-of-glass.override).
+      const contextLines = contextimateBlock()?.render(Math.max(20, width - 4)) ?? [];
       return renderDashboardWithContext(
         ctx.ui.theme,
         dashboardData(runtime, ctx),
