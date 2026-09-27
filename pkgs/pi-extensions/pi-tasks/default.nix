@@ -4,8 +4,9 @@
   fetchFromGitHub,
   nodejs_24,
   stripNpmManifest,
+  updateNpmLock,
 }:
-buildNpmPackage {
+buildNpmPackage (finalAttrs: {
   pname = "pi-tasks";
   version = "0.9.0-unstable-2026-08-24";
 
@@ -29,9 +30,12 @@ buildNpmPackage {
   # hostage to unrelated tooling — it broke when @biomejs/biome 2.5.7 was
   # unpublished from npm (403 on the tarball).
   postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
+  passthru.updateScript = updateNpmLock {
+    inherit (finalAttrs) pname src postPatch npmDepsFetcherVersion;
+  };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-X75nWsqOYrTz3TXM4cy5J2E00ozIkTCJeg+OoKmWAgs=";
+  npmDepsHash = "sha256-OmFMRaW615AKWWxCXbSrgSxKUYEKKsF6qObJVLAVoxI=";
   npmDepsFetcherVersion = 2;
 
   # pi.extensions = ["./src/index.ts"]; pi loads the TypeScript directly, so
@@ -63,4 +67,4 @@ buildNpmPackage {
       "aarch64-darwin"
     ];
   };
-}
+})

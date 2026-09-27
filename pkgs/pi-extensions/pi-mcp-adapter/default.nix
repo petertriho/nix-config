@@ -7,14 +7,16 @@
   autoPatchelfHook,
   zlib,
   stripNpmManifest,
+  updateNpmLock,
 }:
-buildNpmPackage {
+buildNpmPackage (finalAttrs: {
   pname = "pi-mcp-adapter";
   # NOTE: revs past 5c1ea6b pinned @modelcontextprotocol/client+core to
   # https://pkg.pr.new/... PR-preview tarballs, which fetchNpmDeps cannot
   # prefetch for the offline install (ENOTCACHED, only-if-cached). 0e88e19
   # (2.36.0) was verified free of pkg.pr.new refs before bumping; re-check
-  # on the next bump and regenerate the vendored lockfile alongside it.
+  # on the next bump. nixcfg pkgs:update regenerates the vendored lockfile
+  # and npmDepsHash; nixcfg pkgs:lockfile runs the same step manually.
   version = "3.0.0-unstable-2026-09-27";
 
   src = fetchFromGitHub {
@@ -58,6 +60,9 @@ buildNpmPackage {
   # need re-vendoring on the next bump (2.26.0 broke exactly this way over
   # agent-plugin-loader.ts).
   postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
+  passthru.updateScript = updateNpmLock {
+    inherit (finalAttrs) pname src postPatch npmDepsFetcherVersion;
+  };
 
   nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];
   buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
@@ -77,4 +82,4 @@ buildNpmPackage {
     ];
     mainProgram = "pi-mcp-adapter";
   };
-}
+})

@@ -9,6 +9,7 @@
   autoPatchelfHook,
   writeText,
   stripNpmManifest,
+  updateNpmLock,
 }:
 let
   grammars = import ./grammars.nix;
@@ -74,7 +75,7 @@ let
     '';
   };
 in
-buildNpmPackage {
+buildNpmPackage (finalAttrs: {
   pname = "pi-lens";
   version = "4.3.0-unstable-2026-09-27";
 
@@ -86,7 +87,7 @@ buildNpmPackage {
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-j/dIHuZV6Jz9CRVrg8U23Q5ZGWmAGvfLl4eZD8Bblc0=";
+  npmDepsHash = "sha256-40vPnadFHhMc0lHVS8VS8x4Cw/Ie/BHKuFUU0006Kh4=";
   npmDepsFetcherVersion = 2;
   npmPackFlags = [ "--ignore-scripts" ];
 
@@ -121,6 +122,9 @@ buildNpmPackage {
       ''.devDependencies |= with_entries(select(.key == "typescript" or .key == "@types/node"))''
     ];
     lockfile = ./package-lock.json;
+  };
+  passthru.updateScript = updateNpmLock {
+    inherit (finalAttrs) pname src postPatch npmDepsFetcherVersion;
   };
 
   buildPhase = ''
@@ -170,4 +174,4 @@ buildNpmPackage {
     ];
     mainProgram = "pi-lens";
   };
-}
+})

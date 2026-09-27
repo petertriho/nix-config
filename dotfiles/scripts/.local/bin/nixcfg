@@ -738,6 +738,41 @@ function tool:pkgs:fetchgit {
     popd
 }
 
+# Run the updateScript declared by each pi extension with a vendored lockfile.
+# nix-update -u replaces the normal version/source updater, so run the script
+# after nix-update instead of passing -u.
+function tool:pkgs:lockfile {
+    local system item package_name script_path lockfile
+    local items=("$@")
+
+    echo_header "Refreshing pi-extension npm lockfiles"
+    pushd "$NIX_CONFIG_PATH"
+    system=$(nix eval --impure --raw --expr 'builtins.currentSystem')
+
+    if [[ ${#items[@]} -eq 0 ]]; then
+        for lockfile in pkgs/pi-extensions/*/package-lock.json; do
+            [[ -f $lockfile ]] || continue
+            items+=("pi-extensions.$(basename "$(dirname "$lockfile")")")
+        done
+    fi
+
+    for item in "${items[@]}"; do
+        [[ $item == pi-extensions.* ]] || continue
+        package_name="${item#pi-extensions.}"
+        if [[ ! $package_name =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo_error "Invalid pi-extension name: $package_name"
+            return 1
+        fi
+        [[ -f "pkgs/pi-extensions/$package_name/package-lock.json" ]] || continue
+
+        echo_info "Refreshing $package_name..."
+        script_path=$(nix build --no-link --print-out-paths \
+            "$NIX_CONFIG_PATH#packages.$system.$item.passthru.updateScript" --accept-flake-config)
+        "$script_path/bin/update-npm-lock-$package_name" "$NIX_CONFIG_PATH" "$system"
+    done
+    popd
+}
+
 function tool:pkgs:update {
     local target_packages=("$@")
 
@@ -915,6 +950,10 @@ function tool:pkgs:update {
     else
         echo_success "All items updated successfully with nix-update"
     fi
+
+    # Refresh the selected packages' vendored npm locks before the rebuild,
+    # including after fetchgit fallback.
+    tool:pkgs:lockfile "${all_items[@]}" "${stable_items[@]}"
 
     popd
 }

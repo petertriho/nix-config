@@ -4,6 +4,7 @@
   fetchFromGitHub,
   nodejs_24,
   stripNpmManifest,
+  updateNpmLock,
 }:
 let
   src = fetchFromGitHub {
@@ -13,7 +14,7 @@ let
     hash = "sha256-KIUWIVL+IN9RW+aEs3EOfuFVELsoh0iYXhxgUCW+YEM=";
   };
 in
-buildNpmPackage {
+buildNpmPackage (finalAttrs: {
   pname = "pi-codex-tools";
   version = "pi-codex-tools@0.3.0-unstable-2026-09-22";
   inherit src;
@@ -24,11 +25,14 @@ buildNpmPackage {
   # and Pi-injected peer dependency trees while retaining upstream's package
   # metadata, files list, and pi.extensions entry. The vendored lockfile was
   # generated from that stripped manifest with npm scripts disabled and
-  # contains only the two runtime dependencies.
+  # contains only runtime dependencies.
   postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
+  passthru.updateScript = updateNpmLock {
+    inherit (finalAttrs) pname src postPatch sourceRoot npmDepsFetcherVersion;
+  };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-lEtDWRfWsAnLe3Bi64t87p8a9qQb3vRHHx6Vg7vrxHU=";
+  npmDepsHash = "sha256-2iDsADlmkridEQ04CrFODI0bd6PpK3uvVk9ZN664p6E=";
   npmDepsFetcherVersion = 2;
 
   # Ignore lifecycle scripts so npm never attempts a native build. Disable npm
@@ -59,4 +63,4 @@ buildNpmPackage {
       "aarch64-darwin"
     ];
   };
-}
+})

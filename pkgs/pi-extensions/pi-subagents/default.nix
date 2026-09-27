@@ -4,8 +4,9 @@
   fetchFromGitHub,
   nodejs_24,
   stripNpmManifest,
+  updateNpmLock,
 }:
-buildNpmPackage {
+buildNpmPackage (finalAttrs: {
   pname = "pi-subagents";
   version = "0.19.0-unstable-2026-09-03";
 
@@ -30,14 +31,17 @@ buildNpmPackage {
   # from npm broke pi-tasks this way. 87 of the 90 locked packages were
   # dev-only.
   postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
+  passthru.updateScript = updateNpmLock {
+    inherit (finalAttrs) pname src postPatch npmDepsFetcherVersion;
+  };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-xHZheP2+htaQ6dZaDYL5VtKsAo0898avi+MLQ5mwu30=";
+  npmDepsHash = "sha256-jDceyhwDyArnTfvgu8NUk23kr1J0AzPlMZxu3B6nQwo=";
   npmDepsFetcherVersion = 2;
 
   # pi.extensions = ["./src/index.ts"]; pi loads the TypeScript directly, so
-  # the upstream `tsc` build (→ dist/) is never consumed. That leaves the 3
-  # runtime deps (@sinclair/typebox, croner, nanoid) as the whole closure;
+  # the upstream `tsc` build (→ dist/) is never consumed. That leaves the 4
+  # runtime deps (@sinclair/typebox, croner, nanoid, typebox) as the closure;
   # biome/typescript/vitest are gone from the manifest entirely (see
   # postPatch). The @earendil-works/* peerDependencies are injected by pi at
   # runtime and kept out of the closure.
@@ -65,4 +69,4 @@ buildNpmPackage {
       "aarch64-darwin"
     ];
   };
-}
+})

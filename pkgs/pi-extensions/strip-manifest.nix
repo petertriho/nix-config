@@ -19,7 +19,8 @@
 # inside the fetchNpmDeps fixed-output derivation, where PATH holds only the
 # fetcher's tools.
 #
-# After a rev bump that changes dependencies, regenerate the vendored lockfile:
+# nixcfg pkgs:lockfile runs the declared updateScript for extensions with a
+# vendored lockfile. To regenerate one manually after a rev bump:
 #   jq '<filter from this file / the package's postPatch>' package.json \
 #     > package.json.stripped && mv package.json.stripped package.json
 #   cp <nix-config>/pkgs/pi-extensions/<pkg>/package-lock.json .
