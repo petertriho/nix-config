@@ -730,6 +730,83 @@ for (const failedCloses of [0, 1, 2]) {
 	});
 }
 
+test("workflow role completion preserves final result markers across a later done turn", async () => {
+	await withTempDir(async (root) => {
+		const harness = createHarness(root, {
+			pollForExit: async () => ({ reason: "done", exitCode: 0 }),
+		});
+		for (const [roleId, final] of [
+			["planner", "PLAN: /repo/.artifacts/work/PLAN.md"],
+			["evaluator", "EVALUATION: /repo/.artifacts/work/EVALUATION.md"],
+			["task-writer", "TASKS: /repo/.artifacts/work/TASKS.md"],
+			["executor", "Completed T1. Validation: passed."],
+			["reviewer", "REVIEW: /repo/.artifacts/work/REVIEW.md"],
+		]) {
+			const running = await harness.services.launchSubagent(
+				{ name: roleId, task: "work" }, harness.ctx,
+				{ workflow: {
+					version: 1, workflowId: "peter", runId: "run", roleId,
+					manifestHash: "a".repeat(64), skillHash: "b".repeat(64),
+					policy: "per-role", assignmentSource: "parent", projectRoot: root, data: {},
+				} },
+			);
+			writeFileSync(running.sessionFile, [
+				{ type: "session", id: "session", version: 3, cwd: root },
+				{ type: "message", id: "final", message: {
+					role: "assistant", stopReason: "stop", content: [{ type: "text", text: final }],
+				} },
+				{ type: "message", id: "go", message: { role: "user", content: [{ type: "text", text: "go" }] } },
+				{ type: "message", id: "done", message: {
+					role: "assistant", stopReason: "toolUse",
+					content: [{ type: "text", text: "Handing back to parent." }, { type: "toolCall", name: "subagent_done" }],
+				} },
+			].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+			const result = await harness.services.watchSubagent(running, new AbortController().signal);
+			assert.equal(result.summary, `${final}\n\nCompletion note: Handing back to parent.`);
+		}
+	});
+});
+
+test("resumed workflow completion uses the current run's final answer", async () => {
+	await withTempDir(async (root) => {
+		const exit = deferred<{ reason: "done"; exitCode: number }>();
+		const harness = createHarness(root, { pollForExit: () => exit.promise });
+		const sessionPath = join(root, "planner.jsonl");
+		writeSession(sessionPath, 2);
+		writeProfile(harness, root, sessionPath);
+		const workflow = {
+			version: 1 as const, workflowId: "peter", runId: "run", roleId: "planner",
+			manifestHash: "a".repeat(64), skillHash: "b".repeat(64),
+			policy: "per-role" as const, assignmentSource: "parent" as const,
+			projectRoot: root, data: {},
+		};
+		updateLaunchProfile(sessionPath, (profile) => ({ ...profile, workflow }));
+		let summary: string | undefined;
+		const started = await harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, name: "Planner", message: "Revise", model: "previous" },
+			harness.ctx, undefined,
+			{ workflowMetadata: workflow, onResult: ({ result }) => { summary = result.summary; } },
+		);
+		assert.equal(started.details.status, "started");
+		writeFileSync(sessionPath, readFileSync(sessionPath, "utf8") + [
+			{ type: "message", id: "new-final", message: {
+				role: "assistant", stopReason: "stop",
+				content: [{ type: "text", text: "PLAN: /repo/.artifacts/revised/PLAN.md" }],
+			} },
+			{ type: "message", id: "go", message: {
+				role: "user", content: [{ type: "text", text: "go" }],
+			} },
+			{ type: "message", id: "done", message: {
+				role: "assistant", stopReason: "toolUse",
+				content: [{ type: "text", text: "Revision complete." }, { type: "toolCall", name: "subagent_done" }],
+			} },
+		].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+		exit.resolve({ reason: "done", exitCode: 0 });
+		await waitFor(() => summary !== undefined);
+		assert.equal(summary, "PLAN: /repo/.artifacts/revised/PLAN.md\n\nCompletion note: Revision complete.");
+	});
+});
+
 test("same-session resume classifies quota failures in the asynchronous result", async () => {
 	await withTempDir(async (root) => {
 		const failure = "You exceeded your current quota; check billing and purchase more credits";

@@ -1,8 +1,10 @@
 import type { AgentEndEvent, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { writeFileSync } from "node:fs";
+import { lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { isAbsolute, relative, sep } from "node:path";
 import { createSubagentActivityRecorder } from "./activity.ts";
+import { readLaunchProfile } from "./launch-profile.ts";
 import {
   applyPanelMargin,
   chooseWidthCandidate,
@@ -45,6 +47,39 @@ export function shouldAutoExitOnAgentEnd(
   }
 
   return true;
+}
+
+/** Only a saved Peter planner handoff can close an interactive interview. */
+export function hasVerifiedPeterPlanHandoff(
+  sessionFile: string | undefined,
+  messages: AgentEndEvent["messages"] | undefined,
+): boolean {
+  if (!sessionFile || !messages) return false;
+  const assistant = [...messages].reverse().find((message) => message.role === "assistant");
+  if (!assistant || assistant.stopReason !== "stop" || !Array.isArray(assistant.content)) return false;
+  const answer = assistant.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n");
+  const markers = [...answer.matchAll(/^PLAN: ([^\r\n]+)$/gm)];
+  if (markers.length !== 1) return false;
+  const planPath = markers[0][1];
+  if (!isAbsolute(planPath)) return false;
+
+  try {
+    const profile = readLaunchProfile(sessionFile);
+    if (profile.status !== "ok" || profile.profile.workflow?.workflowId !== "peter"
+      || profile.profile.workflow.roleId !== "planner"
+      || profile.profile.stable.agentName !== "planner") return false;
+    const root = realpathSync(profile.profile.workflow.projectRoot);
+    const plan = realpathSync(planPath);
+    const parts = relative(root, plan).split(sep);
+    if (parts.length !== 3 || parts[0] !== ".artifacts" || !parts[1] || parts[2] !== "PLAN.md") return false;
+    if (!lstatSync(planPath).isFile()) return false;
+    return readFileSync(planPath, "utf8").trim().length > 0;
+  } catch {
+    return false;
+  }
 }
 
 export interface SubagentErrorInfo {
@@ -343,8 +378,10 @@ export default function subagentDone(pi: ExtensionAPI) {
 
     const messages = latestAgentMessages;
     const shouldExit = autoExit && shouldAutoExitOnAgentEnd(userTookOver, messages);
+    const plannerHandoff = !autoExit
+      && hasVerifiedPeterPlanHandoff(process.env.PI_SUBAGENT_SESSION, messages);
 
-    if (shouldExit) {
+    if (shouldExit || plannerHandoff) {
       // Surface stopReason: "error" turns (auto-retry exhausted, provider
       // overload, etc.) to the parent via the .exit sidecar so the watcher
       // can report a clear failure with the underlying error message.
@@ -368,6 +405,7 @@ export default function subagentDone(pi: ExtensionAPI) {
         }
       }
 
+      if (plannerHandoff) explicitExitRequested = true;
       recorder.agentEndDone();
       ctx.shutdown();
       return;

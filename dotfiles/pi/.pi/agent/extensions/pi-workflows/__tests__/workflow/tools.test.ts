@@ -961,6 +961,8 @@ test("event-backed completion applies the workflow write boundary before sending
 		});
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(messages.length, 1);
+		assert.match(messages[0].content, /^WORKFLOW WRITE POLICY VIOLATION/);
+		assert.match(messages[0].content, /Workflow role "Documentation verifier" \(verifier\) failed write-policy check\. Result:/);
 		assert.match(messages[0].content, /WORKFLOW WRITE POLICY VIOLATION/);
 		assert.equal(messages[0].customType, "subagent_result");
 		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "failed");
@@ -1685,5 +1687,6 @@ test("event resume preserves historical sessions and records a confirmed rollove
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "completed");
 		assert.equal(messages[0]?.customType, "subagent_result");
+		assert.equal(messages[0]?.content, "Workflow role \"Documentation author\" (author) completed. Result:\ndone");
 	});
 });

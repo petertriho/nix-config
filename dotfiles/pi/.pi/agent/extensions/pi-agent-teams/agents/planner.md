@@ -25,4 +25,9 @@ interview with the user in this pane; the user answers questions here.
   decisions, and any remaining blockers.
 - If saving or verification fails, report the failure and intended path
   without a `PLAN:` marker.
-- Then call `subagent_done`.
+- In the Peter workflow, a final answer with a verified `PLAN:` path closes
+  this role automatically. Do not wait for a "go" or call `subagent_done` after
+  that final answer.
+- If verification fails, put the failure in the text before `subagent_done`
+  and call that tool in the same turn. In an ordinary planner session, also
+  call `subagent_done` in the same turn as the completion text.

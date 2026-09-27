@@ -93,6 +93,17 @@ const ASYNC_BOUNDARY_DETAILS = Object.freeze({
 	launchStatePersisted: true,
 });
 
+function workflowRoleResultContent(
+	role: WorkflowRoleDefinition,
+	status: WorkflowRoleResult["status"],
+	message: string,
+	violationText?: string,
+): string {
+	const outcome = violationText ? "failed write-policy check" : status;
+	const result = `Workflow role "${role.label}" (${role.id}) ${outcome}. Result:\n${message}`;
+	return violationText ? `${violationText}\n\n${result}` : result;
+}
+
 export const WorkflowDataUpdatesSchema = Type.Optional(
 	Type.Record(
 		Type.String({ minLength: 1 }),
@@ -777,10 +788,10 @@ export function createWorkflowLifecycleTools(
 					runId: snapshot.runId, roleId: role.id, sessionPath,
 					status: result.stopRequired ? "running" : result.status === "completed" && !outcome?.violationText ? "completed" : "failed",
 				});
-				const text = outcome?.violationText
-					? `${outcome.violationText}\n\n${result.message}` : result.message;
 				pi.sendMessage({
-					customType: "subagent_result", content: text, display: true,
+					customType: "subagent_result",
+					content: workflowRoleResultContent(role, result.status, result.message, outcome?.violationText),
+					display: true,
 					details: workflowDetails(snapshot, role, {
 						name: role.label, agent: role.agent, sessionFile: sessionPath,
 						status: result.status, changedFiles: result.changedFiles,
@@ -1036,7 +1047,9 @@ export function createWorkflowLifecycleTools(
 					));
 				}
 				pi.sendMessage({
-					customType: "subagent_result", content: `${outcome?.violationText ?? ""}\n${result.message}`.trim(), display: true,
+					customType: "subagent_result",
+					content: workflowRoleResultContent(role, result.status, result.message, outcome?.violationText),
+					display: true,
 					details: workflowDetails(snapshot, role, {
 						sessionFile: lease.facts.sessionPath, status: result.status, changedFiles: result.changedFiles,
 						failureKind: classifyProviderFailure(result.message),

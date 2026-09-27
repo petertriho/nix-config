@@ -7,6 +7,7 @@ import {
 	appendBranchSummary,
 	copySessionFile,
 	findLastAssistantMessage,
+	findWorkflowCompletionMessage,
 	getLeafId,
 	getNewEntries,
 	mergeNewEntries,
@@ -98,6 +99,30 @@ test("findLastAssistantMessage returns the last assistant text and skips thinkin
 	assert.equal(findLastAssistantMessage(asEntries([ASSISTANT_MSG, TOOL_RESULT])), "Here is my plan...");
 	assert.equal(findLastAssistantMessage(asEntries([USER_MSG])), null);
 	assert.equal(findLastAssistantMessage([]), null);
+});
+
+test("workflow completion retains a prior final answer after a later done preface", () => {
+	const final = {
+		type: "message",
+		message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "PLAN: /repo/.artifacts/work/PLAN.md" }] },
+	};
+	const go = { type: "message", message: { role: "user", content: [{ type: "text", text: "go" }] } };
+	const done = {
+		type: "message",
+		message: {
+			role: "assistant", stopReason: "toolUse",
+			content: [
+				{ type: "text", text: "Handing it back to the parent." },
+				{ type: "toolCall", name: "subagent_done", arguments: {} },
+			],
+		},
+	};
+	assert.equal(findLastAssistantMessage(asEntries([final, go, done])), "Handing it back to the parent.");
+	assert.equal(
+		findWorkflowCompletionMessage(asEntries([final, go, done])),
+		"PLAN: /repo/.artifacts/work/PLAN.md\n\nCompletion note: Handing it back to the parent.",
+	);
+	assert.equal(findWorkflowCompletionMessage(asEntries([go, done])), "Handing it back to the parent.");
 });
 
 test("findLastAssistantMessage skips empty assistant messages", () => {

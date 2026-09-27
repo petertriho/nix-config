@@ -154,6 +154,28 @@ export function findLastAssistantMessage(entries: SessionEntry[]): string | null
 }
 
 /**
+ * An interactive workflow role can finish its answer, then receive a short
+ * "go" before it calls subagent_done. Keep that final answer in the result
+ * without discarding any newer completion note.
+ */
+export function findWorkflowCompletionMessage(entries: SessionEntry[]): string | null {
+  const latest = findLastAssistantMessage(entries);
+  if (!latest) return null;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.type !== "message") continue;
+    const message = (entry as MessageEntry).message;
+    if (message.role !== "assistant" || (message as { stopReason?: string }).stopReason !== "stop") continue;
+    const final = message.content
+      .filter((block) => block.type === "text" && typeof block.text === "string" && block.text.trim())
+      .map((block) => block.text)
+      .join("\n");
+    if (final) return final === latest ? final : `${final}\n\nCompletion note: ${latest}`;
+  }
+  return latest;
+}
+
+/**
  * Append a branch_summary entry to the session file.
  * Returns the new entry's id.
  */

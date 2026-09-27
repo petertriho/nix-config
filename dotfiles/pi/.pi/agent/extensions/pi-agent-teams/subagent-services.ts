@@ -51,7 +51,7 @@ import {
 	resolveResumeRestoration,
 	resourceChangeNotice,
 } from "./resume-restore.ts";
-import { findLastAssistantMessage, getNewEntries, seedSubagentSessionFile } from "./session.ts";
+import { findLastAssistantMessage, findWorkflowCompletionMessage, getNewEntries, seedSubagentSessionFile } from "./session.ts";
 import { resolveTaskDiskCandidate } from "./task-disk-policy.ts";
 import { createStatusState, type SubagentStatusState } from "./status.ts";
 import { shellEscape } from "./tmux.ts";
@@ -150,6 +150,8 @@ export interface RunningSubagent {
 	sentinelFile?: string;
 	statusState: SubagentStatusState;
 	interactive: boolean;
+	/** Start of this workflow role's current run; excludes prior resume answers. */
+	workflowSummaryStartLine?: number;
 	team?: { teamId: string; memberId: string; epoch: number; sessionId: string };
 	/**
 	 * Opaque repository boundary captured by a caller. The shared execution
@@ -986,6 +988,9 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			const piCommand = cdPrefix + envPrefix + parts.join(" ");
 			const command = `${piCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
 			writeLaunchProfile(subagentSessionFile, launchProfile);
+			const workflowSummaryStartLine = options?.workflow
+				? (existsSync(subagentSessionFile) ? getNewEntries(subagentSessionFile, 0).length : 0)
+				: undefined;
 			try {
 				if (team) {
 					const lastCheck = resolveTaskDiskCandidate({
@@ -1026,6 +1031,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				launchScriptFile,
 				activityFile,
 				interactive: effectiveInteractive,
+				...(workflowSummaryStartLine !== undefined ? { workflowSummaryStartLine } : {}),
 				...(team ? { team: {
 					teamId: team.teamId, memberId: team.memberId,
 					epoch: team.memberEpoch, sessionId: team.childSessionId,
@@ -1131,7 +1137,9 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			let responded = false;
 			if (existsSync(sessionFile)) {
 				const allEntries = getNewEntries(sessionFile, 0);
-				const assistantMessage = findLastAssistantMessage(allEntries);
+				const assistantMessage = result.reason === "done" && running.workflowSummaryStartLine !== undefined
+					? findWorkflowCompletionMessage(allEntries.slice(running.workflowSummaryStartLine))
+					: findLastAssistantMessage(allEntries);
 				responded = assistantMessage !== null;
 				summary = assistantMessage ?? fallbackSummary(result);
 				const aggregated = summarizeSubagentUsage(allEntries);
@@ -1800,6 +1808,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			launchScriptFile,
 			activityFile,
 			interactive,
+			...(lifecycle?.workflowMetadata ? { workflowSummaryStartLine: entryCountBefore } : {}),
 			statusState: createStatusState({ source: "pi", startTimeMs: startTime }),
 		};
 		if (boundarySnapshot !== undefined) running.boundary = boundarySnapshot;

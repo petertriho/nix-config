@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
@@ -8,6 +8,7 @@ import subagentDone, {
 	buildTurnLimitExitSidecar,
 	createTurnLimitTracker,
 	findLatestAssistantError,
+	hasVerifiedPeterPlanHandoff,
 	parseDeniedTools,
 	parseMaxTurnsEnv,
 	renderSubagentToolsWidget,
@@ -16,6 +17,7 @@ import subagentDone, {
 	TURN_LIMIT_GRACE_TURNS,
 	TURN_LIMIT_WRAP_UP_MESSAGE,
 } from "../subagent-done.ts";
+import { fingerprintStrings, hashText, writeLaunchProfile, type LaunchProfile } from "../launch-profile.ts";
 import type { UiTheme } from "../ui.ts";
 
 function markerTheme(marker: string): UiTheme {
@@ -344,10 +346,103 @@ function createChildHarness(t: TestContext, options: { maxTurns?: number; autoEx
 		tools,
 		ctx,
 		steered,
+		dir,
+		sessionFile,
 		sidecarFile,
 		readActivity: () => JSON.parse(readFileSync(activityFile, "utf8")),
 	};
 }
+
+function writePlannerProfile(sessionFile: string, root: string, workflowId = "peter", roleId = "planner"): void {
+	const profile: LaunchProfile = {
+		version: 1,
+		stable: {
+			agentName: "planner", displayName: "Planner", roleBody: "Plan the request.",
+			roleBodyHash: hashText("Plan the request."), systemPromptMode: "append",
+			cwd: root, agentDir: root,
+			controls: { denyTools: [], autoExit: false, interactive: true, sessionMode: "standalone" },
+			originalSessionPath: sessionFile, createdAt: "2026-09-27T00:00:00.000Z",
+		},
+		runtime: {
+			originalModel: { provider: "test", model: "model" },
+			lastModel: { provider: "test", model: "model" }, resumeCount: 0,
+		},
+		resources: {
+			tools: fingerprintStrings([]), visibleSkills: fingerprintStrings([]),
+			updatedAt: "2026-09-27T00:00:00.000Z",
+		},
+		workflow: {
+			version: 1, workflowId, runId: "run", roleId,
+			manifestHash: hashText("manifest"), skillHash: hashText("skill"),
+			policy: "parent-per-role", assignmentSource: "parent",
+			projectRoot: root, data: {},
+		},
+	};
+	writeLaunchProfile(sessionFile, profile);
+}
+
+test("verified Peter planner handoff closes on the final answer without a go", (t) => {
+	const harness = createChildHarness(t, { autoExit: false });
+	writePlannerProfile(harness.sessionFile, harness.dir);
+	const planPath = join(harness.dir, ".artifacts", "demo", "PLAN.md");
+	mkdirSync(join(harness.dir, ".artifacts", "demo"), { recursive: true });
+	writeFileSync(planPath, "# Plan\nStatus: Ready\n");
+	harness.emit("agent_end", {
+		messages: [{ role: "assistant", stopReason: "stop", content: [{ type: "text", text: `PLAN: ${planPath}\nStatus: Ready` }] }],
+	});
+	assertUnsettled(harness);
+	harness.emit("agent_settled");
+	assert.equal(harness.ctx.shutdownCalls, 1);
+	assert.equal(existsSync(harness.sidecarFile), false);
+	assert.equal(harness.readActivity().phase, "done");
+});
+
+test("Peter planner waits through an interim answer, then closes on a verified handoff", (t) => {
+	const harness = createChildHarness(t, { autoExit: false });
+	writePlannerProfile(harness.sessionFile, harness.dir);
+	const planPath = join(harness.dir, ".artifacts", "demo", "PLAN.md");
+	mkdirSync(join(harness.dir, ".artifacts", "demo"), { recursive: true });
+	writeFileSync(planPath, "# Plan\n");
+	harness.emit("agent_end", {
+		messages: [{ role: "assistant", stopReason: "stop", content: [{ type: "text", text: "What should we do?" }] }],
+	});
+	harness.emit("agent_settled");
+	assert.equal(harness.ctx.shutdownCalls, 0);
+	harness.emit("agent_start");
+	harness.emit("agent_end", {
+		messages: [{ role: "assistant", stopReason: "stop", content: [{ type: "text", text: `PLAN: ${planPath}` }] }],
+	});
+	harness.emit("agent_settled");
+	assert.equal(harness.ctx.shutdownCalls, 1);
+});
+
+test("planner handoff rejects invalid files, unrelated workflows, and unfinished turns", (t) => {
+	const harness = createChildHarness(t, { autoExit: false });
+	const planPath = join(harness.dir, ".artifacts", "demo", "PLAN.md");
+	const answer = (path: string, stopReason = "stop") =>
+		[{ role: "assistant", stopReason, content: [{ type: "text", text: `PLAN: ${path}` }] }] as any;
+	writePlannerProfile(harness.sessionFile, harness.dir);
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(planPath)), false, "missing plan");
+	mkdirSync(join(harness.dir, ".artifacts", "demo"), { recursive: true });
+	writeFileSync(planPath, "");
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(planPath)), false, "empty plan");
+	writeFileSync(planPath, "# Plan\n");
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(planPath, "aborted")), false);
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(planPath, "error")), false);
+	writeFileSync(join(harness.dir, "PLAN.md"), "# Other plan\n");
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(join(harness.dir, "PLAN.md"))), false);
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(join(harness.dir, "outside", "PLAN.md"))), false);
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer("relative/PLAN.md")), false);
+	const link = join(harness.dir, ".artifacts", "linked", "PLAN.md");
+	mkdirSync(join(harness.dir, ".artifacts", "linked"));
+	symlinkSync(planPath, link);
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(link)), false);
+	writePlannerProfile(harness.sessionFile, harness.dir, "another-workflow");
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(planPath)), false);
+	writePlannerProfile(harness.sessionFile, harness.dir, "peter", "reviewer");
+	assert.equal(hasVerifiedPeterPlanHandoff(harness.sessionFile, answer(planPath)), false);
+	assert.equal(harness.ctx.shutdownCalls, 0);
+});
 
 function runTaskChildWithTurns(t: TestContext, maxTurns: number, turns: number) {
 	const harness = createChildHarness(t, { maxTurns });
