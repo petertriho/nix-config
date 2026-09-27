@@ -63,7 +63,6 @@ function workflowManifest() {
 				label: "Author",
 				agent: "writer",
 				reads: ["ticketSlug", "draftDoc"],
-				writes: ["file:draftDoc"],
 				handoff: "Continue authoring from the current draft and latest ticket context.",
 			},
 			{
@@ -71,7 +70,6 @@ function workflowManifest() {
 				label: "Verifier",
 				agent: "checker",
 				reads: ["draftDoc", "qaNotes"],
-				writes: [],
 				handoff: "Verify the current draft against the saved QA notes only.",
 			},
 		],

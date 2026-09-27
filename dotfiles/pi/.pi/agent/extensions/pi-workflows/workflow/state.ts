@@ -36,7 +36,6 @@ import {
 	type WorkflowRunStatus,
 	type WorkflowRunStatusSummary,
 	type WorkflowSourceScope,
-	type WorkflowWriteCapability,
 } from "./types.ts";
 
 export const WORKFLOW_RUN_ENTRY_CUSTOM_TYPE = "pi-agent-teams.workflow-run";
@@ -480,15 +479,7 @@ function parseRoleDefinition(value: unknown, context: string): WorkflowRoleDefin
 		throw new Error(`${context}.optional must be a boolean when present.`);
 	}
 	if (!Array.isArray(record.reads)) throw new Error(`${context}.reads must be an array.`);
-	if (!Array.isArray(record.writes)) throw new Error(`${context}.writes must be an array.`);
 	const reads = record.reads.map((entry, index) => expectString(entry, `${context}.reads[${index}]`));
-	const writes: WorkflowWriteCapability[] = record.writes.map((entry, index) => {
-		const capability = expectString(entry, `${context}.writes[${index}]`);
-		if (capability !== "worktree" && !capability.startsWith("file:")) {
-			throw new Error(`${context}.writes[${index}] must be "worktree" or "file:<data-id>".`);
-		}
-		return capability as WorkflowWriteCapability;
-	});
 	const handoff = expectString(record.handoff, `${context}.handoff`);
 	return freezeDeep({
 		id,
@@ -496,7 +487,6 @@ function parseRoleDefinition(value: unknown, context: string): WorkflowRoleDefin
 		agent,
 		...(record.optional !== undefined ? { optional: record.optional } : {}),
 		reads,
-		writes,
 		handoff,
 	});
 }

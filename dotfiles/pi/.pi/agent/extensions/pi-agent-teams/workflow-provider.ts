@@ -1,5 +1,6 @@
 /** The tmux execution adapter. Workflow policy and session state stay with the coordinator. */
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -23,10 +24,6 @@ import {
 	hashText, normalizeLaunchProfileWorkflowMetadata, readLaunchProfile, updateLaunchProfile,
 	THINKING_LEVELS, type LaunchProfile, type LaunchProfileWorkflowMetadata, type ModelSelection,
 } from "./launch-profile.ts";
-import {
-	captureRepoBoundarySnapshot, evaluateRepoBoundarySnapshot, resolveGitRoot,
-	type RepoBoundaryDefinition, type RepoBoundarySnapshot,
-} from "../workflow-provider/repo-boundary.ts";
 import { buildProviderFailureRecord, classifyProviderFailure } from "../workflow-provider/failure.ts";
 import type {
 	LaunchContext, ResumeLifecycleContext, RunningSubagent, SubagentResult,
@@ -34,10 +31,19 @@ import type {
 } from "./subagent-services.ts";
 
 export const TMUX_WORKFLOW_PROVIDER_ID = "pi-agent-teams";
+function resolveGitRoot(startDir: string): string | null {
+	try {
+		const root = execFileSync("git", ["-C", startDir, "rev-parse", "--show-toplevel"], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		}).trim();
+		return root ? realpathSync(root) : null;
+	} catch {
+		return null;
+	}
+}
 type Services = Pick<ReturnType<typeof createSubagentExecutionServices>,
 	"launchSubagent" | "watchSubagent" | "stopSubagent" | "executeSubagentResume">;
-type Evidence = { changedFiles: string[]; manualReviewReason?: string };
-type EvidenceBaseline = RepoBoundarySnapshot | { readonly changedFiles: readonly string[] };
 type ProfileIdentity = { agentId: string; path: string; hash: string; roleBodyHash: string };
 type Payload = {
 	agentId?: string;
@@ -49,7 +55,6 @@ type Payload = {
 	model?: { provider: string; model: string; thinking?: string };
 	workflow?: LaunchProfileWorkflowMetadata;
 	repositoryRoot?: string;
-	repositoryBoundary?: RepoBoundaryDefinition;
 	allowRollover?: boolean;
 	allowUserModelSelection?: boolean;
 	failure?: string;
@@ -70,8 +75,6 @@ export interface TmuxWorkflowProviderDependencies {
 	estimateContext(sessionPath: string): { tokens: number; source: string };
 	/** Return the canonical authorized checkout, rejecting a different execution repository. */
 	checkRepository(root: string, cwd: string, sessionPath?: string): string;
-	captureEvidence(root: string, definition?: RepoBoundaryDefinition): EvidenceBaseline;
-	finishEvidence(snapshot: unknown): Evidence;
 	services: Services;
 	ctx: LaunchContext;
 	pi: Pick<ExtensionAPI, "sendMessage">;
@@ -185,35 +188,25 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			});
 		}, 0);
 	}
-	function finish(request: WorkflowProviderRequest, running: RunningSubagent, baseline: unknown, result: SubagentResult, successfulResponse = false) {
+	function finish(request: WorkflowProviderRequest, running: RunningSubagent, result: SubagentResult, successfulResponse = false) {
 		const owned = active.get(running.sessionFile);
 		if (!owned || owned.controller.signal.aborted || owned.cleanupRequired
 			|| !sameOwner(owned.owner, request.owner) || owned.running !== running || !live()) return;
-		let evidence: Evidence;
-		try {
-			evidence = deps.finishEvidence(baseline);
-			if (!Array.isArray(evidence.changedFiles) || !evidence.changedFiles.every(text)) throw new Error("Invalid repository evidence");
-		} catch (error) {
-			evidence = { changedFiles: [], manualReviewReason: `Repository evidence unavailable: ${errorText(error)}` };
-		}
 		// A watcher may return after tmux refused to close the pane. Keep
 		// ownership so tree navigation can retry a strict stop.
 		if (running.surfaceClosed) active.delete(running.sessionFile);
 		const message = result.errorMessage ?? result.error ?? result.summary;
-		const status = evidence.manualReviewReason || result.exitCode !== 0 || result.errorMessage || result.ping
+		const status = result.exitCode !== 0 || result.errorMessage || result.ping
 			? "failed" : "completed";
 		if (result.ping) {
 			delivery(request, "ping", {
-				message: result.ping.message, changedFiles: [...evidence.changedFiles],
-				...(evidence.manualReviewReason ? { manualReviewReason: evidence.manualReviewReason } : {}),
+				message: result.ping.message,
 			});
 		}
 		delivery(request, "result", {
 			sessionPath: running.sessionFile, status, message,
-			changedFiles: [...evidence.changedFiles],
 			...(successfulResponse && status === "completed" && !result.ping ? { successfulResponse: true } : {}),
 			...(!running.surfaceClosed ? { stopRequired: true } : {}),
-			...(evidence.manualReviewReason ? { manualReviewReason: evidence.manualReviewReason } : {}),
 		});
 	}
 	function reply(request: WorkflowProviderRequest, ok: boolean, data?: unknown, error?: unknown) {
@@ -240,13 +233,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 	}
 	function checkedRepository(payload: Payload, cwd: string, sessionPath?: string): string {
 		if (!text(payload.repositoryRoot)) throw new Error("Workflow repository root required");
-		if (payload.repositoryBoundary && (!Array.isArray(payload.repositoryBoundary.allowedRules)
-			|| !Array.isArray(payload.repositoryBoundary.protectedRules))) throw new Error("Invalid repository boundary");
 		return deps.checkRepository(payload.repositoryRoot, cwd, sessionPath);
-	}
-	function repository(payload: Payload, cwd: string, sessionPath?: string): EvidenceBaseline {
-		const root = checkedRepository(payload, cwd, sessionPath);
-		return deps.captureEvidence(root, payload.repositoryBoundary);
 	}
 	function saved(request: WorkflowProviderRequest, payload: Payload) {
 		if (!text(payload.sessionPath) || !payload.expected || !text(payload.expected.agentId)
@@ -349,7 +336,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				|| (p.model.thinking !== undefined && !THINKING_LEVELS.includes(p.model.thinking as never))) {
 				throw new Error("Workflow launch task or resolved model unavailable");
 			}
-			let baseline: EvidenceBaseline | undefined;
+			let repositoryConfirmed = false;
 			if (signal.aborted || !live()) throw new Error("Workflow launch cancelled");
 			// Only the selected model and thinking are allowed; the model registry supplies the canonical model.
 			const model = deps.ctx.modelRegistry?.getAvailable().find(
@@ -361,19 +348,22 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			const controller = new AbortController();
 			const running = await deps.services.launchSubagent(
 				{ agent: agent.agentId, name: p.name, task: p.task }, deps.ctx,
-				{ workflow, beforeLaunch: (cwd) => { baseline = repository(p, cwd); },
+				{ workflow, beforeLaunch: (cwd) => {
+					checkedRepository(p, cwd);
+					repositoryConfirmed = true;
+				},
 					resolvedModel: { model, selection, argument: `${selection.provider}/${selection.model}${selection.thinking ? `:${selection.thinking}` : ""}`, source: "explicit" } },
 			);
 			try {
 				if (signal.aborted || !live()) throw new Error("Workflow launch cancelled or provider lost");
-				if (!baseline) throw new Error("Workflow execution repository was not confirmed");
+				if (!repositoryConfirmed) throw new Error("Workflow execution repository was not confirmed");
 				const facts = checkedFacts(deps, running.sessionFile, agent, workflow, undefined, true);
 				if (!isDeepStrictEqual(facts.model, selection)) throw new Error("Workflow launch model mismatch");
 				if (active.has(running.sessionFile)) throw new Error("Workflow role session already owned");
 				active.set(running.sessionFile, { owner: request.owner, running, controller });
 				void deps.services.watchSubagent(running, controller.signal)
-					.then((result) => finish(request, running, baseline, result))
-					.catch((error) => finish(request, running, baseline, {
+					.then((result) => finish(request, running, result))
+					.catch((error) => finish(request, running, {
 						name: running.name, task: running.task, summary: errorText(error), error: errorText(error),
 						sessionFile: running.sessionFile, exitCode: 1, elapsed: 0,
 					}));
@@ -396,7 +386,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				&& (!text(p.failure) || classifyProviderFailure(p.failure) === "other" || !p.model)) {
 				throw new Error("Workflow recovery requires an eligible failure and a selected replacement model");
 			}
-			let baseline: EvidenceBaseline | undefined;
+			let repositoryConfirmed = false;
 			if (active.has(p.sessionPath!)) throw new Error("Workflow role session already owned");
 			if (signal.aborted || !live()) throw new Error("Workflow resume cancelled");
 			update(p.sessionPath!, workflow);
@@ -412,14 +402,15 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				isOwned,
 				beforeLaunch: (cwd, sessionPath) => {
 					if (!isOwned()) throw new Error("Workflow resume cancelled or provider lost");
-					baseline = repository(p, cwd, sessionPath);
+					checkedRepository(p, cwd, sessionPath);
+					repositoryConfirmed = true;
 				},
 				workflowMetadata: workflow,
 				rolloverMessage: p.rolloverMessage,
 				onLaunched: ({ running, sessionPath, selection, userSelectedModel: selectedByUser }) => {
 					launched = running;
 					if (!isOwned()) throw new Error("Workflow resume cancelled or provider lost");
-					if (!baseline) throw new Error("Workflow execution repository was not confirmed");
+					if (!repositoryConfirmed) throw new Error("Workflow execution repository was not confirmed");
 					launchedSelection = selection;
 					userSelectedModel = selectedByUser === true && p.allowUserModelSelection === true;
 					if (active.has(sessionPath)) throw new Error("Workflow role session already owned");
@@ -427,12 +418,12 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				},
 				onResult: ({ result, sessionPath }) => {
 					if (isOwned() && launched && sessionPath === launched.sessionFile) finish(
-						request, launched, baseline, result,
+						request, launched, result,
 						!!successfulResponseModel && isDeepStrictEqual(successfulResponseModel, launchedSelection),
 					);
 				},
 				onError: ({ message, sessionPath }) => {
-					if (isOwned() && launched && sessionPath === launched.sessionFile) finish(request, launched, baseline, {
+					if (isOwned() && launched && sessionPath === launched.sessionFile) finish(request, launched, {
 						name: launched.name, task: launched.task, summary: message, error: message, exitCode: 1, elapsed: 0,
 					});
 				},
@@ -596,18 +587,6 @@ export function tmuxWorkflowProviderIO() {
 				check(header.cwd);
 			}
 			return authorized;
-		},
-		captureEvidence(root: string, definition: RepoBoundaryDefinition = { allowedRules: [], protectedRules: [] }): RepoBoundarySnapshot {
-			const snapshot = captureRepoBoundarySnapshot(root, definition);
-			if (!snapshot) throw new Error("Workflow repository evidence requires a Git checkout");
-			return snapshot;
-		},
-		finishEvidence(snapshot: unknown): Evidence {
-			const report = evaluateRepoBoundarySnapshot(snapshot as RepoBoundarySnapshot);
-			return {
-				changedFiles: [...new Set([...report.allowedPaths, ...report.unexpectedPaths])],
-				...(report.manualReviewReason ? { manualReviewReason: report.manualReviewReason } : {}),
-			};
 		},
 		/** Use the existing discovery precedence, with the exact source path. */
 		resolveFile(agentId: string, path: string, body: string): ProfileIdentity {

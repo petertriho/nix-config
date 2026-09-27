@@ -29,7 +29,6 @@ import {
 	type WorkflowRunState,
 	type WorkflowRunTransitionResult,
 } from "../../workflow/state.ts";
-import { resolveWorkflowWritePolicy } from "../../workflow/write-policy.ts";
 
 const PACKAGE_ROOT = dirname(
 	fileURLToPath(new URL("../../workflows/peter/workflow.json", import.meta.url)),
@@ -49,7 +48,7 @@ function loadPeter() {
 	return loaded.definition;
 }
 
-test("bundled Peter manifest declares five roles, typed data, labels, and write policy", () => {
+test("bundled Peter manifest declares five roles, typed data, and labels", () => {
 	const definition = loadPeter();
 	assert.equal(definition.id, "peter");
 	assert.deepEqual(definition.command, {
@@ -69,8 +68,6 @@ test("bundled Peter manifest declares five roles, typed data, labels, and write 
 			["reviewer", " Reviewer", "reviewer"],
 		],
 	);
-	assert.deepEqual(definition.roleById.planner.writes, ["file:plan"]);
-	assert.deepEqual(definition.roleById.evaluator.writes, ["file:evaluation"]);
 	assert.deepEqual(definition.roleById.evaluator.reads, ["plan", "evaluation"]);
 	assert.deepEqual(definition.roleById.planner.reads, ["baseRef", "plan", "evaluation"]);
 	assert.deepEqual(definition.roleById["task-writer"].reads, ["plan", "tasks"]);
@@ -80,34 +77,6 @@ test("bundled Peter manifest declares five roles, typed data, labels, and write 
 		under: ".artifacts",
 		basename: "EVALUATION.md",
 	});
-	assert.deepEqual(definition.roleById["task-writer"].writes, ["file:tasks"]);
-	assert.deepEqual(definition.roleById.executor.writes, ["worktree", "file:tasks"]);
-	assert.deepEqual(definition.roleById.reviewer.writes, ["file:review"]);
-
-	const projectRoot = "/tmp/peter-project";
-	const values = {
-		plan: join(projectRoot, ".artifacts", "demo", "PLAN.md"),
-		evaluation: join(projectRoot, ".artifacts", "demo", "EVALUATION.md"),
-		tasks: join(projectRoot, ".artifacts", "demo", "TASKS.md"),
-		review: join(projectRoot, ".artifacts", "demo", "REVIEW.md"),
-		baseRef: "abc123",
-	};
-	const executor = resolveWorkflowWritePolicy(
-		definition,
-		"executor",
-		values,
-		{ projectRoot },
-	);
-	assert.equal(executor.status, "ok");
-	if (executor.status !== "ok") return;
-	assert.deepEqual(
-		executor.policy.resolvedWrites.map((write) => write.capability),
-		["worktree", "file:tasks"],
-	);
-	assert.deepEqual(
-		executor.policy.protectedFiles.map((file) => file.slotId),
-		["plan", "evaluation", "tasks", "review"],
-	);
 });
 
 test("Peter private skill preserves all gates and six phases using dedicated workflow lifecycle calls", () => {
@@ -146,7 +115,7 @@ test("Peter private skill preserves all gates and six phases using dedicated wor
 		" Executing",
 		" Reviewing",
 		'tmux set-option -w -u -t "$TMUX_PANE" automatic-rename',
-		"nothing was staged or committed",
+		"the workflow did not stage or commit",
 		"Include untracked files in the base-ref scope",
 		"attribution limit is accepted",
 	]) {
@@ -166,7 +135,6 @@ test("Peter private skill preserves all gates and six phases using dedicated wor
 	assert.doesNotMatch(skill, /sessionPath\s*:/);
 	assert.match(skill, /status: "aborted"/);
 	assert.match(skill, /status: "completed"/);
-	assert.match(skill, /WORKFLOW WRITE POLICY VIOLATION/);
 	assert.match(skill, /Never re-review automatically/);
 	assert.doesNotMatch(skill, /Workflow done/);
 });
@@ -175,7 +143,7 @@ test("Peter review scope includes untracked files without executor path bookkeep
 	const skill = loadPeter().skill.body;
 	const executionReview = readFileSync(EXECUTION_REVIEW_SKILL, "utf8");
 
-	assert.doesNotMatch(skill, /workflowWriteBoundary\.allowedPaths|implementationPaths/);
+	assert.doesNotMatch(skill, /implementationPaths/);
 	assert.match(
 		executionReview,
 		/git-diff-scope --ref "\$base" --include-untracked --pretty/,
@@ -280,7 +248,7 @@ const scenarios: Array<{ name: string; section: string; checks: RegExp[] }> = [
 	{
 		name: "task annotations repeat Gate 2 and approval guides execution",
 		section: "Gate 2: Task review",
-		checks: [/gate: "tasks"/, /artifact: "tasks"/, /reviewDirectory: false/, /for a go or for task change notes, and wait/, /On `annotated` feedback or chat change notes/, /repeat this gate after its result and boundary check/, /On approval, keep any approval notes for the executor as non-blocking guidance/],
+		checks: [/gate: "tasks"/, /artifact: "tasks"/, /reviewDirectory: false/, /for a go or for task change notes, and wait/, /On `annotated` feedback or chat change notes/, /repeat this gate after its result/, /On approval, keep any approval notes for the executor as non-blocking guidance/],
 	},
 	{
 		name: "approved review fixes nonempty scope but finishes empty scope",

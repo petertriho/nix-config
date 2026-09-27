@@ -79,41 +79,33 @@ test("preflight validates required profiles and liveness before a launch", async
 	fake.off();
 });
 
-test("correlated async evidence is copied and frozen; stale and duplicate results never complete a lease", async () => {
+test("correlated results are frozen; stale and duplicate results never complete a lease", async () => {
 	const { events } = bus();
 	const fake = fakeProvider(events);
 	const client = createWorkflowEventClient(events, provider, { requestTimeoutMs: 20, livenessIntervalMs: 100 });
-	const pings: Array<{ message: string; changedFiles?: readonly string[] }> = [];
+	const pings: Array<{ message: string }> = [];
 	const lease = await client.launch(owner, launch, { onPing: (ping) => pings.push(ping) });
 	const request = fake.requests[0];
 	const emit = (data: object) => events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
 		...request, kind: "result", result: {
-			sessionPath: facts.sessionPath, status: "completed", message: "done", changedFiles: ["src/a.ts"],
+			sessionPath: facts.sessionPath, status: "completed", message: "done",
 		}, ...data,
 	});
 	emit({ owner: { ...owner, ownershipId: "old" } });
 	emit({ requestId: "old" });
 	emit({ instanceId: "old" });
-	emit({ result: { sessionPath: "/other.jsonl", status: "completed", message: "old", changedFiles: [] } });
-	emit({ result: { sessionPath: facts.sessionPath, status: "completed", message: "invalid", changedFiles: [], successfulResponse: "yes" } });
+	emit({ result: { sessionPath: "/other.jsonl", status: "completed", message: "old" } });
+	emit({ result: { sessionPath: facts.sessionPath, status: "completed", message: "invalid", successfulResponse: "yes" } });
 	assert.equal(lease.active, true, "malformed response evidence cannot settle a lease");
-	const pingFiles = ["src/ping.ts"];
-	events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, { ...request, kind: "ping", message: "Working", changedFiles: pingFiles });
-	pingFiles.push("src/later.ts");
+	events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, { ...request, kind: "ping", message: "Working" });
 	assert.deepEqual(pings.map((ping) => ping.message), ["Working"]);
-	assert.deepEqual(pings[0].changedFiles, ["src/ping.ts"]);
-	assert.equal(Object.isFrozen(pings[0].changedFiles), true);
-	const files = ["src/a.ts"];
-	const evidence = { sessionPath: facts.sessionPath, status: "completed", message: "done", changedFiles: files, successfulResponse: true };
+	const evidence = { sessionPath: facts.sessionPath, status: "completed", message: "done", successfulResponse: true };
 	emit({ result: evidence });
 	const result = await lease.result;
-	files.push("src/b.ts");
 	evidence.successfulResponse = false;
 	assert.equal(result.successfulResponse, true);
-	assert.deepEqual(result.changedFiles, ["src/a.ts"]);
 	assert.equal(Object.isFrozen(result), true);
-	assert.equal(Object.isFrozen(result.changedFiles), true);
-	emit({ result: { sessionPath: facts.sessionPath, status: "failed", message: "late", changedFiles: [] } });
+	emit({ result: { sessionPath: facts.sessionPath, status: "failed", message: "late" } });
 	assert.equal((await lease.result).status, "completed");
 	client.dispose();
 	fake.off();
@@ -151,7 +143,7 @@ test("a terminal result with unconfirmed pane closure retains a strictly stoppab
 		const lease = await client.launch(owner, launch);
 		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
 			...fake.requests[0], kind: "result",
-			result: { sessionPath: facts.sessionPath, status: "failed", message: "close failed", changedFiles: [], stopRequired: true },
+			result: { sessionPath: facts.sessionPath, status: "failed", message: "close failed", stopRequired: true },
 		});
 		assert.equal((await lease.result).status, "failed");
 		assert.equal(lease.active, true);
@@ -242,7 +234,7 @@ test("provider loss fails the pending lease closed; late delivery and replacemen
 	assert.equal(lease.active, false);
 	events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
 		...original, kind: "result", result: {
-			...facts, status: "completed", message: "late", changedFiles: [],
+			...facts, status: "completed", message: "late",
 		},
 	});
 	await assert.rejects(lease.result, /provider|timed out/i);

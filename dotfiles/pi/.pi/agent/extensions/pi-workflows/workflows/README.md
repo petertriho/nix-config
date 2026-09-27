@@ -24,9 +24,6 @@ Authoring notes for schema version 1:
   saved presets can assign `{ "skip": true }` instead of a provider/model/
   thinking object. Skip and model fields cannot be mixed; required roles
   cannot be skipped. A skipped role cannot spawn, resume, or recover.
-- Role `writes` may include:
-  - `worktree`
-  - `file:<data-id>` for declared file slots only.
 
 Private `SKILL.md` files are validated like skills, but they are not normal
 discoverable Pi skills. Keep a small frontmatter block at the top:

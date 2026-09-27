@@ -610,7 +610,6 @@ function writeGenericWorkflowPackage(root: string) {
 				label: "Architecture specialist",
 				agent: "planner",
 				reads: ["plan"],
-				writes: ["file:plan"],
 				handoff: "Continue the architecture plan from the durable artifact.",
 			}],
 		}),

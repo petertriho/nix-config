@@ -144,7 +144,6 @@ function definitionFixture(root: string): NormalizedWorkflowDefinition {
 			label: "Folio author",
 			agent: "documentation-scribe",
 			reads: ["draft", "ticket"],
-			writes: ["file:draft"],
 			handoff: "Continue the durable folio draft.",
 		}],
 	}));

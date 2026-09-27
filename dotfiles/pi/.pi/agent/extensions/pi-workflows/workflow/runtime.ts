@@ -135,7 +135,6 @@ function formatRoleDeclarations(definition: NormalizedWorkflowDefinition): strin
 			`agent=${JSON.stringify(role.agent)}`,
 			`optional=${role.optional === true}`,
 			`reads=${JSON.stringify(role.reads.join(","))}`,
-			`writes=${JSON.stringify(role.writes.join(","))}`,
 		].join(" ")
 	);
 }

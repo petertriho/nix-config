@@ -295,17 +295,13 @@ export function requestWorkflowProvider<K extends WorkflowProviderOperation>(
 }
 
 export type WorkflowProviderDelivery =
-	| { readonly kind: "ping"; readonly message: string;
-		readonly changedFiles?: readonly string[]; readonly manualReviewReason?: string }
+	| { readonly kind: "ping"; readonly message: string }
 	| { readonly kind: "result"; readonly result: WorkflowRoleResult };
 
 export interface WorkflowRoleResult {
 	readonly sessionPath: string;
 	readonly status: "completed" | "failed" | "stopped";
 	readonly message: string;
-	readonly changedFiles: readonly string[];
-	/** A failed post-run capture must be treated as a boundary violation. */
-	readonly manualReviewReason?: string;
 	/** The watcher finished but transport cleanup did not confirm the child stopped. */
 	readonly stopRequired?: boolean;
 	/** A successful new response was confirmed, not merely a launch or clean exit. */
@@ -330,20 +326,14 @@ export function subscribeWorkflowDelivery(
 		if (!record(value) || value.requestId !== launchRequestId
 			|| value.providerId !== providerIdentity.providerId || value.instanceId !== providerIdentity.instanceId
 			|| !sameOwner(value.owner, owner)) return;
-		if (value.kind === "ping" && typeof value.message === "string"
-			&& (value.changedFiles === undefined || (Array.isArray(value.changedFiles)
-				&& value.changedFiles.every((path: unknown) => typeof path === "string")))
-			&& (value.manualReviewReason === undefined || typeof value.manualReviewReason === "string")) {
+		if (value.kind === "ping" && typeof value.message === "string") {
 			onDelivery(value as WorkflowProviderDelivery);
 		} else if (value.kind === "result" && record(value.result)
 			&& value.result.sessionPath === sessionPath
 			&& typeof value.result.message === "string"
 			&& ["completed", "failed", "stopped"].includes(String(value.result.status))
-			&& Array.isArray(value.result.changedFiles)
-			&& value.result.changedFiles.every((path: unknown) => typeof path === "string")
 			&& (value.result.stopRequired === undefined || typeof value.result.stopRequired === "boolean")
-			&& (value.result.successfulResponse === undefined || typeof value.result.successfulResponse === "boolean")
-			&& (value.result.manualReviewReason === undefined || typeof value.result.manualReviewReason === "string")) {
+			&& (value.result.successfulResponse === undefined || typeof value.result.successfulResponse === "boolean")) {
 			finished = true;
 			unsubscribe();
 			onDelivery(value as WorkflowProviderDelivery);

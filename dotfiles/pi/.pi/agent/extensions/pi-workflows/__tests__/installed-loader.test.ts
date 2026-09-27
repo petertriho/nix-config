@@ -18,7 +18,7 @@ test("Pi loader binds installed entries in both orders and disables workflows wi
 	mkdirSync(packageRoot, { recursive: true });
 	writeFileSync(join(packageRoot, "workflow.json"), JSON.stringify({
 		version: 1, id: "docs-review", command: { name: "docs", description: "Review documentation" }, skill: "SKILL.md", data: {},
-		roles: [{ id: "author", label: "Author", agent: "planner", reads: [], writes: [], handoff: "Continue writing." }],
+		roles: [{ id: "author", label: "Author", agent: "planner", reads: [], handoff: "Continue writing." }],
 	}));
 	writeFileSync(join(packageRoot, "SKILL.md"), "---\nname: docs-review\ndescription: Loader fixture\ndisable-model-invocation: true\n---\nWrite the requested guide.");
 	const model: any = { provider: "workflow-test", id: "echo", name: "Echo", api: "anthropic-messages",

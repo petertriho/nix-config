@@ -55,7 +55,7 @@ function fixture(root: string, options: Partial<WorkflowGateDependencies> = {}) 
 		},
 		roles: [{
 			id: "author", label: "Author", agent: "scribe", reads: ["ticket"],
-			writes: ["file:draft"], handoff: "Continue drafting.",
+			handoff: "Continue drafting.",
 		}],
 	}));
 	writeFileSync(join(packagePath, "SKILL.md"), "---\nname: quill-private\ndescription: A private workflow\n---\n\nDraft something.");

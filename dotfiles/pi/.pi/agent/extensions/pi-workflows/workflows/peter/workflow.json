@@ -55,9 +55,6 @@
         "plan",
         "evaluation"
       ],
-      "writes": [
-        "file:plan"
-      ],
       "handoff": "Continue planning from the current PLAN.md state and the user's latest adjustment, preserving its feedback block verbatim. EVALUATION.md is reference material only for findings the user's notes name; do not adopt other findings or edit EVALUATION.md. Do not implement or change any other repository file. Do not run Plannotator; the parent owns the gates."
     },
     {
@@ -69,9 +66,6 @@
         "plan",
         "evaluation"
       ],
-      "writes": [
-        "file:evaluation"
-      ],
       "handoff": "Re-read the exact PLAN.md and previous EVALUATION.md, then evaluate the current plan with plan-evaluate using read-only commands. Overwrite only the declared EVALUATION.md. Never substitute another plan or run Plannotator. Report the verdict, finding counts, and EVALUATION: <absolute path>; report NOTHING EVALUATED on input failure."
     },
     {
@@ -81,9 +75,6 @@
       "reads": [
         "plan",
         "tasks"
-      ],
-      "writes": [
-        "file:tasks"
       ],
       "handoff": "Re-read PLAN.md and TASKS.md, then continue task writing from the current artifacts and latest instruction, preserving its feedback block verbatim. Do not change PLAN.md or implement anything. Do not run Plannotator; the parent owns the gates."
     },
@@ -97,10 +88,6 @@
         "review",
         "baseRef"
       ],
-      "writes": [
-        "worktree",
-        "file:tasks"
-      ],
       "handoff": "Re-read PLAN.md, TASKS.md, the base ref, and REVIEW.md when present. Continue from the first unchecked task or the latest authorized fix scope, preserving its feedback block verbatim; user annotations override the standard fix scope where they conflict. Keep TASKS.md accurate and never commit or stage. Do not run Plannotator; the parent owns the gates."
     },
     {
@@ -112,9 +99,6 @@
         "tasks",
         "review",
         "baseRef"
-      ],
-      "writes": [
-        "file:review"
       ],
       "handoff": "Perform an independent review from the current PLAN.md, TASKS.md, implementation, and base ref. Use the previous REVIEW.md only as optional context and edit nothing except REVIEW.md. Do not run Plannotator; the parent owns the gates."
     }

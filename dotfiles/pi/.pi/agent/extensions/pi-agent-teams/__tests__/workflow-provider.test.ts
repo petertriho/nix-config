@@ -62,7 +62,6 @@ function fixture(options: {
 	const events = bus();
 	const sidecars = new Map<string, LaunchProfile>([[running.sessionFile, profile]]);
 	const calls: string[] = [];
-	const evidenceRoots: string[] = [];
 	let available = true;
 	let updateFails = false;
 	let modelUpdateFails = false;
@@ -92,8 +91,6 @@ function fixture(options: {
 			if (root !== cwd) throw new Error("Workflow execution repository mismatch");
 			return root;
 		}),
-		captureEvidence: (root) => { evidenceRoots.push(root); return { changedFiles: [] }; },
-		finishEvidence: () => ({ changedFiles: ["src/main.ts"] }),
 		services: {
 			async launchSubagent(params, _ctx, launchOptions) {
 				if (!options.skipRepositoryCheck) launchOptions?.beforeLaunch?.(options.launchCwd ?? "/repo");
@@ -133,7 +130,7 @@ function fixture(options: {
 		pi: { sendMessage() {} },
 	});
 	assert.ok(attached);
-	return { events, attached, calls, sidecars, evidenceRoots, get watched() { return watched; },
+	return { events, attached, calls, sidecars, get watched() { return watched; },
 		setAvailable(value: boolean) { available = value; }, failUpdate() { updateFails = true; },
 		failModelUpdate() { modelUpdateFails = true; },
 		pickModel(value: string) { pickedModel = value; },
@@ -148,7 +145,7 @@ function fixture(options: {
 const launch = { agentId: "writer", name: "Writer", task: "Write", workflow: metadata, model: { provider: "test", model: "echo" }, repositoryRoot: "/repo" };
 const expected = { agentId: "writer", profileHash: agent.hash, model: { provider: "test", model: "echo" } };
 
-test("root discovery, launch acknowledgement, correlated lifecycle and evidence", { timeout: 3_000 }, async () => {
+test("root discovery, launch acknowledgement, and correlated lifecycle", { timeout: 3_000 }, async () => {
 	const f = fixture();
 	assert.deepEqual((await discoverWorkflowProviders(f.events, { timeoutMs: 5 })).map((item) => item.providerId), ["pi-agent-teams"]);
 	assert.deepEqual(f.attached.identity.capabilities, WORKFLOW_PROVIDER_CAPABILITIES);
@@ -165,12 +162,12 @@ test("root discovery, launch acknowledgement, correlated lifecycle and evidence"
 	f.watched?.({ name: "Writer", task: "Write", summary: "done", sessionFile: running.sessionFile, exitCode: 0, elapsed: 1 });
 	await finished;
 	assert.deepEqual(delivered.map((item) => (item as { result: unknown }).result),
-		[{ sessionPath: running.sessionFile, status: "completed", message: "done", changedFiles: ["src/main.ts"], stopRequired: true }]);
+		[{ sessionPath: running.sessionFile, status: "completed", message: "done", stopRequired: true }]);
 	f.attached.detach();
 	assert.equal(f.events.size(), 0);
 });
 
-test("terminal child ping carries evidence and then settles the owned role", { timeout: 3_000 }, async () => {
+test("terminal child ping settles the owned role", { timeout: 3_000 }, async () => {
 	const f = fixture();
 	const ack = await requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch);
 	const received: unknown[] = [];
@@ -182,14 +179,14 @@ test("terminal child ping carries evidence and then settles the owned role", { t
 		exitCode: 0, elapsed: 1, ping: { name: "Writer", message: "Question?" } });
 	await finished;
 	assert.deepEqual(received.map((value) => {
-		const { kind, message, changedFiles } = value as { kind: string; message: string; changedFiles: string[] };
-		return { kind, message, changedFiles };
+		const { kind, message } = value as { kind: string; message: string };
+		return { kind, message };
 	}), [
-		{ kind: "ping", message: "Question?", changedFiles: ["src/main.ts"] },
-		{ kind: "result", message: undefined, changedFiles: undefined },
+		{ kind: "ping", message: "Question?" },
+		{ kind: "result", message: undefined },
 	]);
-	assert.deepEqual((received[1] as { result: { status: string; changedFiles: string[] } }).result,
-		{ sessionPath: running.sessionFile, status: "failed", message: "needs help", changedFiles: ["src/main.ts"], stopRequired: true });
+	assert.deepEqual((received[1] as { result: { status: string } }).result,
+		{ sessionPath: running.sessionFile, status: "failed", message: "needs help", stopRequired: true });
 	f.attached.detach();
 });
 
@@ -354,7 +351,7 @@ test("replacement model acknowledgement reads back the launched selection", asyn
 	assert.deepEqual(f.sidecars.get(running.sessionFile)?.runtime.lastModel, replacement);
 	f.attached.detach();
 });
-test("missing repository evidence cannot launch a role", async () => {
+test("missing repository root cannot launch a role", async () => {
 	const f = fixture();
 	await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, "launch", owner,
 		{ ...launch, repositoryRoot: "" }), /repository/i);
@@ -362,12 +359,11 @@ test("missing repository evidence cannot launch a role", async () => {
 	f.attached.detach();
 });
 
-test("a profile's alternate execution checkout is rejected before launch or evidence capture", async () => {
+test("a profile's alternate execution checkout is rejected before launch", async () => {
 	const f = fixture({ launchCwd: "/alternate-checkout" });
 	try {
 		await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch), /repository mismatch/i);
 		assert.deepEqual(f.calls, []);
-		assert.deepEqual(f.evidenceRoots, []);
 	} finally { f.attached.detach(); }
 });
 
@@ -382,7 +378,6 @@ for (const operation of ["resume", "recover"] as const) {
 				...(operation === "recover" ? { model: expected.model, failure: "credits exhausted" } : {}),
 			}), /repository mismatch/i);
 			assert.deepEqual(f.calls, []);
-			assert.deepEqual(f.evidenceRoots, []);
 			assert.equal(f.sidecars.get(running.sessionFile), saved);
 		} finally { f.attached.detach(); }
 	});
@@ -395,7 +390,6 @@ test("resume rechecks the cwd used by the service, not just the earlier sidecar 
 			sessionPath: running.sessionFile, expected, workflow: metadata, repositoryRoot: "/repo",
 		}), /repository mismatch/i);
 		assert.deepEqual(f.calls, ["update"]);
-		assert.deepEqual(f.evidenceRoots, []);
 	} finally { f.attached.detach(); }
 });
 
@@ -408,7 +402,6 @@ test("an execution service cannot acknowledge a role without confirming its exec
 					sessionPath: running.sessionFile, expected, workflow: metadata, repositoryRoot: "/repo",
 				}), /repository.*confirmed/i);
 			assert.equal(f.calls.includes("stop"), true);
-			assert.deepEqual(f.evidenceRoots, []);
 		} finally { f.attached.detach(); }
 	}
 });
@@ -458,7 +451,6 @@ test("repository checks use canonical checkout roots and Pi's saved session cwd 
 						...(operation === "recover" ? { model: expected.model, failure: "credits exhausted" } : {}),
 					}), /repository mismatch/i);
 				assert.deepEqual(f.calls, []);
-				assert.deepEqual(f.evidenceRoots, []);
 				assert.equal(f.sidecars.get(sessionPath), saved);
 				assert.deepEqual(readFileSync(sessionPath), sessionBytes);
 			} finally { f.attached.detach(); }
@@ -468,13 +460,10 @@ test("repository checks use canonical checkout roots and Pi's saved session cwd 
 		writeHeader(alias);
 		assert.equal(io.checkRepository(root, subdirectory, sessionPath), realpathSync(root));
 
-		const evidence = io.captureEvidence(io.checkRepository(alias, subdirectory));
-		assert.equal(evidence.repoRoot, realpathSync(root));
-		assert.deepEqual(io.finishEvidence(evidence), { changedFiles: [] });
+		assert.equal(io.checkRepository(alias, subdirectory), realpathSync(root));
 		const f = fixture({ launchCwd: subdirectory, checkRepository: io.checkRepository });
 		try {
 			await requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, { ...launch, repositoryRoot: alias });
-			assert.deepEqual(f.evidenceRoots, [realpathSync(root)], "capture must use the checked canonical checkout");
 		} finally { f.attached.detach(); }
 		assert.deepEqual([gitState(root), gitState(alternate), gitState(nested)], before);
 		assert.deepEqual([readFileSync(join(root, "keep.txt")), readFileSync(join(alternate, "keep.txt"))], originalFiles);

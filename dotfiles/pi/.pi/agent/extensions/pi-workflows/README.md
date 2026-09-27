@@ -1,7 +1,7 @@
 # Pi workflows
 
 `pi-workflows` owns workflow discovery, commands, model assignments, persisted
-runs, repository write policies, and browser review gates.
+runs, and browser review gates.
 `pi-agent-teams` supplies the execution provider. It owns panes, child
 sessions, sidecars, context estimates, and child watchers.
 
@@ -59,8 +59,8 @@ agent directory. No preset migration runs during the extension rename.
 ## Interruption and safety
 
 Role results carry correlated session, run, role, and launch identities.
-Stale results cannot change the active run. The coordinator evaluates changed
-files against the role policy and preserves all repository changes.
+Stale results cannot change the active run. Workflow roles receive instructions
+about their artifact targets; the coordinator does not enforce write boundaries.
 
 Tree navigation stops the owned role before it changes branches. A failed
 stop cancels navigation. Abort, replacement, and completion also require a

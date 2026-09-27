@@ -46,11 +46,6 @@ import {
   resolveModelPolicy,
   type ResolvedModelSelection,
 } from "./model-picker.ts";
-import {
-	describeWorkflowWriteBoundaryReport,
-	evaluateWorkflowWriteBoundarySnapshot,
-	type WorkflowWriteBoundarySnapshot,
-} from "../pi-workflows/workflow/write-policy.ts";
 import { classifyProviderFailure } from "../workflow-provider/failure.ts";
 import { findLastAssistantMessage, getNewEntries } from "./session.ts";
 import {
@@ -807,11 +802,6 @@ interface RunningSubagent {
    */
   interactive: boolean;
   team?: { teamId: string; memberId: string; epoch: number; sessionId: string };
-  /**
-   * Generic manifest write-policy boundary. Shared subagent services keep
-   * this opaque; the index composition layer evaluates it after completion.
-   */
-  boundary?: unknown;
 }
 
 const runningSubagents = new Map<string, RunningSubagent>();
@@ -1028,8 +1018,6 @@ function attachWorkflowProvider(pi: ExtensionAPI, ctx: ExtensionContext): void {
     recordLaunchedModel: io.recordLaunchedModel,
     estimateContext: io.estimateContext,
     checkRepository: io.checkRepository,
-    captureEvidence: io.captureEvidence,
-    finishEvidence: io.finishEvidence,
     services: subagentExecution,
     ctx: { ...ctx, pi },
     pi,
@@ -1481,7 +1469,6 @@ const subagentExecution = createSubagentExecutionServices({
   pollForExit,
   readScreen,
   getModuleAbortSignal,
-  describeBoundary: describeRunningBoundary,
   onRolloverLaunched: ({ running, recovery }) => {
     if (recovery) {
       try {
@@ -1574,38 +1561,6 @@ function buildLaunchProfile(input: LaunchProfileInput): LaunchProfile {
 interface SubagentToolResult {
   content: Array<{ type: "text"; text: string }>;
   details: Record<string, unknown>;
-}
-
-interface PhaseBoundaryOutcome {
-  details: Record<string, unknown>;
-  violationText?: string;
-}
-
-/**
- * Evaluate a finished child's manifest write boundary. Read-only: the
- * repository keeps every change exactly as the child left it. Ordinary
- * subagents carry no boundary and return undefined.
- */
-function isWorkflowWriteBoundarySnapshot(
-  value: unknown,
-): value is WorkflowWriteBoundarySnapshot {
-  return typeof value === "object"
-    && value !== null
-    && "workflowId" in value
-    && "roleId" in value
-    && "resolvedWrites" in value
-    && "protectedFiles" in value;
-}
-
-function describeRunningBoundary(
-  running: Pick<RunningSubagent, "boundary">,
-): PhaseBoundaryOutcome | undefined {
-  const genericBoundary = running.boundary;
-  if (isWorkflowWriteBoundarySnapshot(genericBoundary)) {
-    const report = evaluateWorkflowWriteBoundarySnapshot(genericBoundary);
-    return report ? describeWorkflowWriteBoundaryReport(report) : undefined;
-  }
-  return undefined;
 }
 
 interface SubagentResumeParams {
@@ -1705,7 +1660,6 @@ export const __test__ = {
   resolveResumeLaunchBehavior,
   buildResumePiArgs,
   buildLaunchProfile,
-  describeRunningBoundary,
   collectResourceFingerprints,
   parseLegacyModelSelection,
   resolvePrimarySkill,
@@ -2351,19 +2305,15 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           isOwned: () => sessionActive && sessionEpoch === launchEpoch,
           pingAgent: running.agent,
           pingSessionPath: running.cli === "claude" ? undefined : running.sessionFile,
-          onSuccess: ({ result, boundary }) => {
+          onSuccess: ({ result }) => {
             rememberFinished(result);
             const usage = resolveUsageDetails(result, ctx);
             const base = resolveResultPresentation(
               { ...result, ...(usage ? { usage } : {}) },
               running.name,
             );
-            const presentation = boundary?.violationText
-              ? `${boundary.violationText}\n\n${base}`
-              : base;
-
             return {
-              content: presentation,
+              content: base,
               details: {
                 id: running.id,
                 name: running.name,
@@ -2381,7 +2331,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
                   : {}),
                 ...(usage ? { usage } : {}),
                 ...(result.claudeSessionId ? { claudeSessionId: result.claudeSessionId } : {}),
-                ...(boundary ? boundary.details : {}),
               },
             };
           },

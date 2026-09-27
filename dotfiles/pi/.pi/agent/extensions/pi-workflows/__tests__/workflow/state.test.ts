@@ -67,7 +67,6 @@ function workflowManifest(extraRole = false) {
 				label: "Author",
 				agent: "writer",
 				reads: ["ticket", "draft"],
-				writes: ["file:draft"],
 				handoff: "Continue authoring from the saved draft.",
 			},
 			{
@@ -75,7 +74,6 @@ function workflowManifest(extraRole = false) {
 				label: "Verifier",
 				agent: "checker",
 				reads: ["draft"],
-				writes: [],
 				handoff: "Verify the saved draft only.",
 			},
 			...(extraRole
@@ -84,7 +82,6 @@ function workflowManifest(extraRole = false) {
 					label: "Publisher",
 					agent: "publisher",
 					reads: ["draft", "ticket"],
-					writes: [],
 					handoff: "Prepare the final publish handoff.",
 				}]
 				: []),

@@ -86,7 +86,6 @@ function workflowManifest(id = "quill") {
 				label: "Author",
 				agent: "writer",
 				reads: ["ticket", "draft"],
-				writes: ["file:draft"],
 				handoff: "Continue authoring from the saved draft.",
 			},
 			{
@@ -94,7 +93,6 @@ function workflowManifest(id = "quill") {
 				label: "Verifier",
 				agent: "checker",
 				reads: ["draft"],
-				writes: [],
 				handoff: "Verify the saved draft only.",
 			},
 			{
@@ -102,7 +100,6 @@ function workflowManifest(id = "quill") {
 				label: "Publisher",
 				agent: "publisher",
 				reads: ["draft", "ticket"],
-				writes: [],
 				handoff: "Prepare the final publish handoff.",
 			},
 		],
@@ -314,7 +311,6 @@ test("role edit choices remain distinct for duplicate labels, control labels, an
 				label: "Done",
 				agent: "writer",
 				reads: ["ticket", "draft"],
-				writes: [],
 				handoff: "Continue the Done role.",
 			},
 			{
@@ -322,7 +318,6 @@ test("role edit choices remain distinct for duplicate labels, control labels, an
 				label: "Cancel",
 				agent: "writer",
 				reads: ["ticket", "draft"],
-				writes: [],
 				handoff: "Continue the Cancel role.",
 			},
 			{
@@ -330,7 +325,6 @@ test("role edit choices remain distinct for duplicate labels, control labels, an
 				label: "Duplicate",
 				agent: "writer",
 				reads: ["ticket", "draft"],
-				writes: [],
 				handoff: "Continue the first duplicate role.",
 			},
 			{
@@ -338,7 +332,6 @@ test("role edit choices remain distinct for duplicate labels, control labels, an
 				label: "Duplicate",
 				agent: "writer",
 				reads: ["ticket", "draft"],
-				writes: [],
 				handoff: "Continue the second duplicate role.",
 			},
 			{
@@ -346,7 +339,6 @@ test("role edit choices remain distinct for duplicate labels, control labels, an
 				label: "Duplicate (first)",
 				agent: "writer",
 				reads: ["ticket", "draft"],
-				writes: [],
 				handoff: "Continue the generated-label role.",
 			},
 		],

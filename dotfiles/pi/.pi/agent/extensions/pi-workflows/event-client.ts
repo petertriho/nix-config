@@ -1,6 +1,6 @@
 /**
  * Coordinator-side transport client. This is deliberately independent of the
- * tmux extension: the caller owns workflow state, policy and recovery decisions.
+ * tmux extension: the caller owns workflow state and recovery decisions.
  */
 import {
 	requestWorkflowProvider, subscribeWorkflowDelivery,
@@ -9,7 +9,6 @@ import {
 	type WorkflowProvider, type WorkflowProviderDelivery, type WorkflowRoleFacts,
 	type WorkflowRoleResult,
 } from "../workflow-provider/contract.ts";
-import type { RepoBoundaryDefinition } from "../workflow-provider/repo-boundary.ts";
 
 export interface WorkflowLaunchRequest {
 	readonly agentId: string;
@@ -18,7 +17,6 @@ export interface WorkflowLaunchRequest {
 	readonly model: { readonly provider: string; readonly model: string; readonly thinking?: string };
 	readonly workflow: WorkflowMetadata;
 	readonly repositoryRoot: string;
-	readonly repositoryBoundary?: RepoBoundaryDefinition;
 }
 
 /** Transport-neutral shape of the persisted workflow identity in a role sidecar. */
@@ -47,7 +45,6 @@ export interface WorkflowSavedRequest {
 	};
 	readonly workflow: WorkflowMetadata;
 	readonly repositoryRoot: string;
-	readonly repositoryBoundary?: RepoBoundaryDefinition;
 	readonly name?: string;
 	readonly message?: string;
 	readonly rolloverMessage?: string;
@@ -66,10 +63,8 @@ export type WorkflowPing = Readonly<Extract<WorkflowProviderDelivery, { kind: "p
 function freezeEvidence(result: WorkflowRoleResult): WorkflowRoleResult {
 	return Object.freeze({
 		sessionPath: result.sessionPath, status: result.status, message: result.message,
-		changedFiles: Object.freeze([...result.changedFiles]),
 		...(result.stopRequired ? { stopRequired: true } : {}),
 		...(result.successfulResponse === true ? { successfulResponse: true } : {}),
-		...(result.manualReviewReason === undefined ? {} : { manualReviewReason: result.manualReviewReason }),
 	});
 }
 
@@ -202,8 +197,6 @@ export function createWorkflowEventClient(
 				try {
 					onPing?.(Object.freeze({
 						kind: "ping", message: delivery.message,
-						...(delivery.changedFiles === undefined ? {} : { changedFiles: Object.freeze([...delivery.changedFiles]) }),
-						...(delivery.manualReviewReason === undefined ? {} : { manualReviewReason: delivery.manualReviewReason }),
 					}));
 				} catch (error) {
 					fail(new Error(`Workflow delivery handler failed: ${error instanceof Error ? error.message : String(error)}`));

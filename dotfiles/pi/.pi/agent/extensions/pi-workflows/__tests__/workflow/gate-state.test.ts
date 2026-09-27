@@ -61,11 +61,11 @@ function fixture(root: string) {
 		roles: [
 			{
 				id: "author", label: "Author", agent: "scribe", reads: ["ticket", "draft"],
-				writes: ["file:draft"], handoff: "Continue from the current draft.",
+				handoff: "Continue from the current draft.",
 			},
 			{
 				id: "verifier", label: "Verifier", agent: "checker", reads: ["draft", "check"],
-				writes: ["file:check"], handoff: "Check the document independently.",
+				handoff: "Check the document independently.",
 			},
 		],
 	}));

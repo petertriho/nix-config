@@ -83,7 +83,6 @@ function workflowManifest(input: {
 				label: "Documentation author",
 				agent: input.authorAgent ?? "scribe",
 				reads: ["ticket", "draft"],
-				writes: ["file:draft"],
 				handoff: "Continue authoring the durable draft.",
 			},
 			{
@@ -92,7 +91,6 @@ function workflowManifest(input: {
 				agent: input.verifierAgent ?? "fact-checker",
 				...(input.verifierOptional !== undefined ? { optional: input.verifierOptional } : {}),
 				reads: ["draft"],
-				writes: [],
 				handoff: "Verify the current draft independently.",
 			},
 		],

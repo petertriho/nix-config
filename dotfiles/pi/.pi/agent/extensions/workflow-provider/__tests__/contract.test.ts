@@ -361,7 +361,7 @@ test("async completion for an unexpected session or duplicate completion cannot 
 	subscribeWorkflowDelivery(events, provider, owner, "launch-1", (delivery) => received.push(delivery), { sessionPath: "/tmp/current.jsonl" });
 	const result = {
 		requestId: "launch-1", providerId: "alpha", instanceId: "one", owner, kind: "result",
-		result: { status: "completed", sessionPath: "/tmp/current.jsonl", message: "done", changedFiles: [] },
+		result: { status: "completed", sessionPath: "/tmp/current.jsonl", message: "done" },
 	};
 	events.emit("pi-workflows:provider:delivery", { ...result, result: { ...result.result, sessionPath: "/tmp/old.jsonl" } });
 	events.emit("pi-workflows:provider:delivery", result);

@@ -215,7 +215,6 @@ function writeWorkflowFixture(workflowsDir: string): void {
 						label: "Author",
 						agent: "scribe",
 						reads: [],
-						writes: [],
 						handoff: "Continue authoring.",
 					},
 				],

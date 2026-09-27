@@ -44,7 +44,7 @@ export interface RunningSubagent {
 	activity?: any; activityRead?: { ok: boolean; reason?: "missing" | "invalid" | "wrong-id"; error?: string };
 	abortController?: AbortController; surfaceClosed?: boolean;
 	cli?: string; sentinelFile?: string;
-	statusState: any; interactive: boolean; boundary?: unknown;
+	statusState: any; interactive: boolean;
 }
 export interface SubagentLaunchParams {
 	name: string; task: string; agent?: string; systemPrompt?: string;
@@ -68,24 +68,21 @@ export interface ResumeRecoveryContext {
 	transformWorkflowMetadata?: (workflow: LaunchProfileWorkflowMetadata, selection: ResolvedModelSelection) => LaunchProfileWorkflowMetadata;
 	onSuccessfulResponse?: (selection: ModelSelection) => void | Promise<void>;
 }
-export interface PhaseBoundaryOutcome {
-	details: Record<string, unknown>; violationText?: string;
-}
 export interface ResumeLifecycleContext {
 	isOwned?: () => boolean;
 	details?: Record<string, unknown>;
 	workflowMetadata?: LaunchProfileWorkflowMetadata;
-	boundary?: unknown; rolloverMessage?: string;
+	rolloverMessage?: string;
 	onLaunched?: (input: { running: RunningSubagent; replacement: boolean; originalSessionPath: string; sessionPath: string }) => void | Promise<void>;
-	onResult?: (input: { result: SubagentResult; boundary?: PhaseBoundaryOutcome; replacement: boolean; originalSessionPath: string; sessionPath: string }) => void | Promise<void>;
+	onResult?: (input: { result: SubagentResult; replacement: boolean; originalSessionPath: string; sessionPath: string }) => void | Promise<void>;
 	onError?: (input: { message: string; replacement: boolean; originalSessionPath: string; sessionPath: string }) => void | Promise<void>;
 }
 export interface BackgroundWatchOptions {
 	isOwned?: () => boolean;
 	pi: ExtensionAPI; ctx: LaunchContext; running: RunningSubagent;
 	pingAgent?: string; pingSessionPath?: string;
-	onPing?: (input: { result: SubagentResult; boundary?: PhaseBoundaryOutcome }) => Promise<void> | void;
-	onSuccess: (input: { result: SubagentResult; boundary?: PhaseBoundaryOutcome }) =>
+	onPing?: (input: { result: SubagentResult }) => Promise<void> | void;
+	onSuccess: (input: { result: SubagentResult }) =>
 		Promise<{ content: string; details: Record<string, unknown> }> | { content: string; details: Record<string, unknown> };
 	onError: (message: string) =>
 		Promise<{ content: string; details: Record<string, unknown> }> | { content: string; details: Record<string, unknown> };

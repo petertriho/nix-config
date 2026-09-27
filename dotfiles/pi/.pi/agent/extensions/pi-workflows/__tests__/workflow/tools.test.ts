@@ -148,7 +148,6 @@ function writeWorkflowPackage(root: string, verifierOptional?: boolean): string 
 					label: "Documentation author",
 					agent: "scribe",
 					reads: ["ticket", "draft"],
-					writes: ["worktree", "file:draft"],
 					handoff: "Continue the draft from the latest ticket and durable document.",
 				},
 				{
@@ -157,7 +156,6 @@ function writeWorkflowPackage(root: string, verifierOptional?: boolean): string 
 					agent: "fact-checker",
 					...(verifierOptional !== undefined ? { optional: verifierOptional } : {}),
 					reads: ["draft", "ticket", "report"],
-					writes: ["file:report"],
 					handoff: "Verify the current draft independently and update only the report.",
 				},
 			],
@@ -595,7 +593,7 @@ for (const first of LAUNCH_TOOLS) {
 				assert.equal(active.data.ticket, "owned", "rejected siblings must not mutate workflow data");
 				events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
 					...owned, kind: "result", result: {
-						sessionPath: result.details.sessionFile, status: "completed", message: "done", changedFiles: [],
+						sessionPath: result.details.sessionFile, status: "completed", message: "done",
 					},
 				});
 				await new Promise((resolve) => setImmediate(resolve));
@@ -779,7 +777,6 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 		assert.equal(execution.launch?.options.workflow?.roleId, "author");
 		assert.equal(execution.launch?.options.workflow?.data?.ticket, "DOC-99");
 		assert.ok(execution.watch);
-		assert.ok(execution.watch?.running.boundary);
 
 		let active = getActiveWorkflowRun(store.getState());
 		assert.equal(active?.roleSessions.author?.current, execution.nextSessionPath);
@@ -797,25 +794,10 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 				elapsed: 2,
 				responded: true,
 			},
-			boundary: {
-				details: {
-					workflowWriteBoundary: {
-						workflowId: "docs-review",
-						roleId: "author",
-						violated: true,
-						unexpectedPaths: ["README.md"],
-					},
-				},
-				violationText: "WORKFLOW WRITE POLICY VIOLATION",
-			},
 		});
-		assert.match(asyncResult.content, /WORKFLOW WRITE POLICY VIOLATION/);
-		assert.equal(
-			(asyncResult.details.workflowWriteBoundary as any).roleId,
-			"author",
-		);
+		assert.match(asyncResult.content, /Draft complete/);
 		active = getActiveWorkflowRun(store.getState());
-		assert.equal(active?.activeLaunch?.status, "failed");
+		assert.equal(active?.activeLaunch?.status, "completed");
 	});
 });
 
@@ -882,7 +864,7 @@ test("event-backed spawn delivers correlated result and tree navigation requires
 		assert.equal(launch.payload.repositoryRoot, root);
 		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "running");
 		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
-			...launch, kind: "ping", message: "Need input", changedFiles: [],
+			...launch, kind: "ping", message: "Need input",
 		});
 		assert.equal(messages[0]?.customType, "subagent_ping");
 		assert.match(messages[0]?.content ?? "", /Need input/);
@@ -900,7 +882,7 @@ test("event-backed spawn delivers correlated result and tree navigation requires
 		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "interrupted");
 		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
 			...launch, kind: "result", result: {
-				sessionPath: join(root, "role.jsonl"), status: "completed", message: "late", changedFiles: [],
+				sessionPath: join(root, "role.jsonl"), status: "completed", message: "late",
 			},
 		});
 		assert.equal(messages.length, 1, "a late result cannot publish after stop");
@@ -909,7 +891,7 @@ test("event-backed spawn delivers correlated result and tree navigation requires
 	});
 });
 
-test("event-backed completion applies the workflow write boundary before sending a steer result", async () => {
+test("event-backed completion accepts a staged change without a workflow write policy", async () => {
 	await withTempDir(async (root) => {
 		writeFileSync(join(root, "README.md"), "before\n");
 		execFileSync("git", ["-C", root, "add", "README.md"]);
@@ -951,21 +933,22 @@ test("event-backed completion applies the workflow write boundary before sending
 		);
 		const { ctx } = toolContext(root);
 		await lifecycle.spawn({ runId: "run-docs", role: "verifier", task: "verify" }, ctx);
-		assert.ok(launched.payload.repositoryBoundary);
 		writeFileSync(join(root, "README.md"), "after\n");
+		execFileSync("git", ["-C", root, "add", "README.md"]);
+		assert.equal(execFileSync("git", ["-C", root, "status", "--porcelain", "--", "README.md"], {
+			encoding: "utf8",
+		}), "M  README.md\n");
 		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
 			...launched, kind: "result", result: {
 				sessionPath: join(root, "role.jsonl"), status: "completed",
-				message: "Draft complete", changedFiles: ["README.md"],
+				message: "Draft complete",
 			},
 		});
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(messages.length, 1);
-		assert.match(messages[0].content, /^WORKFLOW WRITE POLICY VIOLATION/);
-		assert.match(messages[0].content, /Workflow role "Documentation verifier" \(verifier\) failed write-policy check\. Result:/);
-		assert.match(messages[0].content, /WORKFLOW WRITE POLICY VIOLATION/);
+		assert.match(messages[0].content, /Workflow role "Documentation verifier" \(verifier\) completed\. Result:/);
 		assert.equal(messages[0].customType, "subagent_result");
-		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "failed");
+		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "completed");
 		off();
 		client.dispose();
 	});
@@ -1683,7 +1666,7 @@ test("event resume preserves historical sessions and records a confirmed rollove
 		assert.equal(request.allowRollover, true);
 		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.author.current, replacement);
 		assert.ok(getActiveWorkflowRun(store.state)?.roleSessions.author.history.includes(sessionPath));
-		result.resolve({ sessionPath: replacement, status: "completed", message: "done", changedFiles: [] });
+		result.resolve({ sessionPath: replacement, status: "completed", message: "done" });
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "completed");
 		assert.equal(messages[0]?.customType, "subagent_result");

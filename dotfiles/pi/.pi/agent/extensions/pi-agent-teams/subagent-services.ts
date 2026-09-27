@@ -106,11 +106,6 @@ export interface SubagentToolResult {
 	details: Record<string, unknown>;
 }
 
-export interface PhaseBoundaryOutcome {
-	details: Record<string, unknown>;
-	violationText?: string;
-}
-
 export interface SubagentResult {
 	name: string;
 	task: string;
@@ -153,11 +148,6 @@ export interface RunningSubagent {
 	/** Start of this workflow role's current run; excludes prior resume answers. */
 	workflowSummaryStartLine?: number;
 	team?: { teamId: string; memberId: string; epoch: number; sessionId: string };
-	/**
-	 * Opaque repository boundary captured by a caller. The shared execution
-	 * service never interprets it; the injected describeBoundary hook does.
-	 */
-	boundary?: unknown;
 }
 
 export interface TeamLaunchSpec {
@@ -252,8 +242,6 @@ export interface ResumeLifecycleContext {
 	details?: Record<string, unknown>;
 	/** Authoritative workflow sidecar metadata for this resume/rollover. */
 	workflowMetadata?: LaunchProfileWorkflowMetadata;
-	/** Caller-captured repository boundary for this role execution. */
-	boundary?: unknown;
 	/** Exact fresh-rollover prompt when the caller owns manifest handoff text. */
 	rolloverMessage?: string;
 	onLaunched?: (input: {
@@ -266,7 +254,6 @@ export interface ResumeLifecycleContext {
 	}) => void | Promise<void>;
 	onResult?: (input: {
 		result: SubagentResult;
-		boundary?: PhaseBoundaryOutcome;
 		replacement: boolean;
 		originalSessionPath: string;
 		sessionPath: string;
@@ -292,10 +279,10 @@ export interface BackgroundWatchOptions {
 	pingAgent?: string;
 	pingSessionPath?: string;
 	onPing?: (
-		input: { result: SubagentResult; boundary?: PhaseBoundaryOutcome },
+		input: { result: SubagentResult },
 	) => Promise<void> | void;
 	onSuccess: (
-		input: { result: SubagentResult; boundary?: PhaseBoundaryOutcome },
+		input: { result: SubagentResult },
 	) => Promise<{ content: string; details: Record<string, unknown> }>
 		| { content: string; details: Record<string, unknown> };
 	onError: (message: string) => Promise<{ content: string; details: Record<string, unknown> }>
@@ -356,13 +343,6 @@ export interface SubagentServiceDependencies {
 	}>;
 	readScreen(surface: string, lines: number): string;
 	getModuleAbortSignal(): AbortSignal;
-	describeBoundary?(
-		running: Pick<RunningSubagent, "boundary">,
-	): PhaseBoundaryOutcome | undefined;
-	captureResumeBoundary?(
-		profile: LaunchProfile | null,
-		ctx: LaunchContext,
-	): unknown;
 	onRolloverLaunched?(input: {
 		running: RunningSubagent;
 		rolloverProfile: LaunchProfile;
@@ -532,22 +512,19 @@ export function sendSubagentPing(
 	result: SubagentResult,
 	agent: string | undefined,
 	sessionPath: string | undefined,
-	boundary?: PhaseBoundaryOutcome,
 ): void {
 	if (!result.ping) return;
 	const sessionRef = sessionPath ? `\n\nSession: ${sessionPath}\nResume: pi --session ${sessionPath}` : "";
-	const violation = boundary?.violationText ? `\n\n${boundary.violationText}` : "";
 	pi.sendMessage(
 		{
 			customType: "subagent_ping",
-			content: `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}${violation}${sessionRef}`,
+			content: `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}${sessionRef}`,
 			display: true,
 			details: {
 				name: result.ping.name,
 				message: result.ping.message,
 				agent,
 				sessionFile: sessionPath,
-				...(boundary ? boundary.details : {}),
 			},
 		},
 		{ triggerTurn: true, deliverAs: "steer" },
@@ -1227,20 +1204,18 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				if (!isOwned()) return;
 				deps.updateWidget();
 
-				const boundary = deps.describeBoundary?.(options.running);
 				if (result.ping) {
-					await options.onPing?.({ result, boundary });
+					await options.onPing?.({ result });
 					deliver(() => sendSubagentPing(
 						options.pi,
 						result,
 						options.pingAgent,
 						options.pingSessionPath,
-						boundary,
 					));
 					return;
 				}
 
-				const presentation = await options.onSuccess({ result, boundary });
+				const presentation = await options.onSuccess({ result });
 				deliver(() => options.pi.sendMessage(
 					{
 						customType: "subagent_result",
@@ -1433,7 +1408,6 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		}
 
 		const profile = profileRead.status === "ok" ? profileRead.profile : null;
-		const boundarySnapshot = lifecycle?.boundary ?? deps.captureResumeBoundary?.(profile, ctx);
 
 		let estimate: SavedContextEstimate | undefined;
 		try {
@@ -1583,7 +1557,6 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				},
 			);
 
-			if (boundarySnapshot !== undefined) running.boundary = boundarySnapshot;
 			let lineageWarnings: string[] = [];
 			let watcherAbort: AbortController | undefined;
 			try {
@@ -1594,16 +1567,15 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 					running,
 					pingAgent: rolloverProfile.stable.agentName,
 					pingSessionPath: running.sessionFile,
-					onPing: async ({ result, boundary }) => {
+					onPing: async ({ result }) => {
 						await lifecycle?.onResult?.({
 							result,
-							boundary,
 							replacement: true,
 							originalSessionPath: params.sessionPath,
 							sessionPath: running.sessionFile,
 						});
 					},
-					onSuccess: async ({ result, boundary }) => {
+					onSuccess: async ({ result }) => {
 						if (
 							recovery
 							&& result.exitCode === 0
@@ -1614,7 +1586,6 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 						}
 						await lifecycle?.onResult?.({
 							result,
-							boundary,
 							replacement: true,
 							originalSessionPath: params.sessionPath,
 							sessionPath: running.sessionFile,
@@ -1625,11 +1596,8 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 							{ ...result, ...(usage ? { usage } : {}) },
 							running.name,
 						);
-						const presentation = boundary?.violationText
-							? `${boundary.violationText}\n\n${base}`
-							: base;
 						return {
-							content: presentation,
+							content: base,
 							details: executionDetails({
 								name: running.name,
 								task: running.task,
@@ -1646,7 +1614,6 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 										failureKind: classifyProviderFailure(result.errorMessage),
 									}
 									: {}),
-								...(boundary ? boundary.details : {}),
 							}),
 						};
 					},
@@ -1811,7 +1778,6 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			...(lifecycle?.workflowMetadata ? { workflowSummaryStartLine: entryCountBefore } : {}),
 			statusState: createStatusState({ source: "pi", startTimeMs: startTime }),
 		};
-		if (boundarySnapshot !== undefined) running.boundary = boundarySnapshot;
 		deps.runningSubagents.set(id, running);
 		let watcherAbort: AbortController | undefined;
 		try {
@@ -1821,16 +1787,15 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				ctx,
 				running,
 				pingSessionPath: params.sessionPath,
-				onPing: async ({ result, boundary }) => {
+				onPing: async ({ result }) => {
 					await lifecycle?.onResult?.({
 						result,
-						boundary,
 						replacement: false,
 						originalSessionPath: params.sessionPath,
 						sessionPath: params.sessionPath,
 					});
 				},
-				onSuccess: async ({ result, boundary }) => {
+				onSuccess: async ({ result }) => {
 					const newEntries = getNewEntries(params.sessionPath, entryCountBefore);
 					const assistantResponse = findLastAssistantMessage(newEntries);
 					if (
@@ -1856,7 +1821,6 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 					}
 					await lifecycle?.onResult?.({
 						result,
-						boundary,
 						replacement: false,
 						originalSessionPath: params.sessionPath,
 						sessionPath: params.sessionPath,
@@ -1873,12 +1837,9 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 						{ ...result, summary, sessionFile: params.sessionPath, ...(usage ? { usage } : {}) },
 						name,
 					);
-					const content = boundary?.violationText
-						? `${boundary.violationText}\n\n${presentation}`
-						: presentation;
 
 					return {
-						content,
+						content: presentation,
 						details: executionDetails({
 							name,
 							task: params.message ?? "resumed session",
@@ -1892,7 +1853,6 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 								}
 								: {}),
 							...(usage ? { usage } : {}),
-							...(boundary ? boundary.details : {}),
 						}),
 					};
 				},

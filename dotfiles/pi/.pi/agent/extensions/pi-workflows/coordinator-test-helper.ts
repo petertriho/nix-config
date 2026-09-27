@@ -50,7 +50,7 @@ export function writeWorkflowFixture(root: string) {
 		version: 1, id: "docs-review",
 		command: { name: "docs", description: "Run the documentation review workflow", argumentHint: "<request>" },
 		skill: "SKILL.md", data: {},
-		roles: [{ id: "author", label: "Author", agent: "scribe", reads: [], writes: [], handoff: "Continue authoring." }],
+		roles: [{ id: "author", label: "Author", agent: "scribe", reads: [], handoff: "Continue authoring." }],
 	}));
 	writeFileSync(join(dir, "SKILL.md"), "---\nname: docs-private\ndescription: Private docs workflow.\n---\n\n# Docs\n");
 	const loaded = loadWorkflowDefinitionFromPackage(dir);

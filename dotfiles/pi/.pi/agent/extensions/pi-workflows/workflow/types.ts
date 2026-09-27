@@ -17,7 +17,6 @@ export const WORKFLOW_IDENTIFIER_PATTERN = /^[a-z](?:[a-z0-9-]*[a-z0-9])?$/;
 export const WORKFLOW_DATA_IDENTIFIER_PATTERN = /^[a-z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/;
 
 export type WorkflowManifestVersion = typeof WORKFLOW_MANIFEST_VERSION;
-export type WorkflowWriteCapability = "worktree" | `file:${string}`;
 export type WorkflowDataValueMap = Partial<Record<string, string>>;
 export type WorkflowRoleModelSelection = Readonly<ModelSelection>;
 export interface WorkflowRoleSkipAssignment {
@@ -84,7 +83,6 @@ export interface WorkflowRoleDefinition {
 	/** Required by default; only optional roles may receive a skip assignment. */
 	readonly optional?: boolean;
 	readonly reads: readonly string[];
-	readonly writes: readonly WorkflowWriteCapability[];
 	readonly handoff: string;
 }
 
@@ -192,44 +190,3 @@ export interface WorkflowRunStatusSummary {
 		readonly interrupted: boolean;
 	};
 }
-
-export interface WorkflowResolvedWorktreeWrite {
-	readonly capability: "worktree";
-	readonly kind: "worktree";
-}
-
-export interface WorkflowResolvedExactFileWrite {
-	readonly capability: `file:${string}`;
-	readonly kind: "file";
-	readonly slotId: string;
-	readonly label: string;
-	readonly exactPath: string;
-}
-
-export interface WorkflowResolvedConstrainedFileWrite {
-	readonly capability: `file:${string}`;
-	readonly kind: "file";
-	readonly slotId: string;
-	readonly label: string;
-	readonly constraint: WorkflowFileConstraint;
-}
-
-export type WorkflowResolvedWriteCapability =
-	| WorkflowResolvedWorktreeWrite
-	| WorkflowResolvedExactFileWrite
-	| WorkflowResolvedConstrainedFileWrite;
-
-export interface WorkflowWriteResolutionSuccess {
-	readonly status: "ok";
-	readonly values: WorkflowDataValueMap;
-	readonly writes: readonly WorkflowResolvedWriteCapability[];
-}
-
-export interface WorkflowWriteResolutionFailure {
-	readonly status: "invalid";
-	readonly diagnostics: readonly WorkflowDiagnostic[];
-}
-
-export type WorkflowWriteResolutionResult =
-	| WorkflowWriteResolutionSuccess
-	| WorkflowWriteResolutionFailure;

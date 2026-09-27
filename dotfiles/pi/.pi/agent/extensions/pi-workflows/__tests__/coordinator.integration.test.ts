@@ -27,7 +27,7 @@ async function fixture(run: (f: ReturnType<typeof setup>) => Promise<void>, ids 
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, "workflow.json"), JSON.stringify({
 		version: 1, id: "docs-review", command: { name: "docs", description: "Review documents" }, skill: "SKILL.md",
-		data: {}, roles: [{ id: "author", label: "Author", agent: "writer", reads: [], writes: [], handoff: "Continue writing." }],
+		data: {}, roles: [{ id: "author", label: "Author", agent: "writer", reads: [], handoff: "Continue writing." }],
 	}));
 	writeFileSync(join(dir, "SKILL.md"), "---\nname: docs-review\ndescription: Review documents\n---\nUse workflow tools.");
 	const f = setup(root, ids);
@@ -151,7 +151,7 @@ function setup(root: string, ids: string[]) {
 		nextSession() { currentSession = "parent-two"; instance++; branch = []; },
 		deliver(request: any, stopRequired = false, outcome: Record<string, unknown> = {}) {
 			events.emit(DELIVERY, { ...request, kind: "result", result: {
-				sessionPath: request.payload.sessionPath ?? join(root, "role.jsonl"), status: "completed", message: "done", changedFiles: [], stopRequired,
+				sessionPath: request.payload.sessionPath ?? join(root, "role.jsonl"), status: "completed", message: "done", stopRequired,
 				...outcome,
 			} });
 		},
@@ -374,7 +374,6 @@ test("launch, resume and recovery retain coordinator ownership when post-launch 
 			checkRepository: (authorized, cwd) => {
 				assert.equal(authorized, root); assert.equal(cwd, root); return root;
 			},
-			captureEvidence: () => ({ changedFiles: [] }), finishEvidence: () => ({ changedFiles: [] }),
 			ctx: f.ctx as never, pi: f.pi as never,
 			services: {
 				async launchSubagent(_params, _ctx, options) {
@@ -694,7 +693,6 @@ test("terminal child help remains non-successful after persistence and restore",
 			checkRepository: (authorized, cwd) => {
 				assert.equal(authorized, root); assert.equal(cwd, root); return root;
 			},
-			captureEvidence: () => ({ changedFiles: [] }), finishEvidence: () => ({ changedFiles: [] }),
 			ctx: f.ctx as never, pi: f.pi as never,
 			services: {
 				async launchSubagent(_params, _ctx, options) {

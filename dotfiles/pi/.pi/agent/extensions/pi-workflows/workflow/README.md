@@ -8,7 +8,7 @@ This directory holds the generic workflow runtime pieces for
 temporary, never-bundled `docs-review` package (roles `author`/`verifier`, data
 `draft`/`report`/`ticket`, command `docs`) inside temp directories and runs the
 whole lifecycle — discovery, alias generation, startup model order, spawn,
-resume, role-session replacement, persistence, write boundaries, rollover
+resume, role-session replacement, persistence, rollover
 handoff, recovery, completion, and reload restoration — without any TypeScript
 branch for those IDs. `peter-workflow.test.ts` covers the bundled Peter package
 against the same generic modules.
@@ -19,10 +19,7 @@ Version 1 starts with the manifest contract:
   startup, state, and runtime modules, including parent-session run snapshots.
 - `schema.ts` loads `workflow.json`, validates semantic rules that plain JSON
   schema cannot express, validates the private `SKILL.md` frontmatter, and
-  resolves role write capabilities from current workflow data.
-- `write-policy.ts` resolves manifest role capabilities into repository
-  boundary rules, protects declared workflow files from broad `worktree`
-  access, and reports violations without changing repository state.
+  validates workflow data supplied during role launches.
 - `state.ts` persists one active workflow run as versioned parent-session
   custom entries, restores the latest branch snapshot after reload, and marks
   in-flight launches and browser gates as interrupted instead of pretending
@@ -77,8 +74,7 @@ not a startup dependency.
 The evaluator writes only the exact `EVALUATION.md` beside `PLAN.md`, using
 the shared `plan-evaluate` primary skill and read-only evaluation commands.
 The planner may read evaluation only for findings named by the user's notes;
-the task writer has no evaluation input. Declared evaluation files stay
-protected from planner and executor writes. Missing output or `NOTHING
+the task writer has no evaluation input. Missing output or `NOTHING
 EVALUATED` requires retry-or-stop, never silent skipping or a stale verdict.
 
 Gates 1–3 use Plannotator if available:
@@ -125,6 +121,4 @@ Key rules in v1:
 - role order is preserved exactly as declared;
 - `optional: true` permits a saved `{ "skip": true }` assignment; omitted
   optional flags preserve the required-role behavior of existing v1 packages;
-- normalized definitions are deep-frozen before they leave the loader;
-- file write capabilities require either an exact current value or a safe
-  repository-relative file constraint.
+- normalized definitions are deep-frozen before they leave the loader.

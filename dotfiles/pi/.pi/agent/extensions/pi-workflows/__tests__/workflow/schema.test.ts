@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import {
 	loadWorkflowDefinitionFromPackage,
 	parseWorkflowPrivateSkill,
-	resolveWorkflowRoleWriteCapabilities,
+	normalizeWorkflowDataValues,
 	WorkflowRoleSchema,
 } from "../../workflow/schema.ts";
 import { Value } from "typebox/value";
@@ -101,7 +101,6 @@ function exampleManifest() {
 				label: "Planner",
 				agent: "planner",
 				reads: ["baseRef", "plan"],
-				writes: ["file:plan"],
 				handoff: "Continue planning from the current plan and the user's latest adjustment.",
 			},
 			{
@@ -109,7 +108,6 @@ function exampleManifest() {
 				label: "Task writer",
 				agent: "task-writer",
 				reads: ["plan", "tasks"],
-				writes: ["file:tasks"],
 				handoff: "Re-read the plan and tasks, then continue task writing.",
 			},
 			{
@@ -117,7 +115,6 @@ function exampleManifest() {
 				label: "Executor",
 				agent: "executor",
 				reads: ["plan", "tasks", "review", "baseRef"],
-				writes: ["worktree", "file:tasks"],
 				handoff: "Continue from the first unchecked task or named review finding.",
 			},
 			{
@@ -125,7 +122,6 @@ function exampleManifest() {
 				label: "Reviewer",
 				agent: "reviewer",
 				reads: ["plan", "tasks", "review", "baseRef"],
-				writes: ["file:review"],
 				handoff: "Review independently from the current artifacts and base ref.",
 			},
 		],
@@ -170,17 +166,6 @@ test("loadWorkflowDefinitionFromPackage accepts a multi-role manifest and deep-f
 		assert.throws(() => {
 			(result.definition.roles as unknown as Array<unknown>).push("x");
 		});
-		const writes = resolveWorkflowRoleWriteCapabilities(result.definition, "planner", {});
-		assert.equal(writes.status, "ok");
-		assert.deepEqual(writes.writes, [
-			{
-				capability: "file:plan",
-				kind: "file",
-				slotId: "plan",
-				label: "PLAN.md",
-				constraint: { under: ".artifacts", basename: "PLAN.md" },
-			},
-		]);
 	});
 });
 
@@ -214,7 +199,6 @@ test("loadWorkflowDefinitionFromPackage accepts workflows with unrelated role an
 					label: "Author",
 					agent: "writer",
 					reads: ["releaseTag", "draftDoc"],
-					writes: ["file:draftDoc"],
 					handoff: "Continue authoring from the saved draft.",
 				},
 				{
@@ -222,7 +206,6 @@ test("loadWorkflowDefinitionFromPackage accepts workflows with unrelated role an
 					label: "Verifier",
 					agent: "checker",
 					reads: ["draftDoc"],
-					writes: [],
 					handoff: "Verify the saved draft only.",
 				},
 			],
@@ -285,14 +268,18 @@ test("loadWorkflowDefinitionFromPackage rejects bad role references", () => {
 	});
 });
 
-test("loadWorkflowDefinitionFromPackage rejects non-file write targets", () => {
+test("workflow manifests reject undeclared role fields", () => {
 	withTempDir((root) => {
 		const manifest = exampleManifest();
-		manifest.roles[0].writes = ["file:baseRef"];
+		const role = { ...manifest.roles[0], writes: ["file:plan"] };
+		assert.equal(Value.Check(WorkflowRoleSchema, role), false);
 		assertInvalid(
-			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest)),
-			/workflow\.json#roles\[0\]\.writes\[0\]$/,
-			/cannot write non-file data slot "baseRef"/,
+			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, {
+				...manifest,
+				roles: [role, ...manifest.roles.slice(1)],
+			})),
+			/workflow\.json#roles\[0\]$/,
+			/Workflow roles must contain/,
 		);
 	});
 });
@@ -321,7 +308,7 @@ test("loadWorkflowDefinitionFromPackage rejects unsafe file constraints", () => 
 	});
 });
 
-test("resolveWorkflowRoleWriteCapabilities rejects writable file slots with neither value nor safe constraint", () => {
+test("file slots without constraints accept a project-contained value", () => {
 	withTempDir((root) => {
 		const manifest = {
 			version: 1,
@@ -343,45 +330,28 @@ test("resolveWorkflowRoleWriteCapabilities rejects writable file slots with neit
 					label: "Author",
 					agent: "writer",
 					reads: ["output"],
-					writes: ["file:output"],
 					handoff: "Keep writing the output artifact.",
 				},
 			],
 		};
 		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest));
 		assert.equal(loaded.status, "ok");
-		const unresolved = resolveWorkflowRoleWriteCapabilities(loaded.definition, "author", {});
-		assert.equal(unresolved.status, "invalid");
-		assert.ok(
-			unresolved.diagnostics.some((diagnostic) =>
-				diagnostic.path.endsWith("workflow.json#roles[0].writes[0]")
-				&& /without an exact value or a safe repository-relative constraint/.test(diagnostic.message)
-			),
-			JSON.stringify(unresolved.diagnostics, null, 2),
-		);
+		const unresolved = normalizeWorkflowDataValues(loaded.definition, {});
+		assert.equal(unresolved.status, "ok");
 
 		const projectRoot = join(root, "project");
 		mkdirSync(join(projectRoot, ".artifacts", "run"), { recursive: true });
-		const resolved = resolveWorkflowRoleWriteCapabilities(
+		const resolved = normalizeWorkflowDataValues(
 			loaded.definition,
-			"author",
 			{ output: join(projectRoot, ".artifacts", "run", "OUTPUT.md") },
 			{ projectRoot },
 		);
 		assert.equal(resolved.status, "ok");
-		assert.deepEqual(resolved.writes, [
-			{
-				capability: "file:output",
-				kind: "file",
-				slotId: "output",
-				label: "Output",
-				exactPath: join(projectRoot, ".artifacts", "run", "OUTPUT.md"),
-			},
-		]);
+		assert.equal(resolved.values.output, join(projectRoot, ".artifacts", "run", "OUTPUT.md"));
 	});
 });
 
-test("resolveWorkflowRoleWriteCapabilities rejects lexical traversal and symlink escapes for nonexistent targets", () => {
+test("workflow data rejects lexical traversal and symlink escapes for nonexistent targets", () => {
 	withTempDir((root) => {
 		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, exampleManifest()));
 		assert.equal(loaded.status, "ok");
@@ -390,9 +360,8 @@ test("resolveWorkflowRoleWriteCapabilities rejects lexical traversal and symlink
 		mkdirSync(projectRoot);
 		mkdirSync(outsideRoot);
 
-		const lexicalEscape = resolveWorkflowRoleWriteCapabilities(
+		const lexicalEscape = normalizeWorkflowDataValues(
 			loaded.definition,
-			"planner",
 			{ plan: join(projectRoot, "..", "outside", "PLAN.md") },
 			{ projectRoot },
 		);
@@ -405,9 +374,8 @@ test("resolveWorkflowRoleWriteCapabilities rejects lexical traversal and symlink
 		);
 
 		symlinkSync(outsideRoot, join(projectRoot, ".artifacts"), "dir");
-		const symlinkEscape = resolveWorkflowRoleWriteCapabilities(
+		const symlinkEscape = normalizeWorkflowDataValues(
 			loaded.definition,
-			"planner",
 			{ plan: join(projectRoot, ".artifacts", "missing", "PLAN.md") },
 			{ projectRoot },
 		);
@@ -421,7 +389,7 @@ test("resolveWorkflowRoleWriteCapabilities rejects lexical traversal and symlink
 	});
 });
 
-test("resolveWorkflowRoleWriteCapabilities accepts dotdot-prefixed root file names while rejecting parent escapes", () => {
+test("workflow data accepts dotdot-prefixed root file names while rejecting parent escapes", () => {
 	withTempDir((root) => {
 		const manifest = {
 			version: 1,
@@ -443,7 +411,6 @@ test("resolveWorkflowRoleWriteCapabilities accepts dotdot-prefixed root file nam
 					label: "Author",
 					agent: "writer",
 					reads: ["output"],
-					writes: ["file:output"],
 					handoff: "Keep writing the output artifact.",
 				},
 			],
@@ -453,26 +420,16 @@ test("resolveWorkflowRoleWriteCapabilities accepts dotdot-prefixed root file nam
 		const projectRoot = join(root, "project");
 		mkdirSync(projectRoot);
 
-		const resolved = resolveWorkflowRoleWriteCapabilities(
+		const resolved = normalizeWorkflowDataValues(
 			loaded.definition,
-			"author",
 			{ output: join(projectRoot, "..draft.md") },
 			{ projectRoot },
 		);
 		assert.equal(resolved.status, "ok");
-		assert.deepEqual(resolved.writes, [
-			{
-				capability: "file:output",
-				kind: "file",
-				slotId: "output",
-				label: "Output",
-				exactPath: join(projectRoot, "..draft.md"),
-			},
-		]);
+		assert.equal(resolved.values.output, join(projectRoot, "..draft.md"));
 
-		const escape = resolveWorkflowRoleWriteCapabilities(
+		const escape = normalizeWorkflowDataValues(
 			loaded.definition,
-			"author",
 			{ output: join(projectRoot, "..", "outside", "PLAN.md") },
 			{ projectRoot },
 		);
@@ -486,7 +443,7 @@ test("resolveWorkflowRoleWriteCapabilities accepts dotdot-prefixed root file nam
 	});
 });
 
-test("resolveWorkflowRoleWriteCapabilities canonicalizes safe symlinks for nonexistent targets", () => {
+test("workflow data canonicalizes safe symlinks for nonexistent targets", () => {
 	withTempDir((root) => {
 		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, exampleManifest()));
 		assert.equal(loaded.status, "ok");
@@ -495,22 +452,13 @@ test("resolveWorkflowRoleWriteCapabilities canonicalizes safe symlinks for nonex
 		mkdirSync(artifactRoot, { recursive: true });
 		symlinkSync(artifactRoot, join(projectRoot, ".artifacts"), "dir");
 
-		const resolved = resolveWorkflowRoleWriteCapabilities(
+		const resolved = normalizeWorkflowDataValues(
 			loaded.definition,
-			"planner",
 			{ plan: join(projectRoot, ".artifacts", "missing", "PLAN.md") },
 			{ projectRoot },
 		);
 		assert.equal(resolved.status, "ok");
-		assert.deepEqual(resolved.writes, [
-			{
-				capability: "file:plan",
-				kind: "file",
-				slotId: "plan",
-				label: "PLAN.md",
-				exactPath: join(artifactRoot, "missing", "PLAN.md"),
-			},
-		]);
+		assert.equal(resolved.values.plan, join(artifactRoot, "missing", "PLAN.md"));
 	});
 });
 

@@ -66,7 +66,6 @@ function workflowManifest(id: string, commandName = id) {
 				label: "Author",
 				agent: "writer",
 				reads: ["tag", "note"],
-				writes: ["file:note"],
 				handoff: `Continue ${id}.`,
 			},
 		],

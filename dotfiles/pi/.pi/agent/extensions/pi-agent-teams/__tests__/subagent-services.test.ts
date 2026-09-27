@@ -980,7 +980,6 @@ for (const scenario of [
 					assert.equal(cwd, root);
 					return root;
 				},
-				captureEvidence: () => ({ changedFiles: [] }), finishEvidence: () => ({ changedFiles: [] }),
 				services: {
 					...harness.services,
 					async executeSubagentResume(...args) {
@@ -1124,7 +1123,6 @@ for (const diagnostic of [
 					assert.equal(cwd, root);
 					return root;
 				},
-				captureEvidence: () => ({ changedFiles: [] }), finishEvidence: () => ({ changedFiles: [] }),
 				services: harness.services, ctx: harness.ctx, pi: harness.pi,
 			});
 			assert.ok(attached);
@@ -1225,7 +1223,6 @@ for (const operation of ["resume", "recover"] as const) {
 						assert.equal(cwd, root);
 						return root;
 					},
-					captureEvidence: () => ({ changedFiles: [] }), finishEvidence: () => ({ changedFiles: [] }),
 					recordLaunchedModel: (path, model) => {
 						if (rejected) throw new Error("model sidecar is read only");
 						io.recordLaunchedModel(path, model);

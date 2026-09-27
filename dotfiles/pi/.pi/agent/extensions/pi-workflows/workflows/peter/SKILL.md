@@ -23,7 +23,7 @@ review yourself.
   waiting. End the turn and wait for the harness to deliver
   `subagent_result` or `subagent_ping`.
 - The runtime resolves agents, models, current role sessions, replacement
-  sessions, recovery defaults, and write boundaries. Do not store or pass
+  sessions, and recovery defaults. Do not store or pass
   child session paths yourself.
 - Role primary skills are loaded by Pi's normal skill invocation. Do not
   hardcode Claude skill paths or copy Claude's teammate APIs.
@@ -33,28 +33,12 @@ review yourself.
   Do not ask a second model/skip question or reinterpret model failures as skip.
 - Artifacts live in `.artifacts/<plan-name>/`: `PLAN.md`, `EVALUATION.md`
   when enabled, `TASKS.md`, and `REVIEW.md`. Pass exact paths as typed data.
-  Declared files remain protected even from executor `worktree` access.
 - Only the orchestrator runs Plannotator, through `workflow_gate`. Every
   role prompt must say: "Do not run Plannotator; the parent owns the gates."
   Preserve executor delegation allowed by the `execute` skill; do not impose
   Claude's blanket teammate delegation prohibition.
 - Never commit and never stage. Nothing in this workflow commits or stages;
   the user reviews and commits after the workflow.
-- Every role result or ping can include
-  `details.workflowWriteBoundary`. If it reports `violated: true`, or the
-  content starts with `WORKFLOW WRITE POLICY VIOLATION`, stop immediately.
-  Show the exact unexpected paths, preserve every change exactly as it is,
-  and never revert, restore, delete, stage, or commit anything. Do not launch
-  another role. Call:
-
-  ```text
-  workflow_complete({
-    runId: "<run id>",
-    status: "aborted",
-    summary: "Stopped after a workflow write-policy violation; all repository changes were preserved."
-  })
-  ```
-
 - If the user cancels or explicitly stops outside the normal Gate 3 or Gate 4
   finish choices, launch nothing else, call `workflow_complete` with
   `status: "aborted"`, and give the available artifact summary.
@@ -188,9 +172,8 @@ it covers (normally `PLAN.md` and `EVALUATION.md`).
    paths and ask whether to continue before spawning anything. Wait. If the
    user declines or cancels, call `workflow_complete` with
    `status: "aborted"` and stop.
-3. A dirty start is safe to accept. Every role boundary compares against the
-   repository state at that role's start, so untouched pre-existing dirt does
-   not count as a violation.
+3. A dirty start is safe to accept. Keep the pre-existing paths available
+   when reviewing which changes the workflow produced.
 4. The final base-ref review includes current untracked files and can also
    include tracked or untracked changes that existed before Peter. This
    attribution limit is accepted. The reviewer records it under
@@ -242,8 +225,8 @@ workflow_spawn({
 })
 ```
 
-Wait for the delivered result and apply the runtime write-boundary and
-failure rules. Require a successful result for this evaluation of the current
+Wait for the delivered result and apply the role failure rules. Require a
+successful result for this evaluation of the current
 plan, an `EVALUATION: <absolute path>` matching the exact target, and a
 readable artifact. Missing output or `NOTHING EVALUATED` (including "Nothing
 Evaluated") is an evaluation failure, not a successful gate. An old file does
@@ -306,7 +289,7 @@ through the user's Gate 1 notes naming them.
    })
    ```
 
-   Apply the same boundaries and current-result checks from Phase 2, including
+   Apply the same failure rules and current-result checks from Phase 2, including
    retry-or-stop on missing output or NOTHING EVALUATED. Never show a stale
    evaluation as fresh. Then repeat Gate 1. In the skipped path, repeat Gate 1
    directly without re-evaluation.
@@ -347,7 +330,7 @@ Wait for the delivered result.
    `reviewDirectory: false`, reviewing `TASKS.md`. Chat fallback: ask the user
    for a go or for task change notes, and wait.
 3. On `annotated` feedback or chat change notes, resume the task writer with
-   the notes verbatim and repeat this gate after its result and boundary check:
+   the notes verbatim and repeat this gate after its result:
 
    ```text
    workflow_resume({
@@ -551,8 +534,9 @@ Give the final summary:
 - executor and reviewer validation commands and outcomes;
 - unresolved `MEDIUM` and `INFO` findings plus anything not fixed, and
   evaluation findings the user accepted at Gate 1 without a plan revision;
-- a reminder that nothing was staged or committed and the user must review
-  and commit.
+- a reminder that the workflow did not stage or commit anything, and the user
+  must review and commit its changes. Do not claim that the index is empty;
+  the user may have staged changes during the run.
 
 Then call exactly once:
 
@@ -560,6 +544,6 @@ Then call exactly once:
 workflow_complete({
   runId: "<run id>",
   status: "completed",
-  summary: "Peter finished; artifacts and validation were summarized and nothing was staged or committed."
+  summary: "Peter finished; artifacts and validation were summarized and the workflow did not stage or commit."
 })
 ```

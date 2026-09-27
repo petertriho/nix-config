@@ -71,14 +71,6 @@ import type {
 	WorkflowRoleDefinition,
 	WorkflowRunSnapshot,
 } from "./types.ts";
-import {
-	captureWorkflowWriteBoundarySnapshot,
-	describeWorkflowWriteBoundaryReport,
-	evaluateWorkflowWriteBoundarySnapshot,
-	repoBoundaryDefinitionForWorkflowWritePolicy,
-	resolveWorkflowWritePolicy,
-	type WorkflowWriteBoundarySnapshot,
-} from "./write-policy.ts";
 
 const ASYNC_WORKFLOW_TOOL_CONTRACT =
 	"This is a fire-and-forget workflow lifecycle tool. It returns after the child launch is persisted, "
@@ -97,11 +89,8 @@ function workflowRoleResultContent(
 	role: WorkflowRoleDefinition,
 	status: WorkflowRoleResult["status"],
 	message: string,
-	violationText?: string,
 ): string {
-	const outcome = violationText ? "failed write-policy check" : status;
-	const result = `Workflow role "${role.label}" (${role.id}) ${outcome}. Result:\n${message}`;
-	return violationText ? `${violationText}\n\n${result}` : result;
+	return `Workflow role "${role.label}" (${role.id}) ${status}. Result:\n${message}`;
 }
 
 export const WorkflowDataUpdatesSchema = Type.Optional(
@@ -392,25 +381,6 @@ function readWorkflowSessionProfile(
 	return { profile: read.profile, workflow };
 }
 
-function resolveWriteBoundary(
-	snapshot: WorkflowRunSnapshot,
-	roleId: string,
-): WorkflowWriteBoundarySnapshot | undefined {
-	const resolved = resolveWorkflowWritePolicy(
-		snapshot.definition,
-		roleId,
-		snapshot.data,
-		{ projectRoot: snapshot.projectRoot },
-	);
-	if (resolved.status === "invalid") {
-		throw new Error(formatDiagnostics(resolved.diagnostics));
-	}
-	return captureWorkflowWriteBoundarySnapshot(
-		resolved.policy,
-		snapshot.projectRoot,
-	);
-}
-
 function recordLaunchStarting(
 	deps: WorkflowToolDependencies,
 	snapshot: WorkflowRunSnapshot,
@@ -484,25 +454,12 @@ function finishLaunch(
 
 function launchFinishedStatus(
 	result: SubagentResult,
-	boundary?: { violationText?: string },
 ): "completed" | "failed" {
 	return result.exitCode === 0
 		&& !result.errorMessage
 		&& !result.ping
-		&& !boundary?.violationText
 		? "completed"
 		: "failed";
-}
-
-function eventBoundaryOutcome(boundary: WorkflowWriteBoundarySnapshot | undefined, result: WorkflowRoleResult) {
-	if (!boundary) return undefined;
-	const report = evaluateWorkflowWriteBoundarySnapshot(boundary);
-	const observed = new Set([...report.allowedPaths, ...report.unexpectedPaths]);
-	const unreported = result.changedFiles.filter((path) => !observed.has(path));
-	const manualReviewReason = result.manualReviewReason
-		?? (unreported.length ? `Provider reported repository changes not found in coordinator evidence: ${unreported.join(", ")}` : undefined);
-	return describeWorkflowWriteBoundaryReport(manualReviewReason
-		? { ...report, violated: true, manualReviewReason } : report);
 }
 
 function ensureLaunchAvailable(
@@ -545,7 +502,6 @@ function asynchronousPresentation(
 	role: WorkflowRoleDefinition,
 	running: RunningSubagent,
 	result: SubagentResult,
-	boundary?: { details: Record<string, unknown>; violationText?: string },
 	ctx?: LaunchContext,
 ): { content: string; details: Record<string, unknown> } {
 	const usage = ctx ? resolveUsageDetails(result, ctx) : result.usage;
@@ -554,9 +510,7 @@ function asynchronousPresentation(
 		running.name,
 	);
 	return {
-		content: boundary?.violationText
-			? `${boundary.violationText}\n\n${base}`
-			: base,
+		content: base,
 		details: workflowDetails(snapshot, role, {
 			name: running.name,
 			task: running.task,
@@ -569,7 +523,6 @@ function asynchronousPresentation(
 				? { failureKind: classifyProviderFailure(result.errorMessage) }
 				: {}),
 			...(usage ? { usage } : {}),
-			...(boundary ? boundary.details : {}),
 		}),
 	};
 }
@@ -748,7 +701,6 @@ export function createWorkflowLifecycleTools(
 			role.id,
 			resolvedModel.selection,
 		);
-		const boundary = resolveWriteBoundary(snapshot, role.id);
 
 		recordLaunchStarting(deps, snapshot, role.id);
 		if (deps.eventExecution) {
@@ -760,7 +712,6 @@ export function createWorkflowLifecycleTools(
 					agentId: role.agent, name: role.label, task: params.task,
 					model: resolvedModel.selection, workflow: metadata,
 					repositoryRoot: snapshot.projectRoot,
-					...(boundary ? { repositoryBoundary: repoBoundaryDefinitionForWorkflowWritePolicy(boundary) } : {}),
 				}, {
 					onPing: (ping) => {
 						if (!isOwned()) return;
@@ -768,8 +719,6 @@ export function createWorkflowLifecycleTools(
 							customType: "subagent_ping", content: ping.message, display: true,
 							details: workflowDetails(snapshot, role, {
 								name: role.label, agent: role.agent, sessionFile: lease.facts.sessionPath,
-								...(ping.changedFiles ? { changedFiles: ping.changedFiles } : {}),
-								...(ping.manualReviewReason ? { manualReviewReason: ping.manualReviewReason } : {}),
 							}),
 						}, { triggerTurn: true, deliverAs: "steer" });
 					},
@@ -783,21 +732,19 @@ export function createWorkflowLifecycleTools(
 			void lease.result.then((result) => {
 				if (!lease.active) eventChildren.delete(lease);
 				if (!isOwned()) return;
-				const outcome = eventBoundaryOutcome(boundary, result);
 				finishLaunch(deps, {
 					runId: snapshot.runId, roleId: role.id, sessionPath,
-					status: result.stopRequired ? "running" : result.status === "completed" && !outcome?.violationText ? "completed" : "failed",
+					status: result.stopRequired ? "running" : result.status === "completed" ? "completed" : "failed",
 				});
 				pi.sendMessage({
 					customType: "subagent_result",
-					content: workflowRoleResultContent(role, result.status, result.message, outcome?.violationText),
+					content: workflowRoleResultContent(role, result.status, result.message),
 					display: true,
 					details: workflowDetails(snapshot, role, {
 						name: role.label, agent: role.agent, sessionFile: sessionPath,
-						status: result.status, changedFiles: result.changedFiles,
+						status: result.status,
 						failureKind: classifyProviderFailure(result.message),
 						...(result.status === "failed" ? { errorMessage: result.message } : {}),
-						...(outcome ? outcome.details : {}),
 					}),
 				}, { triggerTurn: true, deliverAs: "steer" });
 			}, (error: unknown) => {
@@ -842,7 +789,6 @@ export function createWorkflowLifecycleTools(
 			});
 			throw error;
 		}
-		if (boundary) running.boundary = boundary;
 		ownedChildren.add(running);
 		assertOwned(isOwned);
 		recordLaunchedSession(deps, snapshot.runId, role.id, running.sessionFile);
@@ -854,22 +800,22 @@ export function createWorkflowLifecycleTools(
 			running,
 			pingAgent: role.agent,
 			pingSessionPath: running.sessionFile,
-			onPing: ({ result, boundary: outcome }) => {
+			onPing: ({ result }) => {
 				if (!isOwned()) return;
 				if (running.surfaceClosed) ownedChildren.delete(running);
 				finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
 					sessionPath: running.sessionFile,
-					status: launchFinishedStatus(result, outcome),
+					status: launchFinishedStatus(result),
 				});
 			},
-			onSuccess: ({ result, boundary: outcome }) => {
+			onSuccess: ({ result }) => {
 				if (isOwned()) finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
 					sessionPath: running.sessionFile,
-					status: launchFinishedStatus(result, outcome),
+					status: launchFinishedStatus(result),
 				});
 				if (isOwned() && running.surfaceClosed) ownedChildren.delete(running);
 				return asynchronousPresentation(
@@ -877,7 +823,6 @@ export function createWorkflowLifecycleTools(
 					role,
 					running,
 					result,
-					outcome,
 					ctx,
 				);
 			},
@@ -920,7 +865,6 @@ export function createWorkflowLifecycleTools(
 	function resumeLifecycle(
 		snapshot: WorkflowRunSnapshot,
 		role: WorkflowRoleDefinition,
-		boundary: WorkflowWriteBoundarySnapshot | undefined,
 		rolloverMessage: string,
 		workflowMetadata: LaunchProfileWorkflowMetadata,
 		isOwned: () => boolean,
@@ -930,7 +874,6 @@ export function createWorkflowLifecycleTools(
 			isOwned,
 			details: workflowDetails(snapshot, role),
 			workflowMetadata,
-			...(boundary ? { boundary } : {}),
 			rolloverMessage,
 			onLaunched: ({ running, sessionPath }) => {
 				child = running;
@@ -938,14 +881,14 @@ export function createWorkflowLifecycleTools(
 				if (!isOwned()) return;
 				recordLaunchedSession(deps, snapshot.runId, role.id, sessionPath);
 			},
-			onResult: ({ result, boundary: outcome, sessionPath }) => {
+			onResult: ({ result, sessionPath }) => {
 				if (!isOwned()) return;
 				if (child?.surfaceClosed) ownedChildren.delete(child);
 				finishLaunch(deps, {
 					runId: snapshot.runId,
 					roleId: role.id,
 					sessionPath,
-					status: launchFinishedStatus(result, outcome),
+					status: launchFinishedStatus(result),
 				});
 			},
 			onError: ({ sessionPath }) => {
@@ -1003,7 +946,6 @@ export function createWorkflowLifecycleTools(
 			assertOwned(isOwned);
 		}
 		snapshot = mergeDataUpdates(deps, params.runId, params.data);
-		const boundary = resolveWriteBoundary(snapshot, role.id);
 		const workflow = {
 			...workflowMetadataForRole(snapshot, role.id, selected ?? facts.model as ModelSelection),
 			...(operation === "recover" ? { assignmentSource: "recovery" as const } : {}),
@@ -1011,7 +953,6 @@ export function createWorkflowLifecycleTools(
 		const request = {
 			...baseRequest, workflow,
 			expected: { ...baseRequest.expected, model: facts.model, contextTokens: facts.context.tokens },
-			...(boundary ? { repositoryBoundary: repoBoundaryDefinitionForWorkflowWritePolicy(boundary) } : {}),
 			...(selected ? { model: selected } : {}),
 			name: role.label, allowRollover: true,
 			allowUserModelSelection: ctx.hasUI,
@@ -1035,26 +976,24 @@ export function createWorkflowLifecycleTools(
 			void lease.result.then((result) => {
 				if (!lease.active) eventChildren.delete(lease);
 				if (!isOwned()) return;
-				const outcome = eventBoundaryOutcome(boundary, result);
 				finishLaunch(deps, {
 					runId: snapshot.runId, roleId: role.id, sessionPath: lease.facts.sessionPath,
-					status: result.stopRequired ? "running" : result.status === "completed" && !outcome?.violationText ? "completed" : "failed",
+					status: result.stopRequired ? "running" : result.status === "completed" ? "completed" : "failed",
 				});
 				if (operation === "recover" && result.successfulResponse === true
-					&& result.status === "completed" && !result.stopRequired && !outcome?.violationText) {
+					&& result.status === "completed" && !result.stopRequired) {
 					deps.state.commit(overrideWorkflowRunAssignment(
 						deps.state.getState(), snapshot.runId, role.id, lease.facts.model as ModelSelection,
 					));
 				}
 				pi.sendMessage({
 					customType: "subagent_result",
-					content: workflowRoleResultContent(role, result.status, result.message, outcome?.violationText),
+					content: workflowRoleResultContent(role, result.status, result.message),
 					display: true,
 					details: workflowDetails(snapshot, role, {
-						sessionFile: lease.facts.sessionPath, status: result.status, changedFiles: result.changedFiles,
+						sessionFile: lease.facts.sessionPath, status: result.status,
 						failureKind: classifyProviderFailure(result.message),
 						...(result.status === "failed" ? { errorMessage: result.message } : {}),
-						...(outcome?.details ?? {}),
 					}),
 				}, { triggerTurn: true, deliverAs: "steer" });
 			}, (error: unknown) => {
@@ -1098,7 +1037,6 @@ export function createWorkflowLifecycleTools(
 		const session = readWorkflowSessionProfile(snapshot, role, sessionPath);
 		const unavailable = ensureLaunchAvailable(deps, ctx);
 		if (unavailable) return unavailable;
-		const boundary = resolveWriteBoundary(snapshot, role.id);
 		const metadata = workflowMetadataForRole(
 			snapshot,
 			role.id,
@@ -1125,7 +1063,7 @@ export function createWorkflowLifecycleTools(
 				},
 				{ ...ctx, pi },
 				undefined,
-				resumeLifecycle(snapshot, role, boundary, rolloverMessage, metadata, isOwned),
+				resumeLifecycle(snapshot, role, rolloverMessage, metadata, isOwned),
 			);
 		} catch (error) {
 			if (isOwned()) finishLaunch(deps, {
@@ -1269,7 +1207,6 @@ export function createWorkflowLifecycleTools(
 
 		const unavailable = ensureLaunchAvailable(deps, ctx);
 		if (unavailable) return unavailable;
-		const boundary = resolveWriteBoundary(snapshot, role.id);
 		const metadata = workflowMetadataForRole(
 			snapshot,
 			role.id,
@@ -1285,7 +1222,6 @@ export function createWorkflowLifecycleTools(
 		const lifecycle = resumeLifecycle(
 			snapshot,
 			role,
-			boundary,
 			continuation,
 			metadata,
 			isOwned,

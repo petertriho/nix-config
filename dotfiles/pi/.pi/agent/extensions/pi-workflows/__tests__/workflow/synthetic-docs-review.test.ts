@@ -1,5 +1,5 @@
 // A temporary, unbundled package tests that the lifecycle does not depend on
-// the bundled workflow's role names, data slots, or write policy.
+// the bundled workflow's role names or data slots.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
@@ -51,11 +51,6 @@ import {
 	type WorkflowToolStateStore,
 } from "../../workflow/tools.ts";
 import { isWorkflowRoleSkipAssignment, type NormalizedWorkflowDefinition } from "../../workflow/types.ts";
-import {
-	describeWorkflowWriteBoundaryReport,
-	evaluateWorkflowWriteBoundarySnapshot,
-	type WorkflowWriteBoundarySnapshot,
-} from "../../workflow/write-policy.ts";
 
 const SCRIBE = {
 	provider: "acme",
@@ -142,7 +137,6 @@ function writeDocsReviewPackage(projectRoot: string): string {
 						label: "Documentation author",
 						agent: "scribe",
 						reads: ["ticket", "draft"],
-						writes: ["worktree", "file:draft"],
 						handoff: "Continue the durable draft from the ticket and the current document.",
 					},
 					{
@@ -150,7 +144,6 @@ function writeDocsReviewPackage(projectRoot: string): string {
 						label: "Documentation verifier",
 						agent: "fact-checker",
 						reads: ["draft", "ticket", "report"],
-						writes: ["file:report"],
 						handoff: "Verify the current draft independently and update only the report.",
 					},
 				],
@@ -661,32 +654,12 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.equal(execution.launch?.options.workflow?.data?.ticket, "DOC-42");
 		assert.equal(execution.launch?.options.workflow?.data?.draft, draftPath);
 
-		const authorBoundary = execution.watch?.running.boundary as WorkflowWriteBoundarySnapshot | undefined;
-		assert.ok(authorBoundary);
-		assert.equal(authorBoundary.workflowId, "docs-review");
-		assert.equal(authorBoundary.roleId, "author");
 		mkdirSync(join(project.root, "src"), { recursive: true });
 		writeFileSync(join(project.root, "src", "guide.ts"), "export const guide = true;\n");
 		mkdirSync(dirname(draftPath), { recursive: true });
 		writeFileSync(draftPath, "# Deployment guide\n");
-		let report = evaluateWorkflowWriteBoundarySnapshot(authorBoundary);
-		assert.ok(report);
-		assert.equal(report.violated, false);
-		assert.deepEqual([...report.allowedPaths].sort(), [".artifacts/docs/DRAFT.md", "src/guide.ts"]);
-		assert.deepEqual(report.unexpectedPaths, []);
-
 		const reportPath = join(project.root, ".artifacts", "docs", "REPORT.md");
 		writeFileSync(reportPath, "premature verification\n");
-		report = evaluateWorkflowWriteBoundarySnapshot(authorBoundary);
-		assert.ok(report);
-		assert.equal(report.violated, true);
-		assert.deepEqual(report.unexpectedPaths, [".artifacts/docs/REPORT.md"]);
-		const outcome = describeWorkflowWriteBoundaryReport(report);
-		assert.match(outcome.violationText ?? "", /workflow "docs-review" role Documentation author \(author\)/);
-		assert.equal(
-			(outcome.details.workflowWriteBoundary as Record<string, unknown>).roleId,
-			"author",
-		);
 
 		execution.watch!.running.surfaceClosed = true;
 		const asyncResult = await execution.watch!.onSuccess({
@@ -699,18 +672,13 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 				elapsed: 3,
 				responded: true,
 			},
-			boundary: outcome,
 		});
-		assert.match(asyncResult.content, /WORKFLOW WRITE POLICY VIOLATION/);
-		assert.deepEqual(
-			(asyncResult.details.workflowWriteBoundary as Record<string, unknown>).unexpectedPaths,
-			[".artifacts/docs/REPORT.md"],
-		);
-		assert.equal(getActiveWorkflowRun(store.getState())?.activeLaunch?.status, "failed");
+		assert.match(asyncResult.content, /Draft complete/);
+		assert.equal(getActiveWorkflowRun(store.getState())?.activeLaunch?.status, "completed");
 		assert.equal(
 			existsSync(reportPath),
 			true,
-			"the violating change must be preserved exactly as written",
+			"workflow completion must not change repository files",
 		);
 
 		const verifierSession = join(project.root, "verifier-1.jsonl");

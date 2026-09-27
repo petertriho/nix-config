@@ -13,10 +13,7 @@ import type {
 	WorkflowFileConstraint,
 	WorkflowPrivateSkill,
 	WorkflowPrivateSkillFrontmatter,
-	WorkflowResolvedWriteCapability,
 	WorkflowRoleDefinition,
-	WorkflowWriteCapability,
-	WorkflowWriteResolutionResult,
 } from "./types.ts";
 import {
 	WORKFLOW_DATA_IDENTIFIER_PATTERN,
@@ -70,7 +67,6 @@ export const WorkflowRoleSchema = Type.Object(
 		agent: Type.String({ minLength: 1 }),
 		optional: Type.Optional(Type.Boolean()),
 		reads: Type.Array(Type.String({ minLength: 1 })),
-		writes: Type.Array(Type.String({ minLength: 1 })),
 		handoff: Type.String({ minLength: 1 }),
 	},
 	{ additionalProperties: false },
@@ -229,10 +225,6 @@ function normalizeConstraint(
 	return basenameValue ? { under, basename: basenameValue } : { under };
 }
 
-function isSafeFileConstraint(constraint: WorkflowFileConstraint): boolean {
-	return constraint.under !== "." || constraint.basename !== undefined;
-}
-
 function matchesIdentifier(value: string, pattern: RegExp): boolean {
 	return pattern.test(value);
 }
@@ -318,33 +310,6 @@ function normalizeDataSlots(
 	return { data, dataOrder };
 }
 
-function normalizeWrites(
-	value: JsonValue | undefined,
-	roleId: string,
-	rolePath: string,
-	diagnostics: WorkflowDiagnostic[],
-): WorkflowWriteCapability[] | null {
-	if (!Array.isArray(value)) {
-		pushDiagnostic(diagnostics, `${rolePath}.writes`, `Workflow role ${roleId} must declare writes as an array.`);
-		return null;
-	}
-	const writes: WorkflowWriteCapability[] = [];
-	for (const [index, capability] of value.entries()) {
-		const writePath = `${rolePath}.writes[${index}]`;
-		if (!isNonEmptyString(capability)) {
-			pushDiagnostic(diagnostics, writePath, `Workflow role ${roleId} write capabilities must be non-empty strings.`);
-			continue;
-		}
-		const trimmed = normalizeNonEmptyString(capability);
-		if (trimmed === "worktree" || trimmed.startsWith("file:")) {
-			writes.push(trimmed as WorkflowWriteCapability);
-			continue;
-		}
-		pushDiagnostic(diagnostics, writePath, `Workflow role ${roleId} write capability must be "worktree" or "file:<data-id>".`);
-	}
-	return writes;
-}
-
 function normalizeRoles(
 	value: JsonValue | undefined,
 	path: string,
@@ -358,11 +323,11 @@ function normalizeRoles(
 	const roles: WorkflowRoleDefinition[] = [];
 	for (const [index, rawRole] of value.entries()) {
 		const rolePath = `${path}[${index}]`;
-		if (!isRecord(rawRole) || !hasExactKeys(rawRole, ["id", "label", "agent", "reads", "writes", "handoff"], ["optional"])) {
+		if (!isRecord(rawRole) || !hasExactKeys(rawRole, ["id", "label", "agent", "reads", "handoff"], ["optional"])) {
 			pushDiagnostic(
 				diagnostics,
 				rolePath,
-				"Workflow roles must contain `id`, `label`, `agent`, `reads`, `writes`, `handoff`, and optional boolean `optional` only.",
+				"Workflow roles must contain `id`, `label`, `agent`, `reads`, `handoff`, and optional boolean `optional` only.",
 			);
 			continue;
 		}
@@ -395,8 +360,6 @@ function normalizeRoles(
 			pushDiagnostic(diagnostics, `${rolePath}.reads`, `Workflow role ${id} reads must be an array of data slot IDs.`);
 			continue;
 		}
-		const writes = normalizeWrites(rawRole.writes, id, rolePath, diagnostics);
-		if (!writes) continue;
 		if (!isNonEmptyString(rawRole.handoff)) {
 			pushDiagnostic(diagnostics, `${rolePath}.handoff`, `Workflow role ${id} handoff text must be a non-empty string.`);
 			continue;
@@ -407,7 +370,6 @@ function normalizeRoles(
 			agent: normalizeNonEmptyString(rawRole.agent),
 			...(rawRole.optional !== undefined ? { optional: rawRole.optional } : {}),
 			reads: rawRole.reads.map(normalizeNonEmptyString),
-			writes,
 			handoff: normalizeNonEmptyString(rawRole.handoff),
 		});
 	}
@@ -427,26 +389,6 @@ function validateRoleReferences(
 					diagnostics,
 					`${manifestPath}#roles[${roleIndex}].reads[${readIndex}]`,
 					`Workflow role ${role.id} reads unknown data slot "${dataId}".`,
-				);
-			}
-		}
-		for (const [writeIndex, capability] of role.writes.entries()) {
-			if (capability === "worktree") continue;
-			const dataId = capability.slice("file:".length);
-			const slot = data[dataId];
-			if (!slot) {
-				pushDiagnostic(
-					diagnostics,
-					`${manifestPath}#roles[${roleIndex}].writes[${writeIndex}]`,
-					`Workflow role ${role.id} writes unknown data slot "${dataId}".`,
-				);
-				continue;
-			}
-			if (slot.kind !== "file") {
-				pushDiagnostic(
-					diagnostics,
-					`${manifestPath}#roles[${roleIndex}].writes[${writeIndex}]`,
-					`Workflow role ${role.id} cannot write non-file data slot "${dataId}".`,
 				);
 			}
 		}
@@ -701,7 +643,7 @@ export function normalizeWorkflowDataValues(
 	definition: NormalizedWorkflowDefinition,
 	values: Readonly<Record<string, string | undefined>>,
 	options: { projectRoot?: string } = {},
-): WorkflowWriteResolutionResult {
+): { status: "ok"; values: WorkflowDataValueMap } | WorkflowDefinitionLoadFailure {
 	const diagnostics: WorkflowDiagnostic[] = [];
 	const normalized = Object.create(null) as Record<string, string>;
 	const lexicalProjectRoot = options.projectRoot ? resolve(options.projectRoot) : undefined;
@@ -781,7 +723,7 @@ export function normalizeWorkflowDataValues(
 		normalized[dataId] = canonicalPath;
 	}
 	if (diagnostics.length > 0) return { status: "invalid", diagnostics };
-	return { status: "ok", values: freezeDeep(normalized), writes: [] };
+	return { status: "ok", values: freezeDeep(normalized) };
 }
 
 export function matchesFileConstraint(
@@ -802,78 +744,6 @@ export function matchesFileConstraint(
 	if (!isContainedPath(canonicalProjectRoot, canonicalFile)) return false;
 	if (!isContainedPath(canonicalAllowedRoot, canonicalFile)) return false;
 	return constraint.basename === undefined || basename(canonicalFile) === constraint.basename;
-}
-
-export function resolveWorkflowRoleWriteCapabilities(
-	definition: NormalizedWorkflowDefinition,
-	roleId: string,
-	values: WorkflowDataValueMap,
-	options: { projectRoot?: string } = {},
-): WorkflowWriteResolutionResult {
-	const role = definition.roleById[roleId];
-	if (!role) {
-		return {
-			status: "invalid",
-			diagnostics: [{
-				path: `${definition.manifestPath}#roles`,
-				message: `Unknown workflow role "${roleId}".`,
-			}],
-		};
-	}
-	const normalizedValues = normalizeWorkflowDataValues(definition, values, options);
-	if (normalizedValues.status === "invalid") return normalizedValues;
-
-	const writes: WorkflowResolvedWriteCapability[] = [];
-	const diagnostics: WorkflowDiagnostic[] = [];
-	const roleIndex = definition.roles.findIndex((candidate) => candidate.id === roleId);
-	for (const [writeIndex, capability] of role.writes.entries()) {
-		if (capability === "worktree") {
-			writes.push({ capability: "worktree", kind: "worktree" });
-			continue;
-		}
-		const slotId = capability.slice("file:".length);
-		const slot = definition.data[slotId];
-		if (!slot || slot.kind !== "file") {
-			pushDiagnostic(
-				diagnostics,
-				`${definition.manifestPath}#roles[${roleIndex}].writes[${writeIndex}]`,
-				`Workflow role ${roleId} cannot resolve non-file writable slot "${slotId}".`,
-			);
-			continue;
-		}
-		const exactPath = normalizedValues.values[slotId];
-		if (exactPath) {
-			writes.push({
-				capability: capability as `file:${string}`,
-				kind: "file",
-				slotId,
-				label: slot.label,
-				exactPath,
-			});
-			continue;
-		}
-		if (slot.constraint && isSafeFileConstraint(slot.constraint)) {
-			writes.push({
-				capability: capability as `file:${string}`,
-				kind: "file",
-				slotId,
-				label: slot.label,
-				constraint: slot.constraint,
-			});
-			continue;
-		}
-		pushDiagnostic(
-			diagnostics,
-			`${definition.manifestPath}#roles[${roleIndex}].writes[${writeIndex}]`,
-			`Workflow role ${roleId} cannot write slot "${slotId}" without an exact value or a safe repository-relative constraint.`,
-		);
-	}
-	if (diagnostics.length > 0) return { status: "invalid", diagnostics };
-	return {
-		status: "ok",
-		values: normalizedValues.values,
-		writes: freezeDeep(writes),
-	};
 }
 
 export function parseWorkflowPrivateSkill(
