@@ -32,6 +32,7 @@ PanelWindow {
     property var codexBarService
     property var workspaceService
     property var brightnessControl
+    property var caffeineService
 
     Rectangle {
         anchors.fill: parent
@@ -195,6 +196,7 @@ PanelWindow {
 
                 Caffeine {
                     id: caffeine
+                    caffeineService: root.caffeineService
                     visible: rightRow.hiddenIds.indexOf("caffeine") < 0
                     height: parent.height
                     barWindow: root

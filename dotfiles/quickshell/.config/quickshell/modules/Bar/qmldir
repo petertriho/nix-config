@@ -5,6 +5,7 @@ Battery 1.0 Battery/main.qml
 Bluetooth 1.0 Bluetooth/main.qml
 Tray 1.0 Tray/main.qml
 Caffeine 1.0 Caffeine/main.qml
+CaffeineService 1.0 Caffeine/Service.qml
 Bar 1.0 main.qml
 BaseModule 1.0 BaseModule.qml
 PopupAnchor 1.0 PopupAnchor.qml

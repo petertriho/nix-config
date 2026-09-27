@@ -50,6 +50,10 @@ ShellRoot {
         activeUpdateInterval: config && config.workspaces ? config.workspaces.activeUpdateInterval : 100
     }
 
+    CaffeineService {
+        id: caffeineSvc
+    }
+
     // Bar components, one per connected screen.
     Variants {
         model: Quickshell.screens
@@ -73,6 +77,7 @@ ShellRoot {
                 codexBarService: codexBarSvc
                 workspaceService: workspaceSvc
                 brightnessControl: brightnessSvc
+                caffeineService: caffeineSvc
             }
         }
     }
