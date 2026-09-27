@@ -11,6 +11,9 @@ in
 {
   omp-undo-redo = callPackage ./omp-undo-redo { };
   pi-autoresearch = callPackage ./pi-autoresearch { };
+  pi-blackhole = callPackage ./pi-blackhole {
+    inherit stripNpmManifest updateNpmLock;
+  };
   pi-cache-optimizer = callPackage ./pi-cache-optimizer { };
   pi-codex-tools = callPackage ./pi-codex-tools {
     inherit stripNpmManifest updateNpmLock;
