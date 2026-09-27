@@ -17,7 +17,7 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
  * `<agentDir>/agent-models.json`, managed by the `/agent-models` command.
  *
  * Values use the exact `provider/model[:thinking]` string syntax of the
- * `subagent` tool's `model:` parameter and are resolved through the
+ * `Agent` tool's `model:` parameter and are resolved through the
  * validated registry path at spawn time. Entries never affect manifest
  * workflow roles and never apply to `cli:` agents (those keep frontmatter).
  */

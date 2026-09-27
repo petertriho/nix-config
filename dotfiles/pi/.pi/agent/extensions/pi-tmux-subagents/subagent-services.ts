@@ -1,4 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { createHash } from "node:crypto";
 import {
 	copyFileSync,
 	existsSync,
@@ -51,6 +52,7 @@ import {
 	resourceChangeNotice,
 } from "./resume-restore.ts";
 import { findLastAssistantMessage, getNewEntries, seedSubagentSessionFile } from "./session.ts";
+import { resolveTaskDiskCandidate } from "./task-disk-policy.ts";
 import { createStatusState, type SubagentStatusState } from "./status.ts";
 import { shellEscape } from "./tmux.ts";
 import {
@@ -147,11 +149,26 @@ export interface RunningSubagent {
 	sentinelFile?: string;
 	statusState: SubagentStatusState;
 	interactive: boolean;
+	team?: { teamId: string; memberId: string; epoch: number; sessionId: string };
 	/**
 	 * Opaque repository boundary captured by a caller. The shared execution
 	 * service never interprets it; the injected describeBoundary hook does.
 	 */
 	boundary?: unknown;
+}
+
+export interface TeamLaunchSpec {
+	directory: string;
+	teamId: string;
+	memberId: string;
+	memberToken: string;
+	memberEpoch: number;
+	childSessionId: string;
+	childSessionFile: string;
+	leadSessionId: string;
+	taskFile: string;
+	expectedStoreFingerprint: string;
+	expectedConfigFingerprint: string;
 }
 
 export interface SubagentLaunchParams {
@@ -495,8 +512,8 @@ export function resolveResultPresentation(
 			`Sub-agent "${name}" failed after ${formatElapsed(result.elapsed)} `
 			+ `(provider/agent error — auto-retry exhausted).\n\n`
 			+ `Error: ${result.errorMessage}\n\n`
-			+ "The subagent did not produce a result. You can retry by spawning a new "
-			+ `subagent or resume the session with subagent_resume.${usageRef}${sessionRef}`
+			+ "The agent did not produce a result. Start a new "
+			+ `Agent call or resume with Agent using its saved session path.${usageRef}${sessionRef}`
 		);
 	}
 
@@ -542,7 +559,7 @@ function copyClaudeSession(sentinelFile: string): string | null {
 		const filename = transcriptPath.split("/").pop() ?? `claude-${Date.now()}.jsonl`;
 		const dest = join(CLAUDE_SESSIONS_DIR, filename);
 		copyFileSync(transcriptPath, dest);
-		return filename;
+		return filename.endsWith(".jsonl") ? filename.slice(0, -".jsonl".length) : filename;
 	} catch {
 		return null;
 	}
@@ -649,6 +666,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			resolvedModel?: ResolvedModelSelection;
 			rolloverFrom?: LaunchProfile;
 			taskRuntime?: TaskRuntimeOptions;
+			team?: TeamLaunchSpec;
 		},
 	): Promise<RunningSubagent> {
 		const params = deps.normalizeSubagentParams(rawParams);
@@ -657,6 +675,10 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 
 		const rollover = options?.rolloverFrom;
 		const taskRuntime = options?.taskRuntime;
+		const team = options?.team;
+		if (team && (rollover || taskRuntime || params.fork)) {
+			throw new Error("A teammate cannot be a workflow task, rollover or fork");
+		}
 		if (taskRuntime) {
 			if (rollover) throw new Error("Task launches cannot be rollovers.");
 			const maxTurns = taskRuntime.maxTurns;
@@ -677,12 +699,12 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		const effectiveSkills = rollover
 			? rollover.stable.primarySkill?.name
 			: params.skills ?? agentDefs?.skills;
-		const effectiveInteractive = rollover
+		const effectiveInteractive = team ? true : rollover
 			? rollover.stable.controls.interactive
 			: taskRuntime
 				? false
 				: deps.resolveEffectiveInteractive(params, agentDefs);
-		const autoExitForChild = rollover
+		const autoExitForChild = team ? false : rollover
 			? rollover.stable.controls.autoExit
 			: taskRuntime
 				? true
@@ -709,7 +731,10 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			Math.random().toString(16).slice(2, 10),
 			Math.random().toString(16).slice(2, 6),
 		].join("-");
-		const subagentSessionFile = join(sessionDir, `${timestamp}_${uuid}.jsonl`);
+		const subagentSessionFile = team?.childSessionFile ?? join(sessionDir, `${timestamp}_${uuid}.jsonl`);
+		if (team && (dirname(subagentSessionFile) !== sessionDir || existsSync(subagentSessionFile))) {
+			throw new Error("Teammate session path is not a fresh file in its resolved session directory");
+		}
 
 		const surfacePreCreated = !!options?.surface;
 		const surface = options?.surface ?? deps.createSurface(params.name);
@@ -725,6 +750,14 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				parentSessionFile: sessionFile,
 				childSessionFile: subagentSessionFile,
 				childCwd: targetCwdForSession,
+			});
+		} else if (team) {
+			seedSubagentSessionFile({
+				mode: "lineage-only",
+				parentSessionFile: sessionFile,
+				childSessionFile: subagentSessionFile,
+				childCwd: targetCwdForSession,
+				sessionId: team.childSessionId,
 			});
 		}
 
@@ -799,6 +832,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 
 			const cmdParts: string[] = [];
 			cmdParts.push(`PI_CLAUDE_SENTINEL=${shellEscape(sentinelFile)}`);
+			cmdParts.push(`PI_CLAUDE_PROMPT_HASH=${shellEscape(createHash("sha256").update(params.task).digest("hex"))}`);
 			cmdParts.push("claude");
 			cmdParts.push("--dangerously-skip-permissions");
 
@@ -863,6 +897,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 
 		const subagentDonePath = join(deps.subagentsDir, "subagent-done.ts");
 		parts.push("-e", shellEscape(subagentDonePath));
+		if (team) parts.push("-e", shellEscape(join(deps.subagentsDir, "team-member.ts")));
 
 		if (piModelArgument) {
 			parts.push("--model", shellEscape(piModelArgument));
@@ -882,6 +917,16 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		}
 
 		const envParts: string[] = [];
+		if (team) {
+			envParts.push(`PI_TASKS=${shellEscape(team.taskFile)}`);
+			envParts.push(`PI_TEAM_DIRECTORY=${shellEscape(team.directory)}`);
+			envParts.push(`PI_TEAM_ID=${shellEscape(team.teamId)}`);
+			envParts.push(`PI_TEAM_MEMBER_ID=${shellEscape(team.memberId)}`);
+			envParts.push(`PI_TEAM_MEMBER_TOKEN=${shellEscape(team.memberToken)}`);
+			envParts.push(`PI_TEAM_MEMBER_EPOCH=${team.memberEpoch}`);
+			envParts.push(`PI_TEAM_CHILD_SESSION_ID=${shellEscape(team.childSessionId)}`);
+			envParts.push(`PI_TEAM_LEAD_SESSION_ID=${shellEscape(team.leadSessionId)}`);
+		}
 
 		if (localAgentDir && existsSync(localAgentDir)) {
 			envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(localAgentDir)}`);
@@ -933,6 +978,20 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		const command = `${piCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
 		writeLaunchProfile(subagentSessionFile, launchProfile);
 		try {
+			if (team) {
+				const lastCheck = resolveTaskDiskCandidate({
+					cwd: targetCwdForSession, agentDir: effectiveAgentDir,
+					sessionId: team.childSessionId, sessionFile: subagentSessionFile,
+					piTasks: team.taskFile,
+				});
+				if (!lastCheck.ok || lastCheck.path !== team.taskFile ||
+					lastCheck.storeFingerprint !== team.expectedStoreFingerprint ||
+					lastCheck.configFingerprint !== team.expectedConfigFingerprint ||
+					(lastCheck.tasks.length > 0 &&
+						lastCheck.tasks.every((task) => task.status === "completed"))) {
+					throw new Error("Teammate task candidate changed or became all-completed before process launch");
+				}
+			}
 			deps.sendLongCommand(surface, command, {
 				scriptPath: launchScriptFile,
 				scriptPreamble: [
@@ -958,6 +1017,10 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			launchScriptFile,
 			activityFile,
 			interactive: effectiveInteractive,
+			...(team ? { team: {
+				teamId: team.teamId, memberId: team.memberId,
+				epoch: team.memberEpoch, sessionId: team.childSessionId,
+			} } : {}),
 			statusState: createStatusState({ source: "pi", startTimeMs: startTime }),
 		};
 
@@ -1827,7 +1890,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 	};
 }
 
-function getDefaultSessionDirFor(cwd: string, agentDir: string): string {
+export function getDefaultSessionDirFor(cwd: string, agentDir: string): string {
 	const safePath = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
 	const sessionDir = join(agentDir, "sessions", safePath);
 	if (!existsSync(sessionDir)) {

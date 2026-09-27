@@ -24,16 +24,19 @@ if [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ]; then
   exit 0
 fi
 
-# Count real human messages in transcript (not tool results)
+# Check real human messages in transcript (not tool results). A resumed session
+# already contains earlier human turns, so a new launch binds its exact prompt
+# hash instead of relying on the single-message legacy heuristic.
 # Claude's transcript format:
 #   Human message: {"type": "user", "message": {"role": "user", "content": "..."}}
 #   Tool result:   {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", ...}]}}
 # We only count entries where content is a string (real human input)
-user_msg_count=$(python3 - "$transcript_path" <<'EOF'
-import sys, json
+is_autonomous=$(python3 - "$transcript_path" <<'EOF'
+import sys, json, os, hashlib, re
 
 transcript_path = sys.argv[1]
-count = 0
+human = []
+invalid = False
 with open(transcript_path, 'r') as f:
     for line in f:
         line = line.strip()
@@ -47,10 +50,20 @@ with open(transcript_path, 'r') as f:
             # Real human messages have string content
             # Tool results have array content with tool_result blocks
             if isinstance(content, str):
-                count += 1
+                human.append(content)
         except (json.JSONDecodeError, AttributeError):
-            pass
-print(count)
+            invalid = True
+expected = os.environ.get("PI_CLAUDE_PROMPT_HASH")
+if invalid:
+    print(False)
+elif expected:
+    if not re.fullmatch(r"[0-9a-f]{64}", expected):
+        print(False)
+    else:
+        hashes = [hashlib.sha256(content.encode()).hexdigest() for content in human]
+        print(bool(hashes) and hashes[-1] == expected and hashes.count(expected) == 1)
+else:
+    print(len(human) == 1)
 EOF
 )
 
@@ -59,8 +72,8 @@ if [ -n "$transcript_path" ]; then
   echo "$transcript_path" > "${PI_CLAUDE_SENTINEL}.transcript" 2>/dev/null || true
 fi
 
-# If exactly 1 user message (the initial prompt), this was autonomous — signal completion
-if [ "$user_msg_count" -eq 1 ]; then
+# Signal completion only when no later human message superseded the launch.
+if [ "$is_autonomous" = "True" ]; then
   # Write last_assistant_message to sentinel so the watcher gets a clean result
   echo "$input" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('last_assistant_message', ''))" > "$PI_CLAUDE_SENTINEL" 2>/dev/null || touch "$PI_CLAUDE_SENTINEL"
 fi

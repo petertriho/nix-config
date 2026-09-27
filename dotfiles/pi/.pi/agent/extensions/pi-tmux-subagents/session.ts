@@ -50,11 +50,12 @@ export function seedSubagentSessionFile(params: {
   parentSessionFile: string;
   childSessionFile: string;
   childCwd: string;
+  sessionId?: string;
 }): void {
   const header = {
     type: "session",
     version: 3,
-    id: randomUUID(),
+    id: params.sessionId ?? randomUUID(),
     timestamp: new Date().toISOString(),
     cwd: params.childCwd,
     parentSession: params.parentSessionFile,

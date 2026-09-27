@@ -1,15 +1,24 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { keyText } from "@earendil-works/pi-coding-agent";
+import { defineTool, keyText } from "@earendil-works/pi-coding-agent";
 import { Box, Text, truncateToWidth } from "@earendil-works/pi-tui";
+import { randomUUID } from "node:crypto";
 import {
   existsSync,
   readdirSync,
   readFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type, type Static } from "typebox";
+import { allocateAgentWorktree, releaseUnusedWorktree, type OwnedWorktree } from "./agent-worktree.ts";
+import { checkLeadAdmission, preflightTeamChild, recordLeadStart, type LeadReceipt } from "./team-admission.ts";
+import {
+  answerApproval, canonicalCall, verifyApprovalRequest,
+  type ApprovalRequest, type ApprovalResponse,
+} from "./team-approval.ts";
+import { TeamCoordinator } from "./team-coordinator.ts";
+import { createMemberMailbox, LEGACY_NATIVE_TASK_HOLD } from "./team-transport.ts";
 import {
   type ActivityReadResult,
   type SubagentActivityState,
@@ -108,8 +117,10 @@ import {
   buildSubagentToolAllowlist,
   createSubagentExecutionServices,
   formatElapsed,
+  getDefaultSessionDirFor,
   resolveResultPresentation,
   resolveResumeLaunchBehavior,
+  type TeamLaunchSpec,
 } from "./subagent-services.ts";
 import {
   attachTmuxWorkflowProvider,
@@ -125,8 +136,8 @@ import {
  * plain `pi` binary from PATH in a new tmux pane; when the parent runs under a
  * nono sandbox profile, children are not sandboxed.
  *
- * Tools: `subagent`, `subagent_interrupt`, `subagents_list`, `subagent_resume`.
- * Commands: `/iterate`, `/subagent`. pi-workflows owns workflow commands.
+ * Tools: `Agent`, `SendMessage`, `ListAgents`, `AgentInterrupt`.
+ * Commands: `/subtask`, `/subagent`, `/agent-models`. pi-workflows owns workflow commands.
  * Agents are discovered from `<this dir>/agents`, `~/.pi/agent/agents`
  * (`PI_CODING_AGENT_DIR`), and `./.pi/agents`; later sources win.
  * See NOTES.md for the pi 0.84.3 prompt-argument findings behind
@@ -233,6 +244,43 @@ const SubagentParams = Type.Object({
 
 type SubagentParamsType = Static<typeof SubagentParams>;
 
+// Keep this surface separate from the legacy `subagent` arguments: Claude's
+// description and prompt are required, while a display name is not.
+const AgentParams = Type.Object({
+  description: Type.String({ description: "Short description of the task" }),
+  prompt: Type.String({ description: "Task for the agent" }),
+  subagent_type: Type.Optional(Type.String({ description: "Agent definition to use (defaults to general-purpose)" })),
+  name: Type.Optional(Type.String({ description: "Display name (ordinary agent unless eligible team coordination is available)" })),
+  run_in_background: Type.Optional(Type.Boolean({ description: "Return immediately (default) or wait for the result" })),
+  isolation: Type.Optional(Type.String({ description: "Use an individually owned git worktree (worktree)" })),
+  fork: Type.Optional(Type.Boolean({ description: "Pi-only full-context fork of the current session" })),
+  model: Type.Optional(Type.String({ description: "Pi model policy or provider/model[:thinking]" })),
+  systemPrompt: Type.Optional(Type.String({ description: "Pi-only appended system prompt" })),
+  skills: Type.Optional(Type.String({ description: "Pi-only comma-separated skills override" })),
+  tools: Type.Optional(Type.String({ description: "Pi-only comma-separated tools override" })),
+  cwd: Type.Optional(Type.String({ description: "Pi-only child working directory" })),
+  interactive: Type.Optional(Type.Boolean({ description: "Pi-only child interactivity" })),
+  resume: Type.Optional(Type.String({ description: "Resume a Claude CLI session by ID or a saved Pi session by absolute path" })),
+  resumeSessionId: Type.Optional(Type.String({ description: "Pi-only alias for a Claude CLI session ID" })),
+  max_turns: Type.Optional(Type.Number({ description: "Positive integer turn limit for an autonomous run; 0 means no limit" })),
+  team_name: Type.Optional(Type.String({ description: "Optional team name for an eligible interactive Pi agent" })),
+}, { additionalProperties: false });
+
+type AgentCall = Static<typeof AgentParams> & { mode?: string };
+
+/** Normalize empty placeholders sent for optional fields by tool clients. */
+function normalizeAgentCall(input: AgentCall): AgentCall {
+  const params = { ...input };
+  for (const key of [
+    "subagent_type", "name", "isolation", "model", "systemPrompt",
+    "skills", "tools", "cwd", "resume", "resumeSessionId", "team_name", "mode",
+  ] as const) {
+    if (typeof params[key] === "string" && !params[key].trim()) delete params[key];
+  }
+  if (params.max_turns === 0) delete params.max_turns;
+  return params;
+}
+
 const OPTIONAL_STRING_PARAMS = [
   "agent",
   "systemPrompt",
@@ -294,10 +342,10 @@ interface ListedAgentDefinition extends AgentDefinition {
 
 /** Tools that are gated by `spawning: false` */
 const SPAWNING_TOOLS = new Set([
-  "subagent",
-  "subagent_interrupt",
-  "subagents_list",
-  "subagent_resume",
+  "Agent",
+  "SendMessage",
+  "ListAgents",
+  "AgentInterrupt",
   "workflow_spawn",
   "workflow_resume",
   "workflow_recover",
@@ -491,7 +539,7 @@ function resolvePiModelArgument(
  *      their own pane and stall pings are noise.
  *
  * When no agent defs exist at all (bare `subagent({ name, task })` call,
- * typical for `/iterate` with `fork: true`), the subagent is interactive.
+ * typical for `/subtask` with `fork: true`), the agent is interactive.
  */
 function resolveEffectiveInteractive(
   params: SubagentParamsType,
@@ -770,6 +818,7 @@ interface RunningSubagent {
    * session via a steer message. The widget still updates locally.
    */
   interactive: boolean;
+  team?: { teamId: string; memberId: string; epoch: number; sessionId: string };
   /**
    * Generic manifest write-policy boundary. Shared subagent services keep
    * this opaque; the index composition layer evaluates it after completion.
@@ -779,6 +828,8 @@ interface RunningSubagent {
 
 /** All currently running subagents, keyed by id. */
 const runningSubagents = new Map<string, RunningSubagent>();
+/** Private compatibility fixtures for tests; none of these are registered tools. */
+const retiredToolFixtures = new Map<string, ReturnType<typeof defineTool>>();
 
 // ── pi-tasks RPC bridge (protocol-v2 provider) ──
 
@@ -1603,7 +1654,7 @@ async function executeSubagentResume(
 /**
  * Task-runtime policy for pi-tasks RPC launches (see pi-tasks-rpc.ts).
  *
- * Internal only — never exposed through the public `subagent` tool schema.
+ * Internal only — never exposed through the public `Agent` tool schema.
  * A task launch is always autonomous regardless of profile defaults: forced
  * non-interactive and auto-exiting (defense in depth for the pi-tasks
  * contract), with an optional validated turn limit exported to the child as
@@ -1634,6 +1685,7 @@ async function launchSubagent(
     rolloverFrom?: LaunchProfile;
     /** pi-tasks RPC launch: forces autonomous behavior (internal). */
     taskRuntime?: TaskRuntimeOptions;
+    team?: TeamLaunchSpec;
   },
 ): Promise<RunningSubagent> {
   return subagentExecution.launchSubagent(rawParams, ctx, options);
@@ -1652,6 +1704,8 @@ async function watchSubagent(
 }
 
 export const __test__ = {
+  retiredTool: (name: string) => retiredToolFixtures.get(name),
+  rearmModuleAbortController,
   applyWidgetMargin,
   getShellReadyDelayMs,
   renderSubagentWidgetLines,
@@ -1701,7 +1755,7 @@ export const __test__ = {
 const ASYNC_TOOL_CONTRACT =
   "This is a fire-and-forget async tool: the call returns immediately with only an acknowledgement. " +
   "When the sub-agent finishes, the harness AUTOMATICALLY delivers its result as a steer message that wakes you up and starts a new turn — you do not need to do anything to receive it. " +
-  "DO NOT write polling loops, sleep/wait commands, tail/watch scripts, or repeatedly read session/log files to detect completion. DO NOT call subagents_list or any other tool to 'check' status. All of that is wasted work — the harness handles delivery for you. " +
+  "DO NOT write polling loops, sleep/wait commands, tail/watch scripts, or repeatedly read session/log files to detect completion. DO NOT call ListAgents or any other tool to 'check' status. All of that is wasted work — the harness handles delivery for you. " +
   "DO NOT fabricate, assume, or summarize results after calling this tool. " +
   "After spawning, either end your turn immediately, or work on other independent tasks (including spawning more subagents in parallel). The harness will wake you with the result when it is ready.";
 
@@ -1765,15 +1819,68 @@ function renderToolFallback(result: ToolRenderResult, theme: UiTheme): Text {
 }
 
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
+  retiredToolFixtures.clear();
+  const finishedOrdinary = new Map<string, { id: string; sessionPath: string }>();
+  const followUpsInFlight = new Set<string>();
+  let sessionEpoch = 0;
+  let sessionActive = true;
   const deniedTools = new Set(
     (process.env.PI_DENY_TOOLS ?? "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
   );
-  const shouldRegister = (name: string) => !deniedTools.has(name);
-  pi.on("session_start", (_event, ctx) => {
+  const memberEnv = {
+    directory: process.env.PI_TEAM_DIRECTORY,
+    teamId: process.env.PI_TEAM_ID,
+    memberId: process.env.PI_TEAM_MEMBER_ID,
+    token: process.env.PI_TEAM_MEMBER_TOKEN,
+    sessionId: process.env.PI_TEAM_CHILD_SESSION_ID,
+    leadSessionId: process.env.PI_TEAM_LEAD_SESSION_ID,
+    epoch: Number(process.env.PI_TEAM_MEMBER_EPOCH),
+  };
+  const memberMailbox = memberEnv.directory && memberEnv.teamId && memberEnv.memberId &&
+    memberEnv.token && memberEnv.sessionId && memberEnv.leadSessionId &&
+    Number.isSafeInteger(memberEnv.epoch) && memberEnv.epoch > 0
+      ? createMemberMailbox({
+        directory: memberEnv.directory, teamId: memberEnv.teamId,
+        leadSessionId: memberEnv.leadSessionId,
+        member: {
+          memberId: memberEnv.memberId, sessionId: memberEnv.sessionId,
+          token: memberEnv.token, epoch: memberEnv.epoch,
+        },
+      })
+      : undefined;
+  const shouldRegister = (name: string) => !deniedTools.has(name) ||
+    (Boolean(memberMailbox) && (name === "SendMessage" || name === "ListAgents"));
+  // pi-tasks captures this override when its extension factory runs. A later
+  // environment change cannot make the running upstream instance follow it.
+  const capturedPiTasks = process.env.PI_TASKS;
+  const leadIncarnation = randomUUID();
+  let leadReceipt: LeadReceipt | undefined;
+  let coordinator: TeamCoordinator | undefined;
+  const answers = new Map<string, ApprovalResponse>();
+  const invalidatedApprovals = new Set<string>();
+  const invalidateApprovals = (): void => {
+    for (const requestId of answers.keys()) invalidatedApprovals.add(requestId);
+    answers.clear();
+  };
+  pi.on("session_start", (event, ctx) => {
+    sessionActive = true;
+    if (event.reason === "new" || event.reason === "resume" || event.reason === "fork") {
+      sessionEpoch++;
+      finishedOrdinary.clear();
+      followUpsInFlight.clear();
+    }
     latestCtx = ctx;
+    const start = recordLeadStart({
+      cwd: ctx.cwd,
+      agentDir: getAgentConfigDir(),
+      sessionId: ctx.sessionManager.getSessionId(),
+      sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
+      piTasks: capturedPiTasks,
+    }, { reason: event.reason, incarnation: leadIncarnation });
+    leadReceipt = start.ok ? start.value : undefined;
     // /new, /resume, and /fork tore the previous session down through
     // session_shutdown without re-importing this module. Re-arm the poll-abort
     // controller so subagent spawns in this session can watch their panes.
@@ -1788,6 +1895,17 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
   });
 
   pi.on("session_shutdown", () => {
+    leadReceipt = undefined;
+    answers.clear();
+    invalidatedApprovals.clear();
+    leadRecoveries.clear();
+    qualifiedStops.clear();
+    coordinator?.close();
+    coordinator = undefined;
+    sessionEpoch++;
+    sessionActive = false;
+    finishedOrdinary.clear();
+    followUpsInFlight.clear();
     shutdownWorkflowProvider();
     if (widgetInterval) {
       clearInterval(widgetInterval);
@@ -1810,17 +1928,279 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     runningSubagents.clear();
   });
 
+  const openCoordinator = async (
+    ctx: ExtensionContext, teamName?: string, taskFingerprint?: string,
+  ): Promise<TeamCoordinator> => {
+    if (!coordinator) {
+      coordinator = await TeamCoordinator.open({
+        directory: join(ctx.sessionManager.getSessionDir(), "artifacts", ctx.sessionManager.getSessionId(), "team"),
+        leadSessionId: ctx.sessionManager.getSessionId(),
+        teamName,
+        taskFingerprint,
+        onNotice: async ({ memberName, memberId, memberEpoch, memberSessionId, message }) => {
+          if (message.kind === "approval_request") {
+            const request = JSON.parse(message.body) as ApprovalRequest;
+            if (request.requestId !== message.requestId || request.memberId !== memberId ||
+                request.memberEpoch !== memberEpoch || request.memberSessionId !== memberSessionId ||
+                request.leadSessionId !== ctx.sessionManager.getSessionId() ||
+                !verifyApprovalRequest(request)) {
+              throw new Error("Uncorrelated teammate approval request");
+            }
+            if (invalidatedApprovals.has(request.requestId)) {
+              // The original response can already be in the mailbox. Never
+              // approve this request again against a changed task baseline.
+              return;
+            }
+            let answer = answers.get(request.requestId);
+            if (!answer) {
+              let approved = false;
+              const fullInput = canonicalCall(request.input);
+              if (ctx.mode === "tui" && ctx.hasUI && fullInput.length <= 4096) {
+                approved = await ctx.ui.confirm(
+                  `Approve ${memberName}'s exact ${request.toolName} call?`,
+                  `Member: ${memberName} (${memberId}, epoch ${memberEpoch})\n` +
+                  `Tool call: ${request.toolCallId}\nDigest: ${request.digest}\nInput: ${fullInput}`,
+                );
+              }
+              answer = answerApproval(request, approved);
+              answers.set(request.requestId, answer);
+            }
+            await coordinator!.transport.sendFromLead({
+              teamId: coordinator!.teamId, to: memberId,
+              requestId: request.requestId, kind: "approval_response",
+              body: JSON.stringify(answer),
+            });
+            return;
+          }
+          if (message.kind === "result") {
+            let receipt: {
+              type?: string; approvalRequestId?: string; digest?: string;
+              toolCallId?: string; previous?: string; next?: string;
+            } | undefined;
+            try { receipt = JSON.parse(message.body); } catch { /* ordinary result notice */ }
+            if (receipt?.type === "task_commit") {
+              const granted = receipt.approvalRequestId
+                ? answers.get(receipt.approvalRequestId) : undefined;
+              const current = checkLeadAdmission({
+                cwd: ctx.cwd, agentDir: getAgentConfigDir(),
+                sessionId: ctx.sessionManager.getSessionId(),
+                sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
+                piTasks: capturedPiTasks,
+              }, leadReceipt);
+              if (!granted?.approved || granted.memberId !== memberId ||
+                  granted.memberEpoch !== memberEpoch || granted.digest !== receipt.digest ||
+                  granted.toolCallId !== receipt.toolCallId || !receipt.previous || !receipt.next ||
+                  !current.ok || current.value.storeFingerprint !== receipt.next) {
+                await coordinator!.transport.pauseTaskWrites(coordinator!.teamId,
+                  "Uncorrelated or conflicting teammate task commit");
+                throw new Error("Team task commit could not be correlated; writes paused");
+              }
+              await coordinator!.transport.recordTaskCommit({
+                teamId: coordinator!.teamId, memberId, epoch: memberEpoch,
+                previous: receipt.previous, next: receipt.next,
+              });
+              answers.delete(receipt.approvalRequestId!);
+              return;
+            }
+          }
+          if (message.kind === "message" || message.kind === "idle" ||
+              message.kind === "result" || message.kind === "error") {
+            pi.sendMessage({
+              customType: "teammate_notice",
+              content: `${memberName}: ${message.body}`,
+              display: true,
+              details: { name: memberName, kind: message.kind, memberId: message.from },
+            }, { triggerTurn: true, deliverAs: "steer" });
+          }
+        },
+      });
+    } else if (teamName && await coordinator.transport.getTeamName(coordinator.teamId) !== teamName) {
+      throw new Error("This lead session already owns a differently named team");
+    }
+    return coordinator;
+  };
+
+  const existingCoordinator = async (ctx: ExtensionContext): Promise<TeamCoordinator | undefined> => {
+    if (coordinator) return coordinator;
+    const roster = join(ctx.sessionManager.getSessionDir(), "artifacts",
+      ctx.sessionManager.getSessionId(), "team", "main", "roster.json");
+    return existsSync(roster) ? openCoordinator(ctx) : undefined;
+  };
+  const stopTeamMember = async (ctx: ExtensionContext, id: string): Promise<string> => {
+    const team = await existingCoordinator(ctx);
+    if (!team) throw new Error("No team belongs to this lead session");
+    const member = (await team.transport.listMembers(team.teamId))
+      .find((entry) => entry.memberId === id && entry.state === "active");
+    if (!member || !member.surface || !member.sessionFile) {
+      throw new Error("Teammate is absent, stale or has no owned pane");
+    }
+    closeSurface(member.surface);
+    const running = [...runningSubagents.values()].find((entry) =>
+      entry.team?.memberId === member.memberId && entry.team.epoch === member.epoch);
+    if (running) {
+      running.abortController?.abort();
+      runningSubagents.delete(running.id);
+    }
+    await team.transport.stopMember({
+      teamId: team.teamId, memberId: member.memberId, epoch: member.epoch,
+    });
+    return `Teammate ${member.name} (team:${member.memberId}) stopped successfully`;
+  };
+  const qualifiedStops = new Map<string, { sentinel: string; text: string; isError: boolean }>();
+  const leadRecoveries = new Map<string, {
+    storeFingerprint: string;
+    completed: Array<{ id: string; blocks: string[]; blockedBy: string[] }>;
+  }>();
+  pi.on("tool_call", async (event, ctx) => {
+    if (!memberMailbox && event.toolName === "TaskCreate" && coordinator) {
+      const disk = checkLeadAdmission({
+        cwd: ctx.cwd, agentDir: getAgentConfigDir(),
+        sessionId: ctx.sessionManager.getSessionId(),
+        sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
+        piTasks: capturedPiTasks,
+      }, leadReceipt);
+      if (disk.ok && disk.value.tasks.length > 0 &&
+          disk.value.tasks.every((task) => task.status === "completed")) {
+        leadRecoveries.set(event.toolCallId, {
+          storeFingerprint: disk.value.storeFingerprint,
+          completed: disk.value.tasks.map((task) => ({
+            id: task.id, blocks: [...task.blocks], blockedBy: [...task.blockedBy],
+          })),
+        });
+      }
+    }
+    if (memberMailbox || event.toolName !== "TaskStop") return;
+    const args = event.input as { task_id?: unknown; shell_id?: unknown };
+    const taskId = args.task_id ?? args.shell_id;
+    if (typeof taskId !== "string" || !taskId.startsWith("team:")) return;
+    const sentinel = `TEAM_STOP_${randomUUID()}`;
+    let text: string;
+    let isError = false;
+    try {
+      const id = taskId.slice("team:".length);
+      if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(id)) throw new Error("Invalid qualified teammate ID");
+      text = await stopTeamMember(ctx, id);
+    } catch (error) {
+      text = `Teammate stop refused: ${error instanceof Error ? error.message : String(error)}`;
+      isError = true;
+    }
+    qualifiedStops.set(event.toolCallId, { sentinel, text, isError });
+    return { block: true, reason: sentinel };
+  });
+  pi.on("message_end", (event) => {
+    if (event.message.role !== "toolResult") return;
+    const result = qualifiedStops.get(event.message.toolCallId);
+    if (!result) return;
+    if (event.message.toolName !== "TaskStop" ||
+        event.message.content[0]?.type !== "text" ||
+        event.message.content[0].text !== result.sentinel) {
+      return;
+    }
+    qualifiedStops.delete(event.message.toolCallId);
+    return { message: {
+      ...event.message, isError: result.isError,
+      content: [{ type: "text" as const, text: result.text }],
+      details: { teamStop: true },
+    } };
+  });
+  pi.on("tool_result", async (event, ctx) => {
+    if (memberMailbox || event.toolName !== "TaskStop" || !event.isError) return;
+    const id = event.input.task_id ?? event.input.shell_id;
+    if (typeof id !== "string" || id.startsWith("team:") ||
+        event.content.length !== 1 || event.content[0]?.type !== "text" ||
+        event.content[0].text !== `No running background process for task ${id}`) return;
+    const team = await existingCoordinator(ctx);
+    if (!team || !(await team.transport.listMembers(team.teamId))
+      .some((member) => member.memberId === id && member.state === "active")) return;
+    try {
+      const text = await stopTeamMember(ctx, id);
+      return {
+        isError: false,
+        content: [{ type: "text" as const, text }],
+        details: { teamStop: true, nativeAbsence: true },
+      };
+    } catch (error) {
+      return {
+        isError: true,
+        content: [{ type: "text" as const, text: `Teammate stop refused: ${error instanceof Error ? error.message : String(error)}` }],
+      };
+    }
+  });
+  pi.on("tool_result", async (event, ctx) => {
+    if (memberMailbox || !coordinator || !["TaskCreate", "TaskUpdate", "TaskExecute", "TaskStop"].includes(event.toolName)) {
+      return;
+    }
+    const disk = checkLeadAdmission({
+      cwd: ctx.cwd, agentDir: getAgentConfigDir(),
+      sessionId: ctx.sessionManager.getSessionId(),
+      sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
+      piTasks: capturedPiTasks,
+    }, leadReceipt);
+    const state = await coordinator.transport.getTaskState(coordinator.teamId);
+    const recovery = leadRecoveries.get(event.toolCallId);
+    leadRecoveries.delete(event.toolCallId);
+    if (recovery && !event.isError && disk.ok && state.fingerprint === recovery.storeFingerprint &&
+        disk.value.tasks.some((task) => task.status === "pending") &&
+        recovery.completed.every((before) => {
+          const after = disk.value.tasks.find((task) => task.id === before.id);
+          return after?.status === "completed" &&
+            JSON.stringify(after.blocks) === JSON.stringify(before.blocks) &&
+            JSON.stringify(after.blockedBy) === JSON.stringify(before.blockedBy);
+        })) {
+      await coordinator.transport.recordLeadRecovery({
+        teamId: coordinator.teamId, previous: recovery.storeFingerprint,
+        next: disk.value.storeFingerprint,
+      });
+      invalidateApprovals();
+      return;
+    }
+    if (disk.ok && state.fingerprint === disk.value.storeFingerprint) return;
+    invalidateApprovals();
+    if (disk.ok && !state.pauseReason && (!recovery || !event.isError)) {
+      try {
+        await coordinator.transport.recordObservedTaskChange({
+          teamId: coordinator.teamId,
+          previous: state.fingerprint ?? "",
+          next: disk.value.storeFingerprint,
+        });
+        return;
+      } catch { /* another team commit or unsafe hold won the roster lock */ }
+    }
+    if (disk.ok && state.pauseReason === LEGACY_NATIVE_TASK_HOLD && !recovery) {
+      try {
+        await coordinator.transport.recordObservedTaskChange({
+          teamId: coordinator.teamId,
+          previous: state.fingerprint ?? "",
+          next: disk.value.storeFingerprint,
+        });
+        return;
+      } catch { /* leave a conflicting hold in place */ }
+    }
+    const reason = !disk.ok ? disk.reason : recovery
+      ? "Lead pending-task recovery did not retain completed history or had an uncertain result"
+      : "Uncorrelated task change or commit";
+    await coordinator.transport.pauseTaskWrites(coordinator.teamId, reason);
+    if (!state.pauseReason) {
+      pi.sendMessage({
+        customType: "teammate_notice",
+        content: `Team task writes paused: ${reason}. Resolve the unsafe or uncertain state before starting a fresh team session.`,
+        display: true,
+      }, { triggerTurn: true, deliverAs: "steer" });
+    }
+  });
+
   // ── subagent tool ──
-  if (shouldRegister("subagent"))
-    pi.registerTool({
+  const ordinaryTool = defineTool({
       name: "subagent",
       label: "Subagent",
       description: SUBAGENT_TOOL_DESCRIPTION,
       promptSnippet: SUBAGENT_TOOL_DESCRIPTION,
       parameters: SubagentParams,
 
-      async execute(_toolCallId, rawParams, _signal, _onUpdate, ctx) {
+      async execute(_toolCallId, rawParams, signal, _onUpdate, ctx) {
         const params = normalizeSubagentParams(rawParams);
+        const followUpName = (rawParams as SubagentParamsType & { followUpName?: string }).followUpName;
+        const launchEpoch = sessionEpoch;
         // Prevent self-spawning (e.g. executor spawning another executor).
         const currentAgent = process.env.PI_SUBAGENT_AGENT;
         if (params.agent && currentAgent && params.agent === currentAgent) {
@@ -1907,21 +2287,87 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           };
         }
 
-        const running = await launchSubagent(
-          params,
-          { ...ctx, pi },
-          {
-            ...(resolvedModel ? { resolvedModel } : {}),
-          },
-        );
+        if (signal?.aborted) {
+          return {
+            content: [{ type: "text", text: "Sub-agent launch cancelled." }],
+            details: { error: "cancelled" },
+          };
+        }
+        let ownedWorktree: OwnedWorktree | undefined;
+        if ((rawParams as SubagentParamsType & { isolation?: string }).isolation === "worktree") {
+          try {
+            const sourceCwd = resolveSubagentPaths(params, spawnAgentDefs).effectiveCwd ?? ctx.cwd;
+            ownedWorktree = allocateAgentWorktree(sourceCwd);
+            params.cwd = ownedWorktree.cwd;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return {
+              content: [{ type: "text", text: `Error: ${message}` }],
+              details: { error: "worktree allocation failed", message },
+            };
+          }
+        }
+        let running: RunningSubagent;
+        try {
+          running = await launchSubagent(
+            params,
+            { ...ctx, pi },
+            {
+              ...(resolvedModel ? { resolvedModel } : {}),
+              ...((rawParams as SubagentParamsType & { maxTurns?: number }).maxTurns
+                ? { taskRuntime: { maxTurns: (rawParams as SubagentParamsType & { maxTurns: number }).maxTurns } }
+                : {}),
+            },
+          );
+        } catch (error) {
+          if (ownedWorktree) {
+            releaseUnusedWorktree(ownedWorktree);
+            if (existsSync(ownedWorktree.path)) {
+              throw new Error(
+                `Agent launch failed; isolated worktree retained at ${ownedWorktree.path}: ${error instanceof Error ? error.message : String(error)}`,
+                { cause: error },
+              );
+            }
+          }
+          throw error;
+        }
+        if (!sessionActive || sessionEpoch !== launchEpoch) {
+          subagentExecution.stopSubagent(running);
+          throw new Error("Agent launch interrupted by session navigation; the child was stopped.");
+        }
 
+        if ((rawParams as SubagentParamsType & { runInForeground?: boolean }).runInForeground) {
+          const result = await watchSubagent(running, signal ?? new AbortController().signal);
+          if (followUpName && result.exitCode === 0 && !result.error && result.sessionFile) {
+            finishedOrdinary.set(followUpName, { id: running.id, sessionPath: result.sessionFile });
+          }
+          const usage = resolveUsageDetails(result, ctx);
+          return {
+            content: [{ type: "text", text: resolveResultPresentation(
+              { ...result, ...(usage ? { usage } : {}) }, running.name,
+            ) }],
+            details: {
+              id: running.id, name: running.name, task: running.task, agent: running.agent,
+              exitCode: result.exitCode, elapsed: result.elapsed, sessionFile: result.sessionFile,
+              ...(ownedWorktree ? { worktreePath: ownedWorktree.path } : {}),
+              ...(result.error ? { error: result.error } : {}),
+              ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
+              ...(usage ? { usage } : {}),
+              ...(result.claudeSessionId ? { claudeSessionId: result.claudeSessionId } : {}),
+            },
+          };
+        }
         subagentExecution.watchInBackground({
           pi,
           ctx,
           running,
+          isOwned: () => sessionActive && sessionEpoch === launchEpoch,
           pingAgent: running.agent,
           pingSessionPath: running.cli === "claude" ? undefined : running.sessionFile,
           onSuccess: ({ result, boundary }) => {
+            if (followUpName && result.exitCode === 0 && !result.error && result.sessionFile) {
+              finishedOrdinary.set(followUpName, { id: running.id, sessionPath: result.sessionFile });
+            }
             const usage = resolveUsageDetails(result, ctx);
             const base = resolveResultPresentation(
               { ...result, ...(usage ? { usage } : {}) },
@@ -1934,12 +2380,14 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
             return {
               content: presentation,
               details: {
+                id: running.id,
                 name: running.name,
                 task: running.task,
                 agent: running.agent,
                 exitCode: result.exitCode,
                 elapsed: result.elapsed,
                 sessionFile: result.sessionFile,
+                ...(ownedWorktree ? { worktreePath: ownedWorktree.path } : {}),
                 ...(result.errorMessage
                   ? {
                     errorMessage: result.errorMessage,
@@ -1976,6 +2424,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
             agent: params.agent,
             sessionFile: running.sessionFile,
             launchScriptFile: running.launchScriptFile,
+            ...(ownedWorktree ? { worktreePath: ownedWorktree.path } : {}),
             status: "started",
           },
         };
@@ -2034,10 +2483,338 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         return renderToolFallback(result, theme);
       },
     });
+  retiredToolFixtures.set("subagent", ordinaryTool);
+
+  // Keep ordinary runs independent of team admission.
+  if (shouldRegister("Agent"))
+    pi.registerTool({
+      name: "Agent",
+      label: "Agent",
+      description: "Run a local agent in a tmux pane; set run_in_background: false to await its result. " +
+        "For background runs: " + ASYNC_TOOL_CONTRACT +
+        " Eligible named interactive native agents use a team when admission gates allow it.",
+      parameters: AgentParams,
+      async execute(toolCallId, input, signal, onUpdate, ctx) {
+        const params = normalizeAgentCall(input);
+        const fail = (message: string) => ({
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
+          details: { error: message },
+        });
+        const unsupported = Object.keys(params).filter(
+          (key) => !["description", "prompt", "subagent_type", "name", "run_in_background", "fork", "model", "isolation",
+            "resume", "resumeSessionId",
+            "systemPrompt", "skills", "tools", "cwd", "interactive", "max_turns", "team_name"].includes(key),
+        );
+        if (unsupported.length) {
+          return fail(`Agent does not support ${unsupported.join(", ")}; no agent was started.`);
+        }
+        if (!params.description.trim() || !params.prompt.trim()) {
+          return fail("Agent requires a non-empty description and prompt; no agent was started.");
+        }
+        if (params.isolation !== undefined && params.isolation !== "worktree") {
+          return fail('Agent isolation must be "worktree"; no agent was started.');
+        }
+        if (params.max_turns !== undefined &&
+            (!Number.isSafeInteger(params.max_turns) || params.max_turns < 1)) {
+          return fail("Agent max_turns must be a positive integer; no agent was started.");
+        }
+        const agentName = params.subagent_type?.trim() || "general-purpose";
+        const defaults = loadAgentDefaults(agentName);
+        if (!defaults) return fail(`Agent definition "${agentName}" was not found; no agent was started.`);
+        if (defaults.cli && (params.skills?.trim() || params.tools?.trim())) {
+          return fail(`cli:${defaults.cli} does not support Agent skills or tools overrides; no agent was started.`);
+        }
+        if (defaults.cli && params.fork) {
+          return fail(`cli:${defaults.cli} cannot inherit a Pi forked conversation; no agent was started.`);
+        }
+        if (params.resume !== undefined || params.resumeSessionId !== undefined) {
+          if (params.fork || (params.resume !== undefined && params.resumeSessionId !== undefined) ||
+              !(params.resume ?? params.resumeSessionId)?.trim()) {
+            return fail("Agent resume requires one non-empty session reference without fork; no agent was started.");
+          }
+          if (!defaults.cli && (params.resumeSessionId !== undefined || !isAbsolute(params.resume!))) {
+            return fail("Pi Agent resume requires an absolute saved session path; no agent was started.");
+          }
+        }
+        if (params.max_turns !== undefined &&
+            (defaults.cli || resolveEffectiveInteractive({
+              name: params.name?.trim() || params.description,
+              task: params.prompt, interactive: params.interactive,
+            }, defaults))) {
+          return fail("Agent max_turns is supported only for autonomous Pi runs; no agent was started.");
+        }
+        if (params.team_name !== undefined &&
+            (defaults.cli || !params.team_name.trim() ||
+             !params.name?.trim() ||
+             ctx.mode !== "tui" || params.fork || params.isolation || params.resume ||
+             params.interactive === false)) {
+          return fail(defaults.cli
+            ? `cli:${defaults.cli} runs as an ordinary agent only; team promotion is unavailable.`
+            : "An explicit team needs a team name and an eligible named interactive native Agent.");
+        }
+        if (params.name?.trim() && !params.fork && !params.isolation && !params.resume && !memberMailbox &&
+            ctx.mode === "tui" && !defaults.cli &&
+            resolveEffectiveInteractive({
+              name: params.name.trim(), task: params.prompt, interactive: params.interactive,
+            }, defaults)) {
+          const admission = checkLeadAdmission({
+            cwd: ctx.cwd,
+            agentDir: getAgentConfigDir(),
+            sessionId: ctx.sessionManager.getSessionId(),
+            sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
+            piTasks: capturedPiTasks,
+          }, leadReceipt);
+          if (!admission.ok) {
+            return fail(`Team admission blocked: ${admission.reason}. Configure autoClearCompleted: "never" and reload if needed; ordinary unnamed or explicitly noninteractive delegation remains available.`);
+          }
+          const name = params.name.trim();
+          const resolved = resolveSubagentPaths({
+            name, task: params.prompt, agent: agentName, cwd: params.cwd,
+          }, defaults);
+          const childCwd = resolved.effectiveCwd ?? ctx.cwd;
+          const childSessionId = randomUUID();
+          const childSessionFile = join(
+            getDefaultSessionDirFor(childCwd, resolved.effectiveAgentDir),
+            `${childSessionId}.jsonl`,
+          );
+          const childInput = {
+            cwd: childCwd, agentDir: resolved.effectiveAgentDir,
+            sessionId: childSessionId, sessionFile: childSessionFile,
+            piTasks: admission.value.path,
+          };
+          const preflight = preflightTeamChild(admission.value, childInput);
+          if (!preflight.ok) return fail(`Teammate startup blocked: ${preflight.reason}`);
+          if (params.run_in_background === false) {
+            return fail("An interactive teammate stays available for messages; use a background Agent call.");
+          }
+          if (!isTmuxAvailable()) return muxUnavailableResult();
+          const opened = await openCoordinator(ctx, params.team_name?.trim(), admission.value.storeFingerprint);
+          await opened.requireTaskFingerprint(admission.value.storeFingerprint);
+          const member = await opened.addMember({ name, sessionId: childSessionId });
+          const spec: TeamLaunchSpec = {
+            directory: opened.directory, teamId: opened.teamId,
+            memberId: member.memberId, memberToken: member.token, memberEpoch: member.epoch,
+            childSessionId, childSessionFile, leadSessionId: ctx.sessionManager.getSessionId(),
+            taskFile: admission.value.path,
+            expectedStoreFingerprint: preflight.value.storeFingerprint,
+            expectedConfigFingerprint: preflight.value.configFingerprint,
+          };
+          let running: RunningSubagent | undefined;
+          try {
+            running = await launchSubagent({
+              name, task: params.prompt, agent: agentName, cwd: params.cwd,
+              model: params.model, systemPrompt: params.systemPrompt,
+              skills: params.skills, tools: params.tools, interactive: true,
+            }, { ...ctx, pi }, { team: spec });
+            await opened.transport.updateMemberRuntime({
+              teamId: opened.teamId, memberId: member.memberId,
+              surface: running.surface, sessionFile: running.sessionFile,
+            });
+            await opened.awaitStartup({
+              memberId: member.memberId, memberEpoch: member.epoch,
+              candidate: preflight.value,
+              child: { ...childInput, sessionFile: running.sessionFile },
+              signal, timeoutMs: 20_000,
+            });
+            subagentExecution.watchInBackground({
+              pi, ctx, running,
+              onSuccess: async ({ result }) => {
+                try { await opened.transport.stopMember({
+                  teamId: opened.teamId, memberId: member.memberId, epoch: member.epoch,
+                }); } catch { /* a reloaded lead may own the roster now */ }
+                return {
+                  content: resolveResultPresentation(result, name),
+                  details: { id: running!.id, name, team: opened.teamId, exitCode: result.exitCode },
+                };
+              },
+              onError: async (message) => ({
+                content: `Teammate "${name}" failed: ${message}`,
+                details: { id: running!.id, name, error: message },
+              }),
+            });
+            return {
+              content: [{ type: "text" as const, text: `Teammate "${name}" started in team "${params.team_name ?? "main"}".` }],
+              details: { id: running.id, name, memberId: member.memberId, team: opened.teamId, status: "started" },
+            };
+          } catch (error) {
+            if (running) {
+              try { subagentExecution.stopSubagent(running); } catch { /* retain an unclosed pane for diagnosis */ }
+            }
+            try { await opened.transport.stopMember({
+              teamId: opened.teamId, memberId: member.memberId, epoch: member.epoch,
+            }); } catch { /* report the original startup failure */ }
+            return fail(`Teammate startup failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        if (params.resume && !defaults.cli) {
+          if (params.run_in_background === false || params.isolation || params.cwd || params.skills ||
+              params.tools || params.systemPrompt || params.interactive !== undefined || params.max_turns !== undefined) {
+            return fail("Pi Agent resume restores saved controls; foreground and fresh-launch overrides are unavailable.");
+          }
+          return executeSubagentResume(pi, {
+            sessionPath: params.resume, name: params.name, message: params.prompt, model: params.model,
+          }, ctx);
+        }
+        if (!params.name?.trim() && params.interactive !== true && defaults.autoExit !== true && !defaults.cli) {
+          return fail(`Agent definition "${agentName}" needs auto-exit or interactive: true for an unnamed run; no agent was started.`);
+        }
+        const ordinaryParams: SubagentParamsType & { runInForeground?: boolean; isolation?: string; followUpName?: string } = {
+          name: params.name?.trim() || params.description,
+          task: params.prompt, agent: agentName, fork: params.fork,
+          systemPrompt: params.systemPrompt, skills: params.skills, tools: params.tools, cwd: params.cwd, model: params.model,
+          resumeSessionId: params.resume ?? params.resumeSessionId,
+          ...(params.interactive !== undefined ? { interactive: params.interactive } : {}),
+          runInForeground: params.run_in_background === false,
+          ...(params.max_turns ? { maxTurns: params.max_turns } : {}),
+          ...(params.isolation ? { isolation: params.isolation } : {}),
+          ...(params.name?.trim() ? { followUpName: params.name.trim() } : {}),
+        };
+        return ordinaryTool.execute(toolCallId, ordinaryParams, signal, onUpdate, ctx);
+      },
+    });
+
+  if (shouldRegister("SendMessage"))
+    pi.registerTool({
+      name: "SendMessage",
+      label: "Send Message",
+      description: "Send a message to the team lead or an active teammate, or follow up with a finished ordinary agent.",
+      parameters: Type.Object({
+        recipient: Type.String({ description: "Exact name of a finished ordinary agent" }),
+        content: Type.String({ description: "Follow-up instruction" }),
+        type: Type.Optional(Type.String({ description: "Message type (only message is supported for ordinary agents)" })),
+      }),
+      async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+        const fail = (error: string) => ({
+          content: [{ type: "text" as const, text: `Error: ${error}` }],
+          details: { error },
+        });
+        if (params.type !== undefined && params.type !== "message") {
+          return fail("Only ordinary follow-up messages are available; teammate control messages require team admission.");
+        }
+        const recipient = params.recipient.trim();
+        if (!recipient || !params.content.trim()) return fail("Recipient and content must be non-empty.");
+        if (memberMailbox) {
+          if (ctx.sessionManager.getSessionId() !== memberEnv.sessionId) {
+            return fail("Teammate session identity changed");
+          }
+          const message = recipient === "lead"
+            ? await memberMailbox.sendToLead({ requestId: randomUUID(), body: params.content })
+            : await memberMailbox.sendToMember({ recipient, requestId: randomUUID(), body: params.content });
+          return {
+            content: [{ type: "text" as const, text: `Message delivered to ${recipient}.` }],
+            details: { id: message.id, status: "delivered", recipient },
+          };
+        }
+        const activeCoordinator = await existingCoordinator(ctx);
+        if (activeCoordinator) {
+          const teammate = await activeCoordinator.findMember(recipient);
+          if (teammate) {
+            const admission = checkLeadAdmission({
+              cwd: ctx.cwd, agentDir: getAgentConfigDir(),
+              sessionId: ctx.sessionManager.getSessionId(),
+              sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
+              piTasks: capturedPiTasks,
+            }, leadReceipt);
+            if (!admission.ok) return fail(`Teammate messaging paused: ${admission.reason}`);
+            const message = await activeCoordinator.send(recipient, params.content);
+            return {
+              content: [{ type: "text" as const, text: `Message delivered to ${recipient}.` }],
+              details: { id: message.id, status: "delivered", recipient },
+            };
+          }
+        }
+        if (followUpsInFlight.has(recipient)) return fail(`A follow-up to "${recipient}" is already running.`);
+        if ([...runningSubagents.values()].some((running) => running.name === recipient)) {
+          return fail(`Agent "${recipient}" is still running; wait for its completion before a saved-session follow-up.`);
+        }
+        const saved = finishedOrdinary.get(recipient);
+        if (!saved) return fail(`No finished ordinary named agent "${recipient}" in this session.`);
+        followUpsInFlight.add(recipient);
+        finishedOrdinary.delete(recipient);
+        const launchEpoch = sessionEpoch;
+        try {
+          const response = await subagentExecution.executeSubagentResume(
+            pi, { sessionPath: saved.sessionPath, name: recipient, message: params.content },
+            ctx, undefined, {
+              isOwned: () => sessionActive && sessionEpoch === launchEpoch,
+              onResult: ({ result }) => {
+                followUpsInFlight.delete(recipient);
+                if (result.exitCode === 0 && !result.error && result.sessionFile) {
+                  finishedOrdinary.set(recipient, { id: saved.id, sessionPath: result.sessionFile });
+                }
+              },
+              onError: () => {
+                followUpsInFlight.delete(recipient);
+                finishedOrdinary.set(recipient, saved);
+              },
+            },
+          );
+          if (response.details?.status !== "started") {
+            followUpsInFlight.delete(recipient);
+            finishedOrdinary.set(recipient, saved);
+          }
+          return response;
+        } catch (error) {
+          followUpsInFlight.delete(recipient);
+          finishedOrdinary.set(recipient, saved);
+          throw error;
+        }
+      },
+    });
+
+  if (shouldRegister("ListAgents"))
+    pi.registerTool({
+      name: "ListAgents",
+      label: "List Agents",
+      description: "List locally tracked running and finished ordinary agents. Team members appear only after team admission.",
+      parameters: Type.Object({}),
+      async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+        const activeCoordinator = memberMailbox ? undefined : await existingCoordinator(ctx);
+        const teammates = memberMailbox
+          ? (await memberMailbox.listMembers()).map((member) => ({
+            id: member.memberId, name: member.name, status: member.state, epoch: member.epoch,
+          }))
+          : activeCoordinator
+            ? (await activeCoordinator.transport.listMembers(activeCoordinator.teamId)).map((member) => ({
+              id: member.memberId, name: member.name, status: member.state, epoch: member.epoch,
+            }))
+            : [];
+        const agents = [
+          ...teammates,
+          ...[...runningSubagents.values()].map((agent) => ({
+            ...(agent.team ? { team: agent.team.teamId } : {}),
+            id: agent.id, name: agent.name, agent: agent.agent, status: "running" as const,
+          })).filter((agent) => !("team" in agent)),
+          ...[...finishedOrdinary.entries()].map(([name, agent]) => ({
+            id: agent.id, name, status: "finished" as const,
+          })),
+        ];
+        return {
+          content: [{ type: "text" as const, text: agents.length
+            ? agents.map(({ name, id, status }) => `${name} (${id}): ${status}`).join("\n")
+            : "No agents in this session." }],
+          details: { agents },
+        };
+      },
+    });
+
+  if (shouldRegister("AgentInterrupt"))
+    pi.registerTool({
+      name: "AgentInterrupt",
+      label: "Interrupt Agent",
+      description: SUBAGENT_INTERRUPT_DESCRIPTION,
+      parameters: Type.Object({
+        id: Type.Optional(Type.String({ description: "Running agent ID" })),
+        name: Type.Optional(Type.String({ description: "Exact running agent name" })),
+      }),
+      async execute(_toolCallId, params) {
+        return handleSubagentInterrupt(params);
+      },
+    });
 
   // ── subagent_interrupt tool ──
   if (shouldRegister("subagent_interrupt"))
-    pi.registerTool({
+    retiredToolFixtures.set("subagent_interrupt", defineTool({
       name: "subagent_interrupt",
       label: "Interrupt Subagent",
       description: SUBAGENT_INTERRUPT_DESCRIPTION,
@@ -2084,11 +2861,11 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
         return renderToolFallback(result, theme);
       },
-    });
+    }));
 
   // ── subagents_list tool ──
   if (shouldRegister("subagents_list"))
-    pi.registerTool({
+    retiredToolFixtures.set("subagents_list", defineTool({
       name: "subagents_list",
       label: "List Subagents",
       description: SUBAGENTS_LIST_DESCRIPTION,
@@ -2145,11 +2922,11 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         });
         return new Text(lines.join("\n"), 0, 0);
       },
-    });
+    }));
 
   // ── subagent_resume tool ──
   if (shouldRegister("subagent_resume"))
-    pi.registerTool({
+    retiredToolFixtures.set("subagent_resume", defineTool({
       name: "subagent_resume",
       label: "Resume Subagent",
       description: SUBAGENT_RESUME_DESCRIPTION,
@@ -2215,17 +2992,17 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
         return executeSubagentResume(pi, params, ctx);
       },
-    });
+    }));
 
-  // /iterate: fork the session into a subagent
-  pi.registerCommand("iterate", {
+  // /subtask: fork the session into an ordinary agent
+  pi.registerCommand("subtask", {
     description: "Fork session into a subagent for focused work (bugfixes, iteration)",
     handler: async (args) => {
       const task = args.trim() || "";
       const taskText = task || "The user wants to do some hands-on work. Help them with whatever they need.";
       const toolCall =
-        `Use subagent to fork a session. fork: true, name: "Iterate", task: ${JSON.stringify(taskText)}. ` +
-        "Do not set agent, tools, skills, or model.";
+        `Use Agent to fork a session. fork: true, description: "Subtask", prompt: ${JSON.stringify(taskText)}. ` +
+        "Do not set name, subagent_type, tools, skills, or model.";
       pi.sendUserMessage(toolCall);
     },
   });
@@ -2255,7 +3032,9 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
       const taskText = task || `You are the ${agentName} agent. Wait for instructions.`;
       const displayName = agentName[0].toUpperCase() + agentName.slice(1);
-      const toolCall = `Use subagent with agent: "${agentName}", name: "${displayName}", task: ${JSON.stringify(taskText)}`;
+      const toolCall = `Use Agent with description: ${JSON.stringify(`${agentName}: ${taskText}`)}, ` +
+        `subagent_type: ${JSON.stringify(agentName)}, name: ${JSON.stringify(displayName)}, ` +
+        `prompt: ${JSON.stringify(taskText)}`;
       pi.sendUserMessage(toolCall);
     },
   });

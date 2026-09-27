@@ -26,7 +26,9 @@ compatible providers after session initialization. Without a compatible
 provider, the coordinator registers no workflow commands, aliases, or tools.
 The coordinator reports the missing provider through the session UI.
 
-Ordinary `subagent` tools and pi-tasks RPC remain independent of workflows.
+Ordinary `Agent` calls and pi-tasks RPC remain independent of workflows.
+`SendMessage`, `ListAgents`, and `AgentInterrupt` handle ordinary agent coordination.
+The old callable subagent tools are not registered.
 
 ## Commands and provider selection
 

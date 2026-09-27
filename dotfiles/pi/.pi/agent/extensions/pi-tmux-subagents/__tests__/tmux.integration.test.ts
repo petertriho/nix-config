@@ -313,12 +313,12 @@ test(
 				const sessionPath = writeHeavySession(root);
 				writeHeavySidecar({ sessionPath, cwd: root, agentDir: root });
 
-				const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+				const tool = registeredTools.find((entry) => entry.name === "Agent");
 				assert.ok(tool);
 
 				const result = await tool.execute(
 					"c",
-					{ sessionPath, name: "Heavy resume" },
+					{ resume: sessionPath, name: "Heavy resume", description: "Resume", prompt: "Continue" },
 					undefined,
 					undefined,
 					gateContext(GATE_RESUME),
@@ -377,7 +377,7 @@ test(
 			let runningId: string | undefined;
 			const { tools: registeredTools, restoreEnv } = registerToolsForTests();
 			try {
-			const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+			const tool = registeredTools.find((entry) => entry.name === "Agent");
 			assert.ok(tool);
 
 			const sessionPath = writeHeavySession(root);
@@ -413,7 +413,7 @@ test(
 
 			const result = await tool.execute(
 				"c",
-				{ sessionPath, message: "Continue from the first unchecked task." },
+				{ resume: sessionPath, description: "Resume executor", prompt: "Continue from the first unchecked task." },
 				undefined,
 				undefined,
 				gateContext(GATE_FRESH),
@@ -797,12 +797,12 @@ test(
 				const ctx = integrationContext();
 				for (const handler of handlers.get("session_start") ?? []) await handler({}, ctx);
 				t.after(async () => { for (const handler of handlers.get("session_shutdown") ?? []) await handler({}, ctx); });
-				const subagentTool = tools.find((entry) => entry.name === "subagent");
-				assert.ok(subagentTool);
+				const agentTool = tools.find((entry) => entry.name === "Agent");
+				assert.ok(agentTool);
 
-				const result = await subagentTool.execute(
+				const result = await agentTool.execute(
 					"c",
-					{ name: "Usage probe", task: "Produce usage entries." },
+					{ name: "Usage probe", description: "Usage probe", prompt: "Produce usage entries." },
 					undefined,
 					undefined,
 					ctx,

@@ -17,7 +17,7 @@ review yourself.
   `reviewer`.
 - Use only `workflow_spawn`, `workflow_resume`, `workflow_recover`, and
   `workflow_complete` for lifecycle operations on these roles. Never use
-  ordinary `subagent` or `subagent_resume` for a Peter role.
+  ordinary `Agent` or `SendMessage` for a Peter role.
 - The lifecycle tools are fire-and-forget. Never poll, sleep, tail session
   files, read session files to check progress, or call status tools while
   waiting. End the turn and wait for the harness to deliver

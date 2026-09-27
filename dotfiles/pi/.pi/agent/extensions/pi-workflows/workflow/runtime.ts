@@ -284,7 +284,7 @@ export function buildWorkflowSkillMessage(
 		`- workflow_gate: pass runId=${JSON.stringify(snapshot.runId)}, a safe gate label, a declared file artifact slot, and optional reviewDirectory/data; only the orchestrator opens browser review`,
 		`- workflow_complete: MUST be called exactly once with runId=${JSON.stringify(snapshot.runId)} and status completed or aborted at every terminal outcome`,
 		"- These tools are fire-and-forget. Never poll, sleep, tail session files, or call status tools to wait for role completion.",
-		"- Never use ordinary subagent or subagent_resume for manifest workflow roles.",
+		"- Never use ordinary Agent or SendMessage for manifest workflow roles.",
 		"- A skipped role must not be spawned, resumed, or recovered.",
 		"- workflow_gate is also fire-and-forget. Wait for workflow_gate_result; never read its result file before process closure.",
 		"</workflow-config>",

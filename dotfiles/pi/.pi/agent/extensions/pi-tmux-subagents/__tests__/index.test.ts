@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
+import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
 	appendFileSync,
@@ -27,6 +28,7 @@ import {
 	writeLaunchProfile,
 } from "../launch-profile.ts";
 import piTmuxSubagents, { __test__ as testApi } from "../index.ts";
+import { createTeamTransport } from "../team-transport.ts";
 import { closeSurface } from "../tmux.ts";
 import { discoverWorkflowProviders } from "../../workflow-provider/contract.ts";
 import {
@@ -83,6 +85,10 @@ after(() => {
 
 type AnyRecord = Record<string, any>;
 
+function testTool(registeredTools: AnyRecord[], name: string): AnyRecord | undefined {
+	return registeredTools.find((tool) => tool.name === name) ?? testApi.retiredTool(name);
+}
+
 function createMockExtensionApi(options: { env?: Record<string, string> } = {}) {
 	const registeredTools: AnyRecord[] = [];
 	const registeredCommands: AnyRecord[] = [];
@@ -90,6 +96,8 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 	const eventHandlers = new Map<string, Array<(event: AnyRecord, ctx: AnyRecord) => unknown>>();
 	const sentUserMessages: string[] = [];
 	const sentMessages: AnyRecord[] = [];
+	let resolveNextMessage: ((message: AnyRecord) => void) | undefined;
+	const nextMessage = new Promise<AnyRecord>((resolve) => { resolveNextMessage = resolve; });
 	const api = {
 		on(event: string, handler: (event: AnyRecord, ctx: AnyRecord) => unknown) {
 			const handlers = eventHandlers.get(event) ?? [];
@@ -111,6 +119,7 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 		},
 		sendMessage(message: AnyRecord, options?: AnyRecord) {
 			sentMessages.push({ message, options });
+			resolveNextMessage?.({ message, options });
 		},
 		getAllTools() {
 			return [];
@@ -151,6 +160,7 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 		eventHandlers,
 		sentUserMessages,
 		sentMessages,
+		nextMessage,
 	};
 }
 
@@ -396,8 +406,11 @@ test("resolveEffectiveSessionMode and resolveLaunchBehavior honor fork precedenc
 
 test("resolveDenyTools expands spawning false and merges deny-tools", () => {
 	const denied = testApi.resolveDenyTools({ spawning: false, denyTools: "claude, web_search" });
-	for (const tool of ["subagent", "subagent_interrupt", "subagents_list", "subagent_resume", "claude", "web_search"]) {
+	for (const tool of ["Agent", "SendMessage", "ListAgents", "AgentInterrupt", "claude", "web_search"]) {
 		assert.equal(denied.has(tool), true, tool);
+	}
+	for (const retired of ["subagent", "subagent_interrupt", "subagents_list", "subagent_resume"]) {
+		assert.equal(denied.has(retired), false);
 	}
 	assert.equal(testApi.resolveDenyTools(null).size, 0);
 	assert.equal(testApi.resolveDenyTools({ spawning: true }).size, 0);
@@ -547,7 +560,7 @@ test("subagents_list lists visible agents, hides disable-model-invocation, and l
 		writeAgentFile(projectAgentsDir, "shadowed-agent", "name: shadowed-agent\nmodel: test/project\ndisable-model-invocation: true");
 
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagents_list");
+		const tool = testTool(registeredTools, "subagents_list");
 		assert.ok(tool);
 		const result = await tool.execute();
 		const names = (result.details.agents as AnyRecord[]).map((agent) => agent.name);
@@ -747,8 +760,8 @@ test("bundled evaluator honors read-only skill commands and every Peter role lea
 	assert.match(evaluator, /After saving and reading back the artifact/);
 	assert.match(evaluator, /On write or verification failure,[\s\S]*without\s+that handoff marker/);
 	const executor = readFileSync(join(dir, "executor.md"), "utf8");
-	assert.match(executor, /agent: "worker"/);
-	assert.match(executor, /agent: "scout"/);
+	assert.match(executor, /subagent_type: "worker"/);
+	assert.match(executor, /subagent_type: "scout"/);
 	assert.doesNotMatch(executor, /^spawning: false/m, "executor delegation must remain available");
 	const writer = readFileSync(join(dir, "task-writer.md"), "utf8");
 	assert.match(writer, /Do not read `EVALUATION.md`/);
@@ -756,23 +769,52 @@ test("bundled evaluator honors read-only skill commands and every Peter role lea
 
 // ── registration and commands ──
 
-test("registers four subagent tools and three renderers without workflow command ownership", () => {
+test("Agent exposes Claude's required description and prompt without requiring a display name", () => {
+	const { registeredTools } = createMockExtensionApi();
+	const agent = registeredTools.find((tool) => tool.name === "Agent");
+	assert.ok(agent);
+	assert.deepEqual(agent.parameters.required, ["description", "prompt"]);
+	assert.ok(agent.parameters.properties.subagent_type);
+	assert.ok(agent.parameters.properties.name);
+	assert.ok(agent.parameters.properties.run_in_background);
+	assert.ok(agent.parameters.properties.isolation);
+	assert.equal(agent.parameters.properties.task, undefined);
+});
+
+test("/subtask emits an unnamed Agent fork request instead of the obsolete command", () => {
+	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
+	assert.equal(registeredCommands.some((command) => command.name === "iterate"), false);
+	const subtask = registeredCommands.find((command) => command.name === "subtask");
+	assert.ok(subtask);
+	subtask.handler("Fix the bug", {});
+	assert.equal(sentUserMessages.length, 1);
+	assert.match(sentUserMessages[0], /Use Agent/);
+	assert.match(sentUserMessages[0], /fork: true/);
+	assert.match(sentUserMessages[0], /prompt: "Fix the bug"/);
+	assert.doesNotMatch(sentUserMessages[0], /name:/);
+});
+
+test("registers only the cutover tools without workflow command ownership", () => {
 	const { registeredTools, registeredCommands, registeredMessageRenderers } = createMockExtensionApi();
 	assert.deepEqual(
 		registeredTools.map((tool) => tool.name).sort(),
 		[
-			"subagent",
-			"subagent_interrupt",
-			"subagent_resume",
-			"subagents_list",
+			"Agent",
+			"AgentInterrupt",
+			"ListAgents",
+			"SendMessage",
 		],
 	);
+	const agentTool = registeredTools.find((tool) => tool.name === "Agent");
+	assert.deepEqual(agentTool?.parameters.required, ["description", "prompt"]);
+	assert.equal(agentTool?.parameters.properties.mode, undefined, "do not advertise an unsupported field");
+	assert.ok(agentTool?.parameters.properties.team_name, "the supported team name stays optional");
 	assert.deepEqual(
 		registeredMessageRenderers.map((entry) => entry.name).sort(),
 		["subagent_ping", "subagent_result", "subagent_status"],
 	);
-	const subagent = registeredTools.find((tool) => tool.name === "subagent");
-	const resume = registeredTools.find((tool) => tool.name === "subagent_resume");
+	const subagent = testTool(registeredTools, "subagent");
+	const resume = testTool(registeredTools, "subagent_resume");
 	assert.equal(subagent?.parameters.properties.workflowRunId, undefined);
 	assert.equal(subagent?.parameters.properties.workflowArtifacts, undefined);
 	assert.equal(resume?.parameters.properties.workflowArtifacts, undefined);
@@ -781,7 +823,8 @@ test("registers four subagent tools and three renderers without workflow command
 		assert.equal(tool, undefined);
 	}
 	const commandNames = registeredCommands.map((command) => command.name);
-	assert.ok(commandNames.includes("iterate"));
+	assert.ok(commandNames.includes("subtask"));
+	assert.equal(commandNames.includes("iterate"), false);
 	assert.ok(commandNames.includes("subagent"));
 	assert.equal(commandNames.includes("workflow"), false);
 	assert.equal(commandNames.includes("workflows"), false);
@@ -795,13 +838,46 @@ test("PI_DENY_TOOLS gates tool registration", () => {
 	const { registeredTools } = createMockExtensionApi({
 		env: {
 			PI_DENY_TOOLS:
-				"subagent,subagent_resume,workflow_spawn,workflow_resume,workflow_recover,workflow_complete,workflow_gate",
+				"Agent,AgentInterrupt,workflow_spawn,workflow_resume,workflow_recover,workflow_complete,workflow_gate",
 		},
 	});
 	assert.deepEqual(
 		registeredTools.map((tool) => tool.name).sort(),
-		["subagent_interrupt", "subagents_list"],
+		["ListAgents", "SendMessage"],
 	);
+});
+
+test("Agent registration follows its own deny rule, not a different tool name", () => {
+	const { registeredTools } = createMockExtensionApi({ env: { PI_DENY_TOOLS: "subagent" } });
+	assert.ok(registeredTools.some((tool) => tool.name === "Agent"));
+	assert.equal(registeredTools.some((tool) => tool.name === "subagent"), false);
+});
+
+test("ListAgents lists this session's live agents and AgentInterrupt keeps turn-only errors", async () => {
+	const { registeredTools } = createMockExtensionApi();
+	const list = registeredTools.find((tool) => tool.name === "ListAgents");
+	const interrupt = registeredTools.find((tool) => tool.name === "AgentInterrupt");
+	assert.ok(list);
+	assert.ok(interrupt);
+	const running = {
+		id: "abc12345", name: "Researcher", agent: "scout",
+		surface: "%123", task: "Inspect files", sessionFile: "/tmp/researcher.jsonl",
+		startTime: Date.now(), interactive: false, statusState: createStatusState({ source: "pi", startTimeMs: Date.now() }),
+	};
+	testApi.runningSubagents.set(running.id, running as any);
+	try {
+		const result: AnyRecord = await list.execute("list-call", {}, new AbortController().signal, () => {}, policyContext());
+		assert.deepEqual(result.details.agents.map((agent: AnyRecord) => ({
+			id: agent.id, name: agent.name, status: agent.status,
+		})), [{ id: running.id, name: running.name, status: "running" }]);
+		const absent: AnyRecord = await interrupt.execute(
+			"interrupt-call", { name: "Nobody" }, new AbortController().signal, () => {}, policyContext(),
+		);
+		assert.ok(absent.details.error, "interrupting an unknown agent must not stop a process");
+		assert.equal(testApi.runningSubagents.has(running.id), true);
+	} finally {
+		testApi.runningSubagents.delete(running.id);
+	}
 });
 
 
@@ -814,10 +890,10 @@ test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards
 		assert.deepEqual(
 			registeredTools.map((tool) => tool.name).sort(),
 			[
-				"subagent",
-				"subagent_interrupt",
-				"subagent_resume",
-				"subagents_list",
+				"Agent",
+				"AgentInterrupt",
+				"ListAgents",
+				"SendMessage",
 			],
 		);
 		// scrub window closed: ambient value visible again to execute()-time readers
@@ -828,17 +904,6 @@ test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards
 	} finally {
 		restoreEnvVar("PI_DENY_TOOLS", previous);
 	}
-});
-
-test("/iterate emits a full-context fork tool call", () => {
-	const { registeredCommands, sentUserMessages } = createMockExtensionApi();
-	const iterate = registeredCommands.find((command) => command.name === "iterate");
-	assert.ok(iterate);
-	iterate.handler("Fix the bug", {});
-	assert.equal(sentUserMessages.length, 1);
-	assert.match(sentUserMessages[0], /fork: true/);
-	assert.match(sentUserMessages[0], /name: "Iterate"/);
-	assert.match(sentUserMessages[0], /"Fix the bug"/);
 });
 
 test("/subagent requires an agent name and emits a tool call for a known agent", async () => {
@@ -858,7 +923,8 @@ test("/subagent requires an agent name and emits a tool call for a known agent",
 
 		await command.handler('scout-test list files', ctx);
 		assert.equal(sentUserMessages.length, 1);
-		assert.match(sentUserMessages[0], /agent: "scout-test", name: "Scout-test", task: "list files"/);
+		assert.match(sentUserMessages[0], /Use Agent/);
+		assert.match(sentUserMessages[0], /subagent_type: "scout-test", name: "Scout-test", prompt: "list files"/);
 	});
 });
 
@@ -869,7 +935,7 @@ test("resolveResumeLaunchBehavior defaults to auto-exit and non-interactive", ()
 
 test("subagent renderCall handles partial args and subagent_resume exposes autoExit", () => {
 	const { registeredTools } = createMockExtensionApi();
-	const subagentTool = registeredTools.find((tool) => tool.name === "subagent");
+	const subagentTool = testTool(registeredTools, "subagent");
 	assert.ok(subagentTool);
 	const output = subagentTool.renderCall({}, theme).render(80).join("\n");
 	assert.match(output, /\(unnamed\)/);
@@ -878,7 +944,7 @@ test("subagent renderCall handles partial args and subagent_resume exposes autoE
 	assert.match(previewed, /line one/);
 	assert.match(previewed, /\(2 lines\)/);
 
-	const resumeTool = registeredTools.find((tool) => tool.name === "subagent_resume");
+	const resumeTool = testTool(registeredTools, "subagent_resume");
 	assert.ok(resumeTool);
 	const autoExitSchema = resumeTool.parameters.properties.autoExit;
 	assert.equal(autoExitSchema.type, "boolean");
@@ -889,7 +955,7 @@ test("parent tool rows use semantic states, sanitize display fields, and fit nar
 	const { registeredTools } = createMockExtensionApi();
 	const marked = markerTheme("tools");
 	const byName = (name: string) => {
-		const tool = registeredTools.find((entry) => entry.name === name);
+		const tool = testTool(registeredTools, name);
 		assert.ok(tool, name);
 		return tool;
 	};
@@ -997,7 +1063,7 @@ test("subagent tool returns the tmux hint outside tmux without spawning", async 
 	delete process.env.TMUX;
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const subagentTool = registeredTools.find((tool) => tool.name === "subagent");
+		const subagentTool = testTool(registeredTools, "subagent");
 		assert.ok(subagentTool);
 		const result = await subagentTool.execute("call-1", { name: "Echo", task: "ping" }, new AbortController().signal, () => {}, {
 			sessionManager: { getSessionFile: () => "/tmp/parent.jsonl", getSessionId: () => "sid", getSessionDir: () => "/tmp" },
@@ -1012,12 +1078,817 @@ test("subagent tool returns the tmux hint outside tmux without spawning", async 
 	}
 });
 
+test("Agent keeps named headless and CLI calls ordinary without a team flag", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			for (const subagent_type of ["scout", "claude-code"]) {
+				const result: AnyRecord = await agent.execute("call", {
+					description: "Inventory", prompt: "List files", subagent_type, name: "Researcher",
+				}, new AbortController().signal, () => {}, policyContext());
+				assert.equal(result.details.error, "tmux not available", `${subagent_type} should reach ordinary runtime`);
+			}
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
+test("Agent accepts ordinary Pi-only launch controls without changing its no-tmux outcome", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute("pi-only-call", {
+				description: "Inspect", prompt: "Inspect files", subagent_type: "worker",
+				systemPrompt: "No edits", skills: "readme", tools: "read", cwd: "/tmp",
+				interactive: false, max_turns: 3,
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.equal(result.details.error, "tmux not available");
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
+test("Agent treats empty optional placeholders as absent without bypassing team admission", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const { registeredTools } = createMockExtensionApi();
+		const agent = registeredTools.find((tool) => tool.name === "Agent");
+		assert.ok(agent);
+		const placeholders = {
+			description: "Live probe", prompt: "Reply without tools",
+			subagent_type: "worker", name: "Probe", run_in_background: true,
+			isolation: "", fork: false, model: "", systemPrompt: "",
+			skills: "", tools: "", cwd: "", interactive: true,
+			resume: "", resumeSessionId: "", max_turns: 0,
+			team_name: "", mode: "",
+		};
+		const result: AnyRecord = await agent.execute("blank-optional", placeholders,
+			new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
+		assert.match(result.details.error, /Team admission blocked.*autoClearCompleted.*never/);
+		assert.equal(testApi.runningSubagents.size, 0);
+
+		for (const [override, expected] of [
+			[{ mode: "strict" }, /does not support mode/],
+			[{ isolation: "shared" }, /isolation must be "worktree"/],
+			[{ max_turns: -1 }, /max_turns must be a positive integer/],
+			[{ max_turns: 1 }, /max_turns is supported only for autonomous Pi runs/],
+		] as const) {
+			const rejected: AnyRecord = await agent.execute("invalid-optional",
+				{ ...placeholders, ...override }, new AbortController().signal, () => {},
+				policyContext({ mode: "tui" }));
+			assert.match(rejected.details.error, expected);
+			assert.equal(testApi.runningSubagents.size, 0);
+		}
+	});
+});
+
+test("Agent refuses worktree isolation from a non-git cwd before launching a shared-checkout child", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const requestedCwd = process.cwd();
+		assert.throws(
+			() => execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: requestedCwd, stdio: "pipe" }),
+			"the requested cwd must not be inside a git repository",
+		);
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-isolation-bin-"));
+		const splitLog = join(binDir, "split-window.log");
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			const tmux = join(binDir, "tmux");
+			writeFileSync(tmux, [
+				"#!/bin/sh",
+				'if [ "$1" = "split-window" ]; then',
+				`  printf 'spawned\\n' >> ${JSON.stringify(splitLog)}`,
+				"  printf '%s\\n' '%731'",
+				"fi",
+			].join("\n") + "\n");
+			chmodSync(tmux, 0o755);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute("isolation-call", {
+				description: "Inspect files", prompt: "List files", subagent_type: "worker",
+				cwd: requestedCwd, isolation: "worktree",
+			}, new AbortController().signal, () => {}, policyContext({ cwd: requestedCwd }));
+			assert.equal(existsSync(splitLog), false, "allocation must fail before tmux launches a child");
+			assert.equal(testApi.runningSubagents.size, 0);
+			assert.equal(result.details.error, "worktree allocation failed");
+			assert.match(result.content[0].text, /not (?:inside )?a git (?:repository|worktree)/i);
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("concurrent isolated Agents get distinct retained worktrees and hand off dirty changes", { timeout: 20_000 }, async () => {
+	await withIsolatedAgentEnv(async () => {
+		const repo = process.cwd();
+		execFileSync("git", ["init", "-q", repo]);
+		writeFileSync(join(repo, "tracked.txt"), "baseline\n");
+		execFileSync("git", ["-C", repo, "add", "tracked.txt"]);
+		execFileSync("git", ["-C", repo, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "Base"]);
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-concurrent-bin-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		const ownedPaths: string[] = [];
+		try {
+			const tmux = join(binDir, "tmux");
+			writeFileSync(tmux, [
+				"#!/usr/bin/env node",
+				'const fs = require("node:fs");',
+				"const args = process.argv.slice(2);",
+				'if (args[0] === "split-window") process.stdout.write("%731\\n");',
+				'if (args[0] === "send-keys" && args[3] === "-l") {',
+				'  const script = fs.readFileSync(args[4].match(/^bash \'([^\']+)\'$/)?.[1], "utf8");',
+				'  const session = script.match(/PI_SUBAGENT_SESSION=\'([^\']+)\'/)?.[1];',
+				'  if (!session) process.exit(2);',
+				'  fs.writeFileSync(session, JSON.stringify({ type: "message", id: "reply", message: { role: "assistant", content: [{ type: "text", text: "Done." }] } }) + "\\n");',
+				'  fs.writeFileSync(session + ".exit", JSON.stringify({ type: "done" }));',
+				"}",
+			].join("\n") + "\n");
+			chmodSync(tmux, 0o755);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools, nextMessage } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const results: AnyRecord[] = await Promise.all(["One", "Two"].map((name) => agent.execute(name, {
+				description: name, name, prompt: "Inspect", subagent_type: "worker", cwd: repo,
+				isolation: "worktree", run_in_background: false,
+			}, new AbortController().signal, () => {}, policyContext({ cwd: repo }))));
+			for (const result of results) {
+				assert.equal(result.details.exitCode, 0);
+				ownedPaths.push(result.details.worktreePath);
+				assert.equal(readFileSync(join(result.details.worktreePath, "tracked.txt"), "utf8"), "baseline\n");
+			}
+			assert.notEqual(ownedPaths[0], ownedPaths[1]);
+			writeFileSync(join(ownedPaths[0], "unfinished.txt"), "Keep this change");
+			assert.equal(readFileSync(join(ownedPaths[0], "unfinished.txt"), "utf8"), "Keep this change");
+			assert.equal(testApi.runningSubagents.size, 0);
+			const sendMessage = registeredTools.find((tool) => tool.name === "SendMessage");
+			assert.ok(sendMessage);
+			const resumed: AnyRecord = await sendMessage.execute("isolated-followup", {
+				recipient: "One", content: "Review the unfinished change.",
+			}, new AbortController().signal, () => {}, policyContext({ cwd: repo }));
+			assert.equal(resumed.details.status, "started");
+			assert.match(readFileSync(resumed.details.launchScriptFile, "utf8"),
+				new RegExp(`cd '${ownedPaths[0]}'`));
+			await nextMessage;
+			assert.equal(readFileSync(join(ownedPaths[0], "unfinished.txt"), "utf8"), "Keep this change");
+		} finally {
+			for (const path of ownedPaths) {
+				execFileSync("git", ["-C", repo, "worktree", "remove", "--force", path]);
+			}
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("failed isolated Agent launch releases its clean worktree without using the shared checkout", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const repo = process.cwd();
+		execFileSync("git", ["init", "-q", repo]);
+		writeFileSync(join(repo, "tracked.txt"), "baseline\n");
+		execFileSync("git", ["-C", repo, "add", "tracked.txt"]);
+		execFileSync("git", ["-C", repo, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "Base"]);
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-bad-pane-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			const tmux = join(binDir, "tmux");
+			writeFileSync(tmux, "#!/bin/sh\nif [ \"$1\" = \"split-window\" ]; then printf 'invalid-pane\\n'; fi\n");
+			chmodSync(tmux, 0o755);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			await assert.rejects(() => agent.execute("bad-pane", {
+				description: "Inspect", prompt: "Inspect files", subagent_type: "worker",
+				cwd: repo, isolation: "worktree",
+			}, new AbortController().signal, () => {}, policyContext({ cwd: repo })), /Unexpected tmux split-window output/);
+			assert.equal(testApi.runningSubagents.size, 0);
+			const registered = execFileSync("git", ["-C", repo, "worktree", "list", "--porcelain"], { encoding: "utf8" });
+			assert.equal((registered.match(/^worktree /gm) ?? []).length, 1);
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("an isolated Agent fork seeds its context in its own worktree", { timeout: 10_000 }, async () => {
+	await withIsolatedAgentEnv(async () => {
+		const repo = process.cwd();
+		execFileSync("git", ["init", "-q", repo]);
+		writeFileSync(join(repo, "tracked.txt"), "baseline\n");
+		execFileSync("git", ["-C", repo, "add", "tracked.txt"]);
+		execFileSync("git", ["-C", repo, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "Base"]);
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-fork-bin-"));
+		const seedCopy = join(binDir, "seed.jsonl");
+		const parent = join(binDir, "parent.jsonl");
+		writeFileSync(parent, [
+			JSON.stringify({ type: "session", version: 3, id: "parent", cwd: repo }),
+			JSON.stringify({ type: "model_change", id: "model", parentId: null }),
+			JSON.stringify({ type: "message", id: "prompt", parentId: "model",
+				message: { role: "user", content: [{ type: "text", text: "Fork now" }] } }),
+		].join("\n") + "\n");
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		let worktreePath: string | undefined;
+		try {
+			const tmux = join(binDir, "tmux");
+			writeFileSync(tmux, [
+				"#!/usr/bin/env node",
+				'const fs = require("node:fs");',
+				"const args = process.argv.slice(2);",
+				'if (args[0] === "split-window") process.stdout.write("%735\\n");',
+				'if (args[0] === "send-keys" && args[3] === "-l") {',
+				'  const script = fs.readFileSync(args[4].match(/^bash \'([^\']+)\'$/)?.[1], "utf8");',
+				'  const session = script.match(/PI_SUBAGENT_SESSION=\'([^\']+)\'/)?.[1];',
+				'  if (!session) process.exit(2);',
+				`  fs.copyFileSync(session, ${JSON.stringify(seedCopy)});`,
+				'  fs.appendFileSync(session, JSON.stringify({ type: "message", id: "reply", message: { role: "assistant", content: [{ type: "text", text: "Done." }] } }) + "\\n");',
+				'  fs.writeFileSync(session + ".exit", JSON.stringify({ type: "done" }));',
+				"}",
+			].join("\n") + "\n");
+			chmodSync(tmux, 0o755);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute("isolated-fork", {
+				description: "Fork", prompt: "Review", subagent_type: "worker",
+				cwd: repo, isolation: "worktree", fork: true, run_in_background: false,
+			}, new AbortController().signal, () => {}, policyContext({
+				cwd: repo,
+				sessionManager: {
+					getSessionFile: () => parent, getSessionId: () => "parent", getSessionDir: () => binDir,
+				},
+			}));
+			assert.equal(result.details.exitCode, 0);
+			worktreePath = result.details.worktreePath;
+			assert.equal(readFileSync(join(worktreePath!, "tracked.txt"), "utf8"), "baseline\n");
+			const header = JSON.parse(readFileSync(seedCopy, "utf8").split("\n")[0]);
+			assert.equal(header.parentSession, parent);
+			assert.equal(header.cwd, worktreePath);
+		} finally {
+			if (worktreePath) execFileSync("git", ["-C", repo, "worktree", "remove", "--force", worktreePath]);
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("Agent applies model policy through the ordinary selector before a tmux launch", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute("model-call", {
+				description: "Inspect", prompt: "Inspect files", subagent_type: "worker", model: "previous",
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.equal(result.details.error, "model selection failed");
+			assert.match(result.content[0].text, /previous.*resum/i);
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
+test("Agent rejects autonomous turn limits on interactive or CLI profiles before spawning", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			for (const fields of [
+				{ subagent_type: "worker", interactive: true },
+				{ subagent_type: "claude-code" },
+			]) {
+				const result: AnyRecord = await agent.execute("limit-call", {
+					description: "Inspect", prompt: "Inspect files", max_turns: 2, ...fields,
+				}, new AbortController().signal, () => {}, policyContext());
+				assert.match(result.details.error, /max_turns.*autonomous Pi/i);
+				assert.equal(testApi.runningSubagents.size, 0);
+			}
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
+function installForegroundMockTmux(binDir: string): string {
+	// Simulate the external tmux boundary: the launched child writes its
+	// completed session and exit sidecar when the command is sent.
+	const launchLog = join(binDir, "launch-scripts.log");
+	const tmux = join(binDir, "tmux");
+	writeFileSync(tmux, [
+		"#!/usr/bin/env node",
+		'const fs = require("node:fs");',
+		"const args = process.argv.slice(2);",
+		'if (args[0] === "split-window") process.stdout.write("%731\\n");',
+		'if (args[0] === "send-keys" && args[3] === "-l") {',
+		'  const scriptPath = args[4].match(/^bash \'([^\']+)\'$/)?.[1];',
+		'  if (!scriptPath) process.exit(2);',
+		`  fs.appendFileSync(${JSON.stringify(launchLog)}, scriptPath + "\\n");`,
+		'  const session = fs.readFileSync(scriptPath, "utf8").match(/PI_SUBAGENT_SESSION=\'([^\']+)\'/)?.[1];',
+		'  if (!session) process.exit(3);',
+		'  fs.writeFileSync(session, JSON.stringify({ type: "message", id: "reply", message: { role: "assistant", content: [{ type: "text", text: "All requested files were inspected." }] } }) + "\\n");',
+		'  fs.writeFileSync(session + ".exit", JSON.stringify({ type: "done" }));',
+		"}",
+	].join("\n") + "\n");
+	chmodSync(tmux, 0o755);
+	return launchLog;
+}
+
+test("Agent run_in_background false waits for completed output instead of rejecting", { timeout: 10_000 }, async () => {
+	await withIsolatedAgentEnv(async ({ projectAgentsDir }) => {
+		writeAgentFile(projectAgentsDir, "echo-test", "name: echo-test\nauto-exit: true");
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-foreground-bin-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			installForegroundMockTmux(binDir);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+
+			const { registeredTools, sentMessages } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute(
+				"foreground-call",
+				{ description: "Inspect files", prompt: "List the files", subagent_type: "echo-test", run_in_background: false },
+				new AbortController().signal,
+				() => {},
+				policyContext(),
+			);
+			assert.match(result.content[0].text, /All requested files were inspected\./);
+			assert.equal(result.details.exitCode, 0);
+			assert.equal(sentMessages.length, 0, "foreground results return directly rather than arriving as a steer");
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("foreground Agent cancellation closes its pane and returns a cancellation result", { timeout: 10_000 }, async () => {
+	await withIsolatedAgentEnv(async () => {
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-cancel-bin-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			const tmux = join(binDir, "tmux");
+			writeFileSync(tmux, "#!/bin/sh\nif [ \"$1\" = \"split-window\" ]; then printf '%%733\\n'; fi\n");
+			chmodSync(tmux, 0o755);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const controller = new AbortController();
+			const timer = setTimeout(() => controller.abort(), 40);
+			try {
+				const result: AnyRecord = await agent.execute("cancel-call", {
+					description: "Long task", prompt: "Keep working", subagent_type: "worker",
+					run_in_background: false,
+				}, controller.signal, () => {}, policyContext());
+				assert.equal(result.details.error, "cancelled");
+				assert.equal(testApi.runningSubagents.size, 0);
+			} finally {
+				clearTimeout(timer);
+			}
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("background Agent result keeps its launch ID and arrives as one steer message", { timeout: 10_000 }, async () => {
+	await withIsolatedAgentEnv(async () => {
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-background-bin-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			installForegroundMockTmux(binDir);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools, sentMessages, nextMessage, eventHandlers } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const launched: AnyRecord = await agent.execute("background-call", {
+				description: "Inspect", prompt: "List files", subagent_type: "worker",
+				run_in_background: true,
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.equal(launched.details.status, "started");
+			const delivered = await nextMessage;
+			assert.equal(delivered.message.customType, "subagent_result");
+			assert.equal(delivered.message.details.id, launched.details.id);
+			assert.equal(delivered.options.deliverAs, "steer");
+			assert.equal(sentMessages.length, 1);
+			assert.equal(testApi.runningSubagents.size, 0);
+			for (let repeat = 0; repeat < 2; repeat++) {
+				for (const handler of eventHandlers.get("session_shutdown") ?? []) await handler({}, policyContext());
+			}
+			assert.equal(sentMessages.length, 1, "repeated cleanup must not deliver a second result");
+			// The mock shares the module controller with later tests; re-arm it
+			// without starting unrelated session-start providers in this fixture.
+			testApi.rearmModuleAbortController();
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("repeated shutdown of a running ordinary Agent does not deliver a stale result", { timeout: 10_000 }, async () => {
+	await withIsolatedAgentEnv(async () => {
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-shutdown-bin-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			const tmux = join(binDir, "tmux");
+			writeFileSync(tmux, "#!/bin/sh\nif [ \"$1\" = \"split-window\" ]; then printf '%%734\\n'; fi\n");
+			chmodSync(tmux, 0o755);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools, eventHandlers, sentMessages } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const started: AnyRecord = await agent.execute("shutdown-call", {
+				description: "Long task", prompt: "Continue", subagent_type: "worker",
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.equal(started.details.status, "started");
+			for (let repeat = 0; repeat < 2; repeat++) {
+				for (const handler of eventHandlers.get("session_shutdown") ?? []) await handler({}, policyContext());
+			}
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			assert.equal(sentMessages.length, 0, "shutdown must not steer a completed result into a different session");
+			assert.equal(testApi.runningSubagents.size, 0);
+		} finally {
+			testApi.rearmModuleAbortController();
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("SendMessage follows up with a finished ordinary named Agent in its saved session", { timeout: 10_000 }, async () => {
+	await withIsolatedAgentEnv(async ({ projectAgentsDir }) => {
+		writeAgentFile(projectAgentsDir, "echo-test", "name: echo-test\nauto-exit: true");
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-followup-bin-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			const launchLog = installForegroundMockTmux(binDir);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const finished: AnyRecord = await agent.execute(
+				"named-foreground",
+				{
+					description: "Inspect files", prompt: "List the files", subagent_type: "echo-test",
+					name: "Researcher", run_in_background: false,
+				},
+				new AbortController().signal, () => {}, policyContext(),
+			);
+			assert.equal(finished.details.exitCode, 0);
+			assert.ok(existsSync(finished.details.sessionFile), "the completed Agent must leave a saved session");
+			assert.equal(testApi.runningSubagents.size, 0, "the target is finished, not a live pane");
+
+			const sendMessage = registeredTools.find((tool) => tool.name === "SendMessage");
+			assert.ok(sendMessage, "SendMessage must accept follow-up work for a finished named Agent");
+			const followUp = "Check the files changed since your first reply.";
+			const result: AnyRecord = await sendMessage.execute(
+				"named-follow-up",
+				{ recipient: "Researcher", content: followUp },
+				new AbortController().signal, () => {}, policyContext(),
+			);
+			assert.equal(result.details.status, "started");
+			const scripts = readFileSync(launchLog, "utf8").trim().split("\n");
+			assert.equal(scripts.length, 2, "the follow-up must launch exactly one resumed child");
+			const resumeScript = readFileSync(scripts[1], "utf8");
+			assert.ok(
+				resumeScript.includes(`--session '${finished.details.sessionFile}'`),
+				"the follow-up must use the finished Agent's saved session, not a fresh one",
+			);
+			const messagePath = resumeScript.match(/# Resume message file: (.+)/)?.[1];
+			assert.ok(messagePath, "the resumed child must receive the follow-up message");
+			assert.equal(readFileSync(messagePath, "utf8"), followUp);
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("ordinary SendMessage refuses unknown recipients and teammate control messages", async () => {
+	const { registeredTools } = createMockExtensionApi();
+	const sendMessage = registeredTools.find((tool) => tool.name === "SendMessage");
+	assert.ok(sendMessage);
+	const unknown: AnyRecord = await sendMessage.execute("missing-recipient", {
+		recipient: "Nobody", content: "Do more work",
+	}, new AbortController().signal, () => {}, policyContext());
+	assert.match(unknown.details.error, /No finished ordinary named agent/);
+	const shutdown: AnyRecord = await sendMessage.execute("shutdown-request", {
+		recipient: "Nobody", content: "Stop", type: "shutdown_request",
+	}, new AbortController().signal, () => {}, policyContext());
+	assert.match(shutdown.details.error, /team admission/);
+});
+
+test("qualified team stops correlate blocked results; bare TaskStop falls back only after exact native absence", async () => {
+	const root = mkdtempSync(join(tmpdir(), "pi-stop-routing-"));
+	const binDir = mkdtempSync(join(tmpdir(), "pi-stop-routing-bin-"));
+	const savedPath = process.env.PATH;
+	const savedTmux = process.env.TMUX;
+	try {
+		installForegroundMockTmux(binDir);
+		process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+		process.env.TMUX = "/tmp/mock-tmux,1,0";
+		const sessionDir = join(root, "sessions");
+		mkdirSync(sessionDir);
+		const directory = join(sessionDir, "artifacts", "lead", "team");
+		const transport = createTeamTransport({
+			directory, lead: { sessionId: "lead", epoch: randomUUID(), token: randomUUID() },
+		});
+		await transport.createTeam("main");
+		const ids = [randomUUID(), randomUUID()];
+		for (const id of ids) {
+			await transport.addMember({
+				teamId: "main",
+				member: { memberId: id, name: id, sessionId: `session-${id}`, token: randomUUID() },
+			});
+			await transport.updateMemberRuntime({
+				teamId: "main", memberId: id, surface: "%731", sessionFile: join(root, `${id}.jsonl`),
+			});
+		}
+		const { eventHandlers } = createMockExtensionApi();
+		const ctx = policyContext({
+			sessionManager: {
+				getSessionId: () => "lead", getSessionDir: () => sessionDir,
+				getSessionFile: () => join(root, "lead.jsonl"),
+			},
+		});
+		const qualified = await eventHandlers.get("tool_call")![0]({
+			toolName: "TaskStop", toolCallId: "qualified-call",
+			input: { task_id: `team:${ids[0]}` },
+		}, ctx) as AnyRecord;
+		assert.equal(qualified.block, true);
+		const message: AnyRecord = {
+			role: "toolResult", toolName: "TaskStop", toolCallId: "qualified-call",
+			content: [{ type: "text", text: qualified.reason }], isError: true, timestamp: Date.now(),
+		};
+		const replaced = await eventHandlers.get("message_end")![0]({ message }, ctx) as AnyRecord;
+		assert.equal(replaced.message.isError, false);
+		assert.match(replaced.message.content[0].text, /stopped successfully/);
+		assert.equal(await eventHandlers.get("message_end")![0]({
+			message: { ...message, toolCallId: "unrelated" },
+		}, ctx), undefined);
+		const exact = `No running background process for task ${ids[1]}`;
+		const resultHandler = eventHandlers.get("tool_result")![0];
+		assert.equal(await resultHandler({
+			toolName: "TaskStop", toolCallId: "bare-1", isError: false,
+			input: { task_id: ids[1] }, content: [{ type: "text", text: "Native process stopped successfully" }],
+		}, ctx), undefined);
+		assert.equal(await resultHandler({
+			toolName: "TaskStop", toolCallId: "bare-2", isError: true,
+			input: { task_id: ids[1] }, content: [{ type: "text", text: `${exact} extra` }],
+		}, ctx), undefined);
+		const fallback = await resultHandler({
+			toolName: "TaskStop", toolCallId: "bare-3", isError: true,
+			input: { task_id: ids[1] }, content: [{ type: "text", text: exact }],
+		}, ctx) as AnyRecord;
+		assert.equal(fallback.isError, false);
+		assert.match(fallback.content[0].text, /stopped successfully/);
+	} finally {
+		restoreEnvVar("PATH", savedPath);
+		restoreEnvVar("TMUX", savedTmux);
+		rmSync(root, { recursive: true, force: true });
+		rmSync(binDir, { recursive: true, force: true });
+	}
+});
+
+test("Agent keeps named CLI ordinary unless explicitly requesting team promotion", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute("call", {
+				description: "Review", prompt: "Review changes", subagent_type: "claude-code", name: "Reviewer",
+			}, new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
+			assert.equal(result.details.error, "tmux not available");
+			const promoted: AnyRecord = await agent.execute("promote-call", {
+				description: "Review", prompt: "Review changes", subagent_type: "claude-code",
+				name: "Reviewer", team_name: "my-team",
+			}, new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
+			assert.match(promoted.content[0].text, /cli:claude.*ordinary/i);
+			assert.equal(testApi.runningSubagents.size, 0);
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
+test("named Pi admission without a flag refuses unsafe disk mode before any tmux launch", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedFlag = process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			for (const flag of [undefined, "0"]) {
+				restoreEnvVar("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", flag);
+				for (const team_name of [undefined, "example"]) {
+					const result: AnyRecord = await agent.execute("unsafe-team", {
+						description: "Review", prompt: "Inspect files", subagent_type: "worker",
+						name: "Reviewer", interactive: true, ...(team_name ? { team_name } : {}),
+					}, new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
+					assert.match(result.details.error, /Team admission blocked.*autoClearCompleted.*never/);
+					assert.equal(testApi.runningSubagents.size, 0);
+				}
+			}
+		} finally {
+			restoreEnvVar("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", savedFlag);
+		}
+	});
+});
+
+test("named isolation and fork requests remain ordinary rather than attempting team admission", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			for (const option of [{ isolation: "worktree" }, { fork: true }, { interactive: false }]) {
+				const result: AnyRecord = await agent.execute("ordinary-opt-out", {
+					description: "Review", prompt: "Review", subagent_type: "worker",
+					name: "Reviewer", ...option,
+				}, new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
+				assert.equal(result.details.error, "tmux not available");
+			}
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
+test("Agent routes a Claude resume ID through the ordinary CLI launch path", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute("cli-resume", {
+				description: "Continue", prompt: "Finish review", subagent_type: "claude-code",
+				resume: "existing-claude-session",
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.equal(result.details.error, "tmux not available");
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
+test("mocked ordinary Claude CLI launch and resume use the Stop-hook sentinel without a team", { timeout: 10_000 }, async () => {
+	await withIsolatedAgentEnv(async () => {
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-cli-bin-"));
+		const scriptLog = join(binDir, "scripts.log");
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			const tmux = join(binDir, "tmux");
+			writeFileSync(tmux, [
+				"#!/usr/bin/env node",
+				'const fs = require("node:fs");',
+				"const args = process.argv.slice(2);",
+				'if (args[0] === "split-window") process.stdout.write("%732\\n");',
+				'if (args[0] === "send-keys" && args[3] === "-l") {',
+				'  const script = fs.readFileSync(args[4].match(/^bash \'([^\']+)\'$/)?.[1], "utf8");',
+				'  const sentinel = script.match(/PI_CLAUDE_SENTINEL=\'([^\']+)\'/)?.[1];',
+				'  if (!sentinel) process.exit(2);',
+				`  fs.appendFileSync(${JSON.stringify(scriptLog)}, script + "\\n---launch---\\n");`,
+				'  fs.writeFileSync(sentinel, "Claude completed the review.\\n");',
+				"}",
+			].join("\n") + "\n");
+			chmodSync(tmux, 0o755);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const fresh: AnyRecord = await agent.execute("cli-fresh", {
+				description: "Review", prompt: "Review", subagent_type: "claude-code",
+				run_in_background: false,
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.equal(fresh.details.exitCode, 0);
+			const result: AnyRecord = await agent.execute("cli-foreground", {
+				description: "Continue review", prompt: "Finish review", subagent_type: "claude-code",
+				resume: "claude-session-123", run_in_background: false,
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.equal(result.details.exitCode, 0);
+			assert.match(result.content[0].text, /Claude completed the review/);
+			const scripts = readFileSync(scriptLog, "utf8").split("---launch---").filter((entry) => entry.trim());
+			assert.equal(scripts.length, 2);
+			assert.doesNotMatch(scripts[0], /--resume/);
+			assert.match(scripts[1], /claude --dangerously-skip-permissions/);
+			assert.match(scripts[1], /--resume 'claude-session-123'/);
+			assert.match(scripts[1], /PI_CLAUDE_SENTINEL=/);
+			assert.match(scripts[1], /PI_CLAUDE_PROMPT_HASH='[0-9a-f]{64}'/);
+			assert.equal(testApi.runningSubagents.size, 0);
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+});
+
+test("Agent Pi resume reuses the saved-session context-fit gate instead of starting a fresh child", async () => {
+	const savedTmux = process.env.TMUX;
+	delete process.env.TMUX;
+	const dir = mkdtempSync(join(tmpdir(), "pi-agent-resume-gate-"));
+	try {
+		const heavy = writeHeavySession(dir, 150_000);
+		writeSidecarOn(heavy, dir);
+		const { registeredTools } = createMockExtensionApi();
+		const agent = registeredTools.find((tool) => tool.name === "Agent");
+		assert.ok(agent);
+		const result: AnyRecord = await agent.execute("pi-resume", {
+			description: "Continue", prompt: "Continue the saved work", resume: heavy,
+		}, new AbortController().signal, () => {}, policyContext());
+		assert.equal(result.details.error, "context gate unavailable");
+		assert.equal(testApi.runningSubagents.size, 0);
+	} finally {
+		restoreEnvVar("TMUX", savedTmux);
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("Agent refuses unsupported CLI skills and tool overrides instead of silently ignoring them", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const savedTmux = process.env.TMUX;
+		delete process.env.TMUX;
+		try {
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent");
+			assert.ok(agent);
+			const result: AnyRecord = await agent.execute("cli-overrides", {
+				description: "Review", prompt: "Review", subagent_type: "claude-code", skills: "planner",
+			}, new AbortController().signal, () => {}, policyContext());
+			assert.match(result.details.error, /cli:claude.*skills/i);
+		} finally {
+			restoreEnvVar("TMUX", savedTmux);
+		}
+	});
+});
+
 test("subagent tool blocks self-spawn and requires a session file", async () => {
 	const previousAgent = process.env.PI_SUBAGENT_AGENT;
 	process.env.PI_SUBAGENT_AGENT = "executor";
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const subagentTool = registeredTools.find((tool) => tool.name === "subagent");
+		const subagentTool = testTool(registeredTools, "subagent");
 		assert.ok(subagentTool);
 		const blocked = await subagentTool.execute("c", { name: "X", task: "t", agent: "executor" }, undefined, undefined, {});
 		assert.equal(blocked.details.error, "self-spawn blocked");
@@ -1029,7 +1900,7 @@ test("subagent tool blocks self-spawn and requires a session file", async () => 
 	process.env.TMUX = process.env.TMUX ?? "/tmp/tmux-test,1,0";
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const subagentTool = registeredTools.find((tool) => tool.name === "subagent");
+		const subagentTool = testTool(registeredTools, "subagent");
 		assert.ok(subagentTool);
 		const noSession = await subagentTool.execute("c", { name: "X", task: "t" }, undefined, undefined, {
 			sessionManager: { getSessionFile: () => undefined, getSessionId: () => "sid", getSessionDir: () => "/tmp" },
@@ -1102,7 +1973,7 @@ test("subagent model policies reject invalid new-spawn selections before tmux wo
 	delete process.env.TMUX;
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent");
+		const tool = testTool(registeredTools, "subagent");
 		assert.ok(tool);
 		const ctx = policyContext();
 
@@ -1185,7 +2056,7 @@ test("malformed or unresolvable agent model configs hard-error before tmux work"
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
 			const { registeredTools } = createMockExtensionApi();
-			const tool = registeredTools.find((entry) => entry.name === "subagent");
+			const tool = testTool(registeredTools, "subagent");
 			assert.ok(tool);
 
 			writeFileSync(join(agentDir, "agent-models.json"), "{not json");
@@ -1222,7 +2093,7 @@ test("agent model config yields to params.model and never applies to agent-less 
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
 			const { registeredTools } = createMockExtensionApi();
-			const tool = registeredTools.find((entry) => entry.name === "subagent");
+			const tool = testTool(registeredTools, "subagent");
 			assert.ok(tool);
 			const ctx = policyContext({
 				modelRegistry: { getAvailable: () => [POLICY_MODEL, OTHER_MODEL] },
@@ -1270,7 +2141,7 @@ test("ordinary subagent launches keep agent model config precedence for workflow
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
 			const { registeredTools } = createMockExtensionApi();
-			const tool = registeredTools.find((entry) => entry.name === "subagent");
+			const tool = testTool(registeredTools, "subagent");
 			assert.ok(tool);
 			writeAgentModelConfig(
 				{
@@ -1322,7 +2193,7 @@ test("configured agent defaults reach the child --model and launch profile over 
 			"name: different-name\nauto-exit: true\nspawning: false",
 		);
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent");
+		const tool = testTool(registeredTools, "subagent");
 		assert.ok(tool);
 		const ctx = {
 			...policyContext({
@@ -1620,7 +2491,7 @@ test("spawn config lookup keys by the filename identifier, not the frontmatter n
 			const agentDir = dirname(globalAgentsDir);
 			writeAgentFile(projectAgentsDir, "hero", "name: different-name\nauto-exit: true");
 			const { registeredTools } = createMockExtensionApi();
-			const tool = registeredTools.find((entry) => entry.name === "subagent");
+			const tool = testTool(registeredTools, "subagent");
 			assert.ok(tool);
 			const ctx = policyContext({
 				modelRegistry: { getAvailable: () => [POLICY_MODEL, OTHER_MODEL] },
@@ -1653,7 +2524,7 @@ test("resume model policies use sidecar state, explicit values, and legacy fallb
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-policy-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 		const ctx = policyContext();
 
@@ -1733,7 +2604,7 @@ test("legacy resumes warn once and still use the legacy model path", async () =>
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-legacy-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 		const notifications: Array<[string, string]> = [];
 		const ctx = policyContext({
@@ -1761,7 +2632,7 @@ test("ordinary resource changes notify and continue, while primary skill changes
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-resources-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 		const notifications: Array<[string, string]> = [];
 		const choices: Array<string> = [];
@@ -1967,7 +2838,7 @@ test("resume context gate stays silent below 65 percent and proceeds", async () 
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-low-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 		const { ctx, calls } = scriptedSelectCtx([]);
 
@@ -1988,7 +2859,7 @@ test("resume context gate offers all four choices at and above 65 percent", asyn
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-gate-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000); // 75% of the 200k window
@@ -2047,7 +2918,7 @@ test("gate choice 'choose another model' reopens the picker with projected ratio
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-choose-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000);
@@ -2089,7 +2960,7 @@ test("resume picker titles carry the session name identically across the gate re
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-prompt-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 		const heavy = writeHeavySession(dir, 150_000); // 75% of the 200k window
 		writeSidecarOn(heavy, dir);
@@ -2144,7 +3015,7 @@ test("context gate fails safely without interactive UI and for unopenable sessio
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-safety-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000);
@@ -2184,7 +3055,7 @@ test("legacy heavy sessions gate on explicit models but cannot roll over without
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-legacy-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000); // no sidecar
@@ -2225,7 +3096,7 @@ test("resume launch restores the stored role, cwd, agent dir, and controls", { t
 	let pane: string | undefined;
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = registeredTools.find((entry) => entry.name === "subagent_resume");
+		const tool = testTool(registeredTools, "subagent_resume");
 		assert.ok(tool);
 		const sessionPath = join(dir, "role.jsonl");
 		writeFileSync(sessionPath, "{}\n");
@@ -2515,7 +3386,7 @@ test("resolveResultPresentation formats success, failure, and provider errors", 
 	assert.match(errored, /Sub-agent "Worker" failed after 14s/);
 	assert.match(errored, /provider\/agent error — auto-retry exhausted/);
 	assert.match(errored, /Error: Anthropic 529 Overloaded after 3 retries/);
-	assert.match(errored, /subagent_resume/);
+	assert.match(errored, /resume with Agent/);
 	assert.doesNotMatch(errored, /ignored/);
 });
 

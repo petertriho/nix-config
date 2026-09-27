@@ -135,8 +135,8 @@ export function resolveResultPresentation(result: Pick<SubagentResult, "exitCode
 	const formatted = formatUsage(result.usage);
 	const usage = formatted ? `\n\n${formatted}` : "";
 	if (result.errorMessage) return `Sub-agent "${name}" failed after ${elapsed} (provider/agent error — auto-retry exhausted).\n\n`
-		+ `Error: ${result.errorMessage}\n\nThe subagent did not produce a result. You can retry by spawning a new `
-		+ `subagent or resume the session with subagent_resume.${usage}${session}`;
+		+ `Error: ${result.errorMessage}\n\nThe agent did not produce a result. Start a new `
+		+ `Agent call or resume with Agent using its saved session path.${usage}${session}`;
 	return result.exitCode === 0
 		? `Sub-agent "${name}" completed (${elapsed}).\n\n${result.summary}${usage}${session}`
 		: `Sub-agent "${name}" failed (exit code ${result.exitCode}).\n\n${result.summary}${usage}${session}`;

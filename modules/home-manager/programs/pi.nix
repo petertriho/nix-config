@@ -315,6 +315,8 @@ in
           jsonFormat.generate "pi-coding-agent-stylix-theme.json" stylixTheme;
         "${cfg.configDir}/pi-meantime.json".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/pi-meantime.json";
+        "${cfg.configDir}/tasks-config.json".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/tasks-config.json";
         "${cfg.configDir}/extensions/pi-context-window-cap.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-context-window-cap.ts";
         "${cfg.configDir}/extensions/pi-dashboard.ts".source =
