@@ -115,9 +115,11 @@ export default function teamMember(pi: ExtensionAPI): void {
       memberId, memberEpoch: epoch, sessionId, cwd: ctx.cwd, agentDir,
       piTasks: candidate.path, configFingerprint: candidate.configFingerprint,
     };
+    // Allocate once per startup occurrence; transport retries retain this ID.
+    const startupRequestId = `startup:${epoch}:${event.reason}:${randomUUID()}`;
     await mailbox.notice({
       kind: "startup",
-      requestId: `startup:${epoch}:${event.reason}`,
+      requestId: startupRequestId,
       body: JSON.stringify(receipt),
     });
     if (timer) clearInterval(timer);
@@ -251,13 +253,29 @@ export default function teamMember(pi: ExtensionAPI): void {
     return;
   });
 
-  pi.on("tool_result", (event) => {
+  pi.on("tool_result", async (event) => {
     if (!disk || !accepted || event.toolName === "TaskCreate" || event.toolName === "TaskUpdate") return;
-    const current = resolveTaskDiskCandidate(disk);
-    if (!current.ok || current.path !== accepted.path ||
-        current.configFingerprint !== accepted.configFingerprint ||
-        current.storeFingerprint !== accepted.storeFingerprint) {
-      pause(current.ok ? "Native or external tool changed the shared task list" : current.reason);
+    try {
+      const teamState = await mailbox.taskState();
+      if (teamState.pauseReason) {
+        pause(`Team lead paused writes: ${teamState.pauseReason}`);
+        return;
+      }
+      // A teammate can commit before or during a safe-listed call, which has no
+      // tool_call baseline refresh. Read disk after the awaited roster lookup.
+      const current = resolveTaskDiskCandidate(disk);
+      if (!current.ok || current.path !== accepted.path ||
+          current.configFingerprint !== accepted.configFingerprint ||
+          (current.storeFingerprint !== accepted.storeFingerprint &&
+            current.storeFingerprint !== teamState.fingerprint)) {
+        pause(current.ok ? "Native or external tool changed the shared task list" : current.reason);
+        return;
+      }
+      // Our own committed baseline can be ahead of its notice to the lead.
+      accepted = current;
+    } catch (error) {
+      // Pi reports tool_result handler errors but continues, so retain the hold.
+      pause(`Shared task baseline check failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
 

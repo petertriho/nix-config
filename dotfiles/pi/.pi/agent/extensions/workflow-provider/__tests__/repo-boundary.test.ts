@@ -55,7 +55,11 @@ function addSubmodule(root: string): string {
 			cwd: root,
 			stdio: "ignore",
 		});
-		return join(root, "vendor", "sub");
+		const submoduleRoot = join(root, "vendor", "sub");
+		execFileSync("git", ["config", "core.excludesFile", "/dev/null"], { cwd: submoduleRoot });
+		execFileSync("git", ["config", "user.email", "t@t"], { cwd: submoduleRoot });
+		execFileSync("git", ["config", "user.name", "t"], { cwd: submoduleRoot });
+		return submoduleRoot;
 	} finally {
 		rmSync(source, { recursive: true, force: true });
 	}
@@ -242,3 +246,147 @@ test("already-dirty submodules report additional changes relative to their dirty
 		assert.deepEqual(report.unexpectedPaths, ["vendor/sub"]);
 	});
 });
+
+for (const nested of [false, true]) {
+	const label = nested ? "nested submodules" : "submodules";
+	const submodulePath = nested ? "vendor/sub/vendor/sub" : "vendor/sub";
+
+	test(`dirty ${label} allow worktree edits but reject index changes under allowed rules`, () => {
+		withTempRepo((root) => {
+			let submoduleRoot = addSubmodule(root);
+			if (nested) submoduleRoot = addSubmodule(submoduleRoot);
+			appendFileSync(join(submoduleRoot, "submodule.txt"), "pre-existing dirt\n");
+			const snapshot = captureRepoBoundarySnapshot(root, {
+				allowedRules: [
+					{ capability: "worktree", kind: "worktree" },
+					{ kind: "file", exactPath: `${submodulePath}/submodule.txt` },
+				],
+				protectedRules: [],
+			});
+			assert.ok(snapshot);
+			assert.equal(evaluateRepoBoundarySnapshot(snapshot).violated, false);
+
+			appendFileSync(join(submoduleRoot, "submodule.txt"), "role edit\n");
+			const worktreeReport = evaluateRepoBoundarySnapshot(snapshot);
+			assert.equal(worktreeReport.violated, false);
+			assert.deepEqual(worktreeReport.allowedPaths, ["vendor/sub", `${submodulePath}/submodule.txt`]);
+			const stagingSnapshot = captureRepoBoundarySnapshot(root, snapshot);
+			assert.ok(stagingSnapshot);
+
+			execFileSync("git", ["add", "submodule.txt"], { cwd: submoduleRoot });
+			const stagedIndex = execFileSync("git", ["ls-files", "--stage"], {
+				cwd: submoduleRoot,
+				encoding: "utf8",
+			});
+			const report = evaluateRepoBoundarySnapshot(snapshot);
+			assert.equal(report.violated, true);
+			assert.deepEqual(report.unexpectedPaths, [`${submodulePath}/submodule.txt`]);
+			assert.deepEqual(report.allowedPaths, ["vendor/sub"]);
+			const stagingReport = evaluateRepoBoundarySnapshot(stagingSnapshot);
+			assert.equal(stagingReport.violated, true);
+			assert.deepEqual(stagingReport.unexpectedPaths, [`${submodulePath}/submodule.txt`]);
+			assert.equal(
+				execFileSync("git", ["ls-files", "--stage"], { cwd: submoduleRoot, encoding: "utf8" }),
+				stagedIndex,
+			);
+		});
+	});
+
+	test(`committing pre-staged dirt in ${label} is a HEAD violation without an index change`, () => {
+		withTempRepo((root) => {
+			let submoduleRoot = addSubmodule(root);
+			if (nested) submoduleRoot = addSubmodule(submoduleRoot);
+			appendFileSync(join(submoduleRoot, "submodule.txt"), "pre-staged dirt\n");
+			execFileSync("git", ["add", "submodule.txt"], { cwd: submoduleRoot });
+			appendFileSync(join(submoduleRoot, "submodule.txt"), "unstaged dirt\n");
+			const snapshot = captureRepoBoundarySnapshot(root, {
+				allowedRules: [{ capability: "worktree", kind: "worktree" }],
+				protectedRules: [],
+			});
+			assert.ok(snapshot);
+			assert.equal(evaluateRepoBoundarySnapshot(snapshot).violated, false);
+			const beforeIndex = execFileSync("git", ["ls-files", "--stage"], {
+				cwd: submoduleRoot,
+				encoding: "utf8",
+			});
+
+			execFileSync("git", ["commit", "-m", "unexpected submodule commit"], {
+				cwd: submoduleRoot,
+				stdio: "ignore",
+			});
+			const headAfterCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+				cwd: submoduleRoot,
+				encoding: "utf8",
+			});
+			assert.equal(
+				execFileSync("git", ["ls-files", "--stage"], { cwd: submoduleRoot, encoding: "utf8" }),
+				beforeIndex,
+			);
+
+			const report = evaluateRepoBoundarySnapshot(snapshot);
+			assert.equal(report.violated, true);
+			assert.deepEqual(report.unexpectedPaths, [
+				`${submodulePath}/<repository HEAD>`,
+				`${submodulePath}/submodule.txt`,
+			]);
+			assert.equal(
+				execFileSync("git", ["rev-parse", "HEAD"], { cwd: submoduleRoot, encoding: "utf8" }),
+				headAfterCommit,
+			);
+			assert.equal(
+				readFileSync(join(submoduleRoot, "submodule.txt"), "utf8"),
+				"initial\npre-staged dirt\nunstaged dirt\n",
+			);
+		});
+	});
+
+	test(`empty commits in dirty ${label} are violations even with unchanged trees and index`, () => {
+		withTempRepo((root) => {
+			let submoduleRoot = addSubmodule(root);
+			if (nested) submoduleRoot = addSubmodule(submoduleRoot);
+			appendFileSync(join(submoduleRoot, "submodule.txt"), "pre-existing dirt\n");
+			const snapshot = captureRepoBoundarySnapshot(root, {
+				allowedRules: [{ capability: "worktree", kind: "worktree" }],
+				protectedRules: [],
+			});
+			assert.ok(snapshot);
+
+			execFileSync("git", ["commit", "--allow-empty", "-m", "unexpected empty commit"], {
+				cwd: submoduleRoot,
+				stdio: "ignore",
+			});
+			const report = evaluateRepoBoundarySnapshot(snapshot);
+			assert.equal(report.violated, true);
+			assert.deepEqual(report.unexpectedPaths, [`${submodulePath}/<repository HEAD>`]);
+		});
+	});
+
+	test(`losing or gaining Git metadata in dirty ${label} cannot hide behind worktree permission`, () => {
+		withTempRepo((root) => {
+			let submoduleRoot = addSubmodule(root);
+			if (nested) submoduleRoot = addSubmodule(submoduleRoot);
+			appendFileSync(join(submoduleRoot, "submodule.txt"), "pre-existing dirt\n");
+			const snapshot = captureRepoBoundarySnapshot(root, {
+				allowedRules: [{ capability: "worktree", kind: "worktree" }],
+				protectedRules: [],
+			});
+			assert.ok(snapshot);
+			execFileSync("git", ["add", "submodule.txt"], { cwd: submoduleRoot });
+			const gitFile = join(submoduleRoot, ".git");
+			const gitMetadata = readFileSync(gitFile);
+			rmSync(gitFile);
+
+			const report = evaluateRepoBoundarySnapshot(snapshot);
+			assert.equal(report.violated, true);
+			assert.deepEqual(report.unexpectedPaths, [submodulePath]);
+			const uninitializedSnapshot = captureRepoBoundarySnapshot(root, snapshot);
+			assert.ok(uninitializedSnapshot);
+			assert.equal(evaluateRepoBoundarySnapshot(uninitializedSnapshot).violated, false);
+
+			writeFileSync(gitFile, gitMetadata);
+			const initializedReport = evaluateRepoBoundarySnapshot(uninitializedSnapshot);
+			assert.equal(initializedReport.violated, true);
+			assert.deepEqual(initializedReport.unexpectedPaths, [submodulePath]);
+		});
+	});
+}

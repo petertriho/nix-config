@@ -24,9 +24,9 @@ if [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ]; then
   exit 0
 fi
 
-# Check real human messages in transcript (not tool results). A resumed session
-# already contains earlier human turns, so a new launch binds its exact prompt
-# hash instead of relying on the single-message legacy heuristic.
+# Check real human messages after this launch (not tool results). SessionStart
+# captures the transcript prefix before the launch prompt is processed. Older
+# turns can contain the same prompt text without counting as an interjection.
 # Claude's transcript format:
 #   Human message: {"type": "user", "message": {"role": "user", "content": "..."}}
 #   Tool result:   {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", ...}]}}
@@ -35,14 +35,26 @@ is_autonomous=$(python3 - "$transcript_path" <<'EOF'
 import sys, json, os, hashlib, re
 
 transcript_path = sys.argv[1]
+expected = os.environ.get("PI_CLAUDE_PROMPT_HASH")
 human = []
 invalid = False
-with open(transcript_path, 'r') as f:
-    for line in f:
-        line = line.strip()
-        if not line:
-            continue
-        try:
+try:
+    with open(transcript_path, 'rb') as f:
+        if expected:
+            with open(os.environ["PI_CLAUDE_SENTINEL"] + ".launch", encoding="utf-8") as marker:
+                boundary = json.load(marker)
+            offset = boundary.get("offset")
+            if (boundary.get("transcript_path") != transcript_path
+                    or boundary.get("prompt_hash") != expected
+                    or type(offset) is not int or offset < 0):
+                raise ValueError("Invalid launch boundary")
+            prefix = f.read(offset)
+            if len(prefix) != offset or hashlib.sha256(prefix).hexdigest() != boundary.get("prefix_hash"):
+                raise ValueError("Transcript changed before launch boundary")
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
             entry = json.loads(line)
             if entry.get('type') != 'user':
                 continue
@@ -51,17 +63,15 @@ with open(transcript_path, 'r') as f:
             # Tool results have array content with tool_result blocks
             if isinstance(content, str):
                 human.append(content)
-        except (json.JSONDecodeError, AttributeError):
-            invalid = True
-expected = os.environ.get("PI_CLAUDE_PROMPT_HASH")
+except (OSError, ValueError, TypeError, AttributeError):
+    invalid = True
 if invalid:
     print(False)
 elif expected:
     if not re.fullmatch(r"[0-9a-f]{64}", expected):
         print(False)
     else:
-        hashes = [hashlib.sha256(content.encode()).hexdigest() for content in human]
-        print(bool(hashes) and hashes[-1] == expected and hashes.count(expected) == 1)
+        print(len(human) == 1 and hashlib.sha256(human[0].encode()).hexdigest() == expected)
 else:
     print(len(human) == 1)
 EOF

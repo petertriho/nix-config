@@ -722,6 +722,7 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 
 		// Violations are preserved and delivered through the same
 		// asynchronous result flow, marking the launch failed.
+		execution.watch!.running.surfaceClosed = true;
 		const asyncResult = await execution.watch!.onSuccess({
 			result: {
 				name: "Documentation author",
@@ -793,6 +794,8 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.equal(active?.roleSessions.verifier?.current, verifierSession);
 		assert.deepEqual(active?.roleSessions.verifier?.history, []);
 
+		// Each fake resume stays owned until its child is explicitly stopped.
+		await lifecycle.stopOwnedRoles();
 		const replacement = join(project.root, "verifier-2.jsonl");
 		execution.replacementSessionPath = replacement;
 		await lifecycle.resume(
@@ -818,6 +821,7 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 
 		// ── Recovery: manifest label, current-session resolution, override
 		//    isolated to current run assignments and the sidecar ──
+		await lifecycle.stopOwnedRoles();
 		const recovered = await lifecycle.recover(
 			{
 				runId,

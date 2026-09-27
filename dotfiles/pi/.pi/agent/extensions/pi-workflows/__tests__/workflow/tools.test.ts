@@ -19,10 +19,12 @@ import {
 import { createWorkflowEventClient } from "../../event-client.ts";
 import {
 	createAgentSession,
+	createEventBus,
 	DefaultResourceLoader,
 	ModelRuntime,
 	SessionManager,
 	SettingsManager,
+	type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import {
 	fingerprintStrings,
@@ -479,6 +481,266 @@ function recordSession(
 		),
 	);
 }
+
+function registeredLifecycle(deps: WorkflowToolDependencies) {
+	const tools = new Map<string, ToolDefinition<any, any>>();
+	const lifecycle = registerWorkflowLifecycleTools({
+		on() {},
+		sendMessage() {},
+		registerTool(tool: ToolDefinition<any, any>) { tools.set(tool.name, tool); },
+	} as any, deps);
+	return {
+		lifecycle,
+		tools,
+		call(name: string, params: Record<string, unknown>, ctx: any) {
+			return tools.get(name)!.execute("call", params, undefined, undefined, ctx);
+		},
+	};
+}
+
+const LAUNCH_TOOLS = ["workflow_spawn", "workflow_resume", "workflow_recover"] as const;
+
+for (const first of LAUNCH_TOOLS) {
+	test(`registered ${first} reserves event ownership through preflight and acknowledgement`, { timeout: 5_000 }, async () => {
+		await withTempDir(async (root) => {
+			const store = new StateStore(startState(root, loadDefinition(root)));
+			for (const role of ["author", "verifier"]) {
+				recordSession(store, "run-docs", role, join(root, `${role}-saved.jsonl`));
+			}
+			const events = createEventBus();
+			const client = createWorkflowEventClient(events, {
+				providerId: "pi-agent-teams", instanceId: "one",
+				version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
+			}, { requestTimeoutMs: 2_000, livenessIntervalMs: 10_000 });
+			const registered = registeredLifecycle({
+				...dependencies(store, new FakeExecution()), execution: undefined, eventExecution: client,
+			});
+			const { ctx } = toolContext(root);
+			ctx.ui.select = async (_title: string, choices: string[]) => choices[0];
+			const preflight = deferred<void>();
+			const acknowledgement = deferred<void>();
+			const launched = deferred<void>();
+			const requests: any[] = [];
+			const contenders: Array<ReturnType<typeof registered.call>> = [];
+			const params = {
+				runId: "run-docs", role: "author", task: "Draft", failure: "quota exceeded",
+				data: { ticket: "owned" },
+			};
+			let reentered = false;
+			let ownershipAtPreflight = false;
+			const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+				const request = value as any;
+				requests.push(request);
+				const payload = request.payload;
+				const agentId = payload.agentId ?? payload.expected?.agentId ?? "scribe";
+				const facts = {
+					sessionPath: payload.sessionPath ?? join(root, `${request.owner.roleId}-launched.jsonl`),
+					profile: { agentId, path: `/agents/${agentId}.md`, hash: "profile" },
+					model: payload.model ?? { provider: "anthropic", model: "author-model" },
+					context: { tokens: 10, source: "saved" }, metadataConfirmed: true,
+				};
+				const data = request.operation === "ping" ? { alive: true }
+					: request.operation === "profiles" ? { profiles: payload.requiredAgents.map((id: string) => ({
+						agentId: id, path: `/agents/${id}.md`, hash: "profile",
+					})) }
+					: request.operation === "stop" ? { stopped: true }
+					: { ...facts, accepted: true };
+				const reply = () => events.emit(`pi-workflows:provider:reply:${request.requestId}`, { ...request, ok: true, data });
+				if (request.operation === "ping") {
+					if (!reentered) {
+						reentered = true;
+						ownershipAtPreflight = registered.lifecycle.hasOwnedRole();
+						// The event bus can call back before preflight returns its promise.
+						contenders.push(registered.call("workflow_spawn", { ...params, role: "verifier" }, ctx));
+					}
+					void preflight.promise.then(reply);
+				} else if (["launch", "resume", "recover"].includes(request.operation)) {
+					launched.resolve();
+					void acknowledgement.promise.then(reply);
+				} else reply();
+			});
+			const compete = () => {
+				for (const tool of LAUNCH_TOOLS) {
+					for (const role of ["author", "verifier"]) {
+						contenders.push(registered.call(tool, { ...params, role, data: { ticket: "not-owned" } }, ctx));
+					}
+				}
+			};
+			try {
+				for (const tool of registered.tools.values()) assert.equal(tool.executionMode, "sequential");
+				const winner = registered.call(first, params, ctx);
+				compete();
+				preflight.resolve();
+				await launched.promise;
+				compete();
+				acknowledgement.resolve();
+				const result = await winner;
+				assert.equal(result.details.status, "started");
+				assert.equal(ownershipAtPreflight, true, "ownership must precede synchronous provider callbacks");
+				compete(); // An acknowledged child keeps ownership after the reservation ends.
+				for (const rejected of await Promise.all(contenders)) {
+					assert.equal(rejected.details.error, "workflow lifecycle rejected");
+					assert.match(rejected.details.message, /already in progress|still owns a child/);
+				}
+				const starts = requests.filter((request) => ["launch", "resume", "recover"].includes(request.operation));
+				assert.equal(starts.length, 1, "only the reserved tool may launch a child");
+				assert.equal(requests.filter((request) => request.operation === "profiles").length, 1);
+				const owned = starts[0];
+				const active = getActiveWorkflowRun(store.state)!;
+				assert.deepEqual(active.activeLaunch, {
+					roleId: owned.owner.roleId, sessionPath: result.details.sessionFile, status: "running",
+				});
+				assert.equal(active.runId, owned.owner.runId);
+				assert.deepEqual(store.persisted.at(-1)?.activeLaunch, active.activeLaunch);
+				assert.equal(active.data.ticket, "owned", "rejected siblings must not mutate workflow data");
+				events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+					...owned, kind: "result", result: {
+						sessionPath: result.details.sessionFile, status: "completed", message: "done", changedFiles: [],
+					},
+				});
+				await new Promise((resolve) => setImmediate(resolve));
+				assert.equal(registered.lifecycle.hasOwnedRole(), false);
+				assert.equal((await registered.call("workflow_resume", params, ctx)).details.status, "started");
+			} finally {
+				preflight.resolve();
+				acknowledgement.resolve();
+				registered.lifecycle.endSession();
+				client.dispose();
+				off();
+			}
+		});
+	});
+
+	test(`registered ${first} excludes concurrent legacy launches and retains child ownership`, { timeout: 5_000 }, async () => {
+		await withTempDir(async (root) => {
+			const definition = loadDefinition(root);
+			const store = new StateStore(startState(root, definition));
+			for (const roleId of ["author", "verifier"] as const) {
+				const sessionPath = join(root, `${roleId}-saved.jsonl`);
+				writeRoleSession({ root, definition, runId: "run-docs", roleId, sessionPath });
+				recordSession(store, "run-docs", roleId, sessionPath);
+			}
+			const execution = new FakeExecution();
+			execution.nextSessionPath = join(root, "author-launched.jsonl");
+			const started = deferred<void>();
+			const release = deferred<void>();
+			let launches = 0;
+			const launch = execution.launchSubagent.bind(execution);
+			const resume = execution.executeSubagentResume.bind(execution);
+			execution.launchSubagent = async (...args) => {
+				launches++;
+				started.resolve();
+				await release.promise;
+				return launch(...args);
+			};
+			execution.executeSubagentResume = async (...args) => {
+				launches++;
+				started.resolve();
+				await release.promise;
+				return resume(...args);
+			};
+			const registered = registeredLifecycle(dependencies(store, execution));
+			const { ctx } = toolContext(root);
+			ctx.ui.select = async (_title: string, choices: string[]) => choices[0];
+			const params = { runId: "run-docs", role: "author", task: "Draft", failure: "quota exceeded" };
+			const compete = () => Promise.all(LAUNCH_TOOLS.flatMap((tool) =>
+				["author", "verifier"].map((role) => registered.call(tool, {
+					...params, role, data: { ticket: "not-owned" },
+				}, ctx)),
+			));
+			try {
+				const winner = registered.call(first, params, ctx);
+				const competitors = compete();
+				await started.promise;
+				release.resolve();
+				assert.equal((await winner).details.status, "started");
+				for (const rejected of [...await competitors, ...await compete()]) {
+					assert.equal(rejected.details.error, "workflow lifecycle rejected");
+					assert.match(rejected.details.message, /already in progress|still owns a child/);
+				}
+				assert.equal(launches, 1);
+				const active = getActiveWorkflowRun(store.state)!;
+				assert.deepEqual(active.activeLaunch, {
+					roleId: "author", sessionPath: active.roleSessions.author.current, status: "running",
+				});
+				assert.deepEqual(store.persisted.at(-1)?.activeLaunch, active.activeLaunch);
+				assert.equal(active.data.ticket, "DOC-17");
+				await registered.lifecycle.stopOwnedRoles();
+				assert.equal(registered.lifecycle.hasOwnedRole(), false);
+				assert.equal((await registered.call(first, params, ctx)).details.status, "started");
+				assert.equal(launches, 2);
+			} finally {
+				release.resolve();
+				await registered.lifecycle.stopOwnedRoles();
+			}
+		});
+	});
+}
+
+test("registered recovery cancellation releases the reservation for a later launch", { timeout: 5_000 }, async () => {
+	await withTempDir(async (root) => {
+		const definition = loadDefinition(root);
+		const store = new StateStore(startState(root, definition));
+		const sessionPath = join(root, "author-saved.jsonl");
+		writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
+		recordSession(store, "run-docs", "author", sessionPath);
+		const saved = getActiveWorkflowRun(store.state)!;
+		const execution = new FakeExecution();
+		const registered = registeredLifecycle(dependencies(store, execution));
+		const { ctx } = toolContext(root);
+		const gate = deferred<void>();
+		const cancel = deferred<undefined>();
+		ctx.ui.select = () => {
+			gate.resolve();
+			return cancel.promise;
+		};
+		const params = { runId: "run-docs", role: "author", task: "Draft" };
+		try {
+			const recovering = registered.call("workflow_recover", { ...params, failure: "quota exceeded" }, ctx);
+			await gate.promise;
+			assert.equal(registered.lifecycle.hasOwnedRole(), true);
+			const rejected = await registered.call("workflow_spawn", params, ctx);
+			assert.match(rejected.details.message, /already in progress/);
+			cancel.resolve(undefined);
+			assert.equal((await recovering).details.status, "cancelled");
+			assert.equal(registered.lifecycle.hasOwnedRole(), false);
+			assert.equal(execution.resume, undefined);
+			assert.deepEqual(getActiveWorkflowRun(store.state)?.activeLaunch, saved.activeLaunch);
+			assert.deepEqual(getActiveWorkflowRun(store.state)?.roleSessions, saved.roleSessions);
+			assert.equal((await registered.call("workflow_spawn", params, ctx)).details.status, "started");
+		} finally {
+			cancel.resolve(undefined);
+			await registered.lifecycle.stopOwnedRoles();
+		}
+	});
+});
+
+test("registered launch errors release the reservation before retry", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const execution = new FakeExecution();
+		const deps = dependencies(store, execution);
+		const loadDefaults = deps.loadAgentDefaults;
+		deps.loadAgentDefaults = () => { throw new Error("preflight failed"); };
+		const registered = registeredLifecycle(deps);
+		const { ctx } = toolContext(root);
+		const params = { runId: "run-docs", role: "author", task: "Draft" };
+		const launch = execution.launchSubagent.bind(execution);
+		try {
+			assert.match((await registered.call("workflow_spawn", params, ctx)).details.message, /preflight failed/);
+			assert.equal(registered.lifecycle.hasOwnedRole(), false);
+			deps.loadAgentDefaults = loadDefaults;
+			execution.launchSubagent = async () => { throw new Error("launch failed"); };
+			assert.match((await registered.call("workflow_spawn", params, ctx)).details.message, /launch failed/);
+			assert.equal(registered.lifecycle.hasOwnedRole(), false);
+			assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "failed");
+			execution.launchSubagent = launch;
+			assert.equal((await registered.call("workflow_spawn", params, ctx)).details.status, "started");
+		} finally {
+			await registered.lifecycle.stopOwnedRoles();
+		}
+	});
+});
 
 test("workflow_spawn resolves arbitrary manifest roles, typed data, models, sidecars, and async boundaries", async () => {
 	await withTempDir(async (root) => {
@@ -1044,6 +1306,7 @@ test("workflow_resume resolves the current role session and fresh replacements p
 		assert.equal(active?.roleSessions.verifier?.current, sessionPath);
 		assert.deepEqual(active?.roleSessions.verifier?.history, []);
 
+		await lifecycle.stopOwnedRoles();
 		const replacement = join(root, "verifier-2.jsonl");
 		execution.replacementSessionPath = replacement;
 		await lifecycle.resume(
@@ -1372,6 +1635,7 @@ test("enabled optional roles launch and roll over with model-only metadata and d
 		writeRoleSession({
 			root, definition, runId: "run-docs", roleId: "verifier", sessionPath: execution.nextSessionPath,
 		});
+		await lifecycle.stopOwnedRoles();
 		execution.replacementSessionPath = join(root, "verifier-rollover.jsonl");
 		await lifecycle.resume({ runId: "run-docs", role: "verifier", message: "Check latest draft" }, ctx);
 		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /fresh same-role rollover/);

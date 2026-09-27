@@ -5,17 +5,19 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import teamMember from "../team-member.ts";
-import { answerApproval, type ApprovalRequest } from "../team-approval.ts";
-import { createTeamTransport } from "../team-transport.ts";
+import { answerApproval, makeApprovalRequest, type ApprovalRequest } from "../team-approval.ts";
+import { createMemberMailbox, createTeamTransport } from "../team-transport.ts";
 import { resolveTaskDiskCandidate } from "../task-disk-policy.ts";
-import { registerTeamTaskVeto } from "../team-task-writer.ts";
+import { commitTeamTaskMutation, registerTeamTaskVeto, type TeamTaskMutation } from "../team-task-writer.ts";
 
 type Handler = (event: any, ctx: any) => unknown;
 
-async function fixture(run: (fixture: {
+type MemberFixture = {
   root: string; path: string; handlers: Map<string, Handler[]>; transport: ReturnType<typeof createTeamTransport>;
-  context: any; sent: string[];
-}) => Promise<void>): Promise<void> {
+  mailbox: ReturnType<typeof createMemberMailbox>; context: any; sent: string[];
+};
+
+async function fixture(run: (fixture: MemberFixture) => Promise<void>): Promise<void> {
   const root = mkdtempSync(join(tmpdir(), "pi-member-intercept-"));
   const agentDir = join(root, "agent");
   const cwd = join(root, "workspace");
@@ -35,6 +37,7 @@ async function fixture(run: (fixture: {
   await transport.createTeam("main", "main", initial.storeFingerprint);
   const member = { memberId: "alice", name: "Alice", sessionId: "child", token: randomUUID(), epoch: 1 };
   await transport.addMember({ teamId: "main", member });
+  const mailbox = createMemberMailbox({ directory, teamId: "main", member, leadSessionId: lead.sessionId });
   const vars = {
     PI_TEAM_DIRECTORY: directory, PI_TEAM_ID: "main", PI_TEAM_MEMBER_ID: member.memberId,
     PI_TEAM_MEMBER_TOKEN: member.token, PI_TEAM_MEMBER_EPOCH: "1",
@@ -64,7 +67,7 @@ async function fixture(run: (fixture: {
     for (const handler of handlers.get("session_start") ?? []) {
       await handler({ reason: "startup" }, context);
     }
-    await run({ root, path, handlers, transport, context, sent });
+    await run({ root, path, handlers, transport, mailbox, context, sent });
   } finally {
     for (const handler of handlers.get("session_shutdown") ?? []) await handler({}, context);
     for (const [key, value] of Object.entries(saved)) {
@@ -73,6 +76,67 @@ async function fixture(run: (fixture: {
     }
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+for (const receiptChange of ["changed", "unchanged"]) {
+  test(`two reloads in one epoch publish distinct ${receiptChange} receipts and keep polling`, async (t) => {
+    t.mock.timers.enable({ apis: ["setInterval"] });
+    await fixture(async ({ root, handlers, transport, mailbox, context, sent }) => {
+      const notices = await transport.receiveNotices("main");
+      assert.equal(notices.length, 1);
+      assert.equal(notices[0].kind, "startup");
+      await transport.ackNotice({ teamId: "main", messageId: notices[0].id });
+      const expectedMessages: string[] = [];
+      for (const occurrence of [1, 2]) {
+        // Reload stops the old poller before the next startup occurrence.
+        await handlers.get("session_shutdown")![0]({}, context);
+        if (receiptChange === "changed" && occurrence === 2) {
+          writeFileSync(join(root, "agent", "tasks-config.json"),
+            '{"autoClearCompleted":"never","taskScope":"project"}');
+        }
+        await handlers.get("session_start")![0]({ reason: "reload" }, context);
+        const pending = await transport.receiveNotices("main");
+        assert.equal(pending.length, 1, "each reload must publish a new receipt, even if unchanged");
+        const notice = pending[0];
+        assert.equal(notice.kind, "startup");
+        assert.equal(JSON.parse(notice.body).memberEpoch, 1);
+        notices.push(notice);
+
+        // Retrying the same occurrence must retain its identity and deduplicate.
+        const retried = await mailbox.notice({
+          kind: "startup", requestId: notice.requestId, body: notice.body,
+        });
+        assert.equal(retried.id, notice.id);
+        assert.equal(retried.sequence, notice.sequence);
+        assert.deepEqual(await transport.receiveNotices("main"), [
+          { ...notice, attempts: notice.attempts + 1 },
+        ]);
+        await transport.ackNotice({ teamId: "main", messageId: notice.id });
+        await mailbox.notice({ kind: "startup", requestId: notice.requestId, body: notice.body });
+        assert.deepEqual(await transport.receiveNotices("main"), []);
+
+        const body = `Message after reload ${occurrence}`;
+        await transport.sendFromLead({
+          teamId: "main", to: "alice", requestId: `after-reload-${occurrence}`, body,
+        });
+        t.mock.timers.tick(1000);
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expectedMessages.push(`Message from the team lead:\n\n${body}`);
+        assert.deepEqual(sent, expectedMessages);
+        assert.deepEqual(await mailbox.receive(), [], "polling must acknowledge delivered messages");
+        assert.equal(existsSync(join(root, "team", "main", "pause-alice.json")), false);
+      }
+      assert.equal(new Set(notices.map((notice) => notice.requestId)).size, 3);
+      assert.equal(new Set(notices.map((notice) => notice.id)).size, 3);
+      assert.equal(notices[1].body, notices[0].body);
+      if (receiptChange === "changed") {
+        assert.notEqual(JSON.parse(notices[2].body).configFingerprint,
+          JSON.parse(notices[1].body).configFingerprint);
+      } else {
+        assert.equal(notices[2].body, notices[1].body);
+      }
+    });
+  });
 }
 
 function answerRequests(
@@ -102,6 +166,125 @@ function answerRequests(
     clearInterval(timer);
     if (failure) throw failure;
   };
+}
+
+async function commitTeammateUpdate({ root, path, transport, context }: MemberFixture): Promise<void> {
+  const member = { memberId: "bob", name: "Bob", sessionId: "bob-child", token: randomUUID(), epoch: 1 };
+  await transport.addMember({ teamId: "main", member });
+  const sessionFile = join(root, "bob-child.jsonl");
+  writeFileSync(sessionFile, '{"type":"session","id":"bob-child","version":3}\n');
+  const disk = {
+    cwd: context.cwd, agentDir: join(root, "agent"), sessionId: member.sessionId, sessionFile, piTasks: path,
+  };
+  const mutations: TeamTaskMutation[] = [
+    { toolName: "TaskCreate", args: { subject: "Bob's task", description: "Another member's work" } },
+    { toolName: "TaskUpdate", args: { taskId: "1", owner: "Bob", status: "in_progress" } },
+  ];
+  for (const mutation of mutations) {
+    const expected = resolveTaskDiskCandidate(disk);
+    if (!expected.ok) throw new Error(expected.reason);
+    const identity = {
+      toolCallId: randomUUID(), memberId: member.memberId, memberEpoch: member.epoch,
+      memberSessionId: member.sessionId, leadSessionId: "lead",
+    };
+    const request = makeApprovalRequest({ ...identity, toolName: mutation.toolName, input: mutation.args });
+    const approval = answerApproval(request, true);
+    const result = await commitTeamTaskMutation({
+      disk, expected, mutation,
+      member: { id: member.memberId, name: member.name, epoch: member.epoch },
+      approvedDigest: approval.digest,
+      digest: (call) => makeApprovalRequest({ ...identity, toolName: call.toolName, input: call.args }).digest,
+      vetoes: [],
+    });
+    if (!result.ok) throw new Error(result.reason);
+    await transport.recordTaskCommit({
+      teamId: "main", memberId: member.memberId, epoch: member.epoch,
+      previous: expected.storeFingerprint, next: result.candidate.storeFingerprint,
+    });
+  }
+}
+
+for (const toolName of ["TaskList", "read"]) {
+  for (const timing of ["before call", "before result"]) {
+    test(`${toolName} reconciles another member's approved update ${timing} without pausing writes`, async () => {
+      await fixture(async (state) => {
+        const { root, path, handlers, transport, context } = state;
+        if (timing === "before call") await commitTeammateUpdate(state);
+        const event = {
+          toolName, toolCallId: "safe-read", input: toolName === "read" ? { path } : {},
+        };
+        assert.equal(await handlers.get("tool_call")![0](event, context), undefined);
+        if (timing === "before result") await commitTeammateUpdate(state);
+        await handlers.get("tool_result")![0]({
+          ...event, content: [{ type: "text", text: "Current tasks" }], isError: false,
+        }, context);
+        assert.equal(existsSync(join(root, "team", "main", "pause-alice.json")), false);
+
+        const stopAnswers = answerRequests(transport, true);
+        try {
+          const intercepted: any = await handlers.get("tool_call")![0]({
+            toolName: "TaskCreate", toolCallId: "after-teammate-update",
+            input: { subject: "Alice's task", description: "Writes still work" },
+          }, context);
+          assert.equal(intercepted.block, true);
+          assert.match(intercepted.reason, /^TEAM_INTERCEPTED_/);
+          const result: any = await handlers.get("message_end")![0]({
+            message: {
+              role: "toolResult", toolCallId: "after-teammate-update", toolName: "TaskCreate",
+              content: [{ type: "text", text: intercepted.reason }], isError: true, timestamp: Date.now(),
+            },
+          }, context);
+          assert.equal(result.message.isError, false);
+          await handlers.get("turn_end")![0]({ toolResults: [result.message] }, context);
+          const tasks = JSON.parse(readFileSync(path, "utf8")).tasks;
+          assert.equal(tasks[0].owner, "Bob");
+          assert.equal(tasks[0].status, "in_progress");
+          assert.equal(tasks[1].subject, "Alice's task");
+          assert.equal(existsSync(join(root, "team", "main", "pause-alice.json")), false);
+          assert.equal((await transport.getTaskState("main")).pauseReason, undefined);
+        } finally {
+          stopAnswers();
+        }
+      });
+    });
+  }
+}
+
+for (const drift of ["unrecorded store", "invalid store", "configuration", "lead hold", "unavailable roster"]) {
+  test(`read-result reconciliation still pauses writes for ${drift}`, async () => {
+    await fixture(async (state) => {
+      const { root, path, handlers, transport, context } = state;
+      await commitTeammateUpdate(state);
+      if (drift === "unrecorded store") {
+        writeFileSync(path, readFileSync(path, "utf8") + "\n");
+      } else if (drift === "invalid store") {
+        writeFileSync(path, '{"tasks":"invalid"}');
+      } else if (drift === "configuration") {
+        writeFileSync(join(root, "agent", "tasks-config.json"),
+          '{"autoClearCompleted":"never","taskScope":"project"}');
+      } else if (drift === "lead hold") {
+        await transport.pauseTaskWrites("main", "Uncertain commit");
+      } else {
+        writeFileSync(join(root, "team", "main", "roster.json"), "{");
+      }
+      const event = { toolName: "TaskList", toolCallId: "read-with-drift", input: {} };
+      assert.equal(await handlers.get("tool_call")![0](event, context), undefined);
+      await handlers.get("tool_result")![0]({
+        ...event, content: [{ type: "text", text: "Read completed" }], isError: false,
+      }, context);
+      const marker = JSON.parse(readFileSync(join(root, "team", "main", "pause-alice.json"), "utf8"));
+      const reason = drift === "lead hold" ? /Team lead paused writes/
+        : drift === "unavailable roster" ? /Shared task baseline check failed/
+        : drift === "invalid store" ? /Invalid task envelope/
+        : /Native or external tool changed/;
+      assert.match(marker.reason, reason);
+      const blocked: any = await handlers.get("tool_call")![0]({
+        toolName: "bash", toolCallId: "after-drift", input: { command: "true" },
+      }, context);
+      assert.equal(blocked.block, true);
+      assert.match(blocked.reason, /Teammate writes paused/);
+    });
+  });
 }
 
 test("a native lead change invalidates an in-flight approval without permanently pausing the teammate", async () => {
@@ -195,7 +378,7 @@ test("an unsafe task file and an undelivered committed result still pause teamma
 
 for (const order of ["native-first", "member-first"]) {
   test(`teammate TaskCreate blocks native double-write and replaces only its result (${order})`, async () => {
-    await fixture(async ({ path, handlers, transport, context }) => {
+    await fixture(async ({ root, path, handlers, transport, context }) => {
       const calls: string[] = [];
       const nativeHook: Handler = () => { calls.push("native hook"); };
       const teamHooks = handlers.get("tool_call") ?? [];
@@ -227,6 +410,18 @@ for (const order of ["native-first", "member-first"]) {
         assert.equal((await handlers.get("message_end")![0]({
           message: { ...resultEvent.message, toolCallId: "unrelated" },
         }, context)), undefined);
+        const current = resolveTaskDiskCandidate({
+          cwd: context.cwd, agentDir: join(root, "agent"), sessionId: "child",
+          sessionFile: join(root, "child.jsonl"), piTasks: path,
+        });
+        assert.ok(current.ok);
+        assert.notEqual((await transport.getTaskState("main")).fingerprint, current.storeFingerprint,
+          "the lead has not yet recorded this member's commit");
+        await handlers.get("tool_result")![0]({
+          toolName: "read", toolCallId: "read-after-own-commit", input: { path },
+          content: [{ type: "text", text: "Current tasks" }], isError: false,
+        }, context);
+        assert.equal(existsSync(join(root, "team", "main", "pause-alice.json")), false);
       } finally {
         stopAnswers();
       }

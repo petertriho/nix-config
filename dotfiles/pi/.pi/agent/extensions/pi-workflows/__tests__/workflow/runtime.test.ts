@@ -908,6 +908,101 @@ test("generic run and generated aliases share startup behavior and replacement i
 	});
 });
 
+for (const boundary of ["confirmation", "startup", "preflight", "stop"] as const) {
+	for (const change of ["run", "branch"] as const) {
+		test(`replacement approval expires after ${change} changes during ${boundary}`, async () => {
+			await withTempDir(async (root) => {
+				const bundledRoot = join(root, "bundled");
+				const definition = loadDefinition(writeWorkflowPackage(bundledRoot, { id: "docs-review" }));
+				const pi = new FakePi();
+				const store = new StateStore(startedState(root, definition, "run-a"));
+				let generation = 0;
+				let entered!: () => void;
+				let release!: () => void;
+				const waiting = new Promise<void>((resolve) => { entered = resolve; });
+				const answer = new Promise<void>((resolve) => { release = resolve; });
+				const pauseAt = async (stage: typeof boundary) => {
+					if (stage !== boundary) return;
+					entered();
+					await answer;
+				};
+				const stopped: Array<string | undefined> = [];
+				const renamed: string[] = [];
+				const { ctx, notifications } = commandContext(root);
+				ctx.ui.confirm = async (_title: string, message: string) => {
+					assert.match(message, /run-a/);
+					await pauseAt("confirmation");
+					return true;
+				};
+				const runtime = createWorkflowCommandRuntime(pi as any, {
+					state: store,
+					getBranchGeneration: () => generation,
+					loadAgent: () => ({}),
+					isTmuxAvailable: () => true,
+					muxSetupHint: () => "",
+					discoverRegistry: discoverFrom(bundledRoot, join(root, "global")),
+					chooseStartup: async () => {
+						await pauseAt("startup");
+						return startupResult(root);
+					},
+					validateProviderAgents: async () => { await pauseAt("preflight"); },
+					stopOwnedRole: async () => {
+						stopped.push(getActiveWorkflowRun(store.state)?.runId);
+						await pauseAt("stop");
+					},
+					createRunId: () => "replacement",
+					renameTab: (title) => renamed.push(title),
+				});
+				const pending = runtime.runWorkflow("docs-review", "Replace A only.", ctx);
+				await waiting;
+				if (change === "run") {
+					// A concurrent command can change the run without tree navigation.
+					store.state = startedState(root, definition, "run-b");
+				} else {
+					// Navigating away and back can restore the very same run.
+					generation++;
+				}
+				const current = store.state;
+				release();
+				assert.equal(await pending, false);
+				assert.equal(store.state, current);
+				assert.deepEqual(store.persisted, []);
+				assert.deepEqual(stopped, boundary === "stop" ? ["run-a"] : []);
+				assert.deepEqual(pi.sentUserMessages, []);
+				assert.deepEqual(renamed, []);
+				assert.match(notifications.at(-1)?.message ?? "", /active workflow or session branch changed/);
+			});
+		});
+	}
+}
+
+test("replacement approval remains valid for updates to the approved run on the same branch", async () => {
+	await withTempDir(async (root) => {
+		const bundledRoot = join(root, "bundled");
+		const definition = loadDefinition(writeWorkflowPackage(bundledRoot, { id: "docs-review" }));
+		const store = new StateStore(startedState(root, definition, "run-a"));
+		const pi = new FakePi();
+		let stopped = 0;
+		const runtime = createWorkflowCommandRuntime(pi as any, {
+			state: store, getBranchGeneration: () => 1,
+			loadAgent: () => ({}), isTmuxAvailable: () => true, muxSetupHint: () => "",
+			discoverRegistry: discoverFrom(bundledRoot, join(root, "global")),
+			chooseStartup: async () => {
+				store.commit(mergeWorkflowRunData(store.state, "run-a", { ticket: "DOC-100" }));
+				return startupResult(root);
+			},
+			stopOwnedRole: async () => { stopped++; },
+			createRunId: () => "replacement",
+		});
+		assert.equal(await runtime.runWorkflow("docs-review", "Replace.", commandContext(root, { confirm: [true] }).ctx), true);
+		assert.equal(stopped, 1);
+		assert.equal(getActiveWorkflowRun(store.state)?.runId, "replacement");
+		assert.equal(getWorkflowRunSnapshot(store.state, "run-a")?.status, "aborted");
+		assert.equal(getWorkflowRunSnapshot(store.state, "run-a")?.data.ticket, "DOC-100");
+		assert.equal(pi.sentUserMessages.length, 1);
+	});
+});
+
 test("status, restoration UX, /workflow-resume, and abort use the persisted definition snapshot", async () => {
 	await withTempDir(async (root) => {
 		const packagePath = writeWorkflowPackage(join(root, "bundled"), {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { discoverWorkflowProviders, requestWorkflowProvider, subscribeWorkflowDelivery, WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_VERSION } from "../contract.ts";
+import { discoverWorkflowProviders, requestWorkflowProvider, subscribeWorkflowDelivery, WorkflowProviderCleanupRequiredError, WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_VERSION } from "../contract.ts";
 
 type Handler = (data: unknown) => void;
 
@@ -225,6 +225,93 @@ test("a valid launch returns its correlation ID for subsequent async delivery", 
 	const response = await requestWorkflowProvider(events, provider, "launch", owner, { agentId: "writer" });
 	assert.equal(response.requestId, sentId);
 	assert.equal(response.data.sessionPath, "/tmp/role.jsonl");
+});
+
+test("a correlated launch reply must match the requested agent and explicit model without expected facts", async (t) => {
+	const owner = { sessionId: "parent", runId: "run-1", roleId: "writer", ownershipId: "lease-1" };
+	const provider = { providerId: "alpha", instanceId: "one", version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES } as const;
+	const model = { provider: "test", model: "echo", thinking: "high" };
+	const facts = {
+		accepted: true, sessionPath: "/tmp/role.jsonl",
+		profile: { agentId: "writer", path: "/profiles/writer.md", hash: "abc" },
+		model, context: { tokens: 0, source: "new-session" }, metadataConfirmed: true,
+	};
+	for (const [name, data] of [
+		["agent", { ...facts, profile: { ...facts.profile, agentId: "reviewer" } }],
+		["provider", { ...facts, model: { ...model, provider: "different" } }],
+		["model", { ...facts, model: { ...model, model: "different" } }],
+		["thinking", { ...facts, model: { ...model, thinking: "low" } }],
+		["missing thinking", { ...facts, model: { provider: model.provider, model: model.model } }],
+		["unapproved user selection", { ...facts, model: { ...model, model: "different" }, userSelectedModel: true }],
+	] as const) await t.test(name, async () => {
+		const events = fakeEvents();
+		events.on("pi-workflows:provider:request", (request) => {
+			const { requestId } = request as { requestId: string };
+			events.emit(`pi-workflows:provider:reply:${requestId}`, { ...(request as object), ok: true, data });
+		});
+		await assert.rejects(
+			requestWorkflowProvider(events, provider, "launch", owner, { agentId: "writer", model }, { timeoutMs: 100 }),
+			(error: unknown) => {
+				assert.ok(error instanceof WorkflowProviderCleanupRequiredError);
+				assert.match(error.message, /incomplete|unconfirmed/);
+				return true;
+			},
+		);
+	});
+});
+
+test("launch accepts an explicit model match and treats omitted thinking as off", async () => {
+	const events = fakeEvents();
+	const owner = { sessionId: "parent", runId: "run-1", roleId: "writer", ownershipId: "lease-1" };
+	const provider = { providerId: "alpha", instanceId: "one", version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES } as const;
+	let returnedThinking: string | undefined;
+	events.on("pi-workflows:provider:request", (request) => {
+		const { requestId } = request as { requestId: string };
+		events.emit(`pi-workflows:provider:reply:${requestId}`, { ...(request as object), ok: true, data: {
+			accepted: true, sessionPath: "/tmp/role.jsonl",
+			profile: { agentId: "writer", path: "/profiles/writer.md", hash: "abc" },
+			model: { provider: "test", model: "echo", ...(returnedThinking ? { thinking: returnedThinking } : {}) },
+			context: { tokens: 0, source: "new-session" }, metadataConfirmed: true,
+		} });
+	});
+	for (const [requested, returned] of [["high", "high"], ["off", undefined], [undefined, "off"]]) {
+		returnedThinking = returned;
+		const response = await requestWorkflowProvider(events, provider, "launch", owner, {
+			agentId: "writer", model: { provider: "test", model: "echo", ...(requested ? { thinking: requested } : {}) },
+		});
+		assert.equal(response.data.model.thinking, returned);
+	}
+});
+
+test("saved requests accept a different user-selected model only with permission and confirmation", async (t) => {
+	const owner = { sessionId: "parent", runId: "run-1", roleId: "writer", ownershipId: "lease-1" };
+	const provider = { providerId: "alpha", instanceId: "one", version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES } as const;
+	for (const operation of ["resume", "recover"] as const) {
+		for (const allowed of [undefined, false, true]) for (const confirmed of [undefined, false, true]) {
+			await t.test(`${operation}: permission=${allowed}, confirmation=${confirmed}`, async () => {
+				const events = fakeEvents();
+				const data = {
+					sessionPath: "/tmp/role.jsonl",
+					profile: { agentId: "writer", path: "/profiles/writer.md", hash: "abc" },
+					model: { provider: "selected", model: "different", thinking: "high" },
+					context: { tokens: 100, source: "session" }, metadataConfirmed: true,
+					...(confirmed === undefined ? {} : { userSelectedModel: confirmed }),
+				};
+				events.on("pi-workflows:provider:request", (request) => {
+					const { requestId } = request as { requestId: string };
+					events.emit(`pi-workflows:provider:reply:${requestId}`, { ...(request as object), ok: true, data });
+				});
+				const response = requestWorkflowProvider(events, provider, operation, owner, {
+					sessionPath: data.sessionPath,
+					expected: { agentId: "writer", profileHash: "abc", model: { provider: "test", model: "previous" } },
+					model: { provider: "test", model: "echo" },
+					...(allowed === undefined ? {} : { allowUserModelSelection: allowed }),
+				});
+				if (allowed && confirmed) assert.deepEqual((await response).data, data);
+				else await assert.rejects(response, WorkflowProviderCleanupRequiredError);
+			});
+		}
+	}
 });
 
 test("a bounded launch request can wait past tmux shell readiness", async () => {

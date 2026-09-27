@@ -163,16 +163,18 @@ function validRoleFacts(value: unknown, payload: unknown): value is WorkflowRole
 	if (record(payload) && nonempty(payload.sessionPath) && value.sessionPath !== payload.sessionPath
 		&& (payload.allowRollover !== true || value.replacement !== true
 			|| value.originalSessionPath !== payload.sessionPath)) return false;
-	if (record(payload) && record(payload.expected)) {
-		const expected = payload.expected;
-		if (nonempty(expected.agentId) && expected.agentId !== value.profile.agentId) return false;
-		if (nonempty(expected.profileHash) && expected.profileHash !== value.profile.hash) return false;
-		const selectedModel = record(payload.model) ? payload.model : expected.model;
+	if (record(payload)) {
+		// Fresh launches provide agent/model directly, without saved-session expectations.
+		if (nonempty(payload.agentId) && payload.agentId !== value.profile.agentId) return false;
+		const expected = record(payload.expected) ? payload.expected : undefined;
+		if (nonempty(expected?.agentId) && expected.agentId !== value.profile.agentId) return false;
+		if (nonempty(expected?.profileHash) && expected.profileHash !== value.profile.hash) return false;
+		const selectedModel = record(payload.model) ? payload.model : expected?.model;
 		const userSelection = payload.allowUserModelSelection === true && value.userSelectedModel === true;
 		if (!userSelection && record(selectedModel) && (selectedModel.provider !== value.model.provider
 			|| selectedModel.model !== value.model.model
 			|| (selectedModel.thinking ?? "off") !== (value.model.thinking ?? "off"))) return false;
-		if (expected.contextTokens !== undefined && (typeof expected.contextTokens !== "number"
+		if (expected?.contextTokens !== undefined && (typeof expected.contextTokens !== "number"
 			|| !Number.isFinite(expected.contextTokens) || expected.contextTokens !== value.context.tokens)
 			&& value.replacement !== true) return false;
 	}

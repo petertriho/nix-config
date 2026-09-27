@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { existsSync, readFileSync } from "node:fs";
+import test, { type TestContext } from "node:test";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
@@ -276,22 +276,14 @@ test("turn limit tracker honors custom grace turns and messages", () => {
 	assert.deepEqual(tracker.onTurnEnd(), {});
 });
 
-interface TurnLimitHarness {
-	handlers: Map<string, Function>;
-	/** Event context shaped like the real ExtensionContext: abort() and shutdown() live here, not on the API. */
-	ctx: {
-		shutdownCalls: number;
-		abortCalls: number;
-		abort(): void;
-		shutdown(): void;
-	};
-	steered: string[];
-	sidecarFile: string | undefined;
-}
-
-function runTaskChildWithTurns(maxTurns: number, turns: number): TurnLimitHarness {
+function createChildHarness(t: TestContext, options: { maxTurns?: number; autoExit?: boolean } = {}) {
 	const handlers = new Map<string, Function>();
+	const tools = new Map<string, any>();
 	const steered: string[] = [];
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagent-done-"));
+	const sessionFile = join(dir, "session.jsonl");
+	const activityFile = join(dir, "activity.json");
+	const sidecarFile = `${sessionFile}.exit`;
 	const api = {
 		on(name: string, handler: Function) {
 			handlers.set(name, handler);
@@ -300,65 +292,185 @@ function runTaskChildWithTurns(maxTurns: number, turns: number): TurnLimitHarnes
 			return [];
 		},
 		registerShortcut() {},
-		registerTool() {},
+		registerTool(tool: any) {
+			tools.set(tool.name, tool);
+		},
 		sendUserMessage(message: string, options?: { deliverAs?: string }) {
 			steered.push(`${options?.deliverAs ?? "turn"}:${message}`);
 		},
 	};
-	const harness: TurnLimitHarness = {
-		handlers,
-		ctx: {
-			shutdownCalls: 0,
-			abortCalls: 0,
-			abort() {
-				harness.ctx.abortCalls++;
-			},
-			shutdown() {
-				harness.ctx.shutdownCalls++;
-			},
+	// abort() and shutdown() live on ExtensionContext, not ExtensionAPI.
+	const ctx = {
+		ui: { setWidget() {} },
+		shutdownCalls: 0,
+		abortCalls: 0,
+		sidecarsAtShutdown: [] as (string | undefined)[],
+		abort() {
+			ctx.abortCalls++;
 		},
-		steered,
-		sidecarFile: undefined,
+		shutdown() {
+			ctx.shutdownCalls++;
+			ctx.sidecarsAtShutdown.push(existsSync(sidecarFile) ? readFileSync(sidecarFile, "utf8") : undefined);
+		},
 	};
-	const previous = {
-		id: process.env.PI_SUBAGENT_ID,
-		session: process.env.PI_SUBAGENT_SESSION,
-		autoExit: process.env.PI_SUBAGENT_AUTO_EXIT,
-		maxTurns: process.env.PI_SUBAGENT_MAX_TURNS,
-		activityFile: process.env.PI_SUBAGENT_ACTIVITY_FILE,
+	const env = {
+		PI_SUBAGENT_ID: "child-1",
+		PI_SUBAGENT_NAME: "worker",
+		PI_SUBAGENT_SESSION: sessionFile,
+		PI_SUBAGENT_AUTO_EXIT: options.autoExit === false ? "0" : "1",
+		PI_SUBAGENT_MAX_TURNS: String(options.maxTurns ?? 0),
+		PI_SUBAGENT_ACTIVITY_FILE: activityFile,
 	};
-	const sessionFile = join(tmpdir(), `pi-turn-limit-${Math.random().toString(16).slice(2)}.jsonl`);
-	process.env.PI_SUBAGENT_ID = "turnlimit1";
-	process.env.PI_SUBAGENT_SESSION = sessionFile;
-	process.env.PI_SUBAGENT_AUTO_EXIT = "1";
-	process.env.PI_SUBAGENT_ACTIVITY_FILE = join(tmpdir(), "pi-turn-limit-activity.json");
-	process.env.PI_SUBAGENT_MAX_TURNS = String(maxTurns);
-	try {
-		subagentDone(api as never);
-		for (let turn = 0; turn < turns; turn++) {
-			handlers.get("turn_end")?.({ turnIndex: turn }, harness.ctx);
-		}
-	} finally {
+	const previous = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+	t.after(() => {
+		handlers.get("session_shutdown")?.({ reason: "reload" }, ctx);
 		for (const [key, value] of Object.entries(previous)) {
-			if (value === undefined) delete process.env[key as keyof typeof previous];
-			else (process.env as Record<string, string | undefined>)[key] = value;
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
 		}
+		rmSync(dir, { recursive: true, force: true });
+	});
+	Object.assign(process.env, env);
+	subagentDone(api as never);
+	function emit(name: string, event: Record<string, unknown> = {}) {
+		const handler = handlers.get(name);
+		assert.ok(handler, `${name} handler must be registered`);
+		handler({ type: name, ...event }, ctx);
 	}
-	harness.sidecarFile = existsSync(`${sessionFile}.exit`) ? `${sessionFile}.exit` : undefined;
+	emit("session_start");
+	emit("agent_start");
+	return {
+		emit,
+		tools,
+		ctx,
+		steered,
+		sidecarFile,
+		readActivity: () => JSON.parse(readFileSync(activityFile, "utf8")),
+	};
+}
+
+function runTaskChildWithTurns(t: TestContext, maxTurns: number, turns: number) {
+	const harness = createChildHarness(t, { maxTurns });
+	for (let turn = 0; turn < turns; turn++) {
+		harness.emit("turn_end", { turnIndex: turn });
+	}
 	return harness;
 }
 
-test("task child queues the exact wrap-up steer once at the soft limit", () => {
-	const harness = runTaskChildWithTurns(3, 3);
+function assertUnsettled(harness: ReturnType<typeof createChildHarness>) {
+	assert.equal(existsSync(harness.sidecarFile), false, "no terminal sidecar before settlement");
+	assert.equal(harness.ctx.shutdownCalls, 0, "no automatic shutdown before settlement");
+	assert.equal(harness.readActivity().phase, "active", "activity stays live while Pi can continue");
+}
+
+test("auto-exit waits for settlement across error, retry, and success", (t) => {
+	const harness = createChildHarness(t);
+	harness.emit("agent_end", {
+		messages: [{ role: "assistant", stopReason: "error", errorMessage: "529 overloaded" }],
+	});
+	assertUnsettled(harness);
+
+	// Pi retries after agent_end; extensions do not receive auto_retry_* events.
+	harness.emit("agent_start");
+	harness.emit("agent_end", {
+		messages: [{ role: "assistant", stopReason: "stop", content: [{ type: "text", text: "recovered" }] }],
+	});
+	assertUnsettled(harness);
+
+	// AgentSettledEvent has no messages. The latest run's outcome must win.
+	harness.emit("agent_settled");
+	assert.equal(harness.ctx.shutdownCalls, 1);
+	assert.equal(existsSync(harness.sidecarFile), false, "the recovered error must not be published");
+	assert.equal(harness.readActivity().phase, "done");
+});
+
+test("terminal retry failure writes only the final error sidecar at settlement", (t) => {
+	const harness = createChildHarness(t);
+	for (const errorMessage of ["initial overload", "retry exhausted"]) {
+		harness.emit("agent_start");
+		harness.emit("agent_end", {
+			messages: [{ role: "assistant", stopReason: "error", errorMessage }],
+		});
+		assertUnsettled(harness);
+	}
+
+	harness.emit("agent_settled");
+	const sidecar = readFileSync(harness.sidecarFile, "utf8");
+	assert.deepEqual(JSON.parse(sidecar), {
+		type: "error",
+		errorMessage: "retry exhausted",
+		stopReason: "error",
+	});
+	assert.deepEqual(harness.ctx.sidecarsAtShutdown, [sidecar], "persist the error before shutdown");
+	assert.equal(harness.readActivity().phase, "done");
+});
+
+test("aborted settlement stays open and a later manual run can auto-exit", (t) => {
+	const harness = createChildHarness(t);
+	harness.emit("agent_end", { messages: [{ role: "assistant", stopReason: "aborted" }] });
+	assertUnsettled(harness);
+	harness.emit("agent_settled");
+	assert.equal(existsSync(harness.sidecarFile), false);
+	assert.equal(harness.ctx.shutdownCalls, 0);
+	assert.equal(harness.readActivity().phase, "waiting");
+
+	harness.emit("input");
+	harness.emit("agent_start");
+	harness.emit("agent_end", { messages: [{ role: "assistant", stopReason: "stop" }] });
+	assertUnsettled(harness);
+	harness.emit("agent_settled");
+	assert.equal(harness.ctx.shutdownCalls, 1);
+	assert.equal(existsSync(harness.sidecarFile), false);
+});
+
+for (const stopReason of ["stop", "error"]) {
+	test(`settlement with ${stopReason} leaves non-auto-exit children open`, (t) => {
+		const harness = createChildHarness(t, { autoExit: false });
+		harness.emit("agent_end", {
+			messages: [{ role: "assistant", stopReason, errorMessage: "provider error" }],
+		});
+		assertUnsettled(harness);
+		harness.emit("agent_settled");
+		assert.equal(harness.ctx.shutdownCalls, 0);
+		assert.equal(existsSync(harness.sidecarFile), false);
+		assert.equal(harness.readActivity().phase, "waiting");
+	});
+}
+
+for (const toolName of ["subagent_done", "caller_ping"]) {
+	test(`${toolName} exits immediately and settlement preserves its sidecar`, async (t) => {
+		const harness = createChildHarness(t);
+		const tool = harness.tools.get(toolName);
+		assert.ok(tool);
+		await tool.execute("exit-call", { message: "Need help" }, undefined, undefined, harness.ctx);
+		const sidecar = readFileSync(harness.sidecarFile, "utf8");
+		assert.deepEqual(JSON.parse(sidecar), toolName === "subagent_done"
+			? { type: "done" }
+			: { type: "ping", name: "worker", message: "Need help" });
+		assert.deepEqual(harness.ctx.sidecarsAtShutdown, [sidecar], "explicit exit is immediate");
+
+		// Shutdown can be deferred while the agent loop unwinds.
+		harness.emit("agent_end", {
+			messages: [{ role: "assistant", stopReason: "error", errorMessage: "late provider error" }],
+		});
+		harness.emit("agent_settled");
+		assert.equal(readFileSync(harness.sidecarFile, "utf8"), sidecar);
+		assert.equal(harness.ctx.shutdownCalls, 1);
+		assert.equal(harness.readActivity().latestEvent, toolName);
+	});
+}
+
+test("task child queues the exact wrap-up steer once at the soft limit", (t) => {
+	const harness = runTaskChildWithTurns(t, 3, 3);
 	assert.deepEqual(harness.steered, [
 		`steer:${TURN_LIMIT_WRAP_UP_MESSAGE}`,
 	]);
 	assert.equal(harness.ctx.abortCalls, 0);
-	assert.equal(harness.sidecarFile, undefined, "no failure sidecar at the soft limit");
+	assert.equal(existsSync(harness.sidecarFile), false, "no failure sidecar at the soft limit");
 });
 
-test("task child writes the failure sidecar, aborts, and shuts down at the hard limit", () => {
-	const harness = runTaskChildWithTurns(2, 7); // soft at 2, hard at 2 + 5
+test("task child writes the failure sidecar, aborts, and shuts down at the hard limit", (t) => {
+	const harness = runTaskChildWithTurns(t, 2, 7); // soft at 2, hard at 2 + 5
 	assert.deepEqual(harness.steered, [`steer:${TURN_LIMIT_WRAP_UP_MESSAGE}`]);
 	// Abort and shutdown were requested through the event context, in order,
 	// with the sidecar already persisted.
@@ -366,47 +478,58 @@ test("task child writes the failure sidecar, aborts, and shuts down at the hard 
 	assert.equal(harness.ctx.shutdownCalls, 1);
 
 	// The failure sidecar is persisted before the shutdown request.
-	assert.ok(harness.sidecarFile, "hard-limit sidecar must be written");
-	const sidecar = JSON.parse(readFileSync(harness.sidecarFile!, "utf8"));
+	assert.ok(existsSync(harness.sidecarFile), "hard-limit sidecar must be written");
+	const sidecar = JSON.parse(readFileSync(harness.sidecarFile, "utf8"));
 	assert.equal(sidecar.type, "turn-limit");
 	assert.equal(sidecar.maxTurns, 2);
 	assert.equal(sidecar.graceTurns, TURN_LIMIT_GRACE_TURNS);
 	assert.match(sidecar.errorMessage, /exceeded its turn limit/);
 	assert.equal(
-		readFileSync(harness.sidecarFile!, "utf8").trim(),
+		readFileSync(harness.sidecarFile, "utf8").trim(),
 		buildTurnLimitExitSidecar(2, TURN_LIMIT_GRACE_TURNS),
 	);
+	assert.deepEqual(harness.ctx.sidecarsAtShutdown, [buildTurnLimitExitSidecar(2, TURN_LIMIT_GRACE_TURNS)]);
 
 	// agent_end after the hard limit is a backstop that shuts down again,
 	// even though the aborted run would otherwise keep the pane open.
-	harness.handlers.get("agent_end")?.(
-		{ messages: [{ role: "assistant", stopReason: "aborted" }] },
-		harness.ctx,
-	);
+	harness.emit("agent_end", { messages: [{ role: "assistant", stopReason: "aborted" }] });
 	assert.equal(harness.ctx.shutdownCalls, 2, "backstop shutdown after the immediate one");
+	harness.emit("agent_settled");
+	assert.equal(readFileSync(harness.sidecarFile, "utf8"), buildTurnLimitExitSidecar(2, TURN_LIMIT_GRACE_TURNS));
 });
 
-test("task child completing during grace shuts down cleanly with no sidecar", () => {
-	const harness = runTaskChildWithTurns(2, 4); // soft at 2, wrapped up during grace
+test("hard turn-limit failure is not replaced by a terminal provider error", (t) => {
+	const harness = runTaskChildWithTurns(t, 2, 7);
+	harness.emit("agent_end", {
+		messages: [{ role: "assistant", stopReason: "error", errorMessage: "provider error at hard limit" }],
+	});
+	harness.emit("agent_settled");
+	assert.equal(readFileSync(harness.sidecarFile, "utf8"), buildTurnLimitExitSidecar(2, TURN_LIMIT_GRACE_TURNS));
+	assert.equal(harness.ctx.shutdownCalls, 2);
+});
+
+test("task child completing during grace shuts down cleanly with no sidecar", (t) => {
+	const harness = runTaskChildWithTurns(t, 2, 4); // soft at 2, wrapped up during grace
 	assert.deepEqual(harness.steered, [`steer:${TURN_LIMIT_WRAP_UP_MESSAGE}`]);
 	assert.equal(harness.ctx.abortCalls, 0);
-	assert.equal(harness.sidecarFile, undefined);
+	assert.equal(existsSync(harness.sidecarFile), false);
 
-	harness.handlers.get("agent_end")?.(
-		{ messages: [{ role: "assistant", stopReason: "stop", content: [{ type: "text", text: "wrapped up" }] }] },
-		harness.ctx,
-	);
+	harness.emit("agent_end", {
+		messages: [{ role: "assistant", stopReason: "stop", content: [{ type: "text", text: "wrapped up" }] }],
+	});
+	assertUnsettled(harness);
+	harness.emit("agent_settled");
 	assert.equal(harness.ctx.shutdownCalls, 1, "ordinary auto-exit still applies during grace");
+	assert.equal(existsSync(harness.sidecarFile), false);
 });
 
-test("task child without a limit never steers or aborts", () => {
-	const harness = runTaskChildWithTurns(0, 12); // 0 = unlimited
+test("task child without a limit never steers or aborts", (t) => {
+	const harness = runTaskChildWithTurns(t, 0, 12); // 0 = unlimited
 	assert.deepEqual(harness.steered, []);
 	assert.equal(harness.ctx.abortCalls, 0);
-	assert.equal(harness.sidecarFile, undefined);
-	harness.handlers.get("agent_end")?.(
-		{ messages: [{ role: "assistant", stopReason: "stop" }] },
-		harness.ctx,
-	);
+	assert.equal(existsSync(harness.sidecarFile), false);
+	harness.emit("agent_end", { messages: [{ role: "assistant", stopReason: "stop" }] });
+	assertUnsettled(harness);
+	harness.emit("agent_settled");
 	assert.equal(harness.ctx.shutdownCalls, 1);
 });

@@ -212,6 +212,132 @@ test("seedSubagentSessionFile fork copies context before the triggering user tur
 	});
 });
 
+test("seedSubagentSessionFile fork preserves completed linear turns and their parent links", () => {
+	withTempDir((dir) => {
+		const completed = { ...ASSISTANT_MSG_2, parentId: TOOL_RESULT.id };
+		const trigger = { ...USER_MSG, id: "user-trigger", parentId: completed.id };
+		const launch = { ...ASSISTANT_MSG, id: "launch", parentId: trigger.id };
+		const history = [MODEL_CHANGE, USER_MSG, ASSISTANT_MSG, TOOL_RESULT, completed];
+		const parentFile = writeSession(dir, "parent.jsonl", [SESSION_HEADER, ...history, trigger, launch]);
+		const childFile = join(dir, "fork-child.jsonl");
+		seedSubagentSessionFile({
+			mode: "fork",
+			parentSessionFile: parentFile,
+			childSessionFile: childFile,
+			childCwd: dir,
+		});
+		assert.deepEqual(getNewEntries(childFile, 1), history);
+	});
+});
+
+test("seedSubagentSessionFile fork follows ancestry after navigation and excludes abandoned branches", () => {
+	withTempDir((dir) => {
+		const abandonedUser = { ...USER_MSG, id: "abandoned-user", parentId: ASSISTANT_MSG.id };
+		const abandonedAssistant = { ...ASSISTANT_MSG, id: "abandoned-assistant", parentId: abandonedUser.id };
+		const summary = {
+			type: "branch_summary",
+			id: "summary",
+			parentId: ASSISTANT_MSG.id,
+			fromId: abandonedAssistant.id,
+			summary: "Keep only this summary of the abandoned work.",
+		};
+		const compaction = {
+			type: "compaction",
+			id: "compact",
+			parentId: summary.id,
+			firstKeptEntryId: USER_MSG.id,
+			summary: "Earlier context.",
+			tokensBefore: 100,
+		};
+		const trigger = { ...USER_MSG, id: "user-trigger", parentId: compaction.id };
+		const launch = { ...ASSISTANT_MSG, id: "launch", parentId: trigger.id };
+		const parentFile = writeSession(dir, "parent.jsonl", [
+			SESSION_HEADER, MODEL_CHANGE, USER_MSG, ASSISTANT_MSG,
+			abandonedUser, abandonedAssistant, summary, compaction, trigger, launch,
+		]);
+		const original = readFileSync(parentFile, "utf8");
+		const childFile = join(dir, "fork-child.jsonl");
+		seedSubagentSessionFile({
+			mode: "fork",
+			parentSessionFile: parentFile,
+			childSessionFile: childFile,
+			childCwd: dir,
+		});
+		assert.deepEqual(getNewEntries(childFile, 1), [
+			MODEL_CHANGE, USER_MSG, ASSISTANT_MSG, summary, compaction,
+		]);
+		assert.equal(readFileSync(parentFile, "utf8"), original);
+	});
+});
+
+test("seedSubagentSessionFile fork uses the selected leaf rather than the last file entry", () => {
+	withTempDir((dir) => {
+		const trigger = { ...USER_MSG, id: "selected-trigger", parentId: ASSISTANT_MSG.id };
+		const launch = { ...ASSISTANT_MSG, id: "selected-launch", parentId: trigger.id };
+		const abandonedUser = { ...USER_MSG, id: "abandoned-user", parentId: MODEL_CHANGE.id };
+		const abandonedAssistant = { ...ASSISTANT_MSG, id: "abandoned-assistant", parentId: abandonedUser.id };
+		const parentFile = writeSession(dir, "parent.jsonl", [
+			SESSION_HEADER, MODEL_CHANGE, USER_MSG, ASSISTANT_MSG,
+			trigger, launch, abandonedUser, abandonedAssistant,
+		]);
+		const childFile = join(dir, "fork-child.jsonl");
+		seedSubagentSessionFile({
+			mode: "fork",
+			parentSessionFile: parentFile,
+			parentLeafId: launch.id,
+			childSessionFile: childFile,
+			childCwd: dir,
+		});
+		assert.deepEqual(getNewEntries(childFile, 1), [MODEL_CHANGE, USER_MSG, ASSISTANT_MSG]);
+	});
+});
+
+test("seedSubagentSessionFile fork preserves a selected branch without user turns", () => {
+	withTempDir((dir) => {
+		const parentFile = writeSession(dir, "parent.jsonl", [SESSION_HEADER, MODEL_CHANGE, USER_MSG, ASSISTANT_MSG]);
+		const childFile = join(dir, "fork-child.jsonl");
+		seedSubagentSessionFile({
+			mode: "fork",
+			parentSessionFile: parentFile,
+			parentLeafId: MODEL_CHANGE.id,
+			childSessionFile: childFile,
+			childCwd: dir,
+		});
+		assert.deepEqual(getNewEntries(childFile, 1), [MODEL_CHANGE]);
+	});
+});
+
+test("seedSubagentSessionFile fork after resetting the leaf has no inherited entries", () => {
+	withTempDir((dir) => {
+		const parentFile = writeSession(dir, "parent.jsonl", [SESSION_HEADER, MODEL_CHANGE, USER_MSG, ASSISTANT_MSG]);
+		const childFile = join(dir, "fork-child.jsonl");
+		seedSubagentSessionFile({
+			mode: "fork",
+			parentSessionFile: parentFile,
+			parentLeafId: null,
+			childSessionFile: childFile,
+			childCwd: dir,
+		});
+		assert.deepEqual(getNewEntries(childFile, 1), []);
+	});
+});
+
+test("seedSubagentSessionFile fork rejects missing or cyclic ancestry instead of copying unrelated history", () => {
+	withTempDir((dir) => {
+		for (const parentId of ["missing-entry", USER_MSG.id]) {
+			const parentFile = writeSession(dir, "parent.jsonl", [
+				SESSION_HEADER, MODEL_CHANGE, { ...USER_MSG, parentId }, ASSISTANT_MSG,
+			]);
+			assert.throws(() => seedSubagentSessionFile({
+				mode: "fork",
+				parentSessionFile: parentFile,
+				childSessionFile: join(dir, "fork-child.jsonl"),
+				childCwd: dir,
+			}), /Missing fork ancestor|Cycle in fork ancestry/);
+		}
+	});
+});
+
 test("mergeNewEntries appends source entries after the shared base to the target", () => {
 	withTempDir((dir) => {
 		const sourceFile = writeSession(dir, "source.jsonl", [SESSION_HEADER, USER_MSG, ASSISTANT_MSG]);

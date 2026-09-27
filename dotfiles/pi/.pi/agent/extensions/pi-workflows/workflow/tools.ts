@@ -582,7 +582,7 @@ export function createWorkflowLifecycleTools(
 	let eventDeliveryFailed = false;
 	const ownedChildren = new Set<RunningSubagent>();
 	const eventChildren = new Set<WorkflowRoleOwnership>();
-	const pendingLaunches = new Set<Promise<unknown>>();
+	const pendingLaunches = new Set<Promise<void>>();
 
 	async function stopBeforeTree(): Promise<void> {
 		// A restored branch can contain the exact same run/role/session IDs.
@@ -625,17 +625,25 @@ export function createWorkflowLifecycleTools(
 		navigating = false; // No tree operation remains after abort/replacement/completion.
 	}
 
-	function trackLaunch<T>(operation: () => Promise<T>): Promise<T> {
-		if (eventDeliveryFailed) return Promise.reject(new Error("Workflow result handling failed; reload and explicitly resume the saved run."));
-		if (navigating) return Promise.reject(new Error("Workflow branch navigation is stopping its roles; retry after navigation."));
-		if (eventChildren.size > 0) return Promise.reject(new Error("Workflow role still owns a child; stop or resume only after confirmed cleanup."));
-		const pending = operation();
+	async function trackLaunch<T>(operation: () => Promise<T>): Promise<T> {
+		if (eventDeliveryFailed) throw new Error("Workflow result handling failed; reload and explicitly resume the saved run.");
+		if (navigating) throw new Error("Workflow branch navigation is stopping its roles; retry after navigation.");
+		if (pendingLaunches.size > 0) throw new Error("Workflow role launch is already in progress; only one role may own the active run.");
+		if (eventChildren.size > 0 || ownedChildren.size > 0) throw new Error("Workflow role still owns a child; stop or resume only after confirmed cleanup.");
+		// Reserve the run before invoking dependencies, not just before awaiting
+		// acknowledgement. Preflight, pickers, and even synchronous callbacks can
+		// admit another tool call. Navigation must also see this reservation.
+		let release!: () => void;
+		const pending = new Promise<void>((resolve) => { release = resolve; });
 		pendingLaunches.add(pending);
-		void pending.then(
-			() => pendingLaunches.delete(pending),
-			() => pendingLaunches.delete(pending),
-		);
-		return pending;
+		try {
+			return await operation();
+		} finally {
+			// A launched child takes over ownership before this reservation ends.
+			// Failure/cancellation without a child leaves the run available again.
+			pendingLaunches.delete(pending);
+			release();
+		}
 	}
 
 	function assertOwned(isOwned: () => boolean): void {
@@ -1445,6 +1453,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_spawn")) {
 		pi.registerTool({
 			name: "workflow_spawn",
+			executionMode: "sequential",
 			label: "Workflow Spawn",
 			description:
 				"Launch a fresh manifest role for the active persisted workflow run. "
@@ -1466,6 +1475,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_resume")) {
 		pi.registerTool({
 			name: "workflow_resume",
+			executionMode: "sequential",
 			label: "Workflow Resume",
 			description:
 				"Resume the current session for an explicit manifest role in the active persisted workflow run. "
@@ -1487,6 +1497,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_recover")) {
 		pi.registerTool({
 			name: "workflow_recover",
+			executionMode: "sequential",
 			label: "Workflow Recover",
 			description:
 				"Recover the current session for an explicit workflow role after quota exhaustion or exhausted provider retries. "
@@ -1509,6 +1520,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_complete")) {
 		pi.registerTool({
 			name: "workflow_complete",
+			executionMode: "sequential",
 			label: "Workflow Complete",
 			description:
 				"Persist the active workflow run as completed or aborted, retain its data and role-session history for audit, and invalidate the run token.",

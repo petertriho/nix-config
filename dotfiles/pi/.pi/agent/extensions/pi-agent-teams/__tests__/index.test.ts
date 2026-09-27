@@ -30,7 +30,8 @@ import {
 import piTmuxSubagents, { __test__ as testApi } from "../index.ts";
 import { createTeamTransport } from "../team-transport.ts";
 import { closeSurface } from "../tmux.ts";
-import { discoverWorkflowProviders } from "../../workflow-provider/contract.ts";
+import { discoverWorkflowProviders, WORKFLOW_PROVIDER_REQUEST_CHANNEL } from "../../workflow-provider/contract.ts";
+import { createWorkflowEventClient } from "../../pi-workflows/event-client.ts";
 import {
 	classifyStatus,
 	createStatusState,
@@ -1806,6 +1807,7 @@ test("mocked ordinary Claude CLI launch and resume use the Stop-hook sentinel wi
 				'  const sentinel = script.match(/PI_CLAUDE_SENTINEL=\'([^\']+)\'/)?.[1];',
 				'  if (!sentinel) process.exit(2);',
 				`  fs.appendFileSync(${JSON.stringify(scriptLog)}, script + "\\n---launch---\\n");`,
+				'  fs.writeFileSync(sentinel + ".launch", "{}");',
 				'  fs.writeFileSync(sentinel, "Claude completed the review.\\n");',
 				"}",
 			].join("\n") + "\n");
@@ -1833,6 +1835,11 @@ test("mocked ordinary Claude CLI launch and resume use the Stop-hook sentinel wi
 			assert.match(scripts[1], /--resume 'claude-session-123'/);
 			assert.match(scripts[1], /PI_CLAUDE_SENTINEL=/);
 			assert.match(scripts[1], /PI_CLAUDE_PROMPT_HASH='[0-9a-f]{64}'/);
+			for (const script of scripts) {
+				const sentinel = script.match(/PI_CLAUDE_SENTINEL='([^']+)'/)?.[1];
+				assert.ok(sentinel);
+				assert.equal(existsSync(sentinel + ".launch"), false, "launch boundary must be cleaned up");
+			}
 			assert.equal(testApi.runningSubagents.size, 0);
 		} finally {
 			restoreEnvVar("PATH", savedPath);
@@ -4061,6 +4068,83 @@ test("ordinary launches keep their profile interaction, auto-exit, and prompt be
 });
 
 // ── pi-tasks RPC bridge wiring (root session lifecycle) ──
+
+test("workflow preflight rejects unsupported CLI profiles without falling back to Pi profiles", async () => {
+	await withIsolatedAgentEnv(async ({ projectAgentsDir, globalAgentsDir }) => {
+		writeAgentFile(globalAgentsDir, "global-cli", "cli: claude");
+		writeAgentFile(globalAgentsDir, "project-cli", "cli: pi");
+		writeAgentFile(projectAgentsDir, "project-cli", "cli: claude");
+		// An empty role body must not hide an unsupported higher-priority CLI.
+		writeAgentFile(projectAgentsDir, "worker", "cli: claude", "");
+		writeAgentFile(projectAgentsDir, "unknown-cli", "cli: unsupported");
+		const events = createRecordingEventBus();
+		const previousTmux = process.env.TMUX;
+		let client: ReturnType<typeof createWorkflowEventClient> | undefined;
+		try {
+			process.env.TMUX = "/tmp/test-tmux";
+			testApi.attachWorkflowProvider(createTaskBridgeMockApi(events), taskBridgeContext() as never);
+			const [provider] = await discoverWorkflowProviders(events, { timeoutMs: 5 });
+			assert.ok(provider);
+			client = createWorkflowEventClient(events, provider);
+			const owner = { sessionId: "sid", runId: "setup", roleId: "setup", ownershipId: "preflight" };
+			for (const [agentId, cli] of [
+				["claude-code", "claude"], // Bundled profile.
+				["global-cli", "claude"],
+				["project-cli", "claude"],
+				["worker", "claude"],
+				["unknown-cli", "unsupported"],
+			]) {
+				await assert.rejects(client.preflight(owner, ["scout", agentId]),
+					new RegExp(`Workflow agent profile "${agentId}".*unsupported CLI "${cli}".*Pi`));
+				assert.equal(testApi.loadAgentDefaults(agentId)?.cli, cli,
+					"ordinary agent loading must still retain the CLI profile");
+			}
+			assert.equal(testApi.runningSubagents.size, 0);
+			assert.deepEqual(events.log
+				.filter(({ channel }) => channel === WORKFLOW_PROVIDER_REQUEST_CHANNEL)
+				.map(({ data }) => (data as AnyRecord).operation), Array(5).fill(["ping", "profiles"]).flat());
+		} finally {
+			client?.dispose();
+			testApi.shutdownWorkflowProvider();
+			restoreEnvVar("TMUX", previousTmux);
+		}
+	});
+});
+
+test("workflow preflight accepts implicit and explicit Pi profiles with normal discovery precedence", async () => {
+	await withIsolatedAgentEnv(async ({ projectAgentsDir, globalAgentsDir }) => {
+		writeAgentFile(globalAgentsDir, "implicit-pi", "name: Implicit Pi");
+		writeAgentFile(globalAgentsDir, "explicit-pi", "cli: claude");
+		writeAgentFile(projectAgentsDir, "explicit-pi", "cli: pi");
+		writeAgentFile(globalAgentsDir, "claude-code", "cli: pi");
+		const events = createRecordingEventBus();
+		const previousTmux = process.env.TMUX;
+		let client: ReturnType<typeof createWorkflowEventClient> | undefined;
+		try {
+			process.env.TMUX = "/tmp/test-tmux";
+			testApi.attachWorkflowProvider(createTaskBridgeMockApi(events), taskBridgeContext() as never);
+			const [provider] = await discoverWorkflowProviders(events, { timeoutMs: 5 });
+			assert.ok(provider);
+			client = createWorkflowEventClient(events, provider);
+			const profiles = await client.preflight(
+				{ sessionId: "sid", runId: "setup", roleId: "setup", ownershipId: "preflight" },
+				["scout", "implicit-pi", "explicit-pi", "claude-code"],
+			);
+			assert.deepEqual(profiles.map(({ agentId }) => agentId),
+				["scout", "implicit-pi", "explicit-pi", "claude-code"]);
+			assert.deepEqual(profiles.slice(1).map(({ path }) => path), [
+				join(globalAgentsDir, "implicit-pi.md"),
+				join(projectAgentsDir, "explicit-pi.md"),
+				join(globalAgentsDir, "claude-code.md"),
+			]);
+			for (const profile of profiles) assert.equal(profile.hash, hashText(readFileSync(profile.path, "utf8")));
+		} finally {
+			client?.dispose();
+			testApi.shutdownWorkflowProvider();
+			restoreEnvVar("TMUX", previousTmux);
+		}
+	});
+});
 
 test("tmux workflow provider root registration is idempotent and shutdown unsubscribes", async () => {
 	const events = createRecordingEventBus();

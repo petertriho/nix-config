@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { reclaimDeadTeamLock } from "./team-lock.ts";
 import {
   resolveTaskDiskCandidate,
   type DiskCandidate,
@@ -109,6 +110,21 @@ function ensureNoCycles(tasks: DiskTask[]): void {
   for (const task of tasks) visit(task.id);
 }
 
+function validateCandidateGraph(tasks: DiskTask[], mutation: TeamTaskMutation): void {
+  ensureNoCycles(tasks);
+  const byId = new Map(tasks.map((task) => [task.id, task]));
+  for (const task of tasks) {
+    if (task.status === "completed" && task.blockedBy.some((blocker) =>
+      byId.get(blocker)?.status !== "completed")) {
+      throw new Error("Task has incomplete blockers");
+    }
+  }
+  if (mutation.toolName === "TaskUpdate" && mutation.args.status === "completed" &&
+      tasks.some((task) => task.blockedBy.includes(mutation.args.taskId as string) && task.metadata?.agentType)) {
+    throw new Error("Task completion would auto-cascade an agent task");
+  }
+}
+
 function applyMutation(candidate: Candidate, mutation: TeamTaskMutation, memberName: string): {
   task: DiskTask | undefined; tasks: DiskTask[]; nextId: number; changedFields: string[]; warnings: string[];
 } {
@@ -132,14 +148,6 @@ function applyMutation(candidate: Candidate, mutation: TeamTaskMutation, memberN
   if (!task) throw new Error(`Task #${id} not found`);
   if (task.owner && task.owner !== memberName) throw new Error(`Task #${id} is owned by ${task.owner}`);
   if (args.owner && args.owner !== memberName) throw new Error("A teammate cannot assign another owner");
-  if (args.status === "completed" && task.blockedBy.some((blocker) =>
-    tasks.find((entry) => entry.id === blocker)?.status !== "completed")) {
-    throw new Error("Task has incomplete blockers");
-  }
-  if (args.status === "completed" && tasks.some((entry) =>
-    entry.blockedBy.includes(id) && entry.metadata?.agentType)) {
-    throw new Error("Task completion would auto-cascade an agent task");
-  }
   if (args.status === "deleted") {
     const remaining = tasks.filter((entry) => entry.id !== id);
     for (const entry of remaining) {
@@ -178,7 +186,6 @@ function applyMutation(candidate: Candidate, mutation: TeamTaskMutation, memberN
     changedFields.push(ownKey);
   }
   task.updatedAt = now;
-  ensureNoCycles(tasks);
   return { task, tasks, nextId: candidate.nextId, changedFields, warnings: [] };
 }
 
@@ -193,18 +200,7 @@ async function lock<T>(path: string, action: () => Promise<T>): Promise<T> {
       break;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      try {
-        const raw = readFileSync(path, "utf8");
-        const pid = Number.parseInt(raw, 10);
-        let running = false;
-        if (pid > 0) {
-          try { process.kill(pid, 0); running = true; } catch { /* match installed lock behavior */ }
-        }
-        if (!running && (pid > 0 || attempt >= 2)) {
-          unlinkSync(path);
-          continue;
-        }
-      } catch { /* another writer may still be creating its token */ }
+      if (reclaimDeadTeamLock(path)) continue;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
@@ -235,6 +231,8 @@ export async function commitTeamTaskMutation(request: TaskCommitRequest): Promis
         return { ok: false, reason: "Task arguments changed before commit" };
       }
       const applied = applyMutation(latest, mutation, member.name);
+      // Status changes and reciprocal dependency edges must be validated together.
+      validateCandidateGraph(applied.tasks, mutation);
       const hookInput = Object.freeze({
         toolName: mutation.toolName, args: Object.freeze(structuredClone(mutation.args)),
         memberId: member.id, memberEpoch: member.epoch,

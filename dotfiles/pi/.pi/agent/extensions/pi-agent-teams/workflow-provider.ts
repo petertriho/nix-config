@@ -1,6 +1,7 @@
 /** The tmux execution adapter. Workflow policy and session state stay with the coordinator. */
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
+import { isAbsolute } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
@@ -23,10 +24,10 @@ import {
 	THINKING_LEVELS, type LaunchProfile, type LaunchProfileWorkflowMetadata, type ModelSelection,
 } from "./launch-profile.ts";
 import {
-	captureRepoBoundarySnapshot, evaluateRepoBoundarySnapshot,
+	captureRepoBoundarySnapshot, evaluateRepoBoundarySnapshot, resolveGitRoot,
 	type RepoBoundaryDefinition, type RepoBoundarySnapshot,
 } from "../workflow-provider/repo-boundary.ts";
-import { classifyProviderFailure } from "../workflow-provider/failure.ts";
+import { buildProviderFailureRecord, classifyProviderFailure } from "../workflow-provider/failure.ts";
 import type {
 	LaunchContext, ResumeLifecycleContext, RunningSubagent, SubagentResult,
 	createSubagentExecutionServices,
@@ -67,6 +68,8 @@ export interface TmuxWorkflowProviderDependencies {
 	/** Record only a selection that the resume service confirmed it launched. */
 	recordLaunchedModel(sessionPath: string, selection: ModelSelection): void;
 	estimateContext(sessionPath: string): { tokens: number; source: string };
+	/** Return the canonical authorized checkout, rejecting a different execution repository. */
+	checkRepository(root: string, cwd: string, sessionPath?: string): string;
 	captureEvidence(root: string, definition?: RepoBoundaryDefinition): EvidenceBaseline;
 	finishEvidence(snapshot: unknown): Evidence;
 	services: Services;
@@ -184,7 +187,8 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 	}
 	function finish(request: WorkflowProviderRequest, running: RunningSubagent, baseline: unknown, result: SubagentResult, successfulResponse = false) {
 		const owned = active.get(running.sessionFile);
-		if (!owned || owned.cleanupRequired || !sameOwner(owned.owner, request.owner) || owned.running !== running || !live()) return;
+		if (!owned || owned.controller.signal.aborted || owned.cleanupRequired
+			|| !sameOwner(owned.owner, request.owner) || owned.running !== running || !live()) return;
 		let evidence: Evidence;
 		try {
 			evidence = deps.finishEvidence(baseline);
@@ -234,11 +238,15 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 		}
 		return resolved;
 	}
-	function repository(payload: Payload): EvidenceBaseline {
+	function checkedRepository(payload: Payload, cwd: string, sessionPath?: string): string {
 		if (!text(payload.repositoryRoot)) throw new Error("Workflow repository root required");
 		if (payload.repositoryBoundary && (!Array.isArray(payload.repositoryBoundary.allowedRules)
 			|| !Array.isArray(payload.repositoryBoundary.protectedRules))) throw new Error("Invalid repository boundary");
-		return deps.captureEvidence(payload.repositoryRoot, payload.repositoryBoundary);
+		return deps.checkRepository(payload.repositoryRoot, cwd, sessionPath);
+	}
+	function repository(payload: Payload, cwd: string, sessionPath?: string): EvidenceBaseline {
+		const root = checkedRepository(payload, cwd, sessionPath);
+		return deps.captureEvidence(root, payload.repositoryBoundary);
 	}
 	function saved(request: WorkflowProviderRequest, payload: Payload) {
 		if (!text(payload.sessionPath) || !payload.expected || !text(payload.expected.agentId)
@@ -257,7 +265,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			|| stored.stable.roleBodyHash !== agent.roleBodyHash) throw new Error("Workflow saved agent profile identity mismatch");
 		// Confirm model/context against the old sidecar before changing its metadata.
 		checkedFacts(deps, payload.sessionPath, agent, stored.workflow, payload.expected);
-		return { agent, workflow };
+		return { agent, workflow, cwd: stored.stable.cwd };
 	}
 	function update(path: string, workflow: LaunchProfileWorkflowMetadata) {
 		deps.updateProfile(path, workflow);
@@ -265,10 +273,12 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			throw new Error("Workflow metadata update was not confirmed by sidecar readback");
 		}
 	}
-	function rejectLaunched(request: WorkflowProviderRequest, running: RunningSubagent, error: unknown): never {
+	function rejectLaunched(request: WorkflowProviderRequest, running: RunningSubagent, controller: AbortController, error: unknown): never {
+		// Revoke callbacks even if the strict stop fails and cleanup ownership remains.
+		controller.abort();
 		// Confirmation can fail before launch has registered an owner or watcher.
 		if (!active.has(running.sessionFile)) {
-			active.set(running.sessionFile, { owner: request.owner, running, controller: new AbortController() });
+			active.set(running.sessionFile, { owner: request.owner, running, controller });
 		}
 		const held = active.get(running.sessionFile)!;
 		const ownsChild = held.running === running && sameOwner(held.owner, request.owner);
@@ -283,7 +293,6 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			);
 		}
 		if (ownsChild) {
-			held.controller.abort();
 			active.delete(running.sessionFile);
 		}
 		throw error;
@@ -310,6 +319,12 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 		}
 		if (request.operation === "stop") {
 			if (p.sessionPath !== undefined && !text(p.sessionPath)) throw new Error("Invalid owned session path");
+			// Revoke execution callbacks before draining starts or attempting pane cleanup.
+			for (const [path, held] of active) {
+				if (sameOwner(held.owner, request.owner) && (p.sessionPath === undefined || path === p.sessionPath)) {
+					held.controller.abort();
+				}
+			}
 			// A timed-out launch may not have supplied its path yet. Cancel and
 			// drain that owner's starts before confirming that no child remains.
 			const starting = [...pending.values()].filter((entry) => sameOwner(entry.owner, request.owner)
@@ -321,8 +336,8 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				&& (p.sessionPath === undefined || path === p.sessionPath));
 			if (p.sessionPath !== undefined && owned.length === 0) throw new Error("Owned workflow role not found");
 			for (const [path, held] of owned) {
-				deps.services.stopSubagent(held.running); // throws on failed pane close
 				held.controller.abort();
+				deps.services.stopSubagent(held.running); // throws on failed pane close
 				active.delete(path);
 			}
 			return { stopped: true };
@@ -334,7 +349,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				|| (p.model.thinking !== undefined && !THINKING_LEVELS.includes(p.model.thinking as never))) {
 				throw new Error("Workflow launch task or resolved model unavailable");
 			}
-			const baseline = repository(p);
+			let baseline: EvidenceBaseline | undefined;
 			if (signal.aborted || !live()) throw new Error("Workflow launch cancelled");
 			// Only the selected model and thinking are allowed; the model registry supplies the canonical model.
 			const model = deps.ctx.modelRegistry?.getAvailable().find(
@@ -343,16 +358,18 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			if (!model) throw new Error("Workflow selected model unavailable");
 			const selection = { provider: p.model.provider, model: p.model.model,
 				...(p.model.thinking ? { thinking: p.model.thinking as typeof THINKING_LEVELS[number] } : {}) };
+			const controller = new AbortController();
 			const running = await deps.services.launchSubagent(
 				{ agent: agent.agentId, name: p.name, task: p.task }, deps.ctx,
-				{ workflow, resolvedModel: { model, selection, argument: `${selection.provider}/${selection.model}${selection.thinking ? `:${selection.thinking}` : ""}`, source: "explicit" } },
+				{ workflow, beforeLaunch: (cwd) => { baseline = repository(p, cwd); },
+					resolvedModel: { model, selection, argument: `${selection.provider}/${selection.model}${selection.thinking ? `:${selection.thinking}` : ""}`, source: "explicit" } },
 			);
 			try {
 				if (signal.aborted || !live()) throw new Error("Workflow launch cancelled or provider lost");
+				if (!baseline) throw new Error("Workflow execution repository was not confirmed");
 				const facts = checkedFacts(deps, running.sessionFile, agent, workflow, undefined, true);
 				if (!isDeepStrictEqual(facts.model, selection)) throw new Error("Workflow launch model mismatch");
 				if (active.has(running.sessionFile)) throw new Error("Workflow role session already owned");
-				const controller = new AbortController();
 				active.set(running.sessionFile, { owner: request.owner, running, controller });
 				void deps.services.watchSubagent(running, controller.signal)
 					.then((result) => finish(request, running, baseline, result))
@@ -362,11 +379,14 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 					}));
 				return { ...facts, accepted: true };
 			} catch (error) {
-				return rejectLaunched(request, running, error);
+				return rejectLaunched(request, running, controller, error);
 			}
 		}
 		if (request.operation === "resume" || request.operation === "recover") {
-			const { agent, workflow } = saved(request, p);
+			const { agent, workflow, cwd } = saved(request, p);
+			// Reject before changing metadata, including Pi's session-header cwd:
+			// current Pi restores that cwd even when the shell starts elsewhere.
+			checkedRepository(p, cwd, p.sessionPath);
 			if (p.model && (!text(p.model.provider) || !text(p.model.model)
 				|| (p.model.thinking !== undefined && !THINKING_LEVELS.includes(p.model.thinking as never))
 				|| !deps.ctx.modelRegistry?.getAvailable().some(
@@ -376,7 +396,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				&& (!text(p.failure) || classifyProviderFailure(p.failure) === "other" || !p.model)) {
 				throw new Error("Workflow recovery requires an eligible failure and a selected replacement model");
 			}
-			const baseline = repository(p);
+			let baseline: EvidenceBaseline | undefined;
 			if (active.has(p.sessionPath!)) throw new Error("Workflow role session already owned");
 			if (signal.aborted || !live()) throw new Error("Workflow resume cancelled");
 			update(p.sessionPath!, workflow);
@@ -385,25 +405,34 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			let launchedSelection: ModelSelection | undefined;
 			let successfulResponseModel: ModelSelection | undefined;
 			let userSelectedModel = false;
+			// The request settles at acknowledgement; this token lasts for the execution.
+			const controller = new AbortController();
+			const isOwned = () => !controller.signal.aborted && !signal.aborted && live();
 			const lifecycle: ResumeLifecycleContext = {
-				isOwned: () => !signal.aborted && live(),
+				isOwned,
+				beforeLaunch: (cwd, sessionPath) => {
+					if (!isOwned()) throw new Error("Workflow resume cancelled or provider lost");
+					baseline = repository(p, cwd, sessionPath);
+				},
 				workflowMetadata: workflow,
 				rolloverMessage: p.rolloverMessage,
 				onLaunched: ({ running, sessionPath, selection, userSelectedModel: selectedByUser }) => {
 					launched = running;
+					if (!isOwned()) throw new Error("Workflow resume cancelled or provider lost");
+					if (!baseline) throw new Error("Workflow execution repository was not confirmed");
 					launchedSelection = selection;
 					userSelectedModel = selectedByUser === true && p.allowUserModelSelection === true;
 					if (active.has(sessionPath)) throw new Error("Workflow role session already owned");
-					active.set(sessionPath, { owner: request.owner, running, controller: new AbortController() });
+					active.set(sessionPath, { owner: request.owner, running, controller });
 				},
 				onResult: ({ result, sessionPath }) => {
-					if (launched && sessionPath === launched.sessionFile) finish(
+					if (isOwned() && launched && sessionPath === launched.sessionFile) finish(
 						request, launched, baseline, result,
 						!!successfulResponseModel && isDeepStrictEqual(successfulResponseModel, launchedSelection),
 					);
 				},
 				onError: ({ message, sessionPath }) => {
-					if (launched && sessionPath === launched.sessionFile) finish(request, launched, baseline, {
+					if (isOwned() && launched && sessionPath === launched.sessionFile) finish(request, launched, baseline, {
 						name: launched.name, task: launched.task, summary: message, error: message, exitCode: 1, elapsed: 0,
 					});
 				},
@@ -419,17 +448,17 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 						model: p.model ? `${p.model.provider}/${p.model.model}${p.model.thinking ? `:${p.model.thinking}` : ""}` : "previous" },
 					{ ...deps.ctx, pi } as LaunchContext & ExtensionContext,
 					request.operation === "recover" ? {
-						failure: {
+						failure: buildProviderFailureRecord({
 							kind: classifyProviderFailure(p.failure!), message: p.failure!,
-							provider: facts.model.provider, model: facts.model.model, recordedAt: new Date().toISOString(),
-						},
+							provider: facts.model.provider, model: facts.model.model,
+						}),
 						transformWorkflowMetadata: (stored, selection) => ({
 							...stored, currentDefault: selection.selection, assignmentSource: "recovery",
 						}),
-						onSuccessfulResponse: (selection) => { successfulResponseModel = selection; },
+						onSuccessfulResponse: (selection) => { if (isOwned()) successfulResponseModel = selection; },
 					} : undefined, lifecycle,
 				);
-				if (signal.aborted || !live() || result.details.error || result.details.status !== "started" || !launched) {
+				if (!isOwned() || result.details.error || result.details.status !== "started" || !launched) {
 					throw new Error(`Workflow resume not confirmed: ${String(result.details.message ?? result.details.error ?? "provider unavailable")}`);
 				}
 				const replacement = launched.sessionFile !== p.sessionPath;
@@ -444,10 +473,15 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 					throw new Error("Workflow selected model was not confirmed by the launch service");
 				}
 				if (launchedSelection) deps.recordLaunchedModel(launched.sessionFile, launchedSelection);
-				const finalWorkflow = request.operation === "recover" && userSelectedModel && launchedSelection
-					? { ...workflow, currentDefault: launchedSelection, assignmentSource: "recovery" as const }
-					: workflow;
-				if (finalWorkflow !== workflow) update(launched.sessionFile, finalWorkflow);
+				let finalWorkflow = workflow;
+				if (request.operation === "recover" && userSelectedModel && launchedSelection) {
+					finalWorkflow = { ...workflow, currentDefault: launchedSelection, assignmentSource: "recovery" };
+					update(launched.sessionFile, finalWorkflow);
+				} else if (request.operation === "resume" && replacement && launchedSelection) {
+					// A fresh session records its selected model, not the old default.
+					// Confirm that metadata without rewriting it or promoting recovery.
+					finalWorkflow = { ...workflow, currentDefault: launchedSelection };
+				}
 				const resultFacts = checkedFacts(deps, launched.sessionFile, agent, finalWorkflow, undefined, replacement);
 				if (launchedSelection && !isDeepStrictEqual(resultFacts.model, launchedSelection)) {
 					throw new Error("Workflow launch selection not confirmed by sidecar");
@@ -455,7 +489,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				if (p.model && !userSelectedModel && !isDeepStrictEqual(resultFacts.model, p.model)) {
 					throw new Error("Workflow replacement model not confirmed by sidecar");
 				}
-				if (!replacement && !p.model && !userSelectedModel && !isDeepStrictEqual(resultFacts.model, facts.model)) {
+				if (!p.model && !userSelectedModel && !isDeepStrictEqual(resultFacts.model, facts.model)) {
 					throw new Error("Workflow resume model facts mismatch");
 				}
 				return {
@@ -464,7 +498,8 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 					...(replacement ? { originalSessionPath: p.sessionPath, replacement: true as const } : {}),
 				};
 			} catch (error) {
-				if (launched) return rejectLaunched(request, launched, error);
+				controller.abort();
+				if (launched) return rejectLaunched(request, launched, controller, error);
 				throw error;
 			}
 		}
@@ -509,8 +544,8 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 		for (const { controller } of pending.values()) controller.abort();
 		pending.clear();
 		for (const held of active.values()) {
-			try { deps.services.stopSubagent(held.running); } catch { /* Shutdown owns remaining pane cleanup. */ }
 			held.controller.abort();
+			try { deps.services.stopSubagent(held.running); } catch { /* Shutdown owns remaining pane cleanup. */ }
 		}
 		active.clear();
 		if (claims[REGISTRATION_KEY]?.detach === detach) delete claims[REGISTRATION_KEY];
@@ -537,6 +572,31 @@ export function tmuxWorkflowProviderIO() {
 			}));
 		},
 		estimateContext: estimateSavedSessionContext,
+		checkRepository(root: string, cwd: string, sessionPath?: string): string {
+			const checkout = (path: string): string => {
+				if (!text(path) || !isAbsolute(path)) throw new Error("Workflow repository cwd must be an absolute path");
+				const resolved = resolveGitRoot(path);
+				if (!resolved) throw new Error(`Workflow repository unavailable at "${path}"`);
+				return realpathSync(resolved);
+			};
+			const authorized = checkout(root);
+			const check = (path: string) => {
+				if (checkout(path) !== authorized) {
+					throw new Error(`Workflow execution repository mismatch at "${path}"; authorized checkout is "${authorized}"`);
+				}
+			};
+			check(cwd);
+			if (sessionPath !== undefined) {
+				// Read only: SessionManager.open can migrate/rewrite a saved session.
+				const firstLine = readFileSync(sessionPath, "utf8").split("\n").find((line) => line.trim());
+				const header: unknown = firstLine ? JSON.parse(firstLine) : undefined;
+				if (!object(header) || header.type !== "session" || !text(header.cwd)) {
+					throw new Error("Workflow saved session repository cwd unavailable");
+				}
+				check(header.cwd);
+			}
+			return authorized;
+		},
 		captureEvidence(root: string, definition: RepoBoundaryDefinition = { allowedRules: [], protectedRules: [] }): RepoBoundarySnapshot {
 			const snapshot = captureRepoBoundarySnapshot(root, definition);
 			if (!snapshot) throw new Error("Workflow repository evidence requires a Git checkout");

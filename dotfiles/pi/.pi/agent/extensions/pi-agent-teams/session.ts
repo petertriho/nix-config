@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 export interface SessionEntry {
   type: string;
   id: string;
-  parentId?: string;
+  parentId?: string | null;
   [key: string]: unknown;
 }
 
@@ -19,35 +19,56 @@ export interface MessageEntry extends SessionEntry {
 
 export type SeededSubagentSessionMode = "lineage-only" | "fork";
 
-function getForkContentLines(parentSessionFile: string): string[] {
+function getForkContentLines(
+  parentSessionFile: string,
+  parentLeafId?: string | null,
+): string[] {
   const raw = readFileSync(parentSessionFile, "utf8");
   const lines = raw.split("\n").filter((line) => line.trim());
+  const byId = new Map<string, { entry: SessionEntry; line: string }>();
+  let lastEntryId: string | null = null;
 
-  let truncateAt = lines.length;
-  for (let i = lines.length - 1; i >= 0; i--) {
+  for (const line of lines) {
     try {
-      const entry = JSON.parse(lines[i]);
-      if (entry.type === "message" && entry.message?.role === "user") {
-        truncateAt = i;
-        break;
-      }
+      const entry = JSON.parse(line) as SessionEntry;
+      if (!entry || entry.type === "session" || typeof entry.id !== "string") continue;
+      byId.set(entry.id, { entry, line });
+      lastEntryId = entry.id;
     } catch {
       // ignore malformed lines
     }
   }
 
-  return lines.slice(0, truncateAt).filter((line) => {
-    try {
-      return JSON.parse(line).type !== "session";
-    } catch {
-      return true;
+  // Navigation can move the live leaf without appending to the file. File-only
+  // callers use the last persisted entry, but still inherit only its ancestry.
+  let currentId = parentLeafId === undefined ? lastEntryId : parentLeafId;
+  const branch: Array<{ entry: SessionEntry; line: string }> = [];
+  const visited = new Set<string>();
+  while (currentId !== null) {
+    if (visited.has(currentId)) throw new Error(`Cycle in fork ancestry at ${currentId}`);
+    const record = byId.get(currentId);
+    if (!record) throw new Error(`Missing fork ancestor ${currentId}`);
+    visited.add(currentId);
+    branch.push(record);
+    currentId = record.entry.parentId ?? null;
+  }
+  branch.reverse();
+
+  let truncateAt = branch.length;
+  for (let i = branch.length - 1; i >= 0; i--) {
+    const entry = branch[i].entry;
+    if (entry.type === "message" && (entry as MessageEntry).message?.role === "user") {
+      truncateAt = i;
+      break;
     }
-  });
+  }
+  return branch.slice(0, truncateAt).map(({ line }) => line);
 }
 
 export function seedSubagentSessionFile(params: {
   mode: SeededSubagentSessionMode;
   parentSessionFile: string;
+  parentLeafId?: string | null;
   childSessionFile: string;
   childCwd: string;
   sessionId?: string;
@@ -61,7 +82,9 @@ export function seedSubagentSessionFile(params: {
     parentSession: params.parentSessionFile,
   };
   const contentLines =
-    params.mode === "fork" ? getForkContentLines(params.parentSessionFile) : [];
+    params.mode === "fork"
+      ? getForkContentLines(params.parentSessionFile, params.parentLeafId)
+      : [];
   const lines = [JSON.stringify(header), ...contentLines];
 
   mkdirSync(dirname(params.childSessionFile), { recursive: true });

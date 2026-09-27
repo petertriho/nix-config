@@ -4,6 +4,7 @@ import {
   unlinkSync, writeFileSync, closeSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, parse } from "node:path";
+import { reclaimDeadTeamLock } from "./team-lock.ts";
 
 interface LeadIdentity {
   sessionId: string;
@@ -56,6 +57,8 @@ interface Mailbox {
   nextSequence: number;
   messages: TeamMessage[];
   acked: string[];
+  /** Lead notices that exhausted delivery retries; retain the messages for inspection. */
+  deadLetters?: string[];
   seen: Record<string, { id: string; body: string; to: string }>;
 }
 
@@ -132,15 +135,7 @@ async function locked<T>(path: string, action: () => T | Promise<T>): Promise<T>
       break;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      try {
-        const pid = Number.parseInt(readFileSync(lockPath, "utf8"), 10);
-        if (Number.isInteger(pid) && pid > 0) {
-          try { process.kill(pid, 0); } catch {
-            unlinkSync(lockPath);
-            continue;
-          }
-        }
-      } catch { /* another owner is creating the lock */ }
+      if (reclaimDeadTeamLock(lockPath)) continue;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
@@ -166,6 +161,7 @@ function readMailbox(path: string): Mailbox {
   const value: unknown = JSON.parse(readPrivateFile(path));
   if (!value || typeof value !== "object" || (value as Mailbox).version !== 1 ||
       !Array.isArray((value as Mailbox).messages) || !Array.isArray((value as Mailbox).acked) ||
+      ((value as Mailbox).deadLetters !== undefined && !Array.isArray((value as Mailbox).deadLetters)) ||
       !(value as Mailbox).seen || !Number.isSafeInteger((value as Mailbox).nextSequence)) {
     throw new Error("Incompatible team mailbox");
   }
@@ -434,12 +430,19 @@ export function createTeamTransport(options: { directory: string; lead: LeadIden
     },
     async receiveNotices(teamId: string): Promise<TeamMessage[]> {
       return withinTeam(teamId, () => withinMailbox(teamId, "lead", (box) => {
-        const pending = box.messages.filter((message) => !box.acked.includes(message.id));
-        if (pending.some((message) => message.attempts >= MAX_DELIVERY_ATTEMPTS)) {
-          throw new Error("Lead notice retries exhausted; inspect and acknowledge the mailbox");
+        const pending = box.messages.filter((message) =>
+          !box.acked.includes(message.id) && !box.deadLetters?.includes(message.id));
+        const deliverable: TeamMessage[] = [];
+        for (const message of pending) {
+          if (message.attempts >= MAX_DELIVERY_ATTEMPTS) {
+            // Quarantine this notice durably instead of blocking unrelated senders.
+            (box.deadLetters ??= []).push(message.id);
+          } else {
+            message.attempts++;
+            deliverable.push({ ...message });
+          }
         }
-        for (const message of pending) message.attempts++;
-        return pending.map((message) => ({ ...message }));
+        return deliverable;
       }));
     },
     async ackNotice(input: { teamId: string; messageId: string }): Promise<void> {

@@ -62,7 +62,7 @@ export class TeamCoordinator {
       input.directory, teamId, input.leadSessionId, transport, input.onNotice,
     );
     coordinator.timer = setInterval(() => {
-      void coordinator.drain().catch(() => { /* keep messages pending for explicit retry */ });
+      void coordinator.drain().catch(() => { /* retry transport failures on the next poll */ });
     }, 1000);
     coordinator.timer.unref?.();
     return coordinator;
@@ -72,21 +72,29 @@ export class TeamCoordinator {
     if (this.draining) return this.draining;
     this.draining = (async () => {
       for (const message of await this.transport.receiveNotices(this.teamId)) {
-        const member = (await this.transport.listMembers(this.teamId))
-          .find((candidate) => candidate.memberId === message.from && candidate.state === "active");
-        if (!member) throw new Error("Notice from absent or stopped member");
-        if (message.kind === "startup") {
-          const receipt = JSON.parse(message.body) as ChildReceipt;
-          if (receipt.memberId !== member.memberId || receipt.memberEpoch !== member.epoch ||
-              receipt.sessionId !== member.sessionId) throw new Error("Forged teammate startup receipt");
-          this.receipts.set(member.memberId, receipt);
-        } else {
-          await this.onNotice({
-            message, memberName: member.name, memberId: member.memberId,
-            memberEpoch: member.epoch, memberSessionId: member.sessionId,
-          });
+        try {
+          const member = (await this.transport.listMembers(this.teamId))
+            .find((candidate) => candidate.memberId === message.from && candidate.state === "active");
+          if (!member) {
+            // Obsolete traffic is terminal, not a reason to retry the whole inbox.
+            // In particular, never forward a stopped member's approval request.
+            this.receipts.delete(message.from);
+          } else if (message.kind === "startup") {
+            const receipt = JSON.parse(message.body) as ChildReceipt;
+            if (receipt.memberId !== member.memberId || receipt.memberEpoch !== member.epoch ||
+                receipt.sessionId !== member.sessionId) throw new Error("Forged teammate startup receipt");
+            this.receipts.set(member.memberId, receipt);
+          } else {
+            await this.onNotice({
+              message, memberName: member.name, memberId: member.memberId,
+              memberEpoch: member.epoch, memberSessionId: member.sessionId,
+            });
+          }
+          await this.transport.ackNotice({ teamId: this.teamId, messageId: message.id });
+        } catch {
+          // Leave only this notice pending for the transport's bounded retries.
+          // Later notices (including startup receipts) must still be processed.
         }
-        await this.transport.ackNotice({ teamId: this.teamId, messageId: message.id });
       }
     })();
     try { await this.draining; } finally { this.draining = undefined; }

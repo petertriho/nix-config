@@ -26,6 +26,8 @@ export interface RepoState {
 	boundaryFileSignatures?: Map<string, string>;
 	/** Recursive fingerprints for initialized Git submodules. */
 	submoduleSignatures?: Map<string, string>;
+	/** Recursive snapshots retaining submodule HEAD/index evidence separately from worktree hashes. */
+	submoduleStates?: Map<string, RepoState>;
 }
 
 export interface RepoFileConstraint {
@@ -188,11 +190,12 @@ function isGitlinkEntry(entry: string): boolean {
 	return entry.startsWith("160000 ");
 }
 
-function captureSubmoduleSignatures(
+function captureSubmodules(
 	root: string,
 	indexEntries: Map<string, string>,
-): Map<string, string> {
+): { signatures: Map<string, string>; states: Map<string, RepoState> } {
 	const signatures = new Map<string, string>();
+	const states = new Map<string, RepoState>();
 	for (const [path, entry] of indexEntries) {
 		if (!isGitlinkEntry(entry)) continue;
 		const submoduleRoot = resolve(root, path);
@@ -200,9 +203,11 @@ function captureSubmoduleSignatures(
 			signatures.set(path, "uninitialized");
 			continue;
 		}
-		signatures.set(path, repoStateSignature(captureRepoState(submoduleRoot)));
+		const state = captureRepoState(submoduleRoot);
+		signatures.set(path, repoStateSignature(state));
+		states.set(path, state);
 	}
-	return signatures;
+	return { signatures, states };
 }
 
 function collectConstrainedFiles(
@@ -267,7 +272,7 @@ export function captureRepoState(
 	const signatures = new Map<string, string>();
 	for (const path of status.changedPaths) signatures.set(path, fileSignature(root, path));
 	const boundaryFileSignatures = captureBoundaryFileSignatures(root, definition);
-	const submoduleSignatures = captureSubmoduleSignatures(root, indexEntries);
+	const submodules = captureSubmodules(root, indexEntries);
 	return {
 		changedPaths: status.changedPaths,
 		signatures,
@@ -276,7 +281,8 @@ export function captureRepoState(
 		indexEntries,
 		statusSignatures: status.statusSignatures,
 		boundaryFileSignatures,
-		submoduleSignatures,
+		submoduleSignatures: submodules.signatures,
+		submoduleStates: submodules.states,
 	};
 }
 
@@ -474,7 +480,8 @@ function pathChangedDuringBoundary(path: string, before: RepoState, after: RepoS
  * Net repository changes during the boundary. Worktree/status changes are
  * relative to the dirty baseline. Index and HEAD changes are separately
  * marked as forced violations, even when they affect an explicitly allowed
- * file.
+ * file. Recursive submodule HEAD/index changes retain that protection rather
+ * than inheriting permission from their enclosing worktree fingerprint.
  */
 function changesDuringBoundary(before: RepoState, after: RepoState): RepoChanges {
 	const allPaths = new Set([
@@ -501,6 +508,25 @@ function changesDuringBoundary(before: RepoState, after: RepoState): RepoChanges
 		changed.add(HEAD_CHANGE_MARKER);
 		forcedUnexpectedPaths.add(HEAD_CHANGE_MARKER);
 	}
+
+	const submodulePaths = new Set([
+		...(before.submoduleStates?.keys() ?? []),
+		...(after.submoduleStates?.keys() ?? []),
+	]);
+	for (const path of submodulePaths) {
+		const beforeSubmodule = before.submoduleStates?.get(path);
+		const afterSubmodule = after.submoduleStates?.get(path);
+		if (!beforeSubmodule || !afterSubmodule) {
+			// Gaining or losing captured Git metadata must not hide behind a worktree rule.
+			forcedUnexpectedPaths.add(path);
+			continue;
+		}
+		const submoduleChanges = changesDuringBoundary(beforeSubmodule, afterSubmodule);
+		for (const unexpectedPath of submoduleChanges.forcedUnexpectedPaths) {
+			forcedUnexpectedPaths.add(`${path}/${unexpectedPath}`);
+		}
+	}
+	for (const path of forcedUnexpectedPaths) changed.add(path);
 
 	return {
 		paths: [...changed].sort(compareStrings),

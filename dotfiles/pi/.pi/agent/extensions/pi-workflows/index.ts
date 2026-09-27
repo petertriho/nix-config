@@ -87,6 +87,7 @@ export default function piWorkflows(pi: ExtensionAPI): void {
 			}, { shouldRegister });
 			commands = registerWorkflowCommands(pi, {
 				state: gates.state,
+				getBranchGeneration: () => generation,
 				stopOwnedRole: () => lifecycle!.stopOwnedRoles(),
 				loadAgent: () => ({}), // Agent availability is checked by the selected provider below.
 				isTmuxAvailable: () => providers.length > 0,
@@ -157,6 +158,8 @@ export default function piWorkflows(pi: ExtensionAPI): void {
 		}
 	});
 	pi.on("session_before_tree", async (_event, ctx) => {
+		// Invalidate command approvals before navigation's asynchronous cleanup.
+		generation++;
 		await ready;
 		if (!registered) return;
 		gates?.startSession(ctx.sessionManager.getSessionFile());
@@ -167,6 +170,7 @@ export default function piWorkflows(pi: ExtensionAPI): void {
 		}
 	});
 	pi.on("session_tree", (_event, ctx) => {
+		generation++;
 		if (!registered) return;
 		restore(ctx);
 		commands?.restoreActiveRunUx(ctx);

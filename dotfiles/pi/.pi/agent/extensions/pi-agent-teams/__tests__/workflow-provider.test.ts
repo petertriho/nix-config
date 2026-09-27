@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { hashText, type LaunchProfile, type LaunchProfileWorkflowMetadata } from "../launch-profile.ts";
-import { attachTmuxWorkflowProvider } from "../workflow-provider.ts";
+import { attachTmuxWorkflowProvider, tmuxWorkflowProviderIO, type TmuxWorkflowProviderDependencies } from "../workflow-provider.ts";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
 	discoverWorkflowProviders,
 	requestWorkflowProvider,
@@ -50,10 +53,16 @@ const profile = {
 const agent = { agentId: "writer", path: "/agents/writer.md", hash: "c".repeat(64), roleBodyHash: hashText("Write") };
 const running = { id: "pane", name: "Writer", task: "Write", sessionFile: "/sessions/writer.jsonl", surface: "pane", startTime: 1, statusState: {} as RunningSubagent["statusState"], interactive: false } satisfies RunningSubagent;
 
-function fixture() {
+function fixture(options: {
+	launchCwd?: string;
+	resumeCwd?: string;
+	skipRepositoryCheck?: boolean;
+	checkRepository?: TmuxWorkflowProviderDependencies["checkRepository"];
+} = {}) {
 	const events = bus();
 	const sidecars = new Map<string, LaunchProfile>([[running.sessionFile, profile]]);
 	const calls: string[] = [];
+	const evidenceRoots: string[] = [];
 	let available = true;
 	let updateFails = false;
 	let modelUpdateFails = false;
@@ -79,16 +88,24 @@ function fixture() {
 			sidecars.set(path, { ...saved, runtime: { ...saved.runtime, lastModel: selection } });
 		},
 		estimateContext: () => ({ tokens: 123, source: "conservative" }),
-		captureEvidence: () => ({ changedFiles: [] }),
+		checkRepository: options.checkRepository ?? ((root, cwd) => {
+			if (root !== cwd) throw new Error("Workflow execution repository mismatch");
+			return root;
+		}),
+		captureEvidence: (root) => { evidenceRoots.push(root); return { changedFiles: [] }; },
 		finishEvidence: () => ({ changedFiles: ["src/main.ts"] }),
 		services: {
-			async launchSubagent(params, _ctx, options) {
+			async launchSubagent(params, _ctx, launchOptions) {
+				if (!options.skipRepositoryCheck) launchOptions?.beforeLaunch?.(options.launchCwd ?? "/repo");
 				calls.push("launch");
 				assert.equal(params.agent, "writer");
-				assert.deepEqual(options?.workflow, metadata);
+				assert.deepEqual(launchOptions?.workflow, metadata);
 				return running;
 			},
 			async executeSubagentResume(_pi, params, _ctx, _recovery, lifecycle) {
+				if (!options.skipRepositoryCheck) {
+					lifecycle?.beforeLaunch?.(options.resumeCwd ?? sidecars.get(params.sessionPath)!.stable.cwd, params.sessionPath);
+				}
 				calls.push("resume");
 				resumedLifecycle = lifecycle;
 				resumedRecovery = _recovery;
@@ -116,7 +133,7 @@ function fixture() {
 		pi: { sendMessage() {} },
 	});
 	assert.ok(attached);
-	return { events, attached, calls, sidecars, get watched() { return watched; },
+	return { events, attached, calls, sidecars, evidenceRoots, get watched() { return watched; },
 		setAvailable(value: boolean) { available = value; }, failUpdate() { updateFails = true; },
 		failModelUpdate() { modelUpdateFails = true; },
 		pickModel(value: string) { pickedModel = value; },
@@ -343,6 +360,125 @@ test("missing repository evidence cannot launch a role", async () => {
 		{ ...launch, repositoryRoot: "" }), /repository/i);
 	assert.deepEqual(f.calls, []);
 	f.attached.detach();
+});
+
+test("a profile's alternate execution checkout is rejected before launch or evidence capture", async () => {
+	const f = fixture({ launchCwd: "/alternate-checkout" });
+	try {
+		await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch), /repository mismatch/i);
+		assert.deepEqual(f.calls, []);
+		assert.deepEqual(f.evidenceRoots, []);
+	} finally { f.attached.detach(); }
+});
+
+for (const operation of ["resume", "recover"] as const) {
+	test(`${operation} rejects a saved cwd in another checkout before changing metadata`, async () => {
+		const f = fixture();
+		const saved = { ...profile, stable: { ...profile.stable, cwd: "/alternate-checkout" } };
+		f.sidecars.set(running.sessionFile, saved);
+		try {
+			await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, operation, owner, {
+				sessionPath: running.sessionFile, expected, workflow: metadata, repositoryRoot: "/repo",
+				...(operation === "recover" ? { model: expected.model, failure: "credits exhausted" } : {}),
+			}), /repository mismatch/i);
+			assert.deepEqual(f.calls, []);
+			assert.deepEqual(f.evidenceRoots, []);
+			assert.equal(f.sidecars.get(running.sessionFile), saved);
+		} finally { f.attached.detach(); }
+	});
+}
+
+test("resume rechecks the cwd used by the service, not just the earlier sidecar read", async () => {
+	const f = fixture({ resumeCwd: "/alternate-checkout" });
+	try {
+		await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, "resume", owner, {
+			sessionPath: running.sessionFile, expected, workflow: metadata, repositoryRoot: "/repo",
+		}), /repository mismatch/i);
+		assert.deepEqual(f.calls, ["update"]);
+		assert.deepEqual(f.evidenceRoots, []);
+	} finally { f.attached.detach(); }
+});
+
+test("an execution service cannot acknowledge a role without confirming its execution repository", async () => {
+	for (const operation of ["launch", "resume"] as const) {
+		const f = fixture({ skipRepositoryCheck: true });
+		try {
+			await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, operation, owner,
+				operation === "launch" ? launch : {
+					sessionPath: running.sessionFile, expected, workflow: metadata, repositoryRoot: "/repo",
+				}), /repository.*confirmed/i);
+			assert.equal(f.calls.includes("stop"), true);
+			assert.deepEqual(f.evidenceRoots, []);
+		} finally { f.attached.detach(); }
+	}
+});
+
+test("repository checks use canonical checkout roots and Pi's saved session cwd without writing either", async () => {
+	const directory = mkdtempSync(join(process.cwd(), ".workflow-repository-test-"));
+	const root = join(directory, "authorized");
+	const alternate = join(directory, "alternate");
+	const nested = join(root, "nested-checkout");
+	const subdirectory = join(root, "src");
+	const alias = join(directory, "alias");
+	const sessionPath = join(directory, "saved.jsonl");
+	const io = tmuxWorkflowProviderIO();
+	const gitState = (cwd: string) => execFileSync("git", ["-C", cwd, "status", "--porcelain=v1", "--untracked-files=all"], { encoding: "utf8" });
+	try {
+		for (const cwd of [root, alternate, nested]) {
+			mkdirSync(cwd, { recursive: true });
+			execFileSync("git", ["init", "--quiet", cwd]);
+		}
+		mkdirSync(subdirectory);
+		symlinkSync(root, alias, "dir");
+		writeFileSync(join(root, "keep.txt"), "authorized repository is unchanged\n");
+		writeFileSync(join(alternate, "keep.txt"), "alternate repository is unchanged\n");
+		const before = [gitState(root), gitState(alternate), gitState(nested)];
+		const originalFiles = [readFileSync(join(root, "keep.txt")), readFileSync(join(alternate, "keep.txt"))];
+		const writeHeader = (cwd: unknown) => writeFileSync(sessionPath, JSON.stringify({ type: "session", version: 3, id: "saved", cwd }) + "\n");
+
+		assert.equal(io.checkRepository(alias, subdirectory), realpathSync(root));
+		assert.equal(io.checkRepository(root, alias), realpathSync(root));
+		for (const cwd of [alternate, nested]) {
+			assert.throws(() => io.checkRepository(root, cwd), /repository mismatch/i);
+		}
+		assert.throws(() => io.checkRepository(root, "relative"), /absolute/i);
+		// A sidecar can claim the authorized cwd while Pi actually restores the header cwd.
+		writeHeader(alternate);
+		const sessionBytes = readFileSync(sessionPath);
+		assert.throws(() => io.checkRepository(root, subdirectory, sessionPath), /repository mismatch/i);
+		assert.deepEqual(readFileSync(sessionPath), sessionBytes);
+		for (const operation of ["launch", "resume", "recover"] as const) {
+			const f = fixture({ launchCwd: alternate, checkRepository: io.checkRepository });
+			const saved = { ...profile, stable: { ...profile.stable, cwd: subdirectory } };
+			f.sidecars.set(sessionPath, saved);
+			try {
+				await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, operation, owner,
+					operation === "launch" ? { ...launch, repositoryRoot: root } : {
+						sessionPath, expected, workflow: metadata, repositoryRoot: root,
+						...(operation === "recover" ? { model: expected.model, failure: "credits exhausted" } : {}),
+					}), /repository mismatch/i);
+				assert.deepEqual(f.calls, []);
+				assert.deepEqual(f.evidenceRoots, []);
+				assert.equal(f.sidecars.get(sessionPath), saved);
+				assert.deepEqual(readFileSync(sessionPath), sessionBytes);
+			} finally { f.attached.detach(); }
+		}
+		writeHeader(undefined);
+		assert.throws(() => io.checkRepository(root, root, sessionPath), /cwd unavailable/i);
+		writeHeader(alias);
+		assert.equal(io.checkRepository(root, subdirectory, sessionPath), realpathSync(root));
+
+		const evidence = io.captureEvidence(io.checkRepository(alias, subdirectory));
+		assert.equal(evidence.repoRoot, realpathSync(root));
+		assert.deepEqual(io.finishEvidence(evidence), { changedFiles: [] });
+		const f = fixture({ launchCwd: subdirectory, checkRepository: io.checkRepository });
+		try {
+			await requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, { ...launch, repositoryRoot: alias });
+			assert.deepEqual(f.evidenceRoots, [realpathSync(root)], "capture must use the checked canonical checkout");
+		} finally { f.attached.detach(); }
+		assert.deepEqual([gitState(root), gitState(alternate), gitState(nested)], before);
+		assert.deepEqual([readFileSync(join(root, "keep.txt")), readFileSync(join(alternate, "keep.txt"))], originalFiles);
+	} finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
 test("unchanged sidecar readback cannot count as a confirmed metadata update", async () => {

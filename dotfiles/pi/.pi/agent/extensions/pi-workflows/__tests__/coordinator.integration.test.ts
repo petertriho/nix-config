@@ -371,10 +371,14 @@ test("launch, resume and recovery retain coordinator ownership when post-launch 
 				throw new Error("model sidecar is read only");
 			},
 			estimateContext: () => ({ tokens: 123, source: "saved" }),
+			checkRepository: (authorized, cwd) => {
+				assert.equal(authorized, root); assert.equal(cwd, root); return root;
+			},
 			captureEvidence: () => ({ changedFiles: [] }), finishEvidence: () => ({ changedFiles: [] }),
 			ctx: f.ctx as never, pi: f.pi as never,
 			services: {
-				async launchSubagent() {
+				async launchSubagent(_params, _ctx, options) {
+					options?.beforeLaunch?.(root);
 					freshLaunches++;
 					if (operation === "launch") {
 						started();
@@ -385,6 +389,7 @@ test("launch, resume and recovery retain coordinator ownership when post-launch 
 				},
 				async watchSubagent() { throw new Error("saved launches use their resume lifecycle"); },
 				async executeSubagentResume(_pi, params, _ctx, _recovery, lifecycle) {
+					lifecycle?.beforeLaunch?.(root);
 					executions++;
 					const saved = sidecars.get(params.sessionPath)!;
 					sidecars.set(params.sessionPath, { ...saved, lineage: { rolledOverTo: running.sessionFile } });
@@ -686,10 +691,14 @@ test("terminal child help remains non-successful after persistence and restore",
 				sidecars.set(path, { ...saved, runtime: { ...saved.runtime, lastModel: selected } });
 			},
 			estimateContext: () => ({ tokens: 123, source: "saved" }),
+			checkRepository: (authorized, cwd) => {
+				assert.equal(authorized, root); assert.equal(cwd, root); return root;
+			},
 			captureEvidence: () => ({ changedFiles: [] }), finishEvidence: () => ({ changedFiles: [] }),
 			ctx: f.ctx as never, pi: f.pi as never,
 			services: {
 				async launchSubagent(_params, _ctx, options) {
+					options?.beforeLaunch?.(root);
 					sidecars.set(running.sessionFile, { ...profile, workflow: options!.workflow as never });
 					return running;
 				},
@@ -697,6 +706,7 @@ test("terminal child help remains non-successful after persistence and restore",
 					return new Promise((resolve) => { watchResolve = resolve as never; });
 				},
 				async executeSubagentResume(_pi, params, _ctx, _recovery, lifecycle) {
+					lifecycle?.beforeLaunch?.(root, params.sessionPath);
 					resumeLifecycle = lifecycle;
 					const saved = sidecars.get(params.sessionPath)!;
 					sidecars.set(params.sessionPath, { ...saved, workflow: lifecycle!.workflowMetadata as never });

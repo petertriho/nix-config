@@ -244,6 +244,21 @@ const SubagentParams = Type.Object({
 
 type SubagentParamsType = Static<typeof SubagentParams>;
 
+type FinishedOrdinaryAgent =
+  | { backend: "pi"; id: string; sessionPath: string }
+  | {
+    backend: "claude";
+    id: string;
+    claudeSessionId: string;
+    launch: Pick<SubagentParamsType, "agent" | "cwd" | "model" | "systemPrompt" | "interactive">;
+  };
+
+/** Internal callbacks for a saved ordinary-agent follow-up, not tool arguments. */
+interface OrdinaryFollowUp {
+  followUpName?: string;
+  followUpLifecycle?: { onResult(): void; onError(): void };
+}
+
 // Keep this surface separate from the legacy `subagent` arguments: Claude's
 // description and prompt are required, while a display name is not.
 const AgentParams = Type.Object({
@@ -1036,6 +1051,13 @@ function attachWorkflowProvider(pi: ExtensionAPI, ctx: ExtensionContext): void {
         if (!existsSync(path)) continue;
         const contents = readFileSync(path, "utf8");
         const definition = parseAgentDefinition(contents, agentId);
+        // Workflow inspection and resume require Pi session/model facts. Reject
+        // unsupported overrides instead of falling back to a lower-priority file.
+        if (definition?.cli && definition.cli !== "pi") {
+          throw new Error(
+            `Workflow agent profile "${agentId}" uses unsupported CLI "${definition.cli}"; workflow roles require the Pi runtime.`,
+          );
+        }
         if (definition?.body) return io.resolveFile(agentId, path, definition.body);
       }
       return null;
@@ -1044,6 +1066,7 @@ function attachWorkflowProvider(pi: ExtensionAPI, ctx: ExtensionContext): void {
     updateProfile: io.updateProfile,
     recordLaunchedModel: io.recordLaunchedModel,
     estimateContext: io.estimateContext,
+    checkRepository: io.checkRepository,
     captureEvidence: io.captureEvidence,
     finishEvidence: io.finishEvidence,
     services: subagentExecution,
@@ -1820,7 +1843,7 @@ function renderToolFallback(result: ToolRenderResult, theme: UiTheme): Text {
 
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
   retiredToolFixtures.clear();
-  const finishedOrdinary = new Map<string, { id: string; sessionPath: string }>();
+  const finishedOrdinary = new Map<string, FinishedOrdinaryAgent>();
   const followUpsInFlight = new Set<string>();
   let sessionEpoch = 0;
   let sessionActive = true;
@@ -2199,7 +2222,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
 
       async execute(_toolCallId, rawParams, signal, _onUpdate, ctx) {
         const params = normalizeSubagentParams(rawParams);
-        const followUpName = (rawParams as SubagentParamsType & { followUpName?: string }).followUpName;
+        const { followUpName, followUpLifecycle } = rawParams as SubagentParamsType & OrdinaryFollowUp;
         const launchEpoch = sessionEpoch;
         // Prevent self-spawning (e.g. executor spawning another executor).
         const currentAgent = process.env.PI_SUBAGENT_AGENT;
@@ -2307,6 +2330,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
             };
           }
         }
+        const launchCwd = resolveSubagentPaths(params, spawnAgentDefs).effectiveCwd ?? ctx.cwd;
         let running: RunningSubagent;
         try {
           running = await launchSubagent(
@@ -2336,11 +2360,31 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           throw new Error("Agent launch interrupted by session navigation; the child was stopped.");
         }
 
+        const rememberFinished = (result: SubagentResult): void => {
+          if (!sessionActive || sessionEpoch !== launchEpoch) return;
+          followUpLifecycle?.onResult();
+          if (!followUpName || result.exitCode !== 0 || result.error) return;
+          if (running.cli === "claude") {
+            // The generated Pi sidecar path is not a Claude resume reference.
+            if (!result.claudeSessionId) return;
+            finishedOrdinary.set(followUpName, {
+              backend: "claude", id: running.id, claudeSessionId: result.claudeSessionId,
+              launch: {
+                agent: params.agent,
+                cwd: launchCwd,
+                model: params.model,
+                systemPrompt: params.systemPrompt,
+                interactive: params.interactive,
+              },
+            });
+          } else if (result.sessionFile) {
+            finishedOrdinary.set(followUpName, { backend: "pi", id: running.id, sessionPath: result.sessionFile });
+          }
+        };
+
         if ((rawParams as SubagentParamsType & { runInForeground?: boolean }).runInForeground) {
           const result = await watchSubagent(running, signal ?? new AbortController().signal);
-          if (followUpName && result.exitCode === 0 && !result.error && result.sessionFile) {
-            finishedOrdinary.set(followUpName, { id: running.id, sessionPath: result.sessionFile });
-          }
+          rememberFinished(result);
           const usage = resolveUsageDetails(result, ctx);
           return {
             content: [{ type: "text", text: resolveResultPresentation(
@@ -2365,9 +2409,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           pingAgent: running.agent,
           pingSessionPath: running.cli === "claude" ? undefined : running.sessionFile,
           onSuccess: ({ result, boundary }) => {
-            if (followUpName && result.exitCode === 0 && !result.error && result.sessionFile) {
-              finishedOrdinary.set(followUpName, { id: running.id, sessionPath: result.sessionFile });
-            }
+            rememberFinished(result);
             const usage = resolveUsageDetails(result, ctx);
             const base = resolveResultPresentation(
               { ...result, ...(usage ? { usage } : {}) },
@@ -2400,10 +2442,13 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
               },
             };
           },
-          onError: (message) => ({
-            content: `Sub-agent "${running.name}" error: ${message}`,
-            details: { name: running.name, task: running.task, error: message },
-          }),
+          onError: (message) => {
+            followUpLifecycle?.onError();
+            return {
+              content: `Sub-agent "${running.name}" error: ${message}`,
+              details: { name: running.name, task: running.task, error: message },
+            };
+          },
         });
 
         return {
@@ -2729,34 +2774,46 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         }
         const saved = finishedOrdinary.get(recipient);
         if (!saved) return fail(`No finished ordinary named agent "${recipient}" in this session.`);
+        if (saved.backend === "claude" &&
+            (!saved.launch.agent || loadAgentDefaults(saved.launch.agent)?.cli !== "claude")) {
+          return fail(`The saved Claude agent definition "${saved.launch.agent}" is no longer available as a Claude CLI agent.`);
+        }
         followUpsInFlight.add(recipient);
         finishedOrdinary.delete(recipient);
         const launchEpoch = sessionEpoch;
-        try {
-          const response = await subagentExecution.executeSubagentResume(
-            pi, { sessionPath: saved.sessionPath, name: recipient, message: params.content },
-            ctx, undefined, {
-              isOwned: () => sessionActive && sessionEpoch === launchEpoch,
-              onResult: ({ result }) => {
-                followUpsInFlight.delete(recipient);
-                if (result.exitCode === 0 && !result.error && result.sessionFile) {
-                  finishedOrdinary.set(recipient, { id: saved.id, sessionPath: result.sessionFile });
-                }
-              },
-              onError: () => {
-                followUpsInFlight.delete(recipient);
-                finishedOrdinary.set(recipient, saved);
-              },
-            },
-          );
-          if (response.details?.status !== "started") {
-            followUpsInFlight.delete(recipient);
-            finishedOrdinary.set(recipient, saved);
-          }
-          return response;
-        } catch (error) {
+        const isOwned = () => sessionActive && sessionEpoch === launchEpoch;
+        const onResult = () => {
+          if (isOwned()) followUpsInFlight.delete(recipient);
+        };
+        const restore = () => {
+          if (!isOwned()) return;
           followUpsInFlight.delete(recipient);
           finishedOrdinary.set(recipient, saved);
+        };
+        try {
+          const response = saved.backend === "claude"
+            ? await ordinaryTool.execute(_toolCallId, {
+              ...saved.launch, name: recipient, task: params.content, resumeSessionId: saved.claudeSessionId,
+              followUpName: recipient, followUpLifecycle: { onResult, onError: restore },
+            } satisfies SubagentParamsType & OrdinaryFollowUp, _signal, _onUpdate, ctx)
+            : await subagentExecution.executeSubagentResume(
+              pi, { sessionPath: saved.sessionPath, name: recipient, message: params.content },
+              ctx, undefined, {
+                isOwned,
+                onResult: ({ result }) => {
+                  onResult();
+                  if (result.exitCode === 0 && !result.error && result.sessionFile) {
+                    finishedOrdinary.set(recipient, { backend: "pi", id: saved.id, sessionPath: result.sessionFile });
+                  }
+                },
+                onError: restore,
+              },
+            );
+          const details = response.details as { status?: string } | undefined;
+          if (details?.status !== "started") restore();
+          return response;
+        } catch (error) {
+          restore();
           throw error;
         }
       },

@@ -2,10 +2,10 @@
  * Child-side extension for pi-agent-teams, loaded into every child pi with `-e`.
  * Ported from upstream pi-interactive-subagents `subagent-done.ts`.
  * - Shows agent identity + available tools as a styled widget above the editor (toggle with Ctrl+Shift+J; Ctrl+J is pi's built-in newline and bare Alt+J is swallowed by niri)
- * - Provides `subagent_done` and `caller_ping` tools and auto-exit on `agent_end`
+ * - Provides `subagent_done` and `caller_ping` tools and auto-exit on `agent_settled`
  * - Records activity snapshots for the parent's status watcher
  */
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { AgentEndEvent, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { writeFileSync } from "node:fs";
@@ -32,6 +32,8 @@ export function shouldAutoExitOnAgentEnd(
   _userTookOver: boolean,
   messages: any[] | undefined,
 ): boolean {
+  // Evaluate the latest agent_end messages only after agent_settled: an
+  // individual agent_end can still be followed by retries or recovery.
   // Manual input should not strand an auto-exit subagent. If the latest agent
   // turn completed normally, close the session. Escape/abort still leaves it
   // open for inspection or another prompt.
@@ -60,8 +62,8 @@ export interface SubagentErrorInfo {
 /**
  * If the last assistant message in the turn ended with `stopReason: "error"`
  * (typically auto-retry exhausted on an overload / rate limit / server error),
- * return its error info so the parent orchestrator can surface a clear
- * failure instead of silently treating the run as completed.
+ * return its error info. Publish it only after agent_settled, when Pi will
+ * not retry or recover automatically.
  *
  * Returns `null` when the latest assistant turn completed normally or was
  * aborted by the user (handled separately by shouldAutoExitOnAgentEnd).
@@ -160,8 +162,8 @@ export function createTurnLimitTracker(options: {
 /**
  * Persist the hard-limit failure sidecar before shutdown so the parent's
  * watcher reports an aborted task instead of a clean exit. Written by the
- * child at the hard limit; the ordinary agent_end auto-exit path cannot
- * overwrite it (an aborted run never takes that branch).
+ * child at the hard limit; the ordinary agent_settled auto-exit path cannot
+ * overwrite it.
  */
 export function buildTurnLimitExitSidecar(maxTurns: number, graceTurns: number): string {
   return JSON.stringify({
@@ -302,6 +304,8 @@ export default function subagentDone(pi: ExtensionAPI) {
 
   let userTookOver = false;
   let agentStarted = false;
+  let latestAgentMessages: AgentEndEvent["messages"] | undefined;
+  let explicitExitRequested = false;
 
   // Show widget + status bar on session start
   pi.on("session_start", (_event, ctx) => {
@@ -327,22 +331,29 @@ export default function subagentDone(pi: ExtensionAPI) {
 
   pi.on("agent_start", () => {
     agentStarted = true;
+    latestAgentMessages = undefined;
     recorder.agentStart();
   });
 
   pi.on("agent_end", (event, ctx) => {
-    const messages = (event as any).messages as any[] | undefined;
+    // AgentSettledEvent has no messages. Replace this snapshot on every
+    // low-level run so a successful retry supersedes its earlier error.
+    latestAgentMessages = event.messages;
 
     // A hard turn-limit abort always shuts down with the failure sidecar it
-    // already persisted at turn_end. The ordinary auto-exit branch below must
-    // not run: it would either keep the pane open (aborted runs exit false) or
-    // replace the turn-limit failure with a different sidecar.
+    // already persisted at turn_end. Keep agent_end as its shutdown backstop.
     if (hardTurnLimitTripped) {
       recorder.agentEndDone();
       ctx.shutdown();
-      return;
     }
+  });
 
+  pi.on("agent_settled", (_event, ctx) => {
+    // Explicit tools and hard limits publish immediately. A later automatic
+    // outcome must not replace their sidecars while shutdown unwinds.
+    if (explicitExitRequested || hardTurnLimitTripped) return;
+
+    const messages = latestAgentMessages;
     const shouldExit = autoExit && shouldAutoExitOnAgentEnd(userTookOver, messages);
 
     if (shouldExit) {
@@ -492,6 +503,7 @@ export default function subagentDone(pi: ExtensionAPI) {
       };
       writeFileSync(`${sessionFile}.exit`, JSON.stringify(exitData));
 
+      explicitExitRequested = true;
       ctx.shutdown();
       return {
         content: [{ type: "text", text: "Ping sent. Session will exit and parent will be notified." }],
@@ -514,6 +526,7 @@ export default function subagentDone(pi: ExtensionAPI) {
       if (sessionFile) {
         writeFileSync(`${sessionFile}.exit`, JSON.stringify({ type: "done" }));
       }
+      explicitExitRequested = true;
       ctx.shutdown();
       return {
         content: [{ type: "text", text: "Shutting down subagent session." }],

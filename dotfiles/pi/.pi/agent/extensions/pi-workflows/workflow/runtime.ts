@@ -55,6 +55,8 @@ export interface WorkflowCommandStateStore {
 
 export interface WorkflowCommandRuntimeDependencies {
 	readonly state: WorkflowCommandStateStore;
+	/** Changes on session replacement and before/after tree navigation. */
+	readonly getBranchGeneration?: () => number;
 	readonly stopOwnedRole?: () => Promise<void>;
 	readonly chooseProvider?: (definition: NormalizedWorkflowDefinition, ctx: WorkflowCommandContext) => Promise<string | null>;
 	readonly validateProvider?: (snapshot: WorkflowRunSnapshot) => void;
@@ -577,6 +579,11 @@ type StartedWorkflowStartupResult = Extract<
 	{ status: "started" }
 >;
 
+interface WorkflowStartupApproval {
+	readonly activeRunId: string | null;
+	readonly branchGeneration: number;
+}
+
 class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 	private registry: WorkflowRegistry | null = null;
 	private readonly registeredAliases = new Set<string>();
@@ -682,11 +689,11 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 				return false;
 			}
 		}
-		const replaceActive = await this.confirmReplacement(entry, ctx);
-		if (replaceActive === null) return false;
+		const approval = await this.confirmReplacement(entry, ctx);
+		if (!approval || !this.isStartupApprovalCurrent(approval, ctx)) return false;
 
 		const startup = await this.selectStartup(entry, ctx);
-		if (!startup) return false;
+		if (!startup || !this.isStartupApprovalCurrent(approval, ctx)) return false;
 		try {
 			const assignments = { ...startup.state.originalAssignments, ...startup.state.currentAssignments };
 			await this.deps.validateProviderAgents?.(providerId, entry.definition.roles
@@ -696,7 +703,8 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			notify(ctx, `Workflow agent preflight failed: ${String(error)}`, "error");
 			return false;
 		}
-		if (replaceActive) {
+		if (!this.isStartupApprovalCurrent(approval, ctx)) return false;
+		if (approval.activeRunId !== null) {
 			try { await this.deps.stopOwnedRole?.(); }
 			catch (error) {
 				notify(ctx, `Workflow replacement cancelled: ${String(error)}`, "error");
@@ -709,7 +717,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 			entry,
 			startup,
 			runId,
-			replaceActive,
+			approval,
 			providerId,
 			ctx,
 		});
@@ -911,21 +919,47 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 	private async confirmReplacement(
 		entry: WorkflowRegistryEntry,
 		ctx: WorkflowCommandContext,
-	): Promise<boolean | null> {
+	): Promise<WorkflowStartupApproval | null> {
 		const active = getActiveWorkflowRun(this.deps.state.getState());
-		if (!active) return false;
+		// Capture before opening the dialog: its answer only authorizes this
+		// run on this branch, even when SDK navigation keeps ctx valid.
+		const approval: WorkflowStartupApproval = {
+			activeRunId: active?.runId ?? null,
+			branchGeneration: this.deps.getBranchGeneration?.() ?? 0,
+		};
+		if (!active) return approval;
 		const replaceActive = await ctx.ui.confirm(
 			"Replace active workflow?",
 			`Workflow "${active.workflowId}" (${active.runId}) is still active. `
 			+ `Abort it and start "${entry.id}" instead?`,
 		);
-		if (replaceActive) return true;
+		if (replaceActive) return approval;
 		notify(
 			ctx,
 			`Kept active workflow "${active.workflowId}" (${active.runId}).`,
 			"info",
 		);
 		return null;
+	}
+
+	private isStartupApprovalCurrent(
+		approval: WorkflowStartupApproval,
+		ctx: WorkflowCommandContext,
+	): boolean {
+		if (approval.branchGeneration === (this.deps.getBranchGeneration?.() ?? 0)
+			&& approval.activeRunId === (getActiveWorkflowRun(this.deps.state.getState())?.runId ?? null)) {
+			return true;
+		}
+		try {
+			notify(
+				ctx,
+				"Workflow startup cancelled: the active workflow or session branch changed during setup. Run the workflow command again.",
+				"warning",
+			);
+		} catch {
+			// Session replacement can invalidate the old command's UI too.
+		}
+		return false;
 	}
 
 	private async selectStartup(
@@ -972,11 +1006,11 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		entry: WorkflowRegistryEntry;
 		startup: StartedWorkflowStartupResult;
 		runId: string;
-		replaceActive: boolean;
+		approval: WorkflowStartupApproval;
 		providerId: string;
 		ctx: WorkflowCommandContext;
 	}): WorkflowRunSnapshot | null {
-		const { entry, startup, runId, replaceActive, ctx } = options;
+		const { entry, startup, runId, approval, ctx } = options;
 		try {
 			const startInput: Parameters<typeof startWorkflowRun>[1] = {
 				runId,
@@ -997,11 +1031,14 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 					currentAssignments: startup.state.currentAssignments,
 				});
 			}
+			// Stopping a role can await provider I/O. Recheck after that await,
+			// immediately before the synchronous transition and durable commit.
+			if (!this.isStartupApprovalCurrent(approval, ctx)) return null;
 			this.deps.state.commit(
 				startWorkflowRun(
 					this.deps.state.getState(),
 					startInput,
-					{ replaceActive },
+					{ replaceActive: approval.activeRunId !== null },
 				),
 			);
 		} catch (error) {
