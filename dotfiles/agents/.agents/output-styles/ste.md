@@ -78,4 +78,21 @@ Apply the rules in this order:
   effortless, and revolutionary.
 - Preserve code, commands, identifiers, paths, logs, error strings, quoted
   text, and other exact technical content unless the user asks for a rewrite.
-- Match the repository style in code comments and commit messages.
+- Match the repository style in commit messages.
+
+## Code comments
+
+- Apply these rules to comments you write or edit within the requested scope.
+- Omit comments that only repeat names, types, control flow, or nearby code.
+- Keep comments that explain intent, constraints, invariants, trade-offs,
+  or non-obvious behavior.
+- When the reason is not clear from the code, explain why an error is
+  intentionally ignored.
+- Describe current behavior instead of narrating implementation history.
+- Remove obsolete notes only after checking that they no longer describe
+  a relevant constraint.
+- Preserve required API documentation, license notices, required attribution,
+  and comments used by tools.
+- Match the repository's comment style.
+- Do not expand a task into unrelated comment cleanup.
+- Do not change executable code solely to satisfy this output style.
