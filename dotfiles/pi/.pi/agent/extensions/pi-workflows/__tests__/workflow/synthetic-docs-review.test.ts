@@ -1,10 +1,10 @@
 /**
- * T12 generality proof: a synthetic, non-Pter workflow runs the entire generic
+ * T12 generality proof: a synthetic workflow runs the entire generic
  * subsystem end-to-end.
  *
  * The `docs-review` package below exists only inside temp directories created
- * by these tests. It is never bundled or shipped. It deliberately differs from
- * Pter in every authoring dimension:
+ * by these tests. It is never bundled or shipped. It uses independent
+ * authoring choices:
  *
  * - workflow id `docs-review` with a distinct command alias `docs`;
  * - two roles (`author`, `verifier`) instead of four;
@@ -38,8 +38,8 @@ import type {
 	RunningSubagent,
 	SubagentLaunchParams,
 	SubagentResumeParams,
-} from "../../../pi-tmux-subagents/subagent-services.ts";
-import { createStatusState } from "../../../pi-tmux-subagents/status.ts";
+} from "../../../pi-agent-teams/subagent-services.ts";
+import { createStatusState } from "../../../pi-agent-teams/status.ts";
 import { buildWorkflowRolloverHandoffForRole } from "../../workflow/handoff.ts";
 import { discoverWorkflowRegistry } from "../../workflow/registry.ts";
 import {
@@ -534,7 +534,7 @@ function branchReaderFor(store: StateStore): WorkflowRunBranchReader {
 
 test("synthetic docs-review runs discovery, alias generation, startup order, and private-skill startup end-to-end", async () => {
 	await withDocsReviewProject(async (project) => {
-		// 1. Discovery: trusted project scope only; no bundled Pter presence.
+		// 1. Discovery: trusted project scope only.
 		const registry = discoverWorkflowRegistry({
 			bundledRoot: project.isolatedRoot,
 			globalRoot: project.isolatedRoot,
@@ -619,7 +619,7 @@ test("synthetic docs-review runs discovery, alias generation, startup order, and
 		assert.match(config, /workflow_complete: MUST be called exactly once with runId="run-docs-e2e"/);
 		assert.equal(message.endsWith(request), true);
 		// Zero TypeScript branches for these IDs: the startup contract is
-		// entirely manifest-driven and shares nothing with Pter's roles.
+		// entirely manifest-driven and does not depend on bundled role names.
 		assert.doesNotMatch(config, /planner|task-writer|executor|reviewer/);
 
 		// 4. The generated alias /docs produces the same startup behavior as

@@ -1,5 +1,5 @@
 /**
- * Task-RPC bridge for pi-tmux-subagents: the protocol-v2 provider that
+ * Task-RPC bridge for pi-agent-teams: the protocol-v2 provider that
  * upstream `@tintinweb/pi-tasks` (0.9.0) expects for TaskExecute/TaskStop/
  * TaskOutput execution.
  *
@@ -96,7 +96,7 @@ export function pingExistingProvider(
 ): Promise<boolean> {
 	const timeoutMs = options.timeoutMs ?? 250;
 	const requestId =
-		options.requestId ?? `pi-tmux-subagents-probe-${Math.random().toString(16).slice(2, 10)}`;
+		options.requestId ?? `pi-agent-teams-probe-${Math.random().toString(16).slice(2, 10)}`;
 	return new Promise<boolean>((resolve) => {
 		const timer = setTimeout(() => {
 			unsubscribe();

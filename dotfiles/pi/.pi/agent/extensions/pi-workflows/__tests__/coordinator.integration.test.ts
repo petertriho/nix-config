@@ -7,16 +7,16 @@ import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import piWorkflows from "../index.ts";
 import { coordinatorFixture, MODEL, savedRun, until, withParent } from "../coordinator-test-helper.ts";
-import { attachTmuxWorkflowProvider } from "../../pi-tmux-subagents/workflow-provider.ts";
-import { hashText, type LaunchProfile } from "../../pi-tmux-subagents/launch-profile.ts";
-import type { RunningSubagent } from "../../pi-tmux-subagents/subagent-services.ts";
+import { attachTmuxWorkflowProvider } from "../../pi-agent-teams/workflow-provider.ts";
+import { hashText, type LaunchProfile } from "../../pi-agent-teams/launch-profile.ts";
+import type { RunningSubagent } from "../../pi-agent-teams/subagent-services.ts";
 import {
 	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_DISCOVER_CHANNEL as DISCOVER,
 	WORKFLOW_PROVIDER_REQUEST_CHANNEL as REQUEST, WORKFLOW_PROVIDER_DELIVERY_CHANNEL as DELIVERY,
 	type WorkflowProviderRequest,
 } from "../../workflow-provider/contract.ts";
 
-async function fixture(run: (f: ReturnType<typeof setup>) => Promise<void>, ids = ["pi-tmux-subagents"]) {
+async function fixture(run: (f: ReturnType<typeof setup>) => Promise<void>, ids = ["pi-agent-teams"]) {
 	const root = mkdtempSync(join(tmpdir(), "workflow-coordinator-"));
 	const keys = ["PI_SUBAGENT_ID", "PI_SUBAGENT_SESSION", "PI_SUBAGENT_AGENT", "PI_SUBAGENT_NAME", "PI_DENY_TOOLS", "PI_CODING_AGENT_DIR"];
 	const old = keys.map((key) => process.env[key]);
@@ -284,7 +284,7 @@ test("restored legacy snapshots interrupt launches, preserve status on append fa
 		const snapshot = structuredClone(f.active()); delete snapshot.providerId;
 		await f.fire("session_shutdown");
 		f.nextSession();
-		f.setBranch([{ type: "custom", customType: "pi-tmux-subagents.workflow-run", data: snapshot }]);
+		f.setBranch([{ type: "custom", customType: "pi-agent-teams.workflow-run", data: snapshot }]);
 		f.failAppends(1);
 		await f.start();
 		await f.command("status");
@@ -519,7 +519,7 @@ test("a restored run never silently changes its unavailable provider", async () 
 		await f.fire("session_shutdown");
 		f.nextSession();
 		f.setProviders("different");
-		f.setBranch([{ type: "custom", customType: "pi-tmux-subagents.workflow-run", data: saved }]);
+		f.setBranch([{ type: "custom", customType: "pi-agent-teams.workflow-run", data: saved }]);
 		await f.start();
 		const messages = f.messages.length;
 		await f.commands.get("workflow-resume").handler("Continue.", f.ctx);
@@ -622,7 +622,7 @@ for (const outcome of ["cancelled", "stopped", "ping-only", "no-output", "provid
 
 test("Peter's historical snapshot remains inspectable and resumes its saved planner through tmux binding", async () => {
 	await fixture(async (f) => {
-		f.setProviders("pi-tmux-subagents");
+		f.setProviders("pi-agent-teams");
 		await f.start(); await f.command("run peter Preserve the old plan.");
 		const runId = f.active().runId;
 		const plan = join(f.root, ".artifacts", "old", "PLAN.md");
@@ -632,7 +632,7 @@ test("Peter's historical snapshot remains inspectable and resumes its saved plan
 		const historical = structuredClone(f.active());
 		delete historical.providerId;
 		await f.fire("session_shutdown"); f.nextSession();
-		f.setBranch([{ type: "custom", customType: "pi-tmux-subagents.workflow-run", data: historical }]);
+		f.setBranch([{ type: "custom", customType: "pi-agent-teams.workflow-run", data: historical }]);
 		await f.start();
 		await f.command("status");
 		assert.match(f.notifications.at(-1) ?? "", /peter/);
@@ -742,7 +742,7 @@ test("terminal child help remains non-successful after persistence and restore",
 
 			await f.emit("session_shutdown");
 			f.setSession("parent-restored");
-			f.setBranch([{ type: "custom", customType: "pi-tmux-subagents.workflow-run", data: persisted }]);
+			f.setBranch([{ type: "custom", customType: "pi-agent-teams.workflow-run", data: persisted }]);
 			await f.emit("session_start"); await f.emit("before_agent_start");
 			const restoredStatus = await f.status();
 			assert.match(restoredStatus, /failed/);

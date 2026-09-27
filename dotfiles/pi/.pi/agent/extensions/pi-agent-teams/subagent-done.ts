@@ -1,5 +1,5 @@
 /**
- * Child-side extension for pi-tmux-subagents, loaded into every child pi with `-e`.
+ * Child-side extension for pi-agent-teams, loaded into every child pi with `-e`.
  * Ported from upstream pi-interactive-subagents `subagent-done.ts`.
  * - Shows agent identity + available tools as a styled widget above the editor (toggle with Ctrl+Shift+J; Ctrl+J is pi's built-in newline and bare Alt+J is swallowed by niri)
  * - Provides `subagent_done` and `caller_ping` tools and auto-exit on `agent_end`

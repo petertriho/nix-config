@@ -24,7 +24,7 @@ function eventBus(): WorkflowEventBus {
 	};
 }
 
-function provider(id = "pi-tmux-subagents"): WorkflowProvider {
+function provider(id = "pi-agent-teams"): WorkflowProvider {
 	return {
 		providerId: id,
 		instanceId: `instance-${id}`,
@@ -63,7 +63,7 @@ test("startup handshake registers once with tmux loaded before or after session_
 			detach = answerDiscovery(bus, provider());
 		}
 		await Promise.all([pending, handshake.start()]);
-		assert.deepEqual(registered.map((entry) => entry.map((item) => item.providerId)), [["pi-tmux-subagents"]]);
+		assert.deepEqual(registered.map((entry) => entry.map((item) => item.providerId)), [["pi-agent-teams"]]);
 		assert.deepEqual(notifications, []);
 		await handshake.start();
 		assert.equal(registered.length, 1);

@@ -116,7 +116,7 @@ test("launch profile rejects malformed data, unsupported versions, and secret fi
 		assert.equal(legacyWorkflow.status, "invalid");
 		assert.match(
 			legacyWorkflow.status === "invalid" ? legacyWorkflow.error : "",
-			/retired \/pter phase\/artifact shape/i,
+			/workflow metadata must include only version/,
 		);
 
 		const withSecret = { ...sampleProfile(sessionPath), authToken: "secret" };

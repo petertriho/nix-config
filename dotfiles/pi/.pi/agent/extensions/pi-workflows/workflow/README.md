@@ -115,12 +115,8 @@ explicit later resume. Old watchers cannot update or notify the new branch.
 Unrelated ordinary subagents are not stopped. If stopping the workflow role
 fails, navigation is cancelled rather than leaving that role running.
 
-Peter has no bundled `/pter` alias or migration from obsolete fixed-role
-presets. The extension move does migrate valid generic workflow presets
-from `state/pi-tmux-subagents/workflow-presets` to
-`state/pi-workflows/workflow-presets`. Legacy files remain intact.
-Historical runs keep their saved workflow definition and identity,
-including the old name and role set.
+Workflow presets use `state/pi-workflows/workflow-presets`. Runs under the
+current session entry type keep their saved workflow definition and identity.
 
 Key rules in v1:
 

@@ -128,7 +128,7 @@ import {
 } from "./workflow-provider.ts";
 
 /**
- * pi-tmux-subagents: a tmux-only port of pi-interactive-subagents
+ * pi-agent-teams: a tmux-only port of pi-interactive-subagents
  * (https://github.com/hazat/pi-interactive-subagents).
  *
  * Scope: tmux is the only terminal multiplexer backend. cmux, zellij, and
@@ -150,9 +150,9 @@ const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
 // Survive /reload: clear timers and abort poll loops from the previous module load.
 // /reload re-imports this file, giving fresh module-level state, but closures from
 // the old module keep running.
-const WIDGET_INTERVAL_KEY = Symbol.for("pi-tmux-subagents/widget-interval");
-const STATUS_INTERVAL_KEY = Symbol.for("pi-tmux-subagents/status-interval");
-const POLL_ABORT_KEY = Symbol.for("pi-tmux-subagents/poll-abort-controller");
+const WIDGET_INTERVAL_KEY = Symbol.for("pi-agent-teams/widget-interval");
+const STATUS_INTERVAL_KEY = Symbol.for("pi-agent-teams/status-interval");
+const POLL_ABORT_KEY = Symbol.for("pi-agent-teams/poll-abort-controller");
 
 type GlobalState = Record<symbol, unknown>;
 // SAFETY: module state is stored on globalThis only under private symbols above.

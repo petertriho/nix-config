@@ -27,7 +27,7 @@ test(
 	"tmux pane lifecycle: create, run a command, detect the sentinel, close",
 	{ skip: !insideTmux && "TMUX is not set", timeout: 30_000 },
 	async () => {
-		const dir = mkdtempSync(join(tmpdir(), "pi-tmux-subagents-it-"));
+		const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-it-"));
 		let pane: string | undefined;
 		try {
 			pane = createSurface("it-echo");
@@ -677,7 +677,7 @@ test(
 			const ctx = {
 				...integrationContext(), cwd: root, isIdle: () => true, isProjectTrusted: () => true,
 				sessionManager: { ...integrationContext().sessionManager, getBranch: () => [{
-					type: "custom", customType: "pi-tmux-subagents.workflow-run", data: getActiveWorkflowRun(started.state),
+					type: "custom", customType: "pi-agent-teams.workflow-run", data: getActiveWorkflowRun(started.state),
 				}] },
 			};
 			for (const handler of handlers.get("session_start") ?? []) await handler({}, ctx);

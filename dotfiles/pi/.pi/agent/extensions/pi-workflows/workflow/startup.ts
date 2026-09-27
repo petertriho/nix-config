@@ -275,9 +275,6 @@ export async function chooseWorkflowStartup(
 	const root = canonicalProjectRoot(projectRoot);
 	const presetRead = readWorkflowModelPreset(definition, root, options.agentDir);
 	if (presetRead.status === "invalid") ctx.ui.notify(presetRead.error, "warning");
-	if (presetRead.status === "ok") {
-		for (const warning of presetRead.warnings ?? []) ctx.ui.notify(warning, "warning");
-	}
 
 	const parentChoice = "Use the current parent model for each role launch";
 	const configureChoice = "Configure each role before starting";

@@ -133,7 +133,7 @@ export function coordinatorFixture(root: string, events = createEventBus()) {
 		pi, events, ctx, commands, tools, notifications, entries, messages, userMessages, handlers, emit, command, tool,
 		setBranch(value: AnyRecord[]) { branch = value; },
 		setSession(id: string) { sessionId = id; },
-		restore(snapshot: unknown) { branch = [{ type: "custom", customType: "pi-tmux-subagents.workflow-run", data: snapshot }]; },
+		restore(snapshot: unknown) { branch = [{ type: "custom", customType: "pi-agent-teams.workflow-run", data: snapshot }]; },
 		async status(): Promise<string> { await command("workflow", "status"); return notifications.at(-1)![0]; },
 	};
 }
@@ -141,7 +141,7 @@ export function coordinatorFixture(root: string, events = createEventBus()) {
 /** A conforming execution peer; no coordinator or tmux implementation is stubbed. */
 export function fakeProvider(events: WorkflowEventBus, instanceId = "one") {
 	const identity = {
-		providerId: "pi-tmux-subagents", instanceId,
+		providerId: "pi-agent-teams", instanceId,
 		version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
 	};
 	const requests: AnyRecord[] = [];

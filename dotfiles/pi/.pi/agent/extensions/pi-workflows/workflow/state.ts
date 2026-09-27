@@ -39,7 +39,7 @@ import {
 	type WorkflowWriteCapability,
 } from "./types.ts";
 
-export const WORKFLOW_RUN_ENTRY_CUSTOM_TYPE = "pi-tmux-subagents.workflow-run";
+export const WORKFLOW_RUN_ENTRY_CUSTOM_TYPE = "pi-agent-teams.workflow-run";
 
 const WORKFLOW_RUN_STATUSES = ["active", "completed", "aborted"] as const;
 const WORKFLOW_RUN_LAUNCH_STATUSES = [
@@ -159,7 +159,7 @@ function expectString(value: unknown, context: string): string {
 }
 
 function providerId(value: unknown): string {
-	if (value === undefined) return "pi-tmux-subagents";
+	if (value === undefined) return "pi-agent-teams";
 	if (typeof value !== "string" || !/^[a-z0-9][a-z0-9._-]*$/.test(value)) {
 		throw new Error("Workflow provider ID is invalid.");
 	}

@@ -32,7 +32,7 @@ import type {
 	createSubagentExecutionServices,
 } from "./subagent-services.ts";
 
-export const TMUX_WORKFLOW_PROVIDER_ID = "pi-tmux-subagents";
+export const TMUX_WORKFLOW_PROVIDER_ID = "pi-agent-teams";
 type Services = Pick<ReturnType<typeof createSubagentExecutionServices>,
 	"launchSubagent" | "watchSubagent" | "stopSubagent" | "executeSubagentResume">;
 type Evidence = { changedFiles: string[]; manualReviewReason?: string };
@@ -133,7 +133,7 @@ function checkedFacts(
 	};
 }
 
-const REGISTRATION_KEY = Symbol.for("pi-tmux-subagents/workflow-provider-registration");
+const REGISTRATION_KEY = Symbol.for("pi-agent-teams/workflow-provider-registration");
 type Claim = { events: WorkflowEventBus; generation: string; detach(): void };
 type Claims = Record<symbol, Claim | undefined>;
 // SAFETY: this global slot stores only the claim shape declared above.

@@ -340,16 +340,6 @@ function workflowValidationError(value: unknown): string | undefined {
 	}
 
 	if (
-		hasExactKeys(
-			value,
-			["phase", "policy", "assignmentSource", "artifacts"],
-			["projectRoot", "originalDefault", "currentDefault"],
-		)
-	) {
-		return "workflow metadata uses the retired /pter phase/artifact shape. Re-launch the workflow so the sidecar records versioned workflowId/runId/roleId/data metadata.";
-	}
-
-	if (
 		!hasExactKeys(
 			value,
 			[

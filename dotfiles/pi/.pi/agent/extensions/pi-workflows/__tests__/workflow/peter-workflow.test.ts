@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -436,28 +436,14 @@ test("Peter approval and fix annotations retain verbatim notes with the authoriz
 	assert.equal(rollover.match(/<user-feedback>([\s\S]*?)<\/user-feedback>/)?.[1], notes);
 });
 
-test("Peter uses a separate five-role preset and never imports or modifies historical Pter presets", () => {
+test("Peter's five-role preset round trips with an optional evaluator", () => {
 	const root = mkdtempSync(join(tmpdir(), "peter-preset-isolation-"));
 	try {
 		const agentDir = join(root, "agent");
 		const selection = { provider: "test", model: "echo", thinking: "off" as const };
-		const legacyPath = writeWorkflowModelPreset({
-			version: 1,
-			workflowId: "pter", // Deliberately historical, not a current alias.
-			projectRoot: root,
-			updatedAt: "2026-09-01T12:00:00.000Z",
-			roles: {
-				planner: selection,
-				"task-writer": selection,
-				executor: selection,
-				reviewer: selection,
-			},
-		}, agentDir);
-		const legacyBytes = readFileSync(legacyPath, "utf8");
 		const definition = loadPeter();
 		const before = readWorkflowModelPreset(definition, root, agentDir);
 		assert.equal(before.status, "missing");
-		assert.notEqual(before.path, legacyPath);
 		const currentPath = writeWorkflowModelPreset(makeWorkflowModelPreset(definition, root, {
 			planner: selection,
 			evaluator: { skip: true },
@@ -465,11 +451,10 @@ test("Peter uses a separate five-role preset and never imports or modifies histo
 			executor: selection,
 			reviewer: selection,
 		}), agentDir);
-		assert.notEqual(currentPath, legacyPath);
+		assert.equal(currentPath, before.path);
 		const current = readWorkflowModelPreset(definition, root, agentDir);
 		assert.equal(current.status, "ok");
 		assert.deepEqual(current.preset.roles.evaluator, { skip: true });
-		assert.equal(readFileSync(legacyPath, "utf8"), legacyBytes);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}
@@ -485,9 +470,7 @@ test("bundled discovery exposes only /peter and private startup uses the package
 			existingCommands: [],
 		});
 		assert.equal(registry.aliases.peter, "peter");
-		assert.equal(registry.aliases.pter, undefined, "no compatibility alias");
-		assert.equal(registry.workflowById.pter, undefined, "no bundled legacy package");
-		assert.equal(existsSync(join(WORKFLOWS_ROOT, "pter", "workflow.json")), false);
+		assert.deepEqual(Object.keys(registry.aliases), ["peter"]);
 		assert.equal(registry.workflowById.peter.source, "bundled");
 		assert.equal(registry.workflowById.peter.packagePath, PACKAGE_ROOT);
 		assert.match(registry.workflowById.peter.skillPath, /workflows\/peter\/SKILL\.md$/);
@@ -622,7 +605,6 @@ test("/workflow run peter and generated /peter produce equivalent startup messag
 
 		const alias = makePeterRuntime(root);
 		await alias.pi.command("peter").handler(request, alias.ctx);
-		assert.equal(alias.pi.commands.some((command) => command.name === "pter"), false);
 
 		assert.equal(generic.pi.messages.length, 1);
 		assert.deepEqual(alias.pi.messages, generic.pi.messages);

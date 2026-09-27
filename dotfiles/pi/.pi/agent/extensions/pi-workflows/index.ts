@@ -79,7 +79,7 @@ export default function piWorkflows(pi: ExtensionAPI): void {
 				state: gates.state,
 				get eventExecution() {
 					const run = getActiveWorkflowRun(state);
-					return run ? clientFor(run.providerId ?? "pi-tmux-subagents") : undefined;
+					return run ? clientFor(run.providerId ?? "pi-agent-teams") : undefined;
 				},
 				loadAgentDefaults: () => null,
 				isTmuxAvailable: () => providers.length > 0,
@@ -104,7 +104,7 @@ export default function piWorkflows(pi: ExtensionAPI): void {
 					}, definition.roles.filter((role) => !role.optional).map((role) => role.agent));
 					return epoch === generation ? selected : null;
 				},
-				validateProvider: (snapshot) => { clientFor(snapshot.providerId ?? "pi-tmux-subagents"); },
+				validateProvider: (snapshot) => { clientFor(snapshot.providerId ?? "pi-agent-teams"); },
 				validateProviderAgents: async (id, agents, ctx) => {
 					await clientFor(id).preflight({
 						sessionId: ctx.sessionManager.getSessionId(), runId: `setup-${randomUUID()}`,

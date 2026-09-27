@@ -53,8 +53,7 @@ reviewer. Its phases are Plan, Evaluate, Tasks, Execute, Review, and an
 authorized Fix pass. Evaluation writes only `EVALUATION.md`, beside `PLAN.md`.
 The planner can read it for user-selected findings; the task writer cannot.
 Skipping evaluation is a saved role choice, not an implicit response to errors.
-There is no bundled `/pter` compatibility alias or preset migration. Old runs
-continue from their saved definitions without being renamed.
+Runs saved under the current session entry type resume from their definitions.
 
 ## Asynchronous browser gates
 

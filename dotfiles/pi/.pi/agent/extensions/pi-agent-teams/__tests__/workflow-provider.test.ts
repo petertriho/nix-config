@@ -133,7 +133,7 @@ const expected = { agentId: "writer", profileHash: agent.hash, model: { provider
 
 test("root discovery, launch acknowledgement, correlated lifecycle and evidence", { timeout: 3_000 }, async () => {
 	const f = fixture();
-	assert.deepEqual((await discoverWorkflowProviders(f.events, { timeoutMs: 5 })).map((item) => item.providerId), ["pi-tmux-subagents"]);
+	assert.deepEqual((await discoverWorkflowProviders(f.events, { timeoutMs: 5 })).map((item) => item.providerId), ["pi-agent-teams"]);
 	assert.deepEqual(f.attached.identity.capabilities, WORKFLOW_PROVIDER_CAPABILITIES);
 	const reply = await requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch);
 	assert.equal(reply.data.profile.hash, agent.hash);

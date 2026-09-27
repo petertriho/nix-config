@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 /**
- * tmux backend for pi-tmux-subagents.
+ * tmux backend for pi-agent-teams.
  *
  * Ported from the upstream pi-interactive-subagents `cmux.ts` with only the
  * tmux branches kept. A "surface" is a tmux pane id such as `%12`.

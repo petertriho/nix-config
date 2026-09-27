@@ -32,7 +32,7 @@ test("Pi loader binds installed entries in both orders and disables workflows wi
 	};
 	try {
 		for (const order of [
-			["pi-tmux-subagents", "pi-workflows"], ["pi-workflows", "pi-tmux-subagents"], ["pi-workflows"],
+			["pi-agent-teams", "pi-workflows"], ["pi-workflows", "pi-agent-teams"], ["pi-workflows"],
 		]) {
 			const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } });
 			const resourceLoader = new DefaultResourceLoader({
@@ -93,11 +93,11 @@ test("Pi loader binds installed entries in both orders and disables workflows wi
 					assert.match(notices.at(-1) ?? "", /peter/);
 					await workflowPrompt("/workflow run docs-review Installed synthetic run.");
 					const snapshots = session.sessionManager.getBranch().filter((entry: any) =>
-						entry.type === "custom" && entry.customType === "pi-tmux-subagents.workflow-run");
+						entry.type === "custom" && entry.customType === "pi-agent-teams.workflow-run");
 					const historical: any = structuredClone((snapshots.at(-1) as any).data);
 					assert.equal(historical.workflowId, "docs-review");
 					delete historical.providerId;
-					session.sessionManager.appendCustomEntry("pi-tmux-subagents.workflow-run", historical);
+					session.sessionManager.appendCustomEntry("pi-agent-teams.workflow-run", historical);
 					await session.extensionRunner.emit({ type: "session_shutdown", reason: "reload" });
 					await session.bindExtensions({ uiContext: ui });
 					await session.extensionRunner.emit({ type: "before_agent_start", prompt: "", systemPrompt: "" } as any);

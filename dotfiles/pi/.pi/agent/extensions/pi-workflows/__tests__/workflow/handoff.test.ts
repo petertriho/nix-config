@@ -162,7 +162,7 @@ test("manifest-driven handoff for the verifier role excludes unreadable and empt
 	});
 });
 
-test("run-snapshot handoff works for arbitrary role IDs without Pter phase names", () => {
+test("run-snapshot handoff works for arbitrary role IDs", () => {
 	withTempDir((root) => {
 		const definition = loadDefinition(writeWorkflowPackage(root));
 		const transition = startWorkflowRun(createWorkflowRunState(), {

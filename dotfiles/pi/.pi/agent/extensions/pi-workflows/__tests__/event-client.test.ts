@@ -24,7 +24,7 @@ function bus() {
 }
 
 const provider: WorkflowProvider = {
-	providerId: "pi-tmux-subagents", instanceId: "incarnation-1",
+	providerId: "pi-agent-teams", instanceId: "incarnation-1",
 	version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
 };
 const owner: WorkflowOwner = { sessionId: "parent", runId: "run", roleId: "writer", ownershipId: "lease" };

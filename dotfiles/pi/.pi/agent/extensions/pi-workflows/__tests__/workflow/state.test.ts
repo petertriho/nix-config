@@ -198,7 +198,7 @@ test("snapshots preserve selected provider IDs and legacy snapshots bind only to
 		delete legacy.providerId;
 		assert.equal(getActiveWorkflowRun(restoreWorkflowRunStateFromBranch([
 			{ type: "custom", customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE, data: legacy },
-		] as any).state)?.providerId, "pi-tmux-subagents");
+		] as any).state)?.providerId, "pi-agent-teams");
 	});
 });
 

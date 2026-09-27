@@ -53,7 +53,7 @@ function fixture() {
 function provider(bus: WorkflowEventBus) {
 	return bus.on(WORKFLOW_PROVIDER_DISCOVER_CHANNEL, (request: any) => {
 		bus.emit(`${WORKFLOW_PROVIDER_DISCOVER_CHANNEL}:reply:${request.requestId}`, {
-			requestId: request.requestId, providerId: "pi-tmux-subagents", instanceId: "one",
+			requestId: request.requestId, providerId: "pi-agent-teams", instanceId: "one",
 			version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
 		});
 	});

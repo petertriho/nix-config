@@ -2,7 +2,7 @@
 
 `pi-workflows` owns workflow discovery, commands, model assignments, persisted
 runs, repository write policies, and browser review gates.
-`pi-tmux-subagents` supplies the execution provider. It owns panes, child
+`pi-agent-teams` supplies the execution provider. It owns panes, child
 sessions, sidecars, context estimates, and child watchers.
 
 The extensions communicate through the versioned `pi.events` contract in
@@ -15,10 +15,10 @@ The Home Manager Pi module links these directories under
 `~/.pi/agent/extensions/`:
 
 - `pi-workflows/`
-- `pi-tmux-subagents/`
+- `pi-agent-teams/`
 - `workflow-provider/` (shared modules, not an extension)
 
-Agent profiles remain in `pi-tmux-subagents/agents/`. Global and trusted
+Agent profiles remain in `pi-agent-teams/agents/`. Global and trusted
 project profiles keep their existing precedence.
 
 Both extension load orders work. A bounded startup handshake discovers
@@ -44,26 +44,17 @@ qualifies. With multiple providers, the user selects one before model setup.
 Cancellation or missing interactive UI preserves the current run.
 
 Each run retains its provider ID. The coordinator rejects execution through
-a different provider. Historical snapshots without a provider ID use
-`pi-tmux-subagents`. Provider loss never triggers automatic migration or retry.
+a different provider. Snapshots without a provider ID use `pi-agent-teams`.
+Provider loss never triggers automatic migration or retry.
 
 ## Saved state and presets
 
-The session entry type remains `pi-tmux-subagents.workflow-run`. Historical
-snapshots retain their embedded definitions, private skill text, gate history,
-and role-session history. Existing sidecar formats and paths remain valid.
+The session entry type is `pi-agent-teams.workflow-run`. Snapshots under that
+type retain their embedded definitions, private skill text, gate history,
+and role-session history.
 
-New preset writes use `state/pi-workflows/workflow-presets` under the Pi agent
-directory. Reads also support `state/pi-tmux-subagents/workflow-presets`:
-
-- A valid new file takes precedence. Different legacy content produces a warning.
-- An invalid new file fails without legacy fallback.
-- An absent new file permits migration from a valid legacy file.
-- Migration never overwrites a concurrently created destination.
-- Legacy files remain intact. Read, write, and collision errors remain visible.
-
-This namespace migration does not convert obsolete fixed-role presets or
-rename old workflow IDs.
+Preset reads and writes use `state/pi-workflows/workflow-presets` under the Pi
+agent directory. No preset migration runs during the extension rename.
 
 ## Interruption and safety
 

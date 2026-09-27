@@ -405,11 +405,11 @@ test("invalid saved role sets are ignored and unavailable saved models cannot la
 		const presetPath = join(
 			agentDir,
 			"state",
-			"pi-tmux-subagents",
+			"pi-workflows",
 			"workflow-presets",
 			"tampered.json",
 		);
-		mkdirSync(join(agentDir, "state", "pi-tmux-subagents", "workflow-presets"), {
+		mkdirSync(join(agentDir, "state", "pi-workflows", "workflow-presets"), {
 			recursive: true,
 		});
 		writeFileSync(

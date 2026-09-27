@@ -671,7 +671,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		);
 		if (!entry) return false;
 
-		let providerId = "pi-tmux-subagents";
+		let providerId = "pi-agent-teams";
 		if (this.deps.chooseProvider) {
 			try {
 				const chosen = await this.deps.chooseProvider(entry.definition, ctx);

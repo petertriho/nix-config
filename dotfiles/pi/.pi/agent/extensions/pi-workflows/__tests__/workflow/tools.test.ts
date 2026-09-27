@@ -38,7 +38,7 @@ import type {
 	SubagentLaunchParams,
 	SubagentResumeParams,
 } from "../../workflow/legacy-execution.ts";
-import { createStatusState } from "../../../pi-tmux-subagents/status.ts";
+import { createStatusState } from "../../../pi-agent-teams/status.ts";
 import { loadWorkflowDefinitionFromPackage } from "../../workflow/schema.ts";
 import { buildWorkflowRolloverHandoffForRun } from "../../workflow/handoff.ts";
 import { buildWorkflowRecoveryMessage, buildWorkflowRecoveryLabels } from "../../workflow/recovery.ts";
@@ -571,7 +571,7 @@ test("event-backed spawn delivers correlated result and tree navigation requires
 			emit(channel, value) { for (const handler of [...(listeners.get(channel) ?? [])]) handler(value); },
 		};
 		const provider: WorkflowProvider = {
-			providerId: "pi-tmux-subagents", instanceId: "one",
+			providerId: "pi-agent-teams", instanceId: "one",
 			version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
 		};
 		const client = createWorkflowEventClient(events, provider, { requestTimeoutMs: 30, livenessIntervalMs: 1_000 });
@@ -665,7 +665,7 @@ test("event-backed completion applies the workflow write boundary before sending
 			emit(channel, value) { for (const handler of [...(listeners.get(channel) ?? [])]) handler(value); },
 		};
 		const client = createWorkflowEventClient(events, {
-			providerId: "pi-tmux-subagents", instanceId: "one",
+			providerId: "pi-agent-teams", instanceId: "one",
 			version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
 		}, { requestTimeoutMs: 30, livenessIntervalMs: 1_000 });
 		let launched: any;
@@ -863,7 +863,7 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 		ctx.isIdle = () => session.isIdle;
 		try {
 			await lifecycle.spawn({ runId: "run-docs", role: "author", task: "initial draft" }, ctx);
-			branch = [{ type: "custom", customType: "pi-tmux-subagents.workflow-run", data: getActiveWorkflowRun(store.state) }];
+			branch = [{ type: "custom", customType: "pi-agent-teams.workflow-run", data: getActiveWorkflowRun(store.state) }];
 			const old = execution.watch!;
 			const navigation = session.navigateTree(target, { summarize }).catch((error: Error) => error);
 			await laterHandler.promise;
@@ -910,7 +910,7 @@ test("old spawn success, error, and ping callbacks cannot change the restored in
 		await lifecycle.spawn({ runId: "run-docs", role: "author", task: "draft" }, ctx);
 		const branch = [{
 			type: "custom",
-			customType: "pi-tmux-subagents.workflow-run",
+			customType: "pi-agent-teams.workflow-run",
 			data: getActiveWorkflowRun(store.state),
 		}] as any;
 		const old = execution.watch!;
@@ -1400,7 +1400,7 @@ test("event resume preserves historical sessions and records a confirmed rollove
 		const lifecycle = createWorkflowLifecycleTools({ sendMessage: (m: any) => messages.push(m) } as any, {
 			...dependencies(store, new FakeExecution()), execution: undefined,
 			eventExecution: {
-				provider: { providerId: "pi-tmux-subagents" },
+				provider: { providerId: "pi-agent-teams" },
 				preflight: async () => [facts.profile],
 				inspect: async () => facts,
 				resume: async (_owner: any, payload: any) => {

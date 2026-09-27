@@ -130,7 +130,7 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 				description: command.description,
 				source: "extension",
 				sourceInfo: {
-					path: "/tmp/pi-tmux-subagents/index.ts",
+					path: "/tmp/pi-agent-teams/index.ts",
 					source: "test",
 					scope: "temporary",
 					origin: "top-level",
@@ -181,7 +181,7 @@ function markerTheme(marker = "theme") {
 }
 
 function withTempDir(run: (dir: string) => void): void {
-	const dir = mkdtempSync(join(tmpdir(), "pi-tmux-subagents-index-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-index-"));
 	try {
 		run(dir);
 	} finally {
@@ -239,7 +239,7 @@ function restoreEnvVar(name: string, value: string | undefined): void {
 async function withIsolatedAgentEnv(
 	fn: (paths: { projectAgentsDir: string; globalAgentsDir: string }) => Promise<void> | void,
 ): Promise<void> {
-	const root = mkdtempSync(join(tmpdir(), "pi-tmux-subagents-agents-"));
+	const root = mkdtempSync(join(tmpdir(), "pi-agent-teams-agents-"));
 	const previousCwd = process.cwd();
 	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const projectDir = join(root, "project");
@@ -746,7 +746,6 @@ test("bundled evaluator honors read-only skill commands and every Peter role lea
 	for (const role of ["planner", "evaluator", "task-writer", "executor", "reviewer"]) {
 		const text = readFileSync(join(dir, `${role}.md`), "utf8");
 		assert.match(text, /\/peter/);
-		assert.doesNotMatch(text, /\/pter/);
 		assert.match(text, /Do not run Plannotator or `workflow_gate`; the parent owns the review gates/);
 	}
 	const evaluator = readFileSync(join(dir, "evaluator.md"), "utf8");
@@ -829,7 +828,6 @@ test("registers only the cutover tools without workflow command ownership", () =
 	assert.equal(commandNames.includes("workflow"), false);
 	assert.equal(commandNames.includes("workflows"), false);
 	assert.equal(commandNames.includes("workflow-resume"), false);
-	assert.equal(commandNames.includes("pter"), false);
 	assert.equal(commandNames.includes("peter"), false, "alias is discovered at session start, not hard-coded");
 	assert.equal(commandNames.includes("plan"), false);
 });
@@ -4074,7 +4072,7 @@ test("tmux workflow provider root registration is idempotent and shutdown unsubs
 		testApi.attachWorkflowProvider(api, ctx as never);
 		const first = await discoverWorkflowProviders(events, { timeoutMs: 5 });
 		assert.equal(first.length, 1);
-		assert.equal(first[0].providerId, "pi-tmux-subagents");
+		assert.equal(first[0].providerId, "pi-agent-teams");
 		testApi.attachWorkflowProvider(api, ctx as never);
 		assert.equal((await discoverWorkflowProviders(events, { timeoutMs: 5 })).length, 1);
 		testApi.shutdownWorkflowProvider();
@@ -4172,7 +4170,7 @@ test("root session_start wires the task RPC handlers and emits ready once", asyn
 			(entry) =>
 				entry.channel === "subagents:rpc:ping"
 				&& typeof (entry.data as AnyRecord)?.requestId === "string"
-				&& ((entry.data as AnyRecord).requestId as string).startsWith("pi-tmux-subagents-probe-"),
+				&& ((entry.data as AnyRecord).requestId as string).startsWith("pi-agent-teams-probe-"),
 		).length;
 		assert.equal(probePings, 1, "no extra provider probe after the handlers are live");
 	} finally {
@@ -4288,7 +4286,7 @@ test("a stale attach settling mid-transition cannot admit a duplicate handler se
 			(entry) =>
 				entry.channel === "subagents:rpc:ping"
 				&& String((entry.data as AnyRecord)?.requestId ?? "").startsWith(
-					"pi-tmux-subagents-probe-",
+					"pi-agent-teams-probe-",
 				),
 		).length;
 		assert.equal(probes, 2, "no-op attach attempts must not probe again");

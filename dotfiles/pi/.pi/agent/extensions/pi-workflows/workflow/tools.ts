@@ -692,7 +692,7 @@ export function createWorkflowLifecycleTools(
 			ownershipId: randomUUID(),
 		} : undefined;
 		if (deps.eventExecution && eventOwner) {
-			if (deps.eventExecution.provider.providerId !== (snapshot.providerId ?? "pi-tmux-subagents")) {
+			if (deps.eventExecution.provider.providerId !== (snapshot.providerId ?? "pi-agent-teams")) {
 				throw new Error("Workflow provider binding mismatch.");
 			}
 			await deps.eventExecution.preflight(eventOwner, [role.agent]);
@@ -956,7 +956,7 @@ export function createWorkflowLifecycleTools(
 		const client = deps.eventExecution!;
 		let snapshot = activeRunForToken(deps.state.getState(), params.runId);
 		const role = roleForRun(snapshot, params.role);
-		if (client.provider.providerId !== (snapshot.providerId ?? "pi-tmux-subagents")) throw new Error("Workflow provider binding mismatch.");
+		if (client.provider.providerId !== (snapshot.providerId ?? "pi-agent-teams")) throw new Error("Workflow provider binding mismatch.");
 		const sessionPath = currentRoleSession(snapshot, role.id);
 		const owner: WorkflowOwner = { sessionId: ctx.sessionManager.getSessionId(), runId: params.runId, roleId: role.id, ownershipId: randomUUID() };
 		const profiles = await client.preflight(owner, [role.agent]);

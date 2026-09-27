@@ -7,10 +7,10 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import subagents, { __test__ } from "../pi-tmux-subagents/index.ts";
+import subagents, { __test__ } from "../pi-agent-teams/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const extension = resolve(here, "../pi-tmux-subagents");
+const extension = resolve(here, "../pi-agent-teams");
 const attached = process.env.TMUX && spawnSync("tmux", ["display-message", "-p", "#{pane_id}"], {
   encoding: "utf8",
 });
@@ -39,7 +39,7 @@ try {
   const configSource = join(root, "tasks-config.json");
   writeFileSync(configSource, '{"autoClearCompleted":"never"}');
   symlinkSync(configSource, join(agentDir, "tasks-config.json"));
-  writeFileSync(join(extensions, "pi-tmux-subagents.ts"),
+  writeFileSync(join(extensions, "pi-agent-teams.ts"),
     `export { default } from ${JSON.stringify(join(extension, "index.ts"))};\n`);
   writeFileSync(join(extensions, "pi-tasks.ts"),
     `export { default } from ${JSON.stringify(nativeExtension)};\n`);

@@ -55,12 +55,12 @@ function assertInvalid(
 	);
 }
 
-function pterLikeManifest() {
+function exampleManifest() {
 	return {
 		version: 1,
-		id: "pter",
+		id: "example",
 		command: {
-			name: "pter",
+			name: "example",
 			description: "Run the plan to tasks to execute to review workflow",
 			argumentHint: "<request>",
 		},
@@ -135,7 +135,7 @@ function pterLikeManifest() {
 test("role optional flag accepts booleans only in both schema and package normalization", () => {
 	withTempDir((root) => {
 		for (const optional of [true, false, undefined, "true", 1, null, {}]) {
-			const manifest = pterLikeManifest();
+			const manifest = exampleManifest();
 			const role = { ...manifest.roles[0], ...(optional !== undefined ? { optional } : {}) };
 			const valid = optional === undefined || typeof optional === "boolean";
 			assert.equal(Value.Check(WorkflowRoleSchema, role), valid);
@@ -154,11 +154,11 @@ test("role optional flag accepts booleans only in both schema and package normal
 	});
 });
 
-test("loadWorkflowDefinitionFromPackage accepts a Pter-like manifest and deep-freezes it", () => {
+test("loadWorkflowDefinitionFromPackage accepts a multi-role manifest and deep-freezes it", () => {
 	withTempDir((root) => {
-		const result = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, pterLikeManifest()));
+		const result = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, exampleManifest()));
 		assert.equal(result.status, "ok");
-		assert.equal(result.definition.id, "pter");
+		assert.equal(result.definition.id, "example");
 		assert.deepEqual(result.definition.roleIds, ["planner", "task-writer", "executor", "reviewer"]);
 		assert.deepEqual(result.definition.dataOrder, ["plan", "tasks", "review", "baseRef"]);
 		assert.equal(result.definition.skill.frontmatter.name, "demo-workflow");
@@ -251,7 +251,7 @@ test("loadWorkflowDefinitionFromPackage rejects malformed workflow JSON", () => 
 
 test("loadWorkflowDefinitionFromPackage rejects unsupported manifest versions", () => {
 	withTempDir((root) => {
-		const manifest = pterLikeManifest();
+		const manifest = exampleManifest();
 		manifest.version = 2;
 		assertInvalid(
 			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest)),
@@ -263,7 +263,7 @@ test("loadWorkflowDefinitionFromPackage rejects unsupported manifest versions", 
 
 test("loadWorkflowDefinitionFromPackage rejects duplicate role IDs", () => {
 	withTempDir((root) => {
-		const manifest = pterLikeManifest();
+		const manifest = exampleManifest();
 		manifest.roles[1].id = "planner";
 		assertInvalid(
 			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest)),
@@ -275,7 +275,7 @@ test("loadWorkflowDefinitionFromPackage rejects duplicate role IDs", () => {
 
 test("loadWorkflowDefinitionFromPackage rejects bad role references", () => {
 	withTempDir((root) => {
-		const manifest = pterLikeManifest();
+		const manifest = exampleManifest();
 		manifest.roles[0].reads = ["missing"];
 		assertInvalid(
 			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest)),
@@ -287,7 +287,7 @@ test("loadWorkflowDefinitionFromPackage rejects bad role references", () => {
 
 test("loadWorkflowDefinitionFromPackage rejects non-file write targets", () => {
 	withTempDir((root) => {
-		const manifest = pterLikeManifest();
+		const manifest = exampleManifest();
 		manifest.roles[0].writes = ["file:baseRef"];
 		assertInvalid(
 			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest)),
@@ -299,7 +299,7 @@ test("loadWorkflowDefinitionFromPackage rejects non-file write targets", () => {
 
 test("loadWorkflowDefinitionFromPackage rejects skill path traversal", () => {
 	withTempDir((root) => {
-		const manifest = pterLikeManifest();
+		const manifest = exampleManifest();
 		manifest.skill = "../outside.md";
 		assertInvalid(
 			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest)),
@@ -311,7 +311,7 @@ test("loadWorkflowDefinitionFromPackage rejects skill path traversal", () => {
 
 test("loadWorkflowDefinitionFromPackage rejects unsafe file constraints", () => {
 	withTempDir((root) => {
-		const manifest = pterLikeManifest();
+		const manifest = exampleManifest();
 		manifest.data.plan.constraint.under = "../escape";
 		assertInvalid(
 			loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, manifest)),
@@ -383,7 +383,7 @@ test("resolveWorkflowRoleWriteCapabilities rejects writable file slots with neit
 
 test("resolveWorkflowRoleWriteCapabilities rejects lexical traversal and symlink escapes for nonexistent targets", () => {
 	withTempDir((root) => {
-		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, pterLikeManifest()));
+		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, exampleManifest()));
 		assert.equal(loaded.status, "ok");
 		const projectRoot = join(root, "project");
 		const outsideRoot = join(root, "outside");
@@ -488,7 +488,7 @@ test("resolveWorkflowRoleWriteCapabilities accepts dotdot-prefixed root file nam
 
 test("resolveWorkflowRoleWriteCapabilities canonicalizes safe symlinks for nonexistent targets", () => {
 	withTempDir((root) => {
-		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, pterLikeManifest()));
+		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, exampleManifest()));
 		assert.equal(loaded.status, "ok");
 		const projectRoot = join(root, "project");
 		const artifactRoot = join(projectRoot, "artifact-storage");

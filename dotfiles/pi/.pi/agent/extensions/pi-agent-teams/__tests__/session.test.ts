@@ -53,7 +53,7 @@ const TOOL_RESULT = {
 };
 
 function withTempDir(run: (dir: string) => void): void {
-	const dir = mkdtempSync(join(tmpdir(), "pi-tmux-subagents-session-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-session-"));
 	try {
 		run(dir);
 	} finally {
