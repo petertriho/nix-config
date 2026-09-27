@@ -144,7 +144,7 @@ export interface WorkflowRunActiveLaunch {
 
 export interface WorkflowRunSnapshot {
 	readonly version: typeof WORKFLOW_RUN_SNAPSHOT_VERSION;
-	/** Missing only in pre-extraction snapshots, which are tmux-backed. */
+	/** Older snapshots lack this ID and use the default provider. */
 	readonly providerId?: string;
 	readonly runId: string;
 	readonly workflowId: string;

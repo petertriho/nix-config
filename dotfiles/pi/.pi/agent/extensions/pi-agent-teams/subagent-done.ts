@@ -1,10 +1,3 @@
-/**
- * Child-side extension for pi-agent-teams, loaded into every child pi with `-e`.
- * Ported from upstream pi-interactive-subagents `subagent-done.ts`.
- * - Shows agent identity + available tools as a styled widget above the editor (toggle with Ctrl+Shift+J; Ctrl+J is pi's built-in newline and bare Alt+J is swallowed by niri)
- * - Provides `subagent_done` and `caller_ping` tools and auto-exit on `agent_settled`
- * - Records activity snapshots for the parent's status watcher
- */
 import type { AgentEndEvent, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
@@ -92,17 +85,17 @@ export function parseDeniedTools(rawValue: string | undefined): string[] {
     .filter(Boolean);
 }
 
-/** The wrap-up steering message queued at the soft turn limit (matches upstream pi-subagents). */
+/** The wrap-up steering message queued at the soft turn limit. */
 export const TURN_LIMIT_WRAP_UP_MESSAGE =
   "You have reached your turn limit. Wrap up immediately — provide your final answer now.";
 
-/** Grace turns allowed after the soft limit before a hard abort (matches upstream pi-subagents). */
+/** Grace turns allowed after the soft limit before a hard abort. */
 export const TURN_LIMIT_GRACE_TURNS = 5;
 
 /**
  * Parse the task-only `PI_SUBAGENT_MAX_TURNS` environment value. Missing,
  * non-finite, negative, and zero values mean unlimited; values ≥ 1 floor to
- * whole turns (matching pi-subagents' normalizeMaxTurns semantics).
+ * whole turns.
  */
 export function parseMaxTurnsEnv(rawValue: string | undefined): number | undefined {
   const trimmed = rawValue?.trim();
@@ -120,8 +113,7 @@ export interface TurnLimitDecision {
 }
 
 /**
- * Pure turn-limit state machine, mirroring upstream pi-subagents'
- * agent-runner: count completed turns, steer once when the soft limit is
+ * Count completed turns, steer once when the soft limit is
  * reached, and hard-abort once `graceTurns` more turns complete. A run that
  * wraps up during grace simply stops emitting decisions.
  */
@@ -260,7 +252,6 @@ export default function subagentDone(pi: ExtensionAPI) {
   let denied: string[] = [];
   let expanded = false;
 
-  // Read subagent identity from env vars (set by parent orchestrator)
   const subagentName = process.env.PI_SUBAGENT_NAME ?? "";
   const subagentAgent = process.env.PI_SUBAGENT_AGENT ?? "";
   const deniedToolsValue = process.env.PI_DENY_TOOLS;
@@ -270,8 +261,6 @@ export default function subagentDone(pi: ExtensionAPI) {
     activityFile: process.env.PI_SUBAGENT_ACTIVITY_FILE,
   });
 
-  // Task-RPC turn limit (PI_SUBAGENT_MAX_TURNS, exported only by task
-  // launches). Missing/unlimited keeps every existing behavior identical.
   const taskMaxTurns = parseMaxTurnsEnv(process.env.PI_SUBAGENT_MAX_TURNS);
   const turnLimitTracker = taskMaxTurns == null
     ? null
@@ -307,7 +296,6 @@ export default function subagentDone(pi: ExtensionAPI) {
   let latestAgentMessages: AgentEndEvent["messages"] | undefined;
   let explicitExitRequested = false;
 
-  // Show widget + status bar on session start
   pi.on("session_start", (_event, ctx) => {
     recorder.sessionStart();
     const tools = pi.getAllTools();
@@ -387,8 +375,6 @@ export default function subagentDone(pi: ExtensionAPI) {
 
     recorder.agentEndWaiting();
     if (autoExit) {
-      // Reset any recorded manual input marker. Auto-exit is decided by whether
-      // the latest agent turn completed normally, not by who initiated it.
       userTookOver = false;
     }
   });
@@ -421,11 +407,9 @@ export default function subagentDone(pi: ExtensionAPI) {
           // Best effort — the pane still exits and the watcher reports failure.
         }
       }
-      // 2. Abort the active run through the event context. ExtensionAPI has
-      //    no abort(); abort() and shutdown() are ExtensionContext methods.
+      // Abort through the event context; ExtensionAPI has no abort().
       ctx?.abort();
-      // 3. Request shutdown immediately; agent_end's hard-limit branch is
-      //    the backstop for a shutdown deferred until the run unwinds.
+      // agent_end is the backstop if shutdown waits for the run to unwind.
       ctx?.shutdown();
     }
   });

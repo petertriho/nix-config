@@ -95,7 +95,7 @@ function checkTarget(path: string): void {
   }
 }
 
-/** Mirrors upstream optional-field defaults, but rejects records it would silently discard. */
+/** Accept optional-field defaults, but reject records that would be silently discarded. */
 function normalizeEnvelope(value: unknown): { tasks: DiskTask[]; nextId: number } {
   if (!record(value) || !Array.isArray(value.tasks)) throw new Error("Invalid task envelope");
   const seen = new Set<string>();

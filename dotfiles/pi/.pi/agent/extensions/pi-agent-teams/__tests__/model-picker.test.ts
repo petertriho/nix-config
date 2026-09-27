@@ -149,7 +149,6 @@ test("picker dialogs carry the configured subject and mark the current model row
 		currentRef: "anthropic/claude:high",
 	});
 	assert.equal(picked?.argument, "anthropic/claude:high");
-	// Without an explicit title the generic model-list title stays.
 	assert.equal(ctx.selectCalls[0].title, "Select subagent model");
 	// Exactly the current row carries the marker; a :thinking-suffixed
 	// currentRef still matches its bare provider/model row.
@@ -158,7 +157,6 @@ test("picker dialogs carry the configured subject and mark the current model row
 	assert.ok(modelChoices.find((label: string) => label.startsWith("anthropic/claude"))?.includes("· current"));
 	assert.ok(!modelChoices.find((label: string) => label.startsWith("openai/gpt"))?.includes("· current"));
 	assert.ok(!modelChoices.find((label: string) => label.startsWith("local/plain"))?.includes("· current"));
-	// The thinking prompt names the subject and the canonical model.
 	assert.equal(ctx.selectCalls[1].title, "Thinking for scout — anthropic/claude");
 });
 
@@ -190,7 +188,6 @@ test("resolveModelPolicy forwards the picker prompt through every model dialog",
 	});
 	assert.equal(picked.argument, "anthropic/claude:medium");
 	assert.equal(ctx.selectCalls[0].title, "Model for Planner (1 of 4)");
-	// The marker follows currentRef, not the picked row.
 	assert.ok(ctx.selectCalls[0].choices.find((label: string) => label.startsWith("openai/gpt"))?.includes("· current"));
 	assert.ok(!ctx.selectCalls[0].choices.find((label: string) => label.startsWith("anthropic/claude"))?.includes("· current"));
 	assert.equal(ctx.selectCalls[1].title, "Thinking for Planner — anthropic/claude");

@@ -253,11 +253,6 @@ export function evaluateWorkflowWriteBoundarySnapshot(
 		: result;
 }
 
-/**
- * Shared-service boundary outcome for asynchronous results and child pings.
- * The details are intentionally role-name agnostic and contain every field
- * needed to explain a manifest-driven write-policy decision.
- */
 export function describeWorkflowWriteBoundaryReport(
 	report: WorkflowWriteBoundaryReport,
 ): WorkflowWriteBoundaryOutcome {

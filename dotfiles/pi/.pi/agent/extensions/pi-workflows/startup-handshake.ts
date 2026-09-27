@@ -1,4 +1,3 @@
-/** Bounded, load-order-independent registration gate for the future coordinator. */
 import {
 	discoverWorkflowProviders,
 	type WorkflowEventBus,

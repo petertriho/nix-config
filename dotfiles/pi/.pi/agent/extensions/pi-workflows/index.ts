@@ -15,7 +15,6 @@ const RELOAD_KEY = Symbol.for("pi-workflows/session-shutdown");
 const reloadGlobal = globalThis as unknown as Record<symbol, (() => void) | undefined>;
 reloadGlobal[RELOAD_KEY]?.();
 
-/** Own workflow registration, durable state, gates, and repository policy. */
 export default function piWorkflows(pi: ExtensionAPI): void {
 	let state = createWorkflowRunState();
 	const clients = new Map<string, WorkflowEventClient>();
@@ -73,7 +72,7 @@ export default function piWorkflows(pi: ExtensionAPI): void {
 			gates = registerWorkflowGateTool(pi, { getState: () => state, commit }, {
 				hasOwnedRole: () => lifecycle?.hasOwnedRole() ?? false,
 				shouldRegister,
-				onError: (error) => { try { latestCtx?.ui.notify(error.message, "error"); } catch { /* closed */ } },
+				onError: (error) => { try { latestCtx?.ui.notify(error.message, "error"); } catch { /* UI may be closed */ } },
 			});
 			lifecycle = registerWorkflowLifecycleTools(pi, {
 				state: gates.state,
@@ -141,7 +140,7 @@ export default function piWorkflows(pi: ExtensionAPI): void {
 			register,
 			notify: (message) => {
 				if (!registered) disabled = true;
-				try { ctx.ui.notify(message, "warning"); } catch { /* closed */ }
+				try { ctx.ui.notify(message, "warning"); } catch { /* UI may be closed */ }
 			},
 		});
 		// Pi dispatches session_start sequentially. Do not hold that dispatch

@@ -136,13 +136,11 @@ test("buildLaunchScript comments out every preamble line so a newline in a name 
 	const script = buildLaunchScript("bash '/tmp/real-cmd.sh'", preamble);
 	const lines = script.trimEnd().split("\n");
 	assert.equal(lines[0], "#!/bin/bash");
-	// Every preamble line is a comment; the injected rm line is neutralized.
 	for (const line of lines.slice(1, -1)) {
 		assert.match(line, /^#/, `preamble line not commented: ${line}`);
 	}
 	assert.equal(lines.includes("rm -rf ~"), false);
 	assert.ok(lines.some((line) => line === "# rm -rf ~"));
-	// The real command stays the last line, verbatim.
 	assert.equal(lines[lines.length - 1], "bash '/tmp/real-cmd.sh'");
 });
 
@@ -160,7 +158,6 @@ test("interpretExitSidecar decodes a turn-limit payload", () => {
 			errorMessage: "Task agent exceeded its turn limit (3 turns plus 5 grace turns) and was aborted without a final answer.",
 		},
 	);
-	// A malformed turn-limit payload still surfaces a clear failure.
 	assert.deepEqual(interpretExitSidecar({ type: "turn-limit" }), {
 		reason: "turn-limit",
 		exitCode: 1,
@@ -172,8 +169,6 @@ test(
 	"a vanished pane settles pollForExit terminally instead of polling forever",
 	{ skip: !process.env.TMUX && "TMUX is not set", timeout: 15_000 },
 	async () => {
-		// A pane id that cannot exist: capture fails, no sidecar, and the pane
-		// is genuinely absent from the server.
 		const result = await pollForExit("%999999", AbortSignal.timeout(10_000), {
 			interval: 50,
 		});
@@ -196,7 +191,6 @@ test(
 			try {
 				closeSurface(pane);
 			} catch {
-				// Already closed above.
 			}
 		}
 		assert.equal(paneExists("%999999"), false);

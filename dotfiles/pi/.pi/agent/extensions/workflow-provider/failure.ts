@@ -1,4 +1,3 @@
-/** Provider error classification shared by ordinary agents and workflow recovery. */
 import type { ProviderFailureRecord } from "./launch-profile.ts";
 
 export type ProviderFailureKind = "usage" | "retry-exhausted" | "other";

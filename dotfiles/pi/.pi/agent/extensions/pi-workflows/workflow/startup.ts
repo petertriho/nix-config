@@ -37,7 +37,6 @@ export interface WorkflowStartupState {
 	 * through recovery.
 	 */
 	readonly currentAssignments?: Readonly<Record<string, WorkflowRoleAssignment>>;
-	/** Latest active session path per workflow role (spawn or rollover). */
 	readonly activeSessions?: Readonly<Record<string, string>>;
 	readonly updatedAt: string;
 }

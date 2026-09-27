@@ -140,7 +140,7 @@ export function canonicalProjectRoot(projectRoot: string): string {
 			return existsSync(resolvedRoot) ? realpathSync(resolvedRoot) : resolvedRoot;
 		}
 	} catch {
-		// Non-Git directories intentionally fall back to their canonical cwd.
+		// Non-Git directories use the canonical cwd.
 	}
 	return canonicalCwd;
 }

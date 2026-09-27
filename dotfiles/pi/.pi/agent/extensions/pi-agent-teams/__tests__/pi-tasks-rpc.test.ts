@@ -170,8 +170,7 @@ function createHarness(
 		return attachTaskRpc({
 			events: bus.bus,
 			hooks,
-			// The default resolver pretends validation succeeded and reuses the
-			// hook-launched handle; per-test overrides replace it.
+			// Per-test overrides can replace the default successful resolver.
 			async resolveAndLaunch(request) {
 				const handle = await hooks.launch({
 					type: request.type,
@@ -701,16 +700,15 @@ test("shutdown terminates, finalizes, and clears every active adapter-owned run"
 });
 
 test("a shutdown-terminated task is not reattached as live after a session reload", async () => {
-	// Upstream pi-tasks persists in_progress tasks and reattaches their stored
-	// agent ids on reload/resume, assuming a later lifecycle event settles
-	// them. Simulate that contract: without the shutdown event, the reloaded
+	// pi-tasks reattaches persisted in_progress task ids on reload/resume.
+	// Without the shutdown event, the reloaded
 	// task would stay attached to a dead agent id forever (TaskOutput waits,
 	// dependencies stay blocked, no retry).
 	const harness = createHarness();
 	const attached = await harness.attach();
 	assert.ok(attached);
 
-	// Upstream-style task record driven by the adapter's lifecycle events.
+	// Model the task record driven by the adapter's lifecycle events.
 	const tasks = new Map<string, { status: string; agentId?: string }>();
 	const spawnReply = await rpcCall<{ id: string }>(harness.bus.bus, "subagents:rpc:spawn", {
 		type: "general-purpose",
@@ -726,7 +724,7 @@ test("a shutdown-terminated task is not reattached as live after a session reloa
 	assert.equal(harness.failed[0].status, "aborted");
 	const task = tasks.get("task-1");
 	assert.equal(task?.status, "in_progress");
-	task.status = "failed"; // what the upstream listener does on subagents:failed
+	task.status = "failed"; // Apply the subagents:failed event.
 
 	// Reload/resume reattachment: an in_progress task is reattached as live
 	// only while its agent id is still active on the provider.
@@ -1107,7 +1105,7 @@ test("task model resolution hard-fails when an explicit override is unresolvable
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bundled compatibility profiles (T6)
+// Bundled compatibility profiles
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Resolve against the real bundled agents dir with no project/global shadowing. */
@@ -1213,7 +1211,6 @@ test("bundled Explore and Plan enforce read-only tool allowlists, not prompt tex
 		);
 	}
 
-	// general-purpose keeps ordinary write tools and only loses nesting.
 	const general = resolveTaskAgentProfile("general-purpose", dirs);
 	assert.ok(general.ok);
 	assert.equal(general.profile.tools, undefined);
@@ -1228,7 +1225,6 @@ test("existing autonomous workflow profiles stay eligible through the task resol
 		assert.notEqual(resolved.profile.autoExit, false, name);
 		assert.equal(resolved.profile.cli, undefined, name);
 	}
-	// The interactive planner and CLI agent stay ineligible.
 	assert.equal(resolveTaskAgentProfile("planner", dirs).ok, false);
 	assert.equal(resolveTaskAgentProfile("claude-code", dirs).ok, false);
 });

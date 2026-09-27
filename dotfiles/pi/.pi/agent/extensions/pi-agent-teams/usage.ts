@@ -212,7 +212,7 @@ function formatContextWindowSize(tokens: number): string {
 }
 
 /**
- * Compact, provider-neutral presentation of a usage summary (T9).
+ * Compact, provider-neutral presentation of a usage summary.
  *
  * Shows requests, input, output, total, context pressure, cache fields,
  * provider/model identity, and thinking level — each only when available.

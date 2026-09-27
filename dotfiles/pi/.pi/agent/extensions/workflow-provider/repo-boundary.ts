@@ -14,17 +14,13 @@ import {
 export interface RepoState {
 	changedPaths: string[];
 	signatures: Map<string, string>;
-	/**
-	 * Extended Git state captured by current snapshots. Optional so callers
-	 * holding the original dirty-path-only shape remain compatible.
-	 */
+	/** Optional to support callers with only dirty-path snapshots. */
 	head?: string;
 	headEntries?: Map<string, string>;
 	indexEntries?: Map<string, string>;
 	statusSignatures?: Map<string, string>;
 	/** Direct fingerprints for declared boundary files, including ignored files. */
 	boundaryFileSignatures?: Map<string, string>;
-	/** Recursive fingerprints for initialized Git submodules. */
 	submoduleSignatures?: Map<string, string>;
 	/** Recursive snapshots retaining submodule HEAD/index evidence separately from worktree hashes. */
 	submoduleStates?: Map<string, RepoState>;
@@ -286,7 +282,6 @@ export function captureRepoState(
 	};
 }
 
-/** Git repository root for a starting directory, or null outside a repository. */
 export function resolveGitRoot(startDir: string): string | null {
 	try {
 		const output = execFileSync("git", ["-C", startDir, "rev-parse", "--show-toplevel"], {

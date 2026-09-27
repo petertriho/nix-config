@@ -577,7 +577,7 @@ for (const first of LAUNCH_TOOLS) {
 				const result = await winner;
 				assert.equal(result.details.status, "started");
 				assert.equal(ownershipAtPreflight, true, "ownership must precede synchronous provider callbacks");
-				compete(); // An acknowledged child keeps ownership after the reservation ends.
+				compete(); // The acknowledged child must still own the run.
 				for (const rejected of await Promise.all(contenders)) {
 					assert.equal(rejected.details.error, "workflow lifecycle rejected");
 					assert.match(rejected.details.message, /already in progress|still owns a child/);
@@ -1202,7 +1202,6 @@ test("tree navigation ends recovery ownership even when the restored branch has 
 		execution.stopSubagent = (running) => { stopped.push(running); };
 		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
 		const { ctx } = toolContext(root);
-		// Use the actual recovery gate label without depending on its presentation.
 		ctx.ui.select = async (_title: string, choices: string[]) => choices[0];
 		await lifecycle.recover({ runId: "run-docs", role: "author", failure: "quota exceeded" }, ctx);
 		assert.ok(execution.resume?.lifecycle);

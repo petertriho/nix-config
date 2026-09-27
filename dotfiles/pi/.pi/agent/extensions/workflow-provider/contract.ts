@@ -1,4 +1,3 @@
-/** Transport-neutral workflow execution boundary over Pi's cross-extension event bus. */
 import { randomUUID } from "node:crypto";
 
 export interface WorkflowEventBus {
@@ -124,7 +123,6 @@ function validOwner(owner: WorkflowOwner): boolean {
 		.every((part) => typeof part === "string" && part.length > 0);
 }
 
-/** Requests are addressed to a particular provider incarnation and role ownership. */
 export interface WorkflowProviderRequest<T = unknown> {
 	readonly requestId: string;
 	readonly providerId: string;
@@ -164,7 +162,6 @@ function validRoleFacts(value: unknown, payload: unknown): value is WorkflowRole
 		&& (payload.allowRollover !== true || value.replacement !== true
 			|| value.originalSessionPath !== payload.sessionPath)) return false;
 	if (record(payload)) {
-		// Fresh launches provide agent/model directly, without saved-session expectations.
 		if (nonempty(payload.agentId) && payload.agentId !== value.profile.agentId) return false;
 		const expected = record(payload.expected) ? payload.expected : undefined;
 		if (nonempty(expected?.agentId) && expected.agentId !== value.profile.agentId) return false;
@@ -302,7 +299,6 @@ export type WorkflowProviderDelivery =
 		readonly changedFiles?: readonly string[]; readonly manualReviewReason?: string }
 	| { readonly kind: "result"; readonly result: WorkflowRoleResult };
 
-/** Immutable evidence for coordinator-owned repository boundary checks. */
 export interface WorkflowRoleResult {
 	readonly sessionPath: string;
 	readonly status: "completed" | "failed" | "stopped";

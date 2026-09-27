@@ -1,23 +1,5 @@
-/**
- * T12 generality proof: a synthetic workflow runs the entire generic
- * subsystem end-to-end.
- *
- * The `docs-review` package below exists only inside temp directories created
- * by these tests. It is never bundled or shipped. It uses independent
- * authoring choices:
- *
- * - workflow id `docs-review` with a distinct command alias `docs`;
- * - two roles (`author`, `verifier`) instead of four;
- * - data slots `draft`, `report` (file) and `ticket` (string);
- * - a different read set, a different write policy (author keeps `worktree`
- *   plus its own draft file; verifier writes only the report);
- * - unrelated handoff text and agents (`scribe`, `fact-checker`).
- *
- * The full lifecycle below — discovery, command generation, startup model
- * order, spawn, resume, role-session replacement, persistence, write
- * boundaries, rollover handoff, recovery, completion, and reload restoration
- * — runs without any TypeScript branch for these IDs.
- */
+// A temporary, unbundled package tests that the lifecycle does not depend on
+// the bundled workflow's role names, data slots, or write policy.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
@@ -534,7 +516,6 @@ function branchReaderFor(store: StateStore): WorkflowRunBranchReader {
 
 test("synthetic docs-review runs discovery, alias generation, startup order, and private-skill startup end-to-end", async () => {
 	await withDocsReviewProject(async (project) => {
-		// 1. Discovery: trusted project scope only.
 		const registry = discoverWorkflowRegistry({
 			bundledRoot: project.isolatedRoot,
 			globalRoot: project.isolatedRoot,
@@ -552,7 +533,6 @@ test("synthetic docs-review runs discovery, alias generation, startup order, and
 		assert.equal(entry.packagePath, project.packageDir);
 		assert.match(entry.skillPath, /\.pi[/\\]workflows[/\\]docs-review[/\\]SKILL\.md$/);
 
-		// Untrusted projects never see the package.
 		const untrusted = discoverWorkflowRegistry({
 			bundledRoot: project.isolatedRoot,
 			globalRoot: project.isolatedRoot,
@@ -562,8 +542,6 @@ test("synthetic docs-review runs discovery, alias generation, startup order, and
 		});
 		assert.deepEqual(untrusted.workflows, []);
 
-		// 2. Command generation: /workflow, /workflows, /workflow-resume plus
-		//    the manifest alias /docs, with registry-driven completions.
 		const store = new StateStore(createWorkflowRunState());
 		const generic = makeRuntime({
 			root: project.root,
@@ -582,8 +560,6 @@ test("synthetic docs-review runs discovery, alias generation, startup order, and
 			[{ value: "run docs-review ", label: "docs-review", description: "Draft and verify documentation for a ticket" }],
 		);
 
-		// 3. Startup model order follows the manifest role order (author, then
-		//    verifier) through the real startup gate inside the command flow.
 		const request = "DOC-42 Write the deployment guide for the new cache.";
 		await generic.pi.command("workflow").handler(`run docs-review ${request}`, generic.ctx);
 		const modelTitles = generic.selectCalls
@@ -618,13 +594,8 @@ test("synthetic docs-review runs discovery, alias generation, startup order, and
 		assert.match(config, /id="ticket" kind=string label="Ticket"/);
 		assert.match(config, /workflow_complete: MUST be called exactly once with runId="run-docs-e2e"/);
 		assert.equal(message.endsWith(request), true);
-		// Zero TypeScript branches for these IDs: the startup contract is
-		// entirely manifest-driven and does not depend on bundled role names.
 		assert.doesNotMatch(config, /planner|task-writer|executor|reviewer/);
 
-		// 4. The generated alias /docs produces the same startup behavior as
-		//    /workflow run docs-review, including an identical private-skill
-		//    message.
 		const aliasStore = new StateStore(createWorkflowRunState());
 		const alias = makeRuntime({
 			root: project.root,
@@ -666,7 +637,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		);
 		const toolUi = commandContext({ root: project.root, selections: [RECOVER_MODEL] });
 
-		// ── Spawn: manifest agent, label, per-role model, typed data, boundary ──
 		execution.nextSessionPath = join(project.root, "author-1.jsonl");
 		const draftPath = join(project.root, ".artifacts", "docs", "DRAFT.md");
 		const spawnResult = await lifecycle.spawn(
@@ -691,8 +661,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.equal(execution.launch?.options.workflow?.data?.ticket, "DOC-42");
 		assert.equal(execution.launch?.options.workflow?.data?.draft, draftPath);
 
-		// ── Write boundary: allowed worktree + draft changes, then a
-		//    protected-file violation with exact paths and no reverts ──
 		const authorBoundary = execution.watch?.running.boundary as WorkflowWriteBoundarySnapshot | undefined;
 		assert.ok(authorBoundary);
 		assert.equal(authorBoundary.workflowId, "docs-review");
@@ -720,8 +688,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			"author",
 		);
 
-		// Violations are preserved and delivered through the same
-		// asynchronous result flow, marking the launch failed.
 		execution.watch!.running.surfaceClosed = true;
 		const asyncResult = await execution.watch!.onSuccess({
 			result: {
@@ -747,8 +713,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			"the violating change must be preserved exactly as written",
 		);
 
-		// ── Resume: current role session resolved from parent state, handoff
-		//    built from manifest reads, fresh replacement keeps history ──
 		const verifierSession = join(project.root, "verifier-1.jsonl");
 		writeVerifierSession({
 			root: project.root,
@@ -781,7 +745,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /Draft:/);
 		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /Ticket: DOC-43/);
 		assert.match(execution.resume?.lifecycle?.rolloverMessage ?? "", /Verification report:/);
-		// Slots outside the role's reads never leak into handoffs.
 		assert.doesNotMatch(
 			buildWorkflowRolloverHandoffForRole({
 				definition: project.definition,
@@ -794,7 +757,7 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.equal(active?.roleSessions.verifier?.current, verifierSession);
 		assert.deepEqual(active?.roleSessions.verifier?.history, []);
 
-		// Each fake resume stays owned until its child is explicitly stopped.
+		// The fake resume retains a child until explicitly stopped.
 		await lifecycle.stopOwnedRoles();
 		const replacement = join(project.root, "verifier-2.jsonl");
 		execution.replacementSessionPath = replacement;
@@ -819,8 +782,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			data: { ticket: "DOC-43", draft: draftPath, report: reportPath },
 		});
 
-		// ── Recovery: manifest label, current-session resolution, override
-		//    isolated to current run assignments and the sidecar ──
 		await lifecycle.stopOwnedRoles();
 		const recovered = await lifecycle.recover(
 			{
@@ -867,9 +828,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			assert.equal(sidecar.profile.workflow?.currentDefault?.model, "relay-lite");
 		}
 
-		// ── Persistence + reload restoration: every committed transition was
-		//    appended as a session entry; a running launch restores as
-		//    interrupted with explicit guidance ──
 		store.commit(
 			recordWorkflowRunRoleSession(store.getState(), runId, "verifier", replacement, {
 				launchStatus: "running",
@@ -897,8 +855,7 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.match(status, /Documentation verifier \(verifier\)/);
 		assert.match(status, /Review detached repository changes manually/);
 
-		// Definition snapshots survive package drift: mutate the package and
-		// confirm the restored run keeps its original manifest snapshot.
+		// Package drift must not change the definition in a persisted run.
 		writeFileSync(
 			join(project.packageDir, "workflow.json"),
 			`${JSON.stringify(
@@ -917,8 +874,6 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.ok(driftedActive);
 		assert.deepEqual(driftedActive.definition.roleIds, ["author", "verifier"]);
 
-		// ── Completion invalidates the token, keeps the audit snapshot, and
-		//    survives a final reload as a non-active run ──
 		const completed = await lifecycle.complete({
 			runId,
 			status: "completed",

@@ -71,7 +71,6 @@ function formatSelection(model: Model<Api>, thinking?: SubagentThinkingLevel): s
 	return thinking ? `${base}:${thinking}` : base;
 }
 
-/** Strip a valid `:thinking` suffix so a currentRef can match a bare row. */
 function normalizeCurrentRef(currentRef: string): string {
 	const lastColon = currentRef.lastIndexOf(":");
 	const suffix = lastColon >= 0 ? asThinkingLevel(currentRef.slice(lastColon + 1)) : undefined;
@@ -139,13 +138,6 @@ export function parseExplicitModelSelection(
 	};
 }
 
-/**
- * Resolve a per-agent default from `agent-models.json` through the validated
- * path (registry lookup + supported-thinking check). Unlike the legacy
- * frontmatter passthrough this records `source: "configured"` in launch
- * bookkeeping. Availability and thinking failures throw with the agent name
- * and configured value so spawn-time errors stay actionable.
- */
 export function resolveConfiguredAgentModel(
 	value: string,
 	ctx: PickerContext,
@@ -227,9 +219,7 @@ export async function pickModelSelection(
 	options: {
 		contextTokens?: number;
 		title?: string;
-		/** Agent/role being configured; names the thinking-level dialog. */
 		subject?: string;
-		/** Configured provider/model[:thinking] whose row gets `· current`. */
 		currentRef?: string;
 	},
 ): Promise<ResolvedModelSelection | undefined> {
@@ -317,7 +307,6 @@ export async function resolveModelPolicy(
 		agentModel?: string;
 		agentThinking?: string;
 		contextTokens?: number;
-		/** Subject-aware prompt for the "pick" branch's model dialogs. */
 		picker?: { title?: string; subject?: string; currentRef?: string };
 	},
 ): Promise<ModelPolicyResolution> {

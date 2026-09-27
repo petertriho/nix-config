@@ -1,10 +1,7 @@
 /**
- * Task-RPC bridge for pi-agent-teams: the protocol-v2 provider that
- * upstream `@tintinweb/pi-tasks` (0.9.0) expects for TaskExecute/TaskStop/
- * TaskOutput execution.
+ * Protocol-v2 task RPC provider for TaskExecute/TaskStop/TaskOutput.
  *
- * Upstream contract (pi-tasks src/index.ts + pi-subagents
- * src/cross-extension-rpc.ts, both protocol v2):
+ * Protocol contract:
  *   - requests: `subagents:rpc:{ping,spawn,stop,consume}` with `{ requestId }`
  *   - replies:  `subagents:rpc:<method>:reply:<requestId>` carrying the
  *     envelope `{ success: true, data? } | { success: false, error }`
@@ -13,9 +10,7 @@
  *     `subagents:failed` `{id,type,description,status,error,result}` with
  *     status "failed" | "aborted" | "stopped"
  *
- * Everything Pi/tmux-specific (panes, watching, model registries) is injected,
- * so the protocol state machine is unit-testable without a terminal. The
- * wiring that supplies the real hooks lives in index.ts.
+ * Panes, watching, and model registries are injected by index.ts.
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -27,15 +22,12 @@ import {
 	type ResolvedModelSelection,
 } from "./model-picker.ts";
 
-/** RPC protocol version — bumped when the envelope or method contracts change. */
 export const TASK_RPC_PROTOCOL_VERSION = 2;
 
-/** RPC reply envelope — matches pi-mono's RpcResponse shape. */
 export type RpcReply<T = void> =
 	| { success: true; data?: T }
 	| { success: false; error: string };
 
-/** Minimal event bus interface needed by the RPC handlers (pi.events). */
 export interface RpcEventBus {
 	on(channel: string, handler: (data: unknown) => void): () => void;
 	emit(channel: string, data: unknown): void;
@@ -49,7 +41,7 @@ export const SUBAGENTS_READY_CHANNEL = "subagents:ready";
 export const SUBAGENTS_COMPLETED_CHANNEL = "subagents:completed";
 export const SUBAGENTS_FAILED_CHANNEL = "subagents:failed";
 
-/** Symbol under which the original pi-subagents exposes its manager. */
+/** Registry claim used to avoid registering alongside another provider. */
 const MANAGER_KEY = Symbol.for("pi-subagents:manager");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,7 +62,6 @@ export function isTaskRpcChildSession(env: TaskRpcEnvLike = process.env): boolea
 	return Boolean(env.PI_SUBAGENT_ID || env.PI_SUBAGENT_SESSION);
 }
 
-/** Registration is root-session-only. */
 export function shouldRegisterTaskRpc(env: TaskRpcEnvLike = process.env): boolean {
 	return !isTaskRpcChildSession(env);
 }
@@ -79,7 +70,6 @@ export function shouldRegisterTaskRpc(env: TaskRpcEnvLike = process.env): boolea
 // Provider conflict detection
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** True when the original pi-subagents has claimed the manager registry. */
 export function isForeignManagerRegistered(scope: unknown = globalThis): boolean {
 	return (scope as Record<symbol, unknown>)[MANAGER_KEY] !== undefined;
 }
@@ -115,7 +105,6 @@ export function pingExistingProvider(
 // Spawn payload normalization
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Options pi-tasks 0.9.0 actually sends on `subagents:rpc:spawn`. */
 export interface TaskSpawnOptions {
 	description?: string;
 	isBackground?: boolean;
@@ -176,7 +165,7 @@ export function normalizeTaskSpawnOptions(
 		if (typeof options.maxTurns !== "number" || !Number.isFinite(options.maxTurns)) {
 			throw new Error(`Task spawn option "maxTurns" must be a finite number.`);
 		}
-		// Matches pi-subagents' normalizeMaxTurns: below 1 means unlimited.
+		// Below 1 means unlimited.
 		if (options.maxTurns >= 1) maxTurns = Math.floor(options.maxTurns);
 	}
 	return {
@@ -196,16 +185,12 @@ export function normalizeTaskSpawnOptions(
 export type TaskAgentSource = "project" | "global" | "bundled";
 
 export interface TaskAgentProfileDirs {
-	/** Project-local `.pi/agents` — highest precedence. */
 	project: string;
-	/** `<agentDir>/agents` (PI_CODING_AGENT_DIR aware). */
 	global: string;
-	/** Profiles bundled with this extension — lowest precedence. */
 	bundled: string;
 }
 
 export interface TaskAgentProfile {
-	/** File basename without `.md` — the spawn identifier. */
 	fileName: string;
 	source: TaskAgentSource;
 	path: string;
@@ -230,11 +215,7 @@ function parseOptionalBoolean(value: string | undefined): boolean | undefined {
 	return value == null ? undefined : value === "true";
 }
 
-/**
- * Parse the subset of agent frontmatter the task bridge cares about. Kept
- * local (rather than importing index.ts) so the protocol module stays
- * import-cycle-free; index.ts's full parser owns the remaining fields.
- */
+/** Keep frontmatter parsing local to avoid an import cycle with index.ts. */
 export function parseTaskAgentProfile(
 	content: string,
 	fileName: string,
@@ -375,7 +356,7 @@ function checkTaskProfileSafety(profile: TaskAgentProfile, requested: string): T
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fuzzy authenticated model resolution (pi-subagents-compatible)
+// Fuzzy authenticated model resolution
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TaskModelLike {
@@ -400,8 +381,7 @@ function formatAvailableModels(available: readonly TaskModelLike[]): string {
 }
 
 /**
- * Resolve a task model override the way pi-subagents' `resolveModel` does,
- * searching only authenticated (`getAvailable()`) models:
+ * Resolve a task model override using only authenticated (`getAvailable()`) models:
  *
  * 1. Exact `provider/modelId`.
  * 2. Fuzzy: case-insensitive, `.` and `-` equivalent in versions, substring on
@@ -420,7 +400,6 @@ export function resolveTaskModelOverride<T extends TaskModelLike>(
 	const trimmed = input.trim();
 	const query = normalizeModelToken(trimmed);
 
-	// 1. Exact provider/modelId (case-insensitive on the canonical string).
 	const slashIdx = query.indexOf("/");
 	if (slashIdx !== -1) {
 		const exact = available.find(
@@ -471,7 +450,6 @@ export function resolveTaskModelOverride<T extends TaskModelLike>(
 	}
 	if (best != null && bestScore >= 20) return best;
 
-	// 3. Provider fallback: retry the bare model id across all providers.
 	const originalSlash = trimmed.indexOf("/");
 	if (originalSlash !== -1 && originalSlash + 1 < trimmed.length) {
 		const bare = resolveTaskModelOverride(trimmed.slice(originalSlash + 1), registry);
@@ -494,7 +472,7 @@ export interface TaskModelContext<T extends TaskModelLike = TaskModelLike> {
 }
 
 /**
- * Resolve the model for one task launch. Precedence (PLAN §5.7):
+ * Resolve the model for one task launch. Precedence:
  *
  *   1. the pi-tasks `model` override (fuzzy, authenticated only);
  *   2. the `agent-models.json` entry for the resolved profile;
@@ -590,7 +568,6 @@ export interface TaskRunTerminal {
 	error?: string;
 }
 
-/** Shape shared with index.ts `RunningSubagent` — the bridge's pane handle. */
 export interface TaskRunHandle {
 	id: string;
 	surface: string;
@@ -733,7 +710,6 @@ export class TaskRunStore {
 // Watch-outcome classification
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Structural subset of index.ts `SubagentResult` used for classification. */
 export interface TaskResultLike {
 	exitCode: number;
 	summary?: string;
@@ -808,7 +784,6 @@ export function classifyTaskResult(result: TaskResultLike): TaskWatchOutcome {
 // The bridge
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** One validated, fully-resolved spawn request handed to the runtime hooks. */
 export interface TaskSpawnSpec {
 	type: string;
 	prompt: string;
@@ -817,21 +792,15 @@ export interface TaskSpawnSpec {
 	resolvedModel: ResolvedModelSelection;
 }
 
-/** Pi/tmux operations the bridge needs — injected by index.ts. */
 export interface TaskRpcRuntimeHooks {
-	/** Create the pane and dispatch the command. Returns after dispatch. */
 	launch(spec: TaskSpawnSpec): Promise<TaskRunHandle>;
-	/** Long-running watch until the child exits (watchSubagent). */
 	watch(handle: TaskRunHandle, signal: AbortSignal): Promise<TaskResultLike>;
-	/** Send one Escape keypress to the child pane. */
 	sendEscape(handle: TaskRunHandle): void;
-	/** Kill the pane. Survives being called on an already-dead pane. */
+	/** Safe to call on an already-dead pane. */
 	closeSurface(handle: TaskRunHandle): void;
-	/** Latest partial assistant text from the child session file. */
 	readPartialResult(handle: TaskRunHandle): string | undefined;
 }
 
-/** Validate + resolve a spawn request into a spec + pane handle. */
 export type TaskSpawnResolver = (request: {
 	type: string;
 	prompt: string;
@@ -848,7 +817,6 @@ export interface TaskRpcBridgeOptions {
 }
 
 export interface TaskRpcBridge {
-	/** Reply to `subagents:rpc:ping`. */
 	ping(): { version: number };
 	/**
 	 * Spawn a task child. Validates and resolves before any pane is created,
@@ -856,15 +824,10 @@ export interface TaskRpcBridge {
 	 * turn so the caller stores the returned id before terminal events.
 	 */
 	spawn(request: { type: string; prompt: string; options?: TaskSpawnOptions }): Promise<{ id: string }>;
-	/** Terminal stop of a running task. */
 	stop(id: string): Promise<void>;
-	/** Mark a settled run consumed. */
 	consume(id: string): void;
-	/** Currently active (unsettled) run ids. */
 	activeIds(): string[];
-	/** Inspection helper: a stored record by id. */
 	getRecord(id: string): TaskRunState | undefined;
-	/** Test helper: settled-record count. */
 	settledCount(): number;
 	/** Session shutdown: abort watchers, kill panes, drop records. Emits nothing. */
 	shutdown(): void;
@@ -1082,7 +1045,7 @@ export function createTaskRpcBridge(
 					// The pane may already be gone; shutdown continues.
 				}
 			}
-			// Killing the pane without an event would strand the task upstream:
+			// Killing the pane without an event would strand the task:
 			// pi-tasks keeps an in_progress task attached to this agent id and
 			// waits for a lifecycle event that never comes. Finalize exactly
 			// once (runs that already settled are skipped by the idempotent
@@ -1136,7 +1099,6 @@ export interface AttachTaskRpcDeps {
 	resolveAndLaunch: TaskSpawnResolver;
 	notify: (message: string) => void;
 	options?: TaskRpcBridgeOptions;
-	/** Test seams for dependency-injected provider probes. */
 	isChildSession?: () => boolean;
 	foreignManagerCheck?: () => boolean;
 	providerPing?: (events: RpcEventBus, options: { timeoutMs?: number }) => Promise<boolean>;
@@ -1145,7 +1107,7 @@ export interface AttachTaskRpcDeps {
 /**
  * Register the protocol handlers on the root session's event bus, unless:
  *  - this is a child Pi process (PI_SUBAGENT_ID / PI_SUBAGENT_SESSION set); or
- *  - the original pi-subagents manager is registered; or
+ *  - another provider has claimed the manager registry; or
  *  - a bounded ping finds an already-bound provider.
  *
  * In the abstain cases no handler is registered, no `subagents:ready` is

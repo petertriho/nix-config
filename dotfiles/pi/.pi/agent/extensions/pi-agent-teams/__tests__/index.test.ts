@@ -66,8 +66,6 @@ const savedSubagentEnv = {
 };
 
 before(() => {
-	// Root-session wiring tests must not abstain because this process
-	// happens to run inside a pi subagent that exported PI_SUBAGENT_*.
 	delete process.env.PI_SUBAGENT_ID;
 	delete process.env.PI_SUBAGENT_SESSION;
 	// Surface-launching tests must stay fast and independent of the
@@ -578,7 +576,7 @@ test("subagents_list lists visible agents, hides disable-model-invocation, and l
 	});
 });
 
-// ── launch profiles (T1) ──
+// ── launch profiles ──
 
 test("buildLaunchProfile captures the stable role contract and mutable launch state", async () => {
 	await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
@@ -677,7 +675,7 @@ test("collectResourceFingerprints uses active tools and explicit skills determin
 	}
 });
 
-// ── bundled agents (T9) ──
+// ── bundled agents ──
 
 test("bundled agents parse with the expected spawning, auto-exit, and interactive flags", () => {
 	const dir = testApi.getBundledAgentsDir();
@@ -727,8 +725,6 @@ test("bundled agents parse with the expected spawning, auto-exit, and interactiv
 
 test("workflow roles keep discovery without maintained tool lists", () => {
 	const dir = testApi.getBundledAgentsDir();
-	// Workflow roles and the worker delegate keep full current tool discovery;
-	// worker dropped its frontmatter list when it took on write work.
 	for (const name of ["planner", "evaluator", "task-writer", "executor", "reviewer", "worker"]) {
 		const content = readFileSync(join(dir, `${name}.md`), "utf8");
 		assert.doesNotMatch(content, /^tools:/m, `${name} must not maintain a tools list`);
@@ -736,7 +732,6 @@ test("workflow roles keep discovery without maintained tool lists", () => {
 		assert.ok(parsed, name);
 		assert.equal(parsed.tools, undefined, `${name} keeps full current tool discovery`);
 	}
-	// The read-only scout delegate keeps its restricted tool list.
 	const scout = testApi.parseAgentDefinition(readFileSync(join(dir, "scout.md"), "utf8"), "scout");
 	assert.ok(scout, "scout");
 	assert.ok(scout.tools, "scout keeps its tools list");
@@ -895,7 +890,6 @@ test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards
 				"SendMessage",
 			],
 		);
-		// scrub window closed: ambient value visible again to execute()-time readers
 		assert.equal(
 			process.env.PI_DENY_TOOLS,
 			"subagent,subagent_interrupt,subagents_list,subagent_resume,workflow_recover",

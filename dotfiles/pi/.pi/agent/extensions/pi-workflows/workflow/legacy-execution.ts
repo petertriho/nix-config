@@ -2,8 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { LaunchProfileWorkflowMetadata, ModelSelection, ProviderFailureRecord } from "../../workflow-provider/launch-profile.ts";
 import type { ResolvedModelSelection } from "../../workflow-provider/model-picker.ts";
 
-// Structural compatibility for the existing in-process execution path. These
-// types do not load the tmux extension; the event path uses WorkflowEventClient.
+// Types for the direct execution path; this module does not load the tmux extension.
 export interface LaunchContext {
 	pi?: ExtensionAPI;
 	sessionManager: {

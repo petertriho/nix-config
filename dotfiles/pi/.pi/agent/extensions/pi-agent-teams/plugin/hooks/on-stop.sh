@@ -4,21 +4,17 @@
 
 set -euo pipefail
 
-# Read JSON input from stdin
 input=$(cat)
 
-# Guard: if stop_hook_active is true, we're in a loop — bail out
 stop_hook_active=$(echo "$input" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('stop_hook_active', False))" 2>/dev/null || echo "False")
 if [ "$stop_hook_active" = "True" ]; then
   exit 0
 fi
 
-# Guard: only act for pi-spawned sessions
 if [ -z "${PI_CLAUDE_SENTINEL:-}" ]; then
   exit 0
 fi
 
-# Get transcript path
 transcript_path=$(echo "$input" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('transcript_path', ''))" 2>/dev/null || echo "")
 if [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ]; then
   exit 0
@@ -27,10 +23,7 @@ fi
 # Check real human messages after this launch (not tool results). SessionStart
 # captures the transcript prefix before the launch prompt is processed. Older
 # turns can contain the same prompt text without counting as an interjection.
-# Claude's transcript format:
-#   Human message: {"type": "user", "message": {"role": "user", "content": "..."}}
-#   Tool result:   {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", ...}]}}
-# We only count entries where content is a string (real human input)
+# Only string content counts as human input; tool results have array content.
 is_autonomous=$(python3 - "$transcript_path" <<'EOF'
 import sys, json, os, hashlib, re
 
@@ -59,8 +52,6 @@ try:
             if entry.get('type') != 'user':
                 continue
             content = entry.get('message', {}).get('content', '')
-            # Real human messages have string content
-            # Tool results have array content with tool_result blocks
             if isinstance(content, str):
                 human.append(content)
 except (OSError, ValueError, TypeError, AttributeError):
@@ -77,14 +68,12 @@ else:
 EOF
 )
 
-# Always write transcript path so the watcher can copy the session file
 if [ -n "$transcript_path" ]; then
   echo "$transcript_path" > "${PI_CLAUDE_SENTINEL}.transcript" 2>/dev/null || true
 fi
 
 # Signal completion only when no later human message superseded the launch.
 if [ "$is_autonomous" = "True" ]; then
-  # Write last_assistant_message to sentinel so the watcher gets a clean result
   echo "$input" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('last_assistant_message', ''))" > "$PI_CLAUDE_SENTINEL" 2>/dev/null || touch "$PI_CLAUDE_SENTINEL"
 fi
 

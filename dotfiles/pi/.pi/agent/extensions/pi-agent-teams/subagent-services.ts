@@ -783,7 +783,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 			const denySet = rollover
 				? new Set(rollover.stable.controls.denyTools)
 				: deps.resolveDenyTools(agentDefs);
-			// Caller instructions extend the definition; save the same composition for resume.
+			// Save the composed role body so resume uses the same instructions.
 			const identity = rollover
 				? (rollover.stable.roleBody || null)
 				: [agentDefs?.body, params.systemPrompt].filter(Boolean).join("\n\n") || null;
@@ -1077,7 +1077,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 					try {
 						summary = readFileSync(running.sentinelFile, "utf-8").trim();
 					} catch {
-						// The sentinel summary is optional; screen capture is the fallback.
+						// Screen capture is the fallback when the sentinel is unavailable.
 					}
 				}
 
@@ -1097,20 +1097,18 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 				let claudeSessionId: string | null = null;
 				if (running.sentinelFile) {
 					claudeSessionId = copyClaudeSession(running.sentinelFile);
+					// Cleanup must not prevent the finished run from settling.
 					try {
 						unlinkSync(running.sentinelFile);
 					} catch {
-						// Cleanup is best-effort; the pane is closing regardless.
 					}
 					try {
 						unlinkSync(running.sentinelFile + ".transcript");
 					} catch {
-						// Cleanup is best-effort; the pane is closing regardless.
 					}
 					try {
 						unlinkSync(running.sentinelFile + ".launch");
 					} catch {
-						// Cleanup is best-effort; the pane is closing regardless.
 					}
 				}
 
@@ -1841,7 +1839,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 									...(recovery ? { previousFailure: recovery.failure } : {}),
 								}));
 						} catch {
-							// Profile updates are best-effort; the response is already complete.
+							// A profile write failure must not hide the completed response.
 						}
 						if (recovery && resolvedModel?.selection) {
 							await recovery.onSuccessfulResponse?.(resolvedModel.selection);

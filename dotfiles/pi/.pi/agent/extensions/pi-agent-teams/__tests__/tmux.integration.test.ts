@@ -135,7 +135,7 @@ test(
 		},
 );
 
-// ── Context-fit gate and fresh same-role rollover (T5) ──
+// ── Context-fit gate and fresh same-role rollover ──
 
 const GATE_MODEL = {
 	provider: "test-provider",
@@ -431,7 +431,6 @@ test(
 			pane = running.surface;
 			assert.equal(running.sessionFile, replacement);
 
-			// The saved conversation is untouched: rollover is not a fork or resume.
 			assert.equal(readFileSync(sessionPath, "utf8"), heavyBefore);
 
 			const script = readFileSync(result.details.launchScriptFile, "utf8");
@@ -447,7 +446,6 @@ test(
 					readFileSync(syspromptPath, "utf8"),
 					"You are the executor. Follow TASKS.md exactly.",
 				);
-			// The latest primary skill is re-expanded for the replacement.
 			assert.ok(script.includes("/skill:workflow "));
 			// Public resume has no manifest snapshot, so it stays generic and
 			// does not infer or expose workflow data. Dedicated workflow_resume
@@ -456,7 +454,6 @@ test(
 			assert.ok(!script.includes(join(projectDir, ".artifacts", "demo", "SPEC.md")));
 			assert.ok(!script.includes("abc123"));
 			assert.ok(script.includes("Continue from the first unchecked task."));
-			// No conversation fork: the launch never points at the saved session.
 			assert.ok(!script.includes(`--session '${sessionPath}'`));
 
 			const replacementProfile = readLaunchProfile(replacement);
@@ -471,7 +468,6 @@ test(
 				assert.deepEqual(next.stable.controls.denyTools, ["subagent"]);
 				assert.equal(next.stable.controls.sessionMode, "standalone");
 				assert.equal(next.lineage?.rolledOverFrom, sessionPath);
-				// The latest primary skill hash is captured fresh.
 				assert.equal(next.stable.primarySkill?.name, "workflow");
 				assert.equal(next.stable.primarySkill?.hash, hashText(skillBody));
 				assert.deepEqual(next.runtime.originalModel, {
@@ -884,7 +880,6 @@ test(
 					entries.map((entry) => JSON.stringify(entry)).join("\n") + "\n",
 				);
 
-				// Complete the simulated child run.
 				writeFileSync(`${sessionFile}.exit`, JSON.stringify({ type: "done" }));
 
 				await waitFor(() =>
@@ -893,7 +888,7 @@ test(
 				const completion = sentMessages.find(
 					(message) => message.customType === "subagent_result",
 				);
-				// T9: the spawn result carries the same normalized usage structure as
+				// The spawn result carries the same normalized usage structure as
 				// resume results — partial fields aggregate, cache fields appear only
 				// because both turns reported them, and the latest entry fixes the
 				// context tokens. The registry model adds window and ratio.

@@ -127,24 +127,6 @@ import {
   tmuxWorkflowProviderIO,
 } from "./workflow-provider.ts";
 
-/**
- * pi-agent-teams: a tmux-only port of pi-interactive-subagents
- * (https://github.com/hazat/pi-interactive-subagents).
- *
- * Scope: tmux is the only terminal multiplexer backend. cmux, zellij, and
- * WezTerm branches from upstream are not ported. Child pi sessions run the
- * plain `pi` binary from PATH in a new tmux pane; when the parent runs under a
- * nono sandbox profile, children are not sandboxed.
- *
- * Tools: `Agent`, `SendMessage`, `ListAgents`, `AgentInterrupt`.
- * Commands: `/subtask`, `/subagent`, `/agent-models`. pi-workflows owns workflow commands.
- * Agents are discovered from `<this dir>/agents`, `~/.pi/agent/agents`
- * (`PI_CODING_AGENT_DIR`), and `./.pi/agents`; later sources win.
- * See NOTES.md for the pi 0.84.3 prompt-argument findings behind
- * `buildPiPromptArgs`.
- */
-
-/** Absolute path to this extension directory. */
 const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
 
 // Survive /reload: clear timers and abort poll loops from the previous module load.
@@ -155,7 +137,6 @@ const STATUS_INTERVAL_KEY = Symbol.for("pi-agent-teams/status-interval");
 const POLL_ABORT_KEY = Symbol.for("pi-agent-teams/poll-abort-controller");
 
 type GlobalState = Record<symbol, unknown>;
-// SAFETY: module state is stored on globalThis only under private symbols above.
 const globalState = globalThis as unknown as GlobalState;
 
 {
@@ -259,8 +240,7 @@ interface OrdinaryFollowUp {
   followUpLifecycle?: { onResult(): void; onError(): void };
 }
 
-// Keep this surface separate from the legacy `subagent` arguments: Claude's
-// description and prompt are required, while a display name is not.
+// Claude requires a description and prompt, but not a display name.
 const AgentParams = Type.Object({
   description: Type.String({ description: "Short description of the task" }),
   prompt: Type.String({ description: "Task for the agent" }),
@@ -283,7 +263,6 @@ const AgentParams = Type.Object({
 
 type AgentCall = Static<typeof AgentParams> & { mode?: string };
 
-/** Normalize empty placeholders sent for optional fields by tool clients. */
 function normalizeAgentCall(input: AgentCall): AgentCall {
   const params = { ...input };
   for (const key of [
@@ -355,7 +334,6 @@ interface ListedAgentDefinition extends AgentDefinition {
   fileName: string;
 }
 
-/** Tools that are gated by `spawning: false` */
 const SPAWNING_TOOLS = new Set([
   "Agent",
   "SendMessage",
@@ -393,7 +371,6 @@ function resolveDenyTools(agentDefs: AgentDefaults | null): Set<string> {
   return denied;
 }
 
-/** Resolve the global agent config directory, respecting PI_CODING_AGENT_DIR. */
 function getAgentConfigDir(): string {
   return process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
 }
@@ -630,7 +607,6 @@ async function manageAgentModels(ctx: AgentModelsContext): Promise<void> {
     if (choice === undefined || choice === done) return;
     const def = byLabel.get(choice);
     if (!def) return;
-    // The spawn identifier (file basename) keys every read and write below.
     const id = def.fileName;
 
     if (def.cli) {
@@ -658,7 +634,6 @@ async function manageAgentModels(ctx: AgentModelsContext): Promise<void> {
       if (!picked) continue;
       const next = { ...agents, [id]: picked.argument };
       try {
-        // Revalidate against the registry before the value reaches disk.
         parseExplicitModelSelection(picked.argument, ctx.modelRegistry.getAvailable());
         writeAgentModelConfig({ version: AGENT_MODELS_VERSION, agents: next });
         ctx.ui.notify(`Default model for ${id}: ${picked.argument}`, "info");
@@ -753,7 +728,7 @@ function formatWidgetRightLabel(snapshot: StatusSnapshot): WidgetStatusPresentat
 }
 
 /**
- * T9: resolve the registered context window for the model that produced the
+ * Resolve the registered context window for the model that produced the
  * aggregated usage, when that model is currently authenticated. Missing
  * registry or model entries leave the summary without a window — usage
  * observability never blocks on registry availability.
@@ -770,7 +745,7 @@ function resolveUsageContextWindow(
 }
 
 /**
- * T9: enrich the child-session usage summary with the registered context
+ * Enrich the child-session usage summary with the registered context
  * window and ratio. Returns undefined when the child produced no completed
  * requests, so callers can omit the field entirely.
  */
@@ -782,7 +757,6 @@ function resolveUsageDetails(
   return withContextWindow(result.usage, resolveUsageContextWindow(result.usage, ctx.modelRegistry));
 }
 
-/** Result from running a single subagent. */
 interface SubagentResult {
   name: string;
   task: string;
@@ -797,7 +771,7 @@ interface SubagentResult {
   /** True when this run hit the hard task turn limit and was aborted. */
   turnLimit?: boolean;
   /**
-   * T9: provider-neutral usage summary aggregated from the child session's
+   * Provider-neutral usage summary aggregated from the child session's
    * completed assistant entries. Present only when at least one completed
    * request exists; cache fields appear only when the provider reports them.
    */
@@ -807,7 +781,6 @@ interface SubagentResult {
   ping?: { name: string; message: string };
 }
 
-/** State for a launched (but not yet completed) subagent. */
 interface RunningSubagent {
   id: string;
   name: string;
@@ -841,21 +814,15 @@ interface RunningSubagent {
   boundary?: unknown;
 }
 
-/** All currently running subagents, keyed by id. */
 const runningSubagents = new Map<string, RunningSubagent>();
-/** Private compatibility fixtures for tests; none of these are registered tools. */
 const retiredToolFixtures = new Map<string, ReturnType<typeof defineTool>>();
 
 // ── pi-tasks RPC bridge (protocol-v2 provider) ──
 
-/** Live task-RPC registration, once per root session (null after shutdown). */
 let attachedTaskRpc: AttachedTaskRpc | null = null;
-/** In-flight attach, so double-bound session_starts never register twice. */
 let taskRpcAttachInFlight: Promise<void> | null = null;
-/** Session generation; bumped on every shutdown to invalidate in-flight attaches. */
 let taskRpcAttachEpoch = 0;
 
-/** Effective agent-profile search dirs for the task bridge (project > global > bundled). */
 function getTaskAgentProfileDirs(): TaskAgentProfileDirs {
 	return {
 		project: join(process.cwd(), ".pi", "agents"),
@@ -864,7 +831,6 @@ function getTaskAgentProfileDirs(): TaskAgentProfileDirs {
 	};
 }
 
-/** Latest partial assistant text from a task child's session file. */
 function readTaskPartialResult(handle: TaskRunHandle): string | undefined {
 	try {
 		if (!existsSync(handle.sessionFile)) return undefined;
@@ -874,7 +840,6 @@ function readTaskPartialResult(handle: TaskRunHandle): string | undefined {
 	}
 }
 
-/** Runtime hooks binding the protocol bridge to this extension's tmux primitives. */
 function createTaskRpcRuntimeHooks(
 	pi: ExtensionAPI,
 	ctx: LaunchContext,
@@ -935,7 +900,6 @@ function createTaskRpcRuntimeHooks(
 	};
 }
 
-/** Validate and resolve a pi-tasks spawn request, then create its pane. */
 async function resolveAndLaunchTaskRpc(
 	pi: ExtensionAPI,
 	ctx: LaunchContext,
@@ -1005,7 +969,6 @@ async function attachPiTasksRpcBridge(pi: ExtensionAPI, ctx: ExtensionContext): 
 	await attempt;
 }
 
-/** Unsubscribe handlers, terminate adapter-owned panes, drop task records. */
 function shutdownPiTasksRpcBridge(): void {
 	// Invalidate any in-flight attach first so its post-probe epoch check
 	// discards the late registration.
@@ -1018,7 +981,6 @@ function shutdownPiTasksRpcBridge(): void {
 	taskRpcAttachInFlight = null;
 }
 
-/** Test access to the bridge state (reset between test cases). */
 function getAttachedTaskRpcForTests(): AttachedTaskRpc | null {
 	return attachedTaskRpc;
 }
@@ -1027,7 +989,6 @@ function resetTaskRpcForTests(): void {
 	shutdownPiTasksRpcBridge();
 }
 
-/** The workflow event adapter is separate from the ordinary subagent and task tools. */
 let attachedWorkflowProvider: ReturnType<typeof attachTmuxWorkflowProvider> = null;
 
 function attachWorkflowProvider(pi: ExtensionAPI, ctx: ExtensionContext): void {
@@ -1083,13 +1044,10 @@ function shutdownWorkflowProvider(): void {
 
 // ── Widget management ──
 
-/** Latest ExtensionContext from session_start, used for widget updates. */
 let latestCtx: ExtensionContext | null = null;
 
-/** Interval timer for widget re-renders. */
 let widgetInterval: ReturnType<typeof setInterval> | null = null;
 
-/** Interval timer for status transition checks. */
 let statusInterval: ReturnType<typeof setInterval> | null = null;
 
 function formatElapsedMMSS(startTime: number): string {
@@ -1196,8 +1154,6 @@ function updateWidget() {
       return {
         invalidate() {},
         render(width: number) {
-          // Render the bordered box two columns narrower, then add the outer
-          // margin so the panel aligns with the framed editor above/below it.
           const boxLines = renderSubagentWidgetLines(
             theme,
             Array.from(runningSubagents.values()),
@@ -1221,7 +1177,7 @@ function parseSkillList(skills: string | undefined): string[] {
 /**
  * Build the positional prompt args for a pi CLI subagent launch.
  *
- * pi 0.84.3 prepends every `@file` argument to the first positional message and
+ * Pi prepends every `@file` argument to the first positional message and
  * expands `/skill:<name> <args>` only when that first message starts with
  * `/skill:`. Later positional messages become separate prompts after the first
  * turn. So when skills are requested, the launcher passes exactly one argument,
@@ -1229,7 +1185,6 @@ function parseSkillList(skills: string | undefined): string[] {
  * Only the first skill can be expanded by the CLI; additional skills are named
  * in the task text. Without skills the task argument is passed through
  * (`@<artifact>` for artifact delivery, the task text for direct delivery).
- * See NOTES.md for the spike that established this.
  */
 function buildPiPromptArgs(params: {
   effectiveSkills?: string;
@@ -1469,8 +1424,7 @@ function startStatusRefresh(pi: ExtensionAPI) {
       }
       running.statusState = nextState;
 
-      // Interactive subagents do not wake the parent on stalled/recovered
-      // transitions; the user is working in that pane. The widget still updates.
+      // A user-driven pane must not wake the parent on status transitions.
       if (transition && !running.interactive) {
         transitions.push({ name: running.name, snapshot, transition });
       }
@@ -1536,7 +1490,7 @@ const subagentExecution = createSubagentExecutionServices({
           runtime: { ...next.runtime, previousFailure: recovery.failure },
         }));
       } catch {
-        // Best-effort; the launch already succeeded.
+        // The launch succeeded even if the profile update failed.
       }
     }
   },
@@ -1617,16 +1571,13 @@ function buildLaunchProfile(input: LaunchProfileInput): LaunchProfile {
   return subagentExecution.buildLaunchProfile(input);
 }
 
-/** Result details shared by the resume and recovery launch paths. */
 interface SubagentToolResult {
   content: Array<{ type: "text"; text: string }>;
   details: Record<string, unknown>;
 }
 
-/** Repository-boundary outcome attached to a finished workflow child's result. */
 interface PhaseBoundaryOutcome {
   details: Record<string, unknown>;
-  /** Stop instruction shown to the orchestrator; present only on violation. */
   violationText?: string;
 }
 
@@ -1657,7 +1608,6 @@ function describeRunningBoundary(
   return undefined;
 }
 
-/** Parameters accepted by the shared resume implementation. */
 interface SubagentResumeParams {
   sessionPath: string;
   name?: string;
@@ -1706,7 +1656,6 @@ async function launchSubagent(
     workflow?: LaunchProfileWorkflowMetadata;
     resolvedModel?: ResolvedModelSelection;
     rolloverFrom?: LaunchProfile;
-    /** pi-tasks RPC launch: forces autonomous behavior (internal). */
     taskRuntime?: TaskRuntimeOptions;
     team?: TeamLaunchSpec;
   },
@@ -1876,8 +1825,8 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       : undefined;
   const shouldRegister = (name: string) => !deniedTools.has(name) ||
     (Boolean(memberMailbox) && (name === "SendMessage" || name === "ListAgents"));
-  // pi-tasks captures this override when its extension factory runs. A later
-  // environment change cannot make the running upstream instance follow it.
+  // pi-tasks captures this override at factory time; later environment changes
+  // cannot change its active task file.
   const capturedPiTasks = process.env.PI_TASKS;
   const leadIncarnation = randomUUID();
   let leadReceipt: LeadReceipt | undefined;
@@ -1904,13 +1853,10 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       piTasks: capturedPiTasks,
     }, { reason: event.reason, incarnation: leadIncarnation });
     leadReceipt = start.ok ? start.value : undefined;
-    // /new, /resume, and /fork tore the previous session down through
-    // session_shutdown without re-importing this module. Re-arm the poll-abort
-    // controller so subagent spawns in this session can watch their panes.
+    // Session navigation reuses this module; re-arm the controller aborted by
+    // session_shutdown before starting a new watcher.
     rearmModuleAbortController();
     attachWorkflowProvider(pi, ctx);
-    // pi-tasks protocol bridge: root sessions register the task RPC handlers
-    // (children abstain via PI_SUBAGENT_* env; foreign providers win).
     void attachPiTasksRpcBridge(pi, ctx).catch(() => {
       // Provider probing or registration failed; the bridge stays absent and
       // pi-tasks reports task execution as unavailable.
@@ -2212,7 +2158,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     }
   });
 
-  // ── subagent tool ──
   const ordinaryTool = defineTool({
       name: "subagent",
       label: "Subagent",
@@ -2239,8 +2184,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         }
 
         let resolvedModel: ResolvedModelSelection | undefined;
-        // Agent frontmatter for this spawn, loaded once for both the explicit
-        // model branch and the per-agent configured-default branch below.
         const spawnAgentDefs = params.agent ? loadAgentDefaults(params.agent) : null;
         if (params.model) {
           try {
@@ -2491,8 +2434,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           metadata: cwd,
         });
 
-        // One-line task preview. renderCall runs repeatedly while the LLM
-        // streams arguments, so keep it compact.
         if (task) {
           const taskLines = sanitizeDisplayText(task).split("\n");
           const firstLine = taskLines.find((line) => line.trim()) ?? "";
@@ -2530,7 +2471,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     });
   retiredToolFixtures.set("subagent", ordinaryTool);
 
-  // Keep ordinary runs independent of team admission.
   if (shouldRegister("Agent"))
     pi.registerTool({
       name: "Agent",
@@ -2869,7 +2809,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       },
     });
 
-  // ── subagent_interrupt tool ──
   if (shouldRegister("subagent_interrupt"))
     retiredToolFixtures.set("subagent_interrupt", defineTool({
       name: "subagent_interrupt",
@@ -2920,7 +2859,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       },
     }));
 
-  // ── subagents_list tool ──
   if (shouldRegister("subagents_list"))
     retiredToolFixtures.set("subagents_list", defineTool({
       name: "subagents_list",
@@ -2981,7 +2919,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       },
     }));
 
-  // ── subagent_resume tool ──
   if (shouldRegister("subagent_resume"))
     retiredToolFixtures.set("subagent_resume", defineTool({
       name: "subagent_resume",
@@ -3051,7 +2988,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       },
     }));
 
-  // /subtask: fork the session into an ordinary agent
   pi.registerCommand("subtask", {
     description: "Fork session into a subagent for focused work (bugfixes, iteration)",
     handler: async (args) => {
@@ -3064,7 +3000,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     },
   });
 
-  // /subagent: spawn a subagent by name
   pi.registerCommand("subagent", {
     description: "Spawn a subagent: /subagent <agent> <task>",
     handler: async (args, ctx) => {
@@ -3096,7 +3031,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     },
   });
 
-  // /agent-models: manage per-agent default models interactively
   pi.registerCommand("agent-models", {
     description: "Set or clear per-agent default models (agent-models.json)",
     handler: async (_args, ctx) => {
@@ -3108,7 +3042,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     },
   });
 
-  // ── subagent_result message renderer ──
   pi.registerMessageRenderer("subagent_result", (message, options, theme) => {
     const details = message.details as
       | {
@@ -3148,13 +3081,12 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           `${formatSeparator(theme, "—")}` +
           `${formatStateLabel(theme, state, status)} ` +
           `${formatMetadata(theme, `(${elapsed})`)}`;
-        // T9: the compact usage/context-pressure line is rendered from
+        // The compact usage/context-pressure line is rendered from
         // details.usage under the header, so the copy appended to the
         // model-visible content is stripped here to avoid duplication.
         const usageLine = formatUsageSummary(details.usage);
         const rawContent = typeof message.content === "string" ? message.content : "";
 
-        // Clean summary (remove usage line, session ref, and leading label for display)
         const summary = sanitizeDisplayText(
           (usageLine
             ? rawContent
@@ -3235,7 +3167,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     };
   });
 
-  // ── subagent_status message renderer ──
   pi.registerMessageRenderer("subagent_status", (message, options, theme) => {
     const details = message.details as
       | { lines?: string[]; items?: StatusTransitionItem[]; overflow?: number }
@@ -3337,7 +3268,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     };
   });
 
-  // ── subagent_ping message renderer ──
   pi.registerMessageRenderer("subagent_ping", (message, options, theme) => {
     const details = message.details as
       | { name?: string; agent?: string; message?: string; sessionFile?: string }

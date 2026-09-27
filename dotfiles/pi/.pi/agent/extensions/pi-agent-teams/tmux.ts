@@ -4,12 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
-/**
- * tmux backend for pi-agent-teams.
- *
- * Ported from the upstream pi-interactive-subagents `cmux.ts` with only the
- * tmux branches kept. A "surface" is a tmux pane id such as `%12`.
- */
+/** A surface is a tmux pane id such as `%12`. */
 
 const execFileAsync = promisify(execFile);
 
@@ -44,8 +39,6 @@ function requireTmux(): void {
 export function shellEscape(s: string): string {
   return "'" + s.replace(/'/g, "'\\''") + "'";
 }
-
-// Pure argument builders. Kept separate so unit tests can run without tmux.
 
 export function buildSplitWindowArgs(fromPane: string | undefined): string[] {
   const args = ["split-window", "-d", "-h"];
@@ -91,7 +84,7 @@ export function createSurface(name: string): string {
   try {
     tmux(["select-pane", "-t", pane, "-T", name]);
   } catch {
-    // Pane title is cosmetic.
+    // A pane title failure must not block the launch.
   }
   return pane;
 }
@@ -102,7 +95,6 @@ export function sendCommand(pane: string, command: string): void {
   tmux(buildSendKeysArgs(pane, "Enter", { literal: false }));
 }
 
-/** Send one Escape keypress to a pane. */
 export function sendEscape(pane: string): void {
   requireTmux();
   tmux(buildSendKeysArgs(pane, "Escape", { literal: false }));
@@ -182,7 +174,6 @@ export function closeSurface(pane: string): void {
   }
 }
 
-/** Rename the tmux window that owns the parent pi pane. */
 export function renameCurrentTab(title: string): void {
   requireTmux();
   const paneId = process.env.TMUX_PANE;
@@ -192,13 +183,10 @@ export function renameCurrentTab(title: string): void {
 }
 
 export interface PollResult {
-  /** How the subagent exited */
   reason: "done" | "ping" | "sentinel" | "error" | "turn-limit";
   /** Shell exit code (from sentinel). 0 for file-based exits. */
   exitCode: number;
-  /** Ping data if reason is "ping" */
   ping?: { name: string; message: string };
-  /** Error message if reason is "error" (auto-retry exhausted, provider overload, etc.) */
   errorMessage?: string;
 }
 
@@ -244,11 +232,6 @@ function readExitSidecar(sessionFile: string): PollResult | null {
   }
 }
 
-/**
- * Poll until the subagent exits. Checks the `.exit` sidecar first, then an
- * optional sentinel file (Claude Code Stop hook), then the terminal screen for
- * the `__SUBAGENT_DONE_<code>__` sentinel used for crash detection.
- */
 /** True while the pane still exists on the tmux server (any session/window). */
 export function paneExists(pane: string): boolean {
   try {
@@ -303,7 +286,7 @@ export async function pollForExit(
       // Screen capture failed: either a transient failure or the pane is
       // gone. Recheck the sidecar first, then decide pane death terminally —
       // a removed pane can never produce a sentinel, so polling forever
-      // would hang the watcher (and any upstream task) indefinitely.
+      // would hang the watcher and its task indefinitely.
       if (options.sessionFile) {
         const result = readExitSidecar(options.sessionFile);
         if (result) return result;

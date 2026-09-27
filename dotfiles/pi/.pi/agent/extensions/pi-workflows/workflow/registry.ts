@@ -106,7 +106,7 @@ function canonicalProjectRoot(projectRoot: string): string {
 		).trim();
 		if (gitRoot) return canonicalizePath(gitRoot);
 	} catch {
-		// Non-Git directories intentionally fall back to their canonical cwd.
+		// Non-Git directories use the canonical cwd.
 	}
 	return canonicalCwd;
 }

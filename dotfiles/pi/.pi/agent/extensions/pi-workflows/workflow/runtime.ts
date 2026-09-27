@@ -726,7 +726,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		try {
 			this.deps.renameTab?.(` Workflow: ${formatTabRequest(request)}`);
 		} catch {
-			// Cosmetic. Workflow skills may rename the tab again per role.
+			// A tab label failure must not block the workflow.
 		}
 		return this.deliverStartPrompt(entry, started, request, ctx);
 	}
@@ -749,7 +749,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		try {
 			this.deps.renameTab?.(` Workflow: ${active.workflowId}`);
 		} catch {
-			// Cosmetic only.
+			// A tab label failure must not block recovery.
 		}
 		try {
 			this.deps.validateProvider?.(active);

@@ -22,15 +22,6 @@ type RecoveryContextEstimate = {
 	readonly source: "usage+estimate" | "conservative";
 };
 
-/**
- * Workflow provider-failure recovery helpers.
- *
- * These helpers are manifest-driven: they classify provider failures
- * generically, then derive recovery UI labels, summaries, and continuation
- * messages from the current workflow role snapshot rather than from fixed role
- * or phase names.
- */
-
 export { classifyProviderFailure };
 export type { ProviderFailureKind };
 export { buildProviderFailureRecord, redactProviderFailureMessage } from "../../workflow-provider/failure.ts";
@@ -41,7 +32,6 @@ const FAILURE_KIND_LABELS: Record<ProviderFailureKind, string> = {
 	other: "provider/agent error",
 };
 
-/** Recovery gate choices shown after the failure summary. */
 export const RECOVERY_SELECT_MODEL = "Select a replacement model and thinking level";
 export const RECOVERY_STOP = "Stop recovery";
 
@@ -72,17 +62,10 @@ function resolveWorkflowRecoveryRoleId(
 	return resolvedRoleId;
 }
 
-/**
- * Classify a provider/agent error message that reached the parent.
- * Usage-exhaustion markers win over transient wording; an unrecognized
- * failure is `other`, which keeps the existing report-and-ask behavior
- * instead of a model-switch gate.
- */
 export function formatFailureKind(kind: ProviderFailureKind): string {
 	return FAILURE_KIND_LABELS[kind];
 }
 
-/** Whether the failure kind opens the workflow recovery user gate. */
 export function shouldOpenRecoveryGate(kind: ProviderFailureKind): boolean {
 	return kind === "usage" || kind === "retry-exhausted";
 }
@@ -178,7 +161,6 @@ export function formatWorkflowRecoverySummary(input: {
 	});
 }
 
-/** Default continuation message for a recovered workflow role session. */
 export function defaultWorkflowRecoveryMessage(
 	subject = "workflow role",
 ): string {

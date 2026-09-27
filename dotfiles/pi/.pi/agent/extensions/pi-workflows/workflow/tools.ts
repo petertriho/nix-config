@@ -177,9 +177,7 @@ export interface WorkflowSubagentExecution {
 
 export interface WorkflowToolDependencies {
 	state: WorkflowToolStateStore;
-	/** Existing direct service remains available for ordinary legacy lifecycle tests. */
 	execution?: WorkflowSubagentExecution;
-	/** The event-backed launch path is opt-in until the extension entry point is moved. */
 	eventExecution?: WorkflowEventClient;
 	loadAgentDefaults(agentName: string): AgentDefaultsLike | null;
 	isTmuxAvailable(): boolean;
@@ -606,8 +604,7 @@ export function createWorkflowLifecycleTools(
 				status: "interrupted",
 			}));
 		}
-		// Returning from this handler does not finish navigation: Pi still awaits
-		// other before-tree handlers and may summarize the abandoned branch.
+		// Other before-tree handlers can still cancel navigation after this returns.
 	}
 
 	function releaseNavigationWhenIdle(ctx: Pick<ExtensionContext, "isIdle">): void {
@@ -622,7 +619,7 @@ export function createWorkflowLifecycleTools(
 	}
 	async function stopOwnedRoles(): Promise<void> {
 		await stopBeforeTree();
-		navigating = false; // No tree operation remains after abort/replacement/completion.
+		navigating = false;
 	}
 
 	async function trackLaunch<T>(operation: () => Promise<T>): Promise<T> {
@@ -639,8 +636,7 @@ export function createWorkflowLifecycleTools(
 		try {
 			return await operation();
 		} finally {
-			// A launched child takes over ownership before this reservation ends.
-			// Failure/cancellation without a child leaves the run available again.
+			// A launched child retains ownership after this reservation ends.
 			pendingLaunches.delete(pending);
 			release();
 		}
@@ -660,7 +656,7 @@ export function createWorkflowLifecycleTools(
 			try { ctx.ui.notify(message, "error"); }
 			catch { console.error(message); }
 		} catch {
-			// Both the session UI and the last-resort diagnostic can be unavailable.
+			// Neither UI nor the last-resort diagnostic is guaranteed to be available.
 		}
 	}
 
