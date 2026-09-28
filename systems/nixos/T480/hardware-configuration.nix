@@ -57,60 +57,71 @@
   services = {
     thermald.enable = false;
     power-profiles-daemon.enable = false;
-    tlp.enable = false;
-    # tlp = {
-    #   enable = true;
-    #   settings = {
-    #     CPU_SCALING_GOVERNOR_ON_AC = "ondemand";
-    #     CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
-    #
-    #     CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
-    #     CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
-    #
-    #     CPU_MIN_PERF_ON_AC = 0;
-    #     CPU_MAX_PERF_ON_AC = 85;
-    #     CPU_MIN_PERF_ON_BAT = 0;
-    #     CPU_MAX_PERF_ON_BAT = 70;
-    #
-    #     CPU_BOOST_ON_AC = 1;
-    #     CPU_BOOST_ON_BAT = 0;
-    #
-    #     CPU_HWP_DYN_BOOST_ON_AC = 1;
-    #     CPU_HWP_DYN_BOOST_ON_BAT = 0;
-    #
-    #     NMI_WATCHDOG = 0;
-    #
-    #     START_CHARGE_THRESH_BAT0 = 75;
-    #     STOP_CHARGE_THRESH_BAT0 = 80;
-    #
-    #     START_CHARGE_THRESH_BAT1 = 75;
-    #     STOP_CHARGE_THRESH_BAT1 = 80;
-    #   };
-    # };
-
-    auto-cpufreq = {
+    tlp = {
       enable = true;
       settings = {
-        charger = {
-          governor = "powersave";
-          energy_performance_preference = "balance_performance";
-          energy_perf_bias = "balance_performance";
-          scaling_max_freq = 4200000;
-          turbo = "auto";
-        };
+        CPU_SCALING_GOVERNOR_ON_AC = "powersave";
+        CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
 
-        battery = {
-          governor = "powersave";
-          energy_performance_preference = "power";
-          energy_perf_bias = "power";
-          scaling_max_freq = 3400000;
-          turbo = "auto";
-          enable_thresholds = true;
-          start_threshold = 75;
-          stop_threshold = 80;
-        };
+        CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
+        CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
+
+        CPU_MIN_PERF_ON_AC = "0";
+        CPU_MAX_PERF_ON_AC = "100";
+        CPU_MIN_PERF_ON_BAT = "0";
+        # 80 percent of the 4.2GHz peak lands near the previous 3.4GHz cap.
+        CPU_MAX_PERF_ON_BAT = "80";
+
+        CPU_BOOST_ON_AC = "1";
+        CPU_BOOST_ON_BAT = "1";
+
+        CPU_HWP_DYN_BOOST_ON_AC = "1";
+        CPU_HWP_DYN_BOOST_ON_BAT = "1";
+
+        # No ACPI platform profile on this generation, TLP skips it.
+        # PLATFORM_PROFILE_ON_AC = "balanced";
+        # PLATFORM_PROFILE_ON_BAT = "low-power";
+
+        WIFI_PWR_ON_AC = "off";
+        WIFI_PWR_ON_BAT = "on";
+
+        SOUND_POWER_SAVE_ON_AC = "0";
+        SOUND_POWER_SAVE_ON_BAT = "1";
+
+        NMI_WATCHDOG = "0";
+
+        START_CHARGE_THRESH_BAT0 = "75";
+        STOP_CHARGE_THRESH_BAT0 = "80";
+
+        START_CHARGE_THRESH_BAT1 = "75";
+        STOP_CHARGE_THRESH_BAT1 = "80";
       };
     };
+
+    # auto-cpufreq retired in favor of TLP. Kept for reference.
+    # auto-cpufreq = {
+    #   enable = true;
+    #   settings = {
+    #     charger = {
+    #       governor = "powersave";
+    #       energy_performance_preference = "balance_performance";
+    #       energy_perf_bias = "balance_performance";
+    #       scaling_max_freq = 4200000;
+    #       turbo = "auto";
+    #     };
+    #
+    #     battery = {
+    #       governor = "powersave";
+    #       energy_performance_preference = "power";
+    #       energy_perf_bias = "power";
+    #       scaling_max_freq = 3400000;
+    #       turbo = "auto";
+    #       enable_thresholds = true;
+    #       start_threshold = 75;
+    #       stop_threshold = 80;
+    #     };
+    #   };
+    # };
     libinput = {
       enable = true;
       touchpad = {

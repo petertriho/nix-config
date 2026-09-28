@@ -5,8 +5,9 @@
   ...
 }:
 {
-  nixpkgs.overlays = [ inputs.auto-cpufreq.overlays.default ];
-  systemd.services.auto-cpufreq.path = [ pkgs.gawk ];
+  # auto-cpufreq retired in favor of TLP. Kept for reference.
+  # nixpkgs.overlays = [ inputs.auto-cpufreq.overlays.default ];
+  # systemd.services.auto-cpufreq.path = [ pkgs.gawk ];
 
   imports = [
     ../desktop
