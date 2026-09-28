@@ -8,7 +8,7 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "pi-blackhole";
-  version = "0.5.9-unstable-2026-09-27";
+  version = "0.5.9-unstable-2026-09-26";
 
   src = fetchFromGitHub {
     owner = "k0valik";
