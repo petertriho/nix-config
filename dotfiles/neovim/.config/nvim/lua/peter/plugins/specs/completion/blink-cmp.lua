@@ -57,85 +57,40 @@ local LSP_SORT_PRIORITY = {
     emmet_language_server = 2,
 }
 
-local cursortab_keymaps = {}
-
-local capture_cursortab_keymap = function(name, lhs)
-    if not package.loaded["cursortab"] then
-        return
-    end
-
-    local keymap = vim.fn.maparg(lhs, "i", false, true)
-    if type(keymap) ~= "table" or type(keymap.callback) ~= "function" then
-        return
-    end
-
-    cursortab_keymaps[name] = keymap.callback
-    pcall(vim.keymap.del, "i", lhs)
-end
-
-local capture_cursortab_keymaps = function()
-    capture_cursortab_keymap("accept", "<Tab>")
-    capture_cursortab_keymap("partial_accept", "<S-Tab>")
-    capture_cursortab_keymap("trigger", "<C-e>")
-end
-
-local try_cursortab_accept = function()
-    local ok, cursortab = pcall(require, "cursortab")
-    if ok and cursortab.accept() then
-        return true
-    end
-end
-
-local try_cursortab_keymap = function(name)
-    local callback = cursortab_keymaps[name]
-    if not callback then
-        return
-    end
-
-    local ok, result = pcall(callback)
-    if ok and result == "" then
-        return true
-    end
-end
-
-local trigger_cursortab_completion = function()
-    local callback = cursortab_keymaps.trigger
-    if not callback then
-        return
-    end
-
-    if pcall(callback) then
-        return true
-    end
-end
-
-local hide_blink_then_trigger_cursortab = function(cmp)
-    if cmp.is_visible() then
-        cmp.hide({
-            callback = function()
-                trigger_cursortab_completion()
-            end,
-        })
-        return true
-    end
-
-    return trigger_cursortab_completion()
-end
-
 local function is_pi_prompt()
     return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":t") == "prompt.md"
 end
 
 return {
     "saghen/blink.cmp",
-    branch = "v1",
-    build = "nix run .#build-plugin",
-    -- build = 'nix develop --command bash -c "cargo build --release"',
+    branch = "main",
+    build = [[
+        set -e
+        case "$(uname -s)" in
+            Darwin) lib_ext="dylib" ;;
+            Linux) lib_ext="so" ;;
+            *) echo "Unsupported platform for blink.cmp" >&2; exit 1 ;;
+        esac
+        nix build .#blink-cmp
+        source="result/lib/libblink_cmp_fuzzy.$lib_ext"
+        test -f "$source"
+        mkdir -p lib
+        # Match blink.lib's commit-specific lookup so updates cannot load an old binary.
+        revision="$(git -C "$PWD" rev-parse HEAD)"
+        target="lib/libblink_cmp_fuzzy.$lib_ext.$(printf '%s' "$revision" | cut -c1-7)"
+        cp -L "$source" "$target.tmp"
+        chmod u+w "$target.tmp"
+        mv -f "$target.tmp" "$target"
+        for stale in lib/libblink_cmp_fuzzy."$lib_ext"*; do
+            if [ "$stale" != "$target" ]; then rm -f "$stale"; fi
+        done
+    ]],
     event = { "CmdlineEnter", "InsertEnter" },
     keys = {
         { "<leader>uc", "<CMD>ToggleBlinkCmp<CR>", desc = "Completion Toggle" },
     },
     dependencies = {
+        "saghen/blink.lib",
         -- {
         --     "saghen/blink.compat",
         --     lazy = true,
@@ -181,23 +136,6 @@ return {
         end,
         keymap = {
             preset = "default",
-            ["<C-e>"] = {
-                hide_blink_then_trigger_cursortab,
-            },
-            ["<Tab>"] = {
-                function()
-                    return try_cursortab_accept()
-                end,
-                "snippet_forward",
-                "fallback",
-            },
-            ["<S-Tab>"] = {
-                function()
-                    return try_cursortab_keymap("partial_accept")
-                end,
-                "snippet_backward",
-                "fallback",
-            },
         },
         appearance = {
             use_nvim_cmp_as_default = true,
@@ -501,7 +439,6 @@ return {
         },
     },
     config = function(_, opts)
-        capture_cursortab_keymaps()
         require("blink.cmp").setup(opts)
     end,
     opts_extend = { "sources.default" },
