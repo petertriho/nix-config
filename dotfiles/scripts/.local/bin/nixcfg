@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# jq expressions use variables passed with --arg, not shell expansion.
+# shellcheck disable=SC2016
 
 set -euo pipefail
 
@@ -18,9 +20,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
+# PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-WHITE='\033[1;37m'
+# WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
@@ -374,14 +376,15 @@ function pushd() {
 }
 
 function popd() {
-    command popd "$@" > /dev/null
+    command popd > /dev/null
 }
 
 function tool:config {
     echo_header "Updating config"
     pushd "$NIX_CONFIG_PATH"
 
-    local current_branch=$(git branch --show-current)
+    local current_branch
+    current_branch=$(git branch --show-current)
     if [[ $current_branch != "main" ]]; then
         echo_warning "Not on main branch ($current_branch), skipping config update"
         popd
@@ -473,6 +476,8 @@ function tool:nvim:restore {
     fi
 }
 
+# The command dispatcher passes arguments to this function dynamically.
+# shellcheck disable=SC2120
 function tool:nix {
     if [[ $PRINT_ACTIVATION_TARGET == true ]]; then
         tool:nix:rebuild
@@ -553,14 +558,23 @@ function tool:nix:rebuild {
     echo_success "Nix config rebuilt"
 }
 
+function git_path_changed() {
+    [[ -n $(git -C "$NIX_CONFIG_PATH" status --porcelain --untracked-files=all -- "$1") ]]
+}
+
 # Prefetch all `url = "https://..."` assets in a multi-platform binary package
 # (donsetch/bladebro/codexbar pattern: assets.<system> = { url; hash; }).
 # Download-only via `nix store prefetch-file`, so darwin hashes refresh from
 # linux and vice versa. No cross builds, no remote builders.
 function prefetch_assets_for_file() {
     local file="$1"
+    local force="${2:-false}"
     local version="" url_template="" resolved_url="" old_hash="" new_hash=""
     local grep_line="" url_lineno="" url_line=""
+
+    if [[ $force != true ]] && ! git_path_changed "$file"; then
+        return 0
+    fi
 
     version=$(grep -E '^[[:space:]]*version[[:space:]]*=[[:space:]]*"' "$file" | head -1 | sed -E 's/.*version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/' || true)
     if [[ -z $version ]]; then
@@ -598,30 +612,58 @@ function prefetch_assets_for_file() {
 }
 
 function tool:pkgs:hashes() {
-    local operation_name="${1:-manual operation}"
-    shift || true
+    local changed_only=false
+    local operation_name="manual operation"
+    if [[ ${1:-} == --changed-only ]]; then
+        if [[ $# -lt 2 ]]; then
+            echo_error "--changed-only requires an operation name"
+            return 1
+        fi
+        changed_only=true
+        operation_name="$2"
+        shift 2
+    fi
     local target_items=("$@")
+    local force=false
+    local changed_files=() item item_path file
+    if [[ ${#target_items[@]} -gt 0 && $changed_only == false ]]; then
+        force=true
+    fi
 
-    # If specific items are provided, construct file list directly
+    pushd "$NIX_CONFIG_PATH"
+
+    # Explicit items force a refresh; internal update calls keep the changed-file filter.
     if [[ ${#target_items[@]} -gt 0 ]]; then
-        changed_files=()
         for item in "${target_items[@]}"; do
             # Convert dot notation to path (e.g., "fish-plugins.upto" -> "fish-plugins/upto")
             item_path="${item//\.//}"
             # Look for the item's nix files
             if [[ -d "pkgs/$item_path" ]]; then
                 while IFS= read -r -d '' file; do
-                    changed_files+=("$file")
+                    if [[ $changed_only == false ]] || git_path_changed "$file"; then
+                        changed_files+=("$file")
+                    fi
                 done < <(find "pkgs/$item_path" -name "*.nix" -print0)
             fi
         done
     else
-        # Get list of files that were changed
-        changed_files=($(git diff --name-only pkgs/ | grep '\.nix$' || true))
+        # Include staged, unstaged, and untracked package files.
+        while IFS= read -r -d '' file; do
+            if [[ $file == *.nix && -f $file ]]; then
+                changed_files+=("$file")
+            fi
+        done < <(
+            git diff HEAD --name-only -z -- pkgs/
+            git ls-files --others --exclude-standard -z -- pkgs/
+        )
     fi
 
     if [[ ${#changed_files[@]} -gt 0 ]]; then
-        echo_info "Updating hashes for ${#changed_files[@]} changed files..."
+        if [[ $force == true ]]; then
+            echo_info "Updating hashes for ${#changed_files[@]} requested files..."
+        else
+            echo_info "Updating hashes for ${#changed_files[@]} changed files..."
+        fi
         for file in "${changed_files[@]}"; do
             echo_info "Checking hashes for $file"
             hash_check_start=$SECONDS
@@ -674,7 +716,7 @@ function tool:pkgs:hashes() {
             # Prefetch every asset URL by download so the other platforms stay
             # in sync. Download-only, no cross builds.
             if grep -q 'assets' "$file" && grep -q 'url = "https://' "$file"; then
-                prefetch_assets_for_file "$file"
+                prefetch_assets_for_file "$file" "$force"
             fi
         done
     else
@@ -687,6 +729,7 @@ function tool:pkgs:hashes() {
 
     rm -rf result
     rm -rf result-*
+    popd
 }
 
 function tool:pkgs:fetchgit {
@@ -732,7 +775,7 @@ function tool:pkgs:fetchgit {
     fi
 
     # Update hashes for any changed files
-    tool:pkgs:hashes "update-nix-fetchgit" "${target_items[@]}"
+    tool:pkgs:hashes --changed-only "update-nix-fetchgit" "${target_items[@]}"
 
     echo_success "Fetchgit update complete"
     popd
@@ -742,12 +785,20 @@ function tool:pkgs:fetchgit {
 # nix-update -u replaces the normal version/source updater, so run the script
 # after nix-update instead of passing -u.
 function tool:pkgs:lockfile {
-    local system item package_name script_path lockfile
+    local system="" item package_name script_path lockfile
+    local changed_only=false
+    if [[ ${1:-} == --changed-only ]]; then
+        changed_only=true
+        shift
+    fi
     local items=("$@")
+    local force=false
+    if [[ ${#items[@]} -gt 0 && $changed_only == false ]]; then
+        force=true
+    fi
 
     echo_header "Refreshing pi-extension npm lockfiles"
     pushd "$NIX_CONFIG_PATH"
-    system=$(nix eval --impure --raw --expr 'builtins.currentSystem')
 
     if [[ ${#items[@]} -eq 0 ]]; then
         for lockfile in pkgs/pi-extensions/*/package-lock.json; do
@@ -764,7 +815,14 @@ function tool:pkgs:lockfile {
             return 1
         fi
         [[ -f "pkgs/pi-extensions/$package_name/package-lock.json" ]] || continue
+        if [[ $force == false ]] && ! git_path_changed "pkgs/pi-extensions/$package_name"; then
+            echo_info "Skipping unchanged $package_name"
+            continue
+        fi
 
+        if [[ -z $system ]]; then
+            system=$(nix eval --impure --raw --expr 'builtins.currentSystem')
+        fi
         echo_info "Refreshing $package_name..."
         script_path=$(nix build --no-link --print-out-paths \
             "$NIX_CONFIG_PATH#packages.$system.$item.passthru.updateScript" --accept-flake-config)
@@ -791,13 +849,15 @@ function tool:pkgs:update {
         echo_info "Updating specified packages: ${all_items[*]}"
     else
         # Get list of available packages
-        local packages=($(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]'))
+        local packages=()
+        mapfile -t packages < <(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]')
 
         for package in "${packages[@]}"; do
             # Check if this is a plugin collection (fish-plugins, tmux-plugins, pi-extensions)
             if [[ $package == "fish-plugins" || $package == "tmux-plugins" || $package == "pi-extensions" ]]; then
                 # Get individual plugins from the collection
-                local plugins=($(nix eval --json ".#packages.$system.$package" --apply 'builtins.attrNames' | jq -r '.[]'))
+                local plugins=()
+                mapfile -t plugins < <(nix eval --json ".#packages.$system.$package" --apply 'builtins.attrNames' | jq -r '.[]')
                 for plugin in "${plugins[@]}"; do
                     all_items+=("$package.$plugin")
                 done
@@ -874,7 +934,7 @@ function tool:pkgs:update {
         # Check if package has subpackages by looking for buildGoModule, buildNpmPackage, etc.
         package_file=$(nix eval --json ".#$attr_path.meta.position" 2> /dev/null | jq -r '.' | cut -d: -f1 2> /dev/null || echo "")
 
-        update_args="--flake --version=branch"
+        local update_args=(--flake --version=branch)
 
         # Add subpackage flags for packages that commonly have them
         if [[ -n $package_file && -f $package_file ]]; then
@@ -885,14 +945,14 @@ function tool:pkgs:update {
 
                 for subpkg in $subpackages; do
                     if [[ $subpkg != "${item##*/}" && -n $subpkg ]]; then
-                        update_args="$update_args --subpackage $subpkg"
+                        update_args+=(--subpackage "$subpkg")
                     fi
                 done
             fi
         fi
 
         update_output=""
-        if run_and_capture update_output timeout 300 nix-update $update_args "$attr_path"; then
+        if run_and_capture update_output timeout 300 nix-update "${update_args[@]}" "$attr_path"; then
             echo_success "Successfully updated $item"
             print_warnings_and_errors "$update_output"
             successful_items+=("$item")
@@ -906,7 +966,7 @@ function tool:pkgs:update {
     # Update hashes only for successfully updated items
     if [[ ${#successful_items[@]} -gt 0 ]]; then
         echo_info "Updating hashes for ${#successful_items[@]} successfully updated items: ${successful_items[*]}"
-        tool:pkgs:hashes "nix-update" "${successful_items[@]}"
+        tool:pkgs:hashes --changed-only "nix-update" "${successful_items[@]}"
     elif [[ ${#all_items[@]} -gt 0 ]]; then
         echo_warning "No items were successfully updated with nix-update, skipping hash updates"
     fi
@@ -939,7 +999,7 @@ function tool:pkgs:update {
 
         if [[ ${#stable_successful_items[@]} -gt 0 ]]; then
             echo_info "Updating hashes for stable packages: ${stable_successful_items[*]}"
-            tool:pkgs:hashes "nix-update-stable" "${stable_successful_items[@]}"
+            tool:pkgs:hashes --changed-only "nix-update-stable" "${stable_successful_items[@]}"
         fi
     fi
 
@@ -953,7 +1013,7 @@ function tool:pkgs:update {
 
     # Refresh the selected packages' vendored npm locks before the rebuild,
     # including after fetchgit fallback.
-    tool:pkgs:lockfile "${all_items[@]}" "${stable_items[@]}"
+    tool:pkgs:lockfile --changed-only "${all_items[@]}" "${stable_items[@]}"
 
     popd
 }
@@ -1032,6 +1092,8 @@ function tool:all {
 
     tool:config
     tool:nvim
+    # A full update does not pass its arguments to the package updater.
+    # shellcheck disable=SC2119
     tool:nix
     if [[ $OS == "darwin" ]]; then
         tool:brew
@@ -1051,9 +1113,15 @@ function tool:help {
     echo "  --host NAME                 Activate the named host target for rebuilds"
     echo "  --print-activation-target   Print the selected explicit rebuild target and exit"
     echo
+    echo -e "${BOLD}Package refresh:${NC}"
+    echo "  pkgs:hashes [ITEM ...]      Refresh changed files, or force the listed items"
+    echo "  pkgs:lockfile [ITEM ...]    Refresh changed extensions, or force the listed items"
+    echo "  Example: $0 pkgs:lockfile pi-extensions.pi-lens pi-extensions.pi-tasks"
+    echo
     echo -e "${BOLD}Available Tools:${NC}"
 
-    local tools=($(compgen -A function | sed -rn 's/tool:(.*)/\1/p'))
+    local tools=()
+    mapfile -t tools < <(compgen -A function | sed -rn 's/tool:(.*)/\1/p')
     for i in "${!tools[@]}"; do
         local tool="${tools[$i]}"
         local emoji=""
@@ -1075,4 +1143,4 @@ function tool:help {
 }
 
 parse_args "$@"
-"tool:${TOOL_ARGS[@]}"
+"tool:${TOOL_ARGS[0]}" "${TOOL_ARGS[@]:1}"
