@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "95d9af86f276f4dbb6c0b3e73701d3aac1a605f9",
+      "rev": "5863e7fba364f2a5eae9efae0b0fb5ca8f97f897",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -38,7 +38,7 @@
       "src": "https://github.com/kwkarlwang/bufjump.nvim"
     },
     "celeste_comment.nvim": {
-      "rev": "b39441f1bb84a925e57299db78719ed8361b809c",
+      "rev": "d3b0c0ca694c07aafd336619a400ef5c085b9b16",
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
@@ -183,7 +183,7 @@
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
-      "rev": "25a9b06a09ea4e10712bec37e7b7d9f423262b91",
+      "rev": "728e031f6b11d03d1f0708b7dc4fb0f1d9c8a137",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
       "version": "'main'"
     },
@@ -229,7 +229,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "cab3cff740114bd6a7d9f862839ed049f5701e47",
+      "rev": "411163b2be396495c76788a016cb1354f1e8acd0",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
