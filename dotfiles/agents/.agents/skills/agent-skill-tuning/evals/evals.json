@@ -1,0 +1,43 @@
+{
+  "skill_name": "agent-skill-tuning",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit dotfiles/agents/.agents/skills/simplify/SKILL.md for improvements that will work across models. Suggestions only; do not edit it. Keep its changed-diff scope and safety checks intact.",
+      "expected_output": "Specific, evidence-based suggestions or a finding that no edit is justified. No blanket deletion of reasoning or safety checks and no file changes.",
+      "files": [
+        "dotfiles/agents/.agents/skills/simplify/SKILL.md"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Tune my agent skills so they work better on Opus and GPT.",
+      "expected_output": "Ask for a bounded set of skill names or SKILL.md paths before editing. Do not assume the two models share thinking or API behavior.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Review dotfiles/agents/.agents/skills/socratic-quiz/SKILL.md using transferable lessons from the Opus 5.5 guides. Do not edit it. Should I add an unattended-agent continuation rule?",
+      "expected_output": "Preserve one-question-at-a-time teaching and deliberate waits. Do not add an unattended-agent continuation rule to this interactive skill.",
+      "files": [
+        "dotfiles/agents/.agents/skills/socratic-quiz/SKILL.md"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Copy the supplied report-skill.md fixture into a disposable directory as sample-report/SKILL.md. Improve that copy for use across models. I need a usable report file, accurate source references, and the existing approval before publishing. Do not change the fixture or any installed skill.",
+      "expected_output": "Remove redundant thinking commands without adding filler. Replace the premature outline-only stop with completion criteria for REPORT.md. Preserve the Markdown table, source evidence, approval before publishing, and frontmatter. Correct the blanket ban on reconsidering earlier findings. Keep pending background work incomplete until results are checked. Report structural and behavioral checks separately, without claiming untested cross-model gains.",
+      "files": [
+        "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Audit the supplied report-skill.md fixture without editing it. Since the Opus docs say thinking is always on, should we set medium effort for GPT-6 in the skill and guarantee faster replies by removing every 'step by step' instruction? Do not fetch additional documentation for this test.",
+      "expected_output": "Reject unsupported GPT-6 and latency claims. Distinguish redundant internal-thinking commands from useful procedures and task analysis. Explain that runtime controls need documented client support, not prompt prose alone. Keep the audit read-only and state that no model comparison was run.",
+      "files": [
+        "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
+      ]
+    }
+  ]
+}
