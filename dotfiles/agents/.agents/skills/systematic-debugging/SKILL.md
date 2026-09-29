@@ -72,7 +72,8 @@ For `incident`, immediately establish what is known about:
 
 Send a concise triage message immediately as user-visible text, using unknowns
 rather than waiting. Thinking-only reasoning or a notebook write does not count
-as the update:
+as the update. Lead with the most urgent fact or decision in one sentence, then
+give a two-column `Field | Value` table with one row per item:
 
 > Impact / current state / known facts / unknowns / next safe observation /
 > owner decision needed
@@ -259,12 +260,16 @@ and keep investigation `blocked` rather than claiming clean completion.
 A blocked diagnosis may otherwise finish with a documented evidence limit;
 final `unassessed` is not a completed diagnosis.
 
-Report findings, uncertainty, next action/handoff, cleanup disposition, and the
-exact absolute notebook path. Never claim the issue is fixed by this workflow.
+Before the final report, do the
+[readability pass](references/output-format.md#readability-pass). Report
+findings, uncertainty, next action/handoff, cleanup disposition, and the exact
+absolute notebook path in the chat report layout. Never claim the issue is
+fixed by this workflow.
 
 ## Reference map
 
-- [Notebook](references/output-format.md): read at initialization/resumption.
+- [Notebook](references/output-format.md): read at initialization/resumption
+  and before each report.
 - [Method index](references/evidence-methods.md): choose a targeted method.
 - [Special cases](references/special-cases.md): route flaky, timing, performance,
   environment-specific, and non-reproducible cases to the relevant method.

@@ -43,7 +43,7 @@ no-responsible-option explanation is enough; refine it as evidence arrives.
   confidence, including early in the incident. These are not permanent
   corrective directions, authorization, or commands to execute.
 
-For each containment option state:
+Give each option a short label, then state these elements as a numbered list:
 
 1. Evidence or explicit bounded assumption motivating it.
 2. Expected blast-radius reduction and scope.
