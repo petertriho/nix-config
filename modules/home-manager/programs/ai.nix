@@ -300,12 +300,6 @@ let
               description = "Claude Code rendering settings for this LSP server.";
             };
 
-            crush = lib.mkOption {
-              type = lspClientType;
-              default = { };
-              description = "Crush rendering settings for this LSP server.";
-            };
-
             pi = lib.mkOption {
               type = lspClientType;
               default = { };
@@ -394,12 +388,6 @@ let
               type = mcpClientType;
               default = { };
               description = "Codex rendering settings for this MCP server.";
-            };
-
-            crush = lib.mkOption {
-              type = mcpClientType;
-              default = { };
-              description = "Crush rendering settings for this MCP server.";
             };
           };
         };
