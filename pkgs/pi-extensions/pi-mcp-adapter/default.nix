@@ -17,17 +17,17 @@ buildNpmPackage (finalAttrs: {
   # (2.36.0) was verified free of pkg.pr.new refs before bumping; re-check
   # on the next bump. nixcfg pkgs:update regenerates the vendored lockfile
   # and npmDepsHash; nixcfg pkgs:lockfile runs the same step manually.
-  version = "3.1.0-unstable-2026-09-27";
+  version = "3.2.0-unstable-2026-09-29";
 
   src = fetchFromGitHub {
     owner = "nicobailon";
     repo = "pi-mcp-adapter";
-    rev = "3ce9716fe6982dfafdea947b316521acb1ebbc73";
-    hash = "sha256-xVkIN2zmEnJyJUxxd50ymvf116ctvuu1c6NarH+ciEQ=";
+    rev = "a4b3e90779687c1dea113f5d6c1be76c5c6d24bc";
+    hash = "sha256-0hUOENFyouGXNOs8R/UbeH6FdbHJGHQ1k4Gnf00yMdw=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-1w+/ZLW+1wysC483tLQPB8XI1/WQjMEL0I6VnrUGNEU=";
+  npmDepsHash = "sha256-DvhjpIzsXWDm8vWmQzG8R6yoBJiFsh7OqeWgVBfaXbU=";
   npmDepsFetcherVersion = 2;
   # Upstream (post-2.27.0) added `prepare: npm run build:public` — tsc
   # emitting dist/ declaration files for embedding hosts that import the
