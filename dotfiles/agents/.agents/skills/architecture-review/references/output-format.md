@@ -68,12 +68,13 @@ Each handoff prompt must include:
 Example:
 
 ```text
-Investigate whether order validation should move behind an OrderIntake owner.
+Investigate whether an OrderIntake owner can take over order validation.
 Start with src/orders/create.ts, src/orders/validate.ts, and tests/orders/create.test.ts.
-Observed maintenance cost: three callers duplicate validation ordering and error mapping before calling createOrder.
-Explore whether one interface can own validation, persistence preparation, and error normalization while preserving current create-order behavior.
-Return a short plan with proposed interface, migration steps, tests to add, and compatibility risks.
-Validate by moving caller-level validation tests to the new module interface and preserving existing API behavior.
+Observed maintenance cost: three callers repeat the validation order and the error mapping before they call createOrder.
+Explore whether one interface can own validation, persistence preparation, and error normalization. Keep the current create-order behavior.
+Return a short plan with the proposed interface, migration steps, tests to add, and compatibility risks.
+To validate the change, move the caller-level validation tests to the interface of the new module. The existing API behavior must not change.
+Do not implement the change until the user approves the interface and the migration path.
 ```
 
 ## Final Sections
@@ -94,7 +95,7 @@ After the recommendations, include:
 - [Area not inspected or evidence not gathered]
 ```
 
-Omit `Secondary Observations` if it would only pad the report. If there are no credible rejected refactors, write `None identified` and explain why. If there are no worthwhile recommendations at all, skip the numbered recommendations and explain the evidence that led to that conclusion, then still include `Scope Limits`.
+Omit `Secondary Observations` if it would only pad the report. If there are no credible rejected refactors, write `None identified` and explain why. If there are no worthwhile recommendations at all, skip the numbered recommendations and `Top Pick`, explain the evidence that led to that conclusion, and still include `Not Recommended` and `Scope Limits`.
 
 ## Style
 
@@ -106,3 +107,32 @@ Omit `Secondary Observations` if it would only pad the report. If there are no c
 - Do not add a global net-line score unless the user requested a terse complexity-only review.
 - Do not include implementation diffs unless the user explicitly asks for code changes.
 - Do not pad the report. Fewer strong recommendations are better than a catalog of weak possibilities.
+
+## Readability Pass
+
+Process step 10 revises the saved review with the `asd-ste100` and `write-better` skills when they are available. The review contract takes priority over any writing rule.
+
+Keep these exact:
+
+- The headings, field names, and field order of this template, even where a writing skill prefers sentence case.
+- The `Label`, `Severity`, and `Complexity` values.
+- File paths, `path:line` references, identifiers, commands, quoted code or errors, and the text diagrams in `Before` and `After`.
+- Every required field, fact, risk, counter-evidence item, and scope limit. Remove repetition inside and across fields, but do not remove a required field.
+
+Keep uncertainty accurate:
+
+- Keep the words that separate evidence from inference. Do not turn "the code suggests" into a statement of fact, and do not make a `Weak signal` sound certain.
+- STE replaces "may", "might", and "could" with "can". Use "can" only for a possibility or a capability. For a guess about the current code, give the evidence and a qualifier such as "probably" or "the evidence suggests".
+- Write a recommendation as a direct statement of the proposed direction instead of "should". Use "must" only when the code, a decision record, or the user makes it a requirement.
+
+If neither writing skill is available, apply these fallback rules:
+
+1. Put the main point first in each field.
+2. Keep descriptive sentences to 25 words or fewer. Keep `Validation` steps and handoff prompt sentences to 20 words or fewer. Inline code counts as one word.
+3. Write one instruction per sentence. Put a condition before its instruction.
+4. Use one term for each concept in the whole review.
+5. Use active voice and simple tenses when the actor is known.
+6. Delete filler, promotional words, and slogans. State the consequence with facts.
+7. Do not use semicolons, em dashes, or contractions in prose.
+
+Fallback check: count the words in the three longest sentences. Search the prose for `;`, `—`, `should`, `has been`, and contractions. Fix each hit with the rules in this section.

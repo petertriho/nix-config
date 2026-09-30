@@ -13,9 +13,9 @@ Explore organically, but gather enough evidence that each recommendation can sta
 5. Read nearby tests to see what behavior is easy or hard to verify.
 6. Scan call sites to learn what callers must know before using each module.
 7. Note where names, file boundaries, and ownership help or hinder navigation.
-8. Sketch a broad candidate list before narrowing. Include candidates that may later become `Not recommended` or `Weak signal` so the review does not anchor on the first issue found.
+8. Sketch a broad candidate list before narrowing. Include candidates that may later become `Not Recommended` or `Weak signal` so the review does not anchor on the first issue found.
 
-For large codebases, sample deliberately. Follow the areas with the strongest change pressure or clearest caller burden, and record the uninspected areas in `Scope limits`.
+For large codebases, sample deliberately. Follow the areas with the strongest change pressure or clearest caller burden, and record the uninspected areas in `Scope Limits`.
 
 ## Maintenance Cost Signals
 
@@ -108,23 +108,12 @@ Internal network services. Consider a narrow port only when the business behavio
 **External**
 Third-party services. Keep the integration point narrow, normalize errors near the edge, and test with fakes or mocks that reflect expected provider behavior.
 
-If the dependency shape does not justify a seam, say so in `Not recommended` rather than inventing one.
-
-## Recommendation Labels
-
-**Ready to plan**
-Concrete evidence from multiple files or call sites, clear testability or change-safety payoff, and a direction specific enough to hand to a planner.
-
-**Needs design spike**
-There is real maintenance cost, but the right interface, ownership boundary, or migration path needs more investigation.
-
-**Weak signal**
-The pattern looks suspicious but evidence is thin. Use this sparingly and explain what would confirm or disprove it.
+If the dependency shape does not justify a seam, say so in `Not Recommended` rather than inventing one.
 
 ## Exploration Boundaries
 
 - Read project docs, decision records, and configuration when they clarify intent or constraints, but do not assume they exist or follow a specific layout.
 - Do not recommend broad rewrites from file layout alone. Tie structure to behavior and change pressure.
 - Do not force every issue into an abstraction. Sometimes deletion or inlining is the right improvement.
-- Do not hide uncertainty. Mark incomplete evidence in `Scope limits` or the recommendation's `Risks` section.
+- Do not hide uncertainty. Mark incomplete evidence in `Scope Limits` or the recommendation's `Risks` section.
 - If a user asked for current-diff review, distinguish architecture issues introduced by the diff from pre-existing maintenance cost nearby.

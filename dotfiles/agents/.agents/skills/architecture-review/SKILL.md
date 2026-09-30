@@ -28,7 +28,7 @@ Read these bundled files as needed:
    - Read enough project context to understand intent: README files, architecture notes, decision records, domain glossaries such as `CONTEXT.md`, package/config files, tests, and relevant call sites.
    - Treat domain docs as naming sources for good ownership seams, and decision records as constraints that should not be re-litigated unless the code shows real friction.
    - Use broad search or an exploration subagent when available for large codebases, such as opencode's `explore` subagent or Claude Code's `Agent` tool with `subagent_type=Explore`, but verify final claims yourself with direct file evidence.
-   - Stay self-contained; do not assume a specific context-file convention or require any companion skill.
+   - Stay self-contained; do not assume a specific context-file convention or require any companion skill. Step 10 uses writing skills when they are available and has a fallback when they are not.
 
 3. Trace representative behavior.
    - Start from entry points such as commands, routes, public functions, package exports, scheduled jobs, or UI flows.
@@ -61,7 +61,9 @@ Read these bundled files as needed:
    - If a native, standard-library, or inline replacement solves the issue, prefer that over a new project-specific helper or interface.
    - Do not recommend broad rewrites from file layout alone. Tie structure to behavior, testability, change safety, or navigation payoff.
 
-8. Produce brief recommendations, not a full implementation plan, unless the user explicitly asks for planning or code changes.
+8. Draft the review.
+   - Write each recommendation to the Recommendation Standard below, in the format of `references/output-format.md`.
+   - Keep recommendations brief. Do not write a full implementation plan unless the user explicitly asks for planning or code changes.
 
 9. Save the review.
    - Choose the save mode before writing. New-review mode is the default; a request to review or rescan the same scope again still creates a new artifact.
@@ -73,6 +75,15 @@ Read these bundled files as needed:
    - Treat every other existing review as append-only history: never edit, overwrite, move, or delete it.
    - Keep related plans, tasks, and earlier reviews in their existing directories. Refer to them by path inside the new review when useful instead of colocating the new review with them.
    - Skip saving only when the prompt was an ordinary bug/security/style review with no architecture angle, where this skill's output format does not apply.
+
+10. Revise the saved review for readability.
+   - If the `asd-ste100` skill is available, load it through the client's skill tool or read its `SKILL.md`. Use its pragmatic mode unless the user asks for strict STE compliance.
+   - If the `write-better` skill is available, load it too. Use it for what STE does not cover: main point first, no filler or rhetorical packaging, and honest uncertainty.
+   - If neither skill is available, apply the fallback rules under `Readability Pass` in `references/output-format.md`.
+   - Treat `Validation` steps and handoff prompts as procedural text. Treat all other prose as descriptive text. A handoff prompt is an instruction for another agent, not code, so revise it too.
+   - When a writing rule conflicts with the review contract, keep the contract. `Readability Pass` lists what the pass must not change.
+   - Edit only the active review. In revision mode, apply this pass only to the text you added or changed for the request, unless the user asks for a full rewrite.
+   - Run the self-checks from the loaded writing skills, or the fallback check, on the saved file. Then re-read the file and confirm that every fact, file reference, label, risk, and uncertainty marker is still present.
 
 ## Recommendation Standard
 
@@ -88,7 +99,7 @@ A good recommendation is independently usable. It includes:
 - A self-contained handoff prompt another engineer or agent can use to continue exploration.
 - For simplification recommendations, a clear cut/replacement statement and, when credible, a rough net-line reduction estimate. Do not make line count the only reason; tie the deletion to reduced caller knowledge, fewer moving parts, or easier change.
 
-The recommendation must make sense without reading this skill or its reference files. Prefer project-specific plain language over architecture jargon. If a specialized term is useful, explain it in the recommendation itself.
+The recommendation must make sense without reading this skill or its reference files. Use ownership language and project-specific plain language instead of architecture jargon. If a term such as interface, seam, adapter, or change locality helps, define it in the recommendation itself.
 
 Prefer three useful recommendations over ten vague ones, but do not force a hard cap when the evidence supports several distinct ownership problems. Label each as `Ready to plan`, `Needs design spike`, or `Weak signal`:
 
@@ -98,37 +109,26 @@ Prefer three useful recommendations over ten vague ones, but do not force a hard
 
 Before finalizing, check that every recommendation answers four questions: what is hard today, where the evidence is, what should own the behavior instead, and how a follow-up could validate the change.
 
-Use ownership language in the final recommendation. If terms such as interface, seam, adapter, or change locality help, define them in project-specific plain language instead of assuming the reader knows the vocabulary.
-
 ## Output
 
-Use the format in `references/output-format.md`. In new-review mode, write to a new `.artifacts/reviews/<review-name>-<timestamp>/REVIEW.md` using the collision-safe naming rules in Process step 9. In explicit revision mode, update only the identified existing `REVIEW.md`.
+Process steps 8 to 10 draft, save, and revise `REVIEW.md`. `references/output-format.md` is the only source for its section order, headings, and field names. In that order, `REVIEW.md` contains:
 
-`REVIEW.md` contains:
+- An orientation paragraph that names the reviewed scope, how much of it you inspected, and the type of pass.
+- The numbered recommendations, ordered by expected payoff. Most reviews have two to six. Let the evidence set the count, as the Recommendation Standard says.
+- `Top Pick`: the recommendation to explore first, and why.
+- `Secondary Observations` (optional): real but lower-payoff signals. Write simplification findings here as concise `cut -> replacement` notes instead of full recommendations.
+- `Not Recommended`: tempting refactors you considered and rejected, or `None identified` with a reason.
+- `Scope Limits`: important areas you did not inspect.
 
-- A short orientation paragraph naming the reviewed scope.
-- 2-6 brief recommendations ordered by expected payoff.
-- Optional `Secondary observations` for real but lower-payoff signals that support or contextualize the main recommendations.
-- `Top pick`: the first recommendation to explore and why.
-- `Not recommended`: tempting refactors considered and rejected, or `None identified` with a reason.
-- `Scope limits`: important areas not inspected.
+If no recommendation is worthwhile, omit the numbered recommendations and `Top Pick`. Say so directly, explain the evidence for that conclusion, and still include `Not Recommended` and `Scope Limits`.
 
-For lower-payoff simplification findings, use `Secondary observations` with concise `cut -> replacement` wording instead of expanding them into full recommendations.
-
-If there are no worthwhile recommendations, say so directly in `REVIEW.md` and explain what evidence led to that conclusion.
-
-After writing `REVIEW.md`, summarize the saved file path, the top pick, and any scope limits in the final response so the user can act without reopening the file.
+After the readability pass in Process step 10, give the saved file path, the top pick if there is one, and any scope limits in the final response, so the user can act without reopening the file.
 
 ## Discipline
 
 - Cite code, not vibes.
 - Preserve review history: only the active new review or explicit revision target is writable. Every other existing file and directory under `.artifacts/reviews/` is a read-only input; do not modify, move, or delete it.
-- Read project context when it would improve the review, but do not assume a specific docs layout or companion skill.
-- Make every recommendation self-contained; do not assume the reader knows this skill's vocabulary.
 - Separate evidence from inference. It is fine to say what the code suggests, but label uncertainty clearly.
 - Let tests inform architecture. Fragile fakes, import-path patching, and registry completeness tests are often evidence of the current seam shape, not just test cleanup chores.
-- Prefer deleting, inlining, or using standard-library/platform-native features before inventing a new abstraction, unless a real owner or seam would reduce caller knowledge.
-- Do not create or update docs unless the user asks.
-- Do not implement changes during the recommendation pass unless the user explicitly asks.
-- Avoid broad rewrites unless tied to concrete behavior, testability, or navigation payoff.
+- Do not implement changes or create or update docs unless the user explicitly asks.
 - Avoid architecture theater: a new abstraction is only useful when it reduces caller knowledge, concentrates behavior that changes together, or creates a real test seam.
