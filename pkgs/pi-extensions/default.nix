@@ -29,14 +29,12 @@ in
   pi-subagents = callPackage ./pi-subagents {
     inherit stripNpmManifest updateNpmLock;
   };
-  pi-tasks = callPackage ./pi-tasks {
-    inherit stripNpmManifest updateNpmLock;
-  };
+  pi-tasks = callPackage ./pi-tasks { };
   pi-vcc = callPackage ./pi-vcc { };
   pi-vim = callPackage ./pi-vim { };
   rpiv-args = callPackage ./rpiv-args { inherit (rpiv-mono) src version; };
   rpiv-ask-user-question = callPackage ./rpiv-ask-user-question {
-    inherit (rpiv-mono) src version typebox;
+    inherit (rpiv-mono) src version;
   };
   rpiv-todo = callPackage ./rpiv-todo {
     inherit (rpiv-mono) src version typebox;

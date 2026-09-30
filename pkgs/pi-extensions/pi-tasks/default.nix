@@ -1,12 +1,10 @@
 {
   lib,
-  buildNpmPackage,
+  stdenvNoCC,
   fetchFromGitHub,
-  nodejs_24,
-  stripNpmManifest,
-  updateNpmLock,
+  jq,
 }:
-buildNpmPackage (finalAttrs: {
+stdenvNoCC.mkDerivation {
   pname = "pi-tasks";
   version = "0.9.0-unstable-2026-08-24";
 
@@ -17,43 +15,50 @@ buildNpmPackage (finalAttrs: {
     hash = "sha256-2Wa+lUHQP6qvnRERaqFNu1IkOD4d5etb+x6oTCqh6Vg=";
   };
 
-  # Upstream package-lock.json records the @earendil-works/* peerDependencies
-  # (and pi-coding-agent's own nested peers) with `resolved` but no `integrity`,
-  # which panics nixpkgs' npm fetcher lockfile parser. Pi injects those peers at
-  # runtime, so package.json is stripped in place (upstream's copy — nothing
-  # vendored, so pi.extensions/files track the pinned rev) and the lockfile
-  # regenerated from the stripped manifest is vendored instead.
-  #
-  # devDependencies are stripped from package.json too, not just omitted at
-  # install time: fetchNpmDeps prefetches every tarball the lockfile
-  # references, and --omit=dev only prunes the *install*. That made the build
-  # hostage to unrelated tooling — it broke when @biomejs/biome 2.5.7 was
-  # unpublished from npm (403 on the tarball).
-  postPatch = stripNpmManifest { lockfile = ./package-lock.json; };
-  passthru.updateScript = updateNpmLock {
-    inherit (finalAttrs) pname src postPatch npmDepsFetcherVersion;
-  };
+  nativeBuildInputs = [ jq ];
+  dontConfigure = true;
+  dontBuild = true;
 
-  nodejs = nodejs_24;
-  npmDepsHash = "sha256-OmFMRaW615AKWWxCXbSrgSxKUYEKKsF6qObJVLAVoxI=";
-  npmDepsFetcherVersion = 2;
+  # Pi loads src/index.ts directly and supplies TypeBox and the Pi packages.
+  # Physical copies can bypass Pi's module mapping, so no npm install is needed.
+  postPatch = ''
+    jq '
+      del(.dependencies.typebox, .devDependencies)
+      | .peerDependencies += {
+          "typebox": "*",
+          "@earendil-works/pi-coding-agent": "*",
+          "@earendil-works/pi-tui": "*"
+        }
+    ' package.json > package.json.tmp
+    mv package.json.tmp package.json
+  '';
 
-  # pi.extensions = ["./src/index.ts"]; pi loads the TypeScript directly, so
-  # the upstream `tsc` build (→ dist/) is never consumed. That leaves typebox as
-  # the only dep the closure needs; biome/typescript/vitest are gone from the
-  # manifest entirely (see postPatch). The @earendil-works/* peerDependencies
-  # are injected by pi at runtime and kept out of the closure.
-  dontNpmBuild = true;
-  npmInstallFlags = [ "--omit=dev" ];
+  installPhase = ''
+    runHook preInstall
 
-  # buildNpmPackage installs the package under its scoped package.json name
-  # (@tintinweb/pi-tasks); piPackageRoot in pi.nix resolves the unscoped
-  # lib/node_modules/pi-tasks path, so relocate the directory to match. The
-  # nested node_modules (typebox) moves with it, keeping src/index.ts's
-  # imports resolvable.
-  postInstall = ''
-    mv $out/lib/node_modules/@tintinweb/pi-tasks $out/lib/node_modules/pi-tasks
-    rmdir $out/lib/node_modules/@tintinweb
+    packageRoot=$out/lib/node_modules/pi-tasks
+    mkdir -p "$packageRoot"
+    cp package.json README.md CHANGELOG.md CONTRIBUTING.md CUSTOMIZING.md SECURITY.md LICENSE "$packageRoot/"
+    cp -r src "$packageRoot/"
+
+    runHook postInstall
+  '';
+
+  doInstallCheck = true;
+  installCheckPhase = ''
+    runHook preInstallCheck
+
+    packageRoot=$out/lib/node_modules/pi-tasks
+    jq -e '
+      ((.dependencies // {}) | length == 0)
+      and (.peerDependencies.typebox == "*")
+      and (.peerDependencies["@earendil-works/pi-coding-agent"] == "*")
+      and (.peerDependencies["@earendil-works/pi-tui"] == "*")
+    ' "$packageRoot/package.json" > /dev/null
+    test -f "$packageRoot/src/index.ts"
+    test ! -e "$packageRoot/node_modules"
+
+    runHook postInstallCheck
   '';
 
   meta = {
@@ -67,4 +72,4 @@ buildNpmPackage (finalAttrs: {
       "aarch64-darwin"
     ];
   };
-})
+}
