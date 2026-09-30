@@ -47,6 +47,9 @@ let
       // {
         exposure = server.exposure or "codemode";
       }
+      // lib.optionalAttrs (server ? toolExposure) {
+        inherit (server) toolExposure;
+      }
     ) config.programs.mcp.servers;
   };
 
