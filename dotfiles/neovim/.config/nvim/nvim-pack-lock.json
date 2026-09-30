@@ -126,7 +126,7 @@
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
-      "rev": "45305721b145ba6b43b2e182d7512275a86f6d94",
+      "rev": "11e77821fc6796294b13e6ab2509bc2a694f2251",
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
@@ -229,7 +229,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "411163b2be396495c76788a016cb1354f1e8acd0",
+      "rev": "90513f613907e00ce9a07cfd9773a3e18d73146e",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
