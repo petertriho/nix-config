@@ -21,6 +21,7 @@ export interface LaunchContext {
 export interface SubagentToolResult {
 	content: Array<{ type: "text"; text: string }>;
 	details: Record<string, unknown>;
+	isError?: boolean;
 }
 export interface SubagentUsageSummary {
 	requests: number;

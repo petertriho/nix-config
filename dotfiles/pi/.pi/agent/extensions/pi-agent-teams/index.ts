@@ -334,6 +334,7 @@ const SPAWNING_TOOLS = new Set([
   "SendMessage",
   "ListAgents",
   "AgentInterrupt",
+  "TeamStop",
   "workflow_spawn",
   "workflow_resume",
   "workflow_recover",
@@ -1279,6 +1280,7 @@ function requestSubagentInterrupt(
 }
 
 interface InterruptToolResult {
+  isError?: boolean;
   content: Array<{ type: "text"; text: string }>;
   details: { error?: string; id?: string; name?: string; status?: string };
 }
@@ -1290,6 +1292,7 @@ function handleSubagentInterrupt(
   const resolved = resolveInterruptTarget(params);
   if ("error" in resolved) {
     return {
+      isError: true,
       content: [{ type: "text" as const, text: resolved.error }],
       details: { error: resolved.error },
     };
@@ -1298,6 +1301,7 @@ function handleSubagentInterrupt(
   const running = resolved.running;
   if (running.cli === "claude") {
     return {
+      isError: true,
       content: [{
         type: "text" as const,
         text:
@@ -1313,6 +1317,7 @@ function handleSubagentInterrupt(
   const interruption = requestSubagentInterrupt(running, sendEscapeKey);
   if ("error" in interruption) {
     return {
+      isError: true,
       content: [{ type: "text" as const, text: interruption.error }],
       details: { error: interruption.error, id: running.id, name: running.name },
     };
@@ -1744,6 +1749,14 @@ function renderToolFallback(result: ToolRenderResult, theme: UiTheme): Text {
   );
 }
 
+/** Adapt legacy service results at the active tool boundary, not notice callbacks. */
+function activeAgentResult<T extends { details: unknown; isError?: boolean }>(result: T): T {
+  const details = result.details as { error?: unknown; exitCode?: number } | undefined;
+  return details?.error != null || (details?.exitCode != null && details.exitCode !== 0)
+    ? { ...result, isError: true }
+    : result;
+}
+
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
   retiredToolFixtures.clear();
   const finishedOrdinary = new Map<string, FinishedOrdinaryAgent>();
@@ -1822,7 +1835,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     answers.clear();
     invalidatedApprovals.clear();
     leadRecoveries.clear();
-    qualifiedStops.clear();
     coordinator?.close();
     coordinator = undefined;
     sessionEpoch++;
@@ -1949,14 +1961,21 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       ctx.sessionManager.getSessionId(), "team", "main", "roster.json");
     return existsSync(roster) ? openCoordinator(ctx) : undefined;
   };
-  const stopTeamMember = async (ctx: ExtensionContext, id: string): Promise<string> => {
+  const stopTeamMember = async (ctx: ExtensionContext, id: string, signal?: AbortSignal): Promise<string> => {
+    if (memberMailbox) throw new Error("Only the owning lead session can stop teammates");
+    if (signal?.aborted) throw new Error("Teammate stop cancelled");
     const team = await existingCoordinator(ctx);
     if (!team) throw new Error("No team belongs to this lead session");
+    if (!sessionActive || team.leadSessionId !== ctx.sessionManager.getSessionId()) {
+      throw new Error("Only the owning active lead session can stop teammates");
+    }
     const member = (await team.transport.listMembers(team.teamId))
       .find((entry) => entry.memberId === id && entry.state === "active");
     if (!member || !member.surface || !member.sessionFile) {
       throw new Error("Teammate is absent, stale or has no owned pane");
     }
+    // Cancellation is safe until the pane close; once stopped, finish roster cleanup.
+    if (signal?.aborted) throw new Error("Teammate stop cancelled");
     closeSurface(member.surface);
     const running = [...runningSubagents.values()].find((entry) =>
       entry.team?.memberId === member.memberId && entry.team.epoch === member.epoch);
@@ -1969,7 +1988,37 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     });
     return `Teammate ${member.name} (team:${member.memberId}) stopped successfully`;
   };
-  const qualifiedStops = new Map<string, { sentinel: string; text: string; isError: boolean }>();
+  if (!memberMailbox && shouldRegister("TeamStop"))
+    pi.registerTool({
+      name: "TeamStop",
+      label: "Stop Teammate",
+      exposure: "direct",
+      description: "Fully stop an active teammate owned by this lead session. " +
+        'Use task_id: "team:<member UUID>". AgentInterrupt stops only the current turn; TaskStop is for native tasks.',
+      parameters: Type.Object({
+        task_id: Type.String({ description: "Qualified teammate ID: team:<member UUID>" }),
+      }),
+      async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+        try {
+          if (!/^team:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.task_id)) {
+            throw new Error('Use a qualified teammate ID: "team:<member UUID>"');
+          }
+          const text = await stopTeamMember(ctx, params.task_id.slice("team:".length), signal);
+          return {
+            isError: false,
+            content: [{ type: "text" as const, text }],
+            details: { teamStop: true },
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return {
+            isError: true,
+            content: [{ type: "text" as const, text: `Teammate stop refused: ${message}` }],
+            details: { teamStop: true, error: message },
+          };
+        }
+      },
+    });
   const leadRecoveries = new Map<string, {
     storeFingerprint: string;
     completed: Array<{ id: string; blocks: string[]; blockedBy: string[] }>;
@@ -1992,39 +2041,13 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         });
       }
     }
-    if (memberMailbox || event.toolName !== "TaskStop") return;
+    if (event.toolName !== "TaskStop") return;
     const args = event.input as { task_id?: unknown; shell_id?: unknown };
     const taskId = args.task_id ?? args.shell_id;
     if (typeof taskId !== "string" || !taskId.startsWith("team:")) return;
-    const sentinel = `TEAM_STOP_${randomUUID()}`;
-    let text: string;
-    let isError = false;
-    try {
-      const id = taskId.slice("team:".length);
-      if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(id)) throw new Error("Invalid qualified teammate ID");
-      text = await stopTeamMember(ctx, id);
-    } catch (error) {
-      text = `Teammate stop refused: ${error instanceof Error ? error.message : String(error)}`;
-      isError = true;
-    }
-    qualifiedStops.set(event.toolCallId, { sentinel, text, isError });
-    return { block: true, reason: sentinel };
-  });
-  pi.on("message_end", (event) => {
-    if (event.message.role !== "toolResult") return;
-    const result = qualifiedStops.get(event.message.toolCallId);
-    if (!result) return;
-    if (event.message.toolName !== "TaskStop" ||
-        event.message.content[0]?.type !== "text" ||
-        event.message.content[0].text !== result.sentinel) {
-      return;
-    }
-    qualifiedStops.delete(event.message.toolCallId);
-    return { message: {
-      ...event.message, isError: result.isError,
-      content: [{ type: "text" as const, text: result.text }],
-      details: { teamStop: true },
-    } };
+    // Block without side effects: nested blocked calls have no message_end.
+    return { block: true, reason:
+      'Qualified teammate IDs are not supported by TaskStop. Use TeamStop with task_id: "team:<member UUID>" from the owning lead session. No teammate was stopped.' };
   });
   pi.on("tool_result", async (event, ctx) => {
     if (memberMailbox || event.toolName !== "TaskStop" || !event.isError) return;
@@ -2424,6 +2447,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     pi.registerTool({
       name: "Agent",
       label: "Agent",
+      exposure: "model-only",
       description: "Run a local agent in a tmux pane; set run_in_background: false to await its result. " +
         "For background runs: " + ASYNC_TOOL_CONTRACT +
         " Eligible named interactive native agents use a team when admission gates allow it.",
@@ -2431,9 +2455,11 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       async execute(toolCallId, input, signal, onUpdate, ctx) {
         const params = normalizeAgentCall(input);
         const fail = (message: string) => ({
+          isError: true,
           content: [{ type: "text" as const, text: `Error: ${message}` }],
           details: { error: message },
         });
+        if (signal?.aborted) return fail("Agent launch cancelled; no agent was started.");
         const unsupported = Object.keys(params).filter(
           (key) => !["description", "prompt", "subagent_type", "name", "run_in_background", "fork", "model", "isolation",
             "resume", "resumeSessionId",
@@ -2521,7 +2547,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           if (params.run_in_background === false) {
             return fail("An interactive teammate stays available for messages; use a background Agent call.");
           }
-          if (!isTmuxAvailable()) return muxUnavailableResult();
+          if (!isTmuxAvailable()) return activeAgentResult(muxUnavailableResult());
           const opened = await openCoordinator(ctx, params.team_name?.trim(), admission.value.storeFingerprint);
           await opened.requireTaskFingerprint(admission.value.storeFingerprint);
           const member = await opened.addMember({ name, sessionId: childSessionId });
@@ -2585,9 +2611,9 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
               params.tools || params.systemPrompt || params.interactive !== undefined || params.max_turns !== undefined) {
             return fail("Pi Agent resume restores saved controls; foreground and fresh-launch overrides are unavailable.");
           }
-          return executeSubagentResume(pi, {
+          return activeAgentResult(await executeSubagentResume(pi, {
             sessionPath: params.resume, name: params.name, message: params.prompt, model: params.model,
-          }, ctx);
+          }, ctx));
         }
         if (!params.name?.trim() && params.interactive !== true && defaults.autoExit !== true && !defaults.cli) {
           return fail(`Agent definition "${agentName}" needs auto-exit or interactive: true for an unnamed run; no agent was started.`);
@@ -2603,7 +2629,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
           ...(params.isolation ? { isolation: params.isolation } : {}),
           ...(params.name?.trim() ? { followUpName: params.name.trim() } : {}),
         };
-        return ordinaryTool.execute(toolCallId, ordinaryParams, signal, onUpdate, ctx);
+        return activeAgentResult(await ordinaryTool.execute(toolCallId, ordinaryParams, signal, onUpdate, ctx));
       },
     });
 
@@ -2611,6 +2637,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
     pi.registerTool({
       name: "SendMessage",
       label: "Send Message",
+      exposure: "model-only",
       description: "Send a message to the team lead or an active teammate, or follow up with a finished ordinary agent.",
       parameters: Type.Object({
         recipient: Type.String({ description: "Exact name of a finished ordinary agent" }),
@@ -2619,9 +2646,11 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       }),
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
         const fail = (error: string) => ({
+          isError: true,
           content: [{ type: "text" as const, text: `Error: ${error}` }],
           details: { error },
         });
+        if (_signal?.aborted) return fail("Message cancelled; no message or follow-up was sent.");
         if (params.type !== undefined && params.type !== "message") {
           return fail("Only ordinary follow-up messages are available; teammate control messages require team admission.");
         }
@@ -2700,7 +2729,7 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
             );
           const details = response.details as { status?: string } | undefined;
           if (details?.status !== "started") restore();
-          return response;
+          return activeAgentResult(response);
         } catch (error) {
           restore();
           throw error;
@@ -2714,6 +2743,15 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       label: "List Agents",
       description: "List locally tracked running and finished ordinary agents. Team members appear only after team admission.",
       parameters: Type.Object({}),
+      outputSchema: Type.Object({
+        agents: Type.Array(Type.Object({
+          id: Type.String(),
+          name: Type.String(),
+          status: Type.String(),
+          agent: Type.Optional(Type.String()),
+          epoch: Type.Optional(Type.Integer()),
+        })),
+      }),
       async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
         const activeCoordinator = memberMailbox ? undefined : await existingCoordinator(ctx);
         const teammates = memberMailbox
@@ -2735,11 +2773,20 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
             id: agent.id, name, status: "finished" as const,
           })),
         ];
+        const structuredAgents = agents.map((agent) => {
+          const record: Record<string, string | number> = {
+            id: agent.id, name: agent.name, status: agent.status,
+          };
+          if ("agent" in agent && agent.agent !== undefined) record.agent = agent.agent;
+          if ("epoch" in agent) record.epoch = agent.epoch;
+          return record;
+        });
         return {
           content: [{ type: "text" as const, text: agents.length
             ? agents.map(({ name, id, status }) => `${name} (${id}): ${status}`).join("\n")
             : "No agents in this session." }],
           details: { agents },
+          structuredContent: { agents: structuredAgents },
         };
       },
     });

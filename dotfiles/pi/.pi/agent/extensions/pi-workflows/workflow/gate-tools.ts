@@ -123,6 +123,7 @@ export function registerWorkflowGateTool(
 	if (isParent() && (options.shouldRegister?.("workflow_gate") ?? true)) {
 		pi.registerTool({
 			name: "workflow_gate",
+			exposure: "model-only",
 			label: "Workflow Gate",
 			description: "Open a declared workflow artifact in Plannotator for an explicit user decision. "
 				+ "Parent-only, fire-and-forget: returns immediately and delivers workflow_gate_result on process closure. "

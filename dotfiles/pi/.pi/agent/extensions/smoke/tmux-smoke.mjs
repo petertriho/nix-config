@@ -166,11 +166,10 @@ try {
   const probeSession = join(sessionDir, "stop-probe.jsonl");
   const escape = (value) => `'${value.replaceAll("'", "'\\''")}'`;
   const probeCommand = [
-    "env PI_TEAM_SMOKE_STOP_PROBE=1 pi --no-extensions",
-    "-e", escape(join(extensions, "pi-tasks.ts")),
-    "-e", escape(join(extensions, "team-smoke-provider.ts")),
+    "pi --no-extensions",
+    "-e", escape(join(extensions, "pi-agent-teams.ts")),
     "-e", escape(join(here, "stop-probe.ts")),
-    "--model team-smoke/mock --session", escape(probeSession),
+    "--model team-stop-probe/mock --session", escape(probeSession),
     escape("Run the stop probe"),
   ].join(" ");
   const probeLaunch = spawnSync("tmux", [
@@ -179,6 +178,7 @@ try {
   assert.equal(probeLaunch.status, 0, probeLaunch.stderr);
   const probePane = probeLaunch.stdout.trim();
   let probeResult;
+  let directProbeResult;
   try {
     const probeDeadline = Date.now() + 20_000;
     while (!probeResult && Date.now() < probeDeadline) {
@@ -186,7 +186,9 @@ try {
         for (const line of readFileSync(probeSession, "utf8").split("\n").filter(Boolean)) {
           const entry = JSON.parse(line);
           if (entry.type === "message" && entry.message?.role === "toolResult" &&
-              entry.message.toolName === "TaskStop") probeResult = entry.message;
+              entry.message.toolName === "TeamStopProbe") probeResult = entry.message;
+          if (entry.type === "message" && entry.message?.role === "toolResult" &&
+              entry.message.toolName === "TeamStop") directProbeResult = entry.message;
         }
       }
       if (!probeResult) await new Promise((resolve) => setTimeout(resolve, 100));
@@ -194,10 +196,12 @@ try {
   } finally {
     spawnSync("tmux", ["kill-pane", "-t", probePane], { stdio: "ignore" });
   }
-  assert.ok(probeResult, "real Pi must save the blocked TaskStop result");
-  assert.equal(probeResult.isError, false);
-  assert.equal(probeResult.content[0].text,
-    "Qualified stop correlated through real Pi message_end");
+  assert.ok(probeResult, "real Pi must save the caller fixture's nested TeamStop refusal");
+  assert.equal(probeResult.isError, true);
+  assert.match(probeResult.content[0].text, /Teammate stop refused.*No team belongs/);
+  assert.ok(directProbeResult, "real Pi must save the direct TeamStop refusal");
+  assert.equal(directProbeResult.isError, true);
+  assert.match(directProbeResult.content[0].text, /Teammate stop refused.*No team belongs/);
   const stopEvent = {
     toolName: "TaskStop", toolCallId: "smoke-stop",
     input: { task_id: `team:${memberId}` },
@@ -208,21 +212,15 @@ try {
     if (outcome?.block) { blocked = outcome; break; }
   }
   assert.equal(blocked?.block, true);
-  for (const handler of handlers.get("message_end") ?? []) {
-    const replacement = await handler({
-      message: {
-        role: "toolResult", toolName: "TaskStop", toolCallId: "smoke-stop",
-        content: [{ type: "text", text: blocked.reason }],
-        isError: true, timestamp: Date.now(),
-      },
-    }, context);
-    if (replacement?.message) {
-      assert.equal(replacement.message.isError, false);
-      assert.match(replacement.message.content[0].text, /stopped successfully/);
-      break;
-    }
-  }
-  console.log("real attached-tmux startup, approved task commit, automatic native rebase and qualified stop passed");
+  assert.match(blocked.reason, /Use TeamStop/);
+  assert.ok(__test__.runningSubagents.has(result.details.id), "qualified TaskStop must not stop the teammate");
+  const stopped = await tools.get("TeamStop").execute(
+    "smoke-team-stop", { task_id: `team:${memberId}` }, new AbortController().signal, () => {}, context,
+  );
+  assert.equal(stopped.isError, false, JSON.stringify(stopped));
+  assert.match(stopped.content[0].text, /stopped successfully/);
+  assert.equal(__test__.runningSubagents.has(result.details.id), false);
+  console.log("real attached-tmux startup, approved task commit, automatic native rebase and direct/nested TeamStop passed");
   for (const handler of handlers.get("session_shutdown") ?? []) {
     await handler({}, context);
   }

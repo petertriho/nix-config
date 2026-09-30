@@ -38,8 +38,20 @@ processes from changing the team task file.
 After an uncertain commit, inspect the task list and start a fresh lead session.
 The adapter does not silently reset a paused roster.
 
-For a full teammate stop, use native `TaskStop` with
-`task_id: "team:<member UUID>"`. `AgentInterrupt` stops only the current turn.
+For a full teammate stop, use `TeamStop` with
+`task_id: "team:<member UUID>"` from the owning lead session. It is a direct
+tool and is callable through `ctx.executeTool()`. Refused or cancelled stops
+return `isError: true`. Members cannot use this tool.
+`AgentInterrupt` stops only the current turn.
+
+Qualified `TaskStop` calls fail before stopping anyone and direct callers to
+`TeamStop`. Native `TaskStop` behavior stays unchanged. A bare member UUID
+still falls back to a team stop only after the exact native “No running
+background process” error. Prefer `TeamStop` for an unambiguous team stop.
+`Agent` and `SendMessage` are model-only because they can launch agents or
+require UI orchestration; they are not callable through `ctx.executeTool()`.
+`ListAgents` returns structured `{ agents: [...] }` output to codemode scripts.
+Its direct calls retain the readable agent list.
 
 ## Tests
 

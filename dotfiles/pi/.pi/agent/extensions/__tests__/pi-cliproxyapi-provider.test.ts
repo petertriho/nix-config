@@ -15,6 +15,7 @@ import type {
 import cliproxyapi, {
 	buildCostCatalog,
 	type CodexCatalogModel,
+	type ProviderChatModelConfig,
 	fetchCodexModels,
 	loadCostCatalog,
 	MODEL_CATALOG_REFRESHED_EVENT,
@@ -253,6 +254,25 @@ test("parseModelsCache rejects a different catalog URL and malformed models", ()
 	assert.equal(parseModelsCache("nope", expectedEndpoints.modelsUrl), null);
 });
 
+test("catalog caches accept chat models and reject non-chat model types", () => {
+	const model = toPiModel(gpt56Sol);
+	assert.ok(model);
+	for (const version of [1, 2]) {
+		const parse = version === 1 ? parseLegacyModelsCache : parseModelsCache;
+		const cache = {
+			version,
+			modelsUrl: expectedEndpoints.modelsUrl,
+			fetchedAt: 1,
+		};
+		for (const type of [undefined, "chat"]) {
+			assert.ok(parse({ ...cache, models: [{ ...model, type }] }, expectedEndpoints.modelsUrl));
+		}
+		for (const type of ["image", "classifier", "unknown", null]) {
+			assert.equal(parse({ ...cache, models: [{ ...model, type }] }, expectedEndpoints.modelsUrl), null);
+		}
+	}
+});
+
 async function withCatalogServer(
 	respond: (url: string) => { status: number; body: unknown },
 	run: (baseUrl: string, requests: Array<{ url: string; auth?: string }>) => Promise<void>,
@@ -310,7 +330,10 @@ type EventHandler = (event: unknown, ctx: ExtensionCommandContext) => unknown;
 type Harness = {
 	pi: ExtensionAPI;
 	ctx: ExtensionCommandContext;
-	providers: Array<{ id: string; config: ProviderConfig }>;
+	providers: Array<{
+		id: string;
+		config: Omit<ProviderConfig, "models"> & { models?: ProviderChatModelConfig[] };
+	}>;
 	emittedEvents: Array<{ channel: string; data: unknown }>;
 	commands: Map<string, RegisteredCommand["handler"]>;
 	handlers: Map<string, EventHandler[]>;
@@ -329,7 +352,11 @@ function createHarness(): Harness {
 	const statuses: Harness["statuses"] = new Map();
 	const pi = {
 		registerProvider(id: string, config: ProviderConfig) {
-			providers.push({ id, config });
+			const models = config.models?.map((model) => {
+				assert.ok(model.type === undefined || model.type === "chat");
+				return model;
+			});
+			providers.push({ id, config: { ...config, models } });
 		},
 		registerCommand(name: string, options: Pick<RegisteredCommand, "handler">) {
 			commands.set(name, options.handler);

@@ -80,6 +80,9 @@ function createExtensionHarness() {
 			getCwd: () => "/tmp",
 			getSessionDir: () => `/tmp/pi-tui-shell-test-${process.pid}-missing`,
 			getSessionFile: () => undefined,
+			getSessionId: () => "shell-test-session",
+			getLeafId: () => sessionEntries.length ? String(sessionEntries.length) : null,
+			getEntryCount: () => sessionEntries.length,
 			getEntries: () => {
 				entriesCalls += 1;
 				return sessionEntries;
@@ -101,6 +104,37 @@ function createExtensionHarness() {
 		setSessionEntries: (entries: unknown[]) => {
 			sessionEntries = entries;
 		},
+	};
+}
+
+function createAccountingHarness(entries: Array<Record<string, unknown>> = []) {
+	let entriesCalls = 0;
+	let contextCalls = 0;
+	const state = {
+		sessionId: "accounting-test-session",
+		leafId: "leaf-1",
+		contextUsage: undefined as ReturnType<ExtensionContext["getContextUsage"]>,
+	};
+	const ctx = {
+		getContextUsage() {
+			contextCalls += 1;
+			return state.contextUsage;
+		},
+		sessionManager: {
+			getSessionId: () => state.sessionId,
+			getLeafId: () => state.leafId,
+			getEntryCount: () => entries.length,
+			getEntries() {
+				entriesCalls += 1;
+				return [...entries];
+			},
+		},
+	} as unknown as ExtensionContext;
+	return {
+		ctx,
+		entries,
+		state,
+		getCalls: () => ({ entries: entriesCalls, context: contextCalls }),
 	};
 }
 
@@ -838,10 +872,8 @@ test("autocomplete split keeps the blank row and rail borders composing", () => 
 	}
 });
 
-test("session accounting cache recomputes only after invalidation", () => {
-	let entriesCalls = 0;
-	let contextCalls = 0;
-	const entries: Array<Record<string, unknown>> = [
+test("session accounting cache reuses unchanged reads and supports invalidation", () => {
+	const harness = createAccountingHarness([
 		{
 			type: "message",
 			message: {
@@ -855,25 +887,16 @@ test("session accounting cache recomputes only after invalidation", () => {
 				},
 			},
 		},
-	];
-	const ctx = {
-		getContextUsage() {
-			contextCalls += 1;
-			return { contextWindow: 200_000, tokens: 50_000, percent: 25 };
-		},
-		sessionManager: {
-			getEntries() {
-				entriesCalls += 1;
-				return entries;
-			},
-		},
-	} as unknown as ExtensionContext;
+	]);
+	harness.state.contextUsage = {
+		contextWindow: 200_000, tokens: 50_000, percent: 25,
+	};
+	const { ctx, entries } = harness;
 	const cache = createSessionAccountingCache();
 	const first = cache.read(ctx, undefined);
 	const cached = cache.read(ctx, undefined);
 	assert.strictEqual(cached, first);
-	assert.equal(entriesCalls, 1);
-	assert.equal(contextCalls, 1);
+	assert.deepEqual(harness.getCalls(), { entries: 1, context: 1 });
 	assert.equal(first.usage.input, 100);
 	assert.equal(first.context.text, "50k/200k");
 
@@ -884,15 +907,164 @@ test("session accounting cache recomputes only after invalidation", () => {
 			usage: { output: 5, cost: { total: 0.02 } },
 		},
 	});
-	assert.strictEqual(cache.read(ctx, undefined), first);
-
-	cache.invalidate();
 	const refreshed = cache.read(ctx, undefined);
 	assert.notStrictEqual(refreshed, first);
-	assert.equal(entriesCalls, 2);
-	assert.equal(contextCalls, 2);
+	assert.deepEqual(harness.getCalls(), { entries: 2, context: 2 });
 	assert.equal(refreshed.usage.output, 55);
 	assert.equal(refreshed.usage.cost, 0.03);
+	assert.strictEqual(cache.read(ctx, undefined), refreshed);
+
+	cache.invalidate();
+	const invalidated = cache.read(ctx, undefined);
+	assert.notStrictEqual(invalidated, refreshed);
+	assert.deepEqual(invalidated, refreshed);
+	assert.deepEqual(harness.getCalls(), { entries: 3, context: 3 });
+});
+
+test("session accounting includes standalone usage and summary costs", () => {
+	const harness = createAccountingHarness([
+		{
+			type: "usage",
+			kind: "cache_warm",
+			provider: "anthropic",
+			model: "claude-opus-4",
+			usage: {
+				input: 100, output: 2, cacheRead: 25, cacheWrite: 1000,
+				cost: { total: 0.125 },
+			},
+		},
+		{ type: "branch_summary", usage: { output: 3, cost: { total: 0.25 } } },
+		{ type: "compaction", usage: { input: 5, cost: { total: 0.5 } } },
+		{
+			type: "custom",
+			data: { usage: { input: 9999, cost: { total: 100 } } },
+		},
+	]);
+	const accounting = createSessionAccountingCache().read(harness.ctx, undefined);
+	assert.deepEqual(accounting.usage, {
+		input: 105, output: 5, cacheRead: 25, cacheWrite: 1000, cost: 0.875,
+	});
+	// Standalone costs must not become main-model context token estimates.
+	assert.deepEqual(accounting.context, { text: "?", percent: null });
+});
+
+test("session accounting counts folded nested tool usage only once", () => {
+	const usage = {
+		input: 10, output: 20, cacheRead: 30, cacheWrite: 40,
+		cost: { total: 0.125 },
+	};
+	const harness = createAccountingHarness([
+		{
+			type: "message",
+			message: {
+				role: "toolResult",
+				toolName: "codemode",
+				usage,
+				details: { childResults: [{ usage }] },
+				nestedCalls: {
+					calls: [{ id: "nested-1", name: "generate_image", status: "ok" }],
+					complete: true,
+				},
+			},
+		},
+		{ type: "message", message: { role: "toolResult" } },
+	]);
+	assert.deepEqual(
+		createSessionAccountingCache().read(harness.ctx, undefined).usage,
+		{ input: 10, output: 20, cacheRead: 30, cacheWrite: 40, cost: 0.125 },
+	);
+});
+
+test("session accounting refreshes after a usage-only append without events", () => {
+	const harness = createAccountingHarness();
+	harness.state.contextUsage = {
+		contextWindow: 200_000, tokens: 50_000, percent: 25,
+	};
+	// Exercise the public readonly surface, which does not expose the counter.
+	delete (harness.ctx.sessionManager as { getEntryCount?: () => number }).getEntryCount;
+	const cache = createSessionAccountingCache();
+	const first = cache.read(harness.ctx, undefined);
+	harness.entries.push({
+		type: "usage",
+		kind: "cache_warm",
+		usage: { cacheWrite: 500, cost: { total: 0.125 } },
+	});
+	harness.state.leafId = "cache-warm";
+	const refreshed = cache.read(harness.ctx, undefined);
+	assert.notStrictEqual(refreshed, first);
+	assert.equal(refreshed.usage.cacheWrite, 500);
+	assert.equal(refreshed.usage.cost, 0.125);
+	assert.deepEqual(refreshed.context, first.context);
+	assert.deepEqual(harness.getCalls(), { entries: 2, context: 2 });
+	assert.strictEqual(cache.read(harness.ctx, undefined), refreshed);
+	assert.deepEqual(harness.getCalls(), { entries: 2, context: 2 });
+});
+
+test("session accounting refreshes on session, manager, and context changes", () => {
+	const harness = createAccountingHarness([
+		{ type: "usage", usage: { cost: { total: 0.125 } } },
+	]);
+	const cache = createSessionAccountingCache();
+	const first = cache.read(harness.ctx, undefined);
+	// A new session can have the same leaf ID and entry count.
+	harness.state.sessionId = "new-session";
+	harness.entries[0] = { type: "usage", usage: { cost: { total: 0.25 } } };
+	const newSession = cache.read(harness.ctx, undefined);
+	assert.notStrictEqual(newSession, first);
+	assert.equal(newSession.usage.cost, 0.25);
+
+	const replacement = createAccountingHarness([
+		{ type: "usage", usage: { cost: { total: 0.5 } } },
+	]);
+	replacement.state.sessionId = harness.state.sessionId;
+	harness.ctx.sessionManager = replacement.ctx.sessionManager;
+	const newManager = cache.read(harness.ctx, undefined);
+	assert.equal(newManager.usage.cost, 0.5);
+	assert.notStrictEqual(newManager, newSession);
+
+	const newCtx = {
+		...harness.ctx,
+		getContextUsage: () => ({
+			contextWindow: 100_000, tokens: 10_000, percent: 10,
+		}),
+	} as ExtensionContext;
+	const newContext = cache.read(newCtx, undefined);
+	assert.notStrictEqual(newContext, newManager);
+	assert.deepEqual(newContext.context, { text: "10k/100k", percent: 10 });
+	assert.strictEqual(cache.read(newCtx, undefined), newContext);
+});
+
+test("session accounting notices branch moves, entry counts, and model limits", () => {
+	const harness = createAccountingHarness();
+	const model: ModelInfo = {
+		provider: "anthropic", id: "claude-opus-4", contextWindow: 200_000,
+	};
+	const cache = createSessionAccountingCache();
+	const first = cache.read(harness.ctx, model);
+	assert.deepEqual(first.context, { text: "?/200k", percent: null });
+	harness.entries.push({ type: "usage", usage: { cost: { total: 0.125 } } });
+	// An append followed by a branch back can leave the selected leaf unchanged.
+	const appended = cache.read(harness.ctx, model);
+	assert.equal(appended.usage.cost, 0.125);
+	assert.notStrictEqual(appended, first);
+
+	harness.state.leafId = "other-branch";
+	harness.state.contextUsage = {
+		contextWindow: 200_000, tokens: null, percent: null,
+	};
+	const branched = cache.read(harness.ctx, model);
+	assert.notStrictEqual(branched, appended);
+	assert.deepEqual(branched.context, { text: "?/200k", percent: null });
+
+	harness.state.contextUsage = undefined;
+	const replacementModel = { ...model, contextWindow: 100_000 };
+	const changedModel = cache.read(harness.ctx, replacementModel);
+	assert.deepEqual(changedModel.context, { text: "?/100k", percent: null });
+	replacementModel.contextWindow = 50_000;
+	const changedLimit = cache.read(harness.ctx, replacementModel);
+	assert.deepEqual(changedLimit.context, { text: "?/50k", percent: null });
+	assert.strictEqual(cache.read(harness.ctx, replacementModel), changedLimit);
+	assert.deepEqual(harness.getCalls(), { entries: 5, context: 5 });
 });
 
 test("borderless editor rows remain inside the shell", () => {

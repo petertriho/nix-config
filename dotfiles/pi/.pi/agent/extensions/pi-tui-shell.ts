@@ -827,7 +827,9 @@ function computeSessionUsage(ctx: ExtensionContext): SessionUsage {
   };
 
   for (const entry of ctx.sessionManager.getEntries()) {
-    if (entry.type === "message") {
+    if (entry.type === "usage") {
+      addUsage(totals, entry.usage);
+    } else if (entry.type === "message") {
       if (
         entry.message.role === "assistant" ||
         entry.message.role === "toolResult"
@@ -878,18 +880,60 @@ function formatContext(
 }
 
 export function createSessionAccountingCache(): SessionAccountingCache {
-  let cached: SessionAccounting | undefined;
+  let cached:
+    | {
+        ctx: ExtensionContext;
+        sessionManager: ExtensionContext["sessionManager"];
+        sessionId: string;
+        leafId: string | null;
+        entryCount: number | undefined;
+        model: ModelInfo | undefined;
+        contextWindow: number | undefined;
+        accounting: SessionAccounting;
+      }
+    | undefined;
 
   return {
     read(
       ctx: ExtensionContext,
       model: ModelInfo | undefined,
     ): SessionAccounting {
-      cached ??= {
-        usage: computeSessionUsage(ctx),
-        context: formatContext(ctx, model),
+      const sessionManager = ctx.sessionManager;
+      const sessionId = sessionManager.getSessionId();
+      const leafId = sessionManager.getLeafId();
+      // Pi 0.99.1 has this cheap counter at runtime, but its readonly extension
+      // type omits it. Without it, the leaf still detects append-only changes.
+      const entryCount = (
+        sessionManager as typeof sessionManager & { getEntryCount?(): number }
+      ).getEntryCount?.();
+      const contextWindow = model?.contextWindow;
+      if (
+        cached &&
+        cached.ctx === ctx &&
+        cached.sessionManager === sessionManager &&
+        cached.sessionId === sessionId &&
+        cached.leafId === leafId &&
+        cached.entryCount === entryCount &&
+        cached.model === model &&
+        cached.contextWindow === contextWindow
+      ) {
+        return cached.accounting;
+      }
+
+      cached = {
+        ctx,
+        sessionManager,
+        sessionId,
+        leafId,
+        entryCount,
+        model,
+        contextWindow,
+        accounting: {
+          usage: computeSessionUsage(ctx),
+          context: formatContext(ctx, model),
+        },
       };
-      return cached;
+      return cached.accounting;
     },
     invalidate(): void {
       cached = undefined;

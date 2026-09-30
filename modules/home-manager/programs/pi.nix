@@ -38,11 +38,14 @@ let
   mcpJson = jsonFormat.generate "pi-coding-agent-mcp.json" {
     mcpServers = lib.mapAttrs (
       name: server:
-      lib.hm.mcp.transformMcpServer {
+      (lib.hm.mcp.transformMcpServer {
         inherit server;
         extraTransforms = [
           (lib.hm.mcp.wrapEnvFilesCommand { inherit pkgs name; })
         ];
+      })
+      // {
+        exposure = server.exposure or "codemode";
       }
     ) config.programs.mcp.servers;
   };
@@ -359,6 +362,7 @@ in
       };
       settings = {
         defaultProjectTrust = "always";
+        defaultTools = [ "+codemode" ];
         editorPaddingX = 1;
         enableInstallTelemetry = false;
         outputPad = 1;
@@ -446,7 +450,7 @@ in
 
       activation.piMutableSettings = mutableJsonActivation "${cfg.configDir}/settings.json" settingsJson;
 
-      # Preserve CLI-added servers and runtime exposure or enablement changes.
+      # Preserve CLI-added servers and runtime enablement changes.
       activation.piMutableMcp = lib.mkIf config.programs.mcp.enable (
         mutableJsonActivation "${cfg.configDir}/mcp.json" mcpJson
       );

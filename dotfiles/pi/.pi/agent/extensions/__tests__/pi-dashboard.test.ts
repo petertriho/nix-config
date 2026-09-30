@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { VERSION } from "@earendil-works/pi-coding-agent";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
@@ -241,7 +242,7 @@ test("a quiet startup mounts the full Contextimate renderer in the chat dashboar
 		assert.equal(chat.children.length, 1);
 		assert.deepEqual(harness.getPendingMessages().children, []);
 		const text = chat.children[0].render(100).map(stripTerminalSequences).join("\n");
-		assert.match(text, /Pi v0\.87\.1/);
+		assert.ok(text.includes(`Pi v${VERSION}`));
 		assert.match(text, /\[Contextimate\]/);
 		assert.match(text, /Skill frontmatter/);
 		assert.match(text, /Tools \(32\/45 active\)/);

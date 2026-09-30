@@ -49,6 +49,7 @@ interface DeliveryOptions {
 
 interface GateTool {
 	name: string;
+	exposure?: "model-only";
 	execute(
 		id: string,
 		params: WorkflowGateInput,
@@ -260,6 +261,7 @@ test("gate registration honors parent identity and denied-tool policy", async ()
 	let parent = true;
 	await withHarness(async (h) => {
 		assert.equal(h.pi.tools.length, 1);
+		assert.equal(h.pi.gate().exposure, "model-only");
 		h.runtime.startSession(h.sessionFile);
 		parent = false;
 		await assert.rejects(h.start(), /Only the parent orchestrator/);

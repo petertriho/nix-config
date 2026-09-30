@@ -466,7 +466,7 @@ function ensureLaunchAvailable(
 	deps: WorkflowToolDependencies,
 	ctx: WorkflowToolExecutionContext,
 ): SubagentToolResult | null {
-	if (!deps.isTmuxAvailable()) return deps.muxUnavailableResult();
+	if (!deps.isTmuxAvailable()) return { ...deps.muxUnavailableResult(), isError: true };
 	if (!ctx.sessionManager.getSessionFile()) {
 		return {
 			content: [{
@@ -474,6 +474,7 @@ function ensureLaunchAvailable(
 				text: "Error: workflow roles require a persistent parent session.",
 			}],
 			details: { error: "no session file" },
+			isError: true,
 		};
 	}
 	return null;
@@ -532,6 +533,7 @@ function errorResult(error: unknown): SubagentToolResult {
 	return {
 		content: [{ type: "text", text: `Error: ${message}` }],
 		details: { error: "workflow lifecycle rejected", message },
+		isError: true,
 	};
 }
 
@@ -1134,6 +1136,7 @@ export function createWorkflowLifecycleTools(
 
 		if (!shouldOpenRecoveryGate(failureKind)) {
 			return {
+				isError: true,
 				content: [{
 					type: "text",
 					text:
@@ -1150,6 +1153,7 @@ export function createWorkflowLifecycleTools(
 		}
 		if (!ctx.hasUI) {
 			return {
+				isError: true,
 				content: [{
 					type: "text",
 					text:
@@ -1398,6 +1402,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_spawn")) {
 		pi.registerTool({
 			name: "workflow_spawn",
+			exposure: "model-only",
 			executionMode: "sequential",
 			label: "Workflow Spawn",
 			description:
@@ -1420,6 +1425,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_resume")) {
 		pi.registerTool({
 			name: "workflow_resume",
+			exposure: "model-only",
 			executionMode: "sequential",
 			label: "Workflow Resume",
 			description:
@@ -1442,6 +1448,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_recover")) {
 		pi.registerTool({
 			name: "workflow_recover",
+			exposure: "model-only",
 			executionMode: "sequential",
 			label: "Workflow Recover",
 			description:
@@ -1465,6 +1472,7 @@ export function registerWorkflowLifecycleTools(
 	if (shouldRegister("workflow_complete")) {
 		pi.registerTool({
 			name: "workflow_complete",
+			exposure: "model-only",
 			executionMode: "sequential",
 			label: "Workflow Complete",
 			description:
@@ -1474,7 +1482,7 @@ export function registerWorkflowLifecycleTools(
 			parameters: WorkflowCompleteParams,
 			async execute(_toolCallId, params) {
 				try {
-					return lifecycle.complete(params);
+					return await lifecycle.complete(params);
 				} catch (error) {
 					return errorResult(error);
 				}

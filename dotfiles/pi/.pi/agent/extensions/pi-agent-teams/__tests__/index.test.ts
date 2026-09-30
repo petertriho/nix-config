@@ -404,7 +404,7 @@ test("resolveEffectiveSessionMode and resolveLaunchBehavior honor fork precedenc
 
 test("resolveDenyTools expands spawning false and merges deny-tools", () => {
 	const denied = testApi.resolveDenyTools({ spawning: false, denyTools: "claude, web_search" });
-	for (const tool of ["Agent", "SendMessage", "ListAgents", "AgentInterrupt", "claude", "web_search"]) {
+	for (const tool of ["Agent", "SendMessage", "ListAgents", "AgentInterrupt", "TeamStop", "claude", "web_search"]) {
 		assert.equal(denied.has(tool), true, tool);
 	}
 	for (const retired of ["subagent", "subagent_interrupt", "subagents_list", "subagent_resume"]) {
@@ -797,9 +797,13 @@ test("registers only the cutover tools without workflow command ownership", () =
 			"AgentInterrupt",
 			"ListAgents",
 			"SendMessage",
+			"TeamStop",
 		],
 	);
 	const agentTool = registeredTools.find((tool) => tool.name === "Agent");
+	assert.equal(agentTool?.exposure, "model-only");
+	assert.equal(registeredTools.find((tool) => tool.name === "SendMessage")?.exposure, "model-only");
+	assert.equal(registeredTools.find((tool) => tool.name === "TeamStop")?.exposure, "direct");
 	assert.deepEqual(agentTool?.parameters.required, ["description", "prompt"]);
 	assert.equal(agentTool?.parameters.properties.mode, undefined, "do not advertise an unsupported field");
 	assert.ok(agentTool?.parameters.properties.team_name, "the supported team name stays optional");
@@ -831,7 +835,7 @@ test("PI_DENY_TOOLS gates tool registration", () => {
 	const { registeredTools } = createMockExtensionApi({
 		env: {
 			PI_DENY_TOOLS:
-				"Agent,AgentInterrupt,workflow_spawn,workflow_resume,workflow_recover,workflow_complete,workflow_gate",
+				"Agent,AgentInterrupt,TeamStop,workflow_spawn,workflow_resume,workflow_recover,workflow_complete,workflow_gate",
 		},
 	});
 	assert.deepEqual(
@@ -863,10 +867,21 @@ test("ListAgents lists this session's live agents and AgentInterrupt keeps turn-
 		assert.deepEqual(result.details.agents.map((agent: AnyRecord) => ({
 			id: agent.id, name: agent.name, status: agent.status,
 		})), [{ id: running.id, name: running.name, status: "running" }]);
+		assert.deepEqual(result.structuredContent, {
+			agents: [{ id: running.id, name: running.name, status: "running", agent: "scout" }],
+		});
+		testApi.runningSubagents.set(running.id, { ...running, agent: undefined } as any);
+		const withoutDefinition: AnyRecord = await list.execute(
+			"list-no-definition", {}, undefined, undefined, policyContext(),
+		);
+		assert.deepEqual(withoutDefinition.structuredContent, {
+			agents: [{ id: running.id, name: running.name, status: "running" }],
+		});
 		const absent: AnyRecord = await interrupt.execute(
 			"interrupt-call", { name: "Nobody" }, new AbortController().signal, () => {}, policyContext(),
 		);
 		assert.ok(absent.details.error, "interrupting an unknown agent must not stop a process");
+		assert.equal(absent.isError, true);
 		assert.equal(testApi.runningSubagents.has(running.id), true);
 	} finally {
 		testApi.runningSubagents.delete(running.id);
@@ -887,6 +902,7 @@ test("createMockExtensionApi ignores ambient PI_* env and restores it afterwards
 				"AgentInterrupt",
 				"ListAgents",
 				"SendMessage",
+				"TeamStop",
 			],
 		);
 		assert.equal(
@@ -1083,6 +1099,7 @@ test("Agent keeps named headless and CLI calls ordinary without a team flag", as
 					description: "Inventory", prompt: "List files", subagent_type, name: "Researcher",
 				}, new AbortController().signal, () => {}, policyContext());
 				assert.equal(result.details.error, "tmux not available", `${subagent_type} should reach ordinary runtime`);
+				assert.equal(result.isError, true);
 			}
 		} finally {
 			restoreEnvVar("TMUX", savedTmux);
@@ -1126,6 +1143,7 @@ test("Agent treats empty optional placeholders as absent without bypassing team 
 		const result: AnyRecord = await agent.execute("blank-optional", placeholders,
 			new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
 		assert.match(result.details.error, /Team admission blocked.*autoClearCompleted.*never/);
+		assert.equal(result.isError, true);
 		assert.equal(testApi.runningSubagents.size, 0);
 
 		for (const [override, expected] of [
@@ -1138,6 +1156,7 @@ test("Agent treats empty optional placeholders as absent without bypassing team 
 				{ ...placeholders, ...override }, new AbortController().signal, () => {},
 				policyContext({ mode: "tui" }));
 			assert.match(rejected.details.error, expected);
+			assert.equal(rejected.isError, true);
 			assert.equal(testApi.runningSubagents.size, 0);
 		}
 	});
@@ -1177,6 +1196,7 @@ test("Agent refuses worktree isolation from a non-git cwd before launching a sha
 			assert.equal(existsSync(splitLog), false, "allocation must fail before tmux launches a child");
 			assert.equal(testApi.runningSubagents.size, 0);
 			assert.equal(result.details.error, "worktree allocation failed");
+			assert.equal(result.isError, true);
 			assert.match(result.content[0].text, /not (?:inside )?a git (?:repository|worktree)/i);
 		} finally {
 			restoreEnvVar("PATH", savedPath);
@@ -1363,6 +1383,7 @@ test("Agent applies model policy through the ordinary selector before a tmux lau
 				description: "Inspect", prompt: "Inspect files", subagent_type: "worker", model: "previous",
 			}, new AbortController().signal, () => {}, policyContext());
 			assert.equal(result.details.error, "model selection failed");
+			assert.equal(result.isError, true);
 			assert.match(result.content[0].text, /previous.*resum/i);
 		} finally {
 			restoreEnvVar("TMUX", savedTmux);
@@ -1616,13 +1637,96 @@ test("ordinary SendMessage refuses unknown recipients and teammate control messa
 		recipient: "Nobody", content: "Do more work",
 	}, new AbortController().signal, () => {}, policyContext());
 	assert.match(unknown.details.error, /No finished ordinary named agent/);
+	assert.equal(unknown.isError, true);
 	const shutdown: AnyRecord = await sendMessage.execute("shutdown-request", {
 		recipient: "Nobody", content: "Stop", type: "shutdown_request",
 	}, new AbortController().signal, () => {}, policyContext());
 	assert.match(shutdown.details.error, /team admission/);
+	assert.equal(shutdown.isError, true);
 });
 
-test("qualified team stops correlate blocked results; bare TaskStop falls back only after exact native absence", async () => {
+test("active tools report validation, resume failures and cancellation as errors; an empty ListAgents is normal", async () => {
+	await withIsolatedAgentEnv(async () => {
+		const { registeredTools } = createMockExtensionApi();
+		const agent = registeredTools.find((tool) => tool.name === "Agent")!;
+		const send = registeredTools.find((tool) => tool.name === "SendMessage")!;
+		for (const fields of [
+			{ description: "" }, { prompt: "" }, { unsupported: true },
+			{ subagent_type: "missing-agent-definition" },
+			{ isolation: "shared" }, { max_turns: -1 },
+			{ resume: "/missing/team-test-session.jsonl", run_in_background: true },
+		]) {
+			const result = await agent.execute("invalid-agent", {
+				description: "Inspect", prompt: "Inspect files", subagent_type: "worker", ...fields,
+			}, undefined, undefined, policyContext());
+			assert.equal(result.isError, true, JSON.stringify(fields));
+			assert.ok(result.details.error);
+		}
+		const aborted = AbortSignal.abort();
+		for (const [tool, args] of [
+			[agent, { description: "Inspect", prompt: "Inspect files" }],
+			[send, { recipient: "Nobody", content: "Inspect files" }],
+		] as const) {
+			const result = await tool.execute("cancelled", args, aborted, undefined, policyContext());
+			assert.equal(result.isError, true);
+			assert.match(result.details.error, /cancelled/i);
+		}
+		for (const args of [{ recipient: "", content: "Work" }, { recipient: "Nobody", content: "" }]) {
+			assert.equal((await send.execute("invalid-message", args, undefined, undefined, policyContext())).isError, true);
+		}
+		const list = registeredTools.find((tool) => tool.name === "ListAgents")!;
+		assert.equal(list.outputSchema.properties.agents.type, "array");
+		const empty = await list.execute("empty", {}, undefined, undefined, policyContext());
+		assert.deepEqual(empty.details.agents, []);
+		assert.deepEqual(empty.structuredContent, { agents: [] });
+		assert.notEqual(empty.isError, true);
+		assert.equal(testApi.runningSubagents.size, 0);
+	});
+});
+
+test("TeamStop is denied by name and unavailable to members; member qualified TaskStop fails before execution", async () => {
+	assert.equal(createMockExtensionApi({ env: { PI_DENY_TOOLS: "TeamStop" } })
+		.registeredTools.some((tool) => tool.name === "TeamStop"), false);
+	const { registeredTools, eventHandlers } = createMockExtensionApi({
+		env: {
+			PI_DENY_TOOLS: "Agent,SendMessage,ListAgents,TeamStop",
+			PI_TEAM_DIRECTORY: "/tmp/member-stop-fixture", PI_TEAM_ID: "main",
+			PI_TEAM_MEMBER_ID: randomUUID(), PI_TEAM_MEMBER_TOKEN: randomUUID(),
+			PI_TEAM_CHILD_SESSION_ID: "member", PI_TEAM_LEAD_SESSION_ID: "lead",
+			PI_TEAM_MEMBER_EPOCH: "1",
+		},
+	});
+	assert.equal(registeredTools.some((tool) => tool.name === "TeamStop"), false);
+	assert.equal(registeredTools.some((tool) => tool.name === "Agent"), false);
+	assert.ok(registeredTools.some((tool) => tool.name === "SendMessage"));
+	assert.ok(registeredTools.some((tool) => tool.name === "ListAgents"));
+	const blocked = await eventHandlers.get("tool_call")![0]({
+		toolName: "TaskStop", toolCallId: "member-stop", input: { task_id: `team:${randomUUID()}` },
+	}, policyContext()) as AnyRecord;
+	assert.equal(blocked.block, true);
+	assert.match(blocked.reason, /Use TeamStop.*owning lead/);
+	assert.equal(eventHandlers.has("message_end"), false);
+});
+
+test("TeamStop returns an explicit refusal when the session owns no team", async () => {
+	const sessionDir = mkdtempSync(join(tmpdir(), "pi-stop-no-team-"));
+	try {
+		const { registeredTools } = createMockExtensionApi();
+		const stop = registeredTools.find((tool) => tool.name === "TeamStop")!;
+		const result = await stop.execute("no-team", { task_id: `team:${randomUUID()}` }, undefined, undefined, policyContext({
+			sessionManager: {
+				getSessionId: () => "no-team", getSessionDir: () => sessionDir,
+				getSessionFile: () => join(sessionDir, "parent.jsonl"),
+			},
+		}));
+		assert.equal(result.isError, true);
+		assert.match(result.details.error, /No team belongs/);
+	} finally {
+		rmSync(sessionDir, { recursive: true, force: true });
+	}
+});
+
+test("TeamStop direct and nested callers need no message_end; qualified TaskStop refuses without stopping; bare fallback stays exact", async () => {
 	const root = mkdtempSync(join(tmpdir(), "pi-stop-routing-"));
 	const binDir = mkdtempSync(join(tmpdir(), "pi-stop-routing-bin-"));
 	const savedPath = process.env.PATH;
@@ -1638,38 +1742,117 @@ test("qualified team stops correlate blocked results; bare TaskStop falls back o
 			directory, lead: { sessionId: "lead", epoch: randomUUID(), token: randomUUID() },
 		});
 		await transport.createTeam("main");
-		const ids = [randomUUID(), randomUUID()];
-		for (const id of ids) {
+		const ids = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+		for (const [index, id] of ids.entries()) {
 			await transport.addMember({
 				teamId: "main",
 				member: { memberId: id, name: id, sessionId: `session-${id}`, token: randomUUID() },
 			});
-			await transport.updateMemberRuntime({
-				teamId: "main", memberId: id, surface: "%731", sessionFile: join(root, `${id}.jsonl`),
-			});
+			if (index !== 3) {
+				await transport.updateMemberRuntime({
+					teamId: "main", memberId: id, surface: "%731", sessionFile: join(root, `${id}.jsonl`),
+				});
+			}
 		}
-		const { eventHandlers } = createMockExtensionApi();
+		const { registeredTools, eventHandlers } = createMockExtensionApi();
+		const stop = registeredTools.find((tool) => tool.name === "TeamStop")!;
 		const ctx = policyContext({
 			sessionManager: {
 				getSessionId: () => "lead", getSessionDir: () => sessionDir,
 				getSessionFile: () => join(root, "lead.jsonl"),
 			},
 		});
+		const members = () => JSON.parse(readFileSync(join(directory, "main", "roster.json"), "utf8")).members;
+		const state = (id: string) => members().find((member: AnyRecord) => member.memberId === id).state;
+		assert.equal(eventHandlers.has("message_end"), false, "stops must not rely on message_end rewriting");
 		const qualified = await eventHandlers.get("tool_call")![0]({
 			toolName: "TaskStop", toolCallId: "qualified-call",
 			input: { task_id: `team:${ids[0]}` },
 		}, ctx) as AnyRecord;
 		assert.equal(qualified.block, true);
-		const message: AnyRecord = {
-			role: "toolResult", toolName: "TaskStop", toolCallId: "qualified-call",
-			content: [{ type: "text", text: qualified.reason }], isError: true, timestamp: Date.now(),
+		assert.match(qualified.reason, /Use TeamStop/);
+		assert.equal(state(ids[0]), "active");
+		assert.equal(await eventHandlers.get("tool_call")![0]({
+			toolName: "TaskStop", toolCallId: "native-call", input: { task_id: ids[0] },
+		}, ctx), undefined, "bare IDs must reach native TaskStop first");
+
+		// A caller fixture follows ctx.executeTool's public outcome contract.
+		// Blocked nested calls return early; neither path emits message_end.
+		let nativeCalls = 0;
+		const nestedCtx = {
+			...ctx,
+			async executeTool(name: string, input: AnyRecord, options: AnyRecord = {}) {
+				const event = { toolName: name, toolCallId: "caller/1", input };
+				for (const handler of eventHandlers.get("tool_call") ?? []) {
+					const blocked = await handler(event, ctx) as AnyRecord | undefined;
+					if (blocked?.block) return {
+						isError: true, result: { content: [{ type: "text", text: blocked.reason }] },
+					};
+				}
+				if (name === "TaskStop") { nativeCalls++; throw new Error("Native stop must not run"); }
+				assert.equal(name, "TeamStop");
+				assert.equal(stop.exposure, "direct", "the nested caller must be allowed to call TeamStop");
+				const result = await stop.execute(event.toolCallId, input, options.signal, undefined, ctx);
+				return { result, isError: result.isError === true };
+			},
 		};
-		const replaced = await eventHandlers.get("message_end")![0]({ message }, ctx) as AnyRecord;
-		assert.equal(replaced.message.isError, false);
-		assert.match(replaced.message.content[0].text, /stopped successfully/);
-		assert.equal(await eventHandlers.get("message_end")![0]({
-			message: { ...message, toolCallId: "unrelated" },
-		}, ctx), undefined);
+		const caller = {
+			async execute(name: string, input: AnyRecord, signal?: AbortSignal) {
+				return nestedCtx.executeTool(name, input, { signal });
+			},
+		};
+		const nestedRejected = await caller.execute("TaskStop", { shell_id: `team:${ids[0]}` });
+		assert.equal(nestedRejected.isError, true);
+		assert.match(nestedRejected.result.content[0].text, /Use TeamStop/);
+		assert.equal(nativeCalls, 0);
+		assert.equal(state(ids[0]), "active");
+		for (const input of [
+			{ task_id: ids[0] }, { task_id: "team:not-a-uuid" },
+			{ task_id: `team:${randomUUID()}` }, { task_id: `team:${ids[3]}` },
+		]) {
+			const refusal = await caller.execute("TeamStop", input);
+			assert.equal(refusal.isError, true);
+			assert.ok(refusal.result.details.error);
+		}
+		const cancelled = await caller.execute("TeamStop", { task_id: `team:${ids[0]}` }, AbortSignal.abort());
+		assert.equal(cancelled.isError, true);
+		assert.match(cancelled.result.content[0].text, /cancelled/);
+		assert.equal(state(ids[0]), "active");
+		const midCallAbort = new AbortController();
+		const stopping = caller.execute("TeamStop", { task_id: `team:${ids[0]}` }, midCallAbort.signal);
+		midCallAbort.abort();
+		assert.equal((await stopping).isError, true);
+		assert.equal(state(ids[0]), "active");
+		const savedMockTmux = readFileSync(join(binDir, "tmux"), "utf8");
+		writeFileSync(join(binDir, "tmux"), "#!/bin/sh\nif [ \"$1\" = \"kill-pane\" ]; then echo 'stop denied' >&2; exit 1; fi\n");
+		try {
+			const failedClose = await caller.execute("TeamStop", { task_id: `team:${ids[0]}` });
+			assert.equal(failedClose.isError, true);
+			assert.match(failedClose.result.details.error, /stop denied/);
+			assert.equal(state(ids[0]), "active");
+		} finally {
+			writeFileSync(join(binDir, "tmux"), savedMockTmux);
+		}
+		const wrongLead = await stop.execute("wrong-lead", { task_id: `team:${ids[0]}` }, undefined, undefined, {
+			...ctx, sessionManager: { ...ctx.sessionManager, getSessionId: () => "not-the-lead" },
+		});
+		assert.equal(wrongLead.isError, true);
+		assert.equal(state(ids[0]), "active");
+		const abortController = new AbortController();
+		testApi.runningSubagents.set("stop-fixture", {
+			id: "stop-fixture", team: { memberId: ids[0], epoch: 1 }, abortController,
+		} as any);
+		const direct = await stop.execute("direct-stop", { task_id: `team:${ids[0]}` }, undefined, undefined, ctx);
+		assert.equal(direct.isError, false);
+		assert.match(direct.content[0].text, /stopped successfully/);
+		assert.equal(state(ids[0]), "stopped");
+		assert.equal(abortController.signal.aborted, true);
+		assert.equal(testApi.runningSubagents.has("stop-fixture"), false);
+		assert.equal((await caller.execute("TeamStop", { task_id: `team:${ids[0]}` })).isError, true);
+		const nestedStopped = await caller.execute("TeamStop", { task_id: `team:${ids[2]}` });
+		assert.equal(nestedStopped.isError, false);
+		assert.match(nestedStopped.result.content[0].text, /stopped successfully/);
+		assert.equal(state(ids[2]), "stopped");
 		const exact = `No running background process for task ${ids[1]}`;
 		const resultHandler = eventHandlers.get("tool_result")![0];
 		assert.equal(await resultHandler({
@@ -1686,7 +1869,9 @@ test("qualified team stops correlate blocked results; bare TaskStop falls back o
 		}, ctx) as AnyRecord;
 		assert.equal(fallback.isError, false);
 		assert.match(fallback.content[0].text, /stopped successfully/);
+		assert.equal((await stop.execute("stale", { task_id: `team:${ids[1]}` }, undefined, undefined, ctx)).isError, true);
 	} finally {
+		testApi.runningSubagents.delete("stop-fixture");
 		restoreEnvVar("PATH", savedPath);
 		restoreEnvVar("TMUX", savedTmux);
 		rmSync(root, { recursive: true, force: true });
@@ -3285,6 +3470,7 @@ test("handleSubagentInterrupt forces waiting on success and leaves status on fai
 			}),
 		);
 		assert.match(failed.content[0].text, /Failed to send Escape/);
+		assert.equal(failed.isError, true);
 		assert.equal(classifyStatus(runningMap.get("a1")!.statusState, 20_000).kind, "active");
 
 		let sent = "";
@@ -3295,6 +3481,7 @@ test("handleSubagentInterrupt forces waiting on success and leaves status on fai
 		);
 		assert.equal(sent, "%1");
 		assert.equal(result.content[0].text, 'Interrupt requested for subagent "Worker".');
+		assert.notEqual(result.isError, true);
 		assert.deepEqual(result.details, { id: "a1", name: "Worker", status: "interrupt_requested" });
 		const snapshot = classifyStatus(runningMap.get("a1")!.statusState, 20_000);
 		assert.equal(snapshot.kind, "waiting");
@@ -3353,6 +3540,7 @@ test("handleSubagentInterrupt rejects Claude-backed subagents before delivery", 
 			delivered = true;
 		});
 		assert.equal(delivered, false);
+		assert.equal(result.isError, true);
 		assert.match(result.content[0].text, /supported only for Pi-backed subagents/i);
 		assert.deepEqual(result.details, { error: "claude interrupt unsupported", id: "a1", name: "Worker" });
 	} finally {

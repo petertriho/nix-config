@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { Type } from "typebox";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import {
 	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_DELIVERY_CHANNEL,
@@ -19,6 +20,7 @@ import {
 import { createWorkflowEventClient } from "../../event-client.ts";
 import {
 	createAgentSession,
+	createCodemodeExtension,
 	createEventBus,
 	DefaultResourceLoader,
 	ModelRuntime,
@@ -498,6 +500,146 @@ function registeredLifecycle(deps: WorkflowToolDependencies) {
 
 const LAUNCH_TOOLS = ["workflow_spawn", "workflow_resume", "workflow_recover"] as const;
 
+test("workflow lifecycle tools are model-only and mark rejected calls as errors", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const registered = registeredLifecycle(dependencies(store, new FakeExecution()));
+		const { ctx } = toolContext(root);
+		try {
+			for (const name of [...LAUNCH_TOOLS, "workflow_complete"]) {
+				const tool = registered.tools.get(name);
+				assert.ok(tool);
+				assert.equal(tool.exposure, "model-only");
+				assert.equal(tool.executionMode, "sequential");
+				const rejected = await registered.call(name, {
+					runId: "wrong-run", role: "author", task: "Draft",
+					failure: "quota exceeded", status: "completed",
+				}, ctx);
+				assert.equal(rejected.isError, true, name);
+				assert.equal(rejected.details.error, "workflow lifecycle rejected");
+			}
+		} finally {
+			await registered.lifecycle.stopOwnedRoles();
+		}
+	});
+});
+
+test("workflow spawn marks unavailable execution and missing parent sessions as errors", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const deps = dependencies(store, new FakeExecution());
+		const registered = registeredLifecycle(deps);
+		const { ctx } = toolContext(root);
+		const params = { runId: "run-docs", role: "author", task: "Draft" };
+		try {
+			ctx.sessionManager.getSessionFile = () => undefined;
+			const missingSession = await registered.call("workflow_spawn", params, ctx);
+			assert.equal(missingSession.isError, true);
+			assert.equal(missingSession.details.error, "no session file");
+			deps.isTmuxAvailable = () => false;
+			const unavailable = await registered.call("workflow_spawn", params, ctx);
+			assert.equal(unavailable.isError, true);
+		} finally {
+			await registered.lifecycle.stopOwnedRoles();
+		}
+	});
+});
+
+test("SDK codemode excludes workflow lifecycle tools and preserves nested structured results", { timeout: 10_000 }, async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const settingsManager = SettingsManager.inMemory({
+			defaultTools: ["+codemode"],
+			compaction: { enabled: false }, retry: { enabled: false },
+		});
+		const resourceLoader = new DefaultResourceLoader({
+			cwd: root, agentDir: root, settingsManager,
+			noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true,
+			extensionFactories: [
+				createCodemodeExtension({ mode: "on" }),
+				(pi) => {
+					pi.registerProvider("anthropic", {
+						baseUrl: "https://unused.test", apiKey: "test-only",
+						api: "anthropic-messages", models: [TEST_MODELS[0]],
+					});
+					registerWorkflowLifecycleTools(pi, dependencies(store, new FakeExecution()));
+					pi.registerTool({
+						name: "read_probe", label: "Read probe", description: "Read a test value.",
+						parameters: Type.Object({}),
+						outputSchema: Type.Object({ value: Type.Integer() }),
+						async execute() {
+							return {
+								content: [{ type: "text", text: "Readable test value" }],
+								structuredContent: { value: 7 },
+								details: {},
+							};
+						},
+					});
+				},
+			],
+		});
+		await resourceLoader.reload();
+		const modelRuntime = await ModelRuntime.create({
+			authPath: join(root, "auth.json"), modelsPath: join(root, "models.json"),
+			modelsStorePath: join(root, "models-store.json"),
+		});
+		await modelRuntime.setRuntimeApiKey("anthropic", "test-only");
+		const { session } = await createAgentSession({
+			cwd: root, agentDir: root, model: TEST_MODELS[0], modelRuntime,
+			sessionManager: SessionManager.create(root, join(root, "sessions")),
+			settingsManager, resourceLoader,
+		});
+		const ends: any[] = [];
+		session.subscribe((event) => {
+			if (event.type === "tool_execution_end") ends.push(event);
+		});
+		session.agent.streamFunction = (_model, context) => {
+			const stream = createAssistantMessageEventStream();
+			const done = context.messages.at(-1)?.role === "toolResult";
+			const message: any = {
+				role: "assistant",
+				content: done ? [{ type: "text", text: "done" }] : [{
+					type: "toolCall", id: "codemode-test", name: "codemode",
+					arguments: { code: `
+						for (const name of ["workflow_spawn", "workflow_resume", "workflow_recover", "workflow_complete"]) {
+							if (ALL_TOOLS.some(tool => tool.name === name) || typeof tools[name] === "function") {
+								throw new Error(name + " must be model-only");
+							}
+						}
+						const value = await tools.read_probe({});
+						if (value.value !== 7) throw new Error("Structured output was not preserved");
+						return { structured: true };
+					` },
+				}],
+				api: "anthropic-messages", provider: "anthropic", model: "author-model",
+				usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+				stopReason: done ? "stop" : "toolUse", timestamp: 2,
+			};
+			stream.push({ type: "done", reason: message.stopReason, message });
+			return stream;
+		};
+		try {
+			await session.bindExtensions({});
+			assert.ok(session.getActiveToolNames().includes("codemode"));
+			for (const name of [...LAUNCH_TOOLS, "workflow_complete"]) {
+				assert.ok(session.getActiveToolNames().includes(name));
+			}
+			await session.prompt("Check nested tool exposure.");
+			const parent = ends.find((event) => event.toolName === "codemode");
+			assert.ok(parent);
+			assert.equal(parent.isError, false, JSON.stringify(parent.result));
+			assert.match(parent.result.content.map((block: any) => block.text ?? "").join("\n"), /"structured":\s*true/);
+			const child = ends.find((event) => event.toolName === "read_probe");
+			assert.ok(child);
+			assert.equal(child.parentToolCallId, "codemode-test");
+			assert.deepEqual(child.result.structuredContent, { value: 7 });
+		} finally {
+			session.dispose();
+		}
+	});
+});
+
 for (const first of LAUNCH_TOOLS) {
 	test(`registered ${first} reserves event ownership through preflight and acknowledgement`, { timeout: 5_000 }, async () => {
 		await withTempDir(async (root) => {
@@ -577,6 +719,7 @@ for (const first of LAUNCH_TOOLS) {
 				assert.equal(ownershipAtPreflight, true, "ownership must precede synchronous provider callbacks");
 				compete(); // The acknowledged child must still own the run.
 				for (const rejected of await Promise.all(contenders)) {
+					assert.equal(rejected.isError, true);
 					assert.equal(rejected.details.error, "workflow lifecycle rejected");
 					assert.match(rejected.details.message, /already in progress|still owns a child/);
 				}
@@ -653,6 +796,7 @@ for (const first of LAUNCH_TOOLS) {
 				release.resolve();
 				assert.equal((await winner).details.status, "started");
 				for (const rejected of [...await competitors, ...await compete()]) {
+					assert.equal(rejected.isError, true);
 					assert.equal(rejected.details.error, "workflow lifecycle rejected");
 					assert.match(rejected.details.message, /already in progress|still owns a child/);
 				}

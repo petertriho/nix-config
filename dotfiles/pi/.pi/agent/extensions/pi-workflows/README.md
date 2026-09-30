@@ -30,6 +30,11 @@ Ordinary `Agent` calls and pi-tasks RPC remain independent of workflows.
 `SendMessage`, `ListAgents`, and `AgentInterrupt` handle ordinary agent coordination.
 The old callable subagent tools are not registered.
 
+Workflow lifecycle tools and `workflow_gate` use `model-only` exposure.
+The model can call them directly, but codemode scripts cannot call them.
+Rejected operations return errors. User-cancelled recovery preserves the saved
+role and returns a cancellation acknowledgement.
+
 ## Commands and provider selection
 
 - `/workflow list` and `/workflows` list discovered packages.

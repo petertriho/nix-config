@@ -50,6 +50,8 @@ import {
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 
+export type ProviderChatModelConfig = Extract<ProviderModelConfig, { type?: "chat" }>;
+
 const EXTENSION_NAME = "pi-cliproxyapi-provider";
 const PROVIDER_ID = "cliproxyapi";
 const PROVIDER_NAME = "CLIProxyAPI";
@@ -124,7 +126,7 @@ export type ModelsCache = {
   version: typeof MODELS_CACHE_VERSION;
   modelsUrl: string;
   fetchedAt: number;
-  models: ProviderModelConfig[];
+  models: ProviderChatModelConfig[];
 };
 
 function logWarn(message: string): void {
@@ -418,7 +420,7 @@ export async function loadCostCatalog(
 export function toPiModel(
   model: CodexCatalogModel,
   costCatalog?: CostCatalog,
-): ProviderModelConfig | null {
+): ProviderChatModelConfig | null {
   const id = (model.slug ?? "").trim();
   if (!id) return null;
   if (String(model.visibility ?? "").toLowerCase() === "hide") return null;
@@ -451,10 +453,11 @@ export function toPiModel(
   };
 }
 
-function isProviderModel(value: unknown): value is ProviderModelConfig {
+function isProviderModel(value: unknown): value is ProviderChatModelConfig {
   if (!value || typeof value !== "object") return false;
-  const model = value as Partial<ProviderModelConfig>;
+  const model = value as Partial<ProviderChatModelConfig>;
   return (
+    (model.type === undefined || model.type === "chat") &&
     typeof model.id === "string" &&
     typeof model.name === "string" &&
     typeof model.reasoning === "boolean" &&
@@ -471,7 +474,7 @@ function parseCacheVersion(
   raw: unknown,
   modelsUrl: string,
   version: number,
-): ProviderModelConfig[] | null {
+): ProviderChatModelConfig[] | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const cache = raw as Partial<ModelsCache> & { version?: unknown };
   if (cache.version !== version) return null;
@@ -481,13 +484,13 @@ function parseCacheVersion(
   return cache.models;
 }
 
-function hasGrammarCapability(model: ProviderModelConfig): boolean {
+function hasGrammarCapability(model: ProviderChatModelConfig): boolean {
   const compat = asRecord(model.compat);
   return typeof compat?.supportsOpenAIGrammarTools === "boolean";
 }
 
 /** Validate a current cache file. Rejects legacy versions and other catalog URLs. */
-export function parseModelsCache(raw: unknown, modelsUrl: string): ProviderModelConfig[] | null {
+export function parseModelsCache(raw: unknown, modelsUrl: string): ProviderChatModelConfig[] | null {
   const models = parseCacheVersion(raw, modelsUrl, MODELS_CACHE_VERSION);
   return models?.every(hasGrammarCapability) ? models : null;
 }
@@ -496,7 +499,7 @@ export function parseModelsCache(raw: unknown, modelsUrl: string): ProviderModel
 export function parseLegacyModelsCache(
   raw: unknown,
   modelsUrl: string,
-): ProviderModelConfig[] | null {
+): ProviderChatModelConfig[] | null {
   const models = parseCacheVersion(raw, modelsUrl, LEGACY_MODELS_CACHE_VERSION);
   if (!models) return null;
   return models.map((model) => ({
@@ -509,8 +512,8 @@ export function parseLegacyModelsCache(
 }
 
 type CachedModels =
-  | { kind: "current"; models: ProviderModelConfig[] }
-  | { kind: "legacy"; models: ProviderModelConfig[] }
+  | { kind: "current"; models: ProviderChatModelConfig[] }
+  | { kind: "legacy"; models: ProviderChatModelConfig[] }
   | { kind: "none" };
 
 function readModelsCache(cachePath: string, modelsUrl: string): CachedModels {
@@ -536,7 +539,7 @@ function readModelsCache(cachePath: string, modelsUrl: string): CachedModels {
   }
 }
 
-function writeModelsCache(cachePath: string, modelsUrl: string, models: ProviderModelConfig[]): void {
+function writeModelsCache(cachePath: string, modelsUrl: string, models: ProviderChatModelConfig[]): void {
   const cache: ModelsCache = {
     version: MODELS_CACHE_VERSION,
     modelsUrl,
@@ -658,7 +661,7 @@ export default async function (pi: ExtensionAPI) {
   // overwrite the result of a later /cliproxyapi-refresh.
   let generation = 0;
 
-  const register = (models: ProviderModelConfig[]): void => {
+  const register = (models: ProviderChatModelConfig[]): void => {
     pi.registerProvider(PROVIDER_ID, {
       name: PROVIDER_NAME,
       baseUrl: endpoints.inferenceBaseUrl,
@@ -670,7 +673,7 @@ export default async function (pi: ExtensionAPI) {
   };
 
   /** Fetch, cache, and register. Returns null when a newer fetch superseded this one. */
-  const refresh = async (): Promise<ProviderModelConfig[] | null> => {
+  const refresh = async (): Promise<ProviderChatModelConfig[] | null> => {
     const current = ++generation;
     const [catalog, costCatalog] = await Promise.all([
       fetchCodexModels(endpoints.modelsUrl, process.env[API_KEY_ENV_VAR], MODELS_REQUEST_TIMEOUT_MS),
@@ -679,7 +682,7 @@ export default async function (pi: ExtensionAPI) {
     if (current !== generation) return null;
     const models = catalog
       .map((entry) => toPiModel(entry, costCatalog))
-      .filter((model): model is ProviderModelConfig => model !== null);
+      .filter((model): model is ProviderChatModelConfig => model !== null);
     writeModelsCache(cachePath, endpoints.modelsUrl, models);
     register(models);
     pi.events.emit(MODEL_CATALOG_REFRESHED_EVENT, { provider: PROVIDER_ID });

@@ -44,8 +44,8 @@ test("inventory excludes removed entries and keeps replaced tool results, custom
 		prompt: `AGENTS rules\n${formatSkillsForPrompt([skill])}`, options: { cwd: "/", contextFiles: [{ path: "AGENTS.md", content: "AGENTS rules" }],
 			skills: [skill] },
 		activeTools: ["read"], allTools: [{ name: "read", description: "Read a file", parameters: {},
-			promptGuidelines: [], sourceInfo: { source: "test", path: "/read", scope: "user", origin: "top-level" } }, { name: "write", description: "Not active",
-			parameters: {}, promptGuidelines: [], sourceInfo: { source: "test", path: "/write", scope: "user", origin: "top-level" } }],
+			exposure: "direct", promptGuidelines: [], sourceInfo: { source: "test", path: "/read", scope: "user", origin: "top-level" } }, { name: "write", description: "Not active",
+			parameters: {}, exposure: "direct", promptGuidelines: [], sourceInfo: { source: "test", path: "/write", scope: "user", origin: "top-level" } }],
 		projection: session.buildSessionProjection(), model: undefined, usage: undefined, branch: session.getBranch(),
 	});
 	const all = snapshot.rows.map((r) => `${r.label} ${r.preview}`).join(" ");
