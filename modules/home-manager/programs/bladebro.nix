@@ -30,14 +30,16 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    # Rendered for every MCP-integrated client: the shared
-    # ~/.config/mcp/mcp.json (pi-mcp-adapter), opencode, and Claude Code.
+    # Rendered to the shared XDG MCP file and each client's native MCP config.
     # With debugPort set, bladebro connects to the visible Chromium that
     # bladebro-chrome launched; otherwise it launches its own (headless on
     # Linux, visible on macOS) auto-detected from PATH (CHROME_PATH).
     programs.ai.mcp.bladebro = {
       command = lib.getExe' cfg.package "bladebro";
-      args = [ "mcp" ] ++ lib.optionals (cfg.debugPort != null) [
+      args = [
+        "mcp"
+      ]
+      ++ lib.optionals (cfg.debugPort != null) [
         "--port"
         (toString cfg.debugPort)
       ];

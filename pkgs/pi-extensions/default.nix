@@ -22,9 +22,6 @@ in
   pi-lens = callPackage ./pi-lens {
     inherit stripNpmManifest updateNpmLock;
   };
-  pi-mcp-adapter = callPackage ./pi-mcp-adapter {
-    inherit stripNpmManifest updateNpmLock;
-  };
   pine-of-glass = callPackage ./pine-of-glass { };
   pi-subagents = callPackage ./pi-subagents {
     inherit stripNpmManifest updateNpmLock;

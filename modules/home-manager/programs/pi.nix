@@ -21,7 +21,6 @@ let
     pi-fzfp
     pi-vim
     pi-lens
-    pi-mcp-adapter
     # pi-subagents
     pi-tasks
     # pi-vcc
@@ -34,6 +33,64 @@ let
   # straight from the Nix store output (see programs.nono.agentPacksPackage),
   # so no mutable nono package directory is discovered at activation time.
   settingsJson = jsonFormat.generate "pi-coding-agent-settings.json" cfg.settings;
+  # Native MCP reads the agent directory, not the shared XDG MCP file.
+  # Normalize disabled flags and wrap file-backed environment variables.
+  mcpJson = jsonFormat.generate "pi-coding-agent-mcp.json" {
+    mcpServers = lib.mapAttrs (
+      name: server:
+      lib.hm.mcp.transformMcpServer {
+        inherit server;
+        extraTransforms = [
+          (lib.hm.mcp.wrapEnvFilesCommand { inherit pkgs name; })
+        ];
+      }
+    ) config.programs.mcp.servers;
+  };
+
+  # Keep runtime edits writable. Nix values win, and jq replaces arrays.
+  mutableJsonActivation =
+    target: source:
+    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      piConfigFile=${lib.escapeShellArg target}
+      piConfigNix=${source}
+      piJq=${pkgs.jq}/bin/jq
+
+      # Replace the target atomically and remove a failed temporary file.
+      function piWriteConfig {
+        local target="$1"
+        local tmp
+        tmp=$(mktemp "$target.tmp.XXXXXX") || return 1
+
+        if ! cat > "$tmp" || ! mv "$tmp" "$target"; then
+          rm -f "$tmp"
+          return 1
+        fi
+      }
+
+      # Remove a stale symlink if linkGeneration did not remove it.
+      if [[ -L "$piConfigFile" ]]; then
+        run rm $VERBOSE_ARG "$piConfigFile"
+      fi
+
+      run mkdir -p $VERBOSE_ARG "$(dirname "$piConfigFile")"
+
+      if [[ -f "$piConfigFile" && ! -L "$piConfigFile" ]]; then
+        if "$piJq" -e . "$piConfigFile" > /dev/null 2>&1; then
+          piConfigMerged=$("$piJq" -s '.[0] * .[1]' "$piConfigFile" "$piConfigNix")
+        else
+          warnEcho "$piConfigFile is not valid JSON; backing it up to $piConfigFile.bak"
+          run mv $VERBOSE_ARG "$piConfigFile" "$piConfigFile.bak"
+          piConfigMerged=$(cat "$piConfigNix")
+        fi
+      else
+        piConfigMerged=$(cat "$piConfigNix")
+      fi
+
+      run piWriteConfig "$piConfigFile" <<< "$piConfigMerged"
+      unset piConfigFile piConfigNix piJq piConfigMerged
+      unset -f piWriteConfig
+    '';
+
   blackholePrimaryModel = {
     provider = "cliproxyapi";
     id = "gpt-6-luna";
@@ -387,47 +444,12 @@ in
         run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piHistoryStateDir}
       '';
 
-      # Preserve runtime keys. Nix values take precedence, and jq replaces arrays.
-      activation.piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-        piSettingsFile=${lib.escapeShellArg "${cfg.configDir}/settings.json"}
-        piSettingsNix=${settingsJson}
-        piJq=${pkgs.jq}/bin/jq
+      activation.piMutableSettings = mutableJsonActivation "${cfg.configDir}/settings.json" settingsJson;
 
-        # Replace the target atomically and remove a failed temporary file.
-        function piWriteSettings {
-          local target="$1"
-          local tmp
-          tmp=$(mktemp "$target.tmp.XXXXXX") || return 1
-
-          if ! cat > "$tmp" || ! mv "$tmp" "$target"; then
-            rm -f "$tmp"
-            return 1
-          fi
-        }
-
-        # Remove a stale symlink if linkGeneration did not remove it.
-        if [[ -L "$piSettingsFile" ]]; then
-          run rm $VERBOSE_ARG "$piSettingsFile"
-        fi
-
-        run mkdir -p $VERBOSE_ARG "$(dirname "$piSettingsFile")"
-
-        if [[ -f "$piSettingsFile" && ! -L "$piSettingsFile" ]]; then
-          if "$piJq" -e . "$piSettingsFile" > /dev/null 2>&1; then
-            piSettingsMerged=$("$piJq" -s '.[0] * .[1]' "$piSettingsFile" "$piSettingsNix")
-          else
-            warnEcho "$piSettingsFile is not valid JSON; backing it up to $piSettingsFile.bak"
-            run mv $VERBOSE_ARG "$piSettingsFile" "$piSettingsFile.bak"
-            piSettingsMerged=$(cat "$piSettingsNix")
-          fi
-        else
-          piSettingsMerged=$(cat "$piSettingsNix")
-        fi
-
-        run piWriteSettings "$piSettingsFile" <<< "$piSettingsMerged"
-        unset piSettingsFile piSettingsNix piJq piSettingsMerged
-        unset -f piWriteSettings
-      '';
+      # Preserve CLI-added servers and runtime exposure or enablement changes.
+      activation.piMutableMcp = lib.mkIf config.programs.mcp.enable (
+        mutableJsonActivation "${cfg.configDir}/mcp.json" mcpJson
+      );
 
       # Keep unrelated runtime tuning writable, but replace complete worker
       # model objects so stale per-model tuning cannot survive activation.

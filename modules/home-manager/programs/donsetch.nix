@@ -17,8 +17,7 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    # Rendered for every MCP-integrated client: the shared
-    # ~/.config/mcp/mcp.json (pi-mcp-adapter), opencode, and Claude Code.
+    # Rendered to the shared XDG MCP file and each client's native MCP config.
     programs.ai.mcp.donsetch = {
       command = lib.getExe' cfg.package "donsetch";
       args = [
