@@ -77,17 +77,17 @@ let
 in
 buildNpmPackage (finalAttrs: {
   pname = "pi-lens";
-  version = "4.3.0-unstable-2026-09-30";
+  version = "4.3.0-unstable-2026-10-01";
 
   src = fetchFromGitHub {
     owner = "apmantza";
     repo = "pi-lens";
-    rev = "4b6a3f5302911c86abf714b1e4e2889713422a70";
-    hash = "sha256-Q+vvQoxy7dUqgjBaj3gtFllzt3ko05WpFxMHvYZWH6s=";
+    rev = "b860a0b1a677310d7c929128587c570eea0a2ada";
+    hash = "sha256-js8BSMNjzN3OczMTnzlhlVJLJGW/Sn6BtnJ9e02dS6k=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-40vPnadFHhMc0lHVS8VS8x4Cw/Ie/BHKuFUU0006Kh4=";
+  npmDepsHash = "sha256-FST79v+ntcitpN9To/I3znhbisIwQvQv9sH+JOY3i7I=";
   npmDepsFetcherVersion = 2;
   npmPackFlags = [ "--ignore-scripts" ];
 

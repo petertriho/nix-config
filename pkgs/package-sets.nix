@@ -95,6 +95,15 @@ let
           "--skip=usage_reset_button_renders_when_credit_available"
         ];
       });
+      # Backport of nixpkgs 1ad1b5a7 (2026-09-29): grammars bundled by
+      # mergiraf use an old tree-sitter array.h that breaks strict aliasing.
+      # https://codeberg.org/mergiraf/mergiraf/issues/761
+      # Remove once nixos-unstable contains the fix.
+      mergiraf = prev.mergiraf.overrideAttrs (old: {
+        env = (old.env or { }) // {
+          NIX_CFLAGS_COMPILE = (old.env.NIX_CFLAGS_COMPILE or "") + " -fno-strict-aliasing";
+        };
+      });
       # # The unstable Darwin toolchain crashes while linking these packages.
       # starship =
       #   if final.stdenv.hostPlatform.isDarwin then
