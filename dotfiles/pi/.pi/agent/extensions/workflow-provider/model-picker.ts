@@ -11,7 +11,7 @@ import {
 	type SubagentThinkingLevel,
 } from "./launch-profile.ts";
 
-export type ModelPolicy = "parent" | "previous" | "pick" | string;
+export type ModelPolicy = "parent" | "inherit" | "previous" | "pick" | string;
 export type ModelSelectionSource =
 	| "parent"
 	| "previous"
@@ -331,7 +331,7 @@ export async function resolveModelPolicy(
 		return picked;
 	}
 
-	if (policy === "parent") {
+	if (policy === "parent" || policy === "inherit") {
 		if (!ctx.model) throw new Error("The parent session has no active model.");
 		const thinking = ensureSupportedThinking(ctx.model, asThinkingLevel(ctx.thinkingLevel));
 		return {

@@ -498,6 +498,22 @@ test("resolvePiModelArgument applies fresh Pi model and thinking precedence", ()
 	);
 });
 
+test("resolvePiModelArgument supports inheritance for direct teammate launches", () => {
+	for (const model of ["parent", "inherit"]) {
+		const params = { name: "A", task: "T", model };
+		const defaults = { model: "agent/model", thinking: "low" };
+		assert.equal(testApi.resolvePiModelArgument(params, defaults, {
+			model: { provider: "openai", id: "gpt" }, thinkingLevel: "high",
+		}), "openai/gpt:high");
+		assert.equal(testApi.resolvePiModelArgument(params, defaults, {
+			model: { provider: "openai", id: "gpt" },
+		}), "openai/gpt");
+		assert.throws(() => testApi.resolvePiModelArgument(params, defaults, {
+			model: undefined,
+		}), /The parent session has no active model/);
+	}
+});
+
 test("buildSubagentToolAllowlist keeps requested tools and adds child control tools", () => {
 	assert.equal(
 		testApi.buildSubagentToolAllowlist("read,bash,web_search"),
@@ -773,6 +789,24 @@ test("Agent exposes Claude's required description and prompt without requiring a
 	assert.ok(agent.parameters.properties.run_in_background);
 	assert.ok(agent.parameters.properties.isolation);
 	assert.equal(agent.parameters.properties.task, undefined);
+});
+
+test("Agent descriptions explain model inheritance and the shared isolation fallback", () => {
+	const { registeredTools } = createMockExtensionApi();
+	const agent = registeredTools.find((tool) => tool.name === "Agent")!;
+	const properties = agent.parameters.properties;
+	for (const description of [agent.description, properties.model.description]) {
+		assert.match(description, /model: "inherit" \(alias "parent"\)/);
+		assert.match(description, /parent session's active model and thinking level/);
+		assert.match(description, /overrides agent defaults/);
+	}
+	for (const description of [agent.description, properties.isolation.description]) {
+		assert.match(description, /Only isolation: "worktree" creates a separate git worktree/);
+		assert.match(description, /Omitted isolation, "shared", and all other values use the shared working directory/);
+		assert.match(description, /Shared runs keep normal team-admission checks/);
+	}
+	assert.match(properties.model.description, /Omit model to use the default selection for the agent or saved session/);
+	assert.match(properties.model.description, /"previous".*invalid for new spawns/);
 });
 
 test("/subtask emits an unnamed Agent fork request instead of the obsolete command", () => {
@@ -1148,7 +1182,6 @@ test("Agent treats empty optional placeholders as absent without bypassing team 
 
 		for (const [override, expected] of [
 			[{ mode: "strict" }, /does not support mode/],
-			[{ isolation: "shared" }, /isolation must be "worktree"/],
 			[{ max_turns: -1 }, /max_turns must be a positive integer/],
 			[{ max_turns: 1 }, /max_turns is supported only for autonomous Pi runs/],
 		] as const) {
@@ -1158,6 +1191,48 @@ test("Agent treats empty optional placeholders as absent without bypassing team 
 			assert.match(rejected.details.error, expected);
 			assert.equal(rejected.isError, true);
 			assert.equal(testApi.runningSubagents.size, 0);
+		}
+	});
+});
+
+test("Agent treats every non-worktree isolation value as shared and inherits the parent model", async () => {
+	await withIsolatedAgentEnv(async ({ projectAgentsDir, globalAgentsDir }) => {
+		const cwd = process.cwd();
+		writeAgentFile(projectAgentsDir, "inherit-test",
+			"auto-exit: true\nmodel: openai/gpt\nthinking: low");
+		writeAgentModelConfig({ version: 1, agents: { "inherit-test": "missing/configured" } },
+			dirname(globalAgentsDir));
+		const binDir = mkdtempSync(join(tmpdir(), "pi-agent-shared-bin-"));
+		const savedPath = process.env.PATH;
+		const savedTmux = process.env.TMUX;
+		try {
+			const launchLog = installForegroundMockTmux(binDir);
+			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
+			process.env.TMUX = "/tmp/mock-tmux,1,0";
+			const { registeredTools } = createMockExtensionApi();
+			const agent = registeredTools.find((tool) => tool.name === "Agent")!;
+			for (const isolation of [undefined, "shared", "none", "unknown", "WORKTREE", " worktree "]) {
+				const result: AnyRecord = await agent.execute("shared-launch", {
+					description: "Inspect", prompt: "Inspect files", subagent_type: "inherit-test",
+					isolation, model: "inherit", cwd, interactive: false, run_in_background: false,
+				}, undefined, undefined, policyContext({ cwd }));
+				assert.equal(result.details.exitCode, 0, JSON.stringify(result.details));
+				assert.equal(result.details.worktreePath, undefined);
+				const scripts = readFileSync(launchLog, "utf8").trim().split("\n");
+				const script = readFileSync(scripts.at(-1)!, "utf8");
+				assert.ok(script.includes(`cd '${cwd}'`), script);
+				assert.match(script, /--model 'anthropic\/claude:high'/);
+				assert.doesNotMatch(script, /--model 'inherit'/);
+				const profile = readLaunchProfile(result.details.sessionFile);
+				assert.equal(profile.status, "ok");
+				assert.deepEqual(profile.profile.runtime.originalModel, {
+					provider: "anthropic", model: "claude", thinking: "high",
+				});
+			}
+		} finally {
+			restoreEnvVar("PATH", savedPath);
+			restoreEnvVar("TMUX", savedTmux);
+			rmSync(binDir, { recursive: true, force: true });
 		}
 	});
 });
@@ -1653,7 +1728,7 @@ test("active tools report validation, resume failures and cancellation as errors
 		for (const fields of [
 			{ description: "" }, { prompt: "" }, { unsupported: true },
 			{ subagent_type: "missing-agent-definition" },
-			{ isolation: "shared" }, { max_turns: -1 },
+			{ max_turns: -1 },
 			{ resume: "/missing/team-test-session.jsonl", run_in_background: true },
 		]) {
 			const result = await agent.execute("invalid-agent", {
@@ -1913,12 +1988,14 @@ test("named Pi admission without a flag refuses unsafe disk mode before any tmux
 			for (const flag of [undefined, "0"]) {
 				restoreEnvVar("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", flag);
 				for (const team_name of [undefined, "example"]) {
-					const result: AnyRecord = await agent.execute("unsafe-team", {
-						description: "Review", prompt: "Inspect files", subagent_type: "worker",
-						name: "Reviewer", interactive: true, ...(team_name ? { team_name } : {}),
-					}, new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
-					assert.match(result.details.error, /Team admission blocked.*autoClearCompleted.*never/);
-					assert.equal(testApi.runningSubagents.size, 0);
+					for (const isolation of [undefined, "shared", "unknown"]) {
+						const result: AnyRecord = await agent.execute("unsafe-team", {
+							description: "Review", prompt: "Inspect files", subagent_type: "worker",
+							name: "Reviewer", interactive: true, isolation, ...(team_name ? { team_name } : {}),
+						}, new AbortController().signal, () => {}, policyContext({ mode: "tui" }));
+						assert.match(result.details.error, /Team admission blocked.*autoClearCompleted.*never/);
+						assert.equal(testApi.runningSubagents.size, 0);
+					}
 				}
 			}
 		} finally {
@@ -2190,7 +2267,7 @@ test("subagent model policies reject invalid new-spawn selections before tmux wo
 		assert.equal(unsupported.details.error, "model selection failed");
 		assert.match(unsupported.content[0].text, /not authenticated and available/);
 
-		for (const model of ["parent", "anthropic/claude:high"]) {
+		for (const model of ["parent", "inherit", "anthropic/claude:high"]) {
 			const accepted: AnyRecord = await tool.execute(
 				"c",
 				{ name: "Echo", task: "t", model },

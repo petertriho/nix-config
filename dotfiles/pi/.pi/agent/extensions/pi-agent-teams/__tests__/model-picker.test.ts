@@ -227,6 +227,40 @@ test("model policies cover parent, previous, pick, explicit, omitted spawn, and 
 	);
 });
 
+test("inherit uses the parent model and thinking for spawns and resumes", async () => {
+	for (const mode of ["spawn", "resume"] as const) {
+		const ctx = context({ hasUI: false, available: [other] });
+		const inherited = await resolveModelPolicy("inherit", ctx, {
+			mode,
+			agentModel: "openai/gpt",
+			agentThinking: "low",
+			profile: profile({ provider: "openai", model: "gpt", thinking: "high" }),
+		});
+		assert.equal(inherited.source, "parent");
+		assert.equal(inherited.model, scoped);
+		assert.equal(inherited.argument, "anthropic/claude:high");
+		assert.deepEqual(inherited.selection, {
+			provider: "anthropic", model: "claude", thinking: "high",
+		});
+		assert.equal(ctx.selectCalls.length, 0);
+	}
+});
+
+test("inherit keeps parent-model validation instead of silently choosing a default", async () => {
+	await assert.rejects(
+		() => resolveModelPolicy("inherit", { ...context(), model: undefined }, {
+			mode: "spawn", agentModel: "openai/gpt",
+		}),
+		/The parent session has no active model/,
+	);
+	await assert.rejects(
+		() => resolveModelPolicy("inherit", context({ current: other, thinkingLevel: "minimal" }), {
+			mode: "spawn",
+		}),
+		/does not support thinking level/,
+	);
+});
+
 test("previous is rejected for new spawns and unavailable saved models need correction", async () => {
 	await assert.rejects(
 		() => resolveModelPolicy("previous", context(), { mode: "spawn" }),

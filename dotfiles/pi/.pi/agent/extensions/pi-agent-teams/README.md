@@ -9,6 +9,12 @@ Teams are available without an environment flag in an attached, interactive
 tmux session. Eligible named native Pi agents join automatically.
 Headless, unnamed, forked, isolated, and Claude CLI runs stay ordinary.
 
+`model: "inherit"` is an alias for `model: "parent"`. Both use the parent
+session's active model and thinking level instead of the agent's defaults.
+Only `isolation: "worktree"` creates a separate git worktree. Every other
+isolation value, including `"shared"`, uses the shared working directory.
+Shared runs keep the normal team-admission checks.
+
 ## Task configuration
 
 The Home Manager Pi module links `tasks-config.json` from this repository.

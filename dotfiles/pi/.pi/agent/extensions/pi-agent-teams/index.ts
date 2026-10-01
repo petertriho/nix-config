@@ -183,7 +183,7 @@ const SubagentParams = Type.Object({
   model: Type.Optional(
     Type.String({
       description:
-        "Model policy: 'parent' uses the parent session model and thinking, 'pick' opens the shared model and thinking picker, 'previous' is invalid for new spawns, or an explicit 'provider/model[:thinking]' value such as 'anthropic/claude-opus-4-5:high'. Omit to use the agent's configured default from ~/.pi/agent/agent-models.json (managed by /agent-models), else the agent frontmatter model, else the parent session model.",
+        "Model policy: 'parent' or 'inherit' uses the parent session model and thinking. 'pick' opens the shared model and thinking picker. 'previous' is invalid for new spawns. An explicit value uses 'provider/model[:thinking]', such as 'anthropic/claude-opus-4-5:high'. Omit to use the agent's configured default from ~/.pi/agent/agent-models.json (managed by /agent-models), else the agent frontmatter model, else the parent session model.",
     }),
   ),
   skills: Type.Optional(
@@ -242,9 +242,13 @@ const AgentParams = Type.Object({
   subagent_type: Type.Optional(Type.String({ description: "Agent definition to use (defaults to general-purpose)" })),
   name: Type.Optional(Type.String({ description: "Display name (ordinary agent unless eligible team coordination is available)" })),
   run_in_background: Type.Optional(Type.Boolean({ description: "Return immediately (default) or wait for the result" })),
-  isolation: Type.Optional(Type.String({ description: "Use an individually owned git worktree (worktree)" })),
+  isolation: Type.Optional(Type.String({
+    description: 'Only isolation: "worktree" creates a separate git worktree. Omitted isolation, "shared", and all other values use the shared working directory. Shared runs keep normal team-admission checks.',
+  })),
   fork: Type.Optional(Type.Boolean({ description: "Pi-only full-context fork of the current session" })),
-  model: Type.Optional(Type.String({ description: "Pi model policy or provider/model[:thinking]" })),
+  model: Type.Optional(Type.String({
+    description: 'Pi-only model selection. Set model: "inherit" (alias "parent") to use the parent session\'s active model and thinking level. This overrides agent defaults. "pick" opens an interactive model picker. "previous" uses the saved model when resuming and is invalid for new spawns. An explicit selection uses provider/model[:thinking]. Omit model to use the default selection for the agent or saved session.',
+  })),
   systemPrompt: Type.Optional(Type.String({ description: "Pi-only appended system prompt" })),
   skills: Type.Optional(Type.String({ description: "Pi-only comma-separated skills override" })),
   tools: Type.Optional(Type.String({ description: "Pi-only comma-separated tools override" })),
@@ -266,6 +270,7 @@ function normalizeAgentCall(input: AgentCall): AgentCall {
   ] as const) {
     if (typeof params[key] === "string" && !params[key].trim()) delete params[key];
   }
+  if (params.isolation !== "worktree") delete params.isolation;
   if (params.max_turns === 0) delete params.max_turns;
   return params;
 }
@@ -503,10 +508,14 @@ function resolvePiModelArgument(
   agentDefs: Pick<AgentDefaults, "model" | "thinking"> | null,
   parentSelection: PiParentSelection,
 ): string | undefined {
-  const configuredModel = params.model ?? agentDefs?.model;
   const parentModel = parentSelection.model
     ? `${parentSelection.model.provider}/${parentSelection.model.id}`
     : undefined;
+  if (params.model === "parent" || params.model === "inherit") {
+    if (!parentModel) throw new Error("The parent session has no active model.");
+    return parentSelection.thinkingLevel ? `${parentModel}:${parentSelection.thinkingLevel}` : parentModel;
+  }
+  const configuredModel = params.model ?? agentDefs?.model;
   const effectiveModel = configuredModel ?? parentModel;
   if (!effectiveModel) return undefined;
 
@@ -2448,7 +2457,12 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
       name: "Agent",
       label: "Agent",
       exposure: "model-only",
-      description: "Run a local agent in a tmux pane; set run_in_background: false to await its result. " +
+      description: "Run a local agent in a tmux pane. Set run_in_background: false to await its result. " +
+        'For Pi agents, set model: "inherit" (alias "parent") to use the parent session\'s active model and thinking level. ' +
+        "This overrides agent defaults. " +
+        'Only isolation: "worktree" creates a separate git worktree. ' +
+        'Omitted isolation, "shared", and all other values use the shared working directory. ' +
+        "Shared runs keep normal team-admission checks. " +
         "For background runs: " + ASYNC_TOOL_CONTRACT +
         " Eligible named interactive native agents use a team when admission gates allow it.",
       parameters: AgentParams,
@@ -2470,9 +2484,6 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
         }
         if (!params.description.trim() || !params.prompt.trim()) {
           return fail("Agent requires a non-empty description and prompt; no agent was started.");
-        }
-        if (params.isolation !== undefined && params.isolation !== "worktree") {
-          return fail('Agent isolation must be "worktree"; no agent was started.');
         }
         if (params.max_turns !== undefined &&
             (!Number.isSafeInteger(params.max_turns) || params.max_turns < 1)) {
