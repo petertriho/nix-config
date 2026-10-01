@@ -36,6 +36,12 @@ with pkgs;
   };
   superpowers = callPackage ./superpowers { };
   taste-skill = callPackage ./taste-skill { };
+  vicinae = inputs.vicinae.packages.${stdenv.hostPlatform.system}.default.override (
+    lib.optionalAttrs stdenv.hostPlatform.isLinux {
+      # Match Numen's compiler and C++ runtime instead of upstream's GCC 15 pin.
+      gcc15Stdenv = stdenv;
+    }
+  );
   vim-custom = callPackage ./vim-custom { };
   vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
   write-better = callPackage ./write-better { };

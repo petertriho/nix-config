@@ -1,6 +1,7 @@
 { inputs, pkgs, ... }:
 {
   imports = [
+    inputs.vicinae.nixosModules.default
     ../base.nix
     ../modules/desktop-environment
     ../modules/kanata.nix
@@ -36,4 +37,5 @@
   };
 
   programs.firefox.enable = true;
+  programs.vicinae.input-server.package = pkgs.vicinae;
 }
