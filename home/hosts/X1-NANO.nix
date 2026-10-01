@@ -8,11 +8,6 @@
     ../profiles/desktop.nix
     ../programs/intel-gpu.nix
   ];
-  home = {
-    sessionVariables = {
-      # COPILOT_MODEL = "gpt-5-mini";
-    };
-  };
   programs.niri.settings.outputs."eDP-1".scale = 1.25;
 
   # Shared hypridle lives in home/programs/wayland-common.nix. Repeat its

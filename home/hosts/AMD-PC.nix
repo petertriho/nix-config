@@ -20,9 +20,6 @@ in
       amdgpu_top
       lg-buddy
     ];
-    sessionVariables = {
-      # COPILOT_MODEL = "gpt-5-mini";
-    };
   };
   xdg.configFile."input-remapper-2/config.json".source =
     config.lib.meta.mkDotfilesSymlink "input-remapper-2/config.json";
@@ -39,19 +36,6 @@ in
       on-resume = "${pkgs.niri-unstable}/bin/niri msg action power-on-monitors; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
     }
   ];
-  # programs.headroom = {
-  #   enable = true;
-  #   mcp.enable = true;
-  #   integrations = {
-  #     cliProxyApi.enable = true;
-  #   };
-  #   optimization = {
-  #     interceptToolResults = true;
-  #     codeAware = true;
-  #     compressionStableAfterTurn = 2;
-  #     staleReadCompressAfterTurns = 2;
-  #   };
-  # };
   programs.niri.settings = {
     input.trackball = {
       accel-profile = "adaptive";
