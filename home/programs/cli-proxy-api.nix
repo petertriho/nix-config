@@ -60,10 +60,11 @@ lib.mkMerge [
         CLI_PROXY_API_KEY = cliProxyApiKeyDefault;
 
         # Consumed by the personal pi-cliproxyapi-provider.ts extension (linked
-        # below): the proxy root for the model catalog and inference, and the
-        # bearer token pi resolves at request time.
+        # below): the proxy root, the inference key, and the management key
+        # used for quota queries. The launch wrapper uses the same key.
         CLIPROXYAPI_BASE_URL = cliProxyApiBaseUrl;
         CLIPROXYAPI_API_KEY = cliProxyApiKeyDefault;
+        CLIPROXYAPI_MANAGEMENT_KEY = cliProxyApiKeyDefault;
       };
     };
 
@@ -76,8 +77,14 @@ lib.mkMerge [
   }
 
   (lib.mkIf config.programs.pi-coding-agent.enable {
-    home.file."${config.programs.pi-coding-agent.configDir}/extensions/pi-cliproxyapi-provider.ts".source =
-      config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-cliproxyapi-provider.ts";
+    home.file = {
+      "${config.programs.pi-coding-agent.configDir}/extensions/pi-cliproxyapi-provider.ts".source =
+        config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-cliproxyapi-provider.ts";
+      "${config.programs.pi-coding-agent.configDir}/extensions/cliproxyapi/quota.ts".source =
+        config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/cliproxyapi/quota.ts";
+      "${config.programs.pi-coding-agent.configDir}/extensions/cliproxyapi/resume.ts".source =
+        config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/cliproxyapi/resume.ts";
+    };
   })
 
   (lib.mkIf pkgs.stdenv.hostPlatform.isLinux {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -13,7 +13,57 @@ const extensions = join(root, "extensions");
 const providerExtension = join(extensions, "pi-cliproxyapi-provider.ts");
 const shellExtension = join(extensions, "pi-tui-shell.ts");
 const requests = [];
+const managementRequests = [];
+let quotaMode = "ready";
+let quotaResetAt = 0;
+let quotaFailurePending = false;
 const server = createServer(async (req, res) => {
+  if (req.url?.startsWith("/v8/management/")) {
+    assert.equal(req.headers.authorization, "Bearer management-smoke-only");
+    managementRequests.push(req.url);
+    const waiting = quotaMode === "waiting";
+    const ready = !waiting || Date.now() >= quotaResetAt;
+    let body;
+    if (req.url === "/v8/management/credentials") {
+      body = { files: [
+        { auth_index: "a", name: "codex-a.json", provider: "codex", email: "smoke-a@example.test", id_token: { chatgpt_account_id: "mock-account-a" }, disabled: false,
+          unavailable: waiting, next_retry_after: waiting ? new Date(Date.now() + 3600000).toISOString() : undefined },
+        { auth_index: "b", name: "codex-b.json", provider: "codex", email: "smoke-b@example.test", id_token: { chatgpt_account_id: "mock-account-b" }, disabled: false,
+          unavailable: waiting && !ready, next_retry_after: waiting && !ready ? new Date(quotaResetAt).toISOString() : undefined },
+      ] };
+    } else if (req.url.startsWith("/v8/management/credentials/models?")) {
+      body = { models: [{ id: "gpt-fast-smoke" }, { id: "gpt-standard-smoke" }] };
+    } else if (req.method === "POST" && req.url === "/v8/management/requests/api-call") {
+      let text = "";
+      for await (const chunk of req) text += chunk;
+      let call;
+      try {
+        call = JSON.parse(text);
+      } catch {
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid management request JSON" }));
+        return;
+      }
+      assert.equal(call.method, "GET");
+      assert.equal(call.url, "https://chatgpt.com/backend-api/wham/usage");
+      assert.equal(call.header.Authorization, "Bearer $TOKEN$");
+      const blocked = waiting && (call.auth_index === "a" || !ready);
+      const resetAt = call.auth_index === "a" ? Date.now() + 3600000 : quotaResetAt || Date.now() + 300000;
+      body = { status_code: 200, body: JSON.stringify({ rate_limit: {
+        allowed: !blocked, limit_reached: blocked,
+        primary_window: { used_percent: blocked ? 100 : 40, limit_window_seconds: 18000, reset_at: Math.ceil(resetAt / 1000) },
+        secondary_window: { used_percent: 20, limit_window_seconds: 604800, reset_at: Math.ceil((Date.now() + 86400000) / 1000) },
+      } }) };
+    }
+    if (body !== undefined) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(body));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+    return;
+  }
   if (req.method === "GET" && req.url?.startsWith("/v1/models")) {
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ models: [
@@ -37,7 +87,14 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ error: { message: "Invalid JSON" } }));
     return;
   }
-  requests.push({ path: req.url, payload });
+  requests.push({ path: req.url, payload, session: req.headers.session_id ?? req.headers["x-pi-session-id"] });
+  if (quotaFailurePending) {
+    quotaFailurePending = false;
+    res.writeHead(429, { "content-type": "application/json" });
+    // Account A resets in an hour. The pool's account B becomes usable sooner.
+    res.end(JSON.stringify({ error: { type: "usage_limit_reached", message: "Usage limit reached", resets_in_seconds: 3600 } }));
+    return;
+  }
   const part = { type: "output_text", text: "smoke ok", annotations: [] };
   const item = { type: "message", id: "msg_smoke", role: "assistant", status: "completed", content: [part] };
   const response = {
@@ -65,6 +122,7 @@ try {
   mkdirSync(extensions);
   copyFileSync(new URL("../pi-cliproxyapi-provider.ts", import.meta.url), providerExtension);
   copyFileSync(new URL("../pi-tui-shell.ts", import.meta.url), shellExtension);
+  cpSync(new URL("../cliproxyapi", import.meta.url), join(extensions, "cliproxyapi"), { recursive: true });
   assert.throws(() => createRequire(providerExtension).resolve("@earendil-works/pi-ai"), { code: "MODULE_NOT_FOUND" });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
@@ -81,7 +139,7 @@ try {
       contextWindow: 16000, maxTokens: 512, cost: { input: 5, output: 30, cacheRead: 0, cacheWrite: 0 },
       samplingParams: { service_tier: "priority" } }],
   } } }));
-  const env = { ...process.env, PI_CODING_AGENT_DIR: root, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_API_KEY: "smoke-only" };
+  const env = { ...process.env, PI_CODING_AGENT_DIR: root, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_API_KEY: "smoke-only", CLIPROXYAPI_MANAGEMENT_KEY: "management-smoke-only" };
   delete env.CLIPROXYAPI_FAST;
   for (const { fast, model, expected, provider = "cliproxyapi", cost } of [
     { fast: false, model: "gpt-fast-smoke", expected: undefined, cost: 35 },
@@ -118,6 +176,7 @@ try {
     `PI_CODING_AGENT_DIR=${quote(root)}`,
     `CLIPROXYAPI_BASE_URL=${quote(baseUrl)}`,
     "CLIPROXYAPI_API_KEY=smoke-only",
+    "CLIPROXYAPI_MANAGEMENT_KEY=management-smoke-only",
     `pi --no-extensions -e ${quote(providerExtension)}`,
     `-e ${quote(shellExtension)}`,
     "--no-skills --no-prompt-templates --no-tools --no-session --thinking off --model cliproxyapi/gpt-fast-smoke",
@@ -146,6 +205,41 @@ try {
       return line && !/think off.*fast/.test(line);
     });
     console.log("PASS installed Pi TUI: /fast disables the label");
+    const header = () => capture().split("\n").find((line) => line.includes("gpt-fast-smoke") && line.includes("think off")) ?? "";
+    enter("/quota-resume on");
+    await waitFor(() => header().includes("quota resume"));
+    enter("/quota");
+    await waitFor(() => capture().includes("smoke-a@example.test") && capture().includes("smoke-b@example.test"));
+    console.log("PASS installed Pi TUI: /quota shows both accounts; /quota-resume on shows its header label");
+
+    quotaMode = "waiting";
+    quotaResetAt = Date.now() + 1500;
+    quotaFailurePending = true;
+    const beforeResume = requests.length;
+    const startedAt = Date.now();
+    enter("Reply with smoke ok for the quota-resume test.");
+    await waitFor(() => header().includes("quota wait"));
+    await waitFor(() => requests.length === beforeResume + 2 && !header().includes("quota wait"));
+    assert.ok(Date.now() - startedAt < 12000, "must use account B's reset rather than account A's one-hour reset");
+    const [failed, resumed] = requests.slice(beforeResume);
+    assert.deepEqual(resumed.payload.input, failed.payload.input, "retry must preserve the exact conversation, not inject continue");
+    assert.equal(resumed.payload.prompt_cache_key, failed.payload.prompt_cache_key);
+    assert.ok(resumed.payload.prompt_cache_key || resumed.session, "the test must exercise an actual sticky-session identity");
+    assert.equal(resumed.session, failed.session);
+    assert.equal(resumed.payload.model, failed.payload.model);
+    assert.ok(managementRequests.some((url) => url.startsWith("/v8/management/credentials/models?")));
+    console.log("PASS installed Pi TUI: quota wait resumes after the earliest eligible account reset with identical context and session identity");
+
+    quotaResetAt = Date.now() + 60000;
+    quotaFailurePending = true;
+    const beforeCancel = requests.length;
+    enter("Reply with smoke ok for the quota-cancel test.");
+    await waitFor(() => header().includes("quota wait"));
+    enter("/quota-resume off");
+    await waitFor(() => !header().includes("quota wait") && !header().includes("quota resume"));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(requests.length, beforeCancel + 1, "turning off quota resume must cancel rather than replay the request");
+    console.log("PASS installed Pi TUI: /quota-resume off cancels the pending wait without another model request");
   } finally {
     tmux("kill-session", "-t", session);
   }

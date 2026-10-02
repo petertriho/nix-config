@@ -11,7 +11,7 @@ import type {
 	EditorTheme,
 	TUI,
 } from "@earendil-works/pi-tui";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import piTuiShell, {
 	composeEditorShellRows,
 	contextMeterFill,
@@ -37,7 +37,7 @@ const plainTheme = {
 	getThinkingBorderColor: () => (text: string) => text,
 } as unknown as ShellTheme;
 
-function createExtensionHarness() {
+function createExtensionHarness(theme = plainTheme) {
 	const handlers = new Map<string, Array<(...args: unknown[]) => unknown>>();
 	const pi = {
 		on(event: string, handler: (...args: unknown[]) => unknown) {
@@ -65,7 +65,7 @@ function createExtensionHarness() {
 		getEditorComponent: () => configuredFactory,
 		setWorkingVisible() {},
 		setFooter(factory: typeof footerFactory) { footerFactory = factory; },
-		theme: plainTheme,
+		theme,
 	};
 	let entriesCalls = 0;
 	let contextCalls = 0;
@@ -109,6 +109,47 @@ function createExtensionHarness() {
 			sessionEntries = entries;
 		},
 	};
+}
+
+function createStatusShellHarness({
+	native = false,
+	theme = plainTheme,
+	model = { provider: "cliproxyapi", id: "gpt-5.6-sol", contextWindow: 272000 },
+}: { native?: boolean; theme?: ShellTheme; model?: ModelInfo } = {}) {
+	const harness = createExtensionHarness(theme);
+	Object.assign(harness.ctx, { model });
+	emit(harness.handlers, "session_start", {}, harness.ctx);
+	let renderRequests = 0;
+	const tui = {
+		terminal: { rows: 24 },
+		requestRender() { renderRequests += 1; },
+	} as unknown as TUI;
+	const footerFactory = harness.getFooterFactory();
+	assert.ok(footerFactory);
+	const footer = footerFactory(tui, theme, {
+		getExtensionStatuses: () => harness.statuses,
+		getGitBranch: () => "feature/quota",
+		getAvailableProviderCount: () => 1,
+		onBranchChange: () => () => {},
+	});
+	if (!native) {
+		const inner: EditorComponent = {
+			render: (width) => ["─".repeat(width), "message", "─".repeat(width)],
+			getText: () => "",
+			setText() {},
+			handleInput() {},
+			invalidate() {},
+		};
+		harness.ui.setEditorComponent(() => inner);
+	}
+	const editorFactory = harness.getConfiguredFactory();
+	assert.ok(editorFactory);
+	const editor = editorFactory(
+		tui,
+		{ borderColor: (text: string) => text, selectList: {} } as EditorTheme,
+		{} as KeybindingsManager,
+	);
+	return { ...harness, editor, footer, getRenderRequests: () => renderRequests };
 }
 
 function createAccountingHarness(entries: Array<Record<string, unknown>> = []) {
@@ -271,6 +312,176 @@ test("the shell moves the Fast status into the editor header without duplicating
 	for (const width of [20, 30, 50, 100]) assertLinesFit(editor.render(width), width);
 	harness.statuses.delete("cliproxyapi-fast");
 	assert.doesNotMatch(editor.render(100)[0]!, /fast/);
+});
+
+test("editor top-left renders quota wait and resume in warning color", () => {
+	const colors: Array<{ color: string; text: string }> = [];
+	const theme = { ...plainTheme, fg: (color: string, text: string) => {
+		colors.push({ color, text });
+		return text;
+	} } as unknown as ShellTheme;
+	const model = { provider: "cliproxyapi", id: "gpt-5.6-sol", contextWindow: 272000 };
+	for (const quota of ["quota wait 22:00 (37m)", "quota resume"]) {
+		const text = editorTopLeftText(theme, model, "high", undefined, true, quota);
+		assert.equal(text, ` cliproxyapi/gpt-5.6-sol · think high · fast · ${quota} `);
+		assert.ok(colors.some((entry) => entry.color === "warning" && entry.text === quota));
+	}
+	assert.doesNotMatch(editorTopLeftText(theme, model, "high"), /quota/);
+});
+
+test("quota header compaction preserves Fast and thinking when they fit", () => {
+	const model = { provider: "cliproxyapi", id: "gpt-5.6-sol", contextWindow: 272000 };
+	for (const quota of ["quota wait 22:00 (37m)", "quota resume"]) {
+		const label = quota.split(" ").slice(0, 2).join(" ");
+		for (let width = 0; width <= 100; width++) {
+			const text = editorTopLeftText(plainTheme, model, "high", width, true, quota);
+			assertLinesFit([text], width);
+			if (width >= 6) assert.match(text, /fast/);
+			if (width >= visibleWidth(` fast · ${label} `)) assert.ok(text.includes(label));
+			if (width >= visibleWidth(` think high · fast · ${quota} `)) {
+				assert.match(text, /think high/);
+				assert.ok(text.includes(quota));
+			}
+		}
+	}
+	assert.equal(
+		stripTerminalSequences(editorTopLeftText(plainTheme, model, "high", 19, true, "quota wait 22:00 (37m)")),
+		" fast · quota wait ",
+	);
+});
+
+test("quota header handles Unicode columns and sanitizes provider ANSI before styling", () => {
+	const theme = {
+		...plainTheme,
+		fg: (color: string, text: string) => `\x1b[${color === "warning" ? 33 : 36}m${text}\x1b[39m`,
+	} as unknown as ShellTheme;
+	const model = { provider: "cliproxyapi", id: "模型-e\u0301-👩‍💻", contextWindow: 272000 };
+	const quota = "\x1b[31mquota wait 22:00 (37m) 界e\u0301👩‍💻\x1b[0m\x1b]52;c;payload\x07\n\x1b[2J";
+	const full = editorTopLeftText(theme, model, "high", undefined, true, quota);
+	assert.equal(
+		stripTerminalSequences(full),
+		" cliproxyapi/模型-e\u0301-👩‍💻 · think high · fast · quota wait 22:00 (37m) 界e\u0301👩‍💻 ",
+	);
+	assert.ok(full.includes("\x1b[33mquota wait 22:00 (37m) 界e\u0301👩‍💻\x1b[39m"));
+	for (let width = 0; width <= 120; width++) {
+		const text = editorTopLeftText(theme, model, "high", width, true, quota);
+		assertLinesFit([text], width);
+		assert.equal(text.includes("\x1b[31m"), false);
+		assert.equal(text.includes("\x1b[2J"), false);
+		assert.equal(text.includes("payload"), false);
+		assert.equal(text.includes("\x07"), false);
+	}
+});
+
+for (const native of [false, true]) {
+	test(`${native ? "native" : "wrapped"} shell moves quota wait into the header with precedence and no footer duplicate`, () => {
+		const harness = createStatusShellHarness({ native });
+		harness.statuses.set("cliproxyapi-fast", "fast");
+		harness.statuses.set("cliproxyapi-quota-resume", "quota resume");
+		harness.statuses.set("cliproxyapi-quota-wait", "quota wait 22:00 (37m)");
+		harness.statuses.set("branch", "branch feature/quota");
+		const top = harness.editor.render(120)[0]!;
+		assert.match(top, /cliproxyapi\/gpt-5\.6-sol · think off · fast · quota wait 22:00 \(37m\)/);
+		assert.doesNotMatch(top, /quota resume/);
+		assert.equal((top.match(/quota wait/g) ?? []).length, 1);
+		assert.deepEqual(harness.footer.render(120), renderStatusFooter(plainTheme, ["branch feature/quota"], 120));
+		harness.statuses.delete("branch");
+		assert.deepEqual(harness.footer.render(120), []);
+	});
+
+	test(`${native ? "native" : "wrapped"} quota shell rows fit narrow widths with ANSI and Unicode`, () => {
+		const theme = {
+			...plainTheme,
+			fg: (color: string, text: string) => `\x1b[${color === "warning" ? 33 : 36}m${text}\x1b[39m`,
+		} as unknown as ShellTheme;
+		const harness = createStatusShellHarness({
+			native,
+			theme,
+			model: { provider: "cliproxyapi", id: "模型-e\u0301-👩‍💻", contextWindow: 272000 },
+		});
+		harness.statuses.set("cliproxyapi-fast", "fast");
+		harness.statuses.set("cliproxyapi-quota-wait", "quota wait 22:00 (37m) 界e\u0301👩‍💻");
+		harness.statuses.set("other", "\x1b[35mbranch feature/界e\u0301👩‍💻\x1b[39m");
+		for (let width = 0; width <= 120; width++) {
+			const rows = harness.editor.render(width);
+			assertLinesFit(rows, width);
+			assertLinesFit(harness.footer.render(width), width);
+			if (width >= 40) {
+				const top = stripTerminalSequences(rows[0]!);
+				assert.match(top, /fast/);
+				assert.match(top, /quota wait/);
+			}
+			if (width >= 80) assert.match(stripTerminalSequences(rows[0]!), /think off/);
+		}
+	});
+}
+
+test("enabled-only quota resume appears in the model header, not the footer", () => {
+	const harness = createStatusShellHarness();
+	harness.statuses.set("cliproxyapi-quota-resume", "quota resume");
+	const top = harness.editor.render(100)[0]!;
+	assert.match(top, /cliproxyapi\/gpt-5\.6-sol · think off · quota resume/);
+	assert.doesNotMatch(top, /quota wait/);
+	assert.deepEqual(harness.footer.render(100), []);
+});
+
+test("quota statuses stay hidden on native providers and model changes request rendering", () => {
+	const harness = createStatusShellHarness({
+		model: { provider: "anthropic", id: "claude-opus-4", contextWindow: 200000 },
+	});
+	harness.statuses.set("cliproxyapi-quota-resume", "quota resume");
+	harness.statuses.set("cliproxyapi-quota-wait", "quota wait 22:00 (37m)");
+	harness.statuses.set("other", "other status");
+	assert.doesNotMatch(harness.editor.render(100)[0]!, /quota/);
+	assert.match(harness.footer.render(100).join("\n"), /other status/);
+	assert.doesNotMatch(harness.footer.render(100).join("\n"), /quota/);
+
+	const model = { provider: "cliproxyapi", id: "gpt-5.6-sol", contextWindow: 272000 };
+	Object.assign(harness.ctx, { model });
+	const before = harness.getRenderRequests();
+	emit(harness.handlers, "model_select", { model }, harness.ctx);
+	assert.equal(harness.getRenderRequests(), before + 1);
+	assert.match(harness.editor.render(100)[0]!, /quota wait 22:00 \(37m\)/);
+	Object.assign(harness.ctx, { model: undefined });
+	emit(harness.handlers, "model_select", { model: undefined }, harness.ctx);
+	const top = harness.editor.render(100)[0]!;
+	assert.match(top, /no model/);
+	assert.doesNotMatch(top, /quota/);
+});
+
+test("quota status transitions update on rerender without cached or duplicate labels", () => {
+	const harness = createStatusShellHarness();
+	const wait = "quota wait 22:00 (37m)";
+	const updatedWait = "quota wait 22:00 (36m)";
+	const steps = [
+		{ resume: "quota resume", wait: undefined, expected: "quota resume" },
+		{ resume: "quota resume", wait, expected: wait },
+		{ resume: "quota resume", wait: updatedWait, expected: updatedWait },
+		{ resume: "quota resume", wait: undefined, expected: "quota resume" },
+		{ resume: undefined, wait, expected: wait },
+		{ resume: undefined, wait: undefined, expected: undefined },
+	];
+	let previous = harness.editor.render(100)[0]!;
+	for (const step of steps) {
+		for (const [key, value] of [
+			["cliproxyapi-quota-resume", step.resume],
+			["cliproxyapi-quota-wait", step.wait],
+		] as const) {
+			if (value === undefined) harness.statuses.delete(key);
+			else harness.statuses.set(key, value);
+		}
+		// Same editor and width, with no invalidate call or lifecycle event.
+		const top = harness.editor.render(100)[0]!;
+		assert.notEqual(top, previous);
+		if (step.expected) {
+			assert.ok(top.includes(step.expected));
+			assert.equal((top.match(/quota /g) ?? []).length, 1);
+		} else {
+			assert.doesNotMatch(top, /quota/);
+		}
+		assert.deepEqual(harness.footer.render(100), []);
+		previous = top;
+	}
 });
 
 test("activity tracker handles phases, parallel tools, and cleanup", () => {

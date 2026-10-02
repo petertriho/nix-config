@@ -64,8 +64,15 @@ type FrameTheme = ShellTheme;
 type FrameColor = Parameters<FrameTheme["fg"]>[0];
 export type ThinkingLevel = ReturnType<ExtensionAPI["getThinkingLevel"]>;
 type BorderPriority = "left" | "right";
-// Shared with pi-cliproxyapi-provider. This status belongs in the model header.
+// Shared with pi-cliproxyapi-provider. These statuses belong in the model header.
 const FAST_STATUS_KEY = "cliproxyapi-fast";
+const QUOTA_RESUME_STATUS_KEY = "cliproxyapi-quota-resume";
+const QUOTA_WAIT_STATUS_KEY = "cliproxyapi-quota-wait";
+const MODEL_HEADER_STATUS_KEYS = new Set([
+  FAST_STATUS_KEY,
+  QUOTA_RESUME_STATUS_KEY,
+  QUOTA_WAIT_STATUS_KEY,
+]);
 export type LifecycleState = "ready" | "working" | "settling";
 
 type LifecycleTimers = {
@@ -415,10 +422,15 @@ export function editorTopLeftText(
   thinking: ThinkingLevel,
   width?: number,
   fast = false,
+  quotaStatus = "",
 ): string {
-  const fastText = fast ? span(theme, "warning", "fast") : "";
-  const fastSuffix = fast ? `${separator(theme)}${fastText}` : "";
-  const thinkText = `${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${fastSuffix}`;
+  const quotaText = sanitizePlainTerminalText(quotaStatus);
+  const statusText = [
+    fast ? span(theme, "warning", "fast") : "",
+    quotaText ? span(theme, "warning", quotaText) : "",
+  ].filter(Boolean).join(separator(theme));
+  const statusSuffix = statusText ? `${separator(theme)}${statusText}` : "";
+  const thinkText = `${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${statusSuffix}`;
   const identity = model
     ? `${span(theme, "accent", sanitizePlainTerminalText(model.provider))}${span(
         theme,
@@ -427,13 +439,14 @@ export function editorTopLeftText(
       )}${span(theme, "text", sanitizePlainTerminalText(model.id))}`
     : span(theme, "muted", "no model");
 
-  // Unconstrained: full model identity followed by thinking and Fast state.
+  // Unconstrained: full model identity followed by thinking and provider state.
   if (width === undefined) {
     return ` ${identity}${separator(theme)}${thinkText} `;
   }
   if (width <= 0) return "";
 
-  // Compact the model identity first. Keep Fast visible because it changes billing.
+  // Compact the model identity first, then thinking. Keep provider state visible;
+  // Fast leads the quota label so billing state survives even at tiny widths.
   const horizontalPadding = width >= 2 ? 2 : 0;
   const contentWidth = width - horizontalPadding;
   const leftPadding = horizontalPadding > 0 ? " " : "";
@@ -444,9 +457,9 @@ export function editorTopLeftText(
 
   if (contentWidth <= thinkWidth) {
     let compact = thinkText;
-    if (fast && contentWidth < thinkWidth) {
-      const levelAndFast = `${thinkingLevelText(theme, thinking)}${fastSuffix}`;
-      compact = visibleWidth(levelAndFast) <= contentWidth ? levelAndFast : fastText;
+    if (statusText && contentWidth < thinkWidth) {
+      const levelAndStatus = `${thinkingLevelText(theme, thinking)}${statusSuffix}`;
+      compact = visibleWidth(levelAndStatus) <= contentWidth ? levelAndStatus : statusText;
     }
     return `${leftPadding}${truncateToWidth(compact, contentWidth, "")}${rightPadding}`;
   }
@@ -1105,7 +1118,7 @@ export type EditorShellRows = {
   bottomLeft: string;
   bottomRight: string;
   fitBottomLeft(width: number): string;
-  /** Constrained top-left fit: preserve `think`, compact the model identity. */
+  /** Constrained top-left fit: preserve provider state, compact model identity. */
   fitTopLeft?(width: number): string;
   /** Constrained top-right fit: preserve context, remove cost first. */
   fitTopRight?(width: number): string;
@@ -1261,11 +1274,20 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     const shellWidth = Math.max(1, width - 2);
     const theme = ctx.ui.theme;
     const thinking = pi.getThinkingLevel();
-    const fast = footerData?.getExtensionStatuses().has(FAST_STATUS_KEY) ?? false;
-    const topLeft = editorTopLeftText(theme, activeModel, thinking, undefined, fast);
+    const statuses = footerData?.getExtensionStatuses();
+    const fast = statuses?.has(FAST_STATUS_KEY) ?? false;
+    const quotaStatus = activeModel?.provider === "cliproxyapi"
+      ? sanitizePlainTerminalText(
+          statuses?.get(QUOTA_WAIT_STATUS_KEY) ||
+          statuses?.get(QUOTA_RESUME_STATUS_KEY) || "",
+        )
+      : "";
+    const topLeft = editorTopLeftText(theme, activeModel, thinking, undefined, fast, quotaStatus);
 
     const { context, usage } = accounting.read(ctx, activeModel);
-    const minimumTopLeftWidth = visibleWidth(` think ${thinking}${fast ? " · fast" : ""} `);
+    const minimumTopLeftWidth = visibleWidth(
+      ` think ${thinking}${fast ? " · fast" : ""}${quotaStatus ? ` · ${quotaStatus}` : ""} `,
+    );
     const topRightBudget = Math.max(0, shellWidth - 3 - minimumTopLeftWidth);
     const topRight = editorTopRightText(
       theme,
@@ -1310,7 +1332,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         fitBottomLeft: (maximumWidth) =>
           editorBottomLeftText(theme, cwd, maximumWidth, modeLabel, modeColor),
         fitTopLeft: (maximumWidth) =>
-          editorTopLeftText(theme, activeModel, thinking, maximumWidth, fast),
+          editorTopLeftText(theme, activeModel, thinking, maximumWidth, fast, quotaStatus),
         fitTopRight: (maximumWidth) =>
           editorTopRightText(theme, context, usage.cost, maximumWidth),
         fitBottomRight: (maximumWidth) =>
@@ -1649,7 +1671,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
       return {
         render(width: number): string[] {
           const statuses = [...provider.getExtensionStatuses()]
-            .filter(([key]) => key !== FAST_STATUS_KEY)
+            .filter(([key]) => !MODEL_HEADER_STATUS_KEYS.has(key))
             .map(([, text]) => text);
           return renderStatusFooter(
             theme,

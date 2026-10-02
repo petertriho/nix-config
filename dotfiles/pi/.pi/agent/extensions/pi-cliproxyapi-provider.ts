@@ -23,7 +23,17 @@
  *   CLIPROXYAPI_FAST      Startup override for the persisted Fast preference.
  *                         Accepts true/false, 1/0, yes/no, and on/off.
  *
+ *   CLIPROXYAPI_MANAGEMENT_KEY  Management key for account quota queries.
+ *                              Falls back to config.managementKey, then the
+ *                              Nix service's CLI_PROXY_API_KEY.
+ *
  * Commands:
+ *   /quota               Show live Codex account quotas without adding them
+ *                         to model context.
+ *   /quota-resume [on|off|status]
+ *                         Toggle or inspect automatic quota waiting. Saves
+ *                         quotaResume in cliproxyapi.json. Only empty failed
+ *                         requests can resume. Escape or off cancels a wait.
  *   /fast                Toggle priority processing for models whose catalog
  *                         entry has a non-empty `service_tiers` array. Saves
  *                         the preference in `cliproxyapi.json`. Priority
@@ -65,6 +75,8 @@ import {
   type ProviderModelConfig,
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
+import { formatQuotaSnapshot, hasConfirmedQuotaExhaustion, loadQuotaSnapshot, quotaAvailability } from "./cliproxyapi/quota.ts";
+import { formatQuotaWait, QuotaResumeController, streamWithQuotaResume } from "./cliproxyapi/resume.ts";
 
 export type ProviderChatModelConfig = Extract<ProviderModelConfig, { type?: "chat" }>;
 
@@ -92,6 +104,8 @@ const PAUSE_POLL_INTERVAL_MS = 200;
 const PAUSE_STATUS_KEY = "cliproxyapi";
 // pi-tui-shell moves this status into the model header.
 const FAST_STATUS_KEY = "cliproxyapi-fast";
+const QUOTA_RESUME_STATUS_KEY = "cliproxyapi-quota-resume";
+const QUOTA_WAIT_STATUS_KEY = "cliproxyapi-quota-wait";
 // Proxy stream failures that pi-ai's retry pattern does not cover.
 const TRANSIENT_STREAM_ERROR_PATTERN =
   /closed network connection|stream disconnected before completion: stream closed before response\.completed|invalid SSE data JSON/i;
@@ -470,8 +484,8 @@ export function toPiModel(
     maxTokens: MAX_TOKENS,
     ...(thinkingLevelMap ? { thinkingLevelMap } : {}),
     // Read by pi-cache-optimizer and pi's openai-responses transport. The
-    // proxy runs routing.session-affinity: true, so one pi session sticks to
-    // one upstream account. Long cache retention is safe while only Codex
+    // proxy runs routing.session-affinity: true, so it prefers the same
+    // upstream account while available. Long cache retention is safe while only Codex
     // upstreams are authed.
     compat: {
       sessionAffinityFormat: "openai",
@@ -607,7 +621,8 @@ function readConfigFile(configPath: string): Record<string, unknown> {
   try {
     value = JSON.parse(text);
   } catch (error) {
-    throw new Error(`invalid ${CONFIG_FILE_NAME}: ${errorMessage(error)}`, { cause: error });
+    // Parser errors can quote configuration values, including a management key.
+    throw new Error(`invalid ${CONFIG_FILE_NAME}: expected valid JSON`, { cause: error });
   }
   const parsed = asRecord(value);
   if (!parsed) throw new Error(`${CONFIG_FILE_NAME} must contain a JSON object`);
@@ -624,7 +639,7 @@ export function readPauseSetting(configPath: string): boolean {
   return value;
 }
 
-function saveBooleanSetting(configPath: string, key: "pause" | "fast", value: boolean): void {
+function saveBooleanSetting(configPath: string, key: "pause" | "fast" | "quotaResume", value: boolean): void {
   // Do not discard other settings when an existing file cannot be read.
   const existing = readConfigFile(configPath);
   mkdirSync(dirname(configPath), { recursive: true });
@@ -653,6 +668,29 @@ export function readFastSetting(configPath: string, envValue = process.env[FAST_
 /** Write the Fast flag without changing pause or connection settings. */
 export function saveFastSetting(configPath: string, fast: boolean): void {
   saveBooleanSetting(configPath, "fast", fast);
+}
+
+/** Automatic quota waiting is opt-in. Pending requests are never persisted. */
+export function readQuotaResumeSetting(configPath: string): boolean {
+  const value = readConfigFile(configPath).quotaResume;
+  if (value === undefined) return false;
+  if (typeof value !== "boolean") throw new Error(`${CONFIG_FILE_NAME} field "quotaResume" must be a boolean`);
+  return value;
+}
+
+export function saveQuotaResumeSetting(configPath: string, enabled: boolean): void {
+  saveBooleanSetting(configPath, "quotaResume", enabled);
+}
+
+/** The Nix launch wrapper uses CLI_PROXY_API_KEY as its management password. */
+export function resolveManagementKey(configPath: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const explicit = env.CLIPROXYAPI_MANAGEMENT_KEY?.trim();
+  if (explicit) return explicit;
+  const configured = readConfigFile(configPath).managementKey;
+  if (configured !== undefined && (typeof configured !== "string" || !configured.trim())) {
+    throw new Error(`${CONFIG_FILE_NAME} field "managementKey" must be a non-empty string`);
+  }
+  return typeof configured === "string" ? configured.trim() : env.CLI_PROXY_API_KEY?.trim() || undefined;
 }
 
 /** In-memory pause state shared by the commands and the request gate. */
@@ -788,6 +826,16 @@ export default async function (pi: ExtensionAPI) {
   } catch (error) {
     logWarn(`ignoring Fast setting: ${errorMessage(error)}`);
   }
+  let quotaResume = false;
+  try {
+    quotaResume = readQuotaResumeSetting(configPath);
+  } catch (error) {
+    logWarn(`ignoring quota resume setting: ${errorMessage(error)}`);
+  }
+  const lifetime = new AbortController();
+  const quotaRequests = new QuotaResumeController();
+  const quotaWaits = new Map<symbol, { modelId: string; resetAt: number }>();
+  const quotaCommands = new Set<AbortController>();
   let costCatalog = buildCostCatalog(readModelsDevCache(costCachePath)?.providers ?? {});
   let modelDefinitions: ProviderChatModelConfig[] = [];
   let registeredModels: ProviderChatModelConfig[] = [];
@@ -806,6 +854,15 @@ export default async function (pi: ExtensionAPI) {
       if (cost) model.cost = structuredClone(cost);
     }
     ctx.ui.setStatus(FAST_STATUS_KEY, isFastEffective(model) ? "fast" : undefined);
+  };
+
+  const updateQuotaStatus = (ctx: ExtensionContext, model = ctx.model): void => {
+    const selected = model?.provider === PROVIDER_ID;
+    ctx.ui.setStatus(QUOTA_RESUME_STATUS_KEY, selected && quotaResume ? "quota resume" : undefined);
+    const resets = selected && quotaResume
+      ? [...quotaWaits.values()].filter((wait) => wait.modelId === model.id).map((wait) => wait.resetAt)
+      : [];
+    ctx.ui.setStatus(QUOTA_WAIT_STATUS_KEY, resets.length ? formatQuotaWait(Math.min(...resets)) : undefined);
   };
 
   // Only the newest fetch may commit, so a slow background refresh cannot
@@ -829,12 +886,50 @@ export default async function (pi: ExtensionAPI) {
       models: registeredModels,
       streamSimple: (model, context, options) => {
         if (!hasApi(model, "openai-responses")) throw new Error(`Unsupported ${PROVIDER_NAME} API: ${model.api}`);
-        return streamWithCatalogPricing(model, context, options, () => {
-          const fastCost = fastModelIds.has(model.id) ? findCostEntry(model.id, costCatalog, true)?.fastCost : undefined;
-          return {
-            standard: structuredClone(standardCosts.get(model.id) ?? model.cost),
-            fast: fastCost ? structuredClone(fastCost) : undefined,
-          };
+        const requestContext = activeContext;
+        const sessionId = requestContext?.sessionManager?.getSessionId();
+        const waitId = Symbol("quota wait");
+        const signal = options?.signal ? AbortSignal.any([options.signal, lifetime.signal]) : lifetime.signal;
+        return streamWithQuotaResume(model, { ...options, signal }, {
+          enabled: () => quotaResume,
+          controller: quotaRequests,
+          stream: (requestOptions) => streamWithCatalogPricing(model, context, requestOptions, () => {
+            const fastCost = fastModelIds.has(model.id) ? findCostEntry(model.id, costCatalog, true)?.fastCost : undefined;
+            return {
+              standard: structuredClone(standardCosts.get(model.id) ?? model.cost),
+              fast: fastCost ? structuredClone(fastCost) : undefined,
+            };
+          }),
+          inspect: async (requestSignal, hint) => {
+            if (model.baseUrl.replace(/\/+$/, "") !== endpoints.inferenceBaseUrl.replace(/\/+$/, "")) {
+              return { kind: "unknown", reason: "The model endpoint differs from the configured quota API; check the proxy configuration." };
+            }
+            const managementKey = resolveManagementKey(configPath, { ...process.env, ...options?.env });
+            if (!managementKey) throw new Error("Set CLIPROXYAPI_MANAGEMENT_KEY to inspect quota");
+            const snapshot = await loadQuotaSnapshot({
+              baseUrl: endpoints.inferenceBaseUrl, managementKey, modelId: model.id, signal: requestSignal,
+            });
+            const availability = quotaAvailability(snapshot, model.id);
+            if (hint.kind === "cooldown" && availability.kind === "wait" && !hasConfirmedQuotaExhaustion(snapshot, model.id)) {
+              return { kind: "unknown", reason: "The account pool is cooling down, but subscription exhaustion is not verified." };
+            }
+            return availability;
+          },
+          beforeRetry: (requestSignal) => waitForPauseToEnd(configPath, pause, { signal: requestSignal }),
+          isCurrent: () => !lifetime.signal.aborted && (!requestContext || (
+            !!activeContext && activeContext.model?.provider === PROVIDER_ID && activeContext.model.id === model.id &&
+            (sessionId === undefined || sessionId === activeContext.sessionManager?.getSessionId())
+          )),
+          onWait: (resetAt) => {
+            if (resetAt === undefined) quotaWaits.delete(waitId);
+            else quotaWaits.set(waitId, { modelId: model.id, resetAt });
+            if (activeContext) updateQuotaStatus(activeContext);
+          },
+          onNotice: (message) => {
+            if (activeContext?.model?.provider === PROVIDER_ID && activeContext.model.id === model.id) {
+              activeContext.ui.notify(message, "info");
+            }
+          },
         });
       },
     });
@@ -845,7 +940,7 @@ export default async function (pi: ExtensionAPI) {
   const refresh = async (): Promise<ProviderChatModelConfig[] | null> => {
     const current = ++generation;
     const [catalog, refreshedCostCatalog] = await Promise.all([
-      fetchCodexModels(endpoints.modelsUrl, process.env[API_KEY_ENV_VAR], MODELS_REQUEST_TIMEOUT_MS),
+      fetchCodexModels(endpoints.modelsUrl, process.env[API_KEY_ENV_VAR], MODELS_REQUEST_TIMEOUT_MS, lifetime.signal),
       loadCostCatalog(costCachePath),
     ]);
     if (current !== generation) return null;
@@ -932,23 +1027,110 @@ export default async function (pi: ExtensionAPI) {
     activeContext = ctx;
     if (pause.isPaused()) ctx.ui.setStatus(PAUSE_STATUS_KEY, "paused");
     updateFastStatus(ctx);
+    updateQuotaStatus(ctx);
   });
 
   pi.on("model_select", (event, ctx) => {
+    if (!event.previousModel || event.previousModel.provider !== event.model.provider || event.previousModel.id !== event.model.id) {
+      quotaRequests.cancelWaiting();
+    }
     activeContext = ctx;
     updateFastStatus(ctx, event.model);
+    updateQuotaStatus(ctx, event.model);
   });
 
+  pi.on("input", (event) => {
+    const command = event.text.trim().split(/\s+/, 1)[0];
+    const controls = ["/quota", "/quota-resume", "/fast", "/pause", "/continue", "/cliproxyapi-refresh"];
+    if (!controls.includes(command)) quotaRequests.cancelWaiting();
+  });
+  pi.on("session_before_switch", () => { quotaRequests.cancelWaiting(); });
+  pi.on("session_before_fork", () => { quotaRequests.cancelWaiting(); });
+  pi.on("session_before_tree", () => { quotaRequests.cancelWaiting(); });
+  pi.on("session_before_compact", () => { quotaRequests.cancelWaiting(); });
+
   pi.on("session_shutdown", () => {
+    ++generation;
+    lifetime.abort();
+    quotaRequests.cancelAll();
+    for (const command of quotaCommands) command.abort();
+    quotaCommands.clear();
+    quotaWaits.clear();
+    activeContext?.ui.setStatus(QUOTA_WAIT_STATUS_KEY, undefined);
+    activeContext?.ui.setStatus(QUOTA_RESUME_STATUS_KEY, undefined);
     activeContext = undefined;
   });
 
   pi.on("before_provider_request", async (event, ctx) => {
     if (ctx.model?.provider !== PROVIDER_ID) return;
-    await waitForPauseToEnd(configPath, pause, { signal: ctx.signal });
-    if (ctx.signal?.aborted || !isFastEffective(ctx.model)) return;
+    activeContext = ctx;
+    const signal = ctx.signal ? AbortSignal.any([ctx.signal, lifetime.signal]) : lifetime.signal;
+    await waitForPauseToEnd(configPath, pause, { signal });
+    if (signal.aborted || !isFastEffective(ctx.model)) return;
     const payload = asRecord(event.payload);
     return payload ? { ...payload, service_tier: "priority" } : undefined;
+  });
+
+  pi.registerCommand("quota", {
+    description: "Show live CLIProxyAPI Codex account quotas and reset times",
+    handler: async (args, ctx) => {
+      if (args.trim()) {
+        ctx.ui.notify("Usage: /quota (no arguments)", "error");
+        return;
+      }
+      const command = new AbortController();
+      quotaCommands.add(command);
+      try {
+        const managementKey = resolveManagementKey(configPath);
+        if (!managementKey) {
+          ctx.ui.notify("Set CLIPROXYAPI_MANAGEMENT_KEY or managementKey in cliproxyapi.json to inspect quota.", "error");
+          return;
+        }
+        const signal = AbortSignal.any([command.signal, lifetime.signal, ...(ctx.signal ? [ctx.signal] : [])]);
+        const snapshot = await loadQuotaSnapshot({ baseUrl: endpoints.inferenceBaseUrl, managementKey, signal });
+        if (!signal.aborted) ctx.ui.notify(formatQuotaSnapshot(snapshot), "info");
+      } catch (error) {
+        if (!command.signal.aborted && !lifetime.signal.aborted && !ctx.signal?.aborted) {
+          // The quota client reports sanitized errors and never includes provider response bodies.
+          ctx.ui.notify(`Quota inspection failed: ${errorMessage(error)}`, "error");
+        }
+      } finally {
+        quotaCommands.delete(command);
+      }
+    },
+  });
+
+  pi.registerCommand("quota-resume", {
+    description: "Toggle automatic quota waiting (/quota-resume [on|off|status])",
+    handler: async (args, ctx) => {
+      const action = args.trim().toLowerCase();
+      if (action === "status") {
+        ctx.ui.notify(`Automatic quota resume is ${quotaResume ? "enabled" : "disabled"}.`, "info");
+        return;
+      }
+      if (action && action !== "on" && action !== "off") {
+        ctx.ui.notify("Usage: /quota-resume [on|off|status]", "error");
+        return;
+      }
+      const enabled = action ? action === "on" : !quotaResume;
+      try {
+        if (enabled && !resolveManagementKey(configPath)) {
+          ctx.ui.notify("Set CLIPROXYAPI_MANAGEMENT_KEY before enabling automatic quota resume.", "error");
+          return;
+        }
+        saveQuotaResumeSetting(configPath, enabled);
+      } catch (error) {
+        ctx.ui.notify(`Failed to save quota resume: ${errorMessage(error)}`, "error");
+        return;
+      }
+      quotaResume = enabled;
+      if (!enabled) quotaRequests.cancelWaiting();
+      activeContext = ctx;
+      updateQuotaStatus(ctx);
+      ctx.ui.notify(enabled
+        ? "Automatic quota resume enabled. Escape or /quota-resume off cancels a wait."
+        : "Automatic quota resume disabled. Pending quota waits are cancelled.", "info");
+    },
   });
 
   pi.registerCommand("fast", {

@@ -26,7 +26,10 @@ import cliproxyapi, {
 	parseModelsCache,
 	readPauseSetting,
 	readFastSetting,
+	readQuotaResumeSetting,
+	resolveManagementKey,
 	resolveEndpoints,
+	saveQuotaResumeSetting,
 	savePauseSetting,
 	saveFastSetting,
 	toPiModel,
@@ -1335,6 +1338,244 @@ test("normalizeTransientNetworkError leaves already retryable, foreign, and non-
 	const unrelated = assistantMessage({ errorMessage: "invalid_request_error: bad prompt" });
 	assert.equal(normalizeTransientNetworkError(unrelated), unrelated);
 });
+
+// --- quota commands and active-request integration
+
+function quotaManagerResponse(url: string, blocked = false): { status: number; body: unknown } {
+	if (url.startsWith("/v1/models")) return { status: 200, body: { models: [fastCatalogModel] } };
+	if (url === "/v8/management/credentials") return { status: 200, body: { files: [{
+		auth_index: "a", name: "codex-a.json", provider: "codex", email: "fixture@example.test",
+		id_token: { chatgpt_account_id: "fixture-account" }, disabled: false, unavailable: false,
+	}] } };
+	if (url.startsWith("/v8/management/credentials/models?")) return { status: 200, body: { models: [{ id: fastCatalogModel.slug }] } };
+	if (url === "/v8/management/requests/api-call") return { status: 200, body: { status_code: 200, body: JSON.stringify({ rate_limit: {
+		allowed: !blocked, limit_reached: blocked, primary_window: { used_percent: blocked ? 100 : 40,
+			limit_window_seconds: 18000, reset_at: Math.floor(Date.now() / 1000) + 3600 },
+	} }) } };
+	return { status: 404, body: {} };
+}
+
+async function withQuotaHarness(run: (harness: Harness, baseUrl: string, requests: Array<{ url: string; auth?: string }>, configPath: string) => Promise<void>, blocked = false) {
+	await withCatalogServer((url) => quotaManagerResponse(url, blocked), async (baseUrl, requests) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined,
+				CLIPROXYAPI_API_KEY: "inference-only", CLIPROXYAPI_MANAGEMENT_KEY: "management-only", CLI_PROXY_API_KEY: undefined }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				const selected = selectHarnessModel(harness);
+				selected.baseUrl = `${baseUrl}/v1`;
+				for (const handler of harness.handlers.get("session_start") ?? []) await handler({}, harness.ctx);
+				await run(harness, baseUrl, requests, join(agentDir, "cliproxyapi.json"));
+			});
+		});
+	});
+}
+
+function quotaErrorResponse(code = "usage_limit_reached"): Response {
+	return new Response(JSON.stringify({ error: { type: code, message: "Usage limit reached" } }), { status: 429 });
+}
+
+function quotaSuccessResponse(): Response {
+	return new Response(`data: ${JSON.stringify({ type: "response.completed", response: {
+		id: "resp_quota", status: "completed", output: [], usage: { input_tokens: 1000000, output_tokens: 1000000, total_tokens: 2000000 },
+	} })}\n\n`, { headers: { "content-type": "text/event-stream" } });
+}
+
+test("quota resume settings are opt-in, preserve other fields, and refuse malformed JSON", async () => {
+	await withTempAgentDir(async (dir) => {
+		const path = join(dir, "cliproxyapi.json");
+		assert.equal(readQuotaResumeSetting(path), false);
+		writeFileSync(path, JSON.stringify({ fast: true, pause: true, managementKey: "keep-private" }));
+		saveQuotaResumeSetting(path, true);
+		assert.equal(readQuotaResumeSetting(path), true);
+		assert.equal(readPauseSetting(path), true);
+		assert.equal(readFastSetting(path, ""), true);
+		assert.equal(resolveManagementKey(path, {}), "keep-private");
+		for (const text of ["{", "[]", "null", "private-token{\"quotaResume\":true}"]) {
+			writeFileSync(path, text);
+			assert.throws(() => saveQuotaResumeSetting(path, false), (error: unknown) => {
+				assert.ok(error instanceof Error);
+				assert.doesNotMatch(error.message, /private-token/);
+				return true;
+			});
+			assert.equal(readFileSync(path, "utf8"), text);
+		}
+		writeFileSync(path, JSON.stringify({ quotaResume: "yes" }));
+		assert.throws(() => readQuotaResumeSetting(path), /must be a boolean/);
+	});
+});
+
+test("management key resolution is explicit, preserves Nix fallback, and never treats inference keys as management keys", async () => {
+	await withTempAgentDir(async (dir) => {
+		const path = join(dir, "cliproxyapi.json");
+		assert.equal(resolveManagementKey(path, { CLIPROXYAPI_API_KEY: "inference-only" }), undefined);
+		assert.equal(resolveManagementKey(path, { CLI_PROXY_API_KEY: "nix-wrapper-key" }), "nix-wrapper-key");
+		writeFileSync(path, JSON.stringify({ managementKey: "configured" }));
+		assert.equal(resolveManagementKey(path, { CLI_PROXY_API_KEY: "nix-wrapper-key" }), "configured");
+		assert.equal(resolveManagementKey(path, { CLIPROXYAPI_MANAGEMENT_KEY: "explicit" }), "explicit");
+		writeFileSync(path, JSON.stringify({ managementKey: 123 }));
+		assert.throws(() => resolveManagementKey(path, {}), /managementKey.*non-empty string/);
+	});
+});
+
+test("/quota displays live account windows using the management key without adding model input", async () => {
+	await withQuotaHarness(async (harness, _baseUrl, requests) => {
+		await harness.commands.get("quota")!("extra", harness.ctx);
+		assert.match(harness.notifications.at(-1)!.message, /Usage: \/quota/);
+		assert.equal(requests.length, 1);
+		await harness.commands.get("quota")!("", harness.ctx);
+		const notice = harness.notifications.at(-1)!.message;
+		assert.match(notice, /fixture@example.test/);
+		assert.match(notice, /40% used/);
+		assert.doesNotMatch(notice, /management-only|inference-only|model eligibility unknown/);
+		assert.ok(requests.filter((request) => request.url.startsWith("/v8/")).every((request) => request.auth === "Bearer management-only"));
+		assert.equal(requests.some((request) => request.url === "/v1/responses"), false);
+	});
+});
+
+test("/quota-resume supports toggle/on/off/status, preserves manual pause, and rejects invalid configuration", async () => {
+	await withQuotaHarness(async (harness, _baseUrl, requests, configPath) => {
+		const command = harness.commands.get("quota-resume")!;
+		await command("status", harness.ctx);
+		assert.match(harness.notifications.at(-1)!.message, /disabled/);
+		await command("invalid", harness.ctx);
+		assert.equal(harness.notifications.at(-1)!.type, "error");
+		assert.equal(readQuotaResumeSetting(configPath), false);
+		await command("on", harness.ctx);
+		assert.equal(readQuotaResumeSetting(configPath), true);
+		assert.equal(harness.statuses.get("cliproxyapi-quota-resume"), "quota resume");
+		savePauseSetting(configPath, true);
+		await command("", harness.ctx);
+		assert.equal(readQuotaResumeSetting(configPath), false);
+		assert.equal(readPauseSetting(configPath), true);
+		assert.equal(harness.statuses.get("cliproxyapi-quota-resume"), undefined);
+		writeFileSync(configPath, "{");
+		await command("on", harness.ctx);
+		assert.equal(harness.notifications.at(-1)!.type, "error");
+		assert.equal(readFileSync(configPath, "utf8"), "{");
+		assert.equal(requests.length, 1, "settings commands must not probe or call inference");
+	});
+});
+
+test("quota commands fail safely when only an inference key is available", async () => {
+	await withQuotaHarness(async (harness, _baseUrl, requests, configPath) => {
+		await withEnv({ CLIPROXYAPI_MANAGEMENT_KEY: undefined, CLI_PROXY_API_KEY: undefined }, async () => {
+			await harness.commands.get("quota")!("", harness.ctx);
+			assert.match(harness.notifications.at(-1)!.message, /CLIPROXYAPI_MANAGEMENT_KEY/);
+			await harness.commands.get("quota-resume")!("on", harness.ctx);
+			assert.equal(readQuotaResumeSetting(configPath), false);
+			assert.equal(requests.length, 1);
+		});
+	});
+});
+
+test("active quota recovery preserves the full transcript, completed tool result, sticky identity, hooks, and pricing", async () => {
+	await withQuotaHarness(async (harness, _baseUrl, managementRequests) => {
+		await harness.commands.get("quota-resume")!("on", harness.ctx);
+		const config = harness.providers.at(-1)!.config;
+		const bodies: string[] = [];
+		const observed: string[] = [];
+		const context = normalizeContext({ messages: [
+			{ role: "user", content: "Continue after the completed tool", timestamp: 0 },
+			assistantMessage({ stopReason: "toolUse", errorMessage: undefined, content: [{ type: "toolCall", id: "call_previous|fc_previous", name: "read", arguments: { path: "already-read" } }] }),
+			{ role: "toolResult", toolCallId: "call_previous|fc_previous", toolName: "read", content: [{ type: "text", text: "completed tool result" }], isError: false, timestamp: 1 },
+		] });
+		const stream = config.streamSimple!(harness.ctx.model!, context, {
+			apiKey: "inference-only", sessionId: "sticky-fixture", env: { CLIPROXYAPI_MANAGEMENT_KEY: "scoped-management" },
+			fetch: async (_input, init) => {
+				assert.equal(typeof init?.body, "string");
+				bodies.push(init!.body as string);
+				return bodies.length === 1 ? quotaErrorResponse() : quotaSuccessResponse();
+			},
+			onPayload: () => { observed.push("payload"); },
+			onResponse: () => { observed.push("response"); },
+			onProviderStreamEvent: () => { observed.push("event"); },
+		});
+		const events = [];
+		for await (const event of stream) events.push(event.type);
+		const result = await stream.result();
+		assert.equal(result.stopReason, "stop");
+		assert.equal(result.usage.cost.total, 35);
+		assert.deepEqual(events, ["start", "done"]);
+		assert.equal(bodies.length, 2);
+		assert.equal(bodies[1], bodies[0]);
+		assert.match(bodies[0], /completed tool result/);
+		assert.match(bodies[0], /sticky-fixture/);
+		assert.deepEqual(observed, ["payload", "payload", "response", "event"]);
+		assert.ok(managementRequests.filter((request) => request.url.startsWith("/v8/")).every((request) => request.auth === "Bearer scoped-management"));
+	});
+});
+
+test("a model endpoint override cannot resume using another proxy's account pool", async () => {
+	await withQuotaHarness(async (harness, _baseUrl, requests) => {
+		await harness.commands.get("quota-resume")!("on", harness.ctx);
+		const selected = selectHarnessModel(harness);
+		let calls = 0;
+		const stream = harness.providers.at(-1)!.config.streamSimple!(selected, normalizeContext({ messages: [] }), {
+			apiKey: "inference-only", fetch: async () => { calls++; return quotaErrorResponse(); },
+		});
+		assert.equal((await stream.result()).stopReason, "error");
+		assert.equal(calls, 1);
+		assert.equal(requests.length, 1);
+		assert.ok(harness.notifications.some((notice) => notice.message.includes("endpoint differs")));
+	});
+});
+
+test("ordinary pool cooldowns cannot trigger subscription-quota waiting", async () => {
+	await withCatalogServer((url) => {
+		if (url === "/v8/management/credentials") return { status: 200, body: { files: [{
+			auth_index: "a", name: "codex-a.json", provider: "codex", disabled: false, unavailable: true,
+			id_token: { chatgpt_account_id: "fixture-account" },
+			cooldowns: [{ scope: "credential", reason: "transient_error", http_status: 503,
+				retry_at: new Date(Date.now() + 60000).toISOString(), remaining_seconds: 60 }],
+		}] } };
+		return quotaManagerResponse(url);
+	}, async (baseUrl) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_MANAGEMENT_KEY: "management-only" }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				selectHarnessModel(harness).baseUrl = `${baseUrl}/v1`;
+				await harness.commands.get("quota-resume")!("on", harness.ctx);
+				const controller = new AbortController();
+				const timeout = setTimeout(() => controller.abort(), 2000);
+				try {
+					const stream = harness.providers.at(-1)!.config.streamSimple!(harness.ctx.model!, normalizeContext({ messages: [] }), {
+						apiKey: "inference-only", signal: controller.signal, fetch: async () => quotaErrorResponse("model_cooldown"),
+					});
+					assert.equal((await stream.result()).stopReason, "error");
+					assert.ok(harness.notifications.some((notice) => notice.message.includes("subscription exhaustion is not verified")));
+					assert.equal(harness.statuses.get("cliproxyapi-quota-wait"), undefined);
+				} finally { clearTimeout(timeout); }
+			});
+		});
+	});
+});
+
+for (const action of ["off", "input", "model", "session_shutdown", "session_before_tree", "session_before_switch", "session_before_fork", "session_before_compact"]) {
+	test(`provider quota wait cancels on ${action} without replaying the failed request`, async () => {
+		await withQuotaHarness(async (harness) => {
+			await harness.commands.get("quota-resume")!("on", harness.ctx);
+			let calls = 0;
+			const stream = harness.providers.at(-1)!.config.streamSimple!(harness.ctx.model!, normalizeContext({ messages: [] }), {
+				apiKey: "inference-only", fetch: async () => { calls++; return quotaErrorResponse(); },
+			});
+			await waitFor(() => !!harness.statuses.get("cliproxyapi-quota-wait"));
+			if (action === "off") await harness.commands.get("quota-resume")!("off", harness.ctx);
+			else {
+				const event = action === "input" ? { text: "new task", source: "interactive" }
+					: action === "model" ? { model: { ...harness.ctx.model, provider: "openai" }, previousModel: harness.ctx.model } : {};
+				const name = action === "model" ? "model_select" : action;
+				for (const handler of harness.handlers.get(name) ?? []) await handler(event, harness.ctx);
+			}
+			assert.equal((await stream.result()).stopReason, "aborted");
+			assert.equal(calls, 1);
+			assert.equal(harness.statuses.get("cliproxyapi-quota-wait"), undefined);
+		}, true);
+	});
+}
 
 test("message_end returns a replacement only when the message changed", async () => {
 	const baseUrl = await closedPortBaseUrl();
