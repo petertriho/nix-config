@@ -58,11 +58,13 @@ function createExtensionHarness() {
 	const setEditorComponent = (factory: typeof configuredFactory) => {
 		configuredFactory = factory;
 	};
+	let footerFactory: Parameters<ExtensionContext["ui"]["setFooter"]>[0];
+	const statuses = new Map<string, string>();
 	const ui = {
 		setEditorComponent,
 		getEditorComponent: () => configuredFactory,
 		setWorkingVisible() {},
-		setFooter() {},
+		setFooter(factory: typeof footerFactory) { footerFactory = factory; },
 		theme: plainTheme,
 	};
 	let entriesCalls = 0;
@@ -97,6 +99,8 @@ function createExtensionHarness() {
 		originalSetter: setEditorComponent,
 		ui,
 		getConfiguredFactory: () => configuredFactory,
+		getFooterFactory: () => footerFactory,
+		statuses,
 		getAccountingCalls: () => ({
 			entries: entriesCalls,
 			context: contextCalls,
@@ -216,6 +220,57 @@ test("editor top-left preserves think when compacted", () => {
 	const tighter = editorTopLeftText(plainTheme, model, "high", 14);
 	assert.match(tighter, /think high/);
 	assert.equal(tighter.includes("claude"), false);
+});
+
+test("editor top-left shows a warning-colored fast label and keeps it when compacted", () => {
+	const colors: Array<{ color: string; text: string }> = [];
+	const theme = { ...plainTheme, fg: (color: string, text: string) => {
+		colors.push({ color, text });
+		return text;
+	} } as unknown as ShellTheme;
+	const model = { provider: "cliproxyapi", id: "gpt-5.6-sol", contextWindow: 272000 };
+	const full = editorTopLeftText(theme, model, "high", undefined, true);
+	assert.match(full, /cliproxyapi\/gpt-5\.6-sol · think high · fast/);
+	assert.ok(colors.some(({ color, text }) => color === "warning" && text === "fast"));
+	assert.doesNotMatch(editorTopLeftText(theme, model, "high"), /fast/);
+	for (let width = 1; width <= 80; width++) {
+		const text = editorTopLeftText(theme, model, "high", width, true);
+		assert.ok(visibleWidth(text) <= width);
+		if (width >= 6) assert.match(text, /fast/);
+		if (width >= 19) assert.match(text, /think high/);
+	}
+});
+
+test("the shell moves the Fast status into the editor header without duplicating it in the footer", () => {
+	const harness = createExtensionHarness();
+	const model = { provider: "cliproxyapi", id: "gpt-5.6-sol", contextWindow: 272000 };
+	Object.assign(harness.ctx, { model });
+	emit(harness.handlers, "session_start", {}, harness.ctx);
+	const tui = { requestRender() {} } as unknown as TUI;
+	const footer = harness.getFooterFactory()!(tui, plainTheme, {
+		getExtensionStatuses: () => harness.statuses,
+		getGitBranch: () => null,
+		getAvailableProviderCount: () => 1,
+		onBranchChange: () => () => {},
+	});
+	const inner: EditorComponent = {
+		render: (width) => ["─".repeat(width), "message", "─".repeat(width)],
+		getText: () => "",
+		setText() {},
+		handleInput() {},
+		invalidate() {},
+	};
+	harness.ui.setEditorComponent(() => inner);
+	const editor = harness.getConfiguredFactory()!(tui, {} as EditorTheme, {} as KeybindingsManager);
+	assert.doesNotMatch(editor.render(100)[0]!, /fast/);
+	harness.statuses.set("cliproxyapi-fast", "fast");
+	harness.statuses.set("other", "other status");
+	assert.match(editor.render(100)[0]!, /think off · fast/);
+	assert.doesNotMatch(footer.render(100).join("\n"), /fast/);
+	assert.match(footer.render(100).join("\n"), /other status/);
+	for (const width of [20, 30, 50, 100]) assertLinesFit(editor.render(width), width);
+	harness.statuses.delete("cliproxyapi-fast");
+	assert.doesNotMatch(editor.render(100)[0]!, /fast/);
 });
 
 test("activity tracker handles phases, parallel tools, and cleanup", () => {

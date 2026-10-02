@@ -4,6 +4,7 @@ import {
   type ExtensionAPI,
   type ExtensionContext,
   type KeybindingsManager,
+  type ReadonlyFooterDataProvider,
 } from "@earendil-works/pi-coding-agent";
 import type {
   AutocompleteProvider,
@@ -63,6 +64,8 @@ type FrameTheme = ShellTheme;
 type FrameColor = Parameters<FrameTheme["fg"]>[0];
 export type ThinkingLevel = ReturnType<ExtensionAPI["getThinkingLevel"]>;
 type BorderPriority = "left" | "right";
+// Shared with pi-cliproxyapi-provider. This status belongs in the model header.
+const FAST_STATUS_KEY = "cliproxyapi-fast";
 export type LifecycleState = "ready" | "working" | "settling";
 
 type LifecycleTimers = {
@@ -411,8 +414,11 @@ export function editorTopLeftText(
   model: ModelInfo | undefined,
   thinking: ThinkingLevel,
   width?: number,
+  fast = false,
 ): string {
-  const thinkText = `${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}`;
+  const fastText = fast ? span(theme, "warning", "fast") : "";
+  const fastSuffix = fast ? `${separator(theme)}${fastText}` : "";
+  const thinkText = `${span(theme, "muted", "think ")}${thinkingLevelText(theme, thinking)}${fastSuffix}`;
   const identity = model
     ? `${span(theme, "accent", sanitizePlainTerminalText(model.provider))}${span(
         theme,
@@ -421,14 +427,13 @@ export function editorTopLeftText(
       )}${span(theme, "text", sanitizePlainTerminalText(model.id))}`
     : span(theme, "muted", "no model");
 
-  // Unconstrained: full model identity followed by the thinking level.
+  // Unconstrained: full model identity followed by thinking and Fast state.
   if (width === undefined) {
     return ` ${identity}${separator(theme)}${thinkText} `;
   }
   if (width <= 0) return "";
 
-  // Constrained: preserve `think`; compact the identity (drop the provider,
-  // then truncate the id) first — mirrors fitBottomLeft's mode-label logic.
+  // Compact the model identity first. Keep Fast visible because it changes billing.
   const horizontalPadding = width >= 2 ? 2 : 0;
   const contentWidth = width - horizontalPadding;
   const leftPadding = horizontalPadding > 0 ? " " : "";
@@ -438,7 +443,12 @@ export function editorTopLeftText(
   const thinkWidth = visibleWidth(thinkText);
 
   if (contentWidth <= thinkWidth) {
-    return `${leftPadding}${truncateToWidth(thinkText, contentWidth, "")}${rightPadding}`;
+    let compact = thinkText;
+    if (fast && contentWidth < thinkWidth) {
+      const levelAndFast = `${thinkingLevelText(theme, thinking)}${fastSuffix}`;
+      compact = visibleWidth(levelAndFast) <= contentWidth ? levelAndFast : fastText;
+    }
+    return `${leftPadding}${truncateToWidth(compact, contentWidth, "")}${rightPadding}`;
   }
 
   const identityBudget = contentWidth - thinkWidth - sepWidth;
@@ -1216,6 +1226,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   let activeTui: TUI | undefined;
   let activeModel: ModelInfo | undefined;
+  let footerData: ReadonlyFooterDataProvider | undefined;
   let tuiSessionActive = false;
   let restoreEditorInstallInterceptor: (() => void) | undefined;
   const lifecycle = createLifecycleController(() => activeTui?.requestRender());
@@ -1250,10 +1261,11 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     const shellWidth = Math.max(1, width - 2);
     const theme = ctx.ui.theme;
     const thinking = pi.getThinkingLevel();
-    const topLeft = editorTopLeftText(theme, activeModel, thinking);
+    const fast = footerData?.getExtensionStatuses().has(FAST_STATUS_KEY) ?? false;
+    const topLeft = editorTopLeftText(theme, activeModel, thinking, undefined, fast);
 
     const { context, usage } = accounting.read(ctx, activeModel);
-    const minimumTopLeftWidth = visibleWidth(` think ${thinking} `);
+    const minimumTopLeftWidth = visibleWidth(` think ${thinking}${fast ? " · fast" : ""} `);
     const topRightBudget = Math.max(0, shellWidth - 3 - minimumTopLeftWidth);
     const topRight = editorTopRightText(
       theme,
@@ -1298,7 +1310,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
         fitBottomLeft: (maximumWidth) =>
           editorBottomLeftText(theme, cwd, maximumWidth, modeLabel, modeColor),
         fitTopLeft: (maximumWidth) =>
-          editorTopLeftText(theme, activeModel, thinking, maximumWidth),
+          editorTopLeftText(theme, activeModel, thinking, maximumWidth, fast),
         fitTopRight: (maximumWidth) =>
           editorTopRightText(theme, context, usage.cost, maximumWidth),
         fitBottomRight: (maximumWidth) =>
@@ -1599,6 +1611,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   pi.on("session_shutdown", () => {
     restoreEditorInstallInterceptor?.();
     tuiSessionActive = false;
+    footerData = undefined;
     activeTui = undefined;
     lifecycle.reset();
     activity.reset();
@@ -1607,6 +1620,7 @@ export default function piTuiShell(pi: ExtensionAPI): void {
   });
 
   pi.on("session_start", (_event, ctx) => {
+    footerData = undefined;
     accounting.invalidate();
     tuiSessionActive = ctx.mode === "tui";
     if (!tuiSessionActive) {
@@ -1631,11 +1645,15 @@ export default function piTuiShell(pi: ExtensionAPI): void {
     ctx.ui.setWorkingVisible(false);
     ctx.ui.setFooter((tui, theme, provider) => {
       activeTui = tui;
+      footerData = provider;
       return {
         render(width: number): string[] {
+          const statuses = [...provider.getExtensionStatuses()]
+            .filter(([key]) => key !== FAST_STATUS_KEY)
+            .map(([, text]) => text);
           return renderStatusFooter(
             theme,
-            provider.getExtensionStatuses().values(),
+            statuses,
             width,
           );
         },

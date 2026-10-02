@@ -8,12 +8,13 @@
     "test": "node --test \"__tests__/*.test.ts\" \"pi-history/__tests__/*.test.ts\" \"pi-agent-teams/__tests__/*.test.ts\" \"pi-workflows/__tests__/*.test.ts\" \"pi-workflows/__tests__/workflow/*.test.ts\" \"workflow-provider/__tests__/*.test.ts\"",
     "test:tmux-smoke": "node smoke/tmux-smoke.mjs",
     "test:claude-smoke": "node smoke/claude-smoke.mjs",
+    "test:cliproxyapi-smoke": "node smoke/cliproxyapi-fast-smoke.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "0.99.1",
-    "@earendil-works/pi-coding-agent": "0.99.1",
-    "@earendil-works/pi-tui": "0.99.1",
+    "@earendil-works/pi-ai": "1.0.0",
+    "@earendil-works/pi-coding-agent": "1.0.0",
+    "@earendil-works/pi-tui": "1.0.0",
     "@types/node": "^22.0.0",
     "typebox": "^1.3.10"
   }

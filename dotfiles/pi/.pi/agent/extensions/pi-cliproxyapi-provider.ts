@@ -20,8 +20,14 @@
  *                         A trailing `/` or `/v1` is stripped.
  *   CLIPROXYAPI_API_KEY   Bearer token for the catalog request. pi resolves
  *                         the same variable at inference time.
+ *   CLIPROXYAPI_FAST      Startup override for the persisted Fast preference.
+ *                         Accepts true/false, 1/0, yes/no, and on/off.
  *
  * Commands:
+ *   /fast                Toggle priority processing for models whose catalog
+ *                         entry has a non-empty `service_tiers` array. Saves
+ *                         the preference in `cliproxyapi.json`. Priority
+ *                         processing can use more credits or cost more.
  *   /cliproxyapi-refresh  Fetch the catalog again and rewrite the cache.
  *   /pause, /continue     Hold or release `cliproxyapi` requests. The flag is
  *                         persisted in `~/.pi/agent/cliproxyapi.json` and
@@ -37,15 +43,25 @@ import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import {
   type AssistantMessage,
+  type AssistantMessageEventStream,
+  type Model,
   type ModelCost,
   type ModelCostRates,
   type ModelCostTier,
+  type SimpleStreamOptions,
   type ThinkingLevelMap,
+  type TranscriptContext,
+  calculateCost,
+  hasApi,
   isRetryableAssistantError,
+  lazyStream,
 } from "@earendil-works/pi-ai";
+// Pi's bundled runtime maps /compat, but not individual /api modules.
+import { openAIResponsesApi } from "@earendil-works/pi-ai/compat";
 import {
   type ExtensionAPI,
   type ExtensionCommandContext,
+  type ExtensionContext,
   type ProviderModelConfig,
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
@@ -57,6 +73,7 @@ const PROVIDER_ID = "cliproxyapi";
 const PROVIDER_NAME = "CLIProxyAPI";
 const BASE_URL_ENV_VAR = "CLIPROXYAPI_BASE_URL";
 const API_KEY_ENV_VAR = "CLIPROXYAPI_API_KEY";
+const FAST_ENV_VAR = "CLIPROXYAPI_FAST";
 const DEFAULT_BASE_URL = "http://127.0.0.1:8317";
 const CLIENT_VERSION = "pi";
 const MODELS_CACHE_FILE_NAME = "cliproxyapi-models.json";
@@ -73,6 +90,8 @@ const CONFIG_FILE_NAME = "cliproxyapi.json";
 export const MODEL_CATALOG_REFRESHED_EVENT = "dotfiles:model-catalog-refreshed";
 const PAUSE_POLL_INTERVAL_MS = 200;
 const PAUSE_STATUS_KEY = "cliproxyapi";
+// pi-tui-shell moves this status into the model header.
+const FAST_STATUS_KEY = "cliproxyapi-fast";
 // Proxy stream failures that pi-ai's retry pattern does not cover.
 const TRANSIENT_STREAM_ERROR_PATTERN =
   /closed network connection|stream disconnected before completion: stream closed before response\.completed|invalid SSE data JSON/i;
@@ -115,6 +134,7 @@ export type CodexCatalogModel = {
   supported_reasoning_levels?: Array<{ effort?: string; description?: string } | string>;
   apply_patch_tool_type?: unknown;
   visibility?: string;
+  service_tiers?: unknown;
 };
 
 export type Endpoints = {
@@ -127,6 +147,8 @@ export type ModelsCache = {
   modelsUrl: string;
   fetchedAt: number;
   models: ProviderChatModelConfig[];
+  // Older version 2 caches omit this field and cannot verify Fast support.
+  fastModelIds?: string[];
 };
 
 function logWarn(message: string): void {
@@ -264,7 +286,7 @@ function writeTextFile(path: string, text: string): void {
 
 // --- models.dev pricing
 
-type CostEntry = { providerId: string; modelId: string; cost: ModelCost };
+type CostEntry = { providerId: string; modelId: string; cost: ModelCost; fastCost?: ModelCost };
 
 /** models.dev prices keyed by lower-case id and by alphanumeric-only id. */
 export type CostCatalog = {
@@ -329,9 +351,12 @@ export function buildCostCatalog(providers: Record<string, unknown>): CostCatalo
     const models = asRecord(asRecord(providerValue)?.models);
     if (!models) continue;
     for (const [modelId, modelValue] of Object.entries(models)) {
-      const cost = parseModelsDevCost(asRecord(modelValue)?.cost);
+      const model = asRecord(modelValue);
+      const cost = parseModelsDevCost(model?.cost);
       if (!cost) continue;
-      const entry: CostEntry = { providerId, modelId, cost };
+      const modes = asRecord(asRecord(model?.experimental)?.modes);
+      const fastCost = parseModelsDevCost(asRecord(modes?.fast)?.cost);
+      const entry: CostEntry = { providerId, modelId, cost, ...(fastCost ? { fastCost } : {}) };
       addCostEntry(catalog.exact, modelId.toLowerCase(), entry);
       addCostEntry(catalog.normalized, normalizeModelKey(modelId), entry);
     }
@@ -339,7 +364,7 @@ export function buildCostCatalog(providers: Record<string, unknown>): CostCatalo
   return catalog;
 }
 
-function selectCostEntry(entries: CostEntry[], modelId: string): CostEntry | undefined {
+function selectCostEntry(entries: CostEntry[], modelId: string, fast = false): CostEntry | undefined {
   if (entries.length === 0) return undefined;
   if (OPENAI_MODEL_PATTERN.test(modelId)) {
     for (const providerId of OPENAI_PROVIDER_PREFERENCE) {
@@ -347,19 +372,24 @@ function selectCostEntry(entries: CostEntry[], modelId: string): CostEntry | und
       if (match) return match;
     }
   }
-  const prices = new Set(entries.map((entry) => JSON.stringify(entry.cost)));
+  const prices = new Set(entries.map((entry) => JSON.stringify(fast ? entry.fastCost ?? entry.cost : entry.cost)));
   if (prices.size === 1) return entries[0];
   // Resellers disagree and none is preferred: do not pick an arbitrary price.
   return undefined;
 }
 
-/** Price for a model id, or zero cost when models.dev has no unambiguous entry. */
-export function matchModelCost(modelId: string, catalog: CostCatalog): ModelCost {
+function findCostEntry(modelId: string, catalog: CostCatalog, fast = false): CostEntry | undefined {
   const id = modelId.trim().toLowerCase();
-  const entry =
-    selectCostEntry(catalog.exact.get(id) ?? [], id) ??
-    selectCostEntry(catalog.normalized.get(normalizeModelKey(id)) ?? [], id);
-  return entry ? structuredClone(entry.cost) : { ...ZERO_COST };
+  return (
+    selectCostEntry(catalog.exact.get(id) ?? [], id, fast) ??
+    selectCostEntry(catalog.normalized.get(normalizeModelKey(id)) ?? [], id, fast)
+  );
+}
+
+/** Price for a model id, with standard rates when no Fast rates are published. */
+export function matchModelCost(modelId: string, catalog: CostCatalog, fast = false): ModelCost {
+  const entry = findCostEntry(modelId, catalog, fast) ?? (fast ? findCostEntry(modelId, catalog) : undefined);
+  return entry ? structuredClone((fast && entry.fastCost) || entry.cost) : { ...ZERO_COST };
 }
 
 function isModelsDevProviders(value: unknown): value is Record<string, unknown> {
@@ -512,7 +542,7 @@ export function parseLegacyModelsCache(
 }
 
 type CachedModels =
-  | { kind: "current"; models: ProviderChatModelConfig[] }
+  | { kind: "current"; models: ProviderChatModelConfig[]; fastModelIds: string[] }
   | { kind: "legacy"; models: ProviderChatModelConfig[] }
   | { kind: "none" };
 
@@ -529,7 +559,14 @@ function readModelsCache(cachePath: string, modelsUrl: string): CachedModels {
   try {
     const raw = JSON.parse(text);
     const current = parseModelsCache(raw, modelsUrl);
-    if (current) return { kind: "current", models: current };
+    if (current) {
+      const ids = asRecord(raw)?.fastModelIds;
+      const knownIds = new Set(current.map((model) => model.id));
+      const fastModelIds = Array.isArray(ids) && ids.every((id) => typeof id === "string")
+        ? ids.map((id: string) => id.trim()).filter((id: string) => knownIds.has(id))
+        : [];
+      return { kind: "current", models: current, fastModelIds };
+    }
     const legacy = parseLegacyModelsCache(raw, modelsUrl);
     if (legacy) return { kind: "legacy", models: legacy };
     return { kind: "none" };
@@ -539,12 +576,18 @@ function readModelsCache(cachePath: string, modelsUrl: string): CachedModels {
   }
 }
 
-function writeModelsCache(cachePath: string, modelsUrl: string, models: ProviderChatModelConfig[]): void {
+function writeModelsCache(
+  cachePath: string,
+  modelsUrl: string,
+  models: ProviderChatModelConfig[],
+  fastModelIds: string[],
+): void {
   const cache: ModelsCache = {
     version: MODELS_CACHE_VERSION,
     modelsUrl,
     fetchedAt: Date.now(),
     models,
+    fastModelIds,
   };
   writeTextFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`);
 }
@@ -581,16 +624,35 @@ export function readPauseSetting(configPath: string): boolean {
   return value;
 }
 
-/** Write the pause flag and keep the other keys of the file. Throws on write failure. */
-export function savePauseSetting(configPath: string, pause: boolean): void {
-  let existing: Record<string, unknown> = {};
-  try {
-    existing = readConfigFile(configPath);
-  } catch {
-    // An unreadable file is replaced.
-  }
+function saveBooleanSetting(configPath: string, key: "pause" | "fast", value: boolean): void {
+  // Do not discard other settings when an existing file cannot be read.
+  const existing = readConfigFile(configPath);
   mkdirSync(dirname(configPath), { recursive: true });
-  writeFileSync(configPath, `${JSON.stringify({ ...existing, pause }, null, 2)}\n`, "utf8");
+  writeFileSync(configPath, `${JSON.stringify({ ...existing, [key]: value }, null, 2)}\n`, "utf8");
+}
+
+/** Write the pause flag and keep the other keys. Throws on invalid config or write failure. */
+export function savePauseSetting(configPath: string, pause: boolean): void {
+  saveBooleanSetting(configPath, "pause", pause);
+}
+
+/** Resolve Fast from the environment, then the configuration file, then false. */
+export function readFastSetting(configPath: string, envValue = process.env[FAST_ENV_VAR]): boolean {
+  const env = envValue?.trim().toLowerCase();
+  if (env) {
+    if (["true", "1", "yes", "on"].includes(env)) return true;
+    if (["false", "0", "no", "off"].includes(env)) return false;
+    throw new Error(`${FAST_ENV_VAR} must be one of: true, false, 1, 0, yes, no, on, off`);
+  }
+  const value = readConfigFile(configPath).fast;
+  if (value === undefined) return false;
+  if (typeof value !== "boolean") throw new Error(`${CONFIG_FILE_NAME} field "fast" must be a boolean`);
+  return value;
+}
+
+/** Write the Fast flag without changing pause or connection settings. */
+export function saveFastSetting(configPath: string, fast: boolean): void {
+  saveBooleanSetting(configPath, "fast", fast);
 }
 
 /** In-memory pause state shared by the commands and the request gate. */
@@ -632,6 +694,68 @@ export async function waitForPauseToEnd(
   }
 }
 
+// --- Responses pricing
+
+type ModelPrices = { standard: ModelCost; fast?: ModelCost };
+
+/** Delegate the wire protocol to Pi and replace its guessed tier multiplier with catalog prices. */
+function streamWithCatalogPricing(
+  model: Model<"openai-responses">,
+  context: TranscriptContext,
+  options: SimpleStreamOptions | undefined,
+  getPrices: () => ModelPrices,
+): AssistantMessageEventStream {
+  const requestModel = { ...model, cost: structuredClone(model.cost) };
+  let prices = getPrices();
+  let requestedPriority = false;
+  let responsePriority: boolean | undefined;
+  return lazyStream(requestModel, async () => {
+    const source = openAIResponsesApi().streamSimple(requestModel, context, {
+      ...options,
+      onPayload: async (payload, payloadModel) => {
+        const replacement = await options?.onPayload?.(payload, payloadModel);
+        const tier = asRecord(replacement ?? payload)?.service_tier;
+        requestedPriority = tier === "priority" || tier === "fast";
+        // The request can wait behind /pause while /fast or the catalog changes.
+        prices = getPrices();
+        return replacement;
+      },
+      onProviderStreamEvent: async (event, payloadModel) => {
+        const data = asRecord(event);
+        if (["response.completed", "response.done", "response.incomplete", "response.failed"].includes(String(data?.type))) {
+          const tier = asRecord(data?.response)?.service_tier;
+          if (typeof tier === "string") responsePriority = tier === "priority" || tier === "fast";
+        }
+        await options?.onProviderStreamEvent?.(event, payloadModel);
+      },
+    });
+    return (async function* () {
+      for await (const event of source) {
+        const message = event.type === "done" ? event.message : event.type === "error" ? event.error : undefined;
+        if (message) {
+          const priority = responsePriority ?? requestedPriority;
+          // Retain Pi's non-priority tier adjustments, such as Flex discounts.
+          const nativeBase = calculateCost(requestModel, {
+            ...message.usage,
+            cost: { ...message.usage.cost },
+          }).total;
+          const multiplier = !priority && nativeBase > 0 ? message.usage.cost.total / nativeBase : 1;
+          const cost = calculateCost({
+            ...requestModel,
+            cost: priority ? prices.fast ?? prices.standard : prices.standard,
+          }, message.usage);
+          cost.input *= multiplier;
+          cost.output *= multiplier;
+          cost.cacheRead *= multiplier;
+          cost.cacheWrite *= multiplier;
+          cost.total = cost.input + cost.output + cost.cacheRead + cost.cacheWrite;
+        }
+        yield event;
+      }
+    })();
+  });
+}
+
 // --- transient stream errors
 
 /**
@@ -657,34 +781,86 @@ export default async function (pi: ExtensionAPI) {
   const endpoints = resolveEndpoints(process.env[BASE_URL_ENV_VAR]);
   const cachePath = join(agentDir, MODELS_CACHE_FILE_NAME);
   const costCachePath = join(agentDir, MODELS_DEV_CACHE_FILE);
+  const configPath = join(agentDir, CONFIG_FILE_NAME);
+  let fast = false;
+  try {
+    fast = readFastSetting(configPath);
+  } catch (error) {
+    logWarn(`ignoring Fast setting: ${errorMessage(error)}`);
+  }
+  let costCatalog = buildCostCatalog(readModelsDevCache(costCachePath)?.providers ?? {});
+  let modelDefinitions: ProviderChatModelConfig[] = [];
+  let registeredModels: ProviderChatModelConfig[] = [];
+  // Keep base prices for a selected model that disappears during a refresh.
+  const standardCosts = new Map<string, ModelCost>();
+  let fastModelIds = new Set<string>();
+  let activeContext: ExtensionContext | undefined;
+
+  const isFastEffective = (model: ExtensionContext["model"]): boolean =>
+    fast && model?.provider === PROVIDER_ID && fastModelIds.has(model.id);
+
+  const updateFastStatus = (ctx: ExtensionContext, model = ctx.model): void => {
+    if (model?.provider === PROVIDER_ID) {
+      const registeredModel = registeredModels.find((entry) => entry.id === model.id);
+      const cost = registeredModel?.cost ?? standardCosts.get(model.id);
+      if (cost) model.cost = structuredClone(cost);
+    }
+    ctx.ui.setStatus(FAST_STATUS_KEY, isFastEffective(model) ? "fast" : undefined);
+  };
+
   // Only the newest fetch may commit, so a slow background refresh cannot
   // overwrite the result of a later /cliproxyapi-refresh.
   let generation = 0;
 
-  const register = (models: ProviderChatModelConfig[]): void => {
+  const register = (models: ProviderChatModelConfig[], supportedIds = [...fastModelIds]): void => {
+    modelDefinitions = models;
+    fastModelIds = new Set(supportedIds);
+    registeredModels = models.map((model) => {
+      standardCosts.set(model.id, structuredClone(model.cost));
+      const fastCost = fast && fastModelIds.has(model.id) ? findCostEntry(model.id, costCatalog, true)?.fastCost : undefined;
+      return { ...model, cost: structuredClone(fastCost ?? model.cost) };
+    });
     pi.registerProvider(PROVIDER_ID, {
       name: PROVIDER_NAME,
       baseUrl: endpoints.inferenceBaseUrl,
       api: "openai-responses",
       // Resolved by pi from the environment at request time.
       apiKey: `$${API_KEY_ENV_VAR}`,
-      models,
+      models: registeredModels,
+      streamSimple: (model, context, options) => {
+        if (!hasApi(model, "openai-responses")) throw new Error(`Unsupported ${PROVIDER_NAME} API: ${model.api}`);
+        return streamWithCatalogPricing(model, context, options, () => {
+          const fastCost = fastModelIds.has(model.id) ? findCostEntry(model.id, costCatalog, true)?.fastCost : undefined;
+          return {
+            standard: structuredClone(standardCosts.get(model.id) ?? model.cost),
+            fast: fastCost ? structuredClone(fastCost) : undefined,
+          };
+        });
+      },
     });
+    if (activeContext) updateFastStatus(activeContext);
   };
 
   /** Fetch, cache, and register. Returns null when a newer fetch superseded this one. */
   const refresh = async (): Promise<ProviderChatModelConfig[] | null> => {
     const current = ++generation;
-    const [catalog, costCatalog] = await Promise.all([
+    const [catalog, refreshedCostCatalog] = await Promise.all([
       fetchCodexModels(endpoints.modelsUrl, process.env[API_KEY_ENV_VAR], MODELS_REQUEST_TIMEOUT_MS),
       loadCostCatalog(costCachePath),
     ]);
     if (current !== generation) return null;
+    costCatalog = refreshedCostCatalog;
     const models = catalog
       .map((entry) => toPiModel(entry, costCatalog))
       .filter((model): model is ProviderChatModelConfig => model !== null);
-    writeModelsCache(cachePath, endpoints.modelsUrl, models);
-    register(models);
+    const visibleIds = new Set(models.map((model) => model.id));
+    const supportedIds = catalog
+      .filter((entry) => Array.isArray(entry.service_tiers) && entry.service_tiers.length > 0)
+      .map((entry) => (entry.slug ?? "").trim())
+      .filter((id) => visibleIds.has(id));
+    // Cache standard prices so changing Fast never makes offline startup use the wrong rates.
+    writeModelsCache(cachePath, endpoints.modelsUrl, models, supportedIds);
+    register(models, supportedIds);
     pi.events.emit(MODEL_CATALOG_REFRESHED_EVENT, { provider: PROVIDER_ID });
     return models;
   };
@@ -692,7 +868,7 @@ export default async function (pi: ExtensionAPI) {
   const cached = readModelsCache(cachePath, endpoints.modelsUrl);
   let legacyFallbackActive = false;
   if (cached.kind === "current") {
-    register(cached.models);
+    register(cached.models, cached.fastModelIds);
     void refresh().catch((error) => {
       logWarn(
         `background model refresh failed: ${errorMessage(error)}; keeping ${cached.models.length} cached models`,
@@ -744,7 +920,6 @@ export default async function (pi: ExtensionAPI) {
     },
   });
 
-  const configPath = join(agentDir, CONFIG_FILE_NAME);
   let initialPause = false;
   try {
     initialPause = readPauseSetting(configPath);
@@ -754,12 +929,54 @@ export default async function (pi: ExtensionAPI) {
   const pause = new PauseController(initialPause);
 
   pi.on("session_start", (_event, ctx) => {
+    activeContext = ctx;
     if (pause.isPaused()) ctx.ui.setStatus(PAUSE_STATUS_KEY, "paused");
+    updateFastStatus(ctx);
   });
 
-  pi.on("before_provider_request", async (_event, ctx) => {
+  pi.on("model_select", (event, ctx) => {
+    activeContext = ctx;
+    updateFastStatus(ctx, event.model);
+  });
+
+  pi.on("session_shutdown", () => {
+    activeContext = undefined;
+  });
+
+  pi.on("before_provider_request", async (event, ctx) => {
     if (ctx.model?.provider !== PROVIDER_ID) return;
     await waitForPauseToEnd(configPath, pause, { signal: ctx.signal });
+    if (ctx.signal?.aborted || !isFastEffective(ctx.model)) return;
+    const payload = asRecord(event.payload);
+    return payload ? { ...payload, service_tier: "priority" } : undefined;
+  });
+
+  pi.registerCommand("fast", {
+    description: `Toggle ${PROVIDER_NAME} Fast mode (priority processing)`,
+    handler: async (args, ctx) => {
+      if (args.trim()) {
+        ctx.ui.notify("Usage: /fast (no arguments)", "error");
+        return;
+      }
+      const enabled = !fast;
+      try {
+        saveFastSetting(configPath, enabled);
+      } catch (error) {
+        ctx.ui.notify(`Failed to save Fast mode: ${errorMessage(error)}`, "error");
+        return;
+      }
+      fast = enabled;
+      // Reuse catalog data so the toggle also works while the proxy is offline.
+      if (modelDefinitions.length > 0) register(modelDefinitions);
+      activeContext = ctx;
+      updateFastStatus(ctx);
+      pi.events.emit(MODEL_CATALOG_REFRESHED_EVENT, { provider: PROVIDER_ID });
+      if (enabled && !isFastEffective(ctx.model)) {
+        ctx.ui.notify("Fast mode is enabled globally, but the current model does not support it.", "warning");
+      } else if (!enabled && (ctx.model?.provider !== PROVIDER_ID || !fastModelIds.has(ctx.model.id))) {
+        ctx.ui.notify("Fast mode is disabled globally.", "info");
+      }
+    },
   });
 
   const setPaused = (paused: boolean, ctx: ExtensionCommandContext): void => {

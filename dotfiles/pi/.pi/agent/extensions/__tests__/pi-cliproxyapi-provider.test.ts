@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import { type AssistantMessage, normalizeContext } from "@earendil-works/pi-ai";
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
@@ -25,8 +25,10 @@ import cliproxyapi, {
 	parseLegacyModelsCache,
 	parseModelsCache,
 	readPauseSetting,
+	readFastSetting,
 	resolveEndpoints,
 	savePauseSetting,
+	saveFastSetting,
 	toPiModel,
 	waitForPauseToEnd,
 } from "../pi-cliproxyapi-provider.ts";
@@ -973,6 +975,317 @@ test("startup reads a persisted pause and warns on a non-boolean value", async (
 				assert.ok(gate);
 				// Not paused: the gate resolves even though the file is invalid.
 				await gate({ type: "before_provider_request", payload: {} }, harness.requestCtx("cliproxyapi"));
+			});
+		});
+	});
+});
+
+// --- /fast
+
+const fastCatalogModel: CodexCatalogModel = {
+	...gpt56Sol,
+	service_tiers: [{ id: "priority" }],
+};
+const fastModelsDevProviders = {
+	openai: {
+		models: {
+			"gpt-5.6-sol": {
+				cost: { input: 5, output: 30, cache_read: 0.5 },
+				experimental: { modes: { fast: { cost: { input: 10, output: 60, cache_read: 1 } } } },
+			},
+		},
+	},
+};
+const standardFastModelCost = { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 0 };
+const priorityModelCost = { input: 10, output: 60, cacheRead: 1, cacheWrite: 0 };
+
+function selectHarnessModel(harness: Harness, model: CodexCatalogModel = fastCatalogModel, provider = "cliproxyapi") {
+	const mapped = toPiModel(model, buildCostCatalog(fastModelsDevProviders));
+	assert.ok(mapped);
+	const selected = { ...mapped, provider, api: "openai-responses", baseUrl: "http://example/v1" };
+	Object.assign(harness.ctx, { model: selected });
+	return selected;
+}
+
+test("readFastSetting defaults off and resolves environment values before the file", async () => {
+	await withTempAgentDir(async (dir) => {
+		const path = join(dir, "cliproxyapi.json");
+		await withEnv({ CLIPROXYAPI_FAST: undefined }, async () => {
+			assert.equal(readFastSetting(path), false);
+			writeFileSync(path, JSON.stringify({ fast: true }));
+			assert.equal(readFastSetting(path), true);
+			writeFileSync(path, JSON.stringify({ fast: "yes" }));
+			assert.throws(() => readFastSetting(path), /field "fast" must be a boolean/);
+			for (const value of ["true", "1", "yes", "ON", " true "]) {
+				assert.equal(readFastSetting(path, value), true);
+			}
+			for (const value of ["false", "0", "no", "OFF", " false "]) {
+				assert.equal(readFastSetting(path, value), false);
+			}
+			assert.throws(() => readFastSetting(path, "maybe"), /CLIPROXYAPI_FAST/);
+		});
+	});
+});
+
+test("saveFastSetting and savePauseSetting preserve each other's flags and unrelated settings", async () => {
+	await withTempAgentDir(async (dir) => {
+		const path = join(dir, "nested", "cliproxyapi.json");
+		saveFastSetting(path, true);
+		savePauseSetting(path, true);
+		writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, "utf8")), custom: "keep" }));
+		saveFastSetting(path, false);
+		assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { fast: false, pause: true, custom: "keep" });
+	});
+});
+
+test("Fast and pause writes refuse to overwrite malformed configuration", async () => {
+	await withTempAgentDir(async (dir) => {
+		const path = join(dir, "cliproxyapi.json");
+		for (const content of ["{", "[]", "null"]) {
+			writeFileSync(path, content);
+			assert.throws(() => saveFastSetting(path, true));
+			assert.equal(readFileSync(path, "utf8"), content);
+			assert.throws(() => savePauseSetting(path, true));
+			assert.equal(readFileSync(path, "utf8"), content);
+		}
+	});
+});
+
+test("matchModelCost uses published Fast rates and falls back to standard rates", () => {
+	const catalog = buildCostCatalog(fastModelsDevProviders);
+	assert.deepEqual(matchModelCost("gpt-5.6-sol", catalog), standardFastModelCost);
+	assert.deepEqual(matchModelCost("gpt-5.6-sol", catalog, true), priorityModelCost);
+	assert.deepEqual(matchModelCost("gpt-5.4-mini", buildCostCatalog(modelsDevProviders), true),
+		matchModelCost("gpt-5.4-mini", buildCostCatalog(modelsDevProviders)));
+});
+
+test("/fast persists toggles, updates pricing and status, and changes only supported request payloads", async () => {
+	await withCatalogServer(() => ({ status: 200, body: { models: [fastCatalogModel, gpt54Mini] } }),
+		async (baseUrl, requests) => {
+			await withTempAgentDir(async (agentDir) => {
+				writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+				await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+					const harness = createHarness();
+					await cliproxyapi(harness.pi);
+					const selected = selectHarnessModel(harness);
+					const fast = harness.commands.get("fast");
+					const [request] = harness.handlers.get("before_provider_request") ?? [];
+					assert.ok(fast && request);
+					const payload = { model: selected.id, input: [], reasoning: { effort: "high" } };
+					assert.equal(await request({ payload }, harness.ctx), undefined);
+					await fast("on", harness.ctx);
+					assert.equal(harness.notifications.at(-1)?.type, "error");
+					assert.equal(readFastSetting(join(agentDir, "cliproxyapi.json")), false);
+					await fast("", harness.ctx);
+					assert.equal(readFastSetting(join(agentDir, "cliproxyapi.json")), true);
+					assert.equal(harness.statuses.get("cliproxyapi-fast"), "fast");
+					assert.deepEqual(await request({ payload }, harness.ctx), { ...payload, service_tier: "priority" });
+					assert.equal("service_tier" in payload, false);
+					assert.deepEqual(selected.cost, priorityModelCost);
+					assert.deepEqual(harness.providers.at(-1)?.config.models?.[0]?.cost, priorityModelCost);
+					assert.deepEqual(harness.providers.at(-1)?.config.models?.[1]?.cost, zeroCost);
+					assert.equal(await request({ payload }, harness.requestCtx("anthropic")), undefined);
+					const mini = selectHarnessModel(harness, gpt54Mini);
+					for (const handler of harness.handlers.get("model_select") ?? []) await handler({ model: mini }, harness.ctx);
+					assert.equal(harness.statuses.get("cliproxyapi-fast"), undefined);
+					assert.equal(await request({ payload: { model: mini.id } }, harness.ctx), undefined);
+					selectHarnessModel(harness);
+					await fast("", harness.ctx);
+					assert.equal(readFastSetting(join(agentDir, "cliproxyapi.json")), false);
+					assert.equal(harness.statuses.get("cliproxyapi-fast"), undefined);
+					assert.deepEqual(harness.ctx.model?.cost, standardFastModelCost);
+					assert.equal(await request({ payload }, harness.ctx), undefined);
+					assert.equal(requests.length, 1, "toggles must not depend on a network refresh");
+					const cache = JSON.parse(readFileSync(join(agentDir, "cliproxyapi-models.json"), "utf8"));
+					assert.deepEqual(cache.fastModelIds, [selected.id]);
+					assert.deepEqual(cache.models[0].cost, standardFastModelCost);
+				});
+			});
+		});
+});
+
+test("/fast warns for unsupported models and does not guess support from additional_speed_tiers", async () => {
+	const unsupported = { ...gpt56Sol, additional_speed_tiers: ["fast"], service_tiers: [] };
+	await withCatalogServer(() => ({ status: 200, body: { models: [unsupported] } }), async (baseUrl) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				selectHarnessModel(harness);
+				await harness.commands.get("fast")!("", harness.ctx);
+				assert.equal(readFastSetting(join(agentDir, "cliproxyapi.json")), true);
+				assert.equal(harness.notifications.at(-1)?.type, "warning");
+				assert.match(harness.notifications.at(-1)?.message ?? "", /does not support/);
+				assert.equal(harness.statuses.get("cliproxyapi-fast"), undefined);
+				const [request] = harness.handlers.get("before_provider_request") ?? [];
+				assert.equal(await request!({ payload: { model: fastCatalogModel.slug } }, harness.ctx), undefined);
+				assert.deepEqual(harness.ctx.model?.cost, standardFastModelCost);
+			});
+		});
+	});
+});
+
+test("persisted Fast capability works from cache offline and defaults unknown capability off", async () => {
+	const baseUrl = await closedPortBaseUrl();
+	for (const fastModelIds of [[fastCatalogModel.slug!], undefined, [123], ["unknown"]]) {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			writeFileSync(join(agentDir, "cliproxyapi.json"), JSON.stringify({ fast: true }));
+			writeFileSync(join(agentDir, "cliproxyapi-models.json"), JSON.stringify({
+				version: 2, modelsUrl: `${baseUrl}/v1/models?client_version=pi`, fetchedAt: 1,
+				models: [toPiModel(fastCatalogModel, buildCostCatalog(fastModelsDevProviders))], fastModelIds,
+			}));
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+				await captureWarnings(async (warnings) => {
+					const harness = createHarness();
+					await cliproxyapi(harness.pi);
+					selectHarnessModel(harness);
+					for (const handler of harness.handlers.get("session_start") ?? []) await handler({}, harness.ctx);
+					const supported = fastModelIds?.[0] === fastCatalogModel.slug;
+					assert.equal(harness.statuses.get("cliproxyapi-fast"), supported ? "fast" : undefined);
+					assert.deepEqual(harness.providers[0]?.config.models?.[0]?.cost, supported ? priorityModelCost : standardFastModelCost);
+					const [request] = harness.handlers.get("before_provider_request") ?? [];
+					assert.deepEqual(await request!({ payload: { model: fastCatalogModel.slug } }, harness.ctx),
+						supported ? { model: fastCatalogModel.slug, service_tier: "priority" } : undefined);
+					await waitFor(() => warnings.length > 0);
+				});
+			});
+		});
+	}
+});
+
+test("Fast-only pricing disagreements do not erase identical standard prices", () => {
+	const standard = { input: 5, output: 30, cache_read: 0.5 };
+	const catalog = buildCostCatalog({
+		"reseller-a": { models: { "other-model": { cost: standard } } },
+		"reseller-b": { models: { "other-model": {
+			cost: standard,
+			experimental: { modes: { fast: { cost: { input: 10, output: 60 } } } },
+		} } },
+	});
+	assert.deepEqual(matchModelCost("other-model", catalog), standardFastModelCost);
+	assert.deepEqual(matchModelCost("other-model", catalog, true), standardFastModelCost);
+});
+
+test("an active model removed from the catalog returns to standard prices", async () => {
+	let models = [fastCatalogModel];
+	await withCatalogServer(() => ({ status: 200, body: { models } }), async (baseUrl) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				const selected = selectHarnessModel(harness);
+				await harness.commands.get("fast")!("", harness.ctx);
+				assert.deepEqual(selected.cost, priorityModelCost);
+				models = [];
+				await harness.commands.get("cliproxyapi-refresh")!("", harness.ctx);
+				assert.equal(harness.statuses.get("cliproxyapi-fast"), undefined);
+				assert.deepEqual(selected.cost, standardFastModelCost);
+				await harness.commands.get("fast")!("", harness.ctx);
+				assert.deepEqual(selected.cost, standardFastModelCost);
+			});
+		});
+	});
+});
+
+test("stock Responses streaming applies published Fast prices exactly once", async () => {
+	await withCatalogServer(() => ({ status: 200, body: { models: [fastCatalogModel] } }), async (baseUrl) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				const selected = selectHarnessModel(harness);
+				await harness.commands.get("fast")!("", harness.ctx);
+				const config = harness.providers.at(-1)!.config;
+				assert.ok(config.streamSimple);
+				for (const serviceTier of ["priority", "fast", undefined, "default", "flex"]) {
+					const event = { type: "response.completed", response: {
+						id: "resp_pricing", status: "completed", service_tier: serviceTier, output: [],
+						usage: { input_tokens: 1_000_000, output_tokens: 1_000_000, total_tokens: 2_000_000 },
+					} };
+					const observed: string[] = [];
+					const stream = config.streamSimple(selected, normalizeContext({ messages: [{ role: "user", content: "test", timestamp: 0 }] }), {
+						apiKey: "smoke-only",
+						fetch: async () => new Response(`data: ${JSON.stringify(event)}\n\n`, { headers: { "content-type": "text/event-stream" } }),
+						onPayload: (payload) => ({ ...(payload as Record<string, unknown>), service_tier: "priority" }),
+						onResponse: () => { observed.push("response"); },
+						onProviderStreamEvent: () => { observed.push("stream"); },
+					});
+					const message = await stream.result();
+					assert.equal(message.stopReason, "stop", message.errorMessage);
+					assert.equal(message.usage.cost.total, serviceTier === "flex" ? 17.5 : serviceTier === "default" ? 35 : 70);
+					assert.deepEqual(observed, ["response", "stream"]);
+				}
+			});
+		});
+	});
+});
+
+test("catalog refresh updates active Fast capability, status, and pricing", async () => {
+	let supported = false;
+	await withCatalogServer(() => ({ status: 200, body: { models: [
+		{ ...fastCatalogModel, service_tiers: supported ? ["priority"] : [] },
+	] } }), async (baseUrl) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			writeFileSync(join(agentDir, "cliproxyapi.json"), JSON.stringify({ fast: true }));
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				const selected = selectHarnessModel(harness);
+				for (const handler of harness.handlers.get("session_start") ?? []) await handler({}, harness.ctx);
+				const refresh = harness.commands.get("cliproxyapi-refresh")!;
+				const [request] = harness.handlers.get("before_provider_request") ?? [];
+				for (const capability of [true, false]) {
+					supported = capability;
+					await refresh("", harness.ctx);
+					assert.equal(harness.statuses.get("cliproxyapi-fast"), capability ? "fast" : undefined);
+					assert.deepEqual(selected.cost, capability ? priorityModelCost : standardFastModelCost);
+					assert.deepEqual(await request!({ payload: { model: selected.id } }, harness.ctx),
+						capability ? { model: selected.id, service_tier: "priority" } : undefined);
+				}
+			});
+		});
+	});
+});
+
+test("a paused request uses the Fast preference at release time", async () => {
+	await withCatalogServer(() => ({ status: 200, body: { models: [fastCatalogModel] } }), async (baseUrl) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				selectHarnessModel(harness);
+				await harness.commands.get("pause")!("", harness.ctx);
+				const [request] = harness.handlers.get("before_provider_request") ?? [];
+				const waiting = request!({ payload: { model: fastCatalogModel.slug } }, harness.ctx);
+				await harness.commands.get("fast")!("", harness.ctx);
+				await harness.commands.get("continue")!("", harness.ctx);
+				assert.deepEqual(await waiting, { model: fastCatalogModel.slug, service_tier: "priority" });
+			});
+		});
+	});
+});
+
+test("a failed /fast config write leaves request behavior, status, and pricing unchanged", async () => {
+	await withCatalogServer(() => ({ status: 200, body: { models: [fastCatalogModel] } }), async (baseUrl) => {
+		await withTempAgentDir(async (agentDir) => {
+			writeFreshModelsDevCache(agentDir, fastModelsDevProviders);
+			await withEnv({ PI_CODING_AGENT_DIR: agentDir, CLIPROXYAPI_BASE_URL: baseUrl, CLIPROXYAPI_FAST: undefined }, async () => {
+				const harness = createHarness();
+				await cliproxyapi(harness.pi);
+				selectHarnessModel(harness);
+				mkdirSync(join(agentDir, "cliproxyapi.json"));
+				await harness.commands.get("fast")!("", harness.ctx);
+				assert.equal(harness.notifications.at(-1)?.type, "error");
+				assert.equal(harness.statuses.get("cliproxyapi-fast"), undefined);
+				assert.deepEqual(harness.ctx.model?.cost, standardFastModelCost);
+				const [request] = harness.handlers.get("before_provider_request") ?? [];
+				assert.equal(await request!({ payload: {} }, harness.ctx), undefined);
 			});
 		});
 	});

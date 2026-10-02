@@ -602,7 +602,7 @@ test("SDK codemode excludes workflow lifecycle tools and preserves nested struct
 					type: "toolCall", id: "codemode-test", name: "codemode",
 					arguments: { code: `
 						for (const name of ["workflow_spawn", "workflow_resume", "workflow_recover", "workflow_complete"]) {
-							if (ALL_TOOLS.some(tool => tool.name === name) || typeof tools[name] === "function") {
+							if (ALL_TOOLS.some(tool => tool.name === name) || name in tools) {
 								throw new Error(name + " must be model-only");
 							}
 						}
