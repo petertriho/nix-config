@@ -90,11 +90,11 @@ let
       # pylint = prev.python3Packages.pylint.overridePythonAttrs {
       #   dependencies = prev.python3Packages.pylint.dependencies ++ [ prev.python3Packages.pylint-venv ];
       # };
-      tokscale = prev.tokscale.overrideAttrs (old: {
-        checkFlags = (old.checkFlags or [ ]) ++ [
-          "--skip=usage_reset_button_renders_when_credit_available"
-        ];
-      });
+      # tokscale = prev.tokscale.overrideAttrs (old: {
+      #   checkFlags = (old.checkFlags or [ ]) ++ [
+      #     "--skip=usage_reset_button_renders_when_credit_available"
+      #   ];
+      # });
       # Backport of nixpkgs 1ad1b5a7 (2026-09-29): grammars bundled by
       # mergiraf use an old tree-sitter array.h that breaks strict aliasing.
       # https://codeberg.org/mergiraf/mergiraf/issues/761

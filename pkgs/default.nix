@@ -36,6 +36,11 @@ with pkgs;
   };
   superpowers = callPackage ./superpowers { };
   taste-skill = callPackage ./taste-skill { };
+  # Return to the upstream cache once its runtime supports the system graphics libraries
+  # and its Vicinae/Numen toolchains are compatible:
+  # 1. Remove Vicinae's inputs.nixpkgs.follows in flake.nix.
+  # 2. Regenerate flake.lock.
+  # 3. Remove this override, keeping the upstream package alias.
   vicinae = inputs.vicinae.packages.${stdenv.hostPlatform.system}.default.override (
     lib.optionalAttrs stdenv.hostPlatform.isLinux {
       # Match Numen's compiler and C++ runtime instead of upstream's GCC 15 pin.
