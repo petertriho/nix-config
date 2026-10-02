@@ -5,7 +5,7 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "sessionist";
-  version = "0-unstable-2023-06-14";
+  version = "unstable-2023-06-14";
   src = fetchFromGitHub {
     owner = "petertriho";
     repo = "tmux-sessionist";
