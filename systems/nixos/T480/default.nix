@@ -16,6 +16,15 @@
     inputs.nixos-hardware.nixosModules.lenovo-thinkpad-t480
   ];
 
+  # GCC 16 rejects this runtime's incomplete-type SFINAE pattern.
+  nixpkgs.overlays = [
+    (final: prev: {
+      intel-compute-runtime-legacy1 = prev.intel-compute-runtime-legacy1.override {
+        stdenv = prev.gcc15Stdenv;
+      };
+    })
+  ];
+
   services.throttled.enable = lib.mkForce false;
 
   specialisation = {
