@@ -19,6 +19,7 @@ in
     inherit stripNpmManifest updateNpmLock;
   };
   pi-fzfp = callPackage ./pi-fzfp { };
+  pi-goal-x = callPackage ./pi-goal-x { };
   pi-lens = callPackage ./pi-lens {
     inherit stripNpmManifest updateNpmLock;
   };

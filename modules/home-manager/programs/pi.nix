@@ -19,6 +19,7 @@ let
     pi-cache-optimizer
     pi-codex-tools
     pi-fzfp
+    pi-goal-x
     pi-vim
     pi-lens
     # pi-subagents
