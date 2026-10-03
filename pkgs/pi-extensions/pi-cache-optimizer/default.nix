@@ -5,7 +5,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-cache-optimizer";
-  version = "2.8.16-unstable-2026-10-02";
+  version = "2.8.17-unstable-2026-10-02";
 
   src = fetchFromGitHub {
     owner = "jiangge";
