@@ -12,6 +12,7 @@
 
   xdg.configFile = {
     "aerospace".source = config.lib.meta.mkDotfilesSymlink "aerospace/.config/aerospace";
+    "glide".source = config.lib.meta.mkDotfilesSymlink "glide/.config/glide";
     # "karabiner/karabiner.json".source =
     #   config.lib.meta.mkDotfilesSymlink "karabiner/.config/karabiner/karabiner.json";
   };

@@ -1,0 +1,55 @@
+[settings]
+animate = false
+default_layout_kind = "scroll"
+default_disable = false
+default_keys = false
+focus_follows_mouse = false
+outer_gap = 0
+inner_gap = 0
+
+[settings.experimental.scroll]
+enable = true
+center_focused_column = "on_overflow"
+column_width_presets = [0.333, 0.5, 0.667, 1.0]
+
+[keys]
+# Focus
+"Alt + H" = { move_focus = "left" }
+"Alt + J" = { move_focus = "down" }
+"Alt + K" = { move_focus = "up" }
+"Alt + L" = { move_focus = "right" }
+"Alt + ArrowLeft" = { move_focus = "left" }
+"Alt + ArrowDown" = { move_focus = "down" }
+"Alt + ArrowUp" = { move_focus = "up" }
+"Alt + ArrowRight" = { move_focus = "right" }
+"Alt + Tab" = "focus_next"
+"Alt + Shift + Tab" = "focus_prev"
+
+# Move
+"Alt + Shift + H" = { move_node = "left" }
+"Alt + Shift + J" = { move_node = "down" }
+"Alt + Shift + K" = { move_node = "up" }
+"Alt + Shift + L" = { move_node = "right" }
+"Alt + Shift + ArrowLeft" = { move_node = "left" }
+"Alt + Shift + ArrowDown" = { move_node = "down" }
+"Alt + Shift + ArrowUp" = { move_node = "up" }
+"Alt + Shift + ArrowRight" = { move_node = "right" }
+
+# Resize
+"Alt + Ctrl + H" = { resize = { direction = "left", percent = 5 } }
+"Alt + Ctrl + J" = { resize = { direction = "down", percent = 5 } }
+"Alt + Ctrl + K" = { resize = { direction = "up", percent = 5 } }
+"Alt + Ctrl + L" = { resize = { direction = "right", percent = 5 } }
+
+# Layout
+"Alt + Z" = "toggle_fullscreen"
+"Alt + Shift + F" = "toggle_window_floating"
+"Alt + Shift + V" = "toggle_focus_floating"
+"Alt + R" = "cycle_column_width"
+"Alt + Y" = "toggle_column_tabbed"
+"Alt + Shift + S" = "change_layout_kind"
+
+# Launch
+"Alt + Enter" = { exec = ["/usr/bin/open", "-n", "-a", "Ghostty"] }
+"Alt + F" = { exec = ["/usr/bin/open", "-n", "-a", "Finder"] }
+"Alt + T" = { exec = ["/usr/bin/open", "-n", "-a", "Floorp"] }
