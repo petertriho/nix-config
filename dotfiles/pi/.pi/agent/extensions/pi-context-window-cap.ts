@@ -62,7 +62,7 @@ export const WARNING_PREFIX = "[pi-context-window-cap]";
 /**
  * Shared custom event emitted after a runtime model-catalog refresh.
  *
- * Keep this value in sync with pi-cliproxyapi-provider.ts.
+ * Keep this value in sync with pi-cliproxyapi-provider/shared.ts.
  */
 export const MODEL_CATALOG_REFRESHED_EVENT = "dotfiles:model-catalog-refreshed";
 

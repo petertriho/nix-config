@@ -147,6 +147,126 @@ test("modal keeps section navigation and a preview usable within narrow and shor
 	assert.equal(renders, 9);
 });
 
+test("q and Escape finish the context custom interaction from both context and help", () => {
+	for (const help of [false, true]) {
+		for (const key of ["q", "\x1b"]) {
+			let completed = 0;
+			const modal = new ContextModal({
+				rows: [{ group: "System prompt", label: "prompt", preview: "body", estimate: "~1" }],
+				usage: { tokens: null, window: null, percent: null, provenance: "Unknown" },
+			}, { terminal: { rows: 30 }, requestRender: () => {} }, { fg: (_c, s) => s }, () => { completed++; });
+			if (help) modal.handleInput("?");
+			for (const width of [40, 104]) {
+				const lines = modal.render(width);
+				assert.match(lines.join("\n"), /Esc\/q close/);
+				assert.match(lines.join("\n"), help ? /\? back/ : /\? (?:help|·)/);
+				assert.ok(lines.every((line) => visibleWidth(line) <= width));
+			}
+			modal.handleInput(key);
+			assert.equal(completed, 1);
+		}
+	}
+});
+
+test("? toggles useful local context help without inventing quota or unsupported shortcuts", () => {
+	let renders = 0;
+	const modal = new ContextModal({ rows: [], usage: { tokens: null, window: null, percent: null, provenance: "Unknown" } },
+		{ terminal: { rows: 50 }, requestRender: () => { renders++; } }, { fg: (_c, s) => s }, () => {});
+	const before = modal.render(104);
+	modal.handleInput("?");
+	assert.equal(renders, 1);
+	const text = modal.render(104).join("\n");
+	assert.match(text, /CONTEXT +· +help/);
+	for (const shortcut of ["↑/k · ↓/j", "PgUp/PgDn", "Enter: toggle", "→/l: expand", "←/h: collapse", "Esc/q: close"])
+		assert.ok(text.includes(shortcut), shortcut);
+	assert.match(text, /including from a child row/);
+	assert.match(text, /In help, ↑↓\/jk scroll and PgUp\/PgDn page/);
+	assert.match(text, /Reopen \/context for a fresh snapshot/);
+	assert.match(text, /not a provider tokenizer/);
+	assert.match(text, /overlap the system prompt/);
+	assert.match(text, /not the final payload/);
+	assert.doesNotMatch(text, /r: refresh|Home\/End|account focus|live quota/);
+	modal.handleInput("?");
+	assert.equal(renders, 2);
+	assert.deepEqual(modal.render(104), before);
+	// Opening and closing help before the first help render also preserves context.
+	modal.handleInput("?");
+	modal.handleInput("?");
+	assert.deepEqual(modal.render(104), before);
+});
+
+test("context expansion keys cannot change a focused section while help is open", () => {
+	for (const expanded of [false, true]) {
+		const modal = new ContextModal({
+			rows: [{ group: "System prompt", label: "prompt-source", preview: "prompt body", estimate: "~1" }],
+			usage: { tokens: null, window: null, percent: null, provenance: "Unknown" },
+		}, { terminal: { rows: 24 }, requestRender: () => {} }, { fg: (_c, s) => s }, () => {});
+		if (expanded) modal.handleInput("l");
+		const before = modal.render(104);
+		for (const key of ["\r", "h", "l", "\x1b[D", "\x1b[C"]) {
+			modal.handleInput("?");
+			modal.render(104);
+			modal.handleInput(key);
+			modal.handleInput("?");
+			assert.deepEqual(modal.render(104), before, `ignored ${JSON.stringify(key)} with expanded=${expanded}`);
+		}
+	}
+});
+
+test("help preserves selection, expanded groups and both independent scroll positions", () => {
+	const rows = [
+		{ group: "System prompt" as const, label: "prompt-source", preview: "prompt body", estimate: "~1" },
+		...Array.from({ length: 2 }, (_, n) => ({ group: "Tools" as const, label: `tool-${n}`, preview: "definition", estimate: "~1" })),
+		...Array.from({ length: 40 }, (_, n) => ({ group: "Conversation" as const, label: `message-${n}`, preview: `body-${n}`, estimate: "~1" })),
+	];
+	const tui = { terminal: { rows: 14 }, requestRender: () => {} };
+	const modal = new ContextModal({ rows, usage: { tokens: null, window: null, percent: null, provenance: "Unknown" } },
+		tui, { fg: (_c, s) => s }, () => {});
+	modal.handleInput("l"); // System prompt
+	for (let i = 0; i < 4; i++) modal.handleInput("j");
+	modal.handleInput("l"); // Tools
+	for (let i = 0; i < 3; i++) modal.handleInput("j");
+	modal.handleInput("l"); // Conversation
+	for (let i = 0; i < 17; i++) modal.handleInput("j");
+	const before = modal.render(40);
+	assert.match(before.join("\n"), /› +message-16/);
+	assert.doesNotMatch(before.join("\n"), /prompt-source|tool-0/); // List is scrolled.
+	modal.handleInput("?");
+	const helpStart = modal.render(40);
+	for (const key of ["j", "\x1b[B", "\x1b[6~"]) { modal.handleInput(key); modal.render(40); }
+	const helpDown = modal.render(40);
+	assert.notDeepEqual(helpDown, helpStart);
+	// Context-only actions must not change the hidden selection or expansion state.
+	for (const key of ["\r", "h", "l", "\x1b[D", "\x1b[C", "r"]) modal.handleInput(key);
+	assert.deepEqual(modal.render(40), helpDown);
+	for (const [down, up] of [["j", "k"], ["\x1b[B", "\x1b[A"], ["\x1b[6~", "\x1b[5~"]]) {
+		modal.handleInput(down); modal.render(40);
+		modal.handleInput(up);
+		assert.deepEqual(modal.render(40), helpDown, "help arrow/vim/page navigation is reversible");
+	}
+	modal.handleInput("?");
+	assert.deepEqual(modal.render(40), before);
+	modal.handleInput("?");
+	assert.deepEqual(modal.render(40), helpDown, "help retains its own scroll when reopened");
+	// Rendering help at other sizes must not clamp the hidden context list's scroll.
+	tui.terminal.rows = 30;
+	modal.render(104);
+	tui.terminal.rows = 6;
+	modal.render(22);
+	tui.terminal.rows = 14;
+	modal.handleInput("?");
+	assert.deepEqual(modal.render(40), before);
+	for (let i = 0; i < 40; i++) modal.handleInput("k");
+	const top = modal.render(104).join("\n");
+	assert.match(top, /▾ System prompt/);
+	assert.match(top, /prompt-source/);
+	// Reach the other expanded group after restoring the list.
+	for (let i = 0; i < 4; i++) modal.handleInput("j");
+	assert.match(modal.render(104).join("\n"), /▾ Tools/);
+	modal.handleInput("j");
+	assert.match(modal.render(104).join("\n"), /› +tool-0/);
+});
+
 test("command guards non-TUI and reconstructs a fresh snapshot on each TUI opening", async () => {
 	let handler: ((args: string, ctx: ExtensionCommandContext) => Promise<void>) | undefined;
 	let description = "";

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { type AssistantMessage, type AssistantMessageEvent, type Model, type SimpleStreamOptions, isRetryableAssistantError, lazyStream } from "@earendil-works/pi-ai";
-import { formatQuotaWait, quotaErrorHint, QuotaResumeController, type QuotaResumeHooks, streamWithQuotaResume } from "../cliproxyapi/resume.ts";
-import { hasConfirmedQuotaExhaustion, type QuotaSnapshot } from "../cliproxyapi/quota.ts";
+import { formatQuotaWait, quotaErrorHint, QuotaResumeController, type QuotaResumeHooks, streamWithQuotaResume } from "../pi-cliproxyapi-provider/resume.ts";
+import { hasConfirmedQuotaExhaustion, type QuotaSnapshot } from "../pi-cliproxyapi-provider/quota.ts";
 
 const model: Model<"openai-responses"> = {
   id: "gpt-test", name: "Test", provider: "cliproxyapi", api: "openai-responses", baseUrl: "http://localhost/v1",

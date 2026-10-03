@@ -3,7 +3,7 @@ import type {
 	SessionProjection, ToolInfo,
 } from "@earendil-works/pi-coding-agent";
 import { calculateContextTokens, formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
-import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { Key, matchesKey, ScrollView, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 export interface ContextRow {
 	group: "System prompt" | "Context files" | "Skills" | "Tools" | "Conversation";
@@ -210,6 +210,11 @@ function sourceName(label: string): string | null {
 export class ContextModal {
 	private selected = 0;
 	private scroll = 0;
+	private help = false;
+	private helpBody: string[] = [];
+	// Keep help scrolling separate so toggling it never changes the context viewport.
+	private readonly helpScroll = new ScrollView({ render: () => this.helpBody, invalidate: () => {} },
+		{ scrollbar: "hidden", overscroll: "contain" });
 	private readonly expanded = new Set<Group>();
 	private readonly snapshot: ContextSnapshot;
 	private readonly tui: { terminal: { rows: number }; requestRender(): void };
@@ -233,7 +238,19 @@ export class ContextModal {
 		return items;
 	}
 	handleInput(data: string): void {
-		if (matchesKey(data, Key.escape)) { this.done(); return; }
+		if (matchesKey(data, Key.escape) || data === "q") { this.done(); return; }
+		if (data === "?") {
+			this.help = !this.help;
+			this.tui.requestRender();
+			return;
+		}
+		if (this.help) {
+			if (matchesKey(data, Key.down) || data === "j") this.helpScroll.scrollBy(1);
+			else if (matchesKey(data, Key.up) || data === "k") this.helpScroll.scrollBy(-1);
+			else if (matchesKey(data, Key.pageDown)) this.helpScroll.scrollBy(Math.max(1, this.helpScroll.viewportHeight - 1));
+			else if (matchesKey(data, Key.pageUp)) this.helpScroll.scrollBy(-Math.max(1, this.helpScroll.viewportHeight - 1));
+			return;
+		}
 		const items = this.items();
 		const collapseKey = matchesKey(data, Key.left) || data === "h";
 		const expandKey = matchesKey(data, Key.right) || data === "l";
@@ -258,10 +275,49 @@ export class ContextModal {
 		else return;
 		this.tui.requestRender();
 	}
+	private helpLines(width: number): string[] {
+		return [
+			"LOCAL SHORTCUTS",
+			"↑/k · ↓/j: move between sections and rows",
+			"PgUp/PgDn: page through sections and rows",
+			"Enter: toggle the selected section",
+			"→/l: expand the selected section",
+			"←/h: collapse a section, including from a child row",
+			"?: return to context · Esc/q: close",
+			"",
+			"In help, ↑↓/jk scroll and PgUp/PgDn page.",
+			"",
+			"ABOUT THIS SNAPSHOT",
+			"Read-only prompt, active tools and current conversation.",
+			"Previews are clipped. Reopen /context for a fresh snapshot.",
+			"≈ tokens use text code points / 4, not a provider tokenizer.",
+			"Context files and skills overlap the system prompt; do not add their estimates.",
+			"Pi usage estimates the last accounted request plus trailing content, not the final payload.",
+		].flatMap((text) => wrapTextWithAnsi(text, width).map((line) => this.theme.fg(
+			text === "LOCAL SHORTCUTS" || text === "ABOUT THIS SNAPSHOT" ? "accent" : "muted", line)));
+	}
+	private renderHelp(width: number, maxHeight: number): string[] {
+		const header = maxHeight >= 4 ? [this.theme.fg("accent", " CONTEXT  ·  help")] : [];
+		const footerHeight = maxHeight >= 2 ? 1 : 0;
+		this.helpBody = this.helpLines(width).map((line) => truncateToWidth(line, width, "…"));
+		const viewport = Math.max(1, Math.min(this.helpBody.length, maxHeight - header.length - footerHeight));
+		this.helpScroll.updateLayout(this.helpBody.length, viewport, () => this.tui.requestRender());
+		const start = this.helpScroll.scrollTop;
+		const body = this.helpScroll.render(width).slice(start, start + viewport);
+		const range = `${start + 1}-${Math.min(start + viewport, this.helpBody.length)}/${this.helpBody.length} · `;
+		const footer = [range + "↑↓/jk scroll · PgUp/PgDn page · ? back · Esc/q close",
+			"↑↓ scroll · ? back · Esc/q close", "? back · Esc/q close", "? · Esc/q close", "Esc/q · ?", "q ?", "q"]
+			.find((text) => visibleWidth(text) <= width)!;
+		return [...header, ...body, ...(footerHeight ? [this.theme.fg("dim", footer)] : [])];
+	}
 	render(width: number): string[] {
-		const outerWidth = Math.max(1, Math.min(width, 104));
+		if (width <= 0 || this.tui.terminal.rows <= 0) return [];
+		const outerWidth = Math.min(width, 104);
 		const boxed = outerWidth >= 12 && this.tui.terminal.rows >= 9;
 		const w = boxed ? outerWidth - 4 : outerWidth;
+		const maxHeight = Math.max(1, Math.min(this.tui.terminal.rows - 2,
+			Math.floor(this.tui.terminal.rows * 0.85)) - (boxed ? 2 : 0));
+		if (this.help) return this.frame(this.renderHelp(w, maxHeight), width, outerWidth, boxed);
 		const { usage } = this.snapshot;
 		const items = this.items();
 		this.selected = Math.max(0, Math.min(this.selected, items.length - 1));
@@ -278,8 +334,6 @@ export class ContextModal {
 			...wrapTextWithAnsi(previewTitle, rightWidth).map((line) => this.theme.fg("accent", line)),
 			...wrapTextWithAnsi(safeText(preview), rightWidth).map((line) => this.theme.fg("muted", line)),
 		];
-		const maxHeight = Math.max(2, Math.min(this.tui.terminal.rows - 2,
-			Math.floor(this.tui.terminal.rows * 0.85)) - (boxed ? 2 : 0));
 		const lines: string[] = [];
 		const add = (s: string) => lines.push(truncateToWidth(s, w, "…"));
 		// Leave room for navigation and a preview before adding optional explanation.
@@ -369,15 +423,18 @@ export class ContextModal {
 			for (const line of shown) add(line);
 		}
 		if (footerHeight) {
-			const help = selected?.row ? "↑↓ move · ← collapse · Esc close" : "↑↓ move · Enter toggle · Esc close";
-			const compact = selected?.row ? "↑↓ · ← · Esc close" : "↑↓ · Enter · Esc close";
+			const help = selected?.row ? "↑↓ move · ← collapse · ? help · Esc/q close" : "↑↓ move · Enter toggle · ? help · Esc/q close";
+			const compact = selected?.row ? "↑↓ · ← · ? · Esc/q close" : "↑↓ · Enter · ? · Esc/q close";
 			const index = `${items.length ? this.selected + 1 : 0}/${items.length}  `;
-			const text = visibleWidth(index + help) <= w ? index + help
-				: visibleWidth(help) <= w ? help : visibleWidth(compact) <= w ? compact : "Esc close";
+			const text = [index + help, help, compact, "? help · Esc/q close", "? · Esc/q close", "Esc/q · ?", "q ?", "q"]
+				.find((text) => visibleWidth(text) <= w)!;
 			add(this.theme.fg("dim", text));
 		}
-		const body = lines.slice(0, height);
-		const centered = (line: string) => `${" ".repeat(Math.floor((width - outerWidth) / 2))}${line}`;
+		return this.frame(lines.slice(0, height), width, outerWidth, boxed);
+	}
+	private frame(body: string[], width: number, outerWidth: number, boxed: boolean): string[] {
+		const w = boxed ? outerWidth - 4 : outerWidth;
+		const centered = (line: string) => `${" ".repeat(Math.floor((width - outerWidth) / 2))}${truncateToWidth(line, boxed ? outerWidth : w, "…")}`;
 		if (!boxed) return body.map(centered);
 		const border = this.theme.fg("accent", `╭${"─".repeat(outerWidth - 2)}╮`);
 		const end = this.theme.fg("accent", `╰${"─".repeat(outerWidth - 2)}╯`);

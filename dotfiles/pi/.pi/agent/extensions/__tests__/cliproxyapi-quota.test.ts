@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import test from "node:test";
-import * as quota from "../cliproxyapi/quota.ts";
+import * as quota from "../pi-cliproxyapi-provider/quota.ts";
 import {
 	formatQuotaSnapshot,
 	loadQuotaSnapshot,
@@ -11,7 +11,7 @@ import {
 	type QuotaAvailability,
 	type QuotaSnapshot,
 	type QuotaWindow,
-} from "../cliproxyapi/quota.ts";
+} from "../pi-cliproxyapi-provider/quota.ts";
 
 type JsonRecord = Record<string, unknown>;
 type Call = { url: string; init: RequestInit; body?: JsonRecord };

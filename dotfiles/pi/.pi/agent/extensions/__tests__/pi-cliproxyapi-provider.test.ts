@@ -12,29 +12,14 @@ import type {
 	ProviderConfig,
 	RegisteredCommand,
 } from "@earendil-works/pi-coding-agent";
-import cliproxyapi, {
-	buildCostCatalog,
-	type CodexCatalogModel,
-	type ProviderChatModelConfig,
-	fetchCodexModels,
-	loadCostCatalog,
-	MODEL_CATALOG_REFRESHED_EVENT,
-	matchModelCost,
-	normalizeTransientNetworkError,
-	PauseController,
-	parseLegacyModelsCache,
-	parseModelsCache,
-	readPauseSetting,
-	readFastSetting,
-	readQuotaResumeSetting,
-	resolveManagementKey,
-	resolveEndpoints,
-	saveQuotaResumeSetting,
-	savePauseSetting,
-	saveFastSetting,
-	toPiModel,
-	waitForPauseToEnd,
-} from "../pi-cliproxyapi-provider.ts";
+import cliproxyapi from "../pi-cliproxyapi-provider/index.ts";
+import { QuotaModal } from "../pi-cliproxyapi-provider/quota-ui.ts";
+import { KeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
+import { buildCostCatalog, loadCostCatalog, matchModelCost } from "../pi-cliproxyapi-provider/pricing.ts";
+import { type CodexCatalogModel, type ProviderChatModelConfig, fetchCodexModels, parseLegacyModelsCache, parseModelsCache, resolveEndpoints, toPiModel } from "../pi-cliproxyapi-provider/catalog.ts";
+import { readPauseSetting, readFastSetting, readQuotaResumeSetting, resolveManagementKey, saveQuotaResumeSetting, savePauseSetting, saveFastSetting } from "../pi-cliproxyapi-provider/config.ts";
+import { normalizeTransientNetworkError, PauseController, waitForPauseToEnd } from "../pi-cliproxyapi-provider/stream.ts";
+import { MODEL_CATALOG_REFRESHED_EVENT } from "../pi-cliproxyapi-provider/shared.ts";
 
 // Fixtures trimmed from the live `/v1/models?client_version=pi` catalog.
 const gpt56Sol: CodexCatalogModel = {
@@ -386,7 +371,7 @@ function createHarness(): Harness {
 			statuses.set(key, text);
 		},
 	};
-	const ctx = { ui } as unknown as ExtensionCommandContext;
+	const ctx = { mode: "rpc", hasUI: true, ui } as unknown as ExtensionCommandContext;
 	const requestCtx = (provider: string, signal?: AbortSignal) =>
 		({ ui, model: { provider }, signal }) as unknown as ExtensionCommandContext;
 	return {
@@ -1340,6 +1325,117 @@ test("normalizeTransientNetworkError leaves already retryable, foreign, and non-
 });
 
 // --- quota commands and active-request integration
+
+function interactiveHarness(harness: Harness) {
+	const openings: Array<{modal?:QuotaModal; completions:number; disposals:number; renders:number}>=[];
+	const ctx={...harness.ctx,mode:"tui",hasUI:true,ui:{...harness.ctx.ui,
+		custom: (factory: (tui: {terminal:{rows:number};requestRender():void},theme:{fg:(color:string,text:string)=>string},keys:KeybindingsManager,done:()=>void)=>QuotaModal) => new Promise<void>((resolve)=>{
+			const entry={modal:undefined as QuotaModal|undefined,completions:0,disposals:0,renders:0}; openings.push(entry);
+			entry.modal=factory({terminal:{rows:40},requestRender:()=>{entry.renders++;}},{fg:(_c,s)=>s},new KeybindingsManager(TUI_KEYBINDINGS),()=>{
+				entry.completions++;entry.modal?.dispose();entry.disposals++;resolve();
+			});
+		}),
+	}} as unknown as ExtensionCommandContext;
+	return {ctx,openings,display:()=>openings.at(-1)?.modal?.render(104).join("\n")??""};
+}
+
+test("/quota opens TUI loading immediately, coalesces opens/refresh, completes, and reinspects without snapshot notifications",async()=>{
+	await withQuotaHarness(async(harness,_baseUrl,requests)=>{
+		const tui=interactiveHarness(harness), command=harness.commands.get("quota")!;
+		const original=globalThis.fetch;let release:(()=>void)|undefined;let listingCalls=0;
+		globalThis.fetch=async(input,init)=>{
+			if(String(input).endsWith("/credentials")){listingCalls++;await new Promise<void>(resolve=>{release=resolve;});}
+			return original(input,init);
+		};
+		const opening=command("",tui.ctx);
+		try {
+			assert.equal(tui.openings.length,1);assert.match(tui.display(),/Loading/);
+			await waitFor(()=>!!release);
+			await command("",tui.ctx);tui.openings[0]!.modal!.handleInput("r");assert.equal(listingCalls,1);
+			release!();await waitFor(()=>tui.display().includes("40% used"));
+			assert.equal(harness.notifications.length,0);assert.equal(tui.openings.length,1);
+			tui.openings[0]!.modal!.handleInput("q");await opening;
+			assert.equal(tui.openings[0]!.completions,1);assert.equal(tui.openings[0]!.disposals,1);
+			globalThis.fetch=original;
+			const next=command("",tui.ctx);await waitFor(()=>tui.display().includes("40% used"));tui.openings[1]!.modal!.handleInput("\x1b");await next;
+			assert.equal(requests.filter(r=>r.url==="/v8/management/credentials").length,2);
+			assert.equal(requests.some(r=>r.url==="/v1/responses"),false);
+			assert.equal(harness.notifications.length,0);
+		} finally {release?.();for(const entry of tui.openings)entry.modal?.close();globalThis.fetch=original;await opening;}
+	});
+});
+
+test("interactive inspection lifecycle invalidation completes only its own loading interaction and ignores late results",async()=>{
+	for(const eventName of ["session_start","model_select","session_before_switch","session_before_fork","session_before_tree","session_before_compact","session_shutdown"]) {
+		await withQuotaHarness(async(harness)=>{
+			const tui=interactiveHarness(harness), command=harness.commands.get("quota")!;
+			const original=globalThis.fetch;let release:(()=>void)|undefined;let signal:AbortSignal|undefined;
+			globalThis.fetch=async(input,init)=>{if(String(input).endsWith("/credentials")){signal=init?.signal??undefined;await new Promise<void>(resolve=>{release=resolve;});}return original(input,init);};
+			const operation=command("",tui.ctx);
+			try {
+				await waitFor(()=>!!release);assert.match(tui.display(),/Loading/);
+				const event=eventName==="model_select"?{previousModel:harness.ctx.model,model:{...harness.ctx.model,id:"different"}}:{};
+				for(const handler of harness.handlers.get(eventName)??[])await handler(event,tui.ctx);
+				assert.equal(tui.openings[0]!.completions,1,eventName);assert.equal(signal?.aborted,true,eventName);
+				const renders=tui.openings[0]!.renders;release!();await operation;await new Promise(resolve=>setImmediate(resolve));
+				assert.equal(tui.openings[0]!.renders,renders);assert.equal(tui.display(),"");assert.equal(harness.notifications.length,0);
+			} finally {release?.();tui.openings[0]?.modal?.close();globalThis.fetch=original;await operation;}
+		});
+	}
+});
+
+test("TUI argument/key/config failures stay local and safe; non-TUI modes never call custom",async()=>{
+	await withQuotaHarness(async(harness,_url,requests,configPath)=>{
+		const tui=interactiveHarness(harness),command=harness.commands.get("quota")!;
+		await command("extra",tui.ctx);assert.equal(tui.openings.length,0);assert.equal(requests.length,1);harness.notifications.length=0;
+		await withEnv({CLIPROXYAPI_MANAGEMENT_KEY:undefined,CLI_PROXY_API_KEY:undefined},async()=>{
+			for(const config of [undefined,"private-token{",JSON.stringify({managementKey:123})]) {
+				if(config===undefined)rmSync(configPath,{force:true});else writeFileSync(configPath,config);
+				const operation=command("",tui.ctx);await waitFor(()=>tui.display().includes("r retry"));
+				assert.doesNotMatch(tui.display(),/private-token|management-only|inference-only/);
+				assert.match(tui.display(),/CLIPROXYAPI_MANAGEMENT_KEY|valid JSON|non-empty string/);
+				tui.openings.at(-1)!.modal!.handleInput("q");await operation;
+			}
+		});
+		rmSync(configPath,{force:true});assert.equal(requests.length,1);assert.equal(harness.notifications.length,0);
+		for(const mode of ["rpc","print","json"] as const) {
+			await command("",{...harness.ctx,mode,hasUI:mode==="rpc",ui:{...harness.ctx.ui,custom:()=>{throw new Error("non-TUI custom called");}}} as ExtensionCommandContext);
+			assert.match(harness.notifications.at(-1)!.message,/40% used/);
+		}
+	});
+});
+
+test("popup open, refresh, and both close keys leave an automatic quota wait, assistant signal, manual pause and resume preference intact",async()=>{
+	await withQuotaHarness(async(harness,_url,_requests,configPath)=>{
+		await harness.commands.get("quota-resume")!("on",harness.ctx);
+		const assistant=new AbortController();let inferenceCalls=0;
+		const stream=harness.providers.at(-1)!.config.streamSimple!(harness.ctx.model!,normalizeContext({messages:[]}),{apiKey:"inference-only",signal:assistant.signal,fetch:async()=>{inferenceCalls++;return quotaErrorResponse();}});
+		try {
+			await waitFor(()=>!!harness.statuses.get("cliproxyapi-quota-wait"));savePauseSetting(configPath,true);
+			for(const key of ["q","\x1b"]) {
+				const tui=interactiveHarness(harness);
+				for(const input of harness.handlers.get("input")??[])await input({text:"/quota"},tui.ctx);
+				const operation=harness.commands.get("quota")!("",tui.ctx);await waitFor(()=>tui.display().includes("100% used"));
+				tui.openings[0]!.modal!.handleInput("r");await waitFor(()=>!tui.display().includes("Refreshing"));
+				tui.openings[0]!.modal!.handleInput(key);await operation;
+				assert.ok(harness.statuses.get("cliproxyapi-quota-wait"));assert.equal(inferenceCalls,1);assert.equal(assistant.signal.aborted,false);
+				assert.equal(readPauseSetting(configPath),true);assert.equal(readQuotaResumeSetting(configPath),true);
+			}
+		} finally {await harness.commands.get("quota-resume")!("off",harness.ctx);assert.equal((await stream.result()).stopReason,"aborted");}
+	},true);
+});
+
+test("invalidating a pending custom factory completes it without starting inspection",async()=>{
+	await withQuotaHarness(async(harness,_url,requests)=>{
+		const tui=interactiveHarness(harness),custom=tui.ctx.ui.custom;
+		let create:(()=>void)|undefined;
+		const ctx={...tui.ctx,ui:{...tui.ctx.ui,custom:(...args:Parameters<typeof custom>)=>new Promise<unknown>(resolve=>{create=()=>{void custom(...args).then(resolve);};})}} as unknown as ExtensionCommandContext;
+		const operation=harness.commands.get("quota")!("",ctx);
+		for(const handler of harness.handlers.get("session_before_switch")??[])await handler({},ctx);
+		create!();await operation;await new Promise(resolve=>setImmediate(resolve));
+		assert.equal(tui.openings[0]!.completions,1);assert.equal(requests.length,1);assert.equal(tui.display(),"");
+	});
+});
 
 function quotaManagerResponse(url: string, blocked = false): { status: number; body: unknown } {
 	if (url.startsWith("/v1/models")) return { status: 200, body: { models: [fastCatalogModel] } };

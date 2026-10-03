@@ -71,23 +71,23 @@ test("source filenames lead the list and preview; full selected paths wrap at 12
 			const previewRows = lines.filter((line) => /Context file:|\/home\/peter|\/pi\/|within prompt/.test(line))
 				.map((line) => line.split("│").at(-2)?.trim() ?? "");
 			assert.ok(previewRows.join("").replace(/\s+/g, "").includes(`${path}${name}`), text);
-			assert.match(text, /↑↓ move · ← collapse · Esc close/);
+			assert.match(text, columns === 40 ? /↑↓ · ← · \? · Esc\/q close/ : /↑↓ move · ← collapse · \? help · Esc\/q close/);
 			assert.doesNotMatch(text, /Enter toggle/);
 		}
 	}
 });
 
-test("40/60-column footers reserve Escape and describe only the selected item's actions", () => {
+test("40/60-column footers reserve help and Escape and describe only the selected item's actions", () => {
 	const rows: ContextRow[] = [{ group: "Tools", label: "Tool: read", preview: "read", estimate: "~1" }];
 	for (const columns of [40, 60]) {
 		const component = modal({ rows, usage }, columns, 24);
 		const group = renderAt(component, columns, 24).at(-2)!;
-		assert.match(group, columns === 40 ? /↑↓ · Enter · Esc close/ : /↑↓ move · Enter toggle · Esc close/);
+		assert.match(group, columns === 40 ? /↑↓ · Enter · \? · Esc\/q close/ : /↑↓ move · Enter toggle · \? help · Esc\/q close/);
 		for (let i = 0; i < 3; i++) component.handleInput("j");
 		component.handleInput("\r");
 		component.handleInput("j");
 		const child = renderAt(component, columns, 24).at(-2)!;
-		assert.match(child, /↑↓ move · ← collapse · Esc close/);
+		assert.match(child, columns === 40 ? /↑↓ · ← · \? · Esc\/q close/ : /↑↓ move · ← collapse · \? help · Esc\/q close/);
 		assert.doesNotMatch(child, /Enter/);
 	}
 });
@@ -118,5 +118,78 @@ test("intermediate and tiny heights never present an unqualified percentage", ()
 	}
 	const tiny = renderAt(modal({ rows, usage }, 40, 6), 40, 6).join("\n");
 	assert.match(tiny, /System prompt.*Effective prompt/s);
-	assert.match(tiny, /Esc close/);
+	assert.match(tiny, /\? (?:help ·|·) Esc\/q close/);
+});
+
+test("help wraps and scrolls within narrow, short and minimal overlay budgets", () => {
+	const snapshot = { rows: [], usage };
+	for (const columns of [1, 2, 5, 10, 14, 22, 40, 60, 80, 120, 160]) {
+		for (const termRows of [1, 2, 3, 4, 6, 8, 9, 10, 12, 24, 30]) {
+			const tui = { terminal: { rows: termRows }, requestRender: () => {} };
+			const component = new ContextModal(snapshot, tui, theme, () => {});
+			// Test even a single available column; the overlay can round its width to zero.
+			const width = Math.max(1, Math.floor(columns * 0.9));
+			const budget = Math.max(1, Math.min(termRows - 2, Math.floor(termRows * 0.85)));
+			const check = () => {
+				const lines = component.render(width);
+				assert.ok(lines.length <= budget, `${columns}x${termRows}: ${lines.length} > ${budget}`);
+				assert.ok(lines.every((line) => visibleWidth(line) <= width), `${columns}x${termRows}`);
+				assert.ok(lines.length > 0);
+				return lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
+			};
+			component.handleInput("?");
+			const start = check();
+			if (width >= 22 && termRows >= 6) assert.match(start.join("\n"), /\? back · Esc\/q close/);
+			for (let i = 0; i < 5; i++) { component.handleInput("\x1b[6~"); check(); }
+			for (let i = 0; i < 2000; i++) component.handleInput("j");
+			const end = check();
+			component.handleInput("j");
+			assert.deepEqual(check(), end, "help scrolling clamps at the end");
+			for (let i = 0; i < 2000; i++) component.handleInput("k");
+			assert.deepEqual(check(), start, "help scrolling clamps at the start");
+			component.handleInput("?");
+			check();
+		}
+	}
+});
+
+test("help can be read to the end at 40x6 and reflows safely after a resize", () => {
+	const tui = { terminal: { rows: 6 }, requestRender: () => {} };
+	const component = new ContextModal({ rows: [], usage }, tui, theme, () => {});
+	component.handleInput("?");
+	const pages: string[] = [];
+	for (let i = 0; i < 80; i++) {
+		pages.push(renderAt(component, 40, 6).join("\n"));
+		component.handleInput("\x1b[6~");
+	}
+	const text = pages.join("\n");
+	assert.match(text, /LOCAL SHORTCUTS/);
+	assert.match(text, /PgUp\/PgDn/);
+	assert.match(text, /Enter: toggle the selected/);
+	assert.match(text, /ABOUT THIS SNAPSHOT/);
+	assert.match(text, /not the final payload/);
+	// Clamp help's own viewport on resize, without rendering the hidden context view.
+	tui.terminal.rows = 30;
+	const wide = renderAt(component, 120, 30).join("\n");
+	assert.match(wide, /LOCAL SHORTCUTS/);
+	assert.match(wide, /not the final payload/);
+	tui.terminal.rows = 9;
+	for (const width of [1, 14, 36, 104]) {
+		const lines = component.render(width);
+		assert.ok(lines.length <= 7);
+		assert.ok(lines.every((line) => visibleWidth(line) <= width));
+	}
+});
+
+test("both context views return no lines when the terminal has no rendering space", () => {
+	const tui = { terminal: { rows: 24 }, requestRender: () => {} };
+	const component = new ContextModal({ rows: [], usage }, tui, theme, () => {});
+	for (const help of [false, true]) {
+		if (help) component.handleInput("?");
+		assert.deepEqual(component.render(0), []);
+		assert.deepEqual(component.render(-1), []);
+		tui.terminal.rows = 0;
+		assert.deepEqual(component.render(40), []);
+		tui.terminal.rows = 24;
+	}
 });

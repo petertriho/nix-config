@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["*.ts", "__tests__/*.ts", "cliproxyapi/**/*.ts", "pi-history/**/*.ts", "pi-agent-teams/**/*.ts", "workflow-provider/**/*.ts", "pi-workflows/**/*.ts"]
+  "include": ["*.ts", "__tests__/*.ts", "pi-cliproxyapi-provider/**/*.ts", "pi-history/**/*.ts", "pi-agent-teams/**/*.ts", "workflow-provider/**/*.ts", "pi-workflows/**/*.ts"]
 }
