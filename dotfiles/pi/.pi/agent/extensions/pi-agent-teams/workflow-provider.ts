@@ -76,6 +76,8 @@ export interface TmuxWorkflowProviderDependencies {
 	/** Return the canonical authorized checkout, rejecting a different execution repository. */
 	checkRepository(root: string, cwd: string, sessionPath?: string): string;
 	services: Services;
+	/** Refresh the parent's UI without sending ordinary subagent results. */
+	refresh: { start(): void; update(): void };
 	ctx: LaunchContext;
 	pi: Pick<ExtensionAPI, "sendMessage">;
 }
@@ -361,7 +363,13 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 				if (!isDeepStrictEqual(facts.model, selection)) throw new Error("Workflow launch model mismatch");
 				if (active.has(running.sessionFile)) throw new Error("Workflow role session already owned");
 				active.set(running.sessionFile, { owner: request.owner, running, controller });
+				deps.refresh.start();
 				void deps.services.watchSubagent(running, controller.signal)
+					.finally(() => {
+						if (!live()) return;
+						try { deps.refresh.update(); }
+						catch { /* A disposed UI must not change workflow result delivery. */ }
+					})
 					.then((result) => finish(request, running, result))
 					.catch((error) => finish(request, running, {
 						name: running.name, task: running.task, summary: errorText(error), error: errorText(error),

@@ -375,6 +375,7 @@ test("launch, resume and recovery retain coordinator ownership when post-launch 
 				assert.equal(authorized, root); assert.equal(cwd, root); return root;
 			},
 			ctx: f.ctx as never, pi: f.pi as never,
+			refresh: { start() {}, update() {} },
 			services: {
 				async launchSubagent(_params, _ctx, options) {
 					options?.beforeLaunch?.(root);
@@ -694,6 +695,7 @@ test("terminal child help remains non-successful after persistence and restore",
 				assert.equal(authorized, root); assert.equal(cwd, root); return root;
 			},
 			ctx: f.ctx as never, pi: f.pi as never,
+			refresh: { start() {}, update() {} },
 			services: {
 				async launchSubagent(_params, _ctx, options) {
 					options?.beforeLaunch?.(root);

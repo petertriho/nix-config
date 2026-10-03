@@ -58,10 +58,14 @@ function fixture(options: {
 	resumeCwd?: string;
 	skipRepositoryCheck?: boolean;
 	checkRepository?: TmuxWorkflowProviderDependencies["checkRepository"];
+	refreshStart?: () => void;
+	refreshUpdate?: () => void;
+	watchError?: string;
 } = {}) {
 	const events = bus();
 	const sidecars = new Map<string, LaunchProfile>([[running.sessionFile, profile]]);
 	const calls: string[] = [];
+	const refreshCounts = { starts: 0, updates: 0 };
 	let available = true;
 	let updateFails = false;
 	let modelUpdateFails = false;
@@ -116,6 +120,7 @@ function fixture(options: {
 				return { content: [{ type: "text" as const, text: "Session resumed" }], details: { status: "started", sessionPath: params.sessionPath } };
 			},
 			async watchSubagent(_running, signal) {
+				if (options.watchError) throw new Error(options.watchError);
 				return new Promise<SubagentResult>((resolve) => {
 					watched = resolve;
 					signal.addEventListener("abort", () => resolve({
@@ -125,12 +130,16 @@ function fixture(options: {
 			},
 			stopSubagent() { calls.push("stop"); if (stopFails) throw new Error("pane could not close"); },
 		},
+		refresh: {
+			start() { refreshCounts.starts++; options.refreshStart?.(); },
+			update() { refreshCounts.updates++; options.refreshUpdate?.(); },
+		},
 		ctx: { cwd: "/repo", model: undefined, modelRegistry: { getAvailable: () => [{ provider: "test", id: "echo" }, { provider: "test", id: "next" }] } as never,
 			sessionManager: { getSessionId: () => "parent", getSessionFile: () => "/parent.jsonl", getSessionDir: () => "/sessions" } },
 		pi: { sendMessage() {} },
 	});
 	assert.ok(attached);
-	return { events, attached, calls, sidecars, get watched() { return watched; },
+	return { events, attached, calls, sidecars, refreshCounts, get watched() { return watched; },
 		setAvailable(value: boolean) { available = value; }, failUpdate() { updateFails = true; },
 		failModelUpdate() { modelUpdateFails = true; },
 		pickModel(value: string) { pickedModel = value; },
@@ -152,6 +161,7 @@ test("root discovery, launch acknowledgement, and correlated lifecycle", { timeo
 	const reply = await requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch);
 	assert.equal(reply.data.profile.hash, agent.hash);
 	assert.equal(reply.data.metadataConfirmed, true);
+	assert.deepEqual(f.refreshCounts, { starts: 1, updates: 0 });
 	const delivered: unknown[] = [];
 	let finish!: () => void;
 	const finished = new Promise<void>((resolve) => { finish = resolve; });
@@ -161,10 +171,90 @@ test("root discovery, launch acknowledgement, and correlated lifecycle", { timeo
 	}, { sessionPath: running.sessionFile });
 	f.watched?.({ name: "Writer", task: "Write", summary: "done", sessionFile: running.sessionFile, exitCode: 0, elapsed: 1 });
 	await finished;
+	assert.deepEqual(f.refreshCounts, { starts: 1, updates: 1 });
 	assert.deepEqual(delivered.map((item) => (item as { result: unknown }).result),
 		[{ sessionPath: running.sessionFile, status: "completed", message: "done", stopRequired: true }]);
 	f.attached.detach();
 	assert.equal(f.events.size(), 0);
+});
+
+for (const watchError of [undefined, "capture failed"]) {
+	test(`a failing widget update preserves the ${watchError ? "rejected" : "completed"} watcher result`, { timeout: 3_000 }, async () => {
+		const f = fixture({
+			watchError,
+			refreshUpdate() { throw new Error("disposed UI"); },
+		});
+		let unsubscribe: (() => void) | undefined;
+		try {
+			const reply = await requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch);
+			const delivered: unknown[] = [];
+			let finish!: () => void;
+			const finished = new Promise<void>((resolve) => { finish = resolve; });
+			unsubscribe = subscribeWorkflowDelivery(f.events, f.attached.identity, owner, reply.requestId, (value) => {
+				delivered.push(value);
+				if (value.kind === "result") finish();
+			}, { sessionPath: running.sessionFile });
+			f.watched?.({ name: "Writer", task: "Write", summary: "done", sessionFile: running.sessionFile, exitCode: 0, elapsed: 1 });
+			await finished;
+			assert.deepEqual(f.refreshCounts, { starts: 1, updates: 1 });
+			assert.equal(delivered.length, 1);
+			assert.deepEqual((delivered[0] as { result: unknown }).result, {
+				sessionPath: running.sessionFile, status: watchError ? "failed" : "completed",
+				message: watchError ?? "done", stopRequired: true,
+			});
+		} finally {
+			unsubscribe?.();
+			f.attached.detach();
+		}
+	});
+}
+
+for (const transition of ["detach", "provider loss"]) {
+	test(`a late watcher cannot refresh the widget after ${transition}`, async () => {
+		const f = fixture();
+		let unsubscribe: (() => void) | undefined;
+		try {
+			const reply = await requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch);
+			const delivered: unknown[] = [];
+			unsubscribe = subscribeWorkflowDelivery(f.events, f.attached.identity, owner, reply.requestId,
+				(value) => delivered.push(value), { sessionPath: running.sessionFile });
+			if (transition === "detach") f.attached.detach();
+			else f.setAvailable(false);
+			f.watched?.({ name: "Writer", task: "Write", summary: "late result", sessionFile: running.sessionFile, exitCode: 0, elapsed: 1 });
+			await new Promise((resolve) => setImmediate(resolve));
+			assert.deepEqual(f.refreshCounts, { starts: 1, updates: 0 });
+			assert.deepEqual(delivered, []);
+		} finally {
+			unsubscribe?.();
+			f.attached.detach();
+		}
+	});
+}
+
+test("refresh startup failure stops the launched child before rejecting acknowledgement", async () => {
+	const f = fixture({ refreshStart() { throw new Error("UI startup failed"); } });
+	try {
+		await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch), /UI startup failed/);
+		assert.deepEqual(f.calls, ["launch", "stop"]);
+		assert.deepEqual(f.refreshCounts, { starts: 1, updates: 0 });
+		assert.equal(f.watched, undefined);
+		await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, "stop", owner,
+			{ sessionPath: running.sessionFile }), /owned.*not found/i);
+	} finally {
+		f.attached.detach();
+	}
+});
+
+test("an unconfirmed fresh launch cannot start widget refresh", async () => {
+	const f = fixture();
+	try {
+		f.sidecars.set(running.sessionFile, { ...profile, runtime: { ...profile.runtime, lastModel: { provider: "test", model: "wrong" } } });
+		await assert.rejects(requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch), /model mismatch/);
+		assert.deepEqual(f.calls, ["launch", "stop"]);
+		assert.deepEqual(f.refreshCounts, { starts: 0, updates: 0 });
+	} finally {
+		f.attached.detach();
+	}
 });
 
 test("terminal child ping settles the owned role", { timeout: 3_000 }, async () => {

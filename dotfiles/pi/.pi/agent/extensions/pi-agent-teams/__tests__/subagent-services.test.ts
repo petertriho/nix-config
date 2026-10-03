@@ -25,6 +25,7 @@ import {
 	createSubagentExecutionServices,
 	getDefaultSessionDirFor,
 	type SubagentServiceDependencies,
+	type RunningSubagent,
 } from "../subagent-services.ts";
 import { shellEscape } from "../tmux.ts";
 import { buildProviderFailureRecord } from "../../pi-workflows/workflow/recovery.ts";
@@ -126,6 +127,7 @@ function createHarness(
 		sendLongCommand?: SubagentServiceDependencies["sendLongCommand"];
 		resolveLaunchBehavior?: SubagentServiceDependencies["resolveLaunchBehavior"];
 		loadAgentDefaults?: SubagentServiceDependencies["loadAgentDefaults"];
+		resolveEffectiveInteractive?: SubagentServiceDependencies["resolveEffectiveInteractive"];
 		resolveSubagentPaths?: SubagentServiceDependencies["resolveSubagentPaths"];
 		getModuleAbortSignal?: SubagentServiceDependencies["getModuleAbortSignal"];
 		select?: (title: string, choices: string[]) => Promise<string | undefined>;
@@ -135,6 +137,8 @@ function createHarness(
 	const sentMessages: any[] = [];
 	const sentCommands: Array<{ command: string; scriptPath?: string }> = [];
 	const closedSurfaces: string[] = [];
+	const refreshStarts = { widget: 0, status: 0 };
+	const widgetSnapshots: RunningSubagent[][] = [];
 	let surfaceCount = 0;
 	const moduleAbort = new AbortController();
 	const deps: SubagentServiceDependencies = {
@@ -153,14 +157,17 @@ function createHarness(
 			inheritsConversationContext: false,
 			taskDelivery: "artifact",
 		})),
-		resolveEffectiveInteractive: () => false,
+		resolveEffectiveInteractive: options.resolveEffectiveInteractive ?? (() => false),
 		resolvePiModelArgument: () => `${TEST_MODEL.provider}/${TEST_MODEL.id}:off`,
 		resolveDenyTools: () => new Set(),
 		runningSubagents,
 		observeRunningSubagent() {},
-		startWidgetRefresh() {},
-		startStatusRefresh() {},
-		updateWidget() {},
+		startWidgetRefresh() {
+			refreshStarts.widget++;
+			deps.updateWidget();
+		},
+		startStatusRefresh() { refreshStarts.status++; },
+		updateWidget() { widgetSnapshots.push([...runningSubagents.values()]); },
 		isTmuxAvailable: () => true,
 		muxUnavailableResult: () => ({
 			content: [{ type: "text", text: "tmux unavailable" }],
@@ -212,6 +219,15 @@ function createHarness(
 		sentMessages,
 		sentCommands,
 		closedSurfaces,
+		refreshStarts,
+		widgetSnapshots,
+		refresh: {
+			start() {
+				deps.startWidgetRefresh();
+				deps.startStatusRefresh(pi);
+			},
+			update: deps.updateWidget,
+		},
 		get surfaceCount() { return surfaceCount; },
 	};
 }
@@ -730,6 +746,107 @@ for (const failedCloses of [0, 1, 2]) {
 	});
 }
 
+for (const [roleId, roleLabel] of [["planner", " Planner"], ["executor", " Executor"]]) {
+	for (const outcome of ["completed", "failed", "stopped", "close-failed"]) {
+		test(`fresh ${roleId} activates its widget and refreshes after ${outcome}`, async () => {
+			await withTempDir(async (root) => {
+				const exit = deferred<{ exitCode: number }>();
+				const definitionText = readFileSync(new URL(`../agents/${roleId}.md`, import.meta.url), "utf8");
+				const definition = agentDefinitions.parseAgentDefinition(definitionText, roleId);
+				assert.ok(definition?.body);
+				let closeAttempts = 0;
+				const harness = createHarness(root, {
+					pollForExit: () => exit.promise,
+					loadAgentDefaults: () => definition,
+					resolveEffectiveInteractive: () => definition.interactive === true,
+					closeSurface(surface) {
+						if (++closeAttempts <= (outcome === "close-failed" ? 2 : 0)) throw new Error("tmux unavailable");
+						harness.closedSurfaces.push(surface);
+					},
+				});
+				const emitter = new EventEmitter();
+				const events = {
+					on(channel: string, handler: (value: unknown) => void) {
+						emitter.on(channel, handler);
+						return () => { emitter.off(channel, handler); };
+					},
+					emit(channel: string, value: unknown) { emitter.emit(channel, value); },
+				};
+				const owner = { sessionId: "parent", runId: "run", roleId, ownershipId: "lease" };
+				const workflow = {
+					version: 1 as const, workflowId: "peter", runId: owner.runId, roleId,
+					manifestHash: "a".repeat(64), skillHash: "b".repeat(64),
+					policy: "per-role" as const, assignmentSource: "parent" as const,
+					projectRoot: root, data: {},
+				};
+				const deps = {
+					...tmuxWorkflowProviderIO(), events, sessionId: owner.sessionId, isAvailable: () => true,
+					resolveProfile: (id: string) => id === roleId ? {
+						agentId: roleId, path: join(root, `${roleId}.md`),
+						hash: hashText(definitionText), roleBodyHash: hashText(definition.body!),
+					} : null,
+					checkRepository: (authorized: string, cwd: string) => {
+						assert.equal(authorized, root);
+						assert.equal(cwd, root);
+						return root;
+					},
+					services: harness.services, refresh: harness.refresh, ctx: harness.ctx, pi: harness.pi,
+				};
+				const attached = attachTmuxWorkflowProvider(deps);
+				assert.ok(attached);
+				const deliveries: any[] = [];
+				const settled = deferred<void>();
+				let unsubscribe: (() => void) | undefined;
+				try {
+					const reply = await requestWorkflowProvider(events, attached.identity, "launch", owner, {
+						agentId: roleId, name: roleLabel, task: "Work.", workflow, repositoryRoot: root,
+						model: { provider: TEST_MODEL.provider, model: TEST_MODEL.id, thinking: "off" },
+					});
+					assert.equal(reply.data.accepted, true);
+					assert.equal(harness.runningSubagents.size, 1);
+					assert.deepEqual(harness.refreshStarts, { widget: 1, status: 1 });
+					const running = [...harness.runningSubagents.values()][0] as RunningSubagent;
+					assert.equal(running.name, roleLabel);
+					assert.equal(running.interactive, roleId === "planner");
+					assert.deepEqual(harness.widgetSnapshots.at(-1), [running]);
+					const theme = { fg: (_token: string, text: string) => text, bold: (text: string) => text };
+					const lines = agentDefinitions.renderSubagentWidgetLines(theme as never, harness.widgetSnapshots.at(-1)!, 80);
+					assert.ok(lines.some((line) => line.includes(roleLabel)), "the widget must show the workflow role label");
+					unsubscribe = subscribeWorkflowDelivery(events, attached.identity, owner, reply.requestId, (value) => {
+						deliveries.push(value);
+						if (value.kind === "result") settled.resolve();
+					}, { sessionPath: running.sessionFile });
+					if (outcome === "stopped") {
+						await requestWorkflowProvider(events, attached.identity, "stop", owner, { sessionPath: running.sessionFile });
+						exit.resolve({ exitCode: 0 });
+						await new Promise((resolve) => setImmediate(resolve));
+						assert.equal(deliveries.length, 0, "a stopped launch must not deliver a late result");
+					} else {
+						exit.resolve({ exitCode: outcome === "failed" ? 1 : 0 });
+						await settled.promise;
+						assert.equal(deliveries.length, 1, "only the correlated provider result is delivered");
+						assert.equal(deliveries[0].result.status, outcome === "completed" ? "completed" : "failed");
+						assert.ok(harness.widgetSnapshots.length >= 2, "watch completion must refresh the widget");
+					}
+					assert.equal(harness.sentMessages.length, 0, "the ordinary watcher must not send duplicate results");
+					if (outcome === "close-failed") {
+						assert.equal(deliveries[0].result.stopRequired, true);
+						assert.deepEqual(harness.widgetSnapshots.at(-1), [running], "a live pane must remain visible");
+						await requestWorkflowProvider(events, attached.identity, "stop", owner, { sessionPath: running.sessionFile });
+					}
+					assert.equal(harness.runningSubagents.size, 0);
+					assert.deepEqual(harness.widgetSnapshots.at(-1), [], "a closed role must leave the widget");
+				} finally {
+					unsubscribe?.();
+					attached.detach();
+					exit.resolve({ exitCode: 0 });
+					await new Promise((resolve) => setImmediate(resolve));
+				}
+			});
+		});
+	}
+}
+
 test("workflow role completion preserves final result markers across a later done turn", async () => {
 	await withTempDir(async (root) => {
 		const harness = createHarness(root, {
@@ -1004,7 +1121,7 @@ for (const scenario of [
 						return result;
 					},
 				},
-				ctx: harness.ctx, pi: harness.pi,
+				refresh: harness.refresh, ctx: harness.ctx, pi: harness.pi,
 			});
 			assert.ok(attached);
 			try {
@@ -1123,7 +1240,7 @@ for (const diagnostic of [
 					assert.equal(cwd, root);
 					return root;
 				},
-				services: harness.services, ctx: harness.ctx, pi: harness.pi,
+				services: harness.services, refresh: harness.refresh, ctx: harness.ctx, pi: harness.pi,
 			});
 			assert.ok(attached);
 			let unsubscribe: (() => void) | undefined;
@@ -1234,7 +1351,7 @@ for (const operation of ["resume", "recover"] as const) {
 							return harness.services.executeSubagentResume(...args);
 						},
 					},
-					ctx: harness.ctx, pi: harness.pi,
+					refresh: harness.refresh, ctx: harness.ctx, pi: harness.pi,
 				});
 				assert.ok(attached);
 				let unsubscribe: (() => void) | undefined;

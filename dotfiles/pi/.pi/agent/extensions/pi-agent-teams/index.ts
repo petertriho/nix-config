@@ -1029,6 +1029,13 @@ function attachWorkflowProvider(pi: ExtensionAPI, ctx: ExtensionContext): void {
     estimateContext: io.estimateContext,
     checkRepository: io.checkRepository,
     services: subagentExecution,
+    refresh: {
+      start() {
+        startWidgetRefresh();
+        startStatusRefresh(pi);
+      },
+      update: updateWidget,
+    },
     ctx: { ...ctx, pi },
     pi,
   });
