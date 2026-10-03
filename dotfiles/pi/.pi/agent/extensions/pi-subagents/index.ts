@@ -127,6 +127,7 @@ const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
 // Survive /reload: clear timers and abort poll loops from the previous module load.
 // /reload re-imports this file, giving fresh module-level state, but closures from
 // the old module keep running.
+// Keep these keys stable across extension directory renames.
 const WIDGET_INTERVAL_KEY = Symbol.for("pi-agent-teams/widget-interval");
 const STATUS_INTERVAL_KEY = Symbol.for("pi-agent-teams/status-interval");
 const POLL_ABORT_KEY = Symbol.for("pi-agent-teams/poll-abort-controller");

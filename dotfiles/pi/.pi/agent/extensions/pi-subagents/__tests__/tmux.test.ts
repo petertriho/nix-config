@@ -107,7 +107,7 @@ test("buildSendKeysArgs sends literal text and named keys", () => {
 });
 
 test("pollForExit returns the sidecar payload and removes the file without touching tmux", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-test-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-test-"));
 	try {
 		const sessionFile = join(dir, "session.jsonl");
 		writeFileSync(`${sessionFile}.exit`, JSON.stringify({ type: "ping", name: "A", message: "hi" }));

@@ -7,10 +7,10 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import subagents, { __test__ } from "../pi-agent-teams/index.ts";
+import subagents, { __test__ } from "../pi-subagents/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const extension = resolve(here, "../pi-agent-teams");
+const extension = resolve(here, "../pi-subagents");
 const attached = process.env.TMUX && spawnSync("tmux", ["display-message", "-p", "#{pane_id}"], {
   encoding: "utf8",
 });
@@ -39,7 +39,7 @@ try {
   const configSource = join(root, "tasks-config.json");
   writeFileSync(configSource, '{"autoClearCompleted":"never"}');
   symlinkSync(configSource, join(agentDir, "tasks-config.json"));
-  writeFileSync(join(extensions, "pi-agent-teams.ts"),
+  writeFileSync(join(extensions, "pi-subagents.ts"),
     `export { default } from ${JSON.stringify(join(extension, "index.ts"))};\n`);
   writeFileSync(join(extensions, "pi-tasks.ts"),
     `export { default } from ${JSON.stringify(nativeExtension)};\n`);
@@ -167,7 +167,7 @@ try {
   const escape = (value) => `'${value.replaceAll("'", "'\\''")}'`;
   const probeCommand = [
     "pi --no-extensions",
-    "-e", escape(join(extensions, "pi-agent-teams.ts")),
+    "-e", escape(join(extensions, "pi-subagents.ts")),
     "-e", escape(join(here, "stop-probe.ts")),
     "--model team-stop-probe/mock --session", escape(probeSession),
     escape("Run the stop probe"),

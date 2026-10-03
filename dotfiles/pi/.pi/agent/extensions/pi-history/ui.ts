@@ -7,7 +7,7 @@ export type ForegroundToken = Parameters<Theme["fg"]>[0];
 /**
  * Local presentation primitives for pi-history.
  *
- * This intentionally mirrors the read-only pi-agent-teams, pi-tui-shell,
+ * This intentionally mirrors the read-only pi-subagents, pi-tui-shell,
  * and pi-dashboard styling contract without coupling their extension modules.
  * Callers should render with the live theme and invalidate their own caches.
  */

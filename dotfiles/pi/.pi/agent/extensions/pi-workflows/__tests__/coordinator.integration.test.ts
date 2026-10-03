@@ -7,9 +7,9 @@ import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import piWorkflows from "../index.ts";
 import { coordinatorFixture, MODEL, savedRun, until, withParent } from "../coordinator-test-helper.ts";
-import { attachTmuxWorkflowProvider } from "../../pi-agent-teams/workflow-provider.ts";
-import { hashText, type LaunchProfile } from "../../pi-agent-teams/launch-profile.ts";
-import type { RunningSubagent } from "../../pi-agent-teams/subagent-services.ts";
+import { attachTmuxWorkflowProvider } from "../../pi-subagents/workflow-provider.ts";
+import { hashText, type LaunchProfile } from "../../pi-subagents/launch-profile.ts";
+import type { RunningSubagent } from "../../pi-subagents/subagent-services.ts";
 import {
 	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_DISCOVER_CHANNEL as DISCOVER,
 	WORKFLOW_PROVIDER_REQUEST_CHANNEL as REQUEST, WORKFLOW_PROVIDER_DELIVERY_CHANNEL as DELIVERY,

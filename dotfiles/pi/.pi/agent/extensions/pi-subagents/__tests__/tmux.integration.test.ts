@@ -27,7 +27,7 @@ test(
 	"tmux pane lifecycle: create, run a command, detect the sentinel, close",
 	{ skip: !insideTmux && "TMUX is not set", timeout: 30_000 },
 	async () => {
-		const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-it-"));
+		const dir = mkdtempSync(join(tmpdir(), "pi-subagents-it-"));
 		let pane: string | undefined;
 		try {
 			pane = createSurface("it-echo");

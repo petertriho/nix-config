@@ -86,7 +86,7 @@ export function pingExistingProvider(
 ): Promise<boolean> {
 	const timeoutMs = options.timeoutMs ?? 250;
 	const requestId =
-		options.requestId ?? `pi-agent-teams-probe-${Math.random().toString(16).slice(2, 10)}`;
+		options.requestId ?? `pi-subagents-probe-${Math.random().toString(16).slice(2, 10)}`;
 	return new Promise<boolean>((resolve) => {
 		const timer = setTimeout(() => {
 			unsubscribe();

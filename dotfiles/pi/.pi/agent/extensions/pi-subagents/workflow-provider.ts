@@ -30,6 +30,7 @@ import type {
 	createSubagentExecutionServices,
 } from "./subagent-services.ts";
 
+// Saved workflow runs bind to this ID, independent of the extension directory name.
 export const TMUX_WORKFLOW_PROVIDER_ID = "pi-agent-teams";
 function resolveGitRoot(startDir: string): string | null {
 	try {
@@ -141,6 +142,7 @@ function checkedFacts(
 	};
 }
 
+// Keep the key stable so reload replaces registrations from the previous module.
 const REGISTRATION_KEY = Symbol.for("pi-agent-teams/workflow-provider-registration");
 type Claim = { events: WorkflowEventBus; generation: string; detach(): void };
 type Claims = Record<symbol, Claim | undefined>;

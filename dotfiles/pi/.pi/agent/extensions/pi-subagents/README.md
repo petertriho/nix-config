@@ -1,4 +1,6 @@
-# Pi agents and teams
+# Pi subagents
+
+Subagents and native teams for Pi.
 
 `Agent` runs ordinary Pi or Claude CLI agents. `SendMessage` follows up with
 finished ordinary agents. `ListAgents` lists agents, and `AgentInterrupt`
@@ -58,6 +60,17 @@ background process” error. Prefer `TeamStop` for an unambiguous team stop.
 require UI orchestration; they are not callable through `ctx.executeTool()`.
 `ListAgents` returns structured `{ agents: [...] }` output to codemode scripts.
 Its direct calls retain the readable agent list.
+
+## Compatibility
+
+`pi-subagents` replaces the `pi-agent-teams` extension directory. Tools and
+commands keep their existing names. Home Manager links the new directory after
+activation.
+
+The workflow provider ID remains `pi-agent-teams`. The saved session entry type
+remains `pi-agent-teams.workflow-run`. These IDs preserve existing workflow runs.
+Global reload keys also remain unchanged so the new module can clean up resources
+from the previous module.
 
 ## Tests
 

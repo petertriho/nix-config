@@ -32,7 +32,7 @@ test("Pi loader binds installed entries in both orders and disables workflows wi
 	};
 	try {
 		for (const order of [
-			["pi-agent-teams", "pi-workflows"], ["pi-workflows", "pi-agent-teams"], ["pi-workflows"],
+			["pi-subagents", "pi-workflows"], ["pi-workflows", "pi-subagents"], ["pi-workflows"],
 		]) {
 			const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } });
 			const resourceLoader = new DefaultResourceLoader({
@@ -96,6 +96,7 @@ test("Pi loader binds installed entries in both orders and disables workflows wi
 						entry.type === "custom" && entry.customType === "pi-agent-teams.workflow-run");
 					const historical: any = structuredClone((snapshots.at(-1) as any).data);
 					assert.equal(historical.workflowId, "docs-review");
+					assert.equal(historical.providerId, "pi-agent-teams");
 					delete historical.providerId;
 					session.sessionManager.appendCustomEntry("pi-agent-teams.workflow-run", historical);
 					await session.extensionRunner.emit({ type: "session_shutdown", reason: "reload" });

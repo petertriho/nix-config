@@ -129,7 +129,7 @@ function createMockExtensionApi(options: { env?: Record<string, string> } = {}) 
 				description: command.description,
 				source: "extension",
 				sourceInfo: {
-					path: "/tmp/pi-agent-teams/index.ts",
+					path: "/tmp/pi-subagents/index.ts",
 					source: "test",
 					scope: "temporary",
 					origin: "top-level",
@@ -180,7 +180,7 @@ function markerTheme(marker = "theme") {
 }
 
 function withTempDir(run: (dir: string) => void): void {
-	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-index-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-index-"));
 	try {
 		run(dir);
 	} finally {
@@ -237,7 +237,7 @@ function restoreEnvVar(name: string, value: string | undefined): void {
 async function withIsolatedAgentEnv(
 	fn: (paths: { projectAgentsDir: string; globalAgentsDir: string }) => Promise<void> | void,
 ): Promise<void> {
-	const root = mkdtempSync(join(tmpdir(), "pi-agent-teams-agents-"));
+	const root = mkdtempSync(join(tmpdir(), "pi-subagents-agents-"));
 	const previousCwd = process.cwd();
 	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const projectDir = join(root, "project");
@@ -4512,7 +4512,7 @@ test("root session_start wires the task RPC handlers and emits ready once", asyn
 			(entry) =>
 				entry.channel === "subagents:rpc:ping"
 				&& typeof (entry.data as AnyRecord)?.requestId === "string"
-				&& ((entry.data as AnyRecord).requestId as string).startsWith("pi-agent-teams-probe-"),
+				&& ((entry.data as AnyRecord).requestId as string).startsWith("pi-subagents-probe-"),
 		).length;
 		assert.equal(probePings, 1, "no extra provider probe after the handlers are live");
 	} finally {
@@ -4628,7 +4628,7 @@ test("a stale attach settling mid-transition cannot admit a duplicate handler se
 			(entry) =>
 				entry.channel === "subagents:rpc:ping"
 				&& String((entry.data as AnyRecord)?.requestId ?? "").startsWith(
-					"pi-agent-teams-probe-",
+					"pi-subagents-probe-",
 				),
 		).length;
 		assert.equal(probes, 2, "no-op attach attempts must not probe again");

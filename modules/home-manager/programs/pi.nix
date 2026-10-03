@@ -421,8 +421,8 @@ in
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
         "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
-        "${cfg.configDir}/extensions/pi-agent-teams".source =
-          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-agent-teams";
+        "${cfg.configDir}/extensions/pi-subagents".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-subagents";
         "${cfg.configDir}/extensions/pi-workflows".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-workflows";
         # Transport-neutral imports are siblings of both extension entry points.

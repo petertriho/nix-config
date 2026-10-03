@@ -10,7 +10,7 @@ import {
 } from "../activity.ts";
 
 function withTempDir(run: (dir: string) => void): void {
-	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-activity-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-activity-"));
 	try {
 		run(dir);
 	} finally {
@@ -144,7 +144,7 @@ test("reload shutdown is not recorded as the final done snapshot", () => {
 });
 
 test("pending throttled writes are cancelled on reload shutdown", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-activity-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-activity-"));
 	try {
 		let currentNow = 1_000;
 		const activityFile = getSubagentActivityFile(dir, "child-5");

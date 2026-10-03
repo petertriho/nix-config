@@ -8,8 +8,8 @@ import { parseExplicitModelSelection as parseNeutralModel } from "../model-picke
 import {
 	readLaunchProfile as readTmuxProfile,
 	writeLaunchProfile as writeTmuxProfile,
-} from "../../pi-agent-teams/launch-profile.ts";
-import { parseExplicitModelSelection as parseTmuxModel } from "../../pi-agent-teams/model-picker.ts";
+} from "../../pi-subagents/launch-profile.ts";
+import { parseExplicitModelSelection as parseTmuxModel } from "../../pi-subagents/model-picker.ts";
 
 test("ordinary tmux imports share the neutral sidecar and model selection implementations", () => {
 	assert.strictEqual(readTmuxProfile, readNeutralProfile);

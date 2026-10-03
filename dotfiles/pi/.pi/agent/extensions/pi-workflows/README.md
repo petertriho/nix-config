@@ -2,7 +2,7 @@
 
 `pi-workflows` owns workflow discovery, commands, model assignments, persisted
 runs, and browser review gates.
-`pi-agent-teams` supplies the execution provider. It owns panes, child
+`pi-subagents` supplies the execution provider. It owns panes, child
 sessions, sidecars, context estimates, and child watchers.
 
 The extensions communicate through the versioned `pi.events` contract in
@@ -15,10 +15,10 @@ The Home Manager Pi module links these directories under
 `~/.pi/agent/extensions/`:
 
 - `pi-workflows/`
-- `pi-agent-teams/`
+- `pi-subagents/`
 - `workflow-provider/` (shared modules, not an extension)
 
-Agent profiles remain in `pi-agent-teams/agents/`. Global and trusted
+Agent profiles remain in `pi-subagents/agents/`. Global and trusted
 project profiles keep their existing precedence.
 
 Both extension load orders work. A bounded startup handshake discovers
@@ -49,12 +49,13 @@ qualifies. With multiple providers, the user selects one before model setup.
 Cancellation or missing interactive UI preserves the current run.
 
 Each run retains its provider ID. The coordinator rejects execution through
-a different provider. Snapshots without a provider ID use `pi-agent-teams`.
+a different provider. The `pi-subagents` provider retains the ID `pi-agent-teams`
+for compatibility with saved runs. Snapshots without a provider ID use that ID.
 Provider loss never triggers automatic migration or retry.
 
 ## Saved state and presets
 
-The session entry type is `pi-agent-teams.workflow-run`. Snapshots under that
+The session entry type remains `pi-agent-teams.workflow-run`. Snapshots under that
 type retain their embedded definitions, private skill text, gate history,
 and role-session history.
 

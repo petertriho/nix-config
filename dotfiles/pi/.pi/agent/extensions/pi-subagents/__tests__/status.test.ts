@@ -19,7 +19,7 @@ import {
 } from "../status.ts";
 
 function withTempDir(run: (dir: string) => void): void {
-	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-status-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-status-"));
 	try {
 		run(dir);
 	} finally {

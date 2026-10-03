@@ -54,7 +54,7 @@ const TOOL_RESULT = {
 };
 
 function withTempDir(run: (dir: string) => void): void {
-	const dir = mkdtempSync(join(tmpdir(), "pi-agent-teams-session-"));
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-session-"));
 	try {
 		run(dir);
 	} finally {

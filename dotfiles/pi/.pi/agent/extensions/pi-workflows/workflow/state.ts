@@ -38,6 +38,7 @@ import {
 	type WorkflowSourceScope,
 } from "./types.ts";
 
+// Keep the entry type stable so existing sessions restore after an extension rename.
 export const WORKFLOW_RUN_ENTRY_CUSTOM_TYPE = "pi-agent-teams.workflow-run";
 
 const WORKFLOW_RUN_STATUSES = ["active", "completed", "aborted"] as const;

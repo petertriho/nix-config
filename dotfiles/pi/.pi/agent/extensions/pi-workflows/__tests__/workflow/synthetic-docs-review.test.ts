@@ -20,8 +20,8 @@ import type {
 	RunningSubagent,
 	SubagentLaunchParams,
 	SubagentResumeParams,
-} from "../../../pi-agent-teams/subagent-services.ts";
-import { createStatusState } from "../../../pi-agent-teams/status.ts";
+} from "../../../pi-subagents/subagent-services.ts";
+import { createStatusState } from "../../../pi-subagents/status.ts";
 import { buildWorkflowRolloverHandoffForRole } from "../../workflow/handoff.ts";
 import { discoverWorkflowRegistry } from "../../workflow/registry.ts";
 import {
