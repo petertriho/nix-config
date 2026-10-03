@@ -42,8 +42,7 @@ in
     home.sessionVariables = browserEnv;
 
     # Rendered to the shared XDG MCP file and each client's native MCP config.
-    # Pi defaults server exposure to codemode. Directly expose only the two
-    # high-signal tools. web_crawl and web_screenshot stay on codemode.
+    # Pi defaults server exposure to codemode. Only web_search is direct.
     programs.ai.mcp.donsetch = {
       command = lib.getExe' cfg.package "donsetch";
       args = [
@@ -53,7 +52,7 @@ in
       # Explicit paths avoid incompatible cached browsers and unwrapped Nix binaries.
       env = browserEnv;
       toolExposure = {
-        web_fetch = "direct";
+        web_fetch = "codemode";
         web_search = "direct";
       };
     };
