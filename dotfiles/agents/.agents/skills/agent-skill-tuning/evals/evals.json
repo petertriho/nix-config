@@ -38,6 +38,34 @@
       "files": [
         "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "Audit the supplied authoring-skill.md fixture without editing or executing it. Apply the skill-authoring best practices, not only Opus prompting advice. Identify concrete problems in discovery, resource navigation, workflow freedom, script behavior, dependency assumptions, and validation. Preserve its required approval and do not rename it automatically.",
+      "expected_output": "Find the vague description, nested and Windows-style references, excessive tool choices, stale date branch, missing validation loop, unsafe script defaults, unexplained constants, assumed packages, and unqualified MCP tool. Recommend a default with a conditional fallback, direct resource links, verifiable intermediate outputs, and client-specific dependency checks. Do not execute the migration or install packages. Keep rename suggestions separate from authorized edits.",
+      "files": [
+        "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/authoring-skill.md"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I want every recommendation from the skill-authoring best practices incorporated into a named skill, while keeping all advice from the two Opus 5.5 guides. Explain your coverage and preservation method first. Do not edit anything yet. You may keep the main SKILL.md short, but links alone are not enough.",
+      "expected_output": "Plan a full section-by-section inventory including examples, code, diagrams, limits, and caveats. Map each item to operational instructions or an explicitly conditional reference. Preserve baseline advice and approvals. Use progressive disclosure without omitting model-specific details or claiming that source links establish coverage. Keep this response read-only.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "Audit the supplied authoring-skill.md fixture for use in the Claude API skill container. Should its instructions install pypdf at runtime, silently use an empty file on permission errors, and invoke bigquery_schema without a server name? Suggestions only. Do not run tools that change files, install packages, or access external records.",
+      "expected_output": "Explain that the documented API container has no network access or runtime installation. Require available dependencies and a qualified tool name adapted to the client. Keep permission errors visible and do not create empty success outputs or bypass approval. Recommend a validated plan and actionable errors before authorized execution.",
+      "files": [
+        "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/authoring-skill.md"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I tuned a skill on Opus only and its new text is shorter. Can I say it improves Haiku, Sonnet, and GPT? Describe the evaluations I need, how to inspect resource navigation, and how real-user feedback changes the next iteration. Do not launch paid model runs or edit files.",
+      "expected_output": "Reject unmeasured cross-model and token-savings claims. Require at least three representative gap-based scenarios, the old skill baseline for tuning, and actual tests for each intended model and client. Inspect unexpected read order, missed links, repeated reads, and ignored resources. Separate structural checks, manual reviews, actual runs, and team feedback. Respect the prohibition on launching runs.",
+      "files": []
     }
   ]
 }

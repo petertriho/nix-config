@@ -4,11 +4,28 @@ These are **transferable design hypotheses**, drawn from two guides about
 Claude Opus 5.5. Neither guide establishes how GPT-6 or any other model
 behaves. Test changes against the target skill's actual users, models, and
 clients before treating them as improvements.
+The companion skill-authoring reference adds the third source's complete
+authoring practices without replacing the hypotheses below.
 
-Sources, checked 2026-09-28:
+Sources, checked 2026-10-04:
 
+- **Skill authoring:** [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
 - **Blog:** [Getting the most out of Opus 5.5 in Claude and Claude Code](https://claude.dev/blog/getting-the-most-out-of-opus-5-5/)
 - **Docs:** [Prompting Claude Opus 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5)
+
+## Contents
+
+- [Transferable skill design hypotheses](#transferable-skill-design-hypotheses)
+- [Authoring hypotheses](#authoring-hypotheses)
+- [Model- or harness-specific details: do not generalize](#model--or-harness-specific-details-do-not-generalize)
+
+Read the resources linked directly from `SKILL.md` according to applicability:
+
+- `references/skill-authoring.md`: Full authoring guidance, limits, examples, and checklists.
+- `references/opus-specific.md`: Full model/client advice, including runtime controls and caveats.
+- `references/source-coverage.md`: Section-by-section source and baseline preservation map.
+
+The main file links each resource directly, so no nested read chain is required.
 
 If the user asks for the latest guidance, recheck the sources. If the user
 asks for a specific model, consult its current documentation when available.
@@ -39,7 +56,25 @@ These principles concern outcomes and workflow design. They do not promise a
 quality or latency gain on every model. Preserve existing constraints when
 testing shows that a proposed simplification performs worse.
 
+## Authoring hypotheses
+
+The full advice and examples are retained in `references/skill-authoring.md`.
+These additions complement the original table rather than replace it.
+
+| When the skill... | Consider... | Preserve this limit | Source section |
+| --- | --- | --- | --- |
+| Explains generic background | Keep only information the model needs for this task. | Concision must not delete contracts, caveats, or required examples. | “Concise is key” |
+| Has variable or fragile operations | Choose high, medium, or low instruction freedom by risk. | Do not loosen exact safety sequences or rigidly script exploratory judgment. | “Set appropriate degrees of freedom” |
+| Is difficult to discover or navigate | Check specific metadata, direct links, domain references, and contents lists. | Preserve stable names, manual invocation, and supported client metadata. | “Naming conventions”; “Writing effective descriptions”; “Progressive disclosure patterns” |
+| Has complex steps or strict outputs | Use ordered workflows, conditional branches, templates, examples, and feedback loops. | Match format strictness to the contract. Do not require a checklist for trivial work. | “Workflows and feedback loops”; “Common patterns” |
+| Repeats deterministic operations | Use documented, tested scripts and verifiable intermediate outputs. | Check dependencies, permissions, explicit recovery, and actual tool names first. | “Advanced: Skills with executable code” |
+| Claims a benefit from tuning | Define gap-based evaluations and compare real behavior with the baseline. | Test intended models and clients. Report absent runs and unconfirmed benefits. | “Evaluation and iteration”; “Test with all models you plan to use” |
+
 ## Model- or harness-specific details: do not generalize
+
+The summary below is preserved from the original reference.
+`references/opus-specific.md` retains the full advice, including details formerly
+only mentioned here, and source guidance that this original summary omitted.
 
 The Docs describe **Opus 5.5** as not accepting disabled thinking through
 the API. They recommend effort calibration and explain progress-update
