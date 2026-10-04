@@ -77,13 +77,13 @@ let
 in
 buildNpmPackage (finalAttrs: {
   pname = "pi-lens";
-  version = "4.3.0-unstable-2026-10-02";
+  version = "4.3.0-unstable-2026-10-03";
 
   src = fetchFromGitHub {
     owner = "apmantza";
     repo = "pi-lens";
-    rev = "5753d861e1ed6bda872ced11569fe72d501f3534";
-    hash = "sha256-V4it8j17fFqECMOz5NyeCuzhMf7pfqwSrXfjuRymc6A=";
+    rev = "e8fc45d2e877262e4453b611e9f63c0d689b194c";
+    hash = "sha256-b7HY5aaR5/zsbkrxUdI7zOOo2U6Pl8BAlo5O8whH6WM=";
   };
 
   nodejs = nodejs_24;
