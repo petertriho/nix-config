@@ -18,6 +18,7 @@ let
     pi-blackhole
     pi-cache-optimizer
     pi-codex-tools
+    pi-context-view
     pi-fzfp
     pi-goal-x
     pi-vim

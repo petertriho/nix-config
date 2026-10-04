@@ -18,6 +18,7 @@ in
   pi-codex-tools = callPackage ./pi-codex-tools {
     inherit stripNpmManifest updateNpmLock;
   };
+  pi-context-view = callPackage ./pi-context-view { };
   pi-fzfp = callPackage ./pi-fzfp { };
   pi-goal-x = callPackage ./pi-goal-x { };
   pi-lens = callPackage ./pi-lens {
