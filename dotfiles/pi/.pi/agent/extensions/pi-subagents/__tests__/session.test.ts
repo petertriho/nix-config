@@ -13,7 +13,7 @@ import {
 	mergeNewEntries,
 	seedSubagentSessionFile,
 	type SessionEntry,
-} from "../session.ts";
+} from "../sessions/session.ts";
 
 const SESSION_HEADER = { type: "session", id: "sess-001", version: 3 };
 const MODEL_CHANGE = { type: "model_change", id: "mc-001", parentId: null };

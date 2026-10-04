@@ -3,7 +3,7 @@ import test from "node:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolveTaskDiskCandidate as deriveCandidate, type TaskDiskInputs } from "../task-disk-policy.ts";
+import { resolveTaskDiskCandidate as deriveCandidate, type TaskDiskInputs } from "../tasks/disk-policy.ts";
 
 const session = { sessionId: "session-1", sessionFile: "/tmp/persistent-session-1.jsonl" };
 const resolveTaskDiskCandidate = (input: TaskDiskInputs) => deriveCandidate({ ...session, ...input });

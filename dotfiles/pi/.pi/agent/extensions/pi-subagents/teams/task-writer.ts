@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { reclaimDeadTeamLock } from "./team-lock.ts";
+import { reclaimDeadTeamLock } from "./lock.ts";
 import {
   resolveTaskDiskCandidate,
   type DiskCandidate,
   type DiskTask,
   type TaskDiskInputs,
-} from "./task-disk-policy.ts";
+} from "../tasks/disk-policy.ts";
 
 type Candidate = Extract<DiskCandidate, { ok: true }>;
 export type TeamTaskMutation =

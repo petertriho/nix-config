@@ -7,8 +7,8 @@ export const DEFAULT_STATUS_LINE_LIMIT = 4;
 export const MAX_STATUS_NAME_LENGTH = 72;
 export const MAX_STATUS_LINE_LENGTH = 120;
 
-// Config lives next to this module: <extension dir>/config.json.
-const EXTENSION_DIR = dirname(fileURLToPath(import.meta.url));
+// Config stays at the extension root, one directory above this module.
+const EXTENSION_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 const DEFAULT_STATUS_CONFIG_PATH = join(EXTENSION_DIR, "config.json");
 const STATUS_CONFIG_EXAMPLE_PATH = join(EXTENSION_DIR, "config.json.example");
 

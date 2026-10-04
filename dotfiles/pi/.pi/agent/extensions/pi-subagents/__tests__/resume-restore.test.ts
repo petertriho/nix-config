@@ -9,7 +9,7 @@ import {
 	primarySkillChanged,
 	resolveResumeRestoration,
 	resourceChangeNotice,
-} from "../resume-restore.ts";
+} from "../sessions/resume-restore.ts";
 import { __test__ as testApi } from "../index.ts";
 
 function resources(names: string[] = []) {

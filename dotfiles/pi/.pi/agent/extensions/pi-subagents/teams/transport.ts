@@ -4,7 +4,7 @@ import {
   unlinkSync, writeFileSync, closeSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, parse } from "node:path";
-import { reclaimDeadTeamLock } from "./team-lock.ts";
+import { reclaimDeadTeamLock } from "./lock.ts";
 
 interface LeadIdentity {
   sessionId: string;

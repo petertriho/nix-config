@@ -3,7 +3,7 @@ import test from "node:test";
 import { lstatSync, mkdtempSync, renameSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createMemberMailbox, createTeamTransport, LEGACY_NATIVE_TASK_HOLD } from "../team-transport.ts";
+import { createMemberMailbox, createTeamTransport, LEGACY_NATIVE_TASK_HOLD } from "../teams/transport.ts";
 
 test("safe native task changes advance the ledger by compare-and-swap without clearing uncertain holds", async () => {
 	const directory = mkdtempSync(join(tmpdir(), "pi-team-rebaseline-"));

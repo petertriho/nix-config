@@ -2,7 +2,7 @@ import {
   resolveTaskDiskCandidate,
   type DiskCandidate,
   type TaskDiskInputs,
-} from "./task-disk-policy.ts";
+} from "../tasks/disk-policy.ts";
 
 type AcceptedCandidate = Extract<DiskCandidate, { ok: true }>;
 

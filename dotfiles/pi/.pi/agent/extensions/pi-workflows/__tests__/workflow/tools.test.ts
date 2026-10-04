@@ -42,7 +42,7 @@ import type {
 	SubagentLaunchParams,
 	SubagentResumeParams,
 } from "../../workflow/legacy-execution.ts";
-import { createStatusState } from "../../../pi-subagents/status.ts";
+import { createStatusState } from "../../../pi-subagents/telemetry/status.ts";
 import { loadWorkflowDefinitionFromPackage } from "../../workflow/schema.ts";
 import { buildWorkflowRolloverHandoffForRun } from "../../workflow/handoff.ts";
 import { buildWorkflowRecoveryMessage, buildWorkflowRecoveryLabels } from "../../workflow/recovery.ts";

@@ -6,8 +6,8 @@ import { join } from "node:path";
 import {
   checkChildReceipt, checkLeadAdmission, preflightTeamChild, recordLeadStart,
   type ChildReceipt,
-} from "../team-admission.ts";
-import type { TaskDiskInputs } from "../task-disk-policy.ts";
+} from "../teams/admission.ts";
+import type { TaskDiskInputs } from "../tasks/disk-policy.ts";
 
 function fixture(run: (context: {
   root: string;

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
-import { createTeamTransport } from "../team-transport.ts";
+import { createTeamTransport } from "../teams/transport.ts";
 
 interface RaceEvent {
   phase: string;

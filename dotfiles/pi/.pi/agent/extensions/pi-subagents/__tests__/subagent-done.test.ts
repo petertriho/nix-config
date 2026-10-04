@@ -18,7 +18,7 @@ import subagentDone, {
 	TURN_LIMIT_WRAP_UP_MESSAGE,
 } from "../subagent-done.ts";
 import { fingerprintStrings, hashText, writeLaunchProfile, type LaunchProfile } from "../launch-profile.ts";
-import type { UiTheme } from "../ui.ts";
+import type { UiTheme } from "../presentation/ui.ts";
 
 function markerTheme(marker: string): UiTheme {
 	const mark = (kind: string, token: string, text: string) =>

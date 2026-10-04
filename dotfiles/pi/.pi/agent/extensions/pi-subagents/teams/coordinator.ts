@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { checkChildReceipt, type ChildReceipt } from "./team-admission.ts";
-import { createTeamTransport, restoreTeamLead, LEGACY_NATIVE_TASK_HOLD, type TeamMessage } from "./team-transport.ts";
-import type { DiskCandidate, TaskDiskInputs } from "./task-disk-policy.ts";
+import { checkChildReceipt, type ChildReceipt } from "./admission.ts";
+import { createTeamTransport, restoreTeamLead, LEGACY_NATIVE_TASK_HOLD, type TeamMessage } from "./transport.ts";
+import type { DiskCandidate, TaskDiskInputs } from "../tasks/disk-policy.ts";
 
 type Candidate = Extract<DiskCandidate, { ok: true }>;
 type Transport = ReturnType<typeof createTeamTransport>;

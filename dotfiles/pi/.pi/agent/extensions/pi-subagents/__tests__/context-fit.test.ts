@@ -11,7 +11,7 @@ import {
 	linkRolloverLineage,
 	RESUME_ROLLOVER_THRESHOLD,
 	toContextEstimateRecord,
-} from "../context-fit.ts";
+} from "../sessions/context-fit.ts";
 import {
 	fingerprintStrings,
 	hashText,

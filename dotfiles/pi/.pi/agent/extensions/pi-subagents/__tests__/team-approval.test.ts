@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   answerApproval, callDigest, makeApprovalRequest, verifyApprovalRequest, verifyApprovalResponse,
-} from "../team-approval.ts";
+} from "../teams/approval.ts";
 
 test("one actual-user decision binds the full call, member epoch and tool ID", () => {
   const request = makeApprovalRequest({

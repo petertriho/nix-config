@@ -17,8 +17,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
-import { getSubagentActivityFile } from "../activity.ts";
-import { readAgentModelConfig, writeAgentModelConfig } from "../agent-models.ts";
+import { getSubagentActivityFile } from "../telemetry/activity.ts";
+import { readAgentModelConfig, writeAgentModelConfig } from "../profiles/agent-models.ts";
 import {
 	fingerprintStrings,
 	hashText,
@@ -28,8 +28,8 @@ import {
 	writeLaunchProfile,
 } from "../launch-profile.ts";
 import piTmuxSubagents, { __test__ as testApi } from "../index.ts";
-import { createTeamTransport } from "../team-transport.ts";
-import { closeSurface } from "../tmux.ts";
+import { createTeamTransport } from "../teams/transport.ts";
+import { closeSurface } from "../adapters/tmux.ts";
 import { discoverWorkflowProviders, WORKFLOW_PROVIDER_REQUEST_CHANNEL } from "../../workflow-provider/contract.ts";
 import { createWorkflowEventClient } from "../../pi-workflows/event-client.ts";
 import {
@@ -38,7 +38,7 @@ import {
 	formatStatusAggregate,
 	formatTransitionLine,
 	observeStatus,
-} from "../status.ts";
+} from "../telemetry/status.ts";
 import {
 	buildResumePiArgs as sharedBuildResumePiArgs,
 	buildSubagentToolAllowlist as sharedBuildSubagentToolAllowlist,

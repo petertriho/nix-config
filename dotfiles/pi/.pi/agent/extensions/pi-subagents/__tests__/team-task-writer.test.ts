@@ -5,8 +5,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolveTaskDiskCandidate, type DiskTask, type TaskDiskInputs } from "../task-disk-policy.ts";
-import { commitTeamTaskMutation, type TeamTaskMutation } from "../team-task-writer.ts";
+import { resolveTaskDiskCandidate, type DiskTask, type TaskDiskInputs } from "../tasks/disk-policy.ts";
+import { commitTeamTaskMutation, type TeamTaskMutation } from "../teams/task-writer.ts";
 
 const digest = (call: TeamTaskMutation): string =>
   createHash("sha256").update(JSON.stringify(call)).digest("hex");

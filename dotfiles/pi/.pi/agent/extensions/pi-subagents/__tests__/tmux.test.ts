@@ -15,7 +15,7 @@ import {
 	parsePaneId,
 	pollForExit,
 	shellEscape,
-} from "../tmux.ts";
+} from "../adapters/tmux.ts";
 
 test("shellEscape wraps plain text in single quotes", () => {
 	assert.equal(shellEscape("hello"), "'hello'");

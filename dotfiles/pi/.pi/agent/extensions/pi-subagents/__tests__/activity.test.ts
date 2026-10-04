@@ -7,7 +7,7 @@ import {
 	createSubagentActivityRecorder,
 	getSubagentActivityFile,
 	readSubagentActivityFile,
-} from "../activity.ts";
+} from "../telemetry/activity.ts";
 
 function withTempDir(run: (dir: string) => void): void {
 	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-activity-"));

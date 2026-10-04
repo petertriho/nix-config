@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, s
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
-import { reclaimDeadTeamLock } from "../team-lock.ts";
+import { reclaimDeadTeamLock } from "../teams/lock.ts";
 
 const stalePid = 123456;
 const stale = `${stalePid}:abandoned`;

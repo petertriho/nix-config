@@ -1,0 +1,429 @@
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { getSubagentActivityFile } from "../telemetry/activity.ts";
+import {
+	removeLaunchProfile,
+	writeLaunchProfile,
+	type LaunchProfile,
+	type LaunchProfileWorkflowMetadata,
+} from "../../workflow-provider/launch-profile.ts";
+import type { ResolvedModelSelection } from "../../workflow-provider/model-picker.ts";
+import { getNewEntries, seedSubagentSessionFile } from "../sessions/session.ts";
+import { createStatusState } from "../telemetry/status.ts";
+import { resolveTaskDiskCandidate } from "../tasks/disk-policy.ts";
+import { shellEscape } from "../adapters/tmux.ts";
+import { fileTimestamp, getArtifactDir, getDefaultSessionDirFor, toSafeFileName } from "./artifacts.ts";
+import type { createProfileResourceServices } from "./profile-resources.ts";
+import { buildPiPromptArgs, buildSubagentToolAllowlist } from "./prompts.ts";
+import { getShellReadyDelayMs } from "./results.ts";
+import type {
+	LaunchContext,
+	ResumeLifecycleContext,
+	RunningSubagent,
+	SubagentLaunchParams,
+	SubagentServiceDependencies,
+	TaskRuntimeOptions,
+	TeamLaunchSpec,
+} from "./types.ts";
+
+export function createLaunchService(
+	deps: SubagentServiceDependencies,
+	profiles: Pick<ReturnType<typeof createProfileResourceServices>, "buildLaunchProfile" | "collectResourceFingerprints">,
+) {
+	const { buildLaunchProfile, collectResourceFingerprints } = profiles;
+
+	async function launchSubagent(
+		rawParams: SubagentLaunchParams,
+		ctx: LaunchContext,
+		options?: {
+			surface?: string;
+			workflow?: LaunchProfileWorkflowMetadata;
+			beforeLaunch?: ResumeLifecycleContext["beforeLaunch"];
+			resolvedModel?: ResolvedModelSelection;
+			rolloverFrom?: LaunchProfile;
+			taskRuntime?: TaskRuntimeOptions;
+			team?: TeamLaunchSpec;
+		},
+	): Promise<RunningSubagent> {
+		const params = deps.normalizeSubagentParams(rawParams);
+		const startTime = Date.now();
+		const id = Math.random().toString(16).slice(2, 10);
+
+		const rollover = options?.rolloverFrom;
+		const taskRuntime = options?.taskRuntime;
+		const team = options?.team;
+		if (team && (rollover || taskRuntime || params.fork)) {
+			throw new Error("A teammate cannot be a workflow task, rollover or fork");
+		}
+		if (taskRuntime) {
+			if (rollover) throw new Error("Task launches cannot be rollovers.");
+			const maxTurns = taskRuntime.maxTurns;
+			if (
+				maxTurns != null
+				&& (typeof maxTurns !== "number" || !Number.isInteger(maxTurns) || maxTurns < 1)
+			) {
+				throw new Error(
+					`Invalid task maxTurns ${String(maxTurns)}: pass a positive integer or omit it for unlimited.`,
+				);
+			}
+		}
+		const agentDefs = !rollover && params.agent ? deps.loadAgentDefaults(params.agent) : null;
+		const configuredModel = options?.resolvedModel
+			? options.resolvedModel.selection.model
+			: params.model ?? agentDefs?.model;
+		const effectiveTools = rollover ? undefined : params.tools ?? agentDefs?.tools;
+		const effectiveSkills = rollover
+			? rollover.stable.primarySkill?.name
+			: params.skills ?? agentDefs?.skills;
+		const effectiveInteractive = team ? true : rollover
+			? rollover.stable.controls.interactive
+			: taskRuntime
+				? false
+				: deps.resolveEffectiveInteractive(params, agentDefs);
+		const autoExitForChild = team ? false : rollover
+			? rollover.stable.controls.autoExit
+			: taskRuntime
+				? true
+				: agentDefs?.autoExit;
+
+		const sessionFile = ctx.sessionManager.getSessionFile();
+		if (!sessionFile) throw new Error("No session file");
+		const parentLeafId = ctx.sessionManager.getLeafId?.();
+		const sessionId = ctx.sessionManager.getSessionId();
+		const artifactDir = getArtifactDir(ctx.sessionManager.getSessionDir(), sessionId);
+
+		const resolvedPaths = deps.resolveSubagentPaths(params, agentDefs);
+		// Guarded launches must not inherit an unrelated tmux pane's shell cwd.
+		const effectiveCwd = resolvedPaths.effectiveCwd ?? (options?.beforeLaunch ? ctx.cwd : null);
+		const effectiveAgentDir = rollover ? rollover.stable.agentDir : resolvedPaths.effectiveAgentDir;
+		const localAgentDir = rollover
+			? (existsSync(rollover.stable.agentDir) ? rollover.stable.agentDir : null)
+			: resolvedPaths.localAgentDir;
+		const targetCwdForSession = effectiveCwd ?? ctx.cwd;
+		options?.beforeLaunch?.(targetCwdForSession);
+		const sessionDir = getDefaultSessionDirFor(targetCwdForSession, effectiveAgentDir);
+
+		const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23) + "Z";
+		const uuid = [
+			id,
+			Math.random().toString(16).slice(2, 10),
+			Math.random().toString(16).slice(2, 10),
+			Math.random().toString(16).slice(2, 6),
+		].join("-");
+		const subagentSessionFile = team?.childSessionFile ?? join(sessionDir, `${timestamp}_${uuid}.jsonl`);
+		if (team && (dirname(subagentSessionFile) !== sessionDir || existsSync(subagentSessionFile))) {
+			throw new Error("Teammate session path is not a fresh file in its resolved session directory");
+		}
+
+		const surfacePreCreated = options?.surface != null;
+		const surface = options?.surface ?? deps.createSurface(params.name);
+		try {
+			if (!surfacePreCreated) {
+				await new Promise<void>((resolve) => setTimeout(resolve, getShellReadyDelayMs()));
+			}
+
+			const launchBehavior = deps.resolveLaunchBehavior(params, agentDefs);
+
+			if (launchBehavior.seededSessionMode) {
+				seedSubagentSessionFile({
+					mode: launchBehavior.seededSessionMode,
+					parentSessionFile: sessionFile,
+					parentLeafId,
+					childSessionFile: subagentSessionFile,
+					childCwd: targetCwdForSession,
+				});
+			} else if (team) {
+				seedSubagentSessionFile({
+					mode: "lineage-only",
+					parentSessionFile: sessionFile,
+					childSessionFile: subagentSessionFile,
+					childCwd: targetCwdForSession,
+					sessionId: team.childSessionId,
+				});
+			}
+
+			const activityFile = getSubagentActivityFile(artifactDir, id);
+			mkdirSync(dirname(activityFile), { recursive: true });
+			const { inheritsConversationContext } = launchBehavior;
+
+			const modeHint = autoExitForChild
+				? "Complete your task autonomously."
+				: "Complete your task. When finished, call the subagent_done tool. The user can interact with you at any time.";
+			const summaryInstruction = autoExitForChild
+				? "Your FINAL assistant message should summarize what you accomplished."
+				: "Your FINAL assistant message (before calling subagent_done or before the user exits) should summarize what you accomplished.";
+			const denySet = rollover
+				? new Set(rollover.stable.controls.denyTools)
+				: deps.resolveDenyTools(agentDefs);
+			// Save the composed role body so resume uses the same instructions.
+			const identity = rollover
+				? (rollover.stable.roleBody || null)
+				: [agentDefs?.body, params.systemPrompt].filter(Boolean).join("\n\n") || null;
+			const systemPromptMode = rollover ? rollover.stable.systemPromptMode : agentDefs?.systemPromptMode;
+			const systemPromptFileMode =
+				systemPromptMode === "append" || systemPromptMode === "replace" ? systemPromptMode : undefined;
+			const identityInSystemPrompt = systemPromptFileMode && identity;
+			const roleBlock = identity && !identityInSystemPrompt ? `\n\n${identity}` : "";
+			const fullTask = inheritsConversationContext
+				? params.task
+				: `${roleBlock}\n\n${modeHint}\n\n${params.task}\n\n${summaryInstruction}`.trim();
+
+			const safeName = toSafeFileName(params.name || "subagent", "subagent");
+			const launchScriptFile = join(artifactDir, "subagent-scripts", `${safeName}-${id}.sh`);
+			const piModelArgument = options?.resolvedModel?.argument ?? deps.resolvePiModelArgument(params, agentDefs, {
+				model: ctx.model,
+				thinkingLevel: ctx.thinkingLevel,
+			});
+			const launchProfile = buildLaunchProfile({
+				displayName: params.name,
+				...(rollover
+					? (rollover.stable.agentName ? { agentName: rollover.stable.agentName } : {})
+					: params.agent
+						? { agentName: params.agent }
+						: {}),
+				roleBody: identity ?? "",
+				systemPromptMode: rollover ? rollover.stable.systemPromptMode : agentDefs?.systemPromptMode ?? "message",
+				cwd: targetCwdForSession,
+				agentDir: effectiveAgentDir,
+				controls: rollover
+					? {
+						...rollover.stable.controls,
+						sessionMode: launchBehavior.sessionMode,
+					}
+					: {
+						...(agentDefs?.spawning === undefined ? {} : { spawning: agentDefs.spawning }),
+						denyTools: [...denySet].sort((first, second) => first.localeCompare(second)),
+						...(taskRuntime
+							? { autoExit: true }
+							: agentDefs?.autoExit === undefined
+								? {}
+								: { autoExit: agentDefs.autoExit }),
+						interactive: effectiveInteractive,
+						sessionMode: launchBehavior.sessionMode,
+					},
+				effectiveSkills,
+				modelArgument: piModelArgument,
+				originalSessionPath: subagentSessionFile,
+				resources: collectResourceFingerprints(ctx.pi, effectiveSkills),
+				...(options?.workflow ? { workflow: options.workflow } : {}),
+			});
+
+			if (agentDefs?.cli === "claude") {
+				const sentinelFile = `/tmp/pi-claude-${id}-done`;
+				const pluginDir = join(deps.subagentsDir, "plugin");
+
+				const cmdParts: string[] = [];
+				cmdParts.push(`PI_CLAUDE_SENTINEL=${shellEscape(sentinelFile)}`);
+				cmdParts.push(`PI_CLAUDE_PROMPT_HASH=${shellEscape(createHash("sha256").update(params.task).digest("hex"))}`);
+				cmdParts.push("claude");
+				cmdParts.push("--dangerously-skip-permissions");
+
+				if (existsSync(pluginDir)) {
+					cmdParts.push("--plugin-dir", shellEscape(pluginDir));
+				}
+
+				if (configuredModel) {
+					cmdParts.push("--model", shellEscape(configuredModel));
+				}
+
+				if (identity) {
+					cmdParts.push("--append-system-prompt", shellEscape(identity));
+				}
+
+				if (params.resumeSessionId) {
+					cmdParts.push("--resume", shellEscape(params.resumeSessionId));
+				}
+
+				cmdParts.push(shellEscape(params.task));
+
+				const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
+				const command = `${cdPrefix}${cmdParts.join(" ")}; echo '__SUBAGENT_DONE_'$?'__'`;
+
+				writeLaunchProfile(subagentSessionFile, launchProfile);
+				try {
+					deps.sendLongCommand(surface, command, {
+						scriptPath: launchScriptFile,
+						scriptPreamble: [
+							`# Claude Code subagent launch script for ${params.name}`,
+							`# Generated: ${new Date().toISOString()}`,
+							`# Surface: ${surface}`,
+						].join("\n"),
+					});
+				} catch (error) {
+					removeLaunchProfile(subagentSessionFile);
+					throw error;
+				}
+
+				const running: RunningSubagent = {
+					id,
+					name: params.name,
+					task: params.task,
+					agent: params.agent,
+					surface,
+					startTime,
+					sessionFile: subagentSessionFile,
+					launchScriptFile,
+					cli: "claude",
+					sentinelFile,
+					interactive: effectiveInteractive,
+					statusState: createStatusState({ source: "claude", startTimeMs: startTime }),
+				};
+
+				deps.runningSubagents.set(id, running);
+				return running;
+			}
+
+			const parts: string[] = ["pi"];
+			parts.push("--session", shellEscape(subagentSessionFile));
+
+			const subagentDonePath = join(deps.subagentsDir, "subagent-done.ts");
+			parts.push("-e", shellEscape(subagentDonePath));
+			if (team) parts.push("-e", shellEscape(join(deps.subagentsDir, "team-member.ts")));
+
+			if (piModelArgument) {
+				parts.push("--model", shellEscape(piModelArgument));
+			}
+
+			if (identityInSystemPrompt && identity) {
+				const flag = systemPromptMode === "replace" ? "--system-prompt" : "--append-system-prompt";
+				const syspromptPath = join(artifactDir, `context/${safeName}-${id}-sysprompt-${fileTimestamp()}.md`);
+				mkdirSync(dirname(syspromptPath), { recursive: true });
+				writeFileSync(syspromptPath, identity, "utf8");
+				parts.push(flag, shellEscape(syspromptPath));
+			}
+
+			const toolAllowlist = buildSubagentToolAllowlist(effectiveTools);
+			if (toolAllowlist) {
+				parts.push("--tools", shellEscape(toolAllowlist));
+			}
+
+			const envParts: string[] = [];
+			if (team) {
+				envParts.push(`PI_TASKS=${shellEscape(team.taskFile)}`);
+				envParts.push(`PI_TEAM_DIRECTORY=${shellEscape(team.directory)}`);
+				envParts.push(`PI_TEAM_ID=${shellEscape(team.teamId)}`);
+				envParts.push(`PI_TEAM_MEMBER_ID=${shellEscape(team.memberId)}`);
+				envParts.push(`PI_TEAM_MEMBER_TOKEN=${shellEscape(team.memberToken)}`);
+				envParts.push(`PI_TEAM_MEMBER_EPOCH=${team.memberEpoch}`);
+				envParts.push(`PI_TEAM_CHILD_SESSION_ID=${shellEscape(team.childSessionId)}`);
+				envParts.push(`PI_TEAM_LEAD_SESSION_ID=${shellEscape(team.leadSessionId)}`);
+			}
+
+			if (localAgentDir && existsSync(localAgentDir)) {
+				envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(localAgentDir)}`);
+			} else if (process.env.PI_CODING_AGENT_DIR) {
+				envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
+			}
+
+			if (denySet.size > 0) {
+				envParts.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
+			}
+			envParts.push(`PI_SUBAGENT_NAME=${shellEscape(params.name)}`);
+			const childAgentName = rollover ? rollover.stable.agentName : params.agent;
+			if (childAgentName) {
+				envParts.push(`PI_SUBAGENT_AGENT=${shellEscape(childAgentName)}`);
+			}
+			if (autoExitForChild) {
+				envParts.push("PI_SUBAGENT_AUTO_EXIT=1");
+			}
+			if (taskRuntime?.maxTurns != null) {
+				envParts.push(`PI_SUBAGENT_MAX_TURNS=${taskRuntime.maxTurns}`);
+			}
+			envParts.push(`PI_SUBAGENT_SESSION=${shellEscape(subagentSessionFile)}`);
+			envParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
+			envParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
+			envParts.push(`PI_SUBAGENT_SURFACE=${shellEscape(surface)}`);
+			const envPrefix = envParts.join(" ") + " ";
+
+			let taskArg: string;
+			if (launchBehavior.taskDelivery === "direct") {
+				taskArg = fullTask;
+			} else {
+				const artifactPath = join(artifactDir, `context/${safeName}-${id}-${fileTimestamp()}.md`);
+				mkdirSync(dirname(artifactPath), { recursive: true });
+				writeFileSync(artifactPath, fullTask, "utf8");
+				taskArg = `@${artifactPath}`;
+			}
+
+			for (const promptArg of buildPiPromptArgs({
+				effectiveSkills,
+				taskDelivery: launchBehavior.taskDelivery,
+				taskArg,
+				taskText: fullTask,
+			})) {
+				parts.push(shellEscape(promptArg));
+			}
+
+			const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
+			const piCommand = cdPrefix + envPrefix + parts.join(" ");
+			const command = `${piCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
+			writeLaunchProfile(subagentSessionFile, launchProfile);
+			const workflowSummaryStartLine = options?.workflow
+				? (existsSync(subagentSessionFile) ? getNewEntries(subagentSessionFile, 0).length : 0)
+				: undefined;
+			try {
+				if (team) {
+					const lastCheck = resolveTaskDiskCandidate({
+						cwd: targetCwdForSession, agentDir: effectiveAgentDir,
+						sessionId: team.childSessionId, sessionFile: subagentSessionFile,
+						piTasks: team.taskFile,
+					});
+					if (!lastCheck.ok || lastCheck.path !== team.taskFile ||
+						lastCheck.storeFingerprint !== team.expectedStoreFingerprint ||
+						lastCheck.configFingerprint !== team.expectedConfigFingerprint ||
+						(lastCheck.tasks.length > 0 &&
+							lastCheck.tasks.every((task) => task.status === "completed"))) {
+						throw new Error("Teammate task candidate changed or became all-completed before process launch");
+					}
+				}
+				deps.sendLongCommand(surface, command, {
+					scriptPath: launchScriptFile,
+					scriptPreamble: [
+						`# Subagent launch script for ${params.name}`,
+						`# Generated: ${new Date().toISOString()}`,
+						`# Session: ${subagentSessionFile}`,
+						`# Surface: ${surface}`,
+					].join("\n"),
+				});
+			} catch (error) {
+				removeLaunchProfile(subagentSessionFile);
+				throw error;
+			}
+
+			const running: RunningSubagent = {
+				id,
+				name: params.name,
+				task: params.task,
+				agent: params.agent,
+				surface,
+				startTime,
+				sessionFile: subagentSessionFile,
+				launchScriptFile,
+				activityFile,
+				interactive: effectiveInteractive,
+				...(workflowSummaryStartLine !== undefined ? { workflowSummaryStartLine } : {}),
+				...(team ? { team: {
+					teamId: team.teamId, memberId: team.memberId,
+					epoch: team.memberEpoch, sessionId: team.childSessionId,
+				} } : {}),
+				statusState: createStatusState({ source: "pi", startTimeMs: startTime }),
+			};
+
+			deps.runningSubagents.set(id, running);
+			return running;
+		} catch (error) {
+			// Until registration succeeds, no watcher owns cleanup for this pane.
+			if (!surfacePreCreated) {
+				try {
+					deps.closeSurface(surface);
+				} catch {
+					// Best-effort cleanup must not replace the original launch error.
+				}
+			}
+			throw error;
+		}
+	}
+
+	return launchSubagent;
+}

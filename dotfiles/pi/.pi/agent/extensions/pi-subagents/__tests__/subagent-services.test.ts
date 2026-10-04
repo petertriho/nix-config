@@ -27,7 +27,7 @@ import {
 	type SubagentServiceDependencies,
 	type RunningSubagent,
 } from "../subagent-services.ts";
-import { shellEscape } from "../tmux.ts";
+import { shellEscape } from "../adapters/tmux.ts";
 import { buildProviderFailureRecord } from "../../pi-workflows/workflow/recovery.ts";
 import { attachTmuxWorkflowProvider, tmuxWorkflowProviderIO } from "../workflow-provider.ts";
 import { requestWorkflowProvider, subscribeWorkflowDelivery } from "../../workflow-provider/contract.ts";

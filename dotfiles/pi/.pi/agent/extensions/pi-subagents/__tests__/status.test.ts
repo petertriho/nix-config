@@ -16,7 +16,7 @@ import {
 	loadStatusConfig,
 	observeStatus,
 	parseStatusConfig,
-} from "../status.ts";
+} from "../telemetry/status.ts";
 
 function withTempDir(run: (dir: string) => void): void {
 	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-status-"));

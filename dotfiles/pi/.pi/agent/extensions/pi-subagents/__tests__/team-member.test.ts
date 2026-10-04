@@ -5,10 +5,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import teamMember from "../team-member.ts";
-import { answerApproval, makeApprovalRequest, type ApprovalRequest } from "../team-approval.ts";
-import { createMemberMailbox, createTeamTransport } from "../team-transport.ts";
-import { resolveTaskDiskCandidate } from "../task-disk-policy.ts";
-import { commitTeamTaskMutation, registerTeamTaskVeto, type TeamTaskMutation } from "../team-task-writer.ts";
+import { answerApproval, makeApprovalRequest, type ApprovalRequest } from "../teams/approval.ts";
+import { createMemberMailbox, createTeamTransport } from "../teams/transport.ts";
+import { resolveTaskDiskCandidate } from "../tasks/disk-policy.ts";
+import { commitTeamTaskMutation, registerTeamTaskVeto, type TeamTaskMutation } from "../teams/task-writer.ts";
 
 type Handler = (event: any, ctx: any) => unknown;
 

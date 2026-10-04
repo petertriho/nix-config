@@ -3,10 +3,10 @@ import test, { type TestContext } from "node:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TeamCoordinator, type CoordinatorNotice } from "../team-coordinator.ts";
-import { createMemberMailbox, LEGACY_NATIVE_TASK_HOLD } from "../team-transport.ts";
-import { resolveTaskDiskCandidate } from "../task-disk-policy.ts";
-import { makeApprovalRequest } from "../team-approval.ts";
+import { TeamCoordinator, type CoordinatorNotice } from "../teams/coordinator.ts";
+import { createMemberMailbox, LEGACY_NATIVE_TASK_HOLD } from "../teams/transport.ts";
+import { resolveTaskDiskCandidate } from "../tasks/disk-policy.ts";
+import { makeApprovalRequest } from "../teams/approval.ts";
 
 async function noticeFixture(
   t: TestContext,

@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { closeSurface, createSurface, pollForExit, sendLongCommand } from "../tmux.ts";
+import { closeSurface, createSurface, pollForExit, sendLongCommand } from "../adapters/tmux.ts";
 import piTmuxSubagentsModule, { __test__ as testApi } from "../index.ts";
 import piWorkflows from "../../pi-workflows/index.ts";
 import {

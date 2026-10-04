@@ -3,9 +3,9 @@ import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { resolveTaskDiskCandidate, type TaskDiskInputs } from "../../task-disk-policy.ts";
-import { commitTeamTaskMutation, type TeamTaskMutation } from "../../team-task-writer.ts";
-import { createTeamTransport } from "../../team-transport.ts";
+import { resolveTaskDiskCandidate, type TaskDiskInputs } from "../../tasks/disk-policy.ts";
+import { commitTeamTaskMutation, type TeamTaskMutation } from "../../teams/task-writer.ts";
+import { createTeamTransport } from "../../teams/transport.ts";
 
 const input = JSON.parse(process.argv[2]) as {
   root: string; role: "first" | "second"; mode: "tasks" | "transport";

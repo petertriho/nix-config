@@ -15,7 +15,7 @@ import {
   sanitizeDisplayText,
   STATE_PRESENTATIONS,
   type UiTheme,
-} from "../ui.ts";
+} from "../presentation/ui.ts";
 
 function markerTheme(marker: string): UiTheme {
   const mark = (kind: string, token: string, text: string) =>

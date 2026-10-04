@@ -26,7 +26,7 @@ import {
 	type TaskRpcRuntimeHooks,
 	type TaskSpawnSpec,
 	type TaskRunHandle,
-} from "../pi-tasks-rpc.ts";
+} from "../tasks/rpc.ts";
 
 // ── Test event bus: mirrors pi.events' on/emit with delivery logging ──
 

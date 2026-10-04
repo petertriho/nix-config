@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
-import { summarizeSubagentUsage, formatUsageSummary, withContextWindow, type SubagentUsageSummary } from "../usage.ts";
+import { summarizeSubagentUsage, formatUsageSummary, withContextWindow, type SubagentUsageSummary } from "../telemetry/usage.ts";
 
 function entry(
 	role: string,

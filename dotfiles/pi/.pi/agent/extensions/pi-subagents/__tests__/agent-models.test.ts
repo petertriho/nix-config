@@ -9,7 +9,7 @@ import {
 	readAgentModelConfig,
 	validateAgentModelConfig,
 	writeAgentModelConfig,
-} from "../agent-models.ts";
+} from "../profiles/agent-models.ts";
 
 function withTempDir(run: (dir: string) => void): void {
 	const dir = mkdtempSync(join(tmpdir(), "pi-agent-models-"));

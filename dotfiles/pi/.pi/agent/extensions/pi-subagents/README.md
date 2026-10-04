@@ -72,6 +72,33 @@ remains `pi-agent-teams.workflow-run`. These IDs preserve existing workflow runs
 Global reload keys also remain unchanged so the new module can clean up resources
 from the previous module.
 
+## Module layout
+
+`index.ts` wires the extension together. Implementation modules use these
+responsibility folders:
+
+| Folder | Responsibility |
+| --- | --- |
+| `profiles/` | Agent discovery, frontmatter, launch policy, and configured models |
+| `execution/` | Launch, watch, resume, resource profiles, artifacts, and shared execution types |
+| `sessions/` | Session reading, seeding, restoration, and context-fit decisions |
+| `telemetry/` | Activity sidecars, status classification, and usage summaries |
+| `presentation/` | Terminal formatting, widgets, and tool renderers |
+| `adapters/` | Tmux surfaces and the workflow-provider adapter |
+| `tasks/` | Task profiles, model resolution, run state, RPC, and disk policy |
+| `teams/` | Admission, approvals, coordination, locks, and transport |
+| `child/` | Completion and teammate extensions loaded explicitly in child sessions |
+| `registration/` | Tool schemas, tools, commands, and extension registration |
+| `runtime/` | Shared runtime state, refresh, interrupts, and integration wiring |
+
+Root compatibility files preserve child launch paths and existing service and
+provider imports. Internal modules import the responsibility folders directly.
+`launch-profile.ts` and `model-picker.ts` still re-export the neutral
+implementations from the sibling `workflow-provider/` directory.
+
+Configuration, bundled `agents/`, and the Claude `plugin/` remain at the extension
+root. Their paths do not depend on an implementation module's location.
+
 ## Tests
 
 From `dotfiles/pi/.pi/agent/extensions/`, run:
