@@ -3,21 +3,21 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Audit dotfiles/agents/.agents/skills/simplify/SKILL.md for improvements that will work across models. Suggestions only; do not edit it. Keep its changed-diff scope and safety checks intact.",
-      "expected_output": "Specific, evidence-based suggestions or a finding that no edit is justified. No blanket deletion of reasoning or safety checks and no file changes.",
+      "prompt": "Audit dotfiles/agents/.agents/skills/simplify/SKILL.md for improvements across models. Suggest changes only. Do not edit the file. Preserve its changed-diff scope and safety checks.",
+      "expected_output": "Give specific suggestions based on evidence. If no edit is justified, state that finding. Do not recommend blanket deletion of reasoning or safety checks. Do not change files.",
       "files": [
         "dotfiles/agents/.agents/skills/simplify/SKILL.md"
       ]
     },
     {
       "id": 2,
-      "prompt": "Tune my agent skills so they work better on Opus and GPT.",
-      "expected_output": "Ask for a bounded set of skill names or SKILL.md paths before editing. Do not assume the two models share thinking or API behavior.",
+      "prompt": "Tune my agent skills for two models with different reasoning controls and client capabilities.",
+      "expected_output": "Before any edit, ask for a bounded set of skill names or SKILL.md paths. Do not assume that both models share reasoning controls or API behavior.",
       "files": []
     },
     {
       "id": 3,
-      "prompt": "Review dotfiles/agents/.agents/skills/socratic-quiz/SKILL.md using transferable lessons from the Opus 5.5 guides. Do not edit it. Should I add an unattended-agent continuation rule?",
+      "prompt": "Review dotfiles/agents/.agents/skills/socratic-quiz/SKILL.md using transferable lessons from model and client guides. Do not edit the file. Does this skill need an unattended-agent continuation rule?",
       "expected_output": "Preserve one-question-at-a-time teaching and deliberate waits. Do not add an unattended-agent continuation rule to this interactive skill.",
       "files": [
         "dotfiles/agents/.agents/skills/socratic-quiz/SKILL.md"
@@ -25,46 +25,46 @@
     },
     {
       "id": 4,
-      "prompt": "Copy the supplied report-skill.md fixture into a disposable directory as sample-report/SKILL.md. Improve that copy for use across models. I need a usable report file, accurate source references, and the existing approval before publishing. Do not change the fixture or any installed skill.",
-      "expected_output": "Remove redundant thinking commands without adding filler. Replace the premature outline-only stop with completion criteria for REPORT.md. Preserve the Markdown table, source evidence, approval before publishing, and frontmatter. Correct the blanket ban on reconsidering earlier findings. Keep pending background work incomplete until results are checked. Report structural and behavioral checks separately, without claiming untested cross-model gains.",
+      "prompt": "Copy the supplied report-skill.md fixture into a disposable directory as sample-report/SKILL.md. Improve that copy for use across models. The skill must produce a usable report file. Each finding needs an accurate source reference. Preserve the existing requirement for approval before publication. Do not change the fixture. Do not change any installed skill.",
+      "expected_output": "Remove redundant commands about internal reasoning. Do not add filler. Replace the premature outline-only stop with completion criteria for REPORT.md. Preserve the Markdown table, source evidence, and frontmatter. Preserve the requirement for approval before publication. Remove the blanket ban on reconsideration of earlier findings. Until you check the results, keep background work incomplete. Report structural and behavioral checks separately. Do not claim cross-model gains without tests.",
       "files": [
         "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
       ]
     },
     {
       "id": 5,
-      "prompt": "Audit the supplied report-skill.md fixture without editing it. Since the Opus docs say thinking is always on, should we set medium effort for GPT-6 in the skill and guarantee faster replies by removing every 'step by step' instruction? Do not fetch additional documentation for this test.",
-      "expected_output": "Reject unsupported GPT-6 and latency claims. Distinguish redundant internal-thinking commands from useful procedures and task analysis. Explain that runtime controls need documented client support, not prompt prose alone. Keep the audit read-only and state that no model comparison was run.",
+      "prompt": "Audit the supplied report-skill.md fixture without edits. A guide for one model says that internal reasoning is always active. Can prompt text set medium effort for another model in a different client? If we remove every 'step by step' instruction, can we guarantee faster replies? Do not fetch additional documentation for this test.",
+      "expected_output": "Reject unsupported claims about another model or faster replies. Distinguish redundant commands about internal reasoning from useful procedures and task analysis. Explain that runtime controls require documented client support, not prompt text alone. Keep the audit read-only. State that you did not run a model comparison.",
       "files": [
         "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
       ]
     },
     {
       "id": 6,
-      "prompt": "Audit the supplied authoring-skill.md fixture without editing or executing it. Apply the skill-authoring best practices, not only Opus prompting advice. Identify concrete problems in discovery, resource navigation, workflow freedom, script behavior, dependency assumptions, and validation. Preserve its required approval and do not rename it automatically.",
-      "expected_output": "Find the vague description, nested and Windows-style references, excessive tool choices, stale date branch, missing validation loop, unsafe script defaults, unexplained constants, assumed packages, and unqualified MCP tool. Recommend a default with a conditional fallback, direct resource links, verifiable intermediate outputs, and client-specific dependency checks. Do not execute the migration or install packages. Keep rename suggestions separate from authorized edits.",
+      "prompt": "Audit the supplied authoring-skill.md fixture. Do not edit it. Do not run its instructions or examples. Apply skill-authoring best practices, not only advice for one model. Identify concrete problems in discovery, resource navigation, workflow freedom, script behavior, dependency assumptions, and checks. Preserve its required approval. Do not rename it automatically.",
+      "expected_output": "Identify the vague description, nested references, Windows-style paths, excessive tool choices, and stale date branch. Identify missing check loops, unsafe script defaults, unexplained constants, assumed packages, and the unqualified MCP tool. Recommend a default with a conditional fallback. Recommend direct resource links. Recommend intermediate outputs that users can check. For each client, recommend dependency checks. Do not run the migration. Do not install packages. Keep rename suggestions separate from authorized edits.",
       "files": [
         "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/authoring-skill.md"
       ]
     },
     {
       "id": 7,
-      "prompt": "I want every recommendation from the skill-authoring best practices incorporated into a named skill, while keeping all advice from the two Opus 5.5 guides. Explain your coverage and preservation method first. Do not edit anything yet. You may keep the main SKILL.md short, but links alone are not enough.",
-      "expected_output": "Plan a full section-by-section inventory including examples, code, diagrams, limits, and caveats. Map each item to operational instructions or an explicitly conditional reference. Preserve baseline advice and approvals. Use progressive disclosure without omitting model-specific details or claiming that source links establish coverage. Keep this response read-only.",
+      "prompt": "I want every portable recommendation from skill-authoring best practices and two model or client guides incorporated into a named skill. First, explain your coverage and preservation method. List excluded details that do not transfer across models or clients. Do not edit anything yet. The main SKILL.md can stay short. Source links alone do not establish coverage.",
+      "expected_output": "Plan a full section-by-section inventory of all sources, including examples, code, diagrams, limits, and caveats. Map each portable item to an operational instruction or a reference with explicit conditions. List each excluded nontransferable detail with its source and exclusion reason. Preserve portable baseline advice and approvals. Use progressive disclosure without omitting portable source content. Do not treat source links as proof of coverage. Keep this response read-only.",
       "files": []
     },
     {
       "id": 8,
-      "prompt": "Audit the supplied authoring-skill.md fixture for use in the Claude API skill container. Should its instructions install pypdf at runtime, silently use an empty file on permission errors, and invoke bigquery_schema without a server name? Suggestions only. Do not run tools that change files, install packages, or access external records.",
-      "expected_output": "Explain that the documented API container has no network access or runtime installation. Require available dependencies and a qualified tool name adapted to the client. Keep permission errors visible and do not create empty success outputs or bypass approval. Recommend a validated plan and actionable errors before authorized execution.",
+      "prompt": "Audit the supplied authoring-skill.md fixture for an explicitly restricted runtime. This runtime has no network access and forbids package installation. Can it install pypdf at runtime? On permission errors, can it silently use an empty file? Can it invoke bigquery_schema without a server name? Suggest changes only. Do not run tools that change files. Do not install packages. Do not access external records.",
+      "expected_output": "State that this runtime forbids network access and package installation. Require dependencies that are already available. Require a qualified tool name that the client supports. Keep permission errors visible. Do not create empty success outputs. Do not bypass approval. Before authorized execution, recommend a plan with checks. Recommend actionable errors for failed steps.",
       "files": [
         "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/authoring-skill.md"
       ]
     },
     {
       "id": 9,
-      "prompt": "I tuned a skill on Opus only and its new text is shorter. Can I say it improves Haiku, Sonnet, and GPT? Describe the evaluations I need, how to inspect resource navigation, and how real-user feedback changes the next iteration. Do not launch paid model runs or edit files.",
-      "expected_output": "Reject unmeasured cross-model and token-savings claims. Require at least three representative gap-based scenarios, the old skill baseline for tuning, and actual tests for each intended model and client. Inspect unexpected read order, missed links, repeated reads, and ignored resources. Separate structural checks, manual reviews, actual runs, and team feedback. Respect the prohibition on launching runs.",
+      "prompt": "I tuned a skill on one model, and the new text is shorter. Can I claim improvements for other models or clients? Describe the required evaluations. Explain how to check resource navigation. Explain how feedback from real users changes the next iteration. Do not launch paid model runs. Do not edit files.",
+      "expected_output": "Reject unmeasured claims about cross-model gains or token savings. Require at least three representative scenarios that target observed gaps. Require the old skill as the baseline. Require actual tests for each intended model and client. Check for unexpected read order, missed links, repeated reads, and ignored resources. Separate structural checks, manual reviews, actual runs, and feedback from the team. Do not launch the proposed runs.",
       "files": []
     }
   ]

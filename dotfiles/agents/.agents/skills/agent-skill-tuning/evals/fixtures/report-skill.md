@@ -6,18 +6,22 @@ disable-model-invocation: true
 
 # Sample report
 
-Use only the documents the user supplies. The deliverable is `REPORT.md`.
-It must include a Markdown table with Claim, Evidence, and Open question
-columns. Cite the source filename and location for each finding.
+Use only the documents the user supplies.
+The deliverable is `REPORT.md`.
+The report must include a Markdown table with Claim, Evidence, and Open question columns.
+For each finding, cite the source filename and location.
 
-Think very hard before every action. Think carefully about each decision.
+Before every action, think very hard.
+For each decision, think carefully.
 Always print your full private chain of thought.
 
-Read the sources, then produce an outline. Ask "Want me to continue?"
-before writing the report, even when the user already requested the file.
+Read the sources.
+Then produce an outline.
+Before you write the report, even if the user already requested the file, ask "Want me to continue?"
 
-If you delegate a source check, mark it complete as soon as it starts.
-Never revisit an earlier finding, even if a later document contradicts it.
+If a delegated source check starts, mark it complete immediately.
+Even if a later document contradicts an earlier finding, never reconsider that finding.
 
-Ask for approval before publishing or sending the report to anyone.
-Do not modify or delete the source documents.
+Before you publish or send the report to anyone, ask for approval.
+Do not modify the source documents.
+Do not delete the source documents.

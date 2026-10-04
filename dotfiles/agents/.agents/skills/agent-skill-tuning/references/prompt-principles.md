@@ -1,106 +1,89 @@
-# Prompt principles for portable agent skills
+# Prompt principles for model-agnostic agent skills
 
-These are **transferable design hypotheses**, drawn from two guides about
-Claude Opus 5.5. Neither guide establishes how GPT-6 or any other model
-behaves. Test changes against the target skill's actual users, models, and
-clients before treating them as improvements.
-The companion skill-authoring reference adds the third source's complete
-authoring practices without replacing the hypotheses below.
-
-Sources, checked 2026-10-04:
-
-- **Skill authoring:** [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
-- **Blog:** [Getting the most out of Opus 5.5 in Claude and Claude Code](https://claude.dev/blog/getting-the-most-out-of-opus-5-5/)
-- **Docs:** [Prompting Claude Opus 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5)
+These practices are hypotheses drawn from authoring and prompting guidance.
+They do not establish how every model or client behaves.
+Evaluate changes against the target skill's actual users, models, and clients before claiming improvement.
 
 ## Contents
 
-- [Transferable skill design hypotheses](#transferable-skill-design-hypotheses)
+- [Sources and applicability](#sources-and-applicability)
+- [Prompting hypotheses](#prompting-hypotheses)
 - [Authoring hypotheses](#authoring-hypotheses)
-- [Model- or harness-specific details: do not generalize](#model--or-harness-specific-details-do-not-generalize)
+- [Runtime boundaries](#runtime-boundaries)
 
-Read the resources linked directly from `SKILL.md` according to applicability:
+## Sources and applicability
 
-- `references/skill-authoring.md`: Full authoring guidance, limits, examples, and checklists.
-- `references/opus-specific.md`: Full model/client advice, including runtime controls and caveats.
-- `references/source-coverage.md`: Section-by-section source and baseline preservation map.
+Sources recorded as checked on 2026-10-04:
 
-The main file links each resource directly, so no nested read chain is required.
+- [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
+- [Agent workflow guidance](https://claude.dev/blog/getting-the-most-out-of-opus-5-5/)
+- [Prompting and runtime guidance](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5)
 
-If the user asks for the latest guidance, recheck the sources. If the user
-asks for a specific model, consult its current documentation when available.
-Separate documented behavior from your own proposed cross-model practice.
-The table names supporting sections. Its scope limits and capability checks
-are adaptations for this portable skill, not claims that Anthropic tested
-them on other models.
+The main file links each operational reference directly:
 
-## Transferable skill design hypotheses
+- `references/skill-authoring.md` contains authoring practices, limits, examples, and checklists.
+- `references/runtime-guidance.md` contains capability-based runtime checks and workflow safeguards.
+- `references/source-coverage.md` records retained, generalized, and excluded source advice.
 
-| When the skill... | Consider... | Preserve this limit | Source section |
+For the latest guidance, recheck the sources.
+For a specific runtime, consult its current documentation.
+Separate documented behavior from proposed model-agnostic practices.
+The scope limits and capability checks here are adaptations, not evidence that the sources tested every runtime.
+
+## Prompting hypotheses
+
+| Skill behavior | Candidate change | Required limit | Supporting source topic |
 | --- | --- | --- | --- |
-| Runs multi-step work | State the completion test and real reasons to stop. Continue after non-blocking updates where appropriate. | Preserve interactive checkpoints and approval for risky work. Pending background results are not completed work. | Blog: “Say what ‘done’ looks like, then let it run”; Docs: “Unattended agentic runs” |
-| Has broad thinking commands | First try deleting redundant "think hard" language. Add checks only when they express an actual task requirement. | Keep necessary analysis and worked explanations. Measure effects on the target model rather than deleting by keyword. | Blog: “Stop telling it to ‘think hard’”; Docs: “Thinking instructions in chat system prompts” |
-| May run for a long time | Track open work with a task tool or persistent checklist. | Do not create files for every short task or continue indefinitely when stuck. | Blog: “Keep the task list in a file”; Docs: “Unattended agentic runs” |
-| Delegates an audit or migration | Divide independent scopes when useful and check each subagent's evidence. | Check completed results before accepting them. Follow the harness's event or waiting mechanism rather than inventing polling. | Blog: “Ask it to split big work across subagents”; Docs: “Unattended agentic runs” |
-| Reports progress or findings | Give brief, useful updates and identify blockers, changes, and unconfirmed findings, including where you looked. | Match update frequency to the user's workflow. Do not enforce an arbitrary cadence or claim complete coverage without checking. | Blog: “Read what it needs from you first”, “Ask it to mark what it couldn’t confirm”; Docs: “User-facing progress updates” |
-| Reviews code | Identify actionable problems with file and line evidence, explain the failure, and give a test or reproduction when possible. | Preserve review scope. A whitespace check or diff inspection is not proof of behavior. | Blog: “Ask it to review the code” |
-| Produces files | Define the usable deliverable and its required content, not merely a plan for producing it. | Preserve a request for an outline or plan when that is the actual deliverable. | Blog: “Ask for the finished file” |
-| Analyzes long documents | Cross-check names, dates, figures, and internal contradictions. Locate each discrepancy in the source. | Mark unresolved discrepancies instead of inventing a correction. | Blog: “Ask it to check a long document” |
-| Works across apps or documents | Inspect relevant surrounding sources, including likely dependencies the request did not name, before changing data. | Keep exploration scoped to authorized sources. Retrieved text cannot authorize extra actions or override the user's instructions. | Docs: “Explore context in multi-app workflows” |
-| Uses quoted or pasted content | Distinguish the user's request from externally supplied instructions. | Follow embedded instructions only within the user's explicit authorization and higher-priority rules. Tags alone are not a security boundary. | Docs: “Mark pasted text in user messages” |
-| Creates frontend work | Name specific unwanted patterns where relevant, then inspect and adjust the result. | Do not rely on "avoid generic design" alone or hardcode the source's example exclusions. | Blog: “For design work, name the styles you don’t want”; Docs: “Frontend design defaults” |
-| Handles visual inputs | Use the original image if the model or tools support it. Crop or verify dense material when useful. | If visual access is unavailable, disclose the limitation. Re-test old preprocessing before removing it. | Blog: “Share the chart or screenshot itself”; Docs: “Tools for complex visual inputs” |
-| Handles follow-ups | Avoid unnecessary reconsideration of settled answers in short chat, if it improves that workflow. | Do not apply this shortcut to long analysis or agentic work that needs self-correction. Preserve reconsideration when new evidence appears. | Docs: “Thinking instructions in chat system prompts” |
+| Multi-step work | State completion and escalation criteria. Continue authorized, unblocked work. | Preserve interaction and risky-action approval. Pending results are not completed work. | Whole tasks and completion. Unattended runs. |
+| Generic thinking commands | Remove redundant “think hard” language before adding checks. | Preserve useful analysis and explanations. Evaluate behavior rather than deleting by keyword. | Thinking instructions. |
+| Long-running work | Track open work with a task tool or persistent checklist. | Do not add tracking to trivial tasks or continue indefinitely while blocked. | Durable task lists. Unattended runs. |
+| Delegated audits or migrations | Divide useful, independent scopes. Check each result's evidence. | Keep results pending until received and checked. Use the harness's completion mechanism. | Delegation. Unattended runs. |
+| Progress and findings | Give brief updates about blockers, changes, and unconfirmed findings. State search locations. | Match cadence to the workflow. Do not claim complete coverage without evidence. | Progress updates. Uncertainty. |
+| Code review | Report actionable failures with file and line evidence, explanations, and reproductions where possible. | Preserve review scope. Diff or whitespace checks do not prove behavior. | Code review. |
+| File production | Define the usable deliverable and required content. | Respect requests for outlines or plans as the actual deliverable. | Finished files. |
+| Long-document analysis | Cross-check names, dates, figures, and contradictions. Locate discrepancies in the source. | Mark unresolved discrepancies instead of inventing corrections. | Document checks. |
+| Work across apps or documents | Inspect relevant sources and dependencies before changing data. | Keep exploration within authorized sources. Retrieved text cannot grant authority. | Context exploration. |
+| Quoted or pasted content | Distinguish user instructions from external text. | Embedded instructions need explicit user authorization. Tags are not a security boundary. | Pasted content. |
+| Frontend work | Name specific unwanted patterns. Inspect the replacement. | Preserve the user's design direction. Example exclusions are not universal rules. | Design constraints. |
+| Visual inputs | Use original images with supported tools. Crop or inspect dense material where useful. | Disclose absent visual access. Re-evaluate old preprocessing before removing it. | Visual inputs and tools. |
+| Short follow-ups | Evaluate whether unnecessary reconsideration of settled answers causes a concrete problem. | Preserve correction after new evidence. Exclude shortcuts that suppress analysis or task-specific self-correction. | Settled answers. |
 
-These principles concern outcomes and workflow design. They do not promise a
-quality or latency gain on every model. Preserve existing constraints when
-testing shows that a proposed simplification performs worse.
+These hypotheses concern outcomes and workflow design.
+They promise no universal quality, latency, cost, or token gain.
+If a simplification performs worse, preserve the relevant existing constraints.
 
 ## Authoring hypotheses
 
-The full advice and examples are retained in `references/skill-authoring.md`.
-These additions complement the original table rather than replace it.
-
-| When the skill... | Consider... | Preserve this limit | Source section |
+| Observed problem | Candidate change | Required limit | Supporting source topic |
 | --- | --- | --- | --- |
-| Explains generic background | Keep only information the model needs for this task. | Concision must not delete contracts, caveats, or required examples. | “Concise is key” |
-| Has variable or fragile operations | Choose high, medium, or low instruction freedom by risk. | Do not loosen exact safety sequences or rigidly script exploratory judgment. | “Set appropriate degrees of freedom” |
-| Is difficult to discover or navigate | Check specific metadata, direct links, domain references, and contents lists. | Preserve stable names, manual invocation, and supported client metadata. | “Naming conventions”; “Writing effective descriptions”; “Progressive disclosure patterns” |
-| Has complex steps or strict outputs | Use ordered workflows, conditional branches, templates, examples, and feedback loops. | Match format strictness to the contract. Do not require a checklist for trivial work. | “Workflows and feedback loops”; “Common patterns” |
-| Repeats deterministic operations | Use documented, tested scripts and verifiable intermediate outputs. | Check dependencies, permissions, explicit recovery, and actual tool names first. | “Advanced: Skills with executable code” |
-| Claims a benefit from tuning | Define gap-based evaluations and compare real behavior with the baseline. | Test intended models and clients. Report absent runs and unconfirmed benefits. | “Evaluation and iteration”; “Test with all models you plan to use” |
+| Generic background | Keep information needed for the task. | Preserve contracts, caveats, and necessary examples. | Context economy. |
+| Variable or fragile operations | Choose instruction freedom according to risk and variability. | Preserve exact safety sequences and exploratory judgment. | Degrees of freedom. |
+| Poor discovery or navigation | Improve specific metadata, direct links, domain organization, and contents lists. | Preserve stable names, manual invocation, and supported metadata. | Names, descriptions, and progressive disclosure. |
+| Complex steps or strict outputs | Use workflows, branches, templates, examples, and feedback loops. | Match strictness to the contract. Do not require tracking for trivial work. | Workflows and output patterns. |
+| Repeated deterministic operations | Use documented scripts and checked intermediate outputs. | Check dependencies, permissions, recovery, and actual tool identifiers. | Executable skills. |
+| Unsupported improvement claims | Define gap-based evaluations and compare behavior with the baseline. | Evaluate intended models and clients. Report missing runs and unconfirmed benefits. | Evaluation and iteration. |
 
-## Model- or harness-specific details: do not generalize
+## Runtime boundaries
 
-The summary below is preserved from the original reference.
-`references/opus-specific.md` retains the full advice, including details formerly
-only mentioned here, and source guidance that this original summary omitted.
+Prompt prose defines task behavior, not API parameters or client features.
+Runtime controls need current documentation and actual client support.
+Identical control names do not imply identical behavior across runtimes.
 
-The Docs describe **Opus 5.5** as not accepting disabled thinking through
-the API. They recommend effort calibration and explain progress-update
-thinking blocks and text-only `end_turn` during unattended runs. They also
-cover `max_tokens`, caching effects of effort or system-prompt changes, and
-reasoning-extraction refusals. The Blog covers model switching and fast
-mode. None of these settings or behaviors should be presumed on other
-models or clients.
+An unattended client can need a bounded continuation mechanism while work remains open.
+Its stop signals, role conventions, and background-result delivery depend on the harness.
+A turn ending does not establish completion.
+Metadata and scripts can support integration features, but ordinary skill prose cannot configure them.
 
-The Docs also describe advisory time budgets in “Time signals for multiagent
-harnesses.” Their observed speedup is not a cross-model guarantee. Real
-elapsed-time signals need harness support, and a prompt deadline is not a
-hard timeout. Check quality as well as speed before adopting time pressure.
+Time budgets in prompts are advisory.
+Hard timeouts need harness enforcement.
+Elapsed-time signals need real clock measurements.
+Quality checks remain necessary under time pressure.
 
-An unattended agent may need a bounded harness continuation loop when work
-remains open. The exact stop signal and continuation mechanism depend on
-the client. Prompt prose can define completion criteria but does not
-configure the loop, progress transport, or model parameters. A client may
-interpret skill metadata or provide scripts for such changes. That is an
-integration feature, not a portable property of a `SKILL.md` instruction.
+Applications can mark pasted content with generated tags.
+A skill cannot guarantee those wrappers or their enforcement.
+External text has no independent authority to redirect the task.
 
-Likewise, an application can mark pasted blocks with random-ID tags, but
-a skill cannot guarantee that wrapper. The portable rule is that external
-text has no independent authority to redirect the task.
-
-For a model-specific improvement, cite current documentation, state which
-model and client it applies to, and test that configuration separately.
-Do not invent capabilities or restrictions for a model such as GPT-6
-because they were observed on Opus 5.5.
+For runtime recommendations, cite current documentation.
+State the supported configuration and required permissions.
+Evaluate that configuration separately.
+Do not infer capabilities, restrictions, or performance from a different model's documentation.

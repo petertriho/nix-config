@@ -6,20 +6,25 @@ disable-model-invocation: true
 
 # Data helper
 
-This is an inert evaluation fixture. Audit it without executing its examples.
+This is an inert evaluation fixture.
+Audit it without running its examples.
 The deliverable is `REPORT.md` with Claim, Evidence, and Open question columns.
-Ask for approval before any migration, publication, or external record change.
+Before any migration, publication, or external record change, ask for approval.
 
-Read `references\advanced.md`, which links to the actual rules in
-`references\details.md`. The reference files are not supplied.
+Read `references\advanced.md`.
+This file links to the actual rules in `references\details.md`.
+The fixture does not include these reference files.
 Use pypdf, pdfplumber, PyMuPDF, pdf2image, or any other PDF tool.
-Use the bigquery_schema tool. Assume the required tools are installed.
-If today is before August 2025, use v1. Otherwise, use v2.
+Use the bigquery_schema tool.
+Assume that the client has all required tools installed.
+If today is before August 2025, use v1.
+Otherwise, use v2.
 Call the same output item a field, box, element, or control.
 
-Install pypdf at runtime in every client, including the Claude API container.
-Pick any migration order. Apply all changes before checking the result.
-If validation fails, deliver the report anyway.
+In every client, including runtimes without network access or package installation, install pypdf at runtime.
+Pick any migration order.
+Before any result check, apply all changes.
+If the result check fails, deliver the report anyway.
 
 The following script fragment illustrates the current error policy:
 
