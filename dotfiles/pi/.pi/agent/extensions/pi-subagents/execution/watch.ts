@@ -25,6 +25,7 @@ export function createWatchServices(
 					interval: 1000,
 					sessionFile,
 					sentinelFile: running.sentinelFile,
+					completionFile: running.completionFile,
 					onTick() {
 						deps.observeRunningSubagent(running);
 					},
@@ -45,9 +46,7 @@ export function createWatchServices(
 				}
 
 				if (!summary) {
-					summary = deps.readScreen(surface, 200)
-						.replace(/__SUBAGENT_DONE_\d+__/, "")
-						.trimEnd();
+					summary = deps.readScreen(surface, 200).trimEnd();
 				}
 
 				const responded = Boolean(summary);
@@ -92,13 +91,28 @@ export function createWatchServices(
 			let summary: string;
 			let usage: SubagentUsageSummary | undefined;
 			let responded = false;
+			let exitCode = result.exitCode;
+			let errorMessage = result.errorMessage;
 			if (existsSync(sessionFile)) {
 				const allEntries = getNewEntries(sessionFile, 0);
+				const currentEntries = allEntries.slice(running.executionStartLine ?? running.workflowSummaryStartLine ?? 0);
+				const terminalAssistant = currentEntries.flatMap((entry) => {
+					const message = entry.message as {
+						role?: unknown; stopReason?: unknown; errorMessage?: unknown;
+					} | undefined;
+					return entry.type === "message" && message?.role === "assistant" ? [message] : [];
+				}).at(-1);
+				const failed = terminalAssistant?.stopReason === "error" || terminalAssistant?.stopReason === "aborted";
+				if (failed) {
+					if (exitCode === 0) exitCode = 1;
+					errorMessage ??= (typeof terminalAssistant.errorMessage === "string" ? terminalAssistant.errorMessage.trim() : undefined)
+						|| `Subagent exited with stopReason=${terminalAssistant.stopReason}.`;
+				}
 				const assistantMessage = result.reason === "done" && running.workflowSummaryStartLine !== undefined
-					? findWorkflowCompletionMessage(allEntries.slice(running.workflowSummaryStartLine))
-					: findLastAssistantMessage(allEntries);
-				responded = assistantMessage !== null;
-				summary = assistantMessage ?? fallbackSummary(result);
+					? findWorkflowCompletionMessage(currentEntries)
+					: findLastAssistantMessage(currentEntries);
+				responded = !failed && assistantMessage !== null;
+				summary = assistantMessage ?? fallbackSummary({ exitCode, errorMessage });
 				const aggregated = summarizeSubagentUsage(allEntries);
 				if (aggregated.requests > 0) usage = aggregated;
 			} else {
@@ -113,13 +127,13 @@ export function createWatchServices(
 				task,
 				summary,
 				sessionFile,
-				exitCode: result.exitCode,
+				exitCode,
 				elapsed,
 				responded,
 				ping: result.ping,
 				...(result.reason === "turn-limit" ? { turnLimit: true } : {}),
 				...(usage ? { usage } : {}),
-				...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
+				...(errorMessage ? { errorMessage } : {}),
 			};
 		} catch (error) {
 			try {

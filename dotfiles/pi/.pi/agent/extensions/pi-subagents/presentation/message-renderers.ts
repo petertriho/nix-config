@@ -78,7 +78,7 @@ export function registerMessageRenderers(pi: ExtensionAPI): void {
         const lineWidth = Math.max(0, width - outputPad * 2);
         const contentLines = [truncateToWidth(header, lineWidth, "")];
         if (usageLine) {
-          contentLines.push(truncateToWidth(span(theme, "dim", usageLine), lineWidth, ""));
+          contentLines.push(truncateToWidth(span(theme, "dim", sanitizeDisplayLine(usageLine)), lineWidth, ""));
         }
         const summaryLines = summary ? summary.split("\n") : [];
 

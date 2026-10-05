@@ -429,7 +429,13 @@ export async function resolveWorkflowRoleSelection(
 	if (!Object.hasOwn(definition.roleById, roleId)) throw new Error(`Workflow ${definition.id} has no role "${roleId}".`);
 	assertWorkflowRoleEnabled(state, roleId);
 
-	const currentDefault = state.currentAssignments?.[roleId] ?? state.originalAssignments?.[roleId];
+	const currentDefault = (
+		state.currentAssignments && Object.hasOwn(state.currentAssignments, roleId)
+			? state.currentAssignments[roleId] : undefined
+	) ?? (
+		state.originalAssignments && Object.hasOwn(state.originalAssignments, roleId)
+			? state.originalAssignments[roleId] : undefined
+	);
 	if (currentDefault && !isWorkflowRoleSkipAssignment(currentDefault)) {
 		const resolution = await resolveModelPolicy(
 			`${currentDefault.provider}/${currentDefault.model}:${currentDefault.thinking ?? "off"}`,

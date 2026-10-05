@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +15,7 @@ import {
 	paneExists,
 	parsePaneId,
 	pollForExit,
+	sendLongCommand,
 	shellEscape,
 } from "../adapters/tmux.ts";
 
@@ -129,6 +131,40 @@ test("pollForExit rejects when the signal is already aborted", async () => {
 		pollForExit("%999", controller.signal, { interval: 10 }),
 		/Aborted/,
 	);
+});
+
+test("pollForExit ignores completion-looking terminal output until its private shell status arrives", { timeout: 10_000 }, async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pi-subagents-shell-status-"));
+	const socket = join(dir, "tmux.sock");
+	const previousTmux = process.env.TMUX;
+	const previousPane = process.env.TMUX_PANE;
+	try {
+		execFileSync("tmux", ["-S", socket, "-f", "/dev/null", "new-session", "-d", "-s", "status-test", "-c", dir, "bash --noprofile --norc"]);
+		const pid = execFileSync("tmux", ["-S", socket, "display-message", "-p", "#{pid}"], { encoding: "utf8" }).trim();
+		process.env.TMUX = `${socket},${pid},0`;
+		process.env.TMUX_PANE = execFileSync("tmux", ["-S", socket, "display-message", "-p", "#{pane_id}"], { encoding: "utf8" }).trim();
+		const pane = createSurface("shell status");
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		const completionFile = join(dir, "execution.status");
+		const finalWork = join(dir, "final-work");
+		const marker = ["__SUBAGENT_DONE_", "0", "__"].join("");
+		sendLongCommand(pane,
+			`printf '%s\\n' ${shellEscape(marker)}; sleep 0.5; touch ${shellEscape(finalWork)}; printf '3\\n' > ${shellEscape(completionFile)}`,
+			{ scriptPath: join(dir, "command.sh") },
+		);
+		const result = await pollForExit(pane, AbortSignal.timeout(5_000), { interval: 20, completionFile });
+		assert.equal(existsSync(finalWork), true, "terminal output must not stop an active process");
+		assert.deepEqual(result, { reason: "sentinel", exitCode: 3 });
+		assert.equal(existsSync(completionFile), false, "transient status is consumed");
+		closeSurface(pane);
+	} finally {
+		try { execFileSync("tmux", ["-S", socket, "kill-server"]); } catch {}
+		if (previousTmux === undefined) delete process.env.TMUX;
+		else process.env.TMUX = previousTmux;
+		if (previousPane === undefined) delete process.env.TMUX_PANE;
+		else process.env.TMUX_PANE = previousPane;
+		rmSync(dir, { recursive: true, force: true });
+	}
 });
 
 test("buildLaunchScript comments out every preamble line so a newline in a name cannot inject a command", () => {

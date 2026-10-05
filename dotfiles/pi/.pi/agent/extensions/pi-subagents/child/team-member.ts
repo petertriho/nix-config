@@ -62,6 +62,7 @@ export default function teamMember(pi: ExtensionAPI): void {
   const replacements = new Map<string, {
     toolName: string; sentinel: string; text: string; isError: boolean; committed: boolean;
   }>();
+  const nestedCalls = new Set<string>();
 
   const pollMailbox = async (): Promise<void> => {
     if (receiving) return;
@@ -132,9 +133,24 @@ export default function teamMember(pi: ExtensionAPI): void {
     timer.unref?.();
   });
 
+  pi.on("tool_execution_start", (event) => {
+    if (event.parentToolCallId !== undefined) nestedCalls.add(event.toolCallId);
+  });
+  pi.on("tool_execution_end", (event) => {
+    nestedCalls.delete(event.toolCallId);
+  });
+
   pi.on("tool_call", async (event, ctx) => {
     if (ctx.sessionManager.getSessionId() !== sessionId || !accepted || !receipt || !disk) {
       return { block: true, reason: "Teammate has no matching authenticated startup receipt" };
+    }
+    if (nestedCalls.has(event.toolCallId) &&
+        (event.toolName === "TaskCreate" || event.toolName === "TaskUpdate")) {
+      // Nested calls have no message_end for delivery of intercepted commit results.
+      return {
+        block: true,
+        reason: `Nested ${event.toolName} is unavailable to a team member. Call ${event.toolName} directly for approval.`,
+      };
     }
     if (SAFE_READ_TOOLS.has(event.toolName)) return;
     if (pausedReason) return { block: true, reason: `Teammate writes paused: ${pausedReason}` };
@@ -316,5 +332,6 @@ export default function teamMember(pi: ExtensionAPI): void {
   pi.on("session_shutdown", () => {
     if (timer) clearInterval(timer);
     timer = undefined;
+    nestedCalls.clear();
   });
 }

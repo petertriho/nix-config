@@ -500,6 +500,112 @@ function registeredLifecycle(deps: WorkflowToolDependencies) {
 
 const LAUNCH_TOOLS = ["workflow_spawn", "workflow_resume", "workflow_recover"] as const;
 
+test("direct workflow_spawn propagates cancellation while execution launch is pending", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const execution = new FakeExecution();
+		const entered = deferred<void>();
+		const release = deferred<void>();
+		const launch = execution.launchSubagent.bind(execution);
+		execution.launchSubagent = async (params, ctx, options) => {
+			entered.resolve();
+			await release.promise;
+			if (options?.signal?.aborted) throw new Error("Subagent launch cancelled.");
+			return launch(params, ctx, options);
+		};
+		const registered = registeredLifecycle(dependencies(store, execution));
+		const caller = new AbortController();
+		const { ctx } = toolContext(root);
+		try {
+			const pending = registered.tools.get("workflow_spawn")!.execute(
+				"call", { runId: "run-docs", role: "author", task: "Write." }, caller.signal, undefined, ctx,
+			);
+			await entered.promise;
+			caller.abort();
+			release.resolve();
+			const result = await pending;
+			assert.equal(result.isError, true);
+			assert.equal(execution.launch, undefined);
+			assert.equal(execution.watch, undefined);
+			assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "failed");
+		} finally {
+			release.resolve();
+			await registered.lifecycle.stopOwnedRoles();
+		}
+	});
+});
+
+for (const name of ["workflow_resume", "workflow_recover"]) {
+	test(`direct ${name} propagates cancellation while shared resume is pending`, async () => {
+		await withTempDir(async (root) => {
+			const definition = loadDefinition(root);
+			const store = new StateStore(startState(root, definition));
+			const sessionPath = join(root, "cancelled-role.jsonl");
+			writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
+			recordSession(store, "run-docs", "author", sessionPath);
+			const execution = new FakeExecution();
+			const entered = deferred<void>();
+			const release = deferred<void>();
+			const resume = execution.executeSubagentResume.bind(execution);
+			execution.executeSubagentResume = async (pi, params, ctx, recovery, lifecycle) => {
+				entered.resolve();
+				await release.promise;
+				if (lifecycle?.signal?.aborted) throw new Error("Subagent resume cancelled.");
+				return resume(pi, params, ctx, recovery, lifecycle);
+			};
+			const registered = registeredLifecycle(dependencies(store, execution));
+			const caller = new AbortController();
+			const { ctx } = toolContext(root, ["Select a replacement model and thinking level"]);
+			try {
+				const pending = registered.tools.get(name)!.execute(
+					"call", { runId: "run-docs", role: "author", failure: "Quota exhausted." },
+					caller.signal, undefined, ctx,
+				);
+				await entered.promise;
+				caller.abort();
+				release.resolve();
+				const result = await pending;
+				assert.equal(result.isError, true);
+				assert.equal(execution.resume, undefined);
+				assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "failed");
+			} finally {
+				release.resolve();
+				await registered.lifecycle.stopOwnedRoles();
+			}
+		});
+	});
+}
+
+test("direct workflow recovery stops at a cancelled user gate before recording a launch", async () => {
+	await withTempDir(async (root) => {
+		const definition = loadDefinition(root);
+		const store = new StateStore(startState(root, definition));
+		const sessionPath = join(root, "gate-cancelled.jsonl");
+		writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
+		recordSession(store, "run-docs", "author", sessionPath);
+		const execution = new FakeExecution();
+		const registered = registeredLifecycle(dependencies(store, execution));
+		const caller = new AbortController();
+		const { ctx } = toolContext(root);
+		ctx.ui.select = async () => {
+			caller.abort();
+			return "Select a replacement model and thinking level";
+		};
+		const before = getActiveWorkflowRun(store.state)?.activeLaunch;
+		try {
+			const result = await registered.tools.get("workflow_recover")!.execute(
+				"call", { runId: "run-docs", role: "author", failure: "Quota exhausted." },
+				caller.signal, undefined, ctx,
+			);
+			assert.equal(result.isError, true);
+			assert.equal(execution.resume, undefined);
+			assert.deepEqual(getActiveWorkflowRun(store.state)?.activeLaunch, before);
+		} finally {
+			await registered.lifecycle.stopOwnedRoles();
+		}
+	});
+});
+
 test("workflow lifecycle tools are model-only and mark rejected calls as errors", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
@@ -942,6 +1048,68 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 		assert.match(asyncResult.content, /Draft complete/);
 		active = getActiveWorkflowRun(store.getState());
 		assert.equal(active?.activeLaunch?.status, "completed");
+	});
+});
+
+test("registered event-backed spawn delivers an early ping and retains confirmed owned-stop", async () => {
+	await withTempDir(async (root) => {
+		const store = new StateStore(startState(root, loadDefinition(root)));
+		const events = createEventBus();
+		const provider: WorkflowProvider = {
+			providerId: "pi-agent-teams", instanceId: "early-ping",
+			version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
+		};
+		const client = createWorkflowEventClient(events, provider, { requestTimeoutMs: 30 });
+		const sessionPath = join(root, "role.jsonl");
+		const requests: any[] = [];
+		const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+			const request = value as any;
+			requests.push(request);
+			if (request.operation === "launch") {
+				events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+					...request, kind: "ping", message: "Need input before acknowledgement",
+				});
+			}
+			const data = request.operation === "ping" ? { alive: true }
+				: request.operation === "profiles" ? { profiles: [{ agentId: "scribe", path: "/agents/scribe.md", hash: "profile" }] }
+				: request.operation === "stop" ? { stopped: true }
+				: {
+					accepted: true, sessionPath,
+					profile: { agentId: "scribe", path: "/agents/scribe.md", hash: "profile" },
+					model: request.payload.model,
+					context: { tokens: 10, source: "saved" }, metadataConfirmed: true,
+				};
+			events.emit(`pi-workflows:provider:reply:${request.requestId}`, { ...request, ok: true, data });
+		});
+		const tools = new Map<string, ToolDefinition<any, any>>();
+		const messages: any[] = [];
+		const lifecycle = registerWorkflowLifecycleTools({
+			on() {},
+			sendMessage(message: unknown) { messages.push(message); },
+			registerTool(tool: ToolDefinition<any, any>) { tools.set(tool.name, tool); },
+		} as any, {
+			...dependencies(store, new FakeExecution()), execution: undefined, eventExecution: client,
+		});
+		const { ctx } = toolContext(root);
+		try {
+			const started = await tools.get("workflow_spawn")!.execute(
+				"call", { runId: "run-docs", role: "author", task: "draft" }, undefined, undefined, ctx,
+			);
+			assert.equal(started.details.status, "started");
+			assert.equal(messages.length, 1);
+			assert.equal(messages[0].customType, "subagent_ping");
+			assert.equal(messages[0].content, "Need input before acknowledgement");
+			assert.equal(messages[0].details.sessionFile, sessionPath);
+			assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "running");
+			await lifecycle.stopOwnedRoles();
+			const launch = requests.find((request) => request.operation === "launch");
+			const stop = requests.find((request) => request.operation === "stop");
+			assert.ok(stop, "early ping delivery must retain a strictly stoppable child");
+			assert.deepEqual(stop.owner, launch.owner);
+			assert.deepEqual(stop.payload, { sessionPath });
+			assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "interrupted");
+			assert.equal(messages.length, 1, "owned-stop must not publish a stale result");
+		} finally { client.dispose(); off(); }
 	});
 });
 

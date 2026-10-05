@@ -253,6 +253,7 @@ export async function pollForExit(
     interval: number;
     sessionFile?: string;
     sentinelFile?: string;
+    completionFile?: string;
     onTick?: (elapsed: number) => void;
   },
 ): Promise<PollResult> {
@@ -276,12 +277,21 @@ export async function pollForExit(
       } catch {}
     }
 
-    try {
-      const screen = await readScreenAsync(pane, 5);
-      const match = screen.match(/__SUBAGENT_DONE_(\d+)__/);
-      if (match) {
-        return { reason: "sentinel", exitCode: parseInt(match[1], 10) };
+    if (options.completionFile) {
+      try {
+        const status = readFileSync(options.completionFile, "utf8").trim();
+        const exitCode = Number(status);
+        if (/^\d+$/.test(status) && Number.isInteger(exitCode) && exitCode <= 255) {
+          rmSync(options.completionFile, { force: true });
+          return { reason: "sentinel", exitCode };
+        }
+      } catch {
+        // The shell publishes its private status only after the command returns.
       }
+    }
+
+    try {
+      await readScreenAsync(pane, 5);
     } catch {
       // Screen capture failed: either a transient failure or the pane is
       // gone. Recheck the sidecar first, then decide pane death terminally —

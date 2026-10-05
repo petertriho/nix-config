@@ -3,6 +3,7 @@ import test from "node:test";
 import { join } from "node:path";
 import {
 	createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager,
+	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import piWorkflows from "./helpers/workflow.ts";
@@ -12,6 +13,14 @@ import {
 	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_DISCOVER_CHANNEL, WORKFLOW_PROVIDER_REQUEST_CHANNEL,
 	type WorkflowProviderRequest,
 } from "../adapters/workflow-contract.ts";
+
+function toolContext(ctx: ExtensionContext) {
+	return {
+		...ctx,
+		tools: [],
+		async executeTool() { throw new Error("Navigation regression must not execute nested tools"); },
+	};
+}
 
 for (const boundary of ["confirmation", "startup"] as const) {
 	for (const returnToA of [false, true]) {
@@ -147,3 +156,95 @@ for (const boundary of ["confirmation", "startup"] as const) {
 			});
 	}
 }
+
+test("SDK terminal cleanup cannot release before-tree ownership during later tree handlers", { timeout: 10_000 }, async () => {
+	await withParent(async (root) => {
+		const manager = SessionManager.create(root, join(root, "sessions"));
+		const base = manager.appendCustomEntry("test-root", {});
+		const entryA = manager.appendCustomEntry("pi-agent-teams.workflow-run", savedRun(root, "run-a"));
+		manager.branch(base);
+		const entryB = manager.appendCustomEntry("pi-agent-teams.workflow-run", savedRun(root, "run-b"));
+		manager.branch(entryA);
+		const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } });
+		const requests: WorkflowProviderRequest[] = [];
+		let session: Awaited<ReturnType<typeof createAgentSession>>["session"];
+		let duringTree: any;
+		let treeCtx: any;
+		const resourceLoader = new DefaultResourceLoader({
+			cwd: root, agentDir: join(root, "agent"), settingsManager,
+			noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true,
+			extensionFactories: [
+				piWorkflows,
+				(pi) => {
+					pi.registerProvider(MODEL.provider, {
+						api: "anthropic-messages", baseUrl: "https://unused.test", apiKey: "test-only",
+						models: [MODEL as any],
+					});
+					const detach: Array<() => void> = [];
+					pi.on("session_start", () => {
+						detach.push(pi.events.on(WORKFLOW_PROVIDER_DISCOVER_CHANNEL, (request: any) => {
+							pi.events.emit(`${WORKFLOW_PROVIDER_DISCOVER_CHANNEL}:reply:${request.requestId}`, {
+								requestId: request.requestId, providerId: "pi-agent-teams", instanceId: "test",
+								version: 1, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
+							});
+						}));
+						detach.push(pi.events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+							const request = value as WorkflowProviderRequest;
+							requests.push(request);
+							const p = request.payload as any;
+							const data = request.operation === "ping" ? { alive: true }
+								: request.operation === "profiles" ? { profiles: p.requiredAgents.map((agentId: string) => ({
+									agentId, path: `/profiles/${agentId}.md`, hash: "hash",
+								})) }
+								: request.operation === "stop" ? { stopped: true }
+								: { accepted: true, sessionPath: join(root, "child.jsonl"),
+									profile: { agentId: p.agentId, path: `/profiles/${p.agentId}.md`, hash: "hash" },
+									model: p.model, context: { tokens: 0, source: "test" }, metadataConfirmed: true };
+							pi.events.emit(`pi-workflows:provider:reply:${request.requestId}`, { ...request, ok: true, data });
+						}));
+					});
+					pi.on("session_before_tree", async (_event, ctx) => {
+						assert.equal(ctx.isIdle(), false);
+						const complete = session.extensionRunner.getToolDefinition("workflow_complete")!;
+						const result = await complete.execute("complete", { runId: "run-a", status: "completed" }, undefined, undefined, toolContext(ctx));
+						assert.equal((result.details as any).workflow.status, "completed");
+					});
+					pi.on("session_tree", async (_event, ctx) => {
+						treeCtx = ctx;
+						assert.equal(ctx.isIdle(), false, "the actual SDK still owns navigation");
+						duringTree = await session.extensionRunner.getToolDefinition("workflow_spawn")!.execute(
+							"spawn", { runId: "run-b", role: "author", task: "Must wait." }, undefined, undefined, toolContext(ctx),
+						);
+					});
+					pi.on("session_shutdown", () => { detach.forEach((off) => off()); });
+				},
+			],
+		});
+		await resourceLoader.reload();
+		assert.deepEqual(resourceLoader.getExtensions().errors, []);
+		const modelRuntime = await ModelRuntime.create({
+			authPath: join(root, "auth.json"), modelsPath: join(root, "models.json"),
+			modelsStorePath: join(root, "models-store.json"),
+		});
+		({ session } = await createAgentSession({
+			cwd: root, agentDir: join(root, "agent"), settingsManager, resourceLoader, modelRuntime,
+			model: MODEL as any, sessionManager: manager, noTools: "builtin",
+		}));
+		try {
+			await session.bindExtensions({ uiContext: { notify() {}, setWidget() {}, setStatus() {} } as any });
+			await session.extensionRunner.emit({ type: "before_agent_start", prompt: "", systemPrompt: "" } as any);
+			assert.equal((await session.navigateTree(entryB)).cancelled, false);
+			assert.match(duringTree.content[0].text, /branch navigation/);
+			assert.equal(requests.filter((request) => request.operation === "launch").length, 0);
+			assert.equal(session.isIdle, true);
+			await session.extensionRunner.emit({ type: "agent_settled" } as any);
+			const afterTree = await session.extensionRunner.getToolDefinition("workflow_spawn")!.execute(
+				"retry", { runId: "run-b", role: "author", task: "Now safe." }, undefined, undefined, treeCtx,
+			);
+			assert.equal((afterTree.details as any).status, "started");
+		} finally {
+			await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
+			session.dispose();
+		}
+	});
+});

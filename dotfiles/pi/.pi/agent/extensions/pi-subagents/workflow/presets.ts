@@ -366,7 +366,7 @@ export function editWorkflowPresetRoles(
 		}
 	}
 	for (const roleId of definition.roleIds) {
-		const update = updates[roleId];
+		const update = Object.hasOwn(updates, roleId) ? updates[roleId] : undefined;
 		normalized[roleId] = cloneSelection(update ?? current[roleId]!);
 	}
 	return normalizeWorkflowPresetRoles(definition, normalized);

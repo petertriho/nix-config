@@ -135,9 +135,9 @@ function setup(root: string, ids: string[]) {
 		root, ctx, events, tools, commands, messages, notifications, prompts, requests, persisted, fire,
 		start: async () => { await fire("session_start"); await fire("before_agent_start"); },
 		command: async (args: string) => commands.get("workflow")!.handler(args, ctx),
-		tool: async (name: string, args: any) => tools.get(name).execute("call", args, undefined, undefined, ctx),
+		tool: async (name: string, args: any, signal?: AbortSignal) => tools.get(name).execute("call", args, signal, undefined, ctx),
 		active: () => persisted.at(-1)?.data,
-		deferReply(operation: "launch" | "stop" | "ping") {
+		deferReply(operation: "launch" | "resume" | "recover" | "stop" | "ping" | "profiles" | "inspect") {
 			return new Promise<{ request: any; acknowledge: () => void }>((resolve) => {
 				deferredReplies.set(operation, resolve);
 			});
@@ -176,6 +176,103 @@ test("sequential startup registers one owner and provider choice precedes model 
 		await f.command("run docs-review No UI.");
 		assert.equal(f.persisted.length, before);
 	}, ["second", "first"]);
+});
+
+test("registered role calls cancelled during event preflight never start a child", async () => {
+	for (const operation of ["spawn", "resume", "recover"]) await fixture(async (f) => {
+		await f.start(); await f.command("run docs-review Write.");
+		const params = { runId: f.active().runId, role: "author", task: "Write.", failure: "quota exhausted" };
+		await f.tool("workflow_spawn", params);
+		f.deliver(f.requests.find((request) => request.operation === "launch"));
+		await new Promise((resolve) => setImmediate(resolve));
+		const before = f.requests.filter((r) => ["launch", "resume", "recover"].includes(r.operation)).length;
+		const controller = new AbortController();
+		const preflight = f.deferReply("profiles");
+		const pending = f.tool(`workflow_${operation}`, params, controller.signal);
+		const reply = await preflight;
+		controller.abort();
+		reply.acknowledge();
+		const result = await pending;
+		assert.equal(result.isError, true, `${operation}: cancellation must reject the registered call`);
+		assert.match(result.content[0].text, /cancel/i);
+		assert.equal(f.requests.filter((r) => ["launch", "resume", "recover"].includes(r.operation)).length, before);
+		const retry = await f.tool("workflow_spawn", params);
+		assert.equal(retry.details.status, "started");
+	});
+});
+
+test("saved role cancellation during inspection does not reach model gates or child start", async () => {
+	for (const operation of ["resume", "recover"]) await fixture(async (f) => {
+		await f.start(); await f.command("run docs-review Write.");
+		const params = { runId: f.active().runId, role: "author", task: "Write.", failure: "quota exhausted", model: "pick" };
+		await f.tool("workflow_spawn", params);
+		f.deliver(f.requests.find((request) => request.operation === "launch"));
+		await new Promise((resolve) => setImmediate(resolve));
+		const before = f.requests.length, prompts = f.prompts.length;
+		const controller = new AbortController();
+		const inspecting = f.deferReply("inspect");
+		const pending = f.tool(`workflow_${operation}`, params, controller.signal);
+		const reply = await inspecting;
+		controller.abort();
+		reply.acknowledge();
+		const result = await pending;
+		assert.match(result.content[0].text, /cancel/i);
+		assert.equal(result.isError, true);
+		assert.equal(f.prompts.length, prompts, "cancelled inspection must not open a picker");
+		assert.equal(f.requests.slice(before).some((r) => ["resume", "recover"].includes(r.operation)), false);
+	});
+});
+
+test("per-call cancellation during event model selection prevents launch without muting later calls", async () => {
+	for (const operation of ["spawn", "resume", "recover"]) await fixture(async (f) => {
+		await f.start(); await f.command("run docs-review Write.");
+		const params = { runId: f.active().runId, role: "author", task: "Write.", failure: "quota exhausted", model: "pick" };
+		await f.tool("workflow_spawn", params);
+		f.deliver(f.requests.find((request) => request.operation === "launch"));
+		await new Promise((resolve) => setImmediate(resolve));
+		const before = f.requests.length;
+		const controller = new AbortController();
+		f.ctx.modelRegistry.getAvailable = () => { controller.abort(); return [f.ctx.model]; };
+		const result = await f.tool(`workflow_${operation}`, params, controller.signal);
+		assert.equal(controller.signal.aborted, true, "the actual model selector must run");
+		assert.match(result.content[0].text, /cancel/i);
+		assert.equal(result.isError, true);
+		assert.equal(f.requests.slice(before).some((r) => ["launch", "resume", "recover"].includes(r.operation)), false);
+		f.ctx.modelRegistry.getAvailable = () => [f.ctx.model];
+		assert.equal((await f.tool("workflow_spawn", params)).details.status, "started");
+	});
+});
+
+test("cancelled pending starts confirm owned cleanup, but acknowledged children detach from the call signal", async () => {
+	for (const operation of ["launch", "resume", "recover"] as const) await fixture(async (f) => {
+		await f.start(); await f.command("run docs-review Write.");
+		const params = { runId: f.active().runId, role: "author", task: "Write.", failure: "quota exhausted" };
+		await f.tool("workflow_spawn", params);
+		f.deliver(f.requests.find((request) => request.operation === "launch"));
+		await new Promise((resolve) => setImmediate(resolve));
+		const controller = new AbortController();
+		const startReply = f.deferReply(operation);
+		const toolName = operation === "launch" ? "workflow_spawn" : `workflow_${operation}`;
+		const pending = f.tool(toolName, params, controller.signal);
+		const started = await startReply;
+		controller.abort();
+		started.acknowledge();
+		const result = await pending;
+		assert.equal(result.isError, true);
+		assert.match(result.content[0].text, /cancel/i);
+		const stop = f.requests.find((r) => r.operation === "stop");
+		assert.ok(stop, "an emitted start needs confirmed owner cleanup even without acknowledged facts");
+		assert.deepEqual(stop.owner, started.request.owner);
+		assert.equal(f.requests.filter((r) => r.operation === "stop").length, 1);
+		const nextController = new AbortController();
+		const acknowledged = await f.tool(toolName, params, nextController.signal);
+		assert.equal(acknowledged.details.status, "started");
+		nextController.abort();
+		f.deliver([...f.requests].reverse().find((r) => r.operation === operation));
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(f.active().activeLaunch.status, "completed", "later turn abort cannot mute or kill acknowledged work");
+		assert.equal(f.requests.filter((r) => r.operation === "stop").length, 1);
+	});
 });
 
 for (const shutdown of [true, false]) test(`two parent sessions rebind execution without duplicate registration or a disposed client (shutdown=${shutdown})`, async () => {
@@ -514,6 +611,33 @@ test("tree navigation waits for a pending spawn and stops it once without unhand
 		// Give Node a turn to report any unhandled lease rejection without intercepting it.
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(f.requests.filter((request) => request.operation === "stop").length, 1);
+	});
+});
+
+test("overlapping terminal cleanup cannot finish a restored run with the same ID or release navigation", async () => {
+	await fixture(async (f) => {
+		await f.start(); await f.command("run docs-review Write.");
+		const runId = f.active().runId;
+		await f.tool("workflow_spawn", { runId, role: "author", task: "Write." });
+		const restored = structuredClone(f.active());
+		const stopReply = f.deferReply("stop");
+		const completion = f.tool("workflow_complete", { runId, status: "completed" });
+		const stop = await stopReply;
+		const navigation = f.fire("session_before_tree");
+		stop.acknowledge();
+		const result = await completion;
+		await navigation;
+		f.setBranch([{ type: "custom", customType: "pi-agent-teams.workflow-run", data: restored }]);
+		await f.fire("session_tree");
+		assert.match(result.content[0].text, /interrupted by branch navigation/);
+		assert.equal(f.persisted.some((entry) => entry.data.status === "completed"), false);
+		f.ctx.isIdle = () => false;
+		const blocked = await f.tool("workflow_spawn", { runId, role: "author", task: "Must wait." });
+		assert.match(blocked.content[0].text, /branch navigation/);
+		f.ctx.isIdle = () => true;
+		await f.fire("agent_settled");
+		const retry = await f.tool("workflow_spawn", { runId, role: "author", task: "Now safe." });
+		assert.equal(retry.details.status, "started");
 	});
 });
 

@@ -56,6 +56,10 @@ processes from changing the team task file.
 After an uncertain commit, inspect the task list and start a fresh lead session.
 The adapter does not silently reset a paused roster.
 
+Teammate `TaskCreate` and `TaskUpdate` mutations support only direct model-issued calls.
+Nested calls through codemode or `ctx.executeTool()` fail before approval or mutation.
+Direct calls retain actual-user approval and pre-commit vetoes.
+
 For a full teammate stop, use `TeamStop` with
 `task_id: "team:<member UUID>"` from the owning lead session. It is a direct
 tool and is callable through `ctx.executeTool()`. Refused or cancelled stops

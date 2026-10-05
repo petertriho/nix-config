@@ -459,6 +459,44 @@ test("workflow data canonicalizes safe symlinks for nonexistent targets", () => 
 		);
 		assert.equal(resolved.status, "ok");
 		assert.equal(resolved.values.plan, join(artifactRoot, "missing", "PLAN.md"));
+		const reloaded = normalizeWorkflowDataValues(loaded.definition, resolved.values, { projectRoot });
+		assert.equal(reloaded.status, "ok");
+		assert.deepEqual(reloaded.values, resolved.values);
+	});
+});
+
+test("canonical file constraints accept safe aliases but reject storage and basename escapes", () => {
+	withTempDir((root) => {
+		const loaded = loadWorkflowDefinitionFromPackage(writeWorkflowPackage(root, exampleManifest()));
+		assert.equal(loaded.status, "ok");
+		const projectRoot = join(root, "project");
+		const storage = join(projectRoot, "storage");
+		const outside = join(root, "outside");
+		mkdirSync(storage, { recursive: true });
+		mkdirSync(outside);
+		symlinkSync(storage, join(projectRoot, ".artifacts"), "dir");
+		symlinkSync(storage, join(projectRoot, "safe-alias"), "dir");
+		symlinkSync(outside, join(storage, "escape"), "dir");
+		writeFileSync(join(storage, "OTHER.md"), "Wrong artifact.");
+		symlinkSync(join(storage, "OTHER.md"), join(storage, "PLAN.md"));
+		for (const path of [
+			join(projectRoot, "safe-alias", "missing", "PLAN.md"),
+			join(storage, "missing", "PLAN.md"),
+		]) {
+			const accepted = normalizeWorkflowDataValues(loaded.definition, { plan: path }, { projectRoot });
+			assert.equal(accepted.status, "ok");
+			assert.equal(accepted.values.plan, join(storage, "missing", "PLAN.md"));
+		}
+		for (const path of [
+			join(projectRoot, ".artifacts", "escape", "PLAN.md"),
+			join(outside, "PLAN.md"),
+			join(projectRoot, "other-storage", "PLAN.md"),
+			join(storage, "missing", "OTHER.md"),
+			join(storage, "PLAN.md"),
+		]) {
+			const rejected = normalizeWorkflowDataValues(loaded.definition, { plan: path }, { projectRoot });
+			assert.equal(rejected.status, "invalid", path);
+		}
 	});
 });
 

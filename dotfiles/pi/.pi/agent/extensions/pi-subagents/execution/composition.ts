@@ -8,7 +8,7 @@ import { createWatchServices } from "./watch.ts";
 export function createSubagentExecutionServices(deps: SubagentServiceDependencies) {
 	const { resolvePrimarySkill, collectResourceFingerprints, buildLaunchProfile } = createProfileResourceServices(deps);
 	const lifecycle = createLifecycleServices(deps);
-	const launchSubagent = createLaunchService(deps, { buildLaunchProfile, collectResourceFingerprints });
+	const launchSubagent = createLaunchService(deps, { buildLaunchProfile, collectResourceFingerprints }, lifecycle);
 	const { watchSubagent, watchInBackground } = createWatchServices(deps, lifecycle);
 	const { stopSubagent } = lifecycle;
 	const executeSubagentResume = createResumeService(deps, {
@@ -17,6 +17,7 @@ export function createSubagentExecutionServices(deps: SubagentServiceDependencie
 		launchSubagent,
 		watchInBackground,
 		captureSessionOwnership: lifecycle.captureSessionOwnership,
+		reserveSavedSession: lifecycle.reserveSavedSession,
 		cleanupFailedPostLaunch: lifecycle.cleanupFailedPostLaunch,
 	});
 

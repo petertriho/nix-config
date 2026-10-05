@@ -55,6 +55,18 @@ function fixture(backend: "pi" | "claude") {
 		`  fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(script) + "\\n");`,
 		`  if (fs.existsSync(${JSON.stringify(join(dir, "hold"))})) process.exit(0);`,
 		'  const sentinel = script.match(/PI_CLAUDE_SENTINEL=\'([^\']+)\'/)?.[1];',
+		`  if (fs.existsSync(${JSON.stringify(join(dir, "fail"))})) {`,
+		'    if (sentinel) {',
+		'      const status = script.match(/ > \'([^\']+\\.status)\'/)?.[1];',
+		'      if (!status) process.exit(4);',
+		'      fs.writeFileSync(status, "7\\n");',
+		'    } else {',
+		'      const session = script.match(/PI_SUBAGENT_SESSION=\'([^\']+)\'/)?.[1];',
+		'      fs.appendFileSync(session, JSON.stringify({ type: "message", id: "failed", message: { role: "assistant", stopReason: "error", content: [], errorMessage: "quota exhausted" } }) + "\\n");',
+		'      fs.writeFileSync(session + ".exit", JSON.stringify({ type: "error", errorMessage: "quota exhausted" }));',
+		'    }',
+		'    process.exit(0);',
+		'  }',
 		'  if (sentinel) {',
 		`    fs.writeFileSync(sentinel + ".transcript", ${JSON.stringify(transcript)});`,
 		'    fs.writeFileSync(sentinel, "Claude finished.\\n");',
@@ -108,11 +120,11 @@ function fixture(backend: "pi" | "claude") {
 		},
 		ui: { notify() {}, setWidget() {} },
 	};
-	const execute = (name: string, params: AnyRecord) =>
-		tools.get(name)!.execute("call", params, new AbortController().signal, () => {}, ctx);
+	const execute = (name: string, params: AnyRecord, signal = new AbortController().signal) =>
+		tools.get(name)!.execute("call", params, signal, () => {}, ctx);
 	const nextResult = async () => queued.length ? queued.shift()! : new Promise<AnyRecord>((resolve) => { waiting = resolve; });
 	return {
-		dir, cwd, agentName, messages, execute, nextResult,
+		dir, cwd, agentName, messages, execute, nextResult, ctx,
 		scripts: (): string[] => readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line)),
 		shutdown: async () => {
 			const running = [...testApi.runningSubagents.values()] as AnyRecord[];
@@ -127,6 +139,44 @@ function fixture(backend: "pi" | "claude") {
 		},
 	};
 }
+
+test("Agent resume carries caller cancellation across the asynchronous context gate", { timeout: 10_000 }, async () => {
+	const f = fixture("pi");
+	try {
+		const finished = await f.execute("Agent", {
+			description: "Review", prompt: "Review files", name: "Reviewer",
+			subagent_type: f.agentName, run_in_background: false,
+		});
+		const sessionPath = finished.details.sessionFile;
+		writeFileSync(sessionPath, [
+			{ type: "session", version: 3, id: "saved", cwd: f.cwd, timestamp: new Date().toISOString() },
+			{
+			type: "message", id: "answer", parentId: null, timestamp: new Date().toISOString(), message: {
+				role: "assistant", content: [{ type: "text", text: "Earlier answer" }],
+				stopReason: "stop", usage: { input: 160_000, output: 1, cacheRead: 0, cacheWrite: 0 },
+			},
+			},
+		].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+		const caller = new AbortController();
+		let prompted = false;
+		Object.assign(f.ctx, {
+			hasUI: true,
+			ui: { notify() {}, async select() {
+				prompted = true;
+				caller.abort();
+				return "Resume the saved session anyway";
+			} },
+		});
+		await assert.rejects(f.execute("Agent", {
+			description: "Continue", prompt: "Continue review", subagent_type: f.agentName,
+			resume: sessionPath, model: "previous",
+		}, caller.signal), /cancelled/);
+		assert.equal(prompted, true);
+		assert.equal(f.scripts().length, 1, "a cancelled resume must not dispatch another command");
+	} finally {
+		await f.shutdown();
+	}
+});
 
 for (const backend of ["claude", "pi"] as const) {
 	for (const background of [false, true]) {
@@ -197,6 +247,34 @@ test("Claude follow-up launch failure preserves the finished record for retry", 
 		await f.shutdown();
 	}
 });
+
+for (const backend of ["pi", "claude"] as const) {
+	test(`unsuccessful terminal ${backend} follow-up retains the named saved session for retry`, { timeout: 10_000 }, async () => {
+		const f = fixture(backend);
+		try {
+			const finished = await f.execute("Agent", {
+				description: "Review", prompt: "Review files", name: "Reviewer",
+				subagent_type: f.agentName, run_in_background: false,
+			});
+			const referenceKey = backend === "pi" ? "sessionFile" : "claudeSessionId";
+			const original = finished.details[referenceKey];
+			writeFileSync(join(f.dir, "fail"), "");
+			const failed = await f.execute("SendMessage", { recipient: "Reviewer", content: "Continue" });
+			assert.equal(failed.details.status, "started");
+			assert.notEqual((await f.nextResult()).message.details.exitCode, 0);
+			assert.equal((await f.execute("ListAgents", {})).details.agents[0]?.status, "finished");
+			rmSync(join(f.dir, "fail"));
+			const retry = await f.execute("SendMessage", { recipient: "Reviewer", content: "Retry" });
+			assert.equal(retry.details.status, "started", JSON.stringify(retry));
+			const delivered = await f.nextResult();
+			assert.equal(delivered.message.details.exitCode, 0);
+			assert.equal(delivered.message.details[referenceKey], original);
+			assert.equal(f.scripts().length, 3);
+		} finally {
+			await f.shutdown();
+		}
+	});
+}
 
 test("Claude follow-ups reject concurrent messages and cannot repopulate records after shutdown", { timeout: 10_000 }, async () => {
 	const f = fixture("claude");

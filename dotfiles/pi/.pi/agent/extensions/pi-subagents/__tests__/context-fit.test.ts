@@ -58,9 +58,9 @@ for (const fails of [false, true]) {
 				message: { ...userMessage, content: "child progress ".repeat(100) },
 			}]);
 			writeFileSync(sessionPath, raw);
-			const buildContext = SessionManager.prototype.buildSessionContext;
+			const buildContext = SessionManager.prototype.buildSessionProjection;
 			const failure = new Error("context reconstruction failed");
-			const hook = t.mock.method(SessionManager.prototype, "buildSessionContext", function (this: SessionManager) {
+			const hook = t.mock.method(SessionManager.prototype, "buildSessionProjection", function (this: SessionManager) {
 				const context = buildContext.call(this);
 				// Deterministic interleaving: a separate process appends after the
 				// estimator has captured its context, but before it returns/throws.
@@ -100,8 +100,8 @@ test("legacy linear sessions migrate in memory, including compaction references"
 		]);
 		writeFileSync(sessionPath, raw);
 		const before = statSync(sessionPath);
-		const buildContext = SessionManager.prototype.buildSessionContext;
-		const hook = t.mock.method(SessionManager.prototype, "buildSessionContext", function (this: SessionManager) {
+		const buildContext = SessionManager.prototype.buildSessionProjection;
+		const hook = t.mock.method(SessionManager.prototype, "buildSessionProjection", function (this: SessionManager) {
 			// No transient migration write is permitted, not even one restored later.
 			assert.equal(this.isPersisted(), false);
 			assert.equal(readFileSync(sessionPath, "utf8"), raw);
@@ -155,8 +155,8 @@ test("legacy hook messages migrate in memory and retain their token estimate", (
 		]);
 		writeFileSync(sessionPath, raw);
 		const before = statSync(sessionPath);
-		const buildContext = SessionManager.prototype.buildSessionContext;
-		const hook = t.mock.method(SessionManager.prototype, "buildSessionContext", function (this: SessionManager) {
+		const buildContext = SessionManager.prototype.buildSessionProjection;
+		const hook = t.mock.method(SessionManager.prototype, "buildSessionProjection", function (this: SessionManager) {
 			assert.equal(this.isPersisted(), false);
 			assert.equal(readFileSync(sessionPath, "utf8"), raw);
 			const context = buildContext.call(this);
@@ -278,6 +278,37 @@ test("saved context uses latest assistant usage plus trailing estimates", () => 
 	});
 });
 
+test("saved context does not reuse kept assistant usage captured before compaction", () => {
+	withTempSession((sessionPath) => {
+		const assistant = {
+			role: "assistant",
+			content: [{ type: "text", text: "answer" }],
+			usage: { input: 149_900, output: 100, cacheRead: 0, cacheWrite: 0, totalTokens: 150_000 },
+			stopReason: "stop",
+			timestamp: 2,
+		};
+		const raw = jsonl([
+			header,
+			userEntry,
+			{ type: "message", id: "a1", parentId: "u1", timestamp, message: assistant },
+			{
+				type: "compaction", id: "c1", parentId: "a1", timestamp,
+				summary: "Earlier work", firstKeptEntryId: "u1", tokensBefore: 150_000,
+			},
+		]);
+		writeFileSync(sessionPath, raw);
+		const expected = estimateTokens({
+			role: "compactionSummary", summary: "Earlier work", tokensBefore: 150_000,
+			timestamp: Date.parse(timestamp),
+		}) + estimateTokens(userMessage) + estimateTokens(assistant as any);
+		assert.deepEqual(estimateSavedSessionContext(sessionPath), {
+			tokens: expected, usageTokens: 0, trailingTokens: expected, source: "conservative",
+		});
+		assert.equal(calculateContextFit(expected, 200_000).requiresGate, false);
+		assert.equal(readFileSync(sessionPath, "utf8"), raw);
+	});
+});
+
 test("saved context ignores failed and aborted zero-usage turns", () => {
 	for (const stopReason of ["error", "aborted"] as const) {
 		withTempDir((dir) => {
@@ -342,6 +373,70 @@ test("saved context ignores failed and aborted zero-usage turns", () => {
 			assert.equal(estimate.tokens, estimate.usageTokens + estimate.trailingTokens);
 		});
 	}
+});
+
+test("saved context skips unusable numeric usage and keeps earlier applicable usage", () => {
+	const validUsage = { input: 149_900, output: 100, cacheRead: 0, cacheWrite: 0, totalTokens: 150_000 };
+	const unusableUsages = [
+		{ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 },
+		{ input: 100, output: 10 },
+		{ ...validUsage, totalTokens: null },
+		{ ...validUsage, totalTokens: Number.NaN },
+		{ ...validUsage, totalTokens: -1 },
+		{ ...validUsage, input: -1 },
+		{ ...validUsage, output: "100" },
+		{ ...validUsage, totalTokens: 1e309 },
+		{ ...validUsage, cacheRead: 1e309 },
+	];
+	withTempSession((sessionPath) => {
+		for (const usage of unusableUsages) {
+			let raw = jsonl([
+				header, userEntry,
+				{
+					type: "message", id: "a1", parentId: "u1", timestamp,
+					message: { role: "assistant", content: [], usage: validUsage, stopReason: "stop", timestamp: 2 },
+				},
+				{
+					type: "message", id: "a2", parentId: "a1", timestamp,
+					message: { role: "assistant", content: [{ type: "text", text: "partial" }], usage, stopReason: "stop", timestamp: 3 },
+				},
+			]);
+			if (usage.totalTokens === Infinity) raw = raw.replace('"totalTokens":null', '"totalTokens":1e309');
+			if ("cacheRead" in usage && usage.cacheRead === Infinity) raw = raw.replace('"cacheRead":null', '"cacheRead":1e309');
+			writeFileSync(sessionPath, raw);
+			const estimate = estimateSavedSessionContext(sessionPath);
+			assert.equal(estimate.usageTokens, 150_000, JSON.stringify(usage));
+			assert.equal(estimate.source, "usage+estimate");
+			assert.ok(Number.isFinite(estimate.tokens));
+			assert.equal(estimate.tokens, estimate.usageTokens + estimate.trailingTokens);
+			assert.equal(readFileSync(sessionPath, "utf8"), raw);
+		}
+	});
+});
+
+test("saved context does not trust positive usage from failed or aborted responses", () => {
+	withTempSession((sessionPath) => {
+		for (const stopReason of ["error", "aborted"] as const) {
+			writeFileSync(sessionPath, jsonl([
+				header, userEntry,
+				{
+					type: "message", id: "a1", parentId: "u1", timestamp,
+					message: {
+						role: "assistant", content: [], stopReason: "stop", timestamp: 2,
+						usage: { input: 149_900, output: 100, cacheRead: 0, cacheWrite: 0, totalTokens: 150_000 },
+					},
+				},
+				{
+					type: "message", id: "a2", parentId: "a1", timestamp,
+					message: {
+						role: "assistant", content: [{ type: "text", text: "partial" }], stopReason, timestamp: 3,
+						usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 },
+					},
+				},
+			]));
+			assert.equal(estimateSavedSessionContext(sessionPath).usageTokens, 150_000, stopReason);
+		}
+	});
 });
 
 test("saved context falls back to a conservative message estimate without usage", () => {

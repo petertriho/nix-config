@@ -82,6 +82,29 @@ test("legacy resume restoration reports one reduced-fidelity warning", () => {
 	assert.equal(resolveResumeRestoration(null, { autoExit: false }).interactive, true);
 });
 
+test("sidecar resume preserves omitted auto-exit as false without changing the legacy default", () => {
+	const root = mkdtempSync(join(tmpdir(), "pi-resume-omitted-auto-exit-"));
+	try {
+		const sessionPath = join(root, "session.jsonl");
+		const profile = sidecarProfile(root);
+		delete profile.stable.controls.autoExit;
+		writeLaunchProfile(sessionPath, profile as any);
+		const read = readLaunchProfile(sessionPath);
+		assert.equal(read.status, "ok");
+		if (read.status !== "ok") return;
+
+		assert.equal(read.profile.stable.controls.autoExit, undefined);
+		const restored = resolveResumeRestoration(read.profile, {});
+		assert.equal(restored.autoExit, false);
+		assert.equal(restored.interactive, true);
+		assert.equal(resolveResumeRestoration(read.profile, { autoExit: true }).autoExit, true);
+		assert.equal(resolveResumeRestoration(read.profile, { autoExit: false }).autoExit, false);
+		assert.equal(resolveResumeRestoration(null, {}).autoExit, true);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test("resource fingerprint differences are reported without blocking a resume", () => {
 	const before = resources(["read", "bash"]);
 	const after = resources(["read", "edit", "write"]);

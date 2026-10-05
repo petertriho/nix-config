@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import fs, { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	discoverWorkflowRegistry,
 } from "../workflow/registry.ts";
+import { canonicalProjectRoot, workflowPresetKey } from "../workflow/presets.ts";
 
 test("workflow registry lives inside the subagents workflow coordinator", () => {
 	assert.equal(
@@ -331,5 +334,107 @@ test("discoverWorkflowRegistry disables only the named alias when it collides wi
 		assert.equal(registry.aliases.ship, undefined);
 		assert.equal(registry.workflowById.available.alias.status, "available");
 		assert.equal(registry.aliases.draft, "available");
+	});
+});
+
+test("registry discovery and preset keys retain repository, nested, symlink, non-Git, and missing identities", () => {
+	withTempDir((root) => {
+		const repo = join(root, "repo");
+		const nested = join(repo, "nested", "deep");
+		const repoAlias = join(root, "repo-alias");
+		const plain = join(root, "plain");
+		const plainAlias = join(root, "plain-alias");
+		const missing = join(root, "missing");
+		mkdirSync(nested, { recursive: true });
+		mkdirSync(plain);
+		initGitRepo(repo);
+		symlinkSync(repo, repoAlias, "dir");
+		symlinkSync(plain, plainAlias, "dir");
+		for (const project of [repo, plain]) {
+			writeWorkflowPackage(join(project, ".pi", "workflows"), "quill", workflowManifest("quill"));
+		}
+		for (const [cwd, expected] of [
+			[repo, repo], [nested, repo], [repoAlias, repo], [join(repoAlias, "nested", "deep"), repo],
+			[plain, plain], [plainAlias, plain], [missing, missing],
+		]) {
+			assert.equal(canonicalProjectRoot(cwd), expected);
+			assert.equal(workflowPresetKey(cwd, "quill"), createHash("sha256").update(`${expected}\0quill`).digest("hex"));
+			for (const trusted of [true, false]) {
+				const registry = discoverWorkflowRegistry({
+					projectRoot: cwd, projectTrusted: trusted,
+					bundledRoot: join(root, "empty-bundled"), globalRoot: join(root, "empty-global"),
+				});
+				assert.equal(registry.sources[2].root, join(expected, ".pi", "workflows"));
+				assert.equal(registry.sources[2].enabled, trusted);
+				assert.equal(Object.hasOwn(registry.workflowById, "quill"), trusted && expected !== missing);
+				if (trusted && expected !== missing) {
+					assert.equal(registry.workflowById.quill.source, "project");
+					assert.equal(registry.aliases.quill, "quill");
+				}
+			}
+		}
+	});
+});
+
+test("registry and presets preserve empty, failed, unavailable, and reported Git-root fallbacks", () => {
+	withTempDir((root) => {
+		const cwd = join(root, "cwd");
+		const bin = join(root, "bin");
+		const reported = join(root, "reported");
+		const reportedAlias = join(root, "reported-alias");
+		const missingReported = join(root, "missing-reported");
+		mkdirSync(cwd);
+		mkdirSync(bin);
+		mkdirSync(reported);
+		symlinkSync(reported, reportedAlias, "dir");
+		const path = process.env.PATH;
+		try {
+			for (const [body, expected] of [
+				["exit 0", cwd], ["exit 17", cwd],
+				[`printf '%s\\n' '${reportedAlias}'`, reported],
+				[`printf '%s\\n' '${missingReported}'`, missingReported],
+			]) {
+				writeFileSync(join(bin, "git"), `#!/bin/sh\n${body}\n`, { mode: 0o700 });
+				process.env.PATH = bin;
+				assert.equal(canonicalProjectRoot(cwd), expected);
+				const registry = discoverWorkflowRegistry({
+					projectRoot: cwd, projectTrusted: true,
+					bundledRoot: join(root, "empty-bundled"), globalRoot: join(root, "empty-global"),
+				});
+				assert.equal(registry.sources[2].root, join(expected, ".pi", "workflows"));
+				assert.equal(workflowPresetKey(cwd, "quill"), createHash("sha256").update(`${expected}\0quill`).digest("hex"));
+			}
+			process.env.PATH = join(root, "no-git");
+			assert.equal(canonicalProjectRoot(cwd), cwd);
+			assert.equal(discoverWorkflowRegistry({
+				projectRoot: cwd, bundledRoot: bin, globalRoot: bin,
+			}).sources[2].root, join(cwd, ".pi", "workflows"));
+		} finally {
+			if (path === undefined) delete process.env.PATH;
+			else process.env.PATH = path;
+		}
+	});
+});
+
+test("registry and presets do not swallow cwd filesystem canonicalization errors", (t) => {
+	withTempDir((root) => {
+		const cwd = join(root, "cwd");
+		mkdirSync(cwd);
+		const original = fs.realpathSync;
+		const failure = Object.assign(new Error("canonicalization denied"), { code: "EACCES" });
+		const mocked = t.mock.method(fs, "realpathSync", (path: fs.PathLike) => {
+			if (path === cwd) throw failure;
+			return original(path);
+		});
+		syncBuiltinESMExports();
+		try {
+			assert.throws(() => canonicalProjectRoot(cwd), (error) => error === failure);
+			assert.throws(() => discoverWorkflowRegistry({
+				projectRoot: cwd, bundledRoot: join(root, "empty-bundled"), globalRoot: join(root, "empty-global"),
+			}), (error) => error === failure);
+		} finally {
+			mocked.mock.restore();
+			syncBuiltinESMExports();
+		}
 	});
 });

@@ -93,7 +93,8 @@ export function resolveWorkflowRecoverySessionPath(
 	roleId?: string,
 ): string | undefined {
 	const resolvedRoleId = resolveWorkflowRecoveryRoleId(snapshot, roleId);
-	return snapshot.roleSessions[resolvedRoleId]?.current
+	const session = Object.hasOwn(snapshot.roleSessions, resolvedRoleId) ? snapshot.roleSessions[resolvedRoleId] : undefined;
+	return session?.current
 		?? (snapshot.activeLaunch?.roleId === resolvedRoleId
 			? snapshot.activeLaunch.sessionPath
 			: undefined);

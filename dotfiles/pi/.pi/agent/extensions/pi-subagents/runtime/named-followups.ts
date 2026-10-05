@@ -64,10 +64,14 @@ export function createNamedFollowUp(
           pi, { sessionPath: saved.sessionPath, name: recipient, message: params.content },
           ctx, undefined, {
             isOwned,
+            signal: _signal,
             onResult: ({ result }) => {
-              onResult();
-              if (result.exitCode === 0 && !result.error && result.sessionFile) {
+              if (!isOwned()) return;
+              if (result.exitCode === 0 && !result.error && !result.errorMessage && result.sessionFile) {
+                onResult();
                 finishedOrdinary.set(recipient, { backend: "pi", id: saved.id, sessionPath: result.sessionFile });
+              } else {
+                restore();
               }
             },
             onError: restore,

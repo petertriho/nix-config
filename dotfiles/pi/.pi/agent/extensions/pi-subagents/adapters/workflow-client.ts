@@ -2,8 +2,9 @@
  * Workflow transport client. The coordinator owns workflow state and recovery
  * decisions, while execution adapters own child sessions and panes.
  */
+import { randomUUID } from "node:crypto";
 import {
-	requestWorkflowProvider, subscribeWorkflowDelivery,
+	requestWorkflowProvider, captureWorkflowDelivery,
 	WorkflowProviderCleanupRequiredError,
 	type WorkflowAgentProfile, type WorkflowEventBus, type WorkflowOwner,
 	type WorkflowProvider, type WorkflowProviderDelivery, type WorkflowRoleFacts,
@@ -59,6 +60,7 @@ export interface WorkflowRecoveryRequest extends WorkflowSavedRequest {
 }
 
 export type WorkflowPing = Readonly<Extract<WorkflowProviderDelivery, { kind: "ping" }>>;
+export type WorkflowPingHandler = (ping: WorkflowPing, facts?: WorkflowRoleFacts) => void;
 
 function freezeEvidence(result: WorkflowRoleResult): WorkflowRoleResult {
 	return Object.freeze({
@@ -112,11 +114,11 @@ export interface WorkflowRoleLease extends WorkflowRoleOwnership {
 export interface WorkflowEventClient {
 	readonly provider: WorkflowProvider;
 	ping(owner: WorkflowOwner): Promise<{ readonly alive: true }>;
-	preflight(owner: WorkflowOwner, requiredAgents: readonly string[]): Promise<readonly WorkflowAgentProfile[]>;
-	inspect(owner: WorkflowOwner, payload: WorkflowSavedRequest): Promise<WorkflowRoleFacts>;
-	launch(owner: WorkflowOwner, payload: WorkflowLaunchRequest, options?: { onPing?: (ping: WorkflowPing) => void }): Promise<WorkflowRoleLease>;
-	resume(owner: WorkflowOwner, payload: WorkflowSavedRequest, options?: { onPing?: (ping: WorkflowPing) => void }): Promise<WorkflowRoleLease>;
-	recover(owner: WorkflowOwner, payload: WorkflowRecoveryRequest, options?: { onPing?: (ping: WorkflowPing) => void }): Promise<WorkflowRoleLease>;
+	preflight(owner: WorkflowOwner, requiredAgents: readonly string[], options?: { signal?: AbortSignal }): Promise<readonly WorkflowAgentProfile[]>;
+	inspect(owner: WorkflowOwner, payload: WorkflowSavedRequest, options?: { signal?: AbortSignal }): Promise<WorkflowRoleFacts>;
+	launch(owner: WorkflowOwner, payload: WorkflowLaunchRequest, options?: { onPing?: WorkflowPingHandler; signal?: AbortSignal }): Promise<WorkflowRoleLease>;
+	resume(owner: WorkflowOwner, payload: WorkflowSavedRequest, options?: { onPing?: WorkflowPingHandler; signal?: AbortSignal }): Promise<WorkflowRoleLease>;
+	recover(owner: WorkflowOwner, payload: WorkflowRecoveryRequest, options?: { onPing?: WorkflowPingHandler; signal?: AbortSignal }): Promise<WorkflowRoleLease>;
 	updateMetadata(owner: WorkflowOwner, payload: WorkflowSavedRequest): Promise<{ readonly confirmed: true }>;
 	dispose(): void;
 }
@@ -144,15 +146,18 @@ export function createWorkflowEventClient(
 	}
 	function request<K extends Parameters<typeof requestWorkflowProvider>[2]>(
 		operation: K, owner: WorkflowOwner, payload: unknown,
+		requestId?: string,
+		signal?: AbortSignal,
 	) {
 		ensureOpen();
 		return requestWorkflowProvider(events, provider, operation, owner, payload, {
-			timeoutMs: options.requestTimeoutMs, signal: controller.signal,
+			timeoutMs: options.requestTimeoutMs,
+			signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal, requestId,
 		});
 	}
 	function lease(
-		owner: WorkflowOwner, requestId: string, facts: WorkflowRoleFacts,
-		onPing?: (ping: WorkflowPing) => void,
+		owner: WorkflowOwner, delivery: ReturnType<typeof captureWorkflowDelivery>, facts: WorkflowRoleFacts,
+		onPing?: WorkflowPingHandler,
 	): WorkflowRoleLease {
 		const owned = Object.freeze({ ...owner });
 		const confirmed = freezeFacts(facts);
@@ -166,12 +171,11 @@ export function createWorkflowEventClient(
 		});
 		let checkPending = false;
 		let timer: ReturnType<typeof setInterval>;
-		let unsubscribe: () => void;
 		const close = () => {
 			if (!active) return false;
 			active = false;
 			clearInterval(timer);
-			unsubscribe();
+			delivery.dispose();
 			leases.delete(handle);
 			return true;
 		};
@@ -191,21 +195,6 @@ export function createWorkflowEventClient(
 			},
 			dispose() { fail(new Error("Workflow role ownership disposed")); },
 		};
-		unsubscribe = subscribeWorkflowDelivery(events, provider, owned, requestId, (delivery) => {
-			if (!active) return;
-			if (delivery.kind === "ping") {
-				try {
-					onPing?.(Object.freeze({
-						kind: "ping", message: delivery.message,
-					}));
-				} catch (error) {
-					fail(new Error(`Workflow delivery handler failed: ${error instanceof Error ? error.message : String(error)}`));
-				}
-			} else {
-				if (!delivery.result.stopRequired) close();
-				resolveResult(freezeEvidence(delivery.result));
-			}
-		}, { sessionPath: confirmed.sessionPath });
 		leases.add(handle);
 		timer = setInterval(() => {
 			if (!active || checkPending) return;
@@ -214,6 +203,21 @@ export function createWorkflowEventClient(
 				fail(new Error(`Workflow provider lost: ${error instanceof Error ? error.message : String(error)}`));
 			}).finally(() => { checkPending = false; });
 		}, intervalMs);
+		delivery.confirm(confirmed.sessionPath, (delivery) => {
+			if (!active) return;
+			if (delivery.kind === "ping") {
+				try {
+					onPing?.(Object.freeze({
+						kind: "ping", message: delivery.message,
+					}), confirmed);
+				} catch (error) {
+					fail(new Error(`Workflow delivery handler failed: ${error instanceof Error ? error.message : String(error)}`));
+				}
+			} else {
+				if (!delivery.result.stopRequired) close();
+				resolveResult(freezeEvidence(delivery.result));
+			}
+		});
 		return handle;
 	}
 	function cleanupOwnership(owner: WorkflowOwner, sessionPath?: string): WorkflowRoleOwnership {
@@ -238,31 +242,47 @@ export function createWorkflowEventClient(
 	async function start(
 		operation: "launch" | "resume" | "recover", owner: WorkflowOwner,
 		payload: WorkflowLaunchRequest | WorkflowSavedRequest | WorkflowRecoveryRequest,
-		onPing?: (ping: WorkflowPing) => void,
+		options?: { onPing?: WorkflowPingHandler; signal?: AbortSignal },
 	): Promise<WorkflowRoleLease> {
+		ensureOpen();
+		const owned = Object.freeze({ ...owner });
+		const requestId = randomUUID();
+		const delivery = captureWorkflowDelivery(events, provider, owned, requestId);
 		let response;
-		try { response = await request(operation, owner, payload); }
+		try {
+			response = await request(operation, owned, payload, requestId, options?.signal);
+			ensureOpen();
+			if (options?.signal?.aborted) {
+				throw new WorkflowProviderCleanupRequiredError("Workflow provider request cancelled", response.data.sessionPath);
+			}
+		}
 		catch (error) {
+			delivery.dispose();
 			if (error instanceof WorkflowProviderCleanupRequiredError && !disposed) {
-				throw new WorkflowRoleCleanupRequiredError(error, cleanupOwnership(owner, error.sessionPath));
+				const ownership = cleanupOwnership(owned, error.sessionPath);
+				if (options?.signal?.aborted) {
+					try { await ownership.stop(); }
+					catch { throw new WorkflowRoleCleanupRequiredError(error, ownership); }
+					throw new Error(error.message);
+				}
+				throw new WorkflowRoleCleanupRequiredError(error, ownership);
 			}
 			throw error;
 		}
-		ensureOpen();
-		return lease(owner, response.requestId, response.data, onPing);
+		return lease(owned, delivery, response.data, options?.onPing);
 	}
 	return {
 		provider,
 		async ping(owner) { return (await request("ping", owner, {})).data; },
-		async preflight(owner, requiredAgents) {
-			await request("ping", owner, {});
-			const response = await request("profiles", owner, { requiredAgents: [...requiredAgents] });
+		async preflight(owner, requiredAgents, options) {
+			await request("ping", owner, {}, undefined, options?.signal);
+			const response = await request("profiles", owner, { requiredAgents: [...requiredAgents] }, undefined, options?.signal);
 			return Object.freeze(response.data.profiles.map((profile) => Object.freeze({ ...profile })));
 		},
-		async inspect(owner, payload) { return freezeFacts((await request("inspect", owner, payload)).data); },
-		launch(owner, payload, options) { return start("launch", owner, payload, options?.onPing); },
-		resume(owner, payload, options) { return start("resume", owner, payload, options?.onPing); },
-		recover(owner, payload, options) { return start("recover", owner, payload, options?.onPing); },
+		async inspect(owner, payload, options) { return freezeFacts((await request("inspect", owner, payload, undefined, options?.signal)).data); },
+		launch(owner, payload, options) { return start("launch", owner, payload, options); },
+		resume(owner, payload, options) { return start("resume", owner, payload, options); },
+		recover(owner, payload, options) { return start("recover", owner, payload, options); },
 		async updateMetadata(owner, payload) { return (await request("update-metadata", owner, payload)).data; },
 		dispose() {
 			if (disposed) return;

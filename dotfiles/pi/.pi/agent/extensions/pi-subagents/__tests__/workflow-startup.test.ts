@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Model } from "@earendil-works/pi-ai";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { loadWorkflowDefinitionFromPackage } from "../workflow/schema.ts";
 import {
 	applyWorkflowRecoveryOverride,
@@ -19,6 +20,13 @@ import {
 	type WorkflowPresetRoles,
 } from "../workflow/presets.ts";
 import { isWorkflowRoleSkipAssignment, type NormalizedWorkflowDefinition } from "../workflow/types.ts";
+import {
+	createWorkflowRunState,
+	getActiveWorkflowRun,
+	persistWorkflowRunSnapshots,
+	restoreWorkflowRunStateFromSession,
+	startWorkflowRun,
+} from "../workflow/state.ts";
 
 const ECHO = {
 	provider: "test",
@@ -222,6 +230,60 @@ test("first-time setup collects workflow assignments in manifest order and persi
 		const stored = readWorkflowModelPreset(definition, root, agentDir);
 		assert.equal(stored.status, "ok");
 		if (stored.status === "ok") assert.deepEqual(stored.preset.roles, roles(definition));
+	});
+});
+
+test("constructor role keeps the parent model when another role has a partial recovery override", async () => {
+	const manifest = workflowManifest();
+	manifest.roles[0].id = "constructor";
+	await withTempDir(async (root, agentDir, definition) => {
+		const { ctx } = startupContext([PARENT], [ECHO, ALT]);
+		const started = await chooseWorkflowStartup(ctx, definition, root, { agentDir });
+		assert.equal(started.status, "started");
+		if (started.status !== "started") return;
+		const recovered = applyWorkflowRecoveryOverride(started.state, "verifier", {
+			provider: ALT.provider, model: ALT.id, thinking: "off",
+		})!;
+		const selection = await resolveWorkflowRoleSelection(ctx, definition, recovered, "constructor");
+		assert.equal(selection.model?.id, ECHO.id);
+		assert.equal(selection.selection?.provider, ECHO.provider);
+		assert.equal((await resolveWorkflowRoleSelection(ctx, definition, recovered, "verifier")).model?.id, ALT.id);
+		const original = {
+			...recovered, policy: "per-role" as const,
+			originalAssignments: roles(definition, ALT.provider, ALT.id),
+		};
+		assert.equal((await resolveWorkflowRoleSelection(ctx, definition, original, "constructor")).model?.id, ALT.id);
+		assert.equal(Object.hasOwn(recovered.currentAssignments!, "constructor"), false);
+	}, manifest);
+});
+
+test("empty optional private skill strings survive workflow startup and session reload", async () => {
+	await withTempDir(async (root, agentDir, initial) => {
+		writeFileSync(initial.skillPath, [
+			"---", "name: private-quill", "description: Write a draft.",
+			"optional:", "whitespace:    ", "constructor: ", "---", "", "Write the draft.", "",
+		].join("\n"));
+		const definition = loadDefinition(initial.packagePath);
+		assert.deepEqual(Object.entries(definition.skill.frontmatter.additionalFields), [
+			["optional", ""], ["whitespace", ""], ["constructor", ""],
+		]);
+		const { ctx } = startupContext([PARENT]);
+		const startup = await chooseWorkflowStartup(ctx, definition, root, { agentDir });
+		assert.equal(startup.status, "started");
+		if (startup.status !== "started") return;
+		const started = startWorkflowRun(createWorkflowRunState(), {
+			...startup.state, definition, runId: "run-quill", source: "project",
+		});
+		const manager = SessionManager.create(root, join(root, "sessions"));
+		manager.appendMessage({ role: "user", content: "Write a draft.", timestamp: Date.now() });
+		persistWorkflowRunSnapshots({
+			appendEntry(customType, data) { manager.appendCustomEntry(customType, data); },
+		}, started.snapshots);
+		const restored = restoreWorkflowRunStateFromSession(SessionManager.open(manager.getSessionFile()!));
+		assert.deepEqual(restored.state, started.state);
+		assert.deepEqual(getActiveWorkflowRun(restored.state)?.definition.skill.frontmatter.additionalFields, {
+			optional: "", whitespace: "", constructor: "",
+		});
 	});
 });
 

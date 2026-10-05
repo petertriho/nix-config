@@ -320,7 +320,13 @@ export function assertWorkflowRoleEnabled(
 	assignments: Pick<WorkflowRunSnapshot, "currentAssignments" | "originalAssignments">,
 	roleId: string,
 ): void {
-	const assignment = assignments.currentAssignments?.[roleId] ?? assignments.originalAssignments?.[roleId];
+	const assignment = (
+		assignments.currentAssignments && Object.hasOwn(assignments.currentAssignments, roleId)
+			? assignments.currentAssignments[roleId] : undefined
+	) ?? (
+		assignments.originalAssignments && Object.hasOwn(assignments.originalAssignments, roleId)
+			? assignments.originalAssignments[roleId] : undefined
+	);
 	if (isWorkflowRoleSkipAssignment(assignment)) {
 		throw new Error(`Workflow role "${roleId}" is skipped for this run.`);
 	}
@@ -422,7 +428,10 @@ function parseSkillFrontmatter(value: unknown, context: string): WorkflowPrivate
 		? {}
 		: expectRecord(record.additionalFields, `${context}.additionalFields`);
 	const additionalFields = Object.fromEntries(
-		Object.entries(additionalFieldsRecord).map(([key, raw]) => [key, expectString(raw, `${context}.additionalFields.${key}`)]),
+		Object.entries(additionalFieldsRecord).map(([key, raw]) => {
+			if (typeof raw !== "string") throw new Error(`${context}.additionalFields.${key} must be a string.`);
+			return [key, raw.trim()];
+		}),
 	);
 	return freezeDeep({
 		name,
@@ -554,7 +563,7 @@ function parseNormalizedDefinitionSnapshot(
 		roleById[roleId] = role;
 	}
 	for (const role of roles) {
-		if (!roleById[role.id]) {
+		if (!Object.hasOwn(roleById, role.id)) {
 			throw new Error(`${context}.roleById is missing "${role.id}".`);
 		}
 		if (role.optional !== roleById[role.id].optional) {
@@ -688,12 +697,12 @@ function assertRunIdAvailable(state: WorkflowRunState, runId: string): void {
 
 function requireActiveRun(state: WorkflowRunState, runId: string): WorkflowRunSnapshot {
 	const normalizedRunId = expectString(runId, "workflow run ID");
-	if (state.activeRunId === normalizedRunId) {
+	if (state.activeRunId === normalizedRunId && Object.hasOwn(state.runsById, normalizedRunId)) {
 		const snapshot = state.runsById[normalizedRunId];
 		if (snapshot?.status === "active") return snapshot;
 	}
 
-	const existing = state.runsById[normalizedRunId];
+	const existing = Object.hasOwn(state.runsById, normalizedRunId) ? state.runsById[normalizedRunId] : undefined;
 	if (!state.activeRunId) {
 		if (existing) {
 			throw new Error(`Workflow run "${normalizedRunId}" is stale because it is already ${existing.status}.`);
@@ -758,14 +767,15 @@ export function createWorkflowRunState(): WorkflowRunState {
 }
 
 export function getActiveWorkflowRun(state: WorkflowRunState): WorkflowRunSnapshot | null {
-	return state.activeRunId ? state.runsById[state.activeRunId] ?? null : null;
+	return state.activeRunId && Object.hasOwn(state.runsById, state.activeRunId)
+		? state.runsById[state.activeRunId] : null;
 }
 
 export function getWorkflowRunSnapshot(
 	state: WorkflowRunState,
 	runId: string,
 ): WorkflowRunSnapshot | null {
-	return state.runsById[runId] ?? null;
+	return Object.hasOwn(state.runsById, runId) ? state.runsById[runId] : null;
 }
 
 export function listWorkflowRunSnapshots(state: WorkflowRunState): readonly WorkflowRunSnapshot[] {
@@ -1041,7 +1051,7 @@ export function recordWorkflowRunRoleSession(
 	assertWorkflowRoleEnabled(current, roleId);
 	if (options.launchStatus === "starting" || options.launchStatus === "running") assertNoPendingWorkflowGate(current);
 	const normalizedSessionPath = normalizeRoleSessionPath(sessionPath, "workflow role session path");
-	const existing = current.roleSessions[roleId];
+	const existing = Object.hasOwn(current.roleSessions, roleId) ? current.roleSessions[roleId] : undefined;
 	const history = existing?.current && existing.current !== normalizedSessionPath
 		? [...existing.history, existing.current]
 		: [...(existing?.history ?? [])];

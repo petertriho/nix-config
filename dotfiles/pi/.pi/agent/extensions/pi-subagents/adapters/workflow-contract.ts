@@ -222,7 +222,7 @@ export function requestWorkflowProvider<K extends WorkflowProviderOperation>(
 	operation: K,
 	owner: WorkflowOwner,
 	payload: unknown,
-	options: { timeoutMs?: number; signal?: AbortSignal } = {},
+	options: { timeoutMs?: number; signal?: AbortSignal; requestId?: string } = {},
 ): Promise<{ requestId: string; data: WorkflowProviderOutcomes[K] }> {
 	const wait = timeout(options.timeoutMs, MAX_REQUEST_TIMEOUT_MS, REQUEST_TIMEOUT_MS[operation]);
 	if (!provider(providerIdentity) || !validOwner(owner)) {
@@ -234,7 +234,7 @@ export function requestWorkflowProvider<K extends WorkflowProviderOperation>(
 		return Promise.reject(new Error("Workflow provider requires expected session and profile identity"));
 	}
 	if (options.signal?.aborted) return Promise.reject(new Error("Workflow provider request cancelled"));
-	const requestId = randomUUID();
+	const requestId = options.requestId ?? randomUUID();
 	const request: WorkflowProviderRequest = {
 		requestId, providerId: providerIdentity.providerId, instanceId: providerIdentity.instanceId,
 		owner: { ...owner }, operation, payload,
@@ -308,6 +308,73 @@ export interface WorkflowRoleResult {
 	readonly successfulResponse?: boolean;
 }
 
+/** Capture correlated deliveries before emitting a start; confirm facts before consuming them. */
+export function captureWorkflowDelivery(
+	events: WorkflowEventBus,
+	providerIdentity: WorkflowProvider,
+	owner: WorkflowOwner,
+	launchRequestId: string,
+): { confirm(sessionPath: string, onDelivery: (delivery: WorkflowProviderDelivery) => void): void; dispose(): void } {
+	if (!provider(providerIdentity) || !validOwner(owner) || !launchRequestId) {
+		throw new Error("Invalid workflow delivery ownership");
+	}
+	let finished = false;
+	let sessionPath: string | undefined;
+	let onDelivery: ((delivery: WorkflowProviderDelivery) => void) | undefined;
+	const early: WorkflowProviderDelivery[] = [];
+	const dispose = () => { finished = true; early.length = 0; unsubscribe(); };
+	const deliver = (delivery: WorkflowProviderDelivery) => {
+		if (finished || !onDelivery) return;
+		if (delivery.kind === "result") {
+			if (delivery.result.sessionPath !== sessionPath) return;
+			dispose();
+		}
+		onDelivery(delivery);
+	};
+	const unsubscribe = events.on(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, (value) => {
+		if (finished) return;
+		if (!record(value) || value.requestId !== launchRequestId
+			|| value.providerId !== providerIdentity.providerId || value.instanceId !== providerIdentity.instanceId
+			|| !sameOwner(value.owner, owner)) return;
+		let delivery: WorkflowProviderDelivery;
+		if (value.kind === "ping" && typeof value.message === "string") {
+			// SAFETY: The correlation and payload checks validate this ping.
+			delivery = Object.freeze({ ...value, owner: Object.freeze({ ...owner }) }) as unknown as WorkflowProviderDelivery;
+		} else if (value.kind === "result" && record(value.result)
+			&& nonempty(value.result.sessionPath)
+			&& typeof value.result.message === "string"
+			&& ["completed", "failed", "stopped"].includes(String(value.result.status))
+			&& (value.result.stopRequired === undefined || typeof value.result.stopRequired === "boolean")
+			&& (value.result.successfulResponse === undefined || typeof value.result.successfulResponse === "boolean")) {
+			// SAFETY: The runtime checks validate the result shape and its owner.
+			delivery = Object.freeze({
+				...value, owner: Object.freeze({ ...owner }), result: Object.freeze({ ...value.result }),
+			}) as unknown as WorkflowProviderDelivery;
+		} else return;
+		if (onDelivery) deliver(delivery);
+		// Keep early capture bounded without allowing repeated pings to evict results.
+		else if (early.length < 32) early.push(delivery);
+		else if (delivery.kind === "result") {
+			const pingIndex = early.findIndex((buffered) => buffered.kind === "ping");
+			if (pingIndex !== -1) {
+				early.splice(pingIndex, 1);
+				early.push(delivery);
+			}
+		}
+	});
+	return {
+		confirm(path, handler) {
+			if (!nonempty(path)) throw new Error("Invalid workflow delivery session");
+			if (finished || onDelivery) return;
+			sessionPath = path;
+			onDelivery = handler;
+			const buffered = early.splice(0);
+			for (const delivery of buffered) deliver(delivery);
+		},
+		dispose,
+	};
+}
+
 /** Dispose when a launch is replaced, the parent session changes, or Pi reloads. */
 export function subscribeWorkflowDelivery(
 	events: WorkflowEventBus,
@@ -317,27 +384,8 @@ export function subscribeWorkflowDelivery(
 	onDelivery: (delivery: WorkflowProviderDelivery) => void,
 	{ sessionPath }: { sessionPath: string },
 ): () => void {
-	if (!provider(providerIdentity) || !validOwner(owner) || !launchRequestId || !nonempty(sessionPath)) {
-		throw new Error("Invalid workflow delivery ownership");
-	}
-	let finished = false;
-	const unsubscribe = events.on(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, (value) => {
-		if (finished) return;
-		if (!record(value) || value.requestId !== launchRequestId
-			|| value.providerId !== providerIdentity.providerId || value.instanceId !== providerIdentity.instanceId
-			|| !sameOwner(value.owner, owner)) return;
-		if (value.kind === "ping" && typeof value.message === "string") {
-			onDelivery(value as WorkflowProviderDelivery);
-		} else if (value.kind === "result" && record(value.result)
-			&& value.result.sessionPath === sessionPath
-			&& typeof value.result.message === "string"
-			&& ["completed", "failed", "stopped"].includes(String(value.result.status))
-			&& (value.result.stopRequired === undefined || typeof value.result.stopRequired === "boolean")
-			&& (value.result.successfulResponse === undefined || typeof value.result.successfulResponse === "boolean")) {
-			finished = true;
-			unsubscribe();
-			onDelivery(value as WorkflowProviderDelivery);
-		}
-	});
-	return () => { finished = true; unsubscribe(); };
+	if (!nonempty(sessionPath)) throw new Error("Invalid workflow delivery ownership");
+	const delivery = captureWorkflowDelivery(events, providerIdentity, owner, launchRequestId);
+	delivery.confirm(sessionPath, onDelivery);
+	return delivery.dispose;
 }

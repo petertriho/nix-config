@@ -9,12 +9,14 @@ import {
 	type LaunchProfileWorkflowMetadata,
 } from "./launch-profile.ts";
 import type { ResolvedModelSelection } from "../profiles/model-picker.ts";
+import { resolvePiModelSelection } from "../profiles/launch-policy.ts";
 import { getNewEntries, seedSubagentSessionFile } from "../sessions/session.ts";
 import { createStatusState } from "../telemetry/status.ts";
 import { resolveTaskDiskCandidate } from "../tasks/disk-policy.ts";
 import { shellEscape } from "../adapters/tmux.ts";
 import { fileTimestamp, getArtifactDir, getDefaultSessionDirFor, toSafeFileName } from "./artifacts.ts";
 import type { createProfileResourceServices } from "./profile-resources.ts";
+import type { createLifecycleServices } from "./lifecycle.ts";
 import { buildPiPromptArgs, buildSubagentToolAllowlist } from "./prompts.ts";
 import { getShellReadyDelayMs } from "./results.ts";
 import type {
@@ -30,6 +32,7 @@ import type {
 export function createLaunchService(
 	deps: SubagentServiceDependencies,
 	profiles: Pick<ReturnType<typeof createProfileResourceServices>, "buildLaunchProfile" | "collectResourceFingerprints">,
+	lifecycle: Pick<ReturnType<typeof createLifecycleServices>, "captureSessionOwnership">,
 ) {
 	const { buildLaunchProfile, collectResourceFingerprints } = profiles;
 
@@ -44,8 +47,18 @@ export function createLaunchService(
 			rolloverFrom?: LaunchProfile;
 			taskRuntime?: TaskRuntimeOptions;
 			team?: TeamLaunchSpec;
+			signal?: AbortSignal;
+			isOwned?: () => boolean;
 		},
 	): Promise<RunningSubagent> {
+		const ownsSession = lifecycle.captureSessionOwnership(ctx);
+		const assertOwned = () => {
+			if (options?.signal?.aborted) throw new Error("Subagent launch cancelled.");
+			if (!ownsSession() || options?.isOwned?.() === false) {
+				throw new Error("Subagent launch interrupted by navigation or shutdown.");
+			}
+		};
+		assertOwned();
 		const params = deps.normalizeSubagentParams(rawParams);
 		const startTime = Date.now();
 		const id = Math.random().toString(16).slice(2, 10);
@@ -94,13 +107,13 @@ export function createLaunchService(
 		const artifactDir = getArtifactDir(ctx.sessionManager.getSessionDir(), sessionId);
 
 		const resolvedPaths = deps.resolveSubagentPaths(params, agentDefs);
-		// Guarded launches must not inherit an unrelated tmux pane's shell cwd.
-		const effectiveCwd = resolvedPaths.effectiveCwd ?? (options?.beforeLaunch ? ctx.cwd : null);
+		// A child must not inherit an unrelated tmux pane's shell cwd.
+		const effectiveCwd = resolvedPaths.effectiveCwd ?? ctx.cwd;
 		const effectiveAgentDir = rollover ? rollover.stable.agentDir : resolvedPaths.effectiveAgentDir;
 		const localAgentDir = rollover
 			? (existsSync(rollover.stable.agentDir) ? rollover.stable.agentDir : null)
 			: resolvedPaths.localAgentDir;
-		const targetCwdForSession = effectiveCwd ?? ctx.cwd;
+		const targetCwdForSession = effectiveCwd;
 		options?.beforeLaunch?.(targetCwdForSession);
 		const sessionDir = getDefaultSessionDirFor(targetCwdForSession, effectiveAgentDir);
 
@@ -117,11 +130,13 @@ export function createLaunchService(
 		}
 
 		const surfacePreCreated = options?.surface != null;
+		assertOwned();
 		const surface = options?.surface ?? deps.createSurface(params.name);
 		try {
 			if (!surfacePreCreated) {
 				await new Promise<void>((resolve) => setTimeout(resolve, getShellReadyDelayMs()));
 			}
+			assertOwned();
 
 			const launchBehavior = deps.resolveLaunchBehavior(params, agentDefs);
 
@@ -171,10 +186,23 @@ export function createLaunchService(
 
 			const safeName = toSafeFileName(params.name || "subagent", "subagent");
 			const launchScriptFile = join(artifactDir, "subagent-scripts", `${safeName}-${id}.sh`);
-			const piModelArgument = options?.resolvedModel?.argument ?? deps.resolvePiModelArgument(params, agentDefs, {
+			const completionFile = `${launchScriptFile}.status`;
+			const parentSelection = {
 				model: ctx.model,
 				thinkingLevel: ctx.thinkingLevel,
-			});
+			};
+			const piModel: ReturnType<typeof resolvePiModelSelection> = agentDefs?.cli === "claude"
+				? {
+					argument: options?.resolvedModel?.argument
+						?? deps.resolvePiModelArgument(params, agentDefs, parentSelection),
+				}
+				: options?.resolvedModel
+					? {
+						argument: `${options.resolvedModel.selection.provider}/${options.resolvedModel.selection.model}`,
+						selection: options.resolvedModel.selection,
+					}
+					: resolvePiModelSelection(params, agentDefs, parentSelection, ctx.modelRegistry);
+			const piModelArgument = piModel.argument;
 			const launchProfile = buildLaunchProfile({
 				displayName: params.name,
 				...(rollover
@@ -208,6 +236,10 @@ export function createLaunchService(
 				resources: collectResourceFingerprints(ctx.pi, effectiveSkills),
 				...(options?.workflow ? { workflow: options.workflow } : {}),
 			});
+			if (piModel.selection) {
+				launchProfile.runtime.originalModel = piModel.selection;
+				launchProfile.runtime.lastModel = piModel.selection;
+			}
 
 			if (agentDefs?.cli === "claude") {
 				const sentinelFile = `/tmp/pi-claude-${id}-done`;
@@ -237,11 +269,12 @@ export function createLaunchService(
 
 				cmdParts.push(shellEscape(params.task));
 
-				const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
-				const command = `${cdPrefix}${cmdParts.join(" ")}; echo '__SUBAGENT_DONE_'$?'__'`;
+				const cdPrefix = `cd ${shellEscape(effectiveCwd)} && `;
+				const command = `${cdPrefix}${cmdParts.join(" ")}; printf '%s\\n' "$?" > ${shellEscape(completionFile)}`;
 
 				writeLaunchProfile(subagentSessionFile, launchProfile);
 				try {
+					assertOwned();
 					deps.sendLongCommand(surface, command, {
 						scriptPath: launchScriptFile,
 						scriptPreamble: [
@@ -264,6 +297,7 @@ export function createLaunchService(
 					startTime,
 					sessionFile: subagentSessionFile,
 					launchScriptFile,
+					completionFile,
 					cli: "claude",
 					sentinelFile,
 					interactive: effectiveInteractive,
@@ -283,6 +317,9 @@ export function createLaunchService(
 
 			if (piModelArgument) {
 				parts.push("--model", shellEscape(piModelArgument));
+			}
+			if (piModel.selection?.thinking) {
+				parts.push("--thinking", shellEscape(piModel.selection.thinking));
 			}
 
 			if (identityInSystemPrompt && identity) {
@@ -355,13 +392,13 @@ export function createLaunchService(
 				parts.push(shellEscape(promptArg));
 			}
 
-			const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
+			const cdPrefix = `cd ${shellEscape(effectiveCwd)} && `;
 			const piCommand = cdPrefix + envPrefix + parts.join(" ");
-			const command = `${piCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
+			const command = `${piCommand}; printf '%s\\n' "$?" > ${shellEscape(completionFile)}`;
 			writeLaunchProfile(subagentSessionFile, launchProfile);
-			const workflowSummaryStartLine = options?.workflow
-				? (existsSync(subagentSessionFile) ? getNewEntries(subagentSessionFile, 0).length : 0)
-				: undefined;
+			const executionStartLine = existsSync(subagentSessionFile)
+				? getNewEntries(subagentSessionFile, 0).length : 0;
+			const workflowSummaryStartLine = options?.workflow ? executionStartLine : undefined;
 			try {
 				if (team) {
 					const lastCheck = resolveTaskDiskCandidate({
@@ -377,6 +414,7 @@ export function createLaunchService(
 						throw new Error("Teammate task candidate changed or became all-completed before process launch");
 					}
 				}
+				assertOwned();
 				deps.sendLongCommand(surface, command, {
 					scriptPath: launchScriptFile,
 					scriptPreamble: [
@@ -400,8 +438,10 @@ export function createLaunchService(
 				startTime,
 				sessionFile: subagentSessionFile,
 				launchScriptFile,
+				completionFile,
 				activityFile,
 				interactive: effectiveInteractive,
+				executionStartLine,
 				...(workflowSummaryStartLine !== undefined ? { workflowSummaryStartLine } : {}),
 				...(team ? { team: {
 					teamId: team.teamId, memberId: team.memberId,

@@ -652,7 +652,7 @@ export function normalizeWorkflowDataValues(
 		: undefined;
 	for (const [dataId, rawValue] of Object.entries(values)) {
 		const slot = definition.data[dataId];
-		if (!slot) {
+		if (!Object.hasOwn(definition.data, dataId)) {
 			pushDiagnostic(
 				diagnostics,
 				`${definition.manifestPath}#data.${dataId}`,
@@ -682,7 +682,11 @@ export function normalizeWorkflowDataValues(
 			continue;
 		}
 		const lexicalPath = resolve(value);
-		if (lexicalProjectRoot && !isContainedPath(lexicalProjectRoot, lexicalPath)) {
+		if (
+			lexicalProjectRoot
+			&& !isContainedPath(lexicalProjectRoot, lexicalPath)
+			&& (!canonicalProjectRoot || !isContainedPath(canonicalProjectRoot, lexicalPath))
+		) {
 			pushDiagnostic(
 				diagnostics,
 				`${definition.manifestPath}#data.${dataId}`,
@@ -733,11 +737,13 @@ export function matchesFileConstraint(
 ): boolean {
 	const absoluteFile = resolve(filePath);
 	const absoluteProjectRoot = resolve(projectRoot);
-	if (!isContainedPath(absoluteProjectRoot, absoluteFile)) return false;
-	const allowedRoot = resolve(absoluteProjectRoot, constraint.under);
-	if (!isContainedPath(allowedRoot, absoluteFile)) return false;
-	const canonicalFile = canonicalizePath(absoluteFile);
 	const canonicalProjectRoot = canonicalizePath(absoluteProjectRoot);
+	if (
+		!isContainedPath(absoluteProjectRoot, absoluteFile)
+		&& (!canonicalProjectRoot || !isContainedPath(canonicalProjectRoot, absoluteFile))
+	) return false;
+	const allowedRoot = resolve(absoluteProjectRoot, constraint.under);
+	const canonicalFile = canonicalizePath(absoluteFile);
 	const canonicalAllowedRoot = canonicalizePath(allowedRoot);
 	if (!canonicalFile || !canonicalProjectRoot || !canonicalAllowedRoot) return false;
 	if (!isContainedPath(canonicalProjectRoot, canonicalAllowedRoot)) return false;

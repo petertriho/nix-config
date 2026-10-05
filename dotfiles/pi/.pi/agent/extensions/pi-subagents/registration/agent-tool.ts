@@ -107,7 +107,7 @@ export function registerAgentTool(
           }
           return activeAgentResult(await executeSubagentResume(pi, {
             sessionPath: params.resume, name: params.name, message: params.prompt, model: params.model,
-          }, ctx));
+          }, ctx, { signal }));
         }
         if (!params.name?.trim() && params.interactive !== true && defaults.autoExit !== true && !defaults.cli) {
           return fail(`Agent definition "${agentName}" needs auto-exit or interactive: true for an unnamed run; no agent was started.`);

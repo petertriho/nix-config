@@ -8,6 +8,7 @@ import { loadWorkflowDefinitionFromPackage } from "../workflow/schema.ts";
 import {
 	WORKFLOW_RUN_ENTRY_CUSTOM_TYPE,
 	abortWorkflowRun,
+	assertWorkflowRoleEnabled,
 	completeWorkflowRun,
 	createWorkflowRunState,
 	getActiveWorkflowRun,
@@ -536,5 +537,81 @@ test("historical version-one snapshots without optional fields or thinking still
 		assert.deepEqual(active.originalAssignments?.verifier, { provider: "test", model: "old-verifier" });
 		assert.equal(active.currentAssignments, undefined);
 		assert.equal(recordWorkflowRunRoleSession(restored.state, "run-a", "verifier", "/tmp/old.jsonl").snapshots.length, 1);
+	});
+});
+
+test("workflow state rejects undeclared constructor data on startup, updates, and reload", () => {
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root, workflowManifest()));
+		const input = startInput(root, definition);
+		const unknown = { constructor: join(root, ".notes", "DRAFT.md") };
+		assert.throws(
+			() => startWorkflowRun(createWorkflowRunState(), { ...input, data: unknown }),
+			/Unknown workflow data slot "constructor"/,
+		);
+		const started = startWorkflowRun(createWorkflowRunState(), input);
+		assert.throws(() => mergeWorkflowRunData(started.state, "run-a", unknown), /Unknown workflow data slot "constructor"/);
+		const badSnapshot = { ...started.snapshots[0], data: unknown };
+		const restored = restoreWorkflowRunStateFromBranch(toBranchEntries([{
+			customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE, data: badSnapshot,
+		}]));
+		assert.equal(getActiveWorkflowRun(restored.state), null);
+	});
+});
+
+test("constructor is an unknown run unless a snapshot declares that run ID", () => {
+	const empty = createWorkflowRunState();
+	assert.equal(getWorkflowRunSnapshot(empty, "constructor"), null);
+	assert.throws(() => mergeWorkflowRunData(empty, "constructor", {}), /stale or unknown/);
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root, workflowManifest()));
+		const started = startWorkflowRun(empty, startInput(root, definition, "constructor"));
+		assert.equal(getWorkflowRunSnapshot(started.state, "constructor")?.runId, "constructor");
+		assert.equal(getActiveWorkflowRun(started.state)?.runId, "constructor");
+		const completed = completeWorkflowRun(started.state, "constructor");
+		assert.equal(getWorkflowRunSnapshot(completed.state, "constructor")?.status, "completed");
+	});
+});
+
+test("role enablement ignores inherited assignments and falls back to own original assignments", () => {
+	const inherited = Object.create({ constructor: { skip: true } });
+	assert.doesNotThrow(() => assertWorkflowRoleEnabled({
+		currentAssignments: inherited,
+		originalAssignments: { constructor: { provider: "test", model: "echo" } },
+	}, "constructor"));
+	assert.throws(() => assertWorkflowRoleEnabled({
+		currentAssignments: {},
+		originalAssignments: { constructor: { skip: true as const } },
+	}, "constructor"), /is skipped/);
+	assert.throws(() => assertWorkflowRoleEnabled({
+		currentAssignments: { constructor: { skip: true as const } },
+		originalAssignments: { constructor: { provider: "test", model: "echo" } },
+	}, "constructor"), /is skipped/);
+});
+
+test("private skill snapshots retain required text and optional field type validation", () => {
+	withTempDir((root) => {
+		const definition = loadDefinition(writeWorkflowPackage(root, workflowManifest()));
+		const input = startInput(root, definition);
+		const valid = startWorkflowRun(createWorkflowRunState(), input).snapshots[0];
+		const invalidSkills = [
+			...[undefined, null, 42, false, {}, []].map((raw) => ({
+				...definition.skill, frontmatter: { ...definition.skill.frontmatter, additionalFields: { extra: raw } },
+			})),
+			...[["name", ""], ["description", "  "], ["name", 42], ["description", null]].map(([field, raw]) => ({
+				...definition.skill, frontmatter: { ...definition.skill.frontmatter, [field as string]: raw },
+			})),
+			{ ...definition.skill, body: "" },
+			{ ...definition.skill, body: null },
+		];
+		for (const skill of invalidSkills) {
+			const invalid = { ...definition, skill } as NormalizedWorkflowDefinition;
+			assert.throws(() => startWorkflowRun(createWorkflowRunState(), { ...input, definition: invalid }), /must be .*string/);
+			const restored = restoreWorkflowRunStateFromBranch(toBranchEntries([{
+				customType: WORKFLOW_RUN_ENTRY_CUSTOM_TYPE,
+				data: { ...valid, definition: invalid },
+			}]));
+			assert.equal(getActiveWorkflowRun(restored.state), null);
+		}
 	});
 });

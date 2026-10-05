@@ -168,6 +168,35 @@ function readMailbox(path: string): Mailbox {
   return value as Mailbox;
 }
 
+/** The caller holds the mailbox lock and has authorized and validated the route. */
+function enqueueMessage(
+  box: Mailbox,
+  key: string,
+  input: Omit<TeamMessage, "id" | "sequence" | "attempts">,
+  policy: { conflict?: string; kindConflict?: string } = {},
+): TeamMessage {
+  const seen = box.seen[key];
+  if (seen) {
+    if (seen.body !== input.body || seen.to !== input.to) {
+      throw new Error(policy.conflict ?? "Conflicting duplicate request");
+    }
+    const old = box.messages.find((message) => message.id === seen.id);
+    if (!old || (policy.kindConflict !== undefined && old.kind !== input.kind)) {
+      throw new Error(policy.kindConflict ?? "Deduplication history is incomplete");
+    }
+    return old;
+  }
+  const message: TeamMessage = {
+    id: randomUUID(), from: input.from, to: input.to,
+    ...(input.kind !== undefined ? { kind: input.kind } : {}),
+    requestId: input.requestId, body: input.body, sequence: box.nextSequence++, attempts: 0,
+    ...(input.recipientEpoch !== undefined ? { recipientEpoch: input.recipientEpoch } : {}),
+  };
+  box.messages.push(message);
+  box.seen[key] = { id: message.id, body: message.body, to: message.to };
+  return message;
+}
+
 /** Low-level transport; caller admission must precede creating or joining a team. */
 export function createTeamTransport(options: { directory: string; lead: LeadIdentity }) {
   if (!isAbsolute(options.directory)) throw new Error("Absolute team directory required");
@@ -344,24 +373,13 @@ export function createTeamTransport(options: { directory: string; lead: LeadIden
         if (!input.requestId || !input.body || Buffer.byteLength(input.body) > 65_536) {
           throw new Error("Invalid team message or request ID");
         }
-        return withinMailbox(input.teamId, target.memberId, (box) => {
-          const key = `${sender.memberId}:${sender.epoch}:${input.requestId}`;
-          const seen = box.seen[key];
-          if (seen) {
-            if (seen.body !== input.body || seen.to !== input.to) throw new Error("Conflicting duplicate request");
-            const old = box.messages.find((message) => message.id === seen.id);
-            if (!old) throw new Error("Deduplication history is incomplete");
-            return old;
-          }
-          const message: TeamMessage = {
-            id: randomUUID(), from: sender.memberId, to: target.memberId,
-            requestId: input.requestId, body: input.body, sequence: box.nextSequence++, attempts: 0,
+        return withinMailbox(input.teamId, target.memberId, (box) => enqueueMessage(
+          box, `${sender.memberId}:${sender.epoch}:${input.requestId}`, {
+            from: sender.memberId, to: target.memberId,
+            requestId: input.requestId, body: input.body,
             recipientEpoch: target.epoch,
-          };
-          box.messages.push(message);
-          box.seen[key] = { id: message.id, body: message.body, to: message.to };
-          return message;
-        });
+          },
+        ));
       });
     },
     async sendFromLead(input: {
@@ -375,24 +393,13 @@ export function createTeamTransport(options: { directory: string; lead: LeadIden
         if (!input.requestId || !input.body || Buffer.byteLength(input.body) > 65_536) {
           throw new Error("Invalid team message or request ID");
         }
-        return withinMailbox(input.teamId, target.memberId, (box) => {
-          const key = `lead:${roster.lead.epoch}:${input.requestId}`;
-          const seen = box.seen[key];
-          if (seen) {
-            if (seen.body !== input.body || seen.to !== input.to) throw new Error("Conflicting duplicate request");
-            const old = box.messages.find((message) => message.id === seen.id);
-            if (!old || old.kind !== (input.kind ?? "message")) throw new Error("Conflicting duplicate message kind");
-            return old;
-          }
-          const message: TeamMessage = {
-            id: randomUUID(), from: "lead", to: target.memberId, kind: input.kind ?? "message",
-            requestId: input.requestId, body: input.body, sequence: box.nextSequence++, attempts: 0,
+        return withinMailbox(input.teamId, target.memberId, (box) => enqueueMessage(
+          box, `lead:${roster.lead.epoch}:${input.requestId}`, {
+            from: "lead", to: target.memberId, kind: input.kind ?? "message",
+            requestId: input.requestId, body: input.body,
             recipientEpoch: target.epoch,
-          };
-          box.messages.push(message);
-          box.seen[key] = { id: message.id, body: message.body, to: message.to };
-          return message;
-        });
+          }, { kindConflict: "Conflicting duplicate message kind" },
+        ));
       });
     },
     async receive(input: { teamId: string; member: MemberIdentity }): Promise<TeamMessage[]> {
@@ -532,26 +539,13 @@ export function createMemberMailbox(options: {
         if (!input.requestId || !input.body || Buffer.byteLength(input.body) > 65_536) {
           throw new Error("Invalid team message or request ID");
         }
-        return withBox(target.memberId, (box) => {
-          const key = `${sender.memberId}:${sender.epoch}:${input.requestId}`;
-          const seen = box.seen[key];
-          if (seen) {
-            if (seen.body !== input.body || seen.to !== target.memberId) {
-              throw new Error("Conflicting duplicate request");
-            }
-            const old = box.messages.find((message) => message.id === seen.id);
-            if (!old) throw new Error("Deduplication history is incomplete");
-            return old;
-          }
-          const message: TeamMessage = {
-            id: randomUUID(), from: sender.memberId, to: target.memberId, kind: "message",
-            requestId: input.requestId, body: input.body, sequence: box.nextSequence++, attempts: 0,
+        return withBox(target.memberId, (box) => enqueueMessage(
+          box, `${sender.memberId}:${sender.epoch}:${input.requestId}`, {
+            from: sender.memberId, to: target.memberId, kind: "message",
+            requestId: input.requestId, body: input.body,
             recipientEpoch: target.epoch,
-          };
-          box.messages.push(message);
-          box.seen[key] = { id: message.id, body: message.body, to: message.to };
-          return message;
-        });
+          },
+        ));
       });
     },
     sendToLead(input: { requestId: string; body: string }): Promise<TeamMessage> {
@@ -559,23 +553,12 @@ export function createMemberMailbox(options: {
         if (!input.requestId || !input.body || Buffer.byteLength(input.body) > 65_536) {
           throw new Error("Invalid team message or request ID");
         }
-        return withBox("lead", (box) => {
-          const key = `${sender.memberId}:${sender.epoch}:${input.requestId}`;
-          const seen = box.seen[key];
-          if (seen) {
-            if (seen.body !== input.body || seen.to !== "lead") throw new Error("Conflicting duplicate request");
-            const old = box.messages.find((message) => message.id === seen.id);
-            if (!old || old.kind !== "message") throw new Error("Conflicting duplicate message kind");
-            return old;
-          }
-          const message: TeamMessage = {
-            id: randomUUID(), from: sender.memberId, to: "lead", kind: "message",
-            requestId: input.requestId, body: input.body, sequence: box.nextSequence++, attempts: 0,
-          };
-          box.messages.push(message);
-          box.seen[key] = { id: message.id, body: message.body, to: message.to };
-          return message;
-        });
+        return withBox("lead", (box) => enqueueMessage(
+          box, `${sender.memberId}:${sender.epoch}:${input.requestId}`, {
+            from: sender.memberId, to: "lead", kind: "message",
+            requestId: input.requestId, body: input.body,
+          }, { kindConflict: "Conflicting duplicate message kind" },
+        ));
       });
     },
     notice(input: { kind: "startup" | "idle" | "result" | "error" | "approval_request"; requestId: string; body: string }): Promise<TeamMessage> {
@@ -584,23 +567,12 @@ export function createMemberMailbox(options: {
             !input.requestId || !input.body || Buffer.byteLength(input.body) > 65_536) {
           throw new Error("Invalid team notice");
         }
-        return withBox("lead", (box) => {
-          const key = `${sender.memberId}:${sender.epoch}:${input.requestId}`;
-          const seen = box.seen[key];
-          if (seen) {
-            if (seen.body !== input.body || seen.to !== "lead") throw new Error("Conflicting duplicate notice");
-            const old = box.messages.find((message) => message.id === seen.id);
-            if (!old || old.kind !== input.kind) throw new Error("Conflicting duplicate notice kind");
-            return old;
-          }
-          const notice: TeamMessage = {
-            id: randomUUID(), from: sender.memberId, to: "lead", kind: input.kind,
-            requestId: input.requestId, body: input.body, sequence: box.nextSequence++, attempts: 0,
-          };
-          box.messages.push(notice);
-          box.seen[key] = { id: notice.id, body: notice.body, to: notice.to };
-          return notice;
-        });
+        return withBox("lead", (box) => enqueueMessage(
+          box, `${sender.memberId}:${sender.epoch}:${input.requestId}`, {
+            from: sender.memberId, to: "lead", kind: input.kind,
+            requestId: input.requestId, body: input.body,
+          }, { conflict: "Conflicting duplicate notice", kindConflict: "Conflicting duplicate notice kind" },
+        ));
       });
     },
     send(input: { to: string; requestId: string; body: string }): Promise<TeamMessage> {
@@ -610,24 +582,13 @@ export function createMemberMailbox(options: {
         if (!input.requestId || !input.body || Buffer.byteLength(input.body) > 65_536) {
           throw new Error("Invalid team message or request ID");
         }
-        return withBox(recipient.memberId, (box) => {
-          const key = `${sender.memberId}:${sender.epoch}:${input.requestId}`;
-          const seen = box.seen[key];
-          if (seen) {
-            if (seen.body !== input.body || seen.to !== input.to) throw new Error("Conflicting duplicate request");
-            const old = box.messages.find((message) => message.id === seen.id);
-            if (!old) throw new Error("Deduplication history is incomplete");
-            return old;
-          }
-          const message: TeamMessage = {
-            id: randomUUID(), from: sender.memberId, to: recipient.memberId,
-            requestId: input.requestId, body: input.body, sequence: box.nextSequence++, attempts: 0,
+        return withBox(recipient.memberId, (box) => enqueueMessage(
+          box, `${sender.memberId}:${sender.epoch}:${input.requestId}`, {
+            from: sender.memberId, to: recipient.memberId,
+            requestId: input.requestId, body: input.body,
             recipientEpoch: recipient.epoch,
-          };
-          box.messages.push(message);
-          box.seen[key] = { id: message.id, body: message.body, to: message.to };
-          return message;
-        });
+          },
+        ));
       });
     },
     receive(): Promise<TeamMessage[]> {

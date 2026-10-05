@@ -51,6 +51,7 @@ export function createTaskRpcAdapter(discovery: AgentDiscovery, runtime: Subagen
             name: spec.options.description ?? spec.profile.fileName,
             task: spec.prompt,
             agent: spec.profile.fileName,
+            cwd: ctx.cwd,
           },
           ctx,
           {
@@ -136,7 +137,10 @@ export function createTaskRpcAdapter(discovery: AgentDiscovery, runtime: Subagen
     // still awaiting its bounded provider probe.
     const epoch = taskRpcAttachEpoch;
     const attempt = (async () => {
-      const launchContext: LaunchContext = { ...ctx, pi };
+      const launchContext = Object.create(Object.getPrototypeOf(ctx), {
+        ...Object.getOwnPropertyDescriptors(ctx),
+        pi: { value: pi, writable: true, enumerable: true, configurable: true },
+      }) as LaunchContext;
       const attached = await attachTaskRpc({
         events: pi.events,
         hooks: createTaskRpcRuntimeHooks(pi, launchContext),

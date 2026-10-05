@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, realpathSync, statSync, type Dirent } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { loadWorkflowDefinitionFromPackage } from "./schema.ts";
+import { canonicalProjectRoot } from "./presets.ts";
 import type {
 	NormalizedWorkflowDefinition,
 	WorkflowDiagnostic,
@@ -91,24 +91,6 @@ function freezeDeep<T>(value: T): T {
 function canonicalizePath(path: string): string {
 	const absolute = resolve(path);
 	return existsSync(absolute) ? realpathSync(absolute) : absolute;
-}
-
-function canonicalProjectRoot(projectRoot: string): string {
-	const canonicalCwd = canonicalizePath(projectRoot);
-	try {
-		const gitRoot = execFileSync(
-			"git",
-			["-C", canonicalCwd, "rev-parse", "--show-toplevel"],
-			{
-				encoding: "utf8",
-				stdio: ["ignore", "pipe", "ignore"],
-			},
-		).trim();
-		if (gitRoot) return canonicalizePath(gitRoot);
-	} catch {
-		// Non-Git directories use the canonical cwd.
-	}
-	return canonicalCwd;
 }
 
 function defaultBundledWorkflowsRoot(): string {

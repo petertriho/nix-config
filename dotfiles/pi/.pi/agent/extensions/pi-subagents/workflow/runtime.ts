@@ -120,7 +120,7 @@ function formatAssignments(snapshot: WorkflowRunSnapshot): string[] {
 	}
 	const assignments = { ...snapshot.originalAssignments, ...snapshot.currentAssignments };
 	return snapshot.definition.roles.map((role) => {
-		const selection = assignments[role.id];
+		const selection = Object.hasOwn(assignments, role.id) ? assignments[role.id] : undefined;
 		return selection
 			? `- ${role.id}: ${formatSelection(selection)}`
 			: `- ${role.id}: unavailable`;
@@ -143,6 +143,7 @@ function formatDataDeclarations(definition: NormalizedWorkflowDefinition): strin
 	if (definition.dataOrder.length === 0) return ["- (none)"];
 	const lines: string[] = [];
 	for (const slotId of definition.dataOrder) {
+		if (!Object.hasOwn(definition.data, slotId)) continue;
 		const slot = definition.data[slotId];
 		if (!slot) continue;
 		if (slot.kind === "string") {
@@ -164,6 +165,7 @@ function formatDataDeclarations(definition: NormalizedWorkflowDefinition): strin
 function formatCurrentData(snapshot: WorkflowRunSnapshot): string[] {
 	const entries: string[] = [];
 	for (const slotId of snapshot.definition.dataOrder) {
+		if (!Object.hasOwn(snapshot.data, slotId)) continue;
 		const value = snapshot.data[slotId];
 		if (value !== undefined) {
 			entries.push(`- ${slotId}: ${JSON.stringify(value)}`);
@@ -175,6 +177,7 @@ function formatCurrentData(snapshot: WorkflowRunSnapshot): string[] {
 function formatRoleSessions(snapshot: WorkflowRunSnapshot): string[] {
 	const lines: string[] = [];
 	for (const role of snapshot.definition.roles) {
+		if (!Object.hasOwn(snapshot.roleSessions, role.id)) continue;
 		const session = snapshot.roleSessions[role.id];
 		if (!session || (!session.current && session.history.length === 0)) continue;
 		lines.push(
@@ -313,7 +316,9 @@ export function validateWorkflowAgents(
 ): WorkflowAgentAvailability {
 	const requiredAgents = [...new Set(entry.definition.roles
 		.filter((role) => !role.optional
-			|| (assignments !== undefined && !isWorkflowRoleSkipAssignment(assignments[role.id])))
+			|| (assignments !== undefined && (
+				!Object.hasOwn(assignments, role.id) || !isWorkflowRoleSkipAssignment(assignments[role.id])
+			)))
 		.map((role) => role.agent))]
 		.sort((first, second) => first.localeCompare(second));
 	const missingAgents = requiredAgents.filter((agentName) => !loadAgent(agentName));
@@ -696,7 +701,7 @@ class DefaultWorkflowCommandRuntime implements WorkflowCommandRuntime {
 		try {
 			const assignments = { ...startup.state.originalAssignments, ...startup.state.currentAssignments };
 			await this.deps.validateProviderAgents?.(providerId, entry.definition.roles
-				.filter((role) => !isWorkflowRoleSkipAssignment(assignments[role.id]))
+				.filter((role) => !Object.hasOwn(assignments, role.id) || !isWorkflowRoleSkipAssignment(assignments[role.id]))
 				.map((role) => role.agent), ctx);
 		} catch (error) {
 			notify(ctx, `Workflow agent preflight failed: ${String(error)}`, "error");

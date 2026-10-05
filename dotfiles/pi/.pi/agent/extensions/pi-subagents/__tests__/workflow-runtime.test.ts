@@ -196,6 +196,22 @@ test("gate history appears in generic resume/status context with verbatim feedba
 	});
 });
 
+test("agent availability ignores inherited skip assignments for optional constructor roles", () => {
+	return withTempDir((root) => {
+		const packagePath = writeWorkflowPackage(root, { id: "quill" });
+		const manifest = workflowManifest({ id: "quill" });
+		manifest.roles[0].id = "constructor";
+		writeFileSync(join(packagePath, "workflow.json"), JSON.stringify({
+			...manifest,
+			roles: [{ ...manifest.roles[0], optional: true }],
+		}));
+		const definition = loadDefinition(packagePath);
+		const inherited = Object.create({ constructor: { skip: true } });
+		assert.deepEqual(validateWorkflowAgents({ definition }, () => null, inherited).missingAgents, ["scribe"]);
+		assert.deepEqual(validateWorkflowAgents({ definition }, () => null, { constructor: { skip: true as const } }).missingAgents, []);
+	});
+});
+
 class FakePi {
 	readonly commands: Array<{
 		name: string;

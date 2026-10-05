@@ -95,7 +95,8 @@ export function createAgentDiscovery(subagentsDir: string) {
           file.replace(/\.md$/, ""),
         );
         if (!parsed) continue;
-        agents.set(parsed.name, { ...parsed, fileName: file.replace(/\.md$/, ""), source });
+        const fileName = file.replace(/\.md$/, "");
+        agents.set(fileName, { ...parsed, fileName, source });
       }
     }
 

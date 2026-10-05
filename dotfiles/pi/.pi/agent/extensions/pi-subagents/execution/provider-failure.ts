@@ -53,8 +53,13 @@ export function redactProviderFailureMessage(message: string): string {
 		)
 		.replace(/\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, "$1 [REDACTED]")
 		.replace(
-			/\b(api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|credential)\b(\s*[:=]\s*)(["']?)[^\s"',;]+/gi,
-			"$1$2$3[REDACTED]",
+			/\b(api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|credential|authorization)\b(["']?)(\s*[:=]\s*)("(?:\\[\s\S]|[^"\\])+(?:"|\\?$)|'(?:\\[\s\S]|[^'\\])+(?:'|\\?$)|[^\s"',;]+)/gi,
+			(_match, key: string, keyQuote: string, separator: string, value: string) => {
+				const valueQuote = value[0] === "\"" || value[0] === "'" ? value[0] : "";
+				const quote = valueQuote || keyQuote;
+				const suffix = keyQuote && !valueQuote ? value.match(/[}\]]+$/)?.[0] ?? "" : "";
+				return `${key}${keyQuote}${separator}${quote}[REDACTED]${quote}${suffix}`;
+			},
 		)
 		.replace(/([?&](?:api[_-]?key|token|access[_-]?token|secret|password)=)[^&#\s]+/gi, "$1[REDACTED]")
 		.replace(/(https?:\/\/)[^@\s/]+@/gi, "$1[REDACTED]@")

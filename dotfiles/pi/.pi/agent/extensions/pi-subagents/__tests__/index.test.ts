@@ -1221,7 +1221,8 @@ test("Agent treats every non-worktree isolation value as shared and inherits the
 				const scripts = readFileSync(launchLog, "utf8").trim().split("\n");
 				const script = readFileSync(scripts.at(-1)!, "utf8");
 				assert.ok(script.includes(`cd '${cwd}'`), script);
-				assert.match(script, /--model 'anthropic\/claude:high'/);
+				assert.match(script, /--model 'anthropic\/claude'/);
+				assert.match(script, /--thinking 'high'/);
 				assert.doesNotMatch(script, /--model 'inherit'/);
 				const profile = readLaunchProfile(result.details.sessionFile);
 				assert.equal(profile.status, "ok");
@@ -2458,7 +2459,11 @@ test("configured agent defaults reach the child --model and launch profile over 
 		const ctx = {
 			...policyContext({
 				cwd: projectDir,
-				modelRegistry: { getAvailable: () => [POLICY_MODEL, OTHER_MODEL] },
+				modelRegistry: {
+					getAvailable: () => [POLICY_MODEL, OTHER_MODEL],
+					getAll: () => [POLICY_MODEL, OTHER_MODEL, { ...OTHER_MODEL, provider: "front", id: "matter" }],
+					hasConfiguredAuth: () => true,
+				},
 			}),
 			sessionManager: {
 				getSessionFile: () => join(projectDir, "parent.jsonl"),
@@ -2478,7 +2483,8 @@ test("configured agent defaults reach the child --model and launch profile over 
 			const script = readFileSync(result.details.launchScriptFile, "utf8");
 			const match = script.match(/--model '([^']+)'/);
 			assert.ok(match, script);
-			return match[1];
+			const thinking = script.match(/--thinking '([^']+)'/);
+			return thinking ? `${match[1]}:${thinking[1]}` : match[1];
 		};
 
 		writeAgentModelConfig(
@@ -4223,7 +4229,8 @@ test("task RPC launches force autonomous auto-exit behavior, canonical model, an
 		);
 		assert.match(script, /PI_SUBAGENT_AUTO_EXIT=1/);
 		assert.match(script, /PI_SUBAGENT_MAX_TURNS=3/);
-		assert.match(script, /--model 'test-provider\/echo:high'/);
+		assert.match(script, /--model 'test-provider\/echo'/);
+		assert.match(script, /--thinking 'high'/);
 		assert.match(script, /PI_SUBAGENT_AGENT='planner'/);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
@@ -4319,7 +4326,8 @@ test("ordinary launches keep their profile interaction, auto-exit, and prompt be
 		assert.doesNotMatch(workerScript, /PI_SUBAGENT_MAX_TURNS/);
 		// No resolvedModel: the parent session model (with its thinking level)
 		// flows through the ordinary path exactly as before.
-		assert.match(workerScript, /--model 'anthropic\/claude:high'/);
+		assert.match(workerScript, /--model 'anthropic\/claude'/);
+		assert.match(workerScript, /--thinking 'high'/);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}

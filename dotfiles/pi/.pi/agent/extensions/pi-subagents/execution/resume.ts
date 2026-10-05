@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { classifyProviderFailure } from "./provider-failure.ts";
 import { getSubagentActivityFile } from "../telemetry/activity.ts";
@@ -53,6 +53,7 @@ export interface ResumeExecutionDependencies {
 	launchSubagent: ReturnType<typeof createLaunchService>;
 	watchInBackground: ReturnType<typeof createWatchServices>["watchInBackground"];
 	captureSessionOwnership: ReturnType<typeof createLifecycleServices>["captureSessionOwnership"];
+	reserveSavedSession: ReturnType<typeof createLifecycleServices>["reserveSavedSession"];
 	cleanupFailedPostLaunch: ReturnType<typeof createLifecycleServices>["cleanupFailedPostLaunch"];
 }
 
@@ -66,6 +67,7 @@ export function createResumeService(
 		launchSubagent,
 		watchInBackground,
 		captureSessionOwnership,
+		reserveSavedSession,
 		cleanupFailedPostLaunch,
 	} = services;
 
@@ -76,9 +78,40 @@ export function createResumeService(
 		recovery?: ResumeRecoveryContext,
 		lifecycle?: ResumeLifecycleContext,
 	): Promise<SubagentToolResult> {
+		if (!existsSync(params.sessionPath)) {
+			return {
+				content: [{ type: "text", text: `Error: session file not found: ${params.sessionPath}` }],
+				details: { error: "session not found" },
+			};
+		}
+		const release = reserveSavedSession(params.sessionPath);
+		let surfaceOwnsReservation = false;
+		try {
+			return await executeReservedResume(pi, params, ctx, recovery, lifecycle, (running) => {
+				running.releaseSession = release;
+				surfaceOwnsReservation = true;
+			});
+		} finally {
+			if (!surfaceOwnsReservation) release();
+		}
+	}
+
+	async function executeReservedResume(
+		pi: ExtensionAPI,
+		params: SubagentResumeParams,
+		ctx: LaunchContext & Parameters<typeof resolveModelPolicy>[1],
+		recovery: ResumeRecoveryContext | undefined,
+		lifecycle: ResumeLifecycleContext | undefined,
+		ownSurface: (running: RunningSubagent) => void,
+	): Promise<SubagentToolResult> {
 		const ownsSession = captureSessionOwnership(ctx);
-		const isOwned = () => ownsSession() && lifecycle?.isOwned?.() !== false;
+		let acknowledged = false;
+		const isOwned = () => ownsSession() && lifecycle?.isOwned?.() !== false
+			&& (acknowledged || !lifecycle?.signal?.aborted);
 		const assertOwned = () => {
+			if (lifecycle?.signal?.aborted) {
+				throw new Error("Subagent resume cancelled; saved files are preserved.");
+			}
 			if (!ownsSession()) {
 				throw new Error("Subagent resume interrupted by session change or shutdown; saved files are preserved.");
 			}
@@ -86,18 +119,10 @@ export function createResumeService(
 				throw new Error("Workflow resume interrupted by branch navigation; saved files are preserved.");
 			}
 		};
+		assertOwned();
 		const name = params.name ?? "Resume";
 		const startTime = Date.now();
 		const id = Math.random().toString(16).slice(2, 10);
-
-		if (!existsSync(params.sessionPath)) {
-			return {
-				content: [
-					{ type: "text", text: `Error: session file not found: ${params.sessionPath}` },
-				],
-				details: { error: "session not found" },
-			};
-		}
 
 		let profileRead = readLaunchProfile(params.sessionPath);
 		if (profileRead.status === "invalid") {
@@ -135,6 +160,7 @@ export function createResumeService(
 		if (restoration.legacyWarning) {
 			resumeWarnings.push(restoration.legacyWarning);
 			await ctx.ui?.notify?.(restoration.legacyWarning, "warning");
+			assertOwned();
 		}
 
 		const currentResources = collectResourceFingerprints(
@@ -150,6 +176,7 @@ export function createResumeService(
 			if (notice) {
 				resumeWarnings.push(notice);
 				await ctx.ui?.notify?.(`Resume uses current resources: ${notice}`, "info");
+				assertOwned();
 			}
 
 			const currentPrimarySkill = restoration.agentDir
@@ -171,6 +198,7 @@ export function createResumeService(
 						"Stop this resume",
 					],
 				);
+				assertOwned();
 				if (choice === "Start a fresh same-role session with the latest skill") {
 					freshForPrimarySkillChange = true;
 				} else if (choice !== "Resume with the older instructions") {
@@ -240,6 +268,7 @@ export function createResumeService(
 				};
 			}
 
+			assertOwned();
 			if (freshForPrimarySkillChange) {
 				if (!profile || !resolvedModel) {
 					return {
@@ -266,6 +295,7 @@ export function createResumeService(
 					details: { error: "context gate unavailable", message },
 				};
 			}
+			assertOwned();
 			if (action === "choose") {
 				modelPolicy = "pick";
 				continue;
@@ -334,6 +364,8 @@ export function createResumeService(
 					resolvedModel: rollover.selection,
 					rolloverFrom: rolloverProfile,
 					beforeLaunch: lifecycle?.beforeLaunch,
+					signal: lifecycle?.signal,
+					isOwned,
 					...(workflowMetadata ? { workflow: workflowMetadata } : {}),
 				},
 			);
@@ -341,6 +373,7 @@ export function createResumeService(
 			let lineageWarnings: string[] = [];
 			let watcherAbort: AbortController | undefined;
 			try {
+				assertOwned();
 				watcherAbort = watchInBackground({
 					isOwned,
 					pi,
@@ -441,11 +474,13 @@ export function createResumeService(
 						"warning",
 					);
 				}
+				assertOwned();
 			} catch (error) {
 				cleanupFailedPostLaunch(running, watcherAbort);
 				throw error;
 			}
 
+			acknowledged = true;
 			return {
 				content: [{
 					type: "text",
@@ -471,81 +506,9 @@ export function createResumeService(
 		}
 
 		lifecycle?.beforeLaunch?.(restoration.cwd ?? ctx.cwd, params.sessionPath);
+		assertOwned();
 		const entryCountBefore = getNewEntries(params.sessionPath, 0).length;
 		const surface = deps.createSurface(name);
-		await new Promise<void>((resolve) => setTimeout(resolve, getShellReadyDelayMs()));
-
-		const parts = buildResumePiArgs(params.sessionPath, resolvedModel?.argument);
-		const subagentDonePath = join(deps.subagentsDir, "subagent-done.ts");
-		parts.push("-e", shellEscape(subagentDonePath));
-
-		const sessionId = ctx.sessionManager.getSessionId();
-		const artifactDir = getArtifactDir(ctx.sessionManager.getSessionDir(), sessionId);
-		const activityFile = getSubagentActivityFile(artifactDir, id);
-		mkdirSync(dirname(activityFile), { recursive: true });
-
-		const safeName = toSafeFileName(name, "resume");
-		if (
-			restoration.roleBody
-			&& (restoration.systemPromptMode === "append" || restoration.systemPromptMode === "replace")
-		) {
-			const flag = restoration.systemPromptMode === "replace"
-				? "--system-prompt"
-				: "--append-system-prompt";
-			const syspromptPath = join(
-				artifactDir,
-				"subagent-resume",
-				`${safeName}-${id}-sysprompt-${fileTimestamp()}.md`,
-			);
-			mkdirSync(dirname(syspromptPath), { recursive: true });
-			writeFileSync(syspromptPath, restoration.roleBody, "utf8");
-			parts.push(flag, shellEscape(syspromptPath));
-		}
-
-		let resumeMsgFile: string | undefined;
-		if (params.message) {
-			resumeMsgFile = join(artifactDir, "subagent-resume", `${safeName}-${id}-${fileTimestamp()}.md`);
-			mkdirSync(dirname(resumeMsgFile), { recursive: true });
-			writeFileSync(resumeMsgFile, params.message, "utf8");
-			parts.push(shellEscape(`@${resumeMsgFile}`));
-		}
-
-		const resumeEnvParts: string[] = [];
-		if (restoration.agentDir && existsSync(restoration.agentDir)) {
-			resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(restoration.agentDir)}`);
-		} else if (process.env.PI_CODING_AGENT_DIR) {
-			resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
-		}
-		if (restoration.denyTools.length > 0) {
-			resumeEnvParts.push(`PI_DENY_TOOLS=${shellEscape(restoration.denyTools.join(","))}`);
-		}
-		resumeEnvParts.push(`PI_SUBAGENT_NAME=${shellEscape(name)}`);
-		if (restoration.agentName) {
-			resumeEnvParts.push(`PI_SUBAGENT_AGENT=${shellEscape(restoration.agentName)}`);
-		}
-		resumeEnvParts.push(`PI_SUBAGENT_SESSION=${shellEscape(params.sessionPath)}`);
-		resumeEnvParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
-		resumeEnvParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
-		if (autoExit) {
-			resumeEnvParts.push("PI_SUBAGENT_AUTO_EXIT=1");
-		}
-		const resumeEnvPrefix = resumeEnvParts.join(" ") + " ";
-
-		const resumeCommand = parts.join(" ");
-		const cdPrefix = restoration.cwd ? `cd ${shellEscape(restoration.cwd)} && ` : "";
-		const command = `${cdPrefix}${resumeEnvPrefix}${resumeCommand}; echo '__SUBAGENT_DONE_'$?'__'`;
-		const launchScriptFile = join(artifactDir, "subagent-scripts", `${safeName}-resume-${id}-${Date.now()}.sh`);
-		deps.sendLongCommand(surface, command, {
-			scriptPath: launchScriptFile,
-			scriptPreamble: [
-				`# Subagent resume script for ${name}`,
-				`# Generated: ${new Date().toISOString()}`,
-				`# Session: ${params.sessionPath}`,
-				`# Surface: ${surface}`,
-				...(resumeMsgFile ? [`# Resume message file: ${resumeMsgFile}`] : []),
-			].join("\n"),
-		});
-
 		const running: RunningSubagent = {
 			id,
 			name,
@@ -553,15 +516,100 @@ export function createResumeService(
 			surface,
 			startTime,
 			sessionFile: params.sessionPath,
-			launchScriptFile,
-			activityFile,
 			interactive,
+			executionStartLine: entryCountBefore,
 			...(lifecycle?.workflowMetadata ? { workflowSummaryStartLine: entryCountBefore } : {}),
 			statusState: createStatusState({ source: "pi", startTimeMs: startTime }),
 		};
+		ownSurface(running);
 		deps.runningSubagents.set(id, running);
 		let watcherAbort: AbortController | undefined;
 		try {
+			await new Promise<void>((resolve) => setTimeout(resolve, getShellReadyDelayMs()));
+			assertOwned();
+
+			const parts = buildResumePiArgs(params.sessionPath, resolvedModel
+				? `${resolvedModel.selection.provider}/${resolvedModel.selection.model}` : undefined);
+			if (resolvedModel?.selection.thinking) {
+				parts.push("--thinking", shellEscape(resolvedModel.selection.thinking));
+			}
+			const subagentDonePath = join(deps.subagentsDir, "subagent-done.ts");
+			parts.push("-e", shellEscape(subagentDonePath));
+
+			const sessionId = ctx.sessionManager.getSessionId();
+			const artifactDir = getArtifactDir(ctx.sessionManager.getSessionDir(), sessionId);
+			const activityFile = getSubagentActivityFile(artifactDir, id);
+			mkdirSync(dirname(activityFile), { recursive: true });
+
+			const safeName = toSafeFileName(name, "resume");
+			if (
+				restoration.roleBody
+				&& (restoration.systemPromptMode === "append" || restoration.systemPromptMode === "replace")
+			) {
+				const flag = restoration.systemPromptMode === "replace"
+					? "--system-prompt"
+					: "--append-system-prompt";
+				const syspromptPath = join(
+					artifactDir,
+					"subagent-resume",
+					`${safeName}-${id}-sysprompt-${fileTimestamp()}.md`,
+				);
+				mkdirSync(dirname(syspromptPath), { recursive: true });
+				writeFileSync(syspromptPath, restoration.roleBody, "utf8");
+				parts.push(flag, shellEscape(syspromptPath));
+			}
+
+			let resumeMsgFile: string | undefined;
+			if (params.message) {
+				resumeMsgFile = join(artifactDir, "subagent-resume", `${safeName}-${id}-${fileTimestamp()}.md`);
+				mkdirSync(dirname(resumeMsgFile), { recursive: true });
+				writeFileSync(resumeMsgFile, params.message, "utf8");
+				parts.push(shellEscape(`@${resumeMsgFile}`));
+			}
+
+			const resumeEnvParts: string[] = [];
+			if (restoration.agentDir && existsSync(restoration.agentDir)) {
+				resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(restoration.agentDir)}`);
+			} else if (process.env.PI_CODING_AGENT_DIR) {
+				resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
+			}
+			if (restoration.denyTools.length > 0) {
+				resumeEnvParts.push(`PI_DENY_TOOLS=${shellEscape(restoration.denyTools.join(","))}`);
+			}
+			resumeEnvParts.push(`PI_SUBAGENT_NAME=${shellEscape(name)}`);
+			if (restoration.agentName) {
+				resumeEnvParts.push(`PI_SUBAGENT_AGENT=${shellEscape(restoration.agentName)}`);
+			}
+			resumeEnvParts.push(`PI_SUBAGENT_SESSION=${shellEscape(params.sessionPath)}`);
+			resumeEnvParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
+			resumeEnvParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
+			if (autoExit) {
+				resumeEnvParts.push("PI_SUBAGENT_AUTO_EXIT=1");
+			}
+			const resumeEnvPrefix = resumeEnvParts.join(" ") + " ";
+
+			const resumeCommand = parts.join(" ");
+			const cdPrefix = `cd ${shellEscape(restoration.cwd ?? ctx.cwd)} && `;
+			const launchScriptFile = join(artifactDir, "subagent-scripts", `${safeName}-resume-${id}-${Date.now()}.sh`);
+			const completionFile = `${launchScriptFile}.status`;
+			running.completionFile = completionFile;
+			const command = `${cdPrefix}${resumeEnvPrefix}${resumeCommand}; printf '%s\\n' "$?" > ${shellEscape(completionFile)}`;
+			assertOwned();
+			// This execution holds the saved-session reservation; no live writer owns the old sidecar.
+			rmSync(`${params.sessionPath}.exit`, { force: true });
+			deps.sendLongCommand(surface, command, {
+				scriptPath: launchScriptFile,
+				scriptPreamble: [
+					`# Subagent resume script for ${name}`,
+					`# Generated: ${new Date().toISOString()}`,
+					`# Session: ${params.sessionPath}`,
+					`# Surface: ${surface}`,
+					...(resumeMsgFile ? [`# Resume message file: ${resumeMsgFile}`] : []),
+				].join("\n"),
+			});
+
+			running.launchScriptFile = launchScriptFile;
+			running.activityFile = activityFile;
 			watcherAbort = watchInBackground({
 				isOwned,
 				pi,
@@ -583,6 +631,7 @@ export function createResumeService(
 						profileRead.status === "ok"
 						&& result.exitCode === 0
 						&& !result.errorMessage
+						&& result.responded
 						&& assistantResponse !== null
 					) {
 						try {
@@ -660,22 +709,22 @@ export function createResumeService(
 				sessionPath: params.sessionPath,
 			});
 			assertOwned();
+			acknowledged = true;
+			return {
+				content: [{ type: "text", text: `Session "${name}" resumed.` }],
+				details: executionDetails({
+					id,
+					name,
+					sessionPath: params.sessionPath,
+					launchScriptFile,
+					status: "started",
+					...(resumeWarnings.length > 0 ? { resumeWarnings } : {}),
+				}),
+			};
 		} catch (error) {
 			cleanupFailedPostLaunch(running, watcherAbort);
 			throw error;
 		}
-
-		return {
-			content: [{ type: "text", text: `Session "${name}" resumed.` }],
-			details: executionDetails({
-				id,
-				name,
-				sessionPath: params.sessionPath,
-				launchScriptFile,
-				status: "started",
-				...(resumeWarnings.length > 0 ? { resumeWarnings } : {}),
-			}),
-		};
 	}
 
 	return executeSubagentResume;

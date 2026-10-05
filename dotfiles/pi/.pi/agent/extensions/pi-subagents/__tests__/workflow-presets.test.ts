@@ -151,6 +151,27 @@ test("workflow presets read only the current path and reject invalid files", () 
 	});
 });
 
+test("editing a preset preserves a declared constructor role when its update is absent", () => {
+	withTempDir((root) => {
+		const manifest = workflowManifest();
+		manifest.roles[0].id = "constructor";
+		const definition = loadDefinition(writeWorkflowPackage(root, manifest));
+		const original = normalizeWorkflowPresetRoles(definition, roles(definition));
+		const edited = editWorkflowPresetRoles(definition, original, {
+			verifier: { provider: "other", model: "alt", thinking: "off" },
+		});
+		assert.deepEqual(edited.constructor, original.constructor);
+		assert.deepEqual(editWorkflowPresetRoles(definition, original, {}), original);
+		const path = writeWorkflowModelPreset(makeWorkflowModelPreset(definition, root, edited), root);
+		const restored = readWorkflowModelPreset(definition, root, root);
+		assert.equal(restored.status, "ok");
+		if (restored.status === "ok") {
+			assert.equal(restored.path, path);
+			assert.deepEqual(restored.preset.roles, edited);
+		}
+	});
+});
+
 test("workflow presets are keyed by canonical project root and workflow ID", () => {
 	withTempDir((dir) => {
 		const projectA = join(dir, "a");

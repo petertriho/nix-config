@@ -1,3 +1,5 @@
+import { resolveCliModel, type ModelRegistry } from "@earendil-works/pi-coding-agent";
+import type { ModelSelection } from "../execution/launch-profile.ts";
 import type {
   AgentDefaultsLike as AgentDefaults,
   LaunchBehavior,
@@ -76,21 +78,72 @@ export function resolvePiModelArgument(
   params: SubagentParamsType,
   agentDefs: Pick<AgentDefaults, "model" | "thinking"> | null,
   parentSelection: PiParentSelection,
+  modelRegistry?: Pick<ModelRegistry, "getAll" | "hasConfiguredAuth">,
 ): string | undefined {
+  const resolved = resolvePiModelSelection(params, agentDefs, parentSelection, modelRegistry);
+  return resolved.selection?.thinking
+    ? `${resolved.argument}:${resolved.selection.thinking}`
+    : resolved.argument;
+}
+
+/**
+ * Resolve the CLI model reference and persisted identity together.
+ * Pass selection.thinking through --thinking, not as an ambiguous model-ID suffix.
+ */
+export function resolvePiModelSelection(
+  params: SubagentParamsType,
+  agentDefs: Pick<AgentDefaults, "model" | "thinking"> | null,
+  parentSelection: PiParentSelection,
+  modelRegistry?: Pick<ModelRegistry, "getAll" | "hasConfiguredAuth">,
+): { argument?: string; selection?: ModelSelection } {
   const parentModel = parentSelection.model
     ? `${parentSelection.model.provider}/${parentSelection.model.id}`
     : undefined;
-  if (params.model === "parent" || params.model === "inherit") {
-    if (!parentModel) throw new Error("The parent session has no active model.");
-    return parentSelection.thinkingLevel ? `${parentModel}:${parentSelection.thinkingLevel}` : parentModel;
+  const inheritsParent = params.model === "parent" || params.model === "inherit";
+  if (inheritsParent && !parentModel) {
+    throw new Error("The parent session has no active model.");
   }
-  const configuredModel = params.model ?? agentDefs?.model;
+  const configuredModel = inheritsParent ? undefined : params.model ?? agentDefs?.model;
   const effectiveModel = configuredModel ?? parentModel;
-  if (!effectiveModel) return undefined;
+  if (!effectiveModel) return {};
 
-  const thinking =
-    agentDefs?.thinking ?? (configuredModel === undefined ? parentSelection.thinkingLevel : undefined);
-  return thinking ? `${effectiveModel}:${thinking}` : effectiveModel;
+  let thinking = (inheritsParent
+    ? parentSelection.thinkingLevel
+    : agentDefs?.thinking ?? (configuredModel === undefined ? parentSelection.thinkingLevel : undefined)
+  ) as ModelSelection["thinking"];
+  let selectedModel = parentSelection.model;
+  if (configuredModel !== undefined) {
+    // Preserve argument-only compatibility when no registry can establish an identity.
+    if (!modelRegistry) {
+      return { argument: thinking ? `${effectiveModel}:${thinking}` : effectiveModel };
+    }
+    const models = modelRegistry.getAll();
+    // SAFETY: The SDK resolver reads only the catalog and configured-auth status from its runtime.
+    const resolved = resolveCliModel({
+      cliModel: configuredModel,
+      modelRuntime: {
+        getModels: () => models,
+        hasConfiguredAuth: (provider: string) => models.some(
+          (model) => model.provider === provider && modelRegistry.hasConfiguredAuth(model),
+        ),
+      } as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"],
+    });
+    if (resolved.error) throw new Error(resolved.error);
+    selectedModel = resolved.model;
+    thinking = thinking ?? resolved.thinkingLevel;
+  }
+  if (!selectedModel) return {};
+
+  const selection: ModelSelection = {
+    provider: selectedModel.provider,
+    model: selectedModel.id,
+    ...(thinking ? { thinking } : {}),
+  };
+  const reference = `${selection.provider}/${selection.model}`;
+  return {
+    argument: reference,
+    selection,
+  };
 }
 
 /**

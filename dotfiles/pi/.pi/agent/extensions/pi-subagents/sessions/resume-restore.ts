@@ -37,7 +37,7 @@ export function resolveResumeRestoration(
 	}
 
 	const autoExit = params.autoExit === undefined
-		? (profile.stable.controls.autoExit ?? true)
+		? (profile.stable.controls.autoExit ?? false)
 		: params.autoExit;
 	const interactive = params.autoExit === undefined
 		? profile.stable.controls.interactive

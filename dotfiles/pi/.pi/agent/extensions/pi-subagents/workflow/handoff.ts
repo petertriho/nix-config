@@ -47,6 +47,7 @@ export function collectWorkflowReadableData(input: {
 }): readonly WorkflowReadableDataValue[] {
 	const readable: WorkflowReadableDataValue[] = [];
 	for (const slotId of input.role.reads) {
+		if (!Object.hasOwn(input.dataSlots, slotId) || !Object.hasOwn(input.data, slotId)) continue;
 		const slot = input.dataSlots[slotId];
 		if (!slot) continue;
 		const value = normalizeValue(input.data[slotId]);

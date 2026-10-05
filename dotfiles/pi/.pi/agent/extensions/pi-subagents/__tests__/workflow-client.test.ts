@@ -3,7 +3,7 @@ import test from "node:test";
 import {
 	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_DELIVERY_CHANNEL,
 	WORKFLOW_PROVIDER_REQUEST_CHANNEL, WORKFLOW_PROVIDER_VERSION,
-	type WorkflowEventBus, type WorkflowOwner, type WorkflowProvider,
+	type WorkflowEventBus, type WorkflowOwner, type WorkflowProvider, type WorkflowRoleFacts,
 } from "../adapters/workflow-contract.ts";
 import { createWorkflowEventClient } from "../adapters/workflow-client.ts";
 
@@ -78,6 +78,118 @@ test("preflight validates required profiles and liveness before a launch", async
 	client.dispose();
 	fake.off();
 });
+
+test("immediate correlated terminal delivery is captured before launch acknowledgement returns", async () => {
+	const { events, count } = bus();
+	const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+		const request = value as Record<string, unknown>;
+		const deliver = (extra: object) => events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+			...request, kind: "result", result: {
+				sessionPath: facts.sessionPath, status: "completed", message: "immediate", successfulResponse: true,
+			}, ...extra,
+		});
+		deliver({ owner: { ...owner, ownershipId: "stale" } });
+		deliver({ instanceId: "stale" });
+		deliver({ result: { sessionPath: "/other.jsonl", status: "completed", message: "wrong session" } });
+		events.emit(`pi-workflows:provider:reply:${request.requestId}`, {
+			...request, ok: true, data: { ...facts, accepted: true },
+		});
+		deliver({});
+		deliver({ result: { sessionPath: facts.sessionPath, status: "failed", message: "duplicate" } });
+	});
+	const client = createWorkflowEventClient(events, provider, { requestTimeoutMs: 20 });
+	try {
+		const lease = await client.launch(owner, launch);
+		void lease.result.catch(() => {});
+		assert.equal(lease.active, false, "immediate terminal delivery must release confirmed ownership");
+		assert.deepEqual(await lease.result, {
+			sessionPath: facts.sessionPath, status: "completed", message: "immediate", successfulResponse: true,
+		});
+		assert.equal(count(), 1, "only the provider remains subscribed");
+	} finally { client.dispose(); off(); }
+	assert.equal(count(), 0);
+});
+
+test("early pings receive validated frozen lease facts and retain owned-stop", async () => {
+	const { events, count } = bus();
+	const requests: Array<Record<string, unknown>> = [];
+	const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+		const request = value as Record<string, unknown>;
+		requests.push(request);
+		if (request.operation === "launch") {
+			events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+				...request, kind: "ping", message: "Need input",
+			});
+		}
+		events.emit(`pi-workflows:provider:reply:${request.requestId}`, {
+			...request, ok: true,
+			data: request.operation === "stop" ? { stopped: true } : { ...facts, accepted: true },
+		});
+	});
+	const client = createWorkflowEventClient(events, provider, { requestTimeoutMs: 20 });
+	const pings: Array<{ message: string; facts?: WorkflowRoleFacts }> = [];
+	try {
+		const lease = await client.launch(owner, launch, {
+			onPing: (ping, confirmed?: WorkflowRoleFacts) => pings.push({ message: ping.message, facts: confirmed }),
+		});
+		void lease.result.catch(() => {});
+		assert.equal(pings.length, 1);
+		assert.equal(pings[0].message, "Need input");
+		assert.equal(pings[0].facts, lease.facts);
+		assert.deepEqual(pings[0].facts, facts);
+		assert.equal(Object.isFrozen(pings[0].facts), true);
+		assert.equal(Object.isFrozen(pings[0].facts?.model), true);
+		assert.equal(lease.active, true);
+		const stopped = assert.rejects(lease.result, /stopped by owner/);
+		await lease.stop();
+		await stopped;
+		assert.equal(lease.active, false);
+		assert.deepEqual(requests.map((request) => request.operation), ["launch", "stop"]);
+		assert.deepEqual(requests[1].payload, { sessionPath: facts.sessionPath });
+	} finally { client.dispose(); off(); }
+	assert.equal(count(), 0);
+});
+
+for (const operation of ["launch", "resume", "recover"] as const) {
+	test(`${operation} retains an early terminal result after 32 buffered pings`, async () => {
+		const { events, count } = bus();
+		const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
+			const request = value as Record<string, unknown>;
+			for (let index = 0; index < 32; index++) {
+				events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+					...request, kind: "ping", message: `Working ${index}`,
+				});
+			}
+			events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+				...request, kind: "result", result: {
+					sessionPath: facts.sessionPath, status: "completed", message: "done", successfulResponse: true,
+				},
+			});
+			events.emit(`pi-workflows:provider:reply:${request.requestId}`, {
+				...request, ok: true,
+				data: operation === "launch" ? { ...facts, accepted: true } : facts,
+			});
+		});
+		const client = createWorkflowEventClient(events, provider, { requestTimeoutMs: 20 });
+		const pings: string[] = [];
+		const options = { onPing: (ping: { message: string }) => pings.push(ping.message) };
+		try {
+			const lease = operation === "launch"
+				? await client.launch(owner, launch, options)
+				: operation === "resume"
+					? await client.resume(owner, saved, options)
+					: await client.recover(owner, { ...saved, failure: "credits exhausted", model: facts.model }, options);
+			void lease.result.catch(() => {});
+			assert.equal(lease.active, false, "the buffered terminal result must settle before returning the lease");
+			assert.deepEqual(await lease.result, {
+				sessionPath: facts.sessionPath, status: "completed", message: "done", successfulResponse: true,
+			});
+			assert.equal(pings.length, 31, "one ping yields its slot to the result without exceeding the 32-delivery bound");
+			assert.equal(count(), 1, "only the provider remains subscribed");
+		} finally { client.dispose(); off(); }
+		assert.equal(count(), 0);
+	});
+}
 
 test("correlated results are frozen; stale and duplicate results never complete a lease", async () => {
 	const { events } = bus();

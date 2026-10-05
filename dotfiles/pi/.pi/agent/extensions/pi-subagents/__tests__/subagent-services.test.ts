@@ -1,17 +1,22 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { execFileSync } from "node:child_process";
 import {
+	appendFileSync,
+	chmodSync,
+	existsSync,
 	mkdirSync,
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
 	rmSync,
+	symlinkSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
+import { resolveCliModel, SessionManager } from "@earendil-works/pi-coding-agent";
 import { __test__ as agentDefinitions } from "../index.ts";
 import {
 	fingerprintStrings,
@@ -27,10 +32,11 @@ import {
 	type SubagentServiceDependencies,
 	type RunningSubagent,
 } from "../subagent-services.ts";
-import { shellEscape } from "../adapters/tmux.ts";
+import { pollForExit as pollTmux, shellEscape } from "../adapters/tmux.ts";
 import { buildProviderFailureRecord } from "../workflow/recovery.ts";
 import { attachTmuxWorkflowProvider, tmuxWorkflowProviderIO } from "../workflow-provider.ts";
 import { requestWorkflowProvider, subscribeWorkflowDelivery } from "../adapters/workflow-contract.ts";
+import { resolvePiModelArgument } from "../profiles/launch-policy.ts";
 
 const TEST_MODEL = {
 	provider: "test-provider",
@@ -123,11 +129,13 @@ function createHarness(
 	root: string,
 	options: {
 		pollForExit?: SubagentServiceDependencies["pollForExit"];
+		onCreateSurface?: () => void;
 		closeSurface?: SubagentServiceDependencies["closeSurface"];
 		sendLongCommand?: SubagentServiceDependencies["sendLongCommand"];
 		resolveLaunchBehavior?: SubagentServiceDependencies["resolveLaunchBehavior"];
 		loadAgentDefaults?: SubagentServiceDependencies["loadAgentDefaults"];
 		resolveEffectiveInteractive?: SubagentServiceDependencies["resolveEffectiveInteractive"];
+		resolvePiModelArgument?: SubagentServiceDependencies["resolvePiModelArgument"];
 		resolveSubagentPaths?: SubagentServiceDependencies["resolveSubagentPaths"];
 		getModuleAbortSignal?: SubagentServiceDependencies["getModuleAbortSignal"];
 		select?: (title: string, choices: string[]) => Promise<string | undefined>;
@@ -158,7 +166,7 @@ function createHarness(
 			taskDelivery: "artifact",
 		})),
 		resolveEffectiveInteractive: options.resolveEffectiveInteractive ?? (() => false),
-		resolvePiModelArgument: () => `${TEST_MODEL.provider}/${TEST_MODEL.id}:off`,
+		resolvePiModelArgument: options.resolvePiModelArgument ?? (() => `${TEST_MODEL.provider}/${TEST_MODEL.id}:off`),
 		resolveDenyTools: () => new Set(),
 		runningSubagents,
 		observeRunningSubagent() {},
@@ -173,7 +181,11 @@ function createHarness(
 			content: [{ type: "text", text: "tmux unavailable" }],
 			details: { error: "tmux not available" },
 		}),
-		createSurface: () => `%${++surfaceCount}`,
+		createSurface: () => {
+			const surface = `%${++surfaceCount}`;
+			options.onCreateSurface?.();
+			return surface;
+		},
 		sendLongCommand(surface, command, commandOptions) {
 			sentCommands.push({ command, scriptPath: commandOptions?.scriptPath });
 			options.sendLongCommand?.(surface, command, commandOptions);
@@ -204,7 +216,9 @@ function createHarness(
 		model: TEST_MODEL,
 		thinkingLevel: "off",
 		scopedModels: [],
-		modelRegistry: { getAvailable: () => [TEST_MODEL] },
+		modelRegistry: {
+			getAvailable: () => [TEST_MODEL], getAll: () => [TEST_MODEL], hasConfiguredAuth: () => true,
+		},
 		hasUI: true,
 		ui: {
 			select: options.select ?? (async () => undefined),
@@ -271,6 +285,69 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 	}
 	assert.fail("condition not met before timeout");
 }
+
+for (const collision of [false, true]) {
+	test(`launch shares canonical CLI and saved model identity with ${collision ? "a colon-ID collision" : "separate thinking precedence"}`, async () => {
+		await withTempDir(async (root) => {
+			const models = collision ? [TEST_MODEL, { ...TEST_MODEL, id: "echo:low" }] : [TEST_MODEL];
+			const harness = createHarness(root, {
+				resolvePiModelArgument,
+				loadAgentDefaults: () => ({
+					model: `${TEST_MODEL.provider}/echo${collision ? "" : ":high"}`, thinking: "low",
+				}),
+			});
+			harness.ctx.modelRegistry.getAll = () => models;
+			harness.ctx.modelRegistry.getAvailable = () => models;
+			const running = await harness.services.launchSubagent({
+				name: "Worker", agent: "worker", task: "Work.",
+			}, harness.ctx);
+			const saved = readLaunchProfile(running.sessionFile);
+			assert.equal(saved.status, "ok");
+			if (saved.status !== "ok") throw new Error("Launch did not persist its profile");
+			const expected = { provider: TEST_MODEL.provider, model: "echo", thinking: "low" };
+			assert.deepEqual(saved.profile.runtime.originalModel, expected);
+			assert.deepEqual(saved.profile.runtime.lastModel, expected);
+			const command = harness.sentCommands[0].command;
+			const cliModel = command.match(/--model '([^']+)'/)?.[1];
+			const cliThinking = command.match(/--thinking '([^']+)'/)?.[1];
+			assert.ok(cliThinking === "low");
+			// SAFETY: resolveCliModel reads only these catalog and authentication methods.
+			const actual = resolveCliModel({
+				cliModel, cliThinking,
+				modelRuntime: {
+					getModels: () => models, hasConfiguredAuth: () => true,
+				} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"],
+			});
+			assert.equal(actual.error, undefined);
+			assert.deepEqual({
+				provider: actual.model?.provider, model: actual.model?.id, thinking: cliThinking ?? actual.thinkingLevel,
+			}, expected);
+		});
+	});
+}
+
+test("previous-model resume separates thinking from a conflicting colon-containing model ID", async () => {
+	await withTempDir(async (root) => {
+		const models = [TEST_MODEL, { ...TEST_MODEL, id: "echo:low" }];
+		const harness = createHarness(root);
+		harness.ctx.modelRegistry.getAvailable = () => models;
+		const sessionPath = join(root, "colon-model.jsonl");
+		writeSession(sessionPath);
+		writeProfile(harness, root, sessionPath);
+		const selection = { provider: TEST_MODEL.provider, model: "echo", thinking: "low" as const };
+		updateLaunchProfile(sessionPath, (profile) => ({
+			...profile, runtime: { ...profile.runtime, originalModel: selection, lastModel: selection },
+		}));
+		const result = await harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		);
+		assert.equal(result.details.status, "started");
+		const command = harness.sentCommands[0].command;
+		assert.match(command, /--model 'test-provider\/echo'/);
+		assert.match(command, /--thinking 'low'/);
+		assert.doesNotMatch(command, /--model 'test-provider\/echo:low'/);
+	});
+});
 
 for (const systemPrompt of [undefined, "Keep the caller's constraints.\nReport validation results."]) {
 	for (const rollover of [false, true]) {
@@ -525,6 +602,31 @@ test("launch cleanup failure preserves the original setup error", async () => {
 	});
 });
 
+for (const stage of ["artifact", "delivery"] as const) {
+	test(`resume ${stage} failure after allocation closes its pane and preserves saved files`, async () => {
+		await withTempDir(async (root) => {
+			const failure = new Error("resume delivery failed");
+			const harness = createHarness(root, {
+				sendLongCommand: stage === "delivery" ? () => { throw failure; } : undefined,
+			});
+			const sessionPath = join(root, "saved.jsonl");
+			writeSession(sessionPath);
+			writeProfile(harness, root, sessionPath);
+			const bytes = readFileSync(sessionPath);
+			const profile = readFileSync(profilePathForSession(sessionPath));
+			if (stage === "artifact") writeFileSync(join(root, "artifacts"), "not a directory");
+			await assert.rejects(harness.services.executeSubagentResume(
+				harness.pi, { sessionPath, model: "previous", message: "Continue" }, harness.ctx,
+			), stage === "delivery" ? (error) => error === failure : { code: "ENOTDIR" });
+			assert.equal(harness.surfaceCount, 1);
+			assert.deepEqual(harness.closedSurfaces, ["%1"]);
+			assert.equal(harness.runningSubagents.size, 0);
+			assert.deepEqual(readFileSync(sessionPath), bytes);
+			assert.deepEqual(readFileSync(profilePathForSession(sessionPath)), profile);
+		});
+	});
+}
+
 test("launch validates the resolved profile cwd before creating a pane or writing a child", async () => {
 	await withTempDir(async (root) => {
 		const alternate = join(root, "alternate-checkout");
@@ -569,6 +671,388 @@ test("guarded launch pins the fallback cwd in the command rather than inheriting
 		assert.deepEqual(checks, [root]);
 		assert.ok(harness.sentCommands[0].command.startsWith(`cd '${root}' && `), harness.sentCommands[0].command);
 		harness.services.stopSubagent(running);
+	});
+});
+
+test("ordinary Pi and Claude launches and legacy resumes pin the parent cwd when no override exists", async () => {
+	await withTempDir(async (root) => {
+		for (const cli of ["pi", "claude"]) {
+			const harness = createHarness(root, {
+				loadAgentDefaults: () => ({ cli }),
+				resolveSubagentPaths: () => ({
+					effectiveCwd: null, localAgentDir: null, effectiveAgentDir: root,
+				}),
+			});
+			const running = await harness.services.launchSubagent(
+				{ name: "Worker", agent: "worker", task: "Work" }, harness.ctx,
+			);
+			assert.ok(harness.sentCommands[0].command.startsWith(`cd '${root}' && `));
+			const profile = readLaunchProfile(running.sessionFile);
+			assert.equal(profile.status, "ok");
+			if (profile.status === "ok") assert.equal(profile.profile.stable.cwd, root);
+			harness.services.stopSubagent(running);
+		}
+		const harness = createHarness(root);
+		const sessionPath = join(root, "legacy-cwd.jsonl");
+		writeSession(sessionPath);
+		const resumed = await harness.services.executeSubagentResume(harness.pi, { sessionPath }, harness.ctx);
+		assert.equal(resumed.details.status, "started");
+		assert.ok(harness.sentCommands[0].command.startsWith(`cd '${root}' && `));
+		await waitFor(() => harness.sentMessages.length === 1);
+	});
+});
+
+test("direct resumes reserve a canonical saved session before asynchronous model selection", async () => {
+	await withTempDir(async (root) => {
+		const gate = deferred<string | undefined>();
+		const entered = deferred<void>();
+		const exit = deferred<{ exitCode: number }>();
+		const harness = createHarness(root, {
+			select: async () => { entered.resolve(); return gate.promise; },
+			pollForExit: () => exit.promise,
+		});
+		const sessionPath = join(root, "exclusive.jsonl");
+		const alias = join(root, "alias.jsonl");
+		writeSession(sessionPath, 80);
+		writeProfile(harness, root, sessionPath);
+		symlinkSync(sessionPath, alias);
+		const pending = harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		);
+		await entered.promise;
+		await assert.rejects(harness.services.executeSubagentResume(
+			harness.pi, { sessionPath: alias, model: "previous" }, harness.ctx,
+		), /already.*(owned|running|resum)/i);
+		assert.equal(harness.surfaceCount, 0);
+		gate.resolve("Resume the saved session anyway");
+		assert.equal((await pending).details.status, "started");
+		await assert.rejects(harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		), /already.*(owned|running|resum)/i);
+		assert.equal(harness.sentCommands.length, 1);
+		exit.resolve({ exitCode: 0 });
+		await waitFor(() => harness.runningSubagents.size === 0);
+		assert.equal((await harness.services.executeSubagentResume(
+			harness.pi, { sessionPath: alias }, harness.ctx,
+		)).details.status, "started");
+		await waitFor(() => harness.sentMessages.length === 2);
+	});
+});
+
+test("resume reservation survives a failed close and rejects an already live plugin child", async () => {
+	await withTempDir(async (root) => {
+		let closeFails = true;
+		const harness = createHarness(root, {
+			closeSurface: () => { if (closeFails) throw new Error("tmux unavailable"); },
+			sendLongCommand: () => { throw new Error("delivery failed"); },
+		});
+		const sessionPath = join(root, "retained.jsonl");
+		writeSession(sessionPath);
+		writeProfile(harness, root, sessionPath);
+		await assert.rejects(harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		), /delivery failed/);
+		assert.equal(harness.runningSubagents.size, 1);
+		await assert.rejects(harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		), /already owned/);
+		const running = [...harness.runningSubagents.values()][0];
+		closeFails = false;
+		harness.services.stopSubagent(running);
+		await assert.rejects(harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		), /delivery failed/);
+		assert.equal(harness.surfaceCount, 2);
+		assert.equal(harness.runningSubagents.size, 0);
+
+		const liveHarness = createHarness(root);
+		const child = await liveHarness.services.launchSubagent({ name: "Live", task: "Work" }, liveHarness.ctx);
+		writeSession(child.sessionFile);
+		await assert.rejects(liveHarness.services.executeSubagentResume(
+			liveHarness.pi, { sessionPath: child.sessionFile }, liveHarness.ctx,
+		), /already owned/);
+		liveHarness.services.stopSubagent(child);
+	});
+});
+
+test("exclusive resume clears stale completion only immediately before dispatch", async () => {
+	await withTempDir(async (root) => {
+		const sessionPath = join(root, "stale-exit.jsonl");
+		const exitPath = `${sessionPath}.exit`;
+		const gate = deferred<string | undefined>();
+		const entered = deferred<void>();
+		const harness = createHarness(root, {
+			select: async () => { entered.resolve(); return gate.promise; },
+			sendLongCommand() { assert.equal(existsSync(exitPath), false); },
+		});
+		writeSession(sessionPath, 80);
+		writeProfile(harness, root, sessionPath);
+		writeFileSync(exitPath, JSON.stringify({ type: "done" }));
+		const pending = harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		);
+		await entered.promise;
+		await assert.rejects(harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+		), /already owned/);
+		assert.equal(existsSync(exitPath), true);
+		gate.resolve("Resume the saved session anyway");
+		assert.equal((await pending).details.status, "started");
+		await waitFor(() => harness.sentMessages.length === 1);
+	});
+});
+
+for (const interruption of ["caller", "branch", "session"] as const) {
+	test(`launch stops before dispatch when ${interruption} ownership changes during shell readiness`, async () => {
+		await withTempDir(async (root) => {
+			const signal = new AbortController();
+			let owned = true;
+			let moduleAbort = new AbortController();
+			const harness = createHarness(root, {
+				onCreateSurface: () => {
+					queueMicrotask(() => {
+						if (interruption === "caller") signal.abort();
+						if (interruption === "branch") owned = false;
+						if (interruption === "session") moduleAbort = new AbortController();
+					});
+				},
+				getModuleAbortSignal: () => moduleAbort.signal,
+			});
+			await assert.rejects(harness.services.launchSubagent(
+				{ name: "Worker", task: "Work" }, harness.ctx,
+				{ signal: signal.signal, isOwned: () => owned },
+			), /cancelled|interrupted/);
+			assert.deepEqual(harness.sentCommands, []);
+			assert.deepEqual(harness.closedSurfaces, ["%1"]);
+			assert.equal(harness.runningSubagents.size, 0);
+		});
+	});
+}
+
+for (const boundary of ["selection", "shell readiness", "acknowledgement"] as const) {
+	test(`resume caller cancellation at ${boundary} preserves the session and stops before acknowledgement`, async () => {
+		await withTempDir(async (root) => {
+			const caller = new AbortController();
+			const gate = deferred<string | undefined>();
+			const entered = deferred<void>();
+			const harness = createHarness(root, {
+				select: async () => { entered.resolve(); return gate.promise; },
+				onCreateSurface: () => {
+					if (boundary === "shell readiness") queueMicrotask(() => caller.abort());
+				},
+				pollForExit: (_surface, signal) => new Promise((_resolve, reject) => {
+					signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+				}),
+			});
+			const sessionPath = join(root, "cancel-resume.jsonl");
+			writeSession(sessionPath, boundary === "selection" ? 80 : 0);
+			writeProfile(harness, root, sessionPath);
+			const bytes = readFileSync(sessionPath);
+			const profile = readFileSync(profilePathForSession(sessionPath));
+			const pending = harness.services.executeSubagentResume(
+				harness.pi, { sessionPath, model: "previous" }, harness.ctx, undefined, {
+					signal: caller.signal,
+					onLaunched: () => { if (boundary === "acknowledgement") caller.abort(); },
+				},
+			);
+			const rejected = assert.rejects(pending, /cancelled/);
+			if (boundary === "selection") {
+				await entered.promise;
+				caller.abort();
+				gate.resolve("Resume the saved session anyway");
+			}
+			await rejected;
+			assert.equal(harness.surfaceCount, boundary === "selection" ? 0 : 1);
+			assert.equal(harness.sentCommands.length, boundary === "acknowledgement" ? 1 : 0);
+			assert.deepEqual(harness.closedSurfaces, boundary === "selection" ? [] : ["%1"]);
+			assert.equal(harness.runningSubagents.size, 0);
+			assert.deepEqual(readFileSync(sessionPath), bytes);
+			assert.deepEqual(readFileSync(profilePathForSession(sessionPath)), profile);
+		});
+	});
+}
+
+for (const stopReason of ["error", "aborted"] as const) {
+	for (const text of ["partial answer", ""]) {
+		test(`resume treats current structured ${stopReason} ${text ? "with text" : "without text"} as failure despite shell success`, async () => {
+			await withTempDir(async (root) => {
+				const sessionPath = join(root, "terminal-result.jsonl");
+				const harness = createHarness(root, {
+					pollForExit: async () => {
+						appendFileSync(sessionPath, JSON.stringify({
+							type: "message", id: "failed", parentId: "assistant-1",
+							message: { role: "assistant", stopReason,
+								content: text ? [{ type: "text", text }] : [], errorMessage: "quota exhausted" },
+						}) + "\n");
+						return { exitCode: 0, reason: "sentinel" };
+					},
+				});
+				writeSession(sessionPath, 1);
+				writeProfile(harness, root, sessionPath);
+				const before = readLaunchProfile(sessionPath);
+				assert.equal(before.status, "ok");
+				let successfulResponses = 0;
+				let terminal: any;
+				const resumed = await harness.services.executeSubagentResume(
+					harness.pi, { sessionPath, model: "previous" }, harness.ctx,
+					{
+						failure: buildProviderFailureRecord({
+							kind: "usage", message: "Earlier failure",
+						}),
+						onSuccessfulResponse: () => { successfulResponses++; },
+					},
+					{ onResult: ({ result }) => { terminal = result; } },
+				);
+				assert.equal(resumed.details.status, "started");
+				await waitFor(() => harness.sentMessages.length === 1);
+				assert.equal(terminal.responded, false);
+				assert.equal(terminal.exitCode, 1);
+				assert.equal(terminal.errorMessage, "quota exhausted");
+				assert.equal(successfulResponses, 0);
+				const after = readLaunchProfile(sessionPath);
+				assert.equal(after.status, "ok");
+				if (after.status === "ok" && before.status === "ok") {
+					assert.equal(after.profile.runtime.resumeCount, before.profile.runtime.resumeCount);
+				}
+			});
+		});
+	}
+}
+
+test("acknowledged background resumes ignore later caller cancellation and use only the current assistant outcome", async () => {
+	await withTempDir(async (root) => {
+		const exit = deferred<{ exitCode: number }>();
+		const caller = new AbortController();
+		const harness = createHarness(root, { pollForExit: () => exit.promise });
+		const sessionPath = join(root, "detached.jsonl");
+		writeSession(sessionPath, 1);
+		appendFileSync(sessionPath, JSON.stringify({
+			type: "message", id: "old-error", parentId: "assistant-1",
+			message: { role: "assistant", stopReason: "error", content: [], errorMessage: "old failure" },
+		}) + "\n");
+		writeProfile(harness, root, sessionPath);
+		let terminal: any;
+		const resumed = await harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx, undefined,
+			{ signal: caller.signal, onResult: ({ result }) => { terminal = result; } },
+		);
+		assert.equal(resumed.details.status, "started");
+		caller.abort();
+		const running = [...harness.runningSubagents.values()][0];
+		assert.equal(running.abortController.signal.aborted, false);
+		appendFileSync(sessionPath, JSON.stringify({
+			type: "message", id: "new-answer", parentId: "old-error",
+			message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "Current answer" }] },
+		}) + "\n");
+		exit.resolve({ exitCode: 0 });
+		await waitFor(() => harness.sentMessages.length === 1);
+		assert.equal(terminal.responded, true);
+		assert.equal(terminal.exitCode, 0);
+		assert.equal(terminal.errorMessage, undefined);
+		assert.equal(terminal.summary, "Current answer");
+	});
+});
+
+test("resume cancellation before acknowledgement suppresses a queued successful terminal callback", async () => {
+	await withTempDir(async (root) => {
+		const caller = new AbortController();
+		const sessionPath = join(root, "cancel-before-ack.jsonl");
+		const harness = createHarness(root, {
+			pollForExit: async () => {
+				appendFileSync(sessionPath, JSON.stringify({
+					type: "message", id: "new-answer", parentId: null,
+					message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "New answer" }] },
+				}) + "\n");
+				return { exitCode: 0 };
+			},
+		});
+		writeSession(sessionPath);
+		writeProfile(harness, root, sessionPath);
+		const before = readFileSync(profilePathForSession(sessionPath));
+		let results = 0;
+		await assert.rejects(harness.services.executeSubagentResume(
+			harness.pi, { sessionPath, model: "previous" }, harness.ctx, undefined, {
+				signal: caller.signal,
+				onLaunched: () => { caller.abort(); },
+				onResult: () => { results++; },
+			},
+		), /cancelled/);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(results, 0);
+		assert.deepEqual(harness.sentMessages, []);
+		assert.deepEqual(readFileSync(profilePathForSession(sessionPath)), before);
+	});
+});
+
+test("a current aborted assistant with no diagnostic is still an unsuccessful terminal result", async () => {
+	await withTempDir(async (root) => {
+		const harness = createHarness(root);
+		const running = await harness.services.launchSubagent({ name: "Worker", task: "Work" }, harness.ctx);
+		writeSession(running.sessionFile, 1);
+		appendFileSync(running.sessionFile, JSON.stringify({
+			type: "message", id: "aborted", parentId: "assistant-1",
+			message: { role: "assistant", stopReason: "aborted", content: [] },
+		}) + "\n");
+		const result = await harness.services.watchSubagent(running, new AbortController().signal);
+		assert.equal(result.exitCode, 1);
+		assert.equal(result.responded, false);
+		assert.match(result.errorMessage!, /stopReason=aborted/);
+	});
+});
+
+test("generated launch and resume commands publish execution-specific shell status without terminal markers", async () => {
+	await withTempDir(async (root) => {
+		const bin = join(root, "bin");
+		const observedCwd = join(root, "observed-cwd");
+		mkdirSync(bin);
+		for (const cli of ["pi", "claude"]) {
+			const executable = join(bin, cli);
+			writeFileSync(executable, `#!/bin/sh\npwd > ${shellEscape(observedCwd)}\nexit 7\n`);
+			chmodSync(executable, 0o755);
+		}
+		const completionPaths = new Set<string>();
+		for (const cli of ["pi", "claude"]) {
+			const harness = createHarness(root, {
+				loadAgentDefaults: () => ({ cli }),
+				resolveSubagentPaths: () => ({
+					effectiveCwd: null, localAgentDir: null, effectiveAgentDir: root,
+				}),
+				sendLongCommand(_surface, command, options) {
+					mkdirSync(dirname(options!.scriptPath!), { recursive: true });
+					assert.doesNotMatch(command, /__SUBAGENT_DONE_/);
+					execFileSync("bash", ["-c", command], {
+						env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+					});
+				},
+				pollForExit: pollTmux,
+			});
+			const running = await harness.services.launchSubagent(
+				{ name: "Worker", agent: "worker", task: "Work" }, harness.ctx,
+			);
+			assert.equal(readFileSync(observedCwd, "utf8").trim(), root);
+			assert.ok(running.completionFile);
+			completionPaths.add(running.completionFile);
+			assert.equal(readFileSync(running.completionFile, "utf8"), "7\n");
+			const result = await harness.services.watchSubagent(running, new AbortController().signal);
+			assert.equal(result.exitCode, 7);
+			assert.equal(existsSync(running.completionFile), false);
+			if (cli === "pi") {
+				writeSession(running.sessionFile);
+				const resumed = await harness.services.executeSubagentResume(
+					harness.pi, { sessionPath: running.sessionFile, message: "Continue" }, harness.ctx,
+				);
+				assert.equal(resumed.details.status, "started");
+				await waitFor(() => harness.sentMessages.length === 1);
+				assert.equal(harness.sentMessages[0].details.exitCode, 7);
+				assert.equal(readFileSync(observedCwd, "utf8").trim(), root);
+				const command = harness.sentCommands[1].command;
+				const completion = command.match(/ > '([^']+\.status)'/)?.[1];
+				assert.ok(completion);
+				completionPaths.add(completion);
+				assert.equal(existsSync(completion), false);
+			}
+		}
+		assert.equal(completionPaths.size, 3);
 	});
 });
 
@@ -634,7 +1118,10 @@ for (const names of [["Worker", "Worker"], ["Worker!", "Worker?"]]) {
 						`Complete your task autonomously.\n\n${task}\n\nYour FINAL assistant message should summarize what you accomplished.`,
 					);
 					if (phase === "resume") {
-						for (const running of launched) writeSession(running.sessionFile);
+						for (const running of launched) {
+							harness.services.stopSubagent(running);
+							writeSession(running.sessionFile);
+						}
 						harness.sentCommands.length = 0;
 						const resumed = await Promise.all(launched.map((running, index) =>
 							harness.services.executeSubagentResume(harness.pi, {
@@ -846,6 +1333,51 @@ for (const [roleId, roleLabel] of [["planner", " Planner"], ["executor", "
 		});
 	}
 }
+
+test("event-backed workflow launch cancellation during shell readiness never dispatches the child", async () => {
+	await withTempDir(async (root) => {
+		const caller = new AbortController();
+		const body = "Work in this checkout.";
+		const harness = createHarness(root, {
+			loadAgentDefaults: () => ({ body, autoExit: true }),
+			onCreateSurface: () => { queueMicrotask(() => caller.abort()); },
+		});
+		const emitter = new EventEmitter();
+		const events = {
+			on(channel: string, handler: (value: unknown) => void) {
+				emitter.on(channel, handler);
+				return () => { emitter.off(channel, handler); };
+			},
+			emit(channel: string, value: unknown) { emitter.emit(channel, value); },
+		};
+		const owner = { sessionId: "parent", runId: "run", roleId: "worker", ownershipId: "lease" };
+		const attached = attachTmuxWorkflowProvider({
+			...tmuxWorkflowProviderIO(), events, sessionId: owner.sessionId, isAvailable: () => true,
+			resolveProfile: (id) => id === "worker" ? {
+				agentId: id, path: join(root, "worker.md"), hash: hashText(body), roleBodyHash: hashText(body),
+			} : null,
+			checkRepository: () => root,
+			services: harness.services, refresh: harness.refresh, ctx: harness.ctx, pi: harness.pi,
+		});
+		assert.ok(attached);
+		try {
+			await assert.rejects(requestWorkflowProvider(events, attached.identity, "launch", owner, {
+				agentId: "worker", name: "Worker", task: "Work", repositoryRoot: root,
+				model: { provider: TEST_MODEL.provider, model: TEST_MODEL.id, thinking: "off" },
+				workflow: {
+					version: 1, workflowId: "test", runId: owner.runId, roleId: owner.roleId,
+					manifestHash: "a".repeat(64), skillHash: "b".repeat(64),
+					policy: "per-role", assignmentSource: "parent", projectRoot: root, data: {},
+				},
+			}, { signal: caller.signal }), /abort|cancel/i);
+			await waitFor(() => harness.closedSurfaces.length === 1);
+			assert.deepEqual(harness.sentCommands, []);
+			assert.equal(harness.runningSubagents.size, 0);
+		} finally {
+			attached.detach();
+		}
+	});
+});
 
 test("workflow role completion preserves final result markers across a later done turn", async () => {
 	await withTempDir(async (root) => {

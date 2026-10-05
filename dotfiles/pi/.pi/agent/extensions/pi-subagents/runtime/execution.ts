@@ -8,6 +8,7 @@ import {
   createSubagentExecutionServices, type LaunchContext, type LaunchProfileInput,
   type SubagentResult, type SubagentResumeParams, type SubagentToolResult,
   type RunningSubagent, type TaskRuntimeOptions, type TeamLaunchSpec,
+  type ResumeLifecycleContext,
 } from "../execution/services.ts";
 import { closeSurface, createSurface, isTmuxAvailable, muxSetupHint, pollForExit, readScreen, sendLongCommand } from "../adapters/tmux.ts";
 import type { SubagentParamsType } from "../registration/schemas.ts";
@@ -91,8 +92,9 @@ export function createExecutionRuntime(subagentsDir: string, discovery: AgentDis
     pi: ExtensionAPI,
     params: SubagentResumeParams,
     ctx: LaunchContext & Parameters<typeof resolveModelPolicy>[1],
+    lifecycle?: ResumeLifecycleContext,
   ): Promise<SubagentToolResult> {
-    return subagentExecution.executeSubagentResume(pi, params, ctx);
+    return subagentExecution.executeSubagentResume(pi, params, ctx, undefined, lifecycle);
   }
 
   /**
@@ -116,6 +118,8 @@ export function createExecutionRuntime(subagentsDir: string, discovery: AgentDis
       rolloverFrom?: LaunchProfile;
       taskRuntime?: TaskRuntimeOptions;
       team?: TeamLaunchSpec;
+      signal?: AbortSignal;
+      isOwned?: () => boolean;
     },
   ): Promise<RunningSubagent> {
     return subagentExecution.launchSubagent(rawParams, ctx, options);

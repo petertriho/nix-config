@@ -80,6 +80,7 @@ export interface RunningSubagent {
 	startTime: number;
 	sessionFile: string;
 	launchScriptFile?: string;
+	completionFile?: string;
 	activityFile?: string;
 	activity?: SubagentActivityState;
 	activityRead?: {
@@ -90,12 +91,16 @@ export interface RunningSubagent {
 	abortController?: AbortController;
 	/** Set only after closeSurface succeeds (including an already-absent pane). */
 	surfaceClosed?: boolean;
+	/** Release a saved-session reservation only after confirmed pane closure. */
+	releaseSession?: () => void;
 	cli?: string;
 	sentinelFile?: string;
 	statusState: SubagentStatusState;
 	interactive: boolean;
 	/** Start of this workflow role's current run; excludes prior resume answers. */
 	workflowSummaryStartLine?: number;
+	/** JSONL entries present before dispatch; excludes previous execution outcomes. */
+	executionStartLine?: number;
 	team?: { teamId: string; memberId: string; epoch: number; sessionId: string };
 }
 
@@ -183,6 +188,8 @@ export interface ResumeRecoveryContext {
 }
 
 export interface ResumeLifecycleContext {
+	/** Caller cancellation applies until acknowledgement, not to detached children. */
+	signal?: AbortSignal;
 	/** A workflow resume must not publish into a branch it no longer owns. */
 	isOwned?: () => boolean;
 	/** Synchronous execution-cwd check before creating a surface or launching a child. */
@@ -282,6 +289,7 @@ export interface SubagentServiceDependencies {
 			interval: number;
 			sessionFile?: string;
 			sentinelFile?: string;
+			completionFile?: string;
 			onTick?: () => void;
 		},
 	): Promise<{

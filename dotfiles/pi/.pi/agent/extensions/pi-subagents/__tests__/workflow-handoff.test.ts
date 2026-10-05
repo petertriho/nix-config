@@ -7,6 +7,7 @@ import { loadWorkflowDefinitionFromPackage } from "../workflow/schema.ts";
 import {
 	buildWorkflowRolloverHandoffForRole,
 	buildWorkflowRolloverHandoffForRun,
+	collectWorkflowReadableData,
 	collectWorkflowReadableDataForRole,
 } from "../workflow/handoff.ts";
 import {
@@ -16,6 +17,19 @@ import {
 } from "../workflow/state.ts";
 import type { NormalizedWorkflowDefinition } from "../workflow/types.ts";
 import { buildWorkflowRecoveryMessage } from "../workflow/recovery.ts";
+
+test("readable data requires declared own slots and own values, including constructor", () => {
+	const role = { id: "author", reads: ["constructor"] };
+	assert.deepEqual(collectWorkflowReadableData({
+		role, dataSlots: {}, data: { constructor: "Do not expose an undeclared slot." },
+	}), []);
+	const slots = { constructor: { id: "constructor", kind: "string" as const, label: "Declared slot" } };
+	const inherited = Object.create({ constructor: "Do not expose an inherited value." });
+	assert.deepEqual(collectWorkflowReadableData({ role, dataSlots: slots, data: inherited }), []);
+	assert.deepEqual(collectWorkflowReadableData({ role, dataSlots: slots, data: { constructor: "Explicit value" } }), [
+		{ slotId: "constructor", label: "Declared slot", value: "Explicit value" },
+	]);
+});
 
 function withTempDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-workflow-handoff-"));

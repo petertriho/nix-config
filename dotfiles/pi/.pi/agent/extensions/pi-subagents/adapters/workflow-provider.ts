@@ -352,7 +352,9 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			const controller = new AbortController();
 			const running = await deps.services.launchSubagent(
 				{ agent: agent.agentId, name: p.name, task: p.task }, deps.ctx,
-				{ workflow, beforeLaunch: (cwd) => {
+				{ workflow, signal,
+					isOwned: () => !controller.signal.aborted && live(),
+					beforeLaunch: (cwd) => {
 					checkedRepository(p, cwd);
 					repositoryConfirmed = true;
 				},
@@ -409,6 +411,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			const controller = new AbortController();
 			const isOwned = () => !controller.signal.aborted && !signal.aborted && live();
 			const lifecycle: ResumeLifecycleContext = {
+				signal,
 				isOwned,
 				beforeLaunch: (cwd, sessionPath) => {
 					if (!isOwned()) throw new Error("Workflow resume cancelled or provider lost");

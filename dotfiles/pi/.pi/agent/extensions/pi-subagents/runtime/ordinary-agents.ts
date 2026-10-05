@@ -141,6 +141,8 @@ export function createOrdinaryTool(pi: ExtensionAPI, discovery: AgentDiscovery, 
           params,
           { ...ctx, pi },
           {
+            signal,
+            isOwned: () => session.sessionActive && session.sessionEpoch === launchEpoch,
             ...(resolvedModel ? { resolvedModel } : {}),
             ...((rawParams as SubagentParamsType & { maxTurns?: number }).maxTurns
               ? { taskRuntime: { maxTurns: (rawParams as SubagentParamsType & { maxTurns: number }).maxTurns } }
@@ -159,18 +161,25 @@ export function createOrdinaryTool(pi: ExtensionAPI, discovery: AgentDiscovery, 
         }
         throw error;
       }
-      if (!session.sessionActive || session.sessionEpoch !== launchEpoch) {
+      if (signal?.aborted || !session.sessionActive || session.sessionEpoch !== launchEpoch) {
         subagentExecution.stopSubagent(running);
         throw new Error("Agent launch interrupted by session navigation; the child was stopped.");
       }
 
       const rememberFinished = (result: SubagentResult): void => {
         if (!session.sessionActive || session.sessionEpoch !== launchEpoch) return;
+        if (result.exitCode !== 0 || result.error || result.errorMessage) {
+          followUpLifecycle?.onError();
+          return;
+        }
         followUpLifecycle?.onResult();
-        if (!followUpName || result.exitCode !== 0 || result.error) return;
+        if (!followUpName) return;
         if (running.cli === "claude") {
           // The generated Pi sidecar path is not a Claude resume reference.
-          if (!result.claudeSessionId) return;
+          if (!result.claudeSessionId) {
+            followUpLifecycle?.onError();
+            return;
+          }
           finishedOrdinary.set(followUpName, {
             backend: "claude", id: running.id, claudeSessionId: result.claudeSessionId,
             launch: {

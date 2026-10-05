@@ -23,7 +23,7 @@ import {
 const insideTmux = !!process.env.TMUX;
 
 test(
-	"tmux pane lifecycle: create, run a command, detect the sentinel, close",
+	"tmux pane lifecycle: create, run a command, detect private shell completion, close",
 	{ skip: !insideTmux && "TMUX is not set", timeout: 30_000 },
 	async () => {
 		const dir = mkdtempSync(join(tmpdir(), "pi-subagents-it-"));
@@ -34,10 +34,11 @@ test(
 			// Give the shell in the new pane time to start before sending keys.
 			await new Promise((resolve) => setTimeout(resolve, 1500));
 
-			sendLongCommand(pane, "true; echo '__SUBAGENT_DONE_'$?'__'", {
+			const completionFile = join(dir, "execution.status");
+			sendLongCommand(pane, `true; printf '%s\\n' "$?" > '${completionFile}'`, {
 				scriptPath: join(dir, "cmd.sh"),
 			});
-			const result = await pollForExit(pane, AbortSignal.timeout(20_000), { interval: 200 });
+			const result = await pollForExit(pane, AbortSignal.timeout(20_000), { interval: 200, completionFile });
 			assert.deepEqual(result, { reason: "sentinel", exitCode: 0 });
 		} finally {
 			if (pane) {
@@ -333,7 +334,8 @@ test(
 
 				const script = readFileSync(result.details.launchScriptFile, "utf8");
 				assert.ok(script.includes(`--session '${sessionPath}'`));
-				assert.ok(script.includes("--model 'test-provider/echo:off'"));
+				assert.ok(script.includes("--model 'test-provider/echo'"));
+				assert.ok(script.includes("--thinking 'off'"));
 
 				// No rollover lineage was recorded for a resume-anyway path.
 				const sidecar = readLaunchProfile(sessionPath);
