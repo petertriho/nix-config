@@ -448,56 +448,54 @@ in
         # The activation entry owns this mutable file.
         "${cfg.configDir}/settings.json".enable = false;
       };
+      activation = {
+        piHistoryState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piHistoryStateDir}
+        '';
+        piMutableSettings = mutableJsonActivation "${cfg.configDir}/settings.json" settingsJson;
+        # Preserve CLI-added servers and runtime enablement changes.
+        piMutableMcp = lib.mkIf config.programs.mcp.enable (
+          mutableJsonActivation "${cfg.configDir}/mcp.json" mcpJson
+        );
+        # Keep unrelated runtime tuning writable, but replace complete worker
+        # model objects so stale per-model tuning cannot survive activation.
+        piBlackholeConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+          blackholeFile=${lib.escapeShellArg "${cfg.configDir}/pi-blackhole/pi-blackhole-config.json"}
+          blackholeJq=${pkgs.jq}/bin/jq
+          blackholeOwned=${blackholeOwnedJson}
+          blackholeBaseline=${blackholeBaselineJson}
 
-      activation.piHistoryState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piHistoryStateDir}
-      '';
+          function writeBlackholeConfig {
+            local target="$1"
+            local tmp
+            tmp=$(mktemp "$target.tmp.XXXXXX") || return 1
+            if ! cat > "$tmp" || ! mv "$tmp" "$target"; then
+              rm -f "$tmp"
+              return 1
+            fi
+          }
 
-      activation.piMutableSettings = mutableJsonActivation "${cfg.configDir}/settings.json" settingsJson;
-
-      # Preserve CLI-added servers and runtime enablement changes.
-      activation.piMutableMcp = lib.mkIf config.programs.mcp.enable (
-        mutableJsonActivation "${cfg.configDir}/mcp.json" mcpJson
-      );
-
-      # Keep unrelated runtime tuning writable, but replace complete worker
-      # model objects so stale per-model tuning cannot survive activation.
-      activation.piBlackholeConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-        blackholeFile=${lib.escapeShellArg "${cfg.configDir}/pi-blackhole/pi-blackhole-config.json"}
-        blackholeJq=${pkgs.jq}/bin/jq
-        blackholeOwned=${blackholeOwnedJson}
-        blackholeBaseline=${blackholeBaselineJson}
-
-        function writeBlackholeConfig {
-          local target="$1"
-          local tmp
-          tmp=$(mktemp "$target.tmp.XXXXXX") || return 1
-          if ! cat > "$tmp" || ! mv "$tmp" "$target"; then
-            rm -f "$tmp"
-            return 1
+          if [[ -L "$blackholeFile" || ( -e "$blackholeFile" && ! -f "$blackholeFile" ) ]]; then
+            echo "pi-blackhole: $blackholeFile must be a regular file, not a link or special file; repair it before activating" >&2
+            exit 1
           fi
-        }
+          if [[ -f "$blackholeFile" ]] &&
+            ! "$blackholeJq" -e -s 'length == 1 and (.[0] | type == "object")' "$blackholeFile" > /dev/null 2>&1; then
+            echo "pi-blackhole: $blackholeFile must contain one valid JSON object; repair it before activating" >&2
+            exit 1
+          fi
 
-        if [[ -L "$blackholeFile" || ( -e "$blackholeFile" && ! -f "$blackholeFile" ) ]]; then
-          echo "pi-blackhole: $blackholeFile must be a regular file, not a link or special file; repair it before activating" >&2
-          exit 1
-        fi
-        if [[ -f "$blackholeFile" ]] &&
-          ! "$blackholeJq" -e -s 'length == 1 and (.[0] | type == "object")' "$blackholeFile" > /dev/null 2>&1; then
-          echo "pi-blackhole: $blackholeFile must contain one valid JSON object; repair it before activating" >&2
-          exit 1
-        fi
-
-        run mkdir -p $VERBOSE_ARG "$(dirname "$blackholeFile")"
-        if [[ -f "$blackholeFile" ]]; then
-          blackholeMerged=$("$blackholeJq" -s '.[0] + .[1] | del(.model)' "$blackholeFile" "$blackholeOwned")
-        else
-          blackholeMerged=$(cat "$blackholeBaseline")
-        fi
-        run writeBlackholeConfig "$blackholeFile" <<< "$blackholeMerged"
-        unset blackholeFile blackholeJq blackholeOwned blackholeBaseline blackholeMerged
-        unset -f writeBlackholeConfig
-      '';
+          run mkdir -p $VERBOSE_ARG "$(dirname "$blackholeFile")"
+          if [[ -f "$blackholeFile" ]]; then
+            blackholeMerged=$("$blackholeJq" -s '.[0] + .[1] | del(.model)' "$blackholeFile" "$blackholeOwned")
+          else
+            blackholeMerged=$(cat "$blackholeBaseline")
+          fi
+          run writeBlackholeConfig "$blackholeFile" <<< "$blackholeMerged"
+          unset blackholeFile blackholeJq blackholeOwned blackholeBaseline blackholeMerged
+          unset -f writeBlackholeConfig
+        '';
+      };
     };
   };
 }
