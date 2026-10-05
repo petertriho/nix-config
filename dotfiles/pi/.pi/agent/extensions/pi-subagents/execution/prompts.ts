@@ -1,4 +1,4 @@
-import { THINKING_LEVELS, type ModelSelection } from "../../workflow-provider/launch-profile.ts";
+import { THINKING_LEVELS, type ModelSelection } from "./launch-profile.ts";
 import { shellEscape } from "../adapters/tmux.ts";
 
 const SUBAGENT_CONTROL_TOOLS = ["caller_ping", "subagent_done"] as const;

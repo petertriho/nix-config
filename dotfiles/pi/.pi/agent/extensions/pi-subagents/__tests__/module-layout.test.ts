@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -23,6 +23,60 @@ import {
 	resolveUsageDetails,
 } from "../subagent-services.ts";
 import { createSubagentExecutionServices as createGroupedExecutionServices } from "../execution/composition.ts";
+import { readLaunchProfile as readNeutralProfile, writeLaunchProfile as writeNeutralProfile } from "../execution/launch-profile.ts";
+import { parseExplicitModelSelection as parseNeutralModel } from "../profiles/model-picker.ts";
+import { readLaunchProfile as readTmuxProfile, writeLaunchProfile as writeTmuxProfile } from "../launch-profile.ts";
+import { parseExplicitModelSelection as parseTmuxModel } from "../model-picker.ts";
+import { registerWorkflowLifecycle } from "../registration/lifecycle.ts";
+
+test("workflow modules use plugin responsibility folders and one test tree", () => {
+	for (const directory of ["pi-workflows", "workflow-provider"]) {
+		assert.equal(existsSync(new URL(`../${directory}/`, import.meta.url)), false);
+	}
+	for (const module of [
+		"workflow/state.ts", "workflow/registry.ts", "workflow/tools.ts",
+		"runtime/workflow-coordinator.ts", "runtime/workflow-discovery.ts",
+		"adapters/workflow-client.ts", "adapters/workflow-contract.ts",
+		"execution/launch-profile.ts", "execution/provider-failure.ts",
+		"profiles/model-picker.ts", "sessions/context-estimate.ts",
+		"workflows/peter/workflow.json", "__tests__/helpers/workflow.ts",
+	]) {
+		assert.equal(existsSync(new URL(`../${module}`, import.meta.url)), true, module);
+	}
+	const root = fileURLToPath(new URL("../", import.meta.url));
+	const tests = readdirSync(root, { recursive: true }).map(String).filter((path) => path.endsWith(".test.ts"));
+	assert.ok(tests.length > 0);
+	assert.ok(tests.every((path) => path.startsWith("__tests__/")));
+	assert.equal(existsSync(new URL("../workflow/legacy-execution.ts", import.meta.url)), false);
+});
+
+test("plugin lifecycle registration delegates workflow hooks in their original order", async () => {
+	const handlers = new Map<string, (event: unknown, ctx: never) => unknown>();
+	const calls: string[] = [];
+	registerWorkflowLifecycle({
+		on(name: string, handler: (event: unknown, ctx: never) => unknown) { handlers.set(name, handler); },
+	} as never, {
+		startSession: () => { calls.push("start"); },
+		beforeAgentStart: async () => { calls.push("ready"); },
+		shutdown: async () => { calls.push("shutdown"); },
+		beforeTree: async () => { calls.push("before-tree"); return { cancel: true }; },
+		restoreTree: () => { calls.push("tree"); },
+	});
+	assert.deepEqual([...handlers.keys()], [
+		"session_start", "before_agent_start", "session_shutdown", "session_before_tree", "session_tree",
+	]);
+	for (const [event, handler] of handlers) {
+		const result = await handler({}, {} as never);
+		if (event === "session_before_tree") assert.deepEqual(result, { cancel: true });
+	}
+	assert.deepEqual(calls, ["start", "ready", "shutdown", "before-tree", "tree"]);
+});
+
+test("ordinary tmux imports share the neutral sidecar and model selection implementations", () => {
+	assert.strictEqual(readTmuxProfile, readNeutralProfile);
+	assert.strictEqual(writeTmuxProfile, writeNeutralProfile);
+	assert.strictEqual(parseTmuxModel, parseNeutralModel);
+});
 
 test("compatibility entry files directly export the grouped implementations", () => {
 	assert.strictEqual(subagentDone, childSubagentDone);

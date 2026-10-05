@@ -13,7 +13,7 @@ import {
 	WORKFLOW_PROVIDER_REQUEST_CHANNEL,
 	WORKFLOW_PROVIDER_CAPABILITIES,
 	type WorkflowOwner,
-} from "../../workflow-provider/contract.ts";
+} from "../adapters/workflow-contract.ts";
 import type { RunningSubagent, SubagentResult, ResumeLifecycleContext, ResumeRecoveryContext } from "../subagent-services.ts";
 
 function bus() {

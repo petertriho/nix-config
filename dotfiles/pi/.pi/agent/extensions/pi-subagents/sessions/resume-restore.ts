@@ -1,4 +1,4 @@
-import type { LaunchProfile, LaunchProfileResources } from "../../workflow-provider/launch-profile.ts";
+import type { LaunchProfile, LaunchProfileResources } from "../execution/launch-profile.ts";
 
 export interface ResourceFingerprintChange {
 	field: "tools" | "visibleSkills";

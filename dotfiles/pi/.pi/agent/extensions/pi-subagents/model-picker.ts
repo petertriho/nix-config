@@ -1,1 +1,1 @@
-export * from "../workflow-provider/model-picker.ts";
+export * from "./profiles/model-picker.ts";

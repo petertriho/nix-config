@@ -1,6 +1,6 @@
 # Pi subagents
 
-Subagents and native teams for Pi.
+The `pi-subagents` extension provides subagents, native teams, and workflows for Pi.
 
 `Agent` runs ordinary Pi or Claude CLI agents. `SendMessage` follows up with
 finished ordinary agents. `ListAgents` lists agents, and `AgentInterrupt`
@@ -16,6 +16,16 @@ session's active model and thinking level instead of the agent's defaults.
 Only `isolation: "worktree"` creates a separate git worktree. Every other
 isolation value, including `"shared"`, uses the shared working directory.
 Shared runs keep the normal team-admission checks.
+
+## Installation
+
+Home Manager installs this extension through the
+`~/.pi/agent/extensions/pi-subagents/` directory symlink.
+Pi loads `pi-subagents/index.ts` as the single entry point for subagents and workflows.
+Workflow modules share the plugin's responsibility folders.
+Bundled workflows live in `pi-subagents/workflows/`, relative to the extensions directory.
+See the [workflow runtime](workflow/README.md) and
+[workflow authoring contract](workflows/README.md) for details.
 
 ## Task configuration
 
@@ -69,32 +79,41 @@ activation.
 
 The workflow provider ID remains `pi-agent-teams`. The saved session entry type
 remains `pi-agent-teams.workflow-run`. These IDs preserve existing workflow runs.
+Workflow presets remain in `state/pi-workflows/workflow-presets` under the Pi
+agent directory.
 Global reload keys also remain unchanged so the new module can clean up resources
 from the previous module.
 
 ## Module layout
 
-`index.ts` wires the extension together. Implementation modules use these
-responsibility folders:
+The root `index.ts` initializes the execution adapter and creates the workflow coordinator.
+`registration/lifecycle.ts` registers its session hooks after the adapter and team handlers.
+`runtime/workflow-coordinator.ts` owns coordination state without an extension entry point.
+The coordinator and execution adapters communicate through `pi.events`.
+Implementation modules use these responsibility folders:
 
 | Folder | Responsibility |
 | --- | --- |
-| `profiles/` | Agent discovery, frontmatter, launch policy, and configured models |
-| `execution/` | Launch, watch, resume, resource profiles, artifacts, and shared execution types |
-| `sessions/` | Session reading, seeding, restoration, and context-fit decisions |
+| `profiles/` | Agent discovery, frontmatter, launch policy, model selection, and configured models |
+| `execution/` | Launch, watch, resume, launch-profile sidecars, provider failures, results, and shared execution types |
+| `sessions/` | Session reading, seeding, restoration, saved-context estimates, and context-fit decisions |
 | `telemetry/` | Activity sidecars, status classification, and usage summaries |
 | `presentation/` | Terminal formatting, widgets, and tool renderers |
-| `adapters/` | Tmux surfaces and the workflow-provider adapter |
+| `adapters/` | Tmux surfaces, workflow execution adapter, event contract, and workflow transport client |
 | `tasks/` | Task profiles, model resolution, run state, RPC, and disk policy |
 | `teams/` | Admission, approvals, coordination, locks, and transport |
 | `child/` | Completion and teammate extensions loaded explicitly in child sessions |
 | `registration/` | Tool schemas, tools, commands, and extension registration |
-| `runtime/` | Shared runtime state, refresh, interrupts, and integration wiring |
+| `runtime/` | Shared runtime state, refresh, interrupts, workflow coordination, and provider discovery |
+| `workflow/` | Workflow definitions, registry, state, handoffs, presets, commands, role tools, and review gates |
+| `workflows/` | Bundled workflow packages |
 
 Root compatibility files preserve child launch paths and existing service and
 provider imports. Internal modules import the responsibility folders directly.
-`launch-profile.ts` and `model-picker.ts` still re-export the neutral
-implementations from the sibling `workflow-provider/` directory.
+`launch-profile.ts` and `model-picker.ts` preserve existing imports through direct re-exports
+from `execution/launch-profile.ts` and `profiles/model-picker.ts`.
+Workflow tools and ordinary agents share `execution/types.ts` and `execution/results.ts`.
+The coordinator imports the event contract, not the execution adapter.
 
 Configuration, bundled `agents/`, and the Claude `plugin/` remain at the extension
 root. Their paths do not depend on an implementation module's location.
@@ -108,6 +127,11 @@ npm run typecheck
 npm test
 npm run test:tmux-smoke
 ```
+
+All plugin tests share `__tests__/`. Workflow tests use descriptive `workflow-*.test.ts` names.
+Test helpers and fixtures live in `__tests__/helpers/` and `__tests__/fixtures/`.
+Context-estimation cases share the context-fit suite. Compatibility-helper cases share the module-layout suite.
+The recursive `pi-subagents/**/*.ts` include covers all internal TypeScript modules.
 
 The tmux smoke test needs a real attached tmux pane. It uses a temporary Pi
 agent directory, an offline mock provider, and the installed `pi-tasks`.

@@ -1,6 +1,6 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { AGENT_MODELS_VERSION, agentModelsPath, readAgentModelConfig, writeAgentModelConfig } from "./agent-models.ts";
-import { parseExplicitModelSelection, pickModelSelection } from "../../workflow-provider/model-picker.ts";
+import { parseExplicitModelSelection, pickModelSelection } from "./model-picker.ts";
 import type { AgentDiscovery, ListedAgentDefinition } from "./discovery.ts";
 
 export function createAgentModelManager(discoverAgentDefinitions: AgentDiscovery["discoverAgentDefinitions"]) {

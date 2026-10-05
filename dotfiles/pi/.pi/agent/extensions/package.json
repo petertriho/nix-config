@@ -5,7 +5,7 @@
   "version": "0.0.0",
   "description": "Local dev types for pi extensions. pi injects the runtime packages; these devDependencies exist only for LSP type-checking.",
   "scripts": {
-    "test": "node --test \"__tests__/*.test.ts\" \"pi-history/__tests__/*.test.ts\" \"pi-subagents/__tests__/*.test.ts\" \"pi-workflows/__tests__/*.test.ts\" \"pi-workflows/__tests__/workflow/*.test.ts\" \"workflow-provider/__tests__/*.test.ts\"",
+    "test": "node --test \"__tests__/*.test.ts\" \"pi-history/__tests__/*.test.ts\" \"pi-subagents/__tests__/*.test.ts\"",
     "test:tmux-smoke": "node smoke/tmux-smoke.mjs",
     "test:claude-smoke": "node smoke/claude-smoke.mjs",
     "test:cliproxyapi-smoke": "node smoke/cliproxyapi-fast-smoke.mjs",

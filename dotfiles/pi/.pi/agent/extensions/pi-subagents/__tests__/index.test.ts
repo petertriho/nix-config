@@ -30,8 +30,8 @@ import {
 import piTmuxSubagents, { __test__ as testApi } from "../index.ts";
 import { createTeamTransport } from "../teams/transport.ts";
 import { closeSurface } from "../adapters/tmux.ts";
-import { discoverWorkflowProviders, WORKFLOW_PROVIDER_REQUEST_CHANNEL } from "../../workflow-provider/contract.ts";
-import { createWorkflowEventClient } from "../../pi-workflows/event-client.ts";
+import { discoverWorkflowProviders, WORKFLOW_PROVIDER_REQUEST_CHANNEL } from "../adapters/workflow-contract.ts";
+import { createWorkflowEventClient } from "../adapters/workflow-client.ts";
 import {
 	classifyStatus,
 	createStatusState,
@@ -46,13 +46,13 @@ import {
 	resolveResultPresentation as sharedResolveResultPresentation,
 	resolveResumeLaunchBehavior as sharedResolveResumeLaunchBehavior,
 } from "../subagent-services.ts";
-import { loadWorkflowDefinitionFromPackage } from "../../pi-workflows/workflow/schema.ts";
+import { loadWorkflowDefinitionFromPackage } from "../workflow/schema.ts";
 import {
 	createWorkflowRunState,
 	getActiveWorkflowRun,
 	recordWorkflowRunRoleSession,
 	startWorkflowRun,
-} from "../../pi-workflows/workflow/state.ts";
+} from "../workflow/state.ts";
 
 // Hermetic guard: when this suite runs inside a pi-spawned agent session the
 // test process inherits PI_SUBAGENT_ID/PI_SUBAGENT_SESSION, isTaskRpcChildSession()

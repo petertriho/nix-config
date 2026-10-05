@@ -1,12 +1,12 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-export { estimateSavedSessionContext } from "../../workflow-provider/context-estimate.ts";
-export type { SavedContextEstimate } from "../../workflow-provider/context-estimate.ts";
+export { estimateSavedSessionContext } from "./context-estimate.ts";
+export type { SavedContextEstimate } from "./context-estimate.ts";
 import {
 	type ContextEstimateRecord,
 	type LaunchProfile,
 	profilePathForSession,
 	updateLaunchProfile,
-} from "../../workflow-provider/launch-profile.ts";
+} from "../execution/launch-profile.ts";
 
 /** Saved sessions at or above this fraction of the selected context window
  * require an explicit resume/rollover decision. Resume-only: running children

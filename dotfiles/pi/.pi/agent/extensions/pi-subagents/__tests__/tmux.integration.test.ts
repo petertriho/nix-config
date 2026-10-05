@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { closeSurface, createSurface, pollForExit, sendLongCommand } from "../adapters/tmux.ts";
 import piTmuxSubagentsModule, { __test__ as testApi } from "../index.ts";
-import piWorkflows from "../../pi-workflows/index.ts";
 import {
 	fingerprintStrings,
 	hashText,
@@ -14,12 +13,12 @@ import {
 	readLaunchProfile,
 	writeLaunchProfile,
 } from "../launch-profile.ts";
-import { loadWorkflowDefinitionFromPackage } from "../../pi-workflows/workflow/schema.ts";
+import { loadWorkflowDefinitionFromPackage } from "../workflow/schema.ts";
 import {
 	createWorkflowRunState,
 	getActiveWorkflowRun,
 	startWorkflowRun,
-} from "../../pi-workflows/workflow/state.ts";
+} from "../workflow/state.ts";
 
 const insideTmux = !!process.env.TMUX;
 
@@ -668,7 +667,6 @@ test(
 			api.appendEntry = (_type: string, snapshot: any) => {
 				state = { ...state, runsById: { [snapshot.runId]: snapshot }, activeRunId: snapshot.runId };
 			};
-			piWorkflows(api);
 			const ctx = {
 				...integrationContext(), cwd: root, isIdle: () => true, isProjectTrusted: () => true,
 				sessionManager: { ...integrationContext().sessionManager, getBranch: () => [{

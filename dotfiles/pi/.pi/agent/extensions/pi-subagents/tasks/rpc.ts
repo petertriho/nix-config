@@ -13,7 +13,7 @@
  * Panes, watching, and model registries are injected by index.ts.
  */
 
-import type { ResolvedModelSelection } from "../../workflow-provider/model-picker.ts";
+import type { ResolvedModelSelection } from "../profiles/model-picker.ts";
 import type { TaskAgentProfile } from "./profiles.ts";
 import {
 	TaskRunStore,

@@ -3,7 +3,7 @@ import {
 	parseExplicitModelSelection,
 	resolveConfiguredAgentModel,
 	type ResolvedModelSelection,
-} from "../../workflow-provider/model-picker.ts";
+} from "../profiles/model-picker.ts";
 import type { TaskAgentProfile } from "./profiles.ts";
 
 export interface TaskModelLike {

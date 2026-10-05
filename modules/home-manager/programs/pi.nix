@@ -423,14 +423,9 @@ in
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-message-diagnostics.ts";
         "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
+        # One loadable extension includes the workflow coordinator and provider modules.
         "${cfg.configDir}/extensions/pi-subagents".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-subagents";
-        "${cfg.configDir}/extensions/pi-workflows".source =
-          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-workflows";
-        # Transport-neutral imports are siblings of both extension entry points.
-        # This directory has no index.ts, so Pi does not load it as an extension.
-        "${cfg.configDir}/extensions/workflow-provider".source =
-          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/workflow-provider";
         "${cfg.configDir}/extensions/pi-history".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-history";
 

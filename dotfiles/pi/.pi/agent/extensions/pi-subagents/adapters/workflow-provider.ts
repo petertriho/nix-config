@@ -18,13 +18,13 @@ import {
 	type WorkflowProvider,
 	type WorkflowProviderRequest,
 	type WorkflowRoleFacts,
-} from "../../workflow-provider/contract.ts";
+} from "./workflow-contract.ts";
 import { estimateSavedSessionContext } from "../sessions/context-fit.ts";
 import {
 	hashText, normalizeLaunchProfileWorkflowMetadata, readLaunchProfile, updateLaunchProfile,
 	THINKING_LEVELS, type LaunchProfile, type LaunchProfileWorkflowMetadata, type ModelSelection,
-} from "../../workflow-provider/launch-profile.ts";
-import { buildProviderFailureRecord, classifyProviderFailure } from "../../workflow-provider/failure.ts";
+} from "../execution/launch-profile.ts";
+import { buildProviderFailureRecord, classifyProviderFailure } from "../execution/provider-failure.ts";
 import type {
 	LaunchContext, ResumeLifecycleContext, RunningSubagent, SubagentResult,
 	createSubagentExecutionServices,

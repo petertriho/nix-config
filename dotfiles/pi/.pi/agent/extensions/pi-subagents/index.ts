@@ -23,7 +23,7 @@ import { createTeamRuntime } from "./runtime/teams.ts";
 import { createTeamLauncher } from "./runtime/team-launch.ts";
 import { createOrdinaryTool } from "./runtime/ordinary-agents.ts";
 import { createNamedFollowUp } from "./runtime/named-followups.ts";
-import { registerSessionLifecycle } from "./registration/lifecycle.ts";
+import { registerSessionLifecycle, registerWorkflowLifecycle } from "./registration/lifecycle.ts";
 import { registerTeamEvents } from "./registration/team-events.ts";
 import { registerAgentTool } from "./registration/agent-tool.ts";
 import { registerMessageTools } from "./registration/message-tools.ts";
@@ -32,6 +32,7 @@ import { registerCommands } from "./registration/commands.ts";
 import { applyWidgetMargin, formatWidgetRightLabel, renderWidgetAgentContent } from "./presentation/widget.ts";
 import { buildStatusRefreshMessage } from "./presentation/status-message.ts";
 import { registerMessageRenderers } from "./presentation/message-renderers.ts";
+import { createWorkflowCoordinator } from "./runtime/workflow-coordinator.ts";
 
 // All launch targets and bundled/config resources remain rooted beside this entry.
 const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
@@ -136,4 +137,5 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
   registerRetiredTools(pi, discovery, runtime, execution, retiredToolFixtures, shouldRegister);
   registerCommands(pi, discovery, manageAgentModels);
   registerMessageRenderers(pi);
+  registerWorkflowLifecycle(pi, createWorkflowCoordinator(pi));
 }

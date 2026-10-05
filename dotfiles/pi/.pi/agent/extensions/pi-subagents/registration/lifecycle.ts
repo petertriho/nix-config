@@ -4,6 +4,7 @@ import type { SessionState } from "../runtime/session-state.ts";
 import type { TeamRuntime } from "../runtime/teams.ts";
 import type { TaskRpcAdapter } from "../runtime/task-rpc.ts";
 import type { WorkflowAdapter } from "../runtime/workflow-adapter.ts";
+import type { WorkflowCoordinator } from "../runtime/workflow-coordinator.ts";
 
 /** Preserve start/shutdown ordering across all owners of this extension instance. */
 export function registerSessionLifecycle(
@@ -51,4 +52,13 @@ export function registerSessionLifecycle(
     shutdownPiTasksRpcBridge();
     runningSubagents.clear();
   });
+}
+
+/** Register after the provider and team handlers to preserve startup ordering. */
+export function registerWorkflowLifecycle(pi: ExtensionAPI, coordinator: WorkflowCoordinator): void {
+  pi.on("session_start", (_event, ctx) => coordinator.startSession(ctx));
+  pi.on("before_agent_start", () => coordinator.beforeAgentStart());
+  pi.on("session_shutdown", () => coordinator.shutdown());
+  pi.on("session_before_tree", (_event, ctx) => coordinator.beforeTree(ctx));
+  pi.on("session_tree", (_event, ctx) => coordinator.restoreTree(ctx));
 }

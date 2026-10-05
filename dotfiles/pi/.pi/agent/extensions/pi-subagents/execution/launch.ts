@@ -7,8 +7,8 @@ import {
 	writeLaunchProfile,
 	type LaunchProfile,
 	type LaunchProfileWorkflowMetadata,
-} from "../../workflow-provider/launch-profile.ts";
-import type { ResolvedModelSelection } from "../../workflow-provider/model-picker.ts";
+} from "./launch-profile.ts";
+import type { ResolvedModelSelection } from "../profiles/model-picker.ts";
 import { getNewEntries, seedSubagentSessionFile } from "../sessions/session.ts";
 import { createStatusState } from "../telemetry/status.ts";
 import { resolveTaskDiskCandidate } from "../tasks/disk-policy.ts";

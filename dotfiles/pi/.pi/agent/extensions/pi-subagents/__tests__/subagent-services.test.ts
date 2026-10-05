@@ -28,9 +28,9 @@ import {
 	type RunningSubagent,
 } from "../subagent-services.ts";
 import { shellEscape } from "../adapters/tmux.ts";
-import { buildProviderFailureRecord } from "../../pi-workflows/workflow/recovery.ts";
+import { buildProviderFailureRecord } from "../workflow/recovery.ts";
 import { attachTmuxWorkflowProvider, tmuxWorkflowProviderIO } from "../workflow-provider.ts";
-import { requestWorkflowProvider, subscribeWorkflowDelivery } from "../../workflow-provider/contract.ts";
+import { requestWorkflowProvider, subscribeWorkflowDelivery } from "../adapters/workflow-contract.ts";
 
 const TEST_MODEL = {
 	provider: "test-provider",

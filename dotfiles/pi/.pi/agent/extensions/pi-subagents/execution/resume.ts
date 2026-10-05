@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { classifyProviderFailure } from "../../workflow-provider/failure.ts";
+import { classifyProviderFailure } from "./provider-failure.ts";
 import { getSubagentActivityFile } from "../telemetry/activity.ts";
 import {
 	buildRolloverHandoff,
@@ -19,8 +19,8 @@ import {
 	updateLaunchProfile,
 	updateProfileAfterSuccessfulResponse,
 	type LaunchProfile,
-} from "../../workflow-provider/launch-profile.ts";
-import { resolveModelPolicy, type ResolvedModelSelection } from "../../workflow-provider/model-picker.ts";
+} from "./launch-profile.ts";
+import { resolveModelPolicy, type ResolvedModelSelection } from "../profiles/model-picker.ts";
 import {
 	diffResourceFingerprints,
 	primarySkillChanged,

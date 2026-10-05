@@ -4,7 +4,7 @@ import { Type } from "typebox";
 import { lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { isAbsolute, relative, sep } from "node:path";
 import { createSubagentActivityRecorder } from "../telemetry/activity.ts";
-import { readLaunchProfile } from "../../workflow-provider/launch-profile.ts";
+import { readLaunchProfile } from "../execution/launch-profile.ts";
 import {
   applyPanelMargin,
   chooseWidthCandidate,

@@ -6,8 +6,8 @@ import type {
 	LaunchProfileWorkflowMetadata,
 	ModelSelection,
 	ProviderFailureRecord,
-} from "../../workflow-provider/launch-profile.ts";
-import type { ResolvedModelSelection } from "../../workflow-provider/model-picker.ts";
+} from "./launch-profile.ts";
+import type { ResolvedModelSelection } from "../profiles/model-picker.ts";
 import type { SubagentStatusState } from "../telemetry/status.ts";
 import type { SubagentUsageSummary } from "../telemetry/usage.ts";
 
@@ -52,6 +52,7 @@ export interface LaunchProfileInput {
 export interface SubagentToolResult {
 	content: Array<{ type: "text"; text: string }>;
 	details: Record<string, unknown>;
+	isError?: boolean;
 }
 
 export interface SubagentResult {

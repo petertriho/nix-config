@@ -2,8 +2,8 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   type LaunchProfile, type LaunchProfileResources, type LaunchProfileWorkflowMetadata,
   type PrimarySkillIdentity, updateLaunchProfile,
-} from "../../workflow-provider/launch-profile.ts";
-import { type ResolvedModelSelection, resolveModelPolicy } from "../../workflow-provider/model-picker.ts";
+} from "../execution/launch-profile.ts";
+import { type ResolvedModelSelection, resolveModelPolicy } from "../profiles/model-picker.ts";
 import {
   createSubagentExecutionServices, type LaunchContext, type LaunchProfileInput,
   type SubagentResult, type SubagentResumeParams, type SubagentToolResult,

@@ -9,7 +9,7 @@ import {
 	type LaunchProfile,
 	type LaunchProfileResources,
 	type PrimarySkillIdentity,
-} from "../../workflow-provider/launch-profile.ts";
+} from "./launch-profile.ts";
 import { parseLegacyModelSelection, parseSkillList } from "./prompts.ts";
 import type { LaunchProfileInput, SubagentServiceDependencies } from "./types.ts";
 
