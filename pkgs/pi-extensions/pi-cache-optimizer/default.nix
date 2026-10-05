@@ -2,6 +2,7 @@
   lib,
   stdenvNoCC,
   fetchFromGitHub,
+  jq,
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-cache-optimizer";
@@ -14,17 +15,37 @@ stdenvNoCC.mkDerivation {
     hash = "sha256-3ISDWZWvRbcd6lMyq6XuZskLz2ZINriY2OEuUbnKCXY=";
   };
 
-  # Zero runtime dependencies (peer dep @earendil-works/pi-coding-agent is
-  # injected by pi at runtime); ship the raw TypeScript entry exactly like
-  # `pi install npm:pi-cache-optimizer` does.
+  nativeBuildInputs = [ jq ];
+  dontBuild = true;
+
+  # Pi supplies the peer dependency and loads TypeScript directly.
+  # The upstream files list includes the entry point and its runtime modules.
   installPhase = ''
     runHook preInstall
 
     packageRoot=$out/lib/node_modules/pi-cache-optimizer
     mkdir -p "$packageRoot"
-    cp package.json index.ts README.md LICENSE "$packageRoot/"
+    cp package.json README.md LICENSE "$packageRoot/"
+    jq -r '.files[]' package.json | while IFS= read -r file; do
+      cp -r --parents "$file" "$packageRoot/"
+    done
 
     runHook postInstall
+  '';
+
+  doInstallCheck = true;
+  installCheckPhase = ''
+    runHook preInstallCheck
+
+    packageRoot=$out/lib/node_modules/pi-cache-optimizer
+    jq -r '.files[]' package.json | while IFS= read -r file; do
+      diff -r "$file" "$packageRoot/$file"
+    done
+    jq -r '.pi.extensions[]' package.json | while IFS= read -r file; do
+      test -f "$packageRoot/$file"
+    done
+
+    runHook postInstallCheck
   '';
 
   meta = {
