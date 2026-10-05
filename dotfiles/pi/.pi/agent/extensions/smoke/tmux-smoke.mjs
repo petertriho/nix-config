@@ -73,6 +73,12 @@ try {
   };
   subagents(pi);
   assert.equal(commands.has("team-reconcile"), false, "manual reconciliation command must be removed");
+  const model = {
+    provider: "team-smoke", id: "mock", name: "Offline team smoke",
+    api: "openai-completions", reasoning: false, input: ["text"],
+    contextWindow: 16_000, maxTokens: 512,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  };
   const context = {
     cwd, mode: "tui", hasUI: true, thinkingLevel: "off",
     sessionManager: {
@@ -80,7 +86,11 @@ try {
       getSessionId: () => parentId,
       getSessionDir: () => sessionDir,
     },
-    modelRegistry: { getAvailable: () => [] },
+    modelRegistry: {
+      getAll: () => [model],
+      getAvailable: () => [model],
+      hasConfiguredAuth: () => true,
+    },
     scopedModels: [],
     ui: {
       confirm: async (_title, message) => {

@@ -14,14 +14,19 @@ Launch-profile sidecars and failure classification live in `../execution/`.
 Model selection lives in `../profiles/`; saved-context estimates live in `../sessions/`.
 Bundled packages live in `../workflows/`.
 
-`workflow-synthetic-docs-review.test.ts` is the generality proof: it authors a
-temporary, never-bundled `docs-review` package (roles `author`/`verifier`, data
-`draft`/`report`/`ticket`, command `docs`) inside temp directories and runs the
-whole lifecycle — discovery, alias generation, startup model order, spawn,
-resume, role-session replacement, persistence, rollover
-handoff, recovery, completion, and reload restoration — without any TypeScript
-branch for those IDs. `workflow-peter-workflow.test.ts` covers the bundled Peter package
-against the same generic modules.
+`workflow-synthetic-docs-review.test.ts` authors a temporary, never-bundled `docs-review` package.
+Its roles are `author`/`verifier`, its data slots are `draft`/`report`/`ticket`, and its command is `docs`.
+The test covers discovery, aliases, startup model order, the private skill, and the full role lifecycle.
+That lifecycle includes spawn, resume, rollover, handoff, recovery, completion, persistence, and reload.
+No production TypeScript branch names these package IDs.
+`workflow-peter-workflow.test.ts` covers the bundled Peter package through the same generic modules.
+
+The synthetic lifecycle uses `createWorkflowEventClient` and `attachTmuxWorkflowProvider`, not `deps.execution`.
+`../__tests__/helpers/workflow-event-execution.ts` supplies an in-memory event bus and fake child execution services.
+The provider reads real agent files and sidecars, confirms repository roots, and passes canonical models from the registry.
+The fake service calls `beforeLaunch` and `onLaunched`, then writes both rollover links before the provider acknowledges replacement.
+The test rejects either missing link and ignores revoked callbacks and uncorrelated results.
+Recovery selects the model in the event tools and promotes the run assignment only after matching response evidence and a correlated completed result.
 
 Version 1 starts with the manifest contract:
 
@@ -87,6 +92,43 @@ Preset storage remains `state/pi-workflows/workflow-presets`; the refactor does 
 `../__tests__/workflow-loader.test.ts` uses Pi's real loader with source and temporary symlink installations.
 It covers unique registration, fresh runs, historical resume, missing providers, and child-session restrictions.
 The tmux integration tests exercise the execution adapter.
+
+## Event coverage and backend API
+
+Workflow lifecycle tools execute roles only through the selected event client.
+`WorkflowSubagentExecution` and `WorkflowToolDependencies.execution` no longer exist in `tools.ts`.
+`WorkflowToolDependencies` contains only `state` and optional `eventExecution`.
+The coordinator supplies the event client, and the workflow tools no longer track direct child execution.
+
+The direct backend removal is a breaking API change.
+Consumers must supply `eventExecution` instead of the removed `execution` dependency.
+The shared subagent execution services remain available to ordinary agents and the tmux provider.
+The removal affects only the duplicate workflow backend.
+
+Both workflow suites now use the event backend.
+Their child execution fixtures implement the provider's execution-services shape, not a production compatibility interface.
+The coverage map records the former direct behaviors and their event tests.
+All suite names refer to files in `../__tests__/`.
+The named cases are test titles or searchable title fragments.
+Tools, provider, client, and coordinator refer to their `workflow-*.test.ts` suites.
+Coordinator integration refers to `workflow-coordinator.integration.test.ts`.
+
+| Behavior from former direct lifecycle coverage | Event coverage | Migration notes |
+| --- | --- | --- |
+| Arbitrary roles, typed data, selected models, sidecars, asynchronous boundaries, and repository files | Synthetic full event lifecycle. Tools: arbitrary-role spawn and staged-change completion. | Real sidecars and correlated parent messages replace direct watcher return values. |
+| Required profiles, parent sessions, provider availability, and saved identity | Tools: unavailable execution and missing parent sessions. Provider: saved identity, metadata readback, context, and model facts. Client: preflight. Coordinator: no compatible provider and child boundaries. | Availability comes from the selected provider. No fallback replaces the saved binding. |
+| Model-only exposure, structured errors, and SDK codemode results | Tools: registration errors, SDK codemode, registered event-backed spawn, and early ping. Coordinator: registration and child restrictions. | Existing structured-result and exposure assertions use event dependencies. |
+| Exclusive launch reservations and retry after cancellation or launch error | Tools: “reserves event ownership through preflight and acknowledgement” and “excludes concurrent provider-service launches” for all launch tools. | Tests cover both wire-level reentry and pending real provider services. |
+| Cancelled spawn, resume, and recovery before or during launch | Tools: pending service cancellation and cancelled recovery gate. Coordinator integration: preflight, inspection, model selection, and pending starts. Provider: cancelled launch cleanup. | The real client waits for confirmed owned cleanup. Rejected calls do not retain a launch reservation. |
+| Current saved session, fresh replacement, and historical session retention | Synthetic: same-session resume, fresh rollover, and both missing-lineage cases. Tools: current-session resume and historical rollover. | The provider confirms both durable lineage links before replacement. |
+| Starting launch failure and post-launch cleanup failure | Tools: thrown shared resume and recovery. Synthetic: missing lineage. Coordinator integration: post-launch confirmation and cleanup failures. | The old session survives rejection. Cleanup ownership is not a successful launch. |
+| Manifest recovery labels, readable handoff data, eligible failures, and original/current assignments | Synthetic and tools recovery cases. Coordinator integration: success, failure, cancellation, stop, ping-only, no-output, and provider loss. | Event tools own the picker and thinking labels. The service receives classified failure input and a canonical model, not `model: "pick"`. Promotion requires matching response evidence and a correlated completed result. |
+| Strict failed stops and retained ownership | Tools: confirmed owned stop. Client: failed stop acknowledgement, timeout, and retry. Provider: watcher pane-close failure. Coordinator integration: failed cleanup blocks navigation. | A failed stop cannot release the role or permit navigation. |
+| Pending navigation cleanup and stale callbacks across branches | Tools: pending spawn, same-session resume, rollover, and independent stale success/error/ping cases. Synthetic: revoked resume callbacks. Coordinator integration: overlapping cleanup with identical run IDs. | Tests retain state, session-history, sidecar, stop-count, and late-delivery assertions through the real provider. |
+| Interrupted state and safe idle release after cancelled navigation or summarizer failure | Tools: all five SDK navigation phases, with the real provider bound to the SDK parent-session ID. Coordinator integration: restored launches and overlapping cleanup. | Cancelled handlers, successful summaries, failed summaries, and aborted summaries do not permit an early launch. The next idle prompt permits one launch. |
+| Durable commit failure and failing result diagnostics | `workflow-coordinator.integration.test.ts`: durable append failure, completion persistence failure, and failing diagnostic UI. | The event path preserves prior durable state and blocks work until explicit reload. |
+| Completion, abort, replacement, stale tokens, and durable reload | Synthetic: completion, stale tokens, package drift, and restored assignments/history. Tools: completion/abort audit data. Coordinator integration: owned cleanup before terminal transitions. | Audit assertions remain, without a direct execution dependency. |
+| Unknown roles, skipped roles, optional roles, and readable handoff subsets | Tools: unknown roles, typed data, skipped mutation boundaries, and enabled optional-role rollover. Synthetic: typed data and role-readable handoffs. | Skipped roles cannot contact the provider or change session bytes, sidecars, state, UI, or processes. |
 
 ## Peter: evaluation and browser gates
 

@@ -82,9 +82,6 @@ export function createWorkflowCoordinator(pi: ExtensionAPI) {
 					const run = getActiveWorkflowRun(state);
 					return run ? clientFor(run.providerId ?? "pi-agent-teams") : undefined;
 				},
-				loadAgentDefaults: () => null,
-				isTmuxAvailable: () => providers.length > 0,
-				muxUnavailableResult: () => ({ content: [{ type: "text", text: "Workflow provider unavailable" }], details: { error: "provider unavailable" } }),
 			}, { shouldRegister });
 			commands = registerWorkflowCommands(pi, {
 				state: gates.state,

@@ -28,6 +28,14 @@ import { parseExplicitModelSelection as parseNeutralModel } from "../profiles/mo
 import { readLaunchProfile as readTmuxProfile, writeLaunchProfile as writeTmuxProfile } from "../launch-profile.ts";
 import { parseExplicitModelSelection as parseTmuxModel } from "../model-picker.ts";
 import { registerWorkflowLifecycle } from "../registration/lifecycle.ts";
+import { createOrdinaryExecutor } from "../runtime/ordinary-agents.ts";
+
+test("ordinary runtime exports a callable executor without retired production fixtures", () => {
+	const root = fileURLToPath(new URL("../", import.meta.url));
+	assert.equal(typeof createOrdinaryExecutor, "function");
+	assert.equal(existsSync(join(root, "registration", "retired-tools.ts")), false);
+	assert.equal("retiredTool" in __test__, false);
+});
 
 test("workflow modules use plugin responsibility folders and one test tree", () => {
 	for (const directory of ["pi-workflows", "workflow-provider"]) {

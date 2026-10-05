@@ -28,6 +28,13 @@ import {
 	writeLaunchProfile,
 } from "../launch-profile.ts";
 import piTmuxSubagents, { __test__ as testApi } from "../index.ts";
+import {
+	ordinaryToolRenderers,
+	interruptToolRenderers,
+	listToolRenderers,
+	resumeToolRenderers,
+} from "../presentation/tool-renderers.ts";
+import type { UiTheme } from "../presentation/ui.ts";
 import { createTeamTransport } from "../teams/transport.ts";
 import { closeSurface } from "../adapters/tmux.ts";
 import { discoverWorkflowProviders, WORKFLOW_PROVIDER_REQUEST_CHANNEL } from "../adapters/workflow-contract.ts";
@@ -58,16 +65,19 @@ import {
 // test process inherits PI_SUBAGENT_ID/PI_SUBAGENT_SESSION, isTaskRpcChildSession()
 // sees them, and attachTaskRpc abstains — so the root-session wiring tests below
 // would spuriously fail. Snapshot and strip just those two vars for the whole
-// file (the only ones isTaskRpcChildSession reads), and restore them afterwards.
+// file, plus the self-spawn identity used by Agent's default agent type.
+// Restore them afterwards.
 const savedSubagentEnv = {
 	PI_SUBAGENT_ID: process.env.PI_SUBAGENT_ID,
 	PI_SUBAGENT_SESSION: process.env.PI_SUBAGENT_SESSION,
+	PI_SUBAGENT_AGENT: process.env.PI_SUBAGENT_AGENT,
 	PI_SUBAGENT_SHELL_READY_DELAY_MS: process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS,
 };
 
 before(() => {
 	delete process.env.PI_SUBAGENT_ID;
 	delete process.env.PI_SUBAGENT_SESSION;
+	delete process.env.PI_SUBAGENT_AGENT;
 	// Surface-launching tests must stay fast and independent of the
 	// production shell-ready default (5000ms for slow direnv/devenv
 	// shells). Pin the delay to zero here; the getShellReadyDelayMs test
@@ -85,7 +95,7 @@ after(() => {
 type AnyRecord = Record<string, any>;
 
 function testTool(registeredTools: AnyRecord[], name: string): AnyRecord | undefined {
-	return registeredTools.find((tool) => tool.name === name) ?? testApi.retiredTool(name);
+	return registeredTools.find((tool) => tool.name === name);
 }
 
 function createMockExtensionApi(options: { env?: Record<string, string> } = {}) {
@@ -167,7 +177,7 @@ const theme = {
 	fg: (_color: string, text: string) => text,
 	bg: (_color: string, text: string) => text,
 	bold: (text: string) => text,
-};
+} as unknown as UiTheme;
 
 function markerTheme(marker = "theme") {
 	const mark = (kind: string, token: string, text: string) =>
@@ -176,7 +186,7 @@ function markerTheme(marker = "theme") {
 		fg: (token: string, text: string) => mark("fg", token, text),
 		bg: (token: string, text: string) => mark("bg", token, text),
 		bold: (text: string) => mark("style", "bold", text),
-	};
+	} as unknown as UiTheme;
 }
 
 function withTempDir(run: (dir: string) => void): void {
@@ -566,20 +576,20 @@ test("buildPiPromptArgs names additional skills inside the task text", () => {
 	assert.match(arg, /do the task$/);
 });
 
-test("subagents_list lists visible agents, hides disable-model-invocation, and lets project shadow global", async () => {
+test("discovery lists visible definitions, hides disable-model-invocation, and lets project shadow global", async () => {
 	await withIsolatedAgentEnv(async ({ projectAgentsDir, globalAgentsDir }) => {
 		writeAgentFile(projectAgentsDir, "visible-agent", "name: visible-agent\ndescription: Visible test agent");
 		writeAgentFile(projectAgentsDir, "hidden-agent", "name: hidden-agent\nmodel: test/hidden\ndisable-model-invocation: true", "Hidden body.");
 		writeAgentFile(globalAgentsDir, "shadowed-agent", "name: shadowed-agent\nmodel: test/global");
 		writeAgentFile(projectAgentsDir, "shadowed-agent", "name: shadowed-agent\nmodel: test/project\ndisable-model-invocation: true");
 
-		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagents_list");
-		assert.ok(tool);
-		const result = await tool.execute();
-		const names = (result.details.agents as AnyRecord[]).map((agent) => agent.name);
+		const agents = testApi.discoverAgentDefinitions().filter((agent) => !agent.disableModelInvocation);
+		const names = agents.map((agent) => agent.name);
 		assert.ok(names.includes("visible-agent"));
-		assert.match(result.content[0].text, /visible-agent \(project\) — Visible test agent/);
+		assert.match(
+			listToolRenderers.renderResult({ details: { agents } }, {}, theme).render(80).join("\n"),
+			/visible-agent \(project\) — Visible test agent/,
+		);
 		assert.equal(names.includes("hidden-agent"), false);
 		assert.equal(names.includes("shadowed-agent"), false);
 
@@ -845,11 +855,11 @@ test("registers only the cutover tools without workflow command ownership", () =
 		registeredMessageRenderers.map((entry) => entry.name).sort(),
 		["subagent_ping", "subagent_result", "subagent_status"],
 	);
-	const subagent = testTool(registeredTools, "subagent");
-	const resume = testTool(registeredTools, "subagent_resume");
-	assert.equal(subagent?.parameters.properties.workflowRunId, undefined);
-	assert.equal(subagent?.parameters.properties.workflowArtifacts, undefined);
-	assert.equal(resume?.parameters.properties.workflowArtifacts, undefined);
+	assert.equal(agentTool?.parameters.properties.workflowRunId, undefined);
+	assert.equal(agentTool?.parameters.properties.workflowArtifacts, undefined);
+	for (const retired of ["subagent", "subagent_interrupt", "subagents_list", "subagent_resume"]) {
+		assert.equal(testTool(registeredTools, retired), undefined, retired);
+	}
 	for (const name of ["workflow_spawn", "workflow_resume", "workflow_recover"]) {
 		const tool = registeredTools.find((entry) => entry.name === name);
 		assert.equal(tool, undefined);
@@ -975,32 +985,20 @@ test("resolveResumeLaunchBehavior defaults to auto-exit and non-interactive", ()
 	assert.deepEqual(testApi.resolveResumeLaunchBehavior({ autoExit: false }), { autoExit: false, interactive: true });
 });
 
-test("subagent renderCall handles partial args and subagent_resume exposes autoExit", () => {
-	const { registeredTools } = createMockExtensionApi();
-	const subagentTool = testTool(registeredTools, "subagent");
-	assert.ok(subagentTool);
-	const output = subagentTool.renderCall({}, theme).render(80).join("\n");
+test("historical ordinary rendering handles partial args and resume controls keep auto-exit defaults", () => {
+	const output = ordinaryToolRenderers.renderCall({}, theme).render(80).join("\n");
 	assert.match(output, /\(unnamed\)/);
-	const previewed = subagentTool.renderCall({ name: "Echo", agent: "scout", task: "line one\nline two" }, theme).render(80).join("\n");
+	const previewed = ordinaryToolRenderers.renderCall({ name: "Echo", agent: "scout", task: "line one\nline two" }, theme).render(80).join("\n");
 	assert.match(previewed, /Echo \(scout\)/);
 	assert.match(previewed, /line one/);
 	assert.match(previewed, /\(2 lines\)/);
 
-	const resumeTool = testTool(registeredTools, "subagent_resume");
-	assert.ok(resumeTool);
-	const autoExitSchema = resumeTool.parameters.properties.autoExit;
-	assert.equal(autoExitSchema.type, "boolean");
-	assert.match(autoExitSchema.description, /Defaults to true/);
+	assert.deepEqual(sharedResolveResumeLaunchBehavior({}), { autoExit: true, interactive: false });
+	assert.deepEqual(sharedResolveResumeLaunchBehavior({ autoExit: false }), { autoExit: false, interactive: true });
 });
 
-test("parent tool rows use semantic states, sanitize display fields, and fit narrow widths", () => {
-	const { registeredTools } = createMockExtensionApi();
+test("historical tool rows use semantic states, sanitize display fields, and fit narrow widths", () => {
 	const marked = markerTheme("tools");
-	const byName = (name: string) => {
-		const tool = testTool(registeredTools, name);
-		assert.ok(tool, name);
-		return tool;
-	};
 	const render = (component: AnyRecord, width = 80) => component.render(width).join("\n");
 	const assertFits = (component: AnyRecord) => {
 		for (const width of [16, 24, 40, 80]) {
@@ -1010,7 +1008,7 @@ test("parent tool rows use semantic states, sanitize display fields, and fit nar
 		}
 	};
 
-	const subagent = byName("subagent");
+	const subagent = ordinaryToolRenderers;
 	const pending = subagent.renderCall(
 		{
 			name: "\x1b[31mWorker\x1b[0m\u009b",
@@ -1048,7 +1046,7 @@ test("parent tool rows use semantic states, sanitize display fields, and fit nar
 	assert.match(stripTerminalSequences(render(failed)), /✗ failed.*Error: failed/);
 	assertFits(failed);
 
-	const interrupt = byName("subagent_interrupt");
+	const interrupt = interruptToolRenderers;
 	for (const component of [
 		interrupt.renderCall({ name: "\x1b[31mWorker\x1b[0m" }, marked),
 		interrupt.renderResult(
@@ -1063,7 +1061,7 @@ test("parent tool rows use semantic states, sanitize display fields, and fit nar
 		assertFits(component);
 	}
 
-	const resume = byName("subagent_resume");
+	const resume = resumeToolRenderers;
 	const resuming = resume.renderCall(
 		{ name: "\x1b]8;;https://evil\x07Resume\x1b]8;;\x07", sessionPath: "/tmp/session.jsonl" },
 		marked,
@@ -1077,7 +1075,7 @@ test("parent tool rows use semantic states, sanitize display fields, and fit nar
 	);
 	assert.match(stripTerminalSequences(render(resumed)), /Resume.*○ resumed/);
 
-	const list = byName("subagents_list").renderResult(
+	const list = listToolRenderers.renderResult(
 		{
 			content: [],
 			details: {
@@ -1100,14 +1098,14 @@ test("parent tool rows use semantic states, sanitize display fields, and fit nar
 	assertFits(list);
 });
 
-test("subagent tool returns the tmux hint outside tmux without spawning", async () => {
+test("Agent returns the tmux hint outside tmux without spawning", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const subagentTool = testTool(registeredTools, "subagent");
+		const subagentTool = testTool(registeredTools, "Agent");
 		assert.ok(subagentTool);
-		const result = await subagentTool.execute("call-1", { name: "Echo", task: "ping" }, new AbortController().signal, () => {}, {
+		const result = await subagentTool.execute("call-1", { description: "Echo", name: "Echo", prompt: "ping" }, new AbortController().signal, () => {}, {
 			sessionManager: { getSessionFile: () => "/tmp/parent.jsonl", getSessionId: () => "sid", getSessionDir: () => "/tmp" },
 			cwd: "/tmp",
 		});
@@ -1554,7 +1552,9 @@ test("foreground Agent cancellation closes its pane and returns a cancellation r
 		const savedTmux = process.env.TMUX;
 		try {
 			const tmux = join(binDir, "tmux");
-			writeFileSync(tmux, "#!/bin/sh\nif [ \"$1\" = \"split-window\" ]; then printf '%%733\\n'; fi\n");
+			const closeLog = join(binDir, "closed-pane.log");
+			writeFileSync(tmux, "#!/bin/sh\nif [ \"$1\" = \"split-window\" ]; then printf '%%733\\n'; fi\n" +
+				`if [ "$1" = "kill-pane" ]; then printf '%s\\n' "$@" > '${closeLog}'; fi\n`);
 			chmodSync(tmux, 0o755);
 			process.env.PATH = `${binDir}:${savedPath ?? ""}`;
 			process.env.TMUX = "/tmp/mock-tmux,1,0";
@@ -1562,16 +1562,24 @@ test("foreground Agent cancellation closes its pane and returns a cancellation r
 			const agent = registeredTools.find((tool) => tool.name === "Agent");
 			assert.ok(agent);
 			const controller = new AbortController();
-			const timer = setTimeout(() => controller.abort(), 40);
+			let cancelledAfterLaunch = false;
+			const timer = setInterval(() => {
+				if ([...testApi.runningSubagents.values()].some((running) => running.name === "Long task")) {
+					cancelledAfterLaunch = true;
+					controller.abort();
+				}
+			}, 5);
 			try {
 				const result: AnyRecord = await agent.execute("cancel-call", {
 					description: "Long task", prompt: "Keep working", subagent_type: "worker",
 					run_in_background: false,
 				}, controller.signal, () => {}, policyContext());
+				assert.equal(cancelledAfterLaunch, true, "cancel the foreground watcher, not the launch readiness delay");
 				assert.equal(result.details.error, "cancelled");
 				assert.equal(testApi.runningSubagents.size, 0);
+				assert.match(readFileSync(closeLog, "utf8"), /kill-pane\n-t\n%733/);
 			} finally {
-				clearTimeout(timer);
+				clearInterval(timer);
 			}
 		} finally {
 			restoreEnvVar("PATH", savedPath);
@@ -2144,14 +2152,16 @@ test("Agent refuses unsupported CLI skills and tool overrides instead of silentl
 	});
 });
 
-test("subagent tool blocks self-spawn and requires a session file", async () => {
+test("Agent blocks self-spawn and requires a session file", async () => {
 	const previousAgent = process.env.PI_SUBAGENT_AGENT;
 	process.env.PI_SUBAGENT_AGENT = "executor";
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const subagentTool = testTool(registeredTools, "subagent");
+		const subagentTool = testTool(registeredTools, "Agent");
 		assert.ok(subagentTool);
-		const blocked = await subagentTool.execute("c", { name: "X", task: "t", agent: "executor" }, undefined, undefined, {});
+		const blocked = await subagentTool.execute("c", {
+			description: "X", name: "X", prompt: "t", subagent_type: "executor",
+		}, undefined, undefined, {});
 		assert.equal(blocked.details.error, "self-spawn blocked");
 	} finally {
 		restoreEnvVar("PI_SUBAGENT_AGENT", previousAgent);
@@ -2161,9 +2171,9 @@ test("subagent tool blocks self-spawn and requires a session file", async () => 
 	process.env.TMUX = process.env.TMUX ?? "/tmp/tmux-test,1,0";
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const subagentTool = testTool(registeredTools, "subagent");
+		const subagentTool = testTool(registeredTools, "Agent");
 		assert.ok(subagentTool);
-		const noSession = await subagentTool.execute("c", { name: "X", task: "t" }, undefined, undefined, {
+		const noSession = await subagentTool.execute("c", { description: "X", name: "X", prompt: "t" }, undefined, undefined, {
 			sessionManager: { getSessionFile: () => undefined, getSessionId: () => "sid", getSessionDir: () => "/tmp" },
 			cwd: "/tmp",
 		});
@@ -2229,18 +2239,18 @@ function writeResumeSidecar(dir: string, modelArgument = "anthropic/claude:high"
 	return sessionPath;
 }
 
-test("subagent model policies reject invalid new-spawn selections before tmux work", async () => {
+test("Agent model policies reject invalid new-spawn selections before tmux work", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const ctx = policyContext();
 
 		const previousModel = await tool.execute(
 			"c",
-			{ name: "Echo", task: "t", model: "previous" },
+			{ description: "Echo", name: "Echo", prompt: "t", model: "previous" },
 			undefined,
 			undefined,
 			ctx,
@@ -2250,7 +2260,7 @@ test("subagent model policies reject invalid new-spawn selections before tmux wo
 
 		const pick = await tool.execute(
 			"c",
-			{ name: "Echo", task: "t", model: "pick" },
+			{ description: "Echo", name: "Echo", prompt: "t", model: "pick" },
 			undefined,
 			undefined,
 			ctx,
@@ -2260,7 +2270,7 @@ test("subagent model policies reject invalid new-spawn selections before tmux wo
 
 		const unsupported = await tool.execute(
 			"c",
-			{ name: "Echo", task: "t", model: "missing/model:high" },
+			{ description: "Echo", name: "Echo", prompt: "t", model: "missing/model:high" },
 			undefined,
 			undefined,
 			ctx,
@@ -2271,7 +2281,7 @@ test("subagent model policies reject invalid new-spawn selections before tmux wo
 		for (const model of ["parent", "inherit", "anthropic/claude:high"]) {
 			const accepted: AnyRecord = await tool.execute(
 				"c",
-				{ name: "Echo", task: "t", model },
+				{ description: "Echo", name: "Echo", prompt: "t", model },
 				undefined,
 				undefined,
 				ctx,
@@ -2279,7 +2289,7 @@ test("subagent model policies reject invalid new-spawn selections before tmux wo
 			assert.equal(accepted.details.error, "tmux not available");
 		}
 
-		const omitted = await tool.execute("c", { name: "Echo", task: "t" }, undefined, undefined, ctx);
+		const omitted = await tool.execute("c", { description: "Echo", name: "Echo", prompt: "t" }, undefined, undefined, ctx);
 		assert.equal(omitted.details.error, "tmux not available");
 		assert.equal(testApi.runningSubagents.size, 0);
 	} finally {
@@ -2317,12 +2327,12 @@ test("malformed or unresolvable agent model configs hard-error before tmux work"
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
 			const { registeredTools } = createMockExtensionApi();
-			const tool = testTool(registeredTools, "subagent");
+			const tool = testTool(registeredTools, "Agent");
 			assert.ok(tool);
 
 			writeFileSync(join(agentDir, "agent-models.json"), "{not json");
 			const malformed: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { name: "W", task: "t", agent: "worker" }, undefined, undefined, policyContext()),
+				tool.execute("c", { description: "W", name: "W", prompt: "t", subagent_type: "worker" }, undefined, undefined, policyContext()),
 			);
 			assert.equal(malformed.details.error, "agent model config invalid");
 			assert.match(malformed.content[0].text, /Malformed agent model config/);
@@ -2331,7 +2341,7 @@ test("malformed or unresolvable agent model configs hard-error before tmux work"
 
 			writeAgentModelConfig({ version: 1, agents: { worker: "missing/gone:high" } }, agentDir);
 			const unavailable: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { name: "W", task: "t", agent: "worker" }, undefined, undefined, policyContext()),
+				tool.execute("c", { description: "W", name: "W", prompt: "t", subagent_type: "worker" }, undefined, undefined, policyContext()),
 			);
 			assert.equal(unavailable.details.error, "agent model config resolution failed");
 			const text = unavailable.content[0].text;
@@ -2347,14 +2357,14 @@ test("malformed or unresolvable agent model configs hard-error before tmux work"
 	}
 });
 
-test("agent model config yields to params.model and never applies to agent-less or cli agents", async () => {
+test("Agent model config yields to params.model and never applies to cli agents", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
 	try {
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
 			const { registeredTools } = createMockExtensionApi();
-			const tool = testTool(registeredTools, "subagent");
+			const tool = testTool(registeredTools, "Agent");
 			assert.ok(tool);
 			const ctx = policyContext({
 				modelRegistry: { getAvailable: () => [POLICY_MODEL, OTHER_MODEL] },
@@ -2364,7 +2374,7 @@ test("agent model config yields to params.model and never applies to agent-less 
 			const explicit: AnyRecord = await executeWithoutSubagentIdentity(() =>
 				tool.execute(
 					"c",
-					{ name: "W", task: "t", agent: "worker", model: "missing/explicit" },
+					{ description: "W", name: "W", prompt: "t", subagent_type: "worker", model: "missing/explicit" },
 					undefined,
 					undefined,
 					ctx,
@@ -2375,18 +2385,13 @@ test("agent model config yields to params.model and never applies to agent-less 
 
 			writeAgentModelConfig({ version: 1, agents: { "claude-code": "missing/gone" } }, agentDir);
 			const cliAgent: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { name: "C", task: "t", agent: "claude-code" }, undefined, undefined, ctx),
+				tool.execute("c", { description: "C", name: "C", prompt: "t", subagent_type: "claude-code" }, undefined, undefined, ctx),
 			);
 			assert.equal(cliAgent.details.error, "tmux not available");
 
-			const agentless: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { name: "Bare", task: "t" }, undefined, undefined, ctx),
-			);
-			assert.equal(agentless.details.error, "tmux not available");
-
 			writeAgentModelConfig({ version: 1, agents: { worker: "openai/gpt:high" } }, agentDir);
 			const configured: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { name: "W", task: "t", agent: "worker" }, undefined, undefined, ctx),
+				tool.execute("c", { description: "W", name: "W", prompt: "t", subagent_type: "worker" }, undefined, undefined, ctx),
 			);
 			assert.equal(configured.details.error, "tmux not available");
 		});
@@ -2395,14 +2400,14 @@ test("agent model config yields to params.model and never applies to agent-less 
 	}
 });
 
-test("ordinary subagent launches keep agent model config precedence for workflow-named agents", async () => {
+test("ordinary Agent launches keep agent model config precedence for workflow-named agents", async () => {
 	const previous = process.env.TMUX;
 	delete process.env.TMUX;
 	try {
 		await withIsolatedAgentEnv(async ({ globalAgentsDir }) => {
 			const agentDir = dirname(globalAgentsDir);
 			const { registeredTools } = createMockExtensionApi();
-			const tool = testTool(registeredTools, "subagent");
+			const tool = testTool(registeredTools, "Agent");
 			assert.ok(tool);
 			writeAgentModelConfig(
 				{
@@ -2419,7 +2424,7 @@ test("ordinary subagent launches keep agent model config precedence for workflow
 			);
 			for (const agent of ["planner", "evaluator", "task-writer", "executor", "reviewer"]) {
 				const result: AnyRecord = await executeWithoutSubagentIdentity(() =>
-					tool.execute("c", { name: agent, task: "t", agent }, undefined, undefined, policyContext()),
+					tool.execute("c", { description: agent, name: agent, prompt: "t", subagent_type: agent }, undefined, undefined, policyContext()),
 				);
 				assert.equal(result.details.error, "agent model config resolution failed", agent);
 			}
@@ -2454,7 +2459,7 @@ test("configured agent defaults reach the child --model and launch profile over 
 			"name: different-name\nauto-exit: true\nspawning: false",
 		);
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const ctx = {
 			...policyContext({
@@ -2473,7 +2478,7 @@ test("configured agent defaults reach the child --model and launch profile over 
 		};
 		const spawn = async (params: AnyRecord): Promise<AnyRecord> => {
 			const result: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { task: "Reply with the single word ready.", ...params }, undefined, undefined, ctx),
+				tool.execute("c", { description: params.name, prompt: "Reply with the single word ready.", ...params }, undefined, undefined, ctx),
 			);
 			assert.equal(result.details.status, "started", JSON.stringify(result.details));
 			launched.push({ id: result.details.id, pane: testApi.runningSubagents.get(result.details.id)!.surface });
@@ -2498,7 +2503,7 @@ test("configured agent defaults reach the child --model and launch profile over 
 			},
 			agentDir,
 		);
-		const overParent = await spawn({ name: "Plain", agent: "plain-agent" });
+		const overParent = await spawn({ name: "Plain", subagent_type: "plain-agent" });
 		assert.equal(modelFlag(overParent), "openai/gpt:high");
 		const profileRead = readLaunchProfile(testApi.runningSubagents.get(overParent.details.id)!.sessionFile);
 		assert.equal(profileRead.status, "ok");
@@ -2510,21 +2515,21 @@ test("configured agent defaults reach the child --model and launch profile over 
 
 		// The filename identifier keys the config even when the frontmatter
 		// `name:` differs, so a default set for `hero` reaches the child.
-		const mismatchedName = await spawn({ name: "Hero", agent: "hero" });
+		const mismatchedName = await spawn({ name: "Hero", subagent_type: "hero" });
 		assert.equal(modelFlag(mismatchedName), "openai/gpt:high");
 
-		const overFrontmatter = await spawn({ name: "Front", agent: "frontmatter-agent" });
+		const overFrontmatter = await spawn({ name: "Front", subagent_type: "frontmatter-agent" });
 		assert.equal(modelFlag(overFrontmatter), "openai/gpt:high");
 		assert.doesNotMatch(readFileSync(overFrontmatter.details.launchScriptFile, "utf8"), /front\/matter/);
 
-		const explicitWins = await spawn({ name: "Explicit", agent: "plain-agent", model: "anthropic/claude:medium" });
+		const explicitWins = await spawn({ name: "Explicit", subagent_type: "plain-agent", model: "anthropic/claude:medium" });
 		assert.equal(modelFlag(explicitWins), "anthropic/claude:medium");
 
 		writeAgentModelConfig({ version: 1, agents: {} }, agentDir);
-		const parentInherits = await spawn({ name: "Plain2", agent: "plain-agent" });
+		const parentInherits = await spawn({ name: "Plain2", subagent_type: "plain-agent" });
 		assert.equal(modelFlag(parentInherits), "anthropic/claude:high");
 
-		const frontmatterFallback = await spawn({ name: "Front2", agent: "frontmatter-agent" });
+		const frontmatterFallback = await spawn({ name: "Front2", subagent_type: "frontmatter-agent" });
 		assert.equal(modelFlag(frontmatterFallback), "front/matter:high");
 	} finally {
 		for (const { id, pane } of launched) {
@@ -2757,7 +2762,7 @@ test("spawn config lookup keys by the filename identifier, not the frontmatter n
 			const agentDir = dirname(globalAgentsDir);
 			writeAgentFile(projectAgentsDir, "hero", "name: different-name\nauto-exit: true");
 			const { registeredTools } = createMockExtensionApi();
-			const tool = testTool(registeredTools, "subagent");
+			const tool = testTool(registeredTools, "Agent");
 			assert.ok(tool);
 			const ctx = policyContext({
 				modelRegistry: { getAvailable: () => [POLICY_MODEL, OTHER_MODEL] },
@@ -2765,7 +2770,7 @@ test("spawn config lookup keys by the filename identifier, not the frontmatter n
 
 			writeAgentModelConfig({ version: 1, agents: { hero: "missing/gone:high" } }, agentDir);
 			const byFileName: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { name: "H", task: "t", agent: "hero" }, undefined, undefined, ctx),
+				tool.execute("c", { description: "H", name: "H", prompt: "t", subagent_type: "hero" }, undefined, undefined, ctx),
 			);
 			assert.equal(byFileName.details.error, "agent model config resolution failed");
 			assert.match(byFileName.content[0].text, /Agent "hero"/);
@@ -2775,7 +2780,7 @@ test("spawn config lookup keys by the filename identifier, not the frontmatter n
 				agentDir,
 			);
 			const byFrontmatterName: AnyRecord = await executeWithoutSubagentIdentity(() =>
-				tool.execute("c", { name: "H", task: "t", agent: "hero" }, undefined, undefined, ctx),
+				tool.execute("c", { description: "H", name: "H", prompt: "t", subagent_type: "hero" }, undefined, undefined, ctx),
 			);
 			assert.equal(byFrontmatterName.details.error, "tmux not available");
 		});
@@ -2790,26 +2795,26 @@ test("resume model policies use sidecar state, explicit values, and legacy fallb
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-policy-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const ctx = policyContext();
 
 		const missing = join(dir, "missing.jsonl");
 		assert.equal(
-			(await tool.execute("c", { sessionPath: missing }, undefined, undefined, ctx)).details.error,
+			(await tool.execute("c", { description: "Resume", prompt: "Continue", resume: missing }, undefined, undefined, ctx)).details.error,
 			"session not found",
 		);
 
 		const legacy = join(dir, "legacy.jsonl");
 		writeFileSync(legacy, "{}\n");
 		assert.equal(
-			(await tool.execute("c", { sessionPath: legacy }, undefined, undefined, ctx)).details.error,
+			(await tool.execute("c", { description: "Resume", prompt: "Continue", resume: legacy }, undefined, undefined, ctx)).details.error,
 			"tmux not available",
 		);
 		assert.match(
 			(await tool.execute(
 				"c",
-				{ sessionPath: legacy, model: "previous" },
+				{ description: "Resume", prompt: "Continue", resume: legacy, model: "previous" },
 				undefined,
 				undefined,
 				ctx,
@@ -2822,7 +2827,7 @@ test("resume model policies use sidecar state, explicit values, and legacy fallb
 			assert.equal(
 				(await tool.execute(
 					"c",
-					{ sessionPath: sidecar, ...params },
+					{ description: "Resume", prompt: "Continue", resume: sidecar, ...params },
 					undefined,
 					undefined,
 					ctx,
@@ -2833,7 +2838,7 @@ test("resume model policies use sidecar state, explicit values, and legacy fallb
 		assert.match(
 			(await tool.execute(
 				"c",
-				{ sessionPath: sidecar, model: "pick" },
+				{ description: "Resume", prompt: "Continue", resume: sidecar, model: "pick" },
 				undefined,
 				undefined,
 				ctx,
@@ -2843,7 +2848,7 @@ test("resume model policies use sidecar state, explicit values, and legacy fallb
 		assert.match(
 			(await tool.execute(
 				"c",
-				{ sessionPath: sidecar, model: "missing/model:high" },
+				{ description: "Resume", prompt: "Continue", resume: sidecar, model: "missing/model:high" },
 				undefined,
 				undefined,
 				ctx,
@@ -2855,7 +2860,7 @@ test("resume model policies use sidecar state, explicit values, and legacy fallb
 		writeFileSync(invalid, "{}\n");
 		writeFileSync(`${invalid}.subagent.json`, "{}");
 		assert.equal(
-			(await tool.execute("c", { sessionPath: invalid }, undefined, undefined, ctx)).details.error,
+			(await tool.execute("c", { description: "Resume", prompt: "Continue", resume: invalid }, undefined, undefined, ctx)).details.error,
 			"invalid launch profile",
 		);
 	} finally {
@@ -2870,7 +2875,7 @@ test("legacy resumes warn once and still use the legacy model path", async () =>
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-legacy-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const notifications: Array<[string, string]> = [];
 		const ctx = policyContext({
@@ -2881,7 +2886,7 @@ test("legacy resumes warn once and still use the legacy model path", async () =>
 		});
 		const legacy = join(dir, "legacy.jsonl");
 		writeFileSync(legacy, "{}\n");
-		const result = await tool.execute("c", { sessionPath: legacy }, undefined, undefined, ctx);
+		const result = await tool.execute("c", { description: "Resume", prompt: "Continue", resume: legacy }, undefined, undefined, ctx);
 		assert.equal(result.details.error, "tmux not available");
 		assert.equal(notifications.length, 1);
 		assert.equal(notifications[0][1], "warning");
@@ -2898,7 +2903,7 @@ test("ordinary resource changes notify and continue, while primary skill changes
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-resources-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const notifications: Array<[string, string]> = [];
 		const choices: Array<string> = [];
@@ -2933,7 +2938,7 @@ test("ordinary resource changes notify and continue, while primary skill changes
 		writeLaunchProfile(changedResources, resourceProfile);
 		const continued = await tool.execute(
 			"c",
-			{ sessionPath: changedResources },
+			{ description: "Resume", prompt: "Continue", resume: changedResources },
 			undefined,
 			undefined,
 			ctx,
@@ -2966,7 +2971,7 @@ test("ordinary resource changes notify and continue, while primary skill changes
 		choices.push("Stop this resume");
 		const stopped = await tool.execute(
 			"c",
-			{ sessionPath: changedSkill },
+			{ description: "Resume", prompt: "Continue", resume: changedSkill },
 			undefined,
 			undefined,
 			ctx,
@@ -2977,7 +2982,7 @@ test("ordinary resource changes notify and continue, while primary skill changes
 		choices.push("Resume with the older instructions");
 		const older = await tool.execute(
 			"c",
-			{ sessionPath: changedSkill },
+			{ description: "Resume", prompt: "Continue", resume: changedSkill },
 			undefined,
 			undefined,
 			ctx,
@@ -2994,7 +2999,7 @@ test("ordinary resource changes notify and continue, while primary skill changes
 		choices.push("Start a fresh same-role session with the latest skill");
 		const freshSkill = await tool.execute(
 			"c",
-			{ sessionPath: changedSkill },
+			{ description: "Resume", prompt: "Continue", resume: changedSkill },
 			undefined,
 			undefined,
 			ctx,
@@ -3104,13 +3109,13 @@ test("resume context gate stays silent below 65 percent and proceeds", async () 
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-low-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const { ctx, calls } = scriptedSelectCtx([]);
 
 		const light = writeHeavySession(dir, 100_000); // 50% of the 200k window
 		writeSidecarOn(light, dir);
-		const result = await tool.execute("c", { sessionPath: light }, undefined, undefined, ctx);
+		const result = await tool.execute("c", { description: "Resume", prompt: "Continue", resume: light }, undefined, undefined, ctx);
 		assert.equal(result.details.error, "tmux not available");
 		assert.deepEqual(calls, []);
 	} finally {
@@ -3125,7 +3130,7 @@ test("resume context gate offers all four choices at and above 65 percent", asyn
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-gate-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000); // 75% of the 200k window
@@ -3135,7 +3140,7 @@ test("resume context gate offers all four choices at and above 65 percent", asyn
 		const resumed = scriptedSelectCtx([GATE_RESUME]);
 		const resumeResult: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy },
+			{ description: "Resume", prompt: "Continue", resume: heavy },
 			undefined,
 			undefined,
 			resumed.ctx,
@@ -3150,7 +3155,7 @@ test("resume context gate offers all four choices at and above 65 percent", asyn
 		const stopped = scriptedSelectCtx([GATE_STOP]);
 		const stopResult: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy },
+			{ description: "Resume", prompt: "Continue", resume: heavy },
 			undefined,
 			undefined,
 			stopped.ctx,
@@ -3165,7 +3170,7 @@ test("resume context gate offers all four choices at and above 65 percent", asyn
 		const fresh = scriptedSelectCtx([GATE_FRESH]);
 		const freshResult: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy },
+			{ description: "Resume", prompt: "Continue", resume: heavy },
 			undefined,
 			undefined,
 			fresh.ctx,
@@ -3184,7 +3189,7 @@ test("gate choice 'choose another model' reopens the picker with projected ratio
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-choose-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000);
@@ -3198,7 +3203,7 @@ test("gate choice 'choose another model' reopens the picker with projected ratio
 		]);
 		const result: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy },
+			{ description: "Resume", prompt: "Continue", resume: heavy },
 			undefined,
 			undefined,
 			scripted.ctx,
@@ -3226,7 +3231,7 @@ test("resume picker titles carry the session name identically across the gate re
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-prompt-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const heavy = writeHeavySession(dir, 150_000); // 75% of the 200k window
 		writeSidecarOn(heavy, dir);
@@ -3243,7 +3248,7 @@ test("resume picker titles carry the session name identically across the gate re
 		]);
 		const result: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy, model: "pick", name: "Stored role" },
+			{ description: "Resume", prompt: "Continue", resume: heavy, model: "pick", name: "Stored role" },
 			undefined,
 			undefined,
 			scripted.ctx,
@@ -3261,7 +3266,7 @@ test("resume picker titles carry the session name identically across the gate re
 		const unnamed = scriptedSelectCtx([currentRow, "high", GATE_STOP]);
 		const unnamedResult: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy, model: "pick" },
+			{ description: "Resume", prompt: "Continue", resume: heavy, model: "pick" },
 			undefined,
 			undefined,
 			unnamed.ctx,
@@ -3281,14 +3286,14 @@ test("context gate fails safely without interactive UI and for unopenable sessio
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-safety-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000);
 		writeSidecarOn(heavy, dir);
 		const offline: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy },
+			{ description: "Resume", prompt: "Continue", resume: heavy },
 			undefined,
 			undefined,
 			policyContext(), // hasUI: false
@@ -3303,7 +3308,7 @@ test("context gate fails safely without interactive UI and for unopenable sessio
 		writeSidecarOn(garbage, dir);
 		const skipped: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: garbage },
+			{ description: "Resume", prompt: "Continue", resume: garbage },
 			undefined,
 			undefined,
 			policyContext(),
@@ -3321,14 +3326,14 @@ test("legacy heavy sessions gate on explicit models but cannot roll over without
 	const dir = mkdtempSync(join(tmpdir(), "pi-resume-fit-legacy-"));
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 
 		const heavy = writeHeavySession(dir, 150_000); // no sidecar
 		const fresh = scriptedSelectCtx([GATE_FRESH]);
 		const freshResult: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy, model: "anthropic/claude:high" },
+			{ description: "Resume", prompt: "Continue", resume: heavy, model: "anthropic/claude:high" },
 			undefined,
 			undefined,
 			fresh.ctx,
@@ -3339,7 +3344,7 @@ test("legacy heavy sessions gate on explicit models but cannot roll over without
 		const resumed = scriptedSelectCtx([GATE_RESUME]);
 		const resumeResult: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath: heavy, model: "anthropic/claude:high" },
+			{ description: "Resume", prompt: "Continue", resume: heavy, model: "anthropic/claude:high" },
 			undefined,
 			undefined,
 			resumed.ctx,
@@ -3362,7 +3367,7 @@ test("resume launch restores the stored role, cwd, agent dir, and controls", { t
 	let pane: string | undefined;
 	try {
 		const { registeredTools } = createMockExtensionApi();
-		const tool = testTool(registeredTools, "subagent_resume");
+		const tool = testTool(registeredTools, "Agent");
 		assert.ok(tool);
 		const sessionPath = join(dir, "role.jsonl");
 		writeFileSync(sessionPath, "{}\n");
@@ -3394,7 +3399,7 @@ test("resume launch restores the stored role, cwd, agent dir, and controls", { t
 
 		const result: AnyRecord = await tool.execute(
 			"c",
-			{ sessionPath, name: "Stored role", message: "Continue the stored role." },
+			{ description: "Resume", prompt: "Continue the stored role.", resume: sessionPath, name: "Stored role" },
 			undefined,
 			undefined,
 			policyContext(),

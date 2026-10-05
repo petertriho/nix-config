@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { classifyProviderFailure } from "./provider-failure.ts";
 import { getSubagentActivityFile } from "../telemetry/activity.ts";
@@ -35,6 +35,7 @@ import type { createLaunchService } from "./launch.ts";
 import type { createLifecycleServices } from "./lifecycle.ts";
 import type { createProfileResourceServices } from "./profile-resources.ts";
 import { buildResumePiArgs } from "./prompts.ts";
+import { buildPiCommand, type PiCommandArgument } from "./pi-command.ts";
 import { getShellReadyDelayMs, resolveResultPresentation, resolveUsageDetails } from "./results.ts";
 import type {
 	LaunchContext,
@@ -528,7 +529,7 @@ export function createResumeService(
 			await new Promise<void>((resolve) => setTimeout(resolve, getShellReadyDelayMs()));
 			assertOwned();
 
-			const parts = buildResumePiArgs(params.sessionPath, resolvedModel
+			const parts: PiCommandArgument[] = buildResumePiArgs(params.sessionPath, resolvedModel
 				? `${resolvedModel.selection.provider}/${resolvedModel.selection.model}` : undefined);
 			if (resolvedModel?.selection.thinking) {
 				parts.push("--thinking", shellEscape(resolvedModel.selection.thinking));
@@ -554,46 +555,34 @@ export function createResumeService(
 					"subagent-resume",
 					`${safeName}-${id}-sysprompt-${fileTimestamp()}.md`,
 				);
-				mkdirSync(dirname(syspromptPath), { recursive: true });
-				writeFileSync(syspromptPath, restoration.roleBody, "utf8");
-				parts.push(flag, shellEscape(syspromptPath));
+				parts.push({ flag, path: syspromptPath, text: restoration.roleBody });
 			}
 
 			let resumeMsgFile: string | undefined;
 			if (params.message) {
 				resumeMsgFile = join(artifactDir, "subagent-resume", `${safeName}-${id}-${fileTimestamp()}.md`);
-				mkdirSync(dirname(resumeMsgFile), { recursive: true });
-				writeFileSync(resumeMsgFile, params.message, "utf8");
-				parts.push(shellEscape(`@${resumeMsgFile}`));
 			}
-
-			const resumeEnvParts: string[] = [];
-			if (restoration.agentDir && existsSync(restoration.agentDir)) {
-				resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(restoration.agentDir)}`);
-			} else if (process.env.PI_CODING_AGENT_DIR) {
-				resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
-			}
-			if (restoration.denyTools.length > 0) {
-				resumeEnvParts.push(`PI_DENY_TOOLS=${shellEscape(restoration.denyTools.join(","))}`);
-			}
-			resumeEnvParts.push(`PI_SUBAGENT_NAME=${shellEscape(name)}`);
-			if (restoration.agentName) {
-				resumeEnvParts.push(`PI_SUBAGENT_AGENT=${shellEscape(restoration.agentName)}`);
-			}
-			resumeEnvParts.push(`PI_SUBAGENT_SESSION=${shellEscape(params.sessionPath)}`);
-			resumeEnvParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
-			resumeEnvParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
-			if (autoExit) {
-				resumeEnvParts.push("PI_SUBAGENT_AUTO_EXIT=1");
-			}
-			const resumeEnvPrefix = resumeEnvParts.join(" ") + " ";
-
-			const resumeCommand = parts.join(" ");
-			const cdPrefix = `cd ${shellEscape(restoration.cwd ?? ctx.cwd)} && `;
 			const launchScriptFile = join(artifactDir, "subagent-scripts", `${safeName}-resume-${id}-${Date.now()}.sh`);
 			const completionFile = `${launchScriptFile}.status`;
 			running.completionFile = completionFile;
-			const command = `${cdPrefix}${resumeEnvPrefix}${resumeCommand}; printf '%s\\n' "$?" > ${shellEscape(completionFile)}`;
+			const command = buildPiCommand({
+				args: parts,
+				cwd: restoration.cwd ?? ctx.cwd,
+				completionFile,
+				environment: {
+					agentDir: restoration.agentDir,
+					denyTools: restoration.denyTools,
+					name,
+					agentName: restoration.agentName,
+					sessionFile: params.sessionPath,
+					id,
+					activityFile,
+					autoExit,
+				},
+				...(resumeMsgFile ? {
+					prompt: { taskDelivery: "artifact" as const, artifactPath: resumeMsgFile, text: params.message! },
+				} : {}),
+			});
 			assertOwned();
 			// This execution holds the saved-session reservation; no live writer owns the old sidecar.
 			rmSync(`${params.sessionPath}.exit`, { force: true });

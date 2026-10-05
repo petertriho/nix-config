@@ -8,20 +8,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import {
-	fingerprintStrings,
 	readLaunchProfile,
-	writeLaunchProfile,
-	type LaunchProfileWorkflowMetadata,
 } from "../execution/launch-profile.ts";
-import type {
-	BackgroundWatchOptions,
-	ResumeLifecycleContext,
-	ResumeRecoveryContext,
-	RunningSubagent,
-	SubagentLaunchParams,
-	SubagentResumeParams,
-} from "../subagent-services.ts";
-import { createStatusState } from "../telemetry/status.ts";
+import type { WorkflowEventClient } from "../adapters/workflow-client.ts";
+import { WORKFLOW_PROVIDER_DELIVERY_CHANNEL, type WorkflowProviderRequest } from "../adapters/workflow-contract.ts";
+import { FakeWorkflowProviderExecution, createWorkflowEventExecutionFixture } from "./helpers/workflow-event-execution.ts";
+import { until } from "./helpers/workflow.ts";
 import { buildWorkflowRolloverHandoffForRole } from "../workflow/handoff.ts";
 import { discoverWorkflowRegistry } from "../workflow/registry.ts";
 import {
@@ -46,7 +38,6 @@ import {
 } from "../workflow/state.ts";
 import {
 	createWorkflowLifecycleTools,
-	type WorkflowSubagentExecution,
 	type WorkflowToolDependencies,
 	type WorkflowToolStateStore,
 } from "../workflow/tools.ts";
@@ -102,6 +93,7 @@ function rowFor(canonical: string): (choices: string[]) => string | undefined {
 
 const scribeRow = rowFor("acme/scribe-pro");
 const checkRow = rowFor("zeta/check-max");
+const relayRow = rowFor("omega/relay-lite");
 
 function writeDocsReviewPackage(projectRoot: string): string {
 	const packageDir = join(projectRoot, ".pi", "workflows", "docs-review");
@@ -169,15 +161,15 @@ function writeDocsReviewPackage(projectRoot: string): string {
 	return packageDir;
 }
 
-async function withDocsReviewProject(
-	run: (project: {
-		root: string;
-		agentDir: string;
-		isolatedRoot: string;
-		packageDir: string;
-		definition: NormalizedWorkflowDefinition;
-	}) => Promise<void> | void,
-): Promise<void> {
+type DocsReviewProject = {
+	root: string;
+	agentDir: string;
+	isolatedRoot: string;
+	packageDir: string;
+	definition: NormalizedWorkflowDefinition;
+};
+
+async function withDocsReviewProject(run: (project: DocsReviewProject) => Promise<void> | void): Promise<void> {
 	const root = mkdtempSync(join(tmpdir(), "docs-review-project-"));
 	const isolatedRoot = mkdtempSync(join(tmpdir(), "docs-review-empty-"));
 	const agentDir = join(root, "agent-state");
@@ -221,91 +213,6 @@ class StateStore implements WorkflowCommandStateStore, WorkflowToolStateStore {
 	commit(transition: WorkflowRunTransitionResult): void {
 		this.state = transition.state;
 		persistWorkflowRunSnapshots(this.target, transition.snapshots);
-	}
-}
-
-class FakeExecution implements WorkflowSubagentExecution {
-	stopSubagent(running: RunningSubagent): void {
-		running.abortController?.abort();
-	}
-	launch?: {
-		params: SubagentLaunchParams;
-		options: {
-			workflow?: LaunchProfileWorkflowMetadata;
-			resolvedModel?: { selection: { provider: string; model: string; thinking?: string } };
-		};
-	};
-	watch?: BackgroundWatchOptions;
-	resume?: {
-		params: SubagentResumeParams;
-		recovery?: ResumeRecoveryContext;
-		lifecycle?: ResumeLifecycleContext;
-	};
-	replacementSessionPath?: string;
-	nextSessionPath = "/tmp/docs-review-child.jsonl";
-
-	async launchSubagent(
-		params: SubagentLaunchParams,
-		_ctx: any,
-		options: any = {},
-	): Promise<RunningSubagent> {
-		this.launch = { params, options };
-		return {
-			id: "docs-child-1",
-			name: params.name,
-			task: params.task,
-			agent: params.agent,
-			surface: "%1",
-			startTime: 0,
-			sessionFile: this.nextSessionPath,
-			launchScriptFile: "/tmp/launch.sh",
-			statusState: createStatusState({ source: "pi", startTimeMs: 0 }),
-			interactive: false,
-		};
-	}
-
-	watchInBackground(options: BackgroundWatchOptions): AbortController {
-		this.watch = options;
-		return new AbortController();
-	}
-
-	async executeSubagentResume(
-		_pi: any,
-		params: SubagentResumeParams,
-		_ctx: any,
-		recovery?: ResumeRecoveryContext,
-		lifecycle?: ResumeLifecycleContext,
-	) {
-		this.resume = { params, recovery, lifecycle };
-		const sessionPath = this.replacementSessionPath ?? params.sessionPath;
-		await lifecycle?.onLaunched?.({
-			running: {
-				id: "docs-resume-1",
-				name: params.name ?? "Resume",
-				task: params.message ?? "resumed session",
-				surface: "%2",
-				startTime: 0,
-				sessionFile: sessionPath,
-				statusState: createStatusState({ source: "pi", startTimeMs: 0 }),
-				interactive: false,
-			},
-			replacement: Boolean(this.replacementSessionPath),
-			originalSessionPath: params.sessionPath,
-			sessionPath,
-		});
-		return {
-			content: [{ type: "text" as const, text: "resume started" }],
-			details: {
-				status: "started",
-				sessionPath,
-				...(this.replacementSessionPath
-					? {
-						rollover: "fresh",
-						replacementSessionPath: this.replacementSessionPath,
-					}
-					: {}),
-			},
-		};
 	}
 }
 
@@ -418,60 +325,24 @@ function makeRuntime(input: {
 	return { pi, store: input.store, ...environment };
 }
 
-function toolDependencies(store: StateStore, execution: FakeExecution): WorkflowToolDependencies {
+function toolDependencies(store: StateStore, eventExecution: WorkflowEventClient): WorkflowToolDependencies {
 	return {
 		state: store,
-		execution,
-		loadAgentDefaults: (agentName) =>
-			agentName === "scribe" || agentName === "fact-checker"
-				? { body: `You are ${agentName}.`, autoExit: true }
-				: null,
-		isTmuxAvailable: () => true,
-		muxUnavailableResult: () => ({
-			content: [{ type: "text", text: "tmux unavailable" }],
-			details: { error: "tmux not available" },
-		}),
+		eventExecution,
 	};
 }
 
 function writeVerifierSession(input: {
+	execution: FakeWorkflowProviderExecution;
 	root: string;
 	definition: NormalizedWorkflowDefinition;
 	runId: string;
 	sessionPath: string;
 	data: Record<string, string>;
 }): void {
-	mkdirSync(dirname(input.sessionPath), { recursive: true });
-	writeFileSync(input.sessionPath, "{}\n");
-	writeLaunchProfile(input.sessionPath, {
-		version: 1,
-		stable: {
-			agentName: "fact-checker",
-			displayName: "Documentation verifier",
-			roleBody: "You are fact-checker.",
-			roleBodyHash: "b".repeat(64),
-			systemPromptMode: "append",
-			cwd: input.root,
-			agentDir: input.root,
-			controls: {
-				denyTools: [],
-				autoExit: true,
-				interactive: false,
-				sessionMode: "standalone",
-			},
-			originalSessionPath: input.sessionPath,
-			createdAt: "2026-09-01T12:00:00.000Z",
-		},
-		runtime: {
-			originalModel: { provider: "zeta", model: "check-max", thinking: "off" },
-			lastModel: { provider: "zeta", model: "check-max", thinking: "off" },
-			resumeCount: 0,
-		},
-		resources: {
-			tools: fingerprintStrings([]),
-			visibleSkills: fingerprintStrings([]),
-			updatedAt: "2026-09-01T12:00:00.000Z",
-		},
+	input.execution.writeSession({
+		sessionPath: input.sessionPath, agentId: "fact-checker", name: "Documentation verifier",
+		model: { provider: "zeta", model: "check-max", thinking: "off" },
 		workflow: {
 			version: 1,
 			workflowId: input.definition.id,
@@ -505,6 +376,45 @@ function branchReaderFor(store: StateStore): WorkflowRunBranchReader {
 		return customEntry;
 	});
 	return { getBranch: () => branch };
+}
+
+function assertCorrelatedResult(
+	fixture: ReturnType<typeof createWorkflowEventExecutionFixture>,
+	request: WorkflowProviderRequest,
+	sessionPath: string,
+	message: string,
+	successfulResponse?: boolean,
+): void {
+	const delivery = fixture.deliveries.find((candidate) =>
+		candidate.kind === "result" && candidate.requestId === request.requestId && candidate.result.message === message);
+	assert.ok(delivery && delivery.kind === "result", "the real provider must deliver the requested terminal result");
+	assert.equal(delivery.providerId, fixture.client.provider.providerId);
+	assert.equal(delivery.instanceId, fixture.client.provider.instanceId);
+	assert.deepEqual(delivery.owner, request.owner);
+	assert.deepEqual(delivery.result, {
+		sessionPath, status: "completed", message, ...(successfulResponse ? { successfulResponse: true } : {}),
+	});
+}
+
+async function savedVerifierEventFixture(project: DocsReviewProject) {
+	const store = new StateStore(createWorkflowRunState());
+	const started = makeRuntime({
+		...project, store, selections: [CONFIGURE, scribeRow, "off", checkRow, "off", START],
+	});
+	await started.pi.command("docs").handler("DOC-42 Verify the deployment guide.", started.ctx);
+	const runId = "run-docs-e2e";
+	const execution = new FakeWorkflowProviderExecution(project.root, {
+		scribe: "You are scribe.", "fact-checker": "You are fact-checker.",
+	});
+	const sessionPath = join(project.root, "verifier-1.jsonl");
+	writeVerifierSession({ execution, ...project, runId, sessionPath, data: {} });
+	store.commit(recordWorkflowRunRoleSession(store.getState(), runId, "verifier", sessionPath, { launchStatus: "completed" }));
+	const messages: any[] = [];
+	const pi = { sendMessage(message: any) { messages.push(message); } };
+	const toolUi = commandContext({ root: project.root, selections: [RECOVER_MODEL, relayRow, "high"] });
+	const fixture = createWorkflowEventExecutionFixture(execution, toolUi.ctx, pi);
+	const lifecycle = createWorkflowLifecycleTools(pi as any, toolDependencies(store, fixture.client));
+	return { store, execution, sessionPath, messages, toolUi, fixture, lifecycle, runId };
 }
 
 test("synthetic docs-review runs discovery, alias generation, startup order, and private-skill startup end-to-end", async () => {
@@ -609,7 +519,7 @@ test("synthetic docs-review runs discovery, alias generation, startup order, and
 	});
 });
 
-test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacement, handoff, recovery, completion, and reload", async () => {
+test("synthetic docs-review event lifecycle covers spawn, boundaries, resume, replacement, handoff, recovery, completion, and reload", async (t) => {
 	await withDocsReviewProject(async (project) => {
 		const store = new StateStore(createWorkflowRunState());
 		const started = makeRuntime({
@@ -623,15 +533,29 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		await started.pi.command("docs").handler(request, started.ctx);
 		const runId = "run-docs-e2e";
 
-		const execution = new FakeExecution();
+		const execution = new FakeWorkflowProviderExecution(project.root, {
+			scribe: "You are scribe.", "fact-checker": "You are fact-checker.",
+		});
+		const messages: Array<{ message: any; options: any }> = [];
+		const pi = { sendMessage(message: any, options: any) { messages.push({ message, options }); } };
+		const toolUi = commandContext({ root: project.root, selections: [RECOVER_MODEL, relayRow, "high"] });
+		const fixture = createWorkflowEventExecutionFixture(execution, toolUi.ctx, pi);
+		t.after(() => fixture.dispose());
 		const lifecycle = createWorkflowLifecycleTools(
-			{ sendMessage() {} } as any,
-			toolDependencies(store, execution),
+			pi as any,
+			toolDependencies(store, fixture.client),
 		);
-		const toolUi = commandContext({ root: project.root, selections: [RECOVER_MODEL] });
+		assert.equal(Object.hasOwn(toolDependencies(store, fixture.client), "execution"), false, "no direct execution fallback");
 
 		execution.nextSessionPath = join(project.root, "author-1.jsonl");
 		const draftPath = join(project.root, ".artifacts", "docs", "DRAFT.md");
+		await assert.rejects(
+			() => lifecycle.spawn({ runId, role: "author", task: "Invalid output", data: {
+				draft: join(project.root, "src", "DRAFT.md"),
+			} }, toolUi.ctx),
+			/under|constraint/i,
+		);
+		assert.equal(Boolean(execution.launch), false, "invalid typed data must not reach the provider service");
 		const spawnResult = await lifecycle.spawn(
 			{
 				runId,
@@ -649,6 +573,7 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			model: "scribe-pro",
 			thinking: "off",
 		});
+		assert.equal(execution.launch?.options.resolvedModel?.model, SCRIBE, "the provider passes the canonical registry model");
 		assert.equal(execution.launch?.options.workflow?.workflowId, "docs-review");
 		assert.equal(execution.launch?.options.workflow?.roleId, "author");
 		assert.equal(execution.launch?.options.workflow?.data?.ticket, "DOC-42");
@@ -661,19 +586,41 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		const reportPath = join(project.root, ".artifacts", "docs", "REPORT.md");
 		writeFileSync(reportPath, "premature verification\n");
 
+		const launchRequest = fixture.requests.find((request) => request.operation === "launch")!;
+		assert.ok(launchRequest);
+		// The client must reject stale request, owner, provider incarnation and session evidence.
+		for (const mismatch of [
+			{ requestId: "stale-request" },
+			{ owner: { ...launchRequest.owner, ownershipId: "stale-owner" } },
+			{ instanceId: "stale-provider" },
+			{ result: { sessionPath: join(project.root, "unowned.jsonl"), status: "completed", message: "forged" } },
+		]) {
+			fixture.events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
+				...launchRequest, kind: "result",
+				result: { sessionPath: execution.nextSessionPath, status: "completed", message: "forged" },
+				...mismatch,
+			});
+		}
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		assert.equal(getActiveWorkflowRun(store.getState())?.activeLaunch?.status, "running");
+		assert.equal(messages.length, 0, "uncorrelated evidence cannot deliver a parent result");
 		execution.watch!.running.surfaceClosed = true;
-		const asyncResult = await execution.watch!.onSuccess({
-			result: {
-				name: "Documentation author",
-				task: "Draft the deployment guide.",
-				summary: "Draft complete.",
-				sessionFile: execution.nextSessionPath,
-				exitCode: 0,
-				elapsed: 3,
-				responded: true,
-			},
+		execution.watch!.resolve({
+			name: "Documentation author",
+			task: "Draft the deployment guide.",
+			summary: "Draft complete.",
+			sessionFile: execution.nextSessionPath,
+			exitCode: 0,
+			elapsed: 3,
+			responded: true,
 		});
-		assert.match(asyncResult.content, /Draft complete/);
+		await until(() => messages.length === 1);
+		assert.match(messages[0]!.message.content, /Draft complete/);
+		assert.deepEqual(messages[0]!.options, { triggerTurn: true, deliverAs: "steer" });
+		assert.equal(messages[0]!.message.customType, "subagent_result");
+		assert.equal(messages[0]!.message.details.workflow.workflowId, "docs-review");
+		assert.equal(messages[0]!.message.details.workflow.roleId, "author");
+		assertCorrelatedResult(fixture, launchRequest, execution.nextSessionPath, "Draft complete.");
 		assert.equal(getActiveWorkflowRun(store.getState())?.activeLaunch?.status, "completed");
 		assert.equal(
 			existsSync(reportPath),
@@ -683,6 +630,7 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 
 		const verifierSession = join(project.root, "verifier-1.jsonl");
 		writeVerifierSession({
+			execution,
 			root: project.root,
 			definition: project.definition,
 			runId,
@@ -705,6 +653,8 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			toolUi.ctx,
 		);
 		assert.equal(execution.resume?.params.sessionPath, verifierSession);
+		assert.equal(execution.resume?.params.model, "previous");
+		assert.deepEqual(execution.resume?.selection, { provider: "zeta", model: "check-max", thinking: "off" });
 		assert.equal(execution.resume?.lifecycle?.workflowMetadata?.data?.ticket, "DOC-43");
 		assert.match(
 			execution.resume?.lifecycle?.rolloverMessage ?? "",
@@ -726,10 +676,11 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.deepEqual(active?.roleSessions.verifier?.history, []);
 
 		// The fake resume retains a child until explicitly stopped.
+		const stoppedResume = execution.resume!;
 		await lifecycle.stopOwnedRoles();
 		const replacement = join(project.root, "verifier-2.jsonl");
 		execution.replacementSessionPath = replacement;
-		await lifecycle.resume(
+		const rollover = await lifecycle.resume(
 			{
 				runId,
 				role: "verifier",
@@ -738,19 +689,39 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			toolUi.ctx,
 		);
 		active = getActiveWorkflowRun(store.getState());
+		assert.equal(rollover.details.rollover, "fresh");
 		assert.equal(active?.roleSessions.verifier?.current, replacement);
 		assert.deepEqual(active?.roleSessions.verifier?.history, [verifierSession]);
-		// The real resume path writes a launch-profile sidecar for the fresh
-		// replacement session; mirror it so later reads resolve the session.
-		writeVerifierSession({
-			root: project.root,
-			definition: project.definition,
-			runId,
-			sessionPath: replacement,
-			data: { ticket: "DOC-43", draft: draftPath, report: reportPath },
+		const originalSidecar = readLaunchProfile(verifierSession);
+		const replacementSidecar = readLaunchProfile(replacement);
+		assert.equal(originalSidecar.status, "ok");
+		assert.equal(replacementSidecar.status, "ok");
+		if (originalSidecar.status === "ok" && replacementSidecar.status === "ok") {
+			assert.equal(originalSidecar.profile.lineage?.rolledOverTo, replacement);
+			assert.equal(replacementSidecar.profile.lineage?.rolledOverFrom, verifierSession);
+			assert.equal(replacementSidecar.profile.workflow?.data?.ticket, "DOC-43");
+		}
+		const savedBeforeStaleCallbacks = structuredClone(store.state);
+		const deliveryCount = fixture.deliveries.length;
+		await stoppedResume.lifecycle.onResult?.({
+			result: { name: "Documentation verifier", task: "Old resume", summary: "Late result", exitCode: 0, elapsed: 0 },
+			replacement: false, originalSessionPath: verifierSession, sessionPath: verifierSession,
 		});
+		await stoppedResume.lifecycle.onError?.({
+			message: "Late error", replacement: false, originalSessionPath: verifierSession, sessionPath: verifierSession,
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		assert.deepEqual(store.state, savedBeforeStaleCallbacks, "stopped execution callbacks cannot mutate a later role launch");
+		assert.equal(fixture.deliveries.length, deliveryCount, "the provider suppresses revoked result and error callbacks");
+		assert.equal(messages.length, 1);
 
 		await lifecycle.stopOwnedRoles();
+		execution.replacementSessionPath = undefined;
+		await assert.rejects(
+			() => lifecycle.recover({ runId, role: "verifier", failure: "The draft contains a typo" }, toolUi.ctx),
+			/not eligible/i,
+		);
+		assert.equal(toolUi.selectCalls.length, 0, "non-provider failures do not open a recovery picker");
 		const recovered = await lifecycle.recover(
 			{
 				runId,
@@ -762,22 +733,30 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		);
 		assert.equal(recovered.details.status, "started");
 		assert.equal(toolUi.selectCalls[0]?.title, "Recover the Documentation verifier role?");
-		assert.match(toolUi.notifications[0]?.[0] ?? "", /Documentation verifier role failed/);
-		assert.equal(execution.resume?.params.model, "pick");
-		assert.equal(
-			execution.resume?.recovery?.pickerTitle,
-			"Resume model for Documentation verifier recovery",
-		);
+		assert.equal(toolUi.selectCalls[1]?.title, "Select subagent model");
+		assert.equal(toolUi.selectCalls[2]?.title, "Thinking for Documentation verifier — omega/relay-lite");
+		assert.match(execution.resume?.recovery?.failure.message ?? "", /Provider quota exhausted/);
+		assert.equal(execution.resume?.recovery?.failure.kind, "usage");
+		assert.equal(execution.resume?.params.model, "omega/relay-lite:high");
+		assert.deepEqual(execution.resume?.selection, { provider: "omega", model: "relay-lite", thinking: "high" });
 		assert.match(
 			execution.resume?.params.message ?? "",
 			/Verify the current draft independently and update only the report/,
 		);
 
-		await execution.resume?.recovery?.onSuccessfulResponse?.({
-			provider: "omega",
-			model: "relay-lite",
-			thinking: "high",
+		const originalAssignment = { provider: "zeta", model: "check-max", thinking: "off" };
+		assert.deepEqual(getActiveWorkflowRun(store.getState())?.currentAssignments?.verifier, originalAssignment,
+			"acknowledging the replacement model alone cannot promote recovery");
+		await execution.successfulResponse();
+		assert.deepEqual(getActiveWorkflowRun(store.getState())?.currentAssignments?.verifier, originalAssignment,
+			"a successful response callback alone cannot promote recovery before a correlated terminal result");
+		const recoveryRequest = [...fixture.requests].reverse().find((request) => request.operation === "recover")!;
+		await execution.completeResume({
+			name: "Documentation verifier", task: "Recheck the cache invalidation steps.", summary: "Verification complete.",
+			sessionFile: replacement, exitCode: 0, elapsed: 3, responded: true,
 		});
+		await until(() => messages.length === 2);
+		assertCorrelatedResult(fixture, recoveryRequest, replacement, "Verification complete.", true);
 		active = getActiveWorkflowRun(store.getState());
 		assert.deepEqual(active?.originalAssignments?.verifier, {
 			provider: "zeta",
@@ -794,6 +773,8 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		if (sidecar.status === "ok") {
 			assert.equal(sidecar.profile.workflow?.assignmentSource, "recovery");
 			assert.equal(sidecar.profile.workflow?.currentDefault?.model, "relay-lite");
+			assert.deepEqual(sidecar.profile.workflow?.originalDefault, originalAssignment);
+			assert.deepEqual(sidecar.profile.runtime.lastModel, active?.currentAssignments?.verifier);
 		}
 
 		store.commit(
@@ -813,6 +794,8 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		assert.equal(restoredActive.data.ticket, "DOC-43");
 		assert.equal(restoredActive.data.report, reportPath);
 		assert.equal(restoredActive.roleSessions.verifier?.current, replacement);
+		assert.deepEqual(restoredActive.roleSessions.verifier?.history, [verifierSession]);
+		assert.deepEqual(restoredActive.originalAssignments, active?.originalAssignments);
 		const restoredVerifier = restoredActive.currentAssignments?.verifier;
 		assert.ok(restoredVerifier && !isWorkflowRoleSkipAssignment(restoredVerifier));
 		assert.equal(restoredVerifier.model, "relay-lite");
@@ -853,6 +836,11 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 			() => lifecycle.spawn({ runId, role: "author", task: "Late call" }, toolUi.ctx),
 			/stale|completed/i,
 		);
+		await assert.rejects(() => lifecycle.resume({ runId, role: "verifier" }, toolUi.ctx), /stale|completed/i);
+		await assert.rejects(() => lifecycle.recover({
+			runId, role: "verifier", failure: "Provider quota exhausted",
+		}, toolUi.ctx), /stale|completed/i);
+		assert.deepEqual(execution.stopped, [verifierSession, replacement]);
 		const finalRestore = restoreWorkflowRunStateFromSession(branchReaderFor(store));
 		assert.equal(getActiveWorkflowRun(finalRestore.state), null);
 		assert.equal(getWorkflowRunSnapshot(finalRestore.state, runId)?.status, "completed");
@@ -862,3 +850,59 @@ test("synthetic docs-review lifecycle covers spawn, boundaries, resume, replacem
 		);
 	});
 });
+
+for (const missing of ["from", "to"] as const) {
+	test(`synthetic docs-review rejects rollover with a missing rolledOver${missing === "from" ? "From" : "To"} link`, async (t) => {
+		await withDocsReviewProject(async (project) => {
+			const f = await savedVerifierEventFixture(project);
+			t.after(() => f.fixture.dispose());
+			const replacement = join(project.root, "verifier-2.jsonl");
+			f.execution.replacementSessionPath = replacement;
+			f.execution.omitLineage = missing;
+			await assert.rejects(
+				() => f.lifecycle.resume({ runId: f.runId, role: "verifier" }, f.toolUi.ctx),
+				/rollover lineage not confirmed/i,
+			);
+			const active = getActiveWorkflowRun(f.store.getState());
+			assert.equal(active?.roleSessions.verifier?.current, f.sessionPath);
+			assert.deepEqual(active?.roleSessions.verifier?.history, []);
+			assert.equal(active?.activeLaunch?.status, "failed");
+			assert.deepEqual(f.execution.stopped, [replacement], "unconfirmed rollover requires cleanup");
+			await f.execution.completeResume({
+				name: "Documentation verifier", task: "Late rollover", summary: "Must not deliver",
+				exitCode: 0, elapsed: 0,
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			assert.equal(f.messages.length, 0, "an unconfirmed launch cannot deliver a correlated result");
+			assert.equal(f.fixture.deliveries.length, 0);
+		});
+	});
+}
+
+for (const evidence of ["absent", "different-model"] as const) {
+	test(`synthetic docs-review recovery retains its default when successful-response evidence is ${evidence}`, async (t) => {
+		await withDocsReviewProject(async (project) => {
+			const f = await savedVerifierEventFixture(project);
+			t.after(() => f.fixture.dispose());
+			await f.lifecycle.recover({
+				runId: f.runId, role: "verifier", failure: "Provider quota exhausted; purchase more credits",
+			}, f.toolUi.ctx);
+			assert.equal(f.execution.resume?.params.model, "omega/relay-lite:high");
+			if (evidence === "different-model") {
+				await f.execution.successfulResponse({ provider: "acme", model: "scribe-pro", thinking: "off" });
+			}
+			const request = f.fixture.requests.find((request) => request.operation === "recover")!;
+			await f.execution.completeResume({
+				name: "Documentation verifier", task: "Recover", summary: "Completed without matching response evidence",
+				sessionFile: f.sessionPath, exitCode: 0, elapsed: 0,
+			});
+			await until(() => f.messages.length === 1);
+			assertCorrelatedResult(f.fixture, request, f.sessionPath, "Completed without matching response evidence");
+			const active = getActiveWorkflowRun(f.store.getState());
+			assert.equal(active?.activeLaunch?.status, "completed");
+			assert.deepEqual(active?.currentAssignments?.verifier, { provider: "zeta", model: "check-max", thinking: "off" });
+			assert.deepEqual(active?.currentAssignments, active?.originalAssignments,
+				"a completed result without matching successful response evidence cannot promote the selected recovery model");
+		});
+	});
+}

@@ -1,11 +1,13 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isAbsolute } from "node:path";
-import { AgentParams, normalizeAgentCall, type SubagentParamsType } from "./schemas.ts";
-import { ASYNC_TOOL_CONTRACT } from "./descriptions.ts";
+import { Type } from "typebox";
+import { AgentParams, normalizeAgentCall } from "./schemas.ts";
+import { ASYNC_TOOL_CONTRACT, SUBAGENT_INTERRUPT_DESCRIPTION } from "./descriptions.ts";
 import { resolveEffectiveInteractive } from "../profiles/launch-policy.ts";
 import type { AgentDiscovery } from "../profiles/discovery.ts";
 import type { ExecutionRuntime } from "../runtime/execution.ts";
-import type { OrdinaryTool } from "../runtime/ordinary-agents.ts";
+import type { OrdinaryExecutor } from "../runtime/ordinary-agents.ts";
+import type { SubagentRuntime } from "../runtime/refresh.ts";
 import type { TeamRuntime } from "../runtime/teams.ts";
 import type { TeamLauncher } from "../runtime/team-launch.ts";
 import { activeAgentResult } from "../runtime/tool-results.ts";
@@ -13,8 +15,9 @@ import { activeAgentResult } from "../runtime/tool-results.ts";
 export function registerAgentTool(
   pi: ExtensionAPI,
   discovery: AgentDiscovery,
+  runtime: SubagentRuntime,
   execution: ExecutionRuntime,
-  ordinaryTool: OrdinaryTool,
+  executeOrdinary: OrdinaryExecutor,
   team: TeamRuntime,
   launchTeamAgent: TeamLauncher,
   shouldRegister: (name: string) => boolean
@@ -112,7 +115,7 @@ export function registerAgentTool(
         if (!params.name?.trim() && params.interactive !== true && defaults.autoExit !== true && !defaults.cli) {
           return fail(`Agent definition "${agentName}" needs auto-exit or interactive: true for an unnamed run; no agent was started.`);
         }
-        const ordinaryParams: SubagentParamsType & { runInForeground?: boolean; isolation?: string; followUpName?: string } = {
+        const ordinaryParams: Parameters<OrdinaryExecutor>[1] = {
           name: params.name?.trim() || params.description,
           task: params.prompt, agent: agentName, fork: params.fork,
           systemPrompt: params.systemPrompt, skills: params.skills, tools: params.tools, cwd: params.cwd, model: params.model,
@@ -123,7 +126,20 @@ export function registerAgentTool(
           ...(params.isolation ? { isolation: params.isolation } : {}),
           ...(params.name?.trim() ? { followUpName: params.name.trim() } : {}),
         };
-        return activeAgentResult(await ordinaryTool.execute(toolCallId, ordinaryParams, signal, onUpdate, ctx));
+        return activeAgentResult(await executeOrdinary(toolCallId, ordinaryParams, signal, onUpdate, ctx));
+      },
+    });
+  if (shouldRegister("AgentInterrupt"))
+    pi.registerTool({
+      name: "AgentInterrupt",
+      label: "Interrupt Agent",
+      description: SUBAGENT_INTERRUPT_DESCRIPTION,
+      parameters: Type.Object({
+        id: Type.Optional(Type.String({ description: "Running agent ID" })),
+        name: Type.Optional(Type.String({ description: "Exact running agent name" })),
+      }),
+      async execute(_toolCallId, params) {
+        return runtime.handleSubagentInterrupt(params);
       },
     });
 }

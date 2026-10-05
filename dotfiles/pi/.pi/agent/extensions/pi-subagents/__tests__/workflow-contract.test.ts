@@ -1,8 +1,36 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { discoverWorkflowProviders, requestWorkflowProvider, subscribeWorkflowDelivery, WorkflowProviderCleanupRequiredError, WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_VERSION } from "../adapters/workflow-contract.ts";
+import {
+	discoverWorkflowProviders, requestWorkflowProvider, subscribeWorkflowDelivery,
+	isWorkflowProviderOperation, WorkflowProviderCleanupRequiredError,
+	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_VERSION,
+	type WorkflowLaunchRequest, type WorkflowSavedRequest,
+} from "../adapters/workflow-contract.ts";
 
 type Handler = (data: unknown) => void;
+
+const workflow = {
+	version: 1, workflowId: "test", runId: "run-1", roleId: "writer",
+	manifestHash: "manifest", skillHash: "skill", policy: "per-role",
+	assignmentSource: "parent", projectRoot: "/repo", data: {},
+};
+const launchPayload: WorkflowLaunchRequest = {
+	agentId: "writer", name: "Writer", task: "Write", workflow, repositoryRoot: "/repo",
+	model: { provider: "test", model: "echo" },
+};
+const savedPayload: WorkflowSavedRequest = {
+	sessionPath: "/tmp/role.jsonl", expected: { agentId: "writer", profileHash: "hash" },
+	workflow, repositoryRoot: "/repo",
+};
+
+test("operation ingress accepts only the eight version 1 operation names", () => {
+	for (const operation of ["ping", "profiles", "inspect", "launch", "resume", "recover", "stop", "update-metadata"]) {
+		assert.equal(isWorkflowProviderOperation(operation), true);
+	}
+	for (const value of [undefined, null, 1, {}, ["launch"], "constructor", "toString", "cancel", "recovery"]) {
+		assert.equal(isWorkflowProviderOperation(value), false);
+	}
+});
 
 function fakeEvents() {
 	const listeners = new Map<string, Set<Handler>>();
@@ -84,7 +112,7 @@ test("a response for another run, role, session or provider incarnation cannot c
 			requestId: request.requestId, providerId: "alpha", instanceId: "old", owner, ok: true, data: { accepted: true },
 		});
 	});
-	await assert.rejects(requestWorkflowProvider(events, provider, "launch", owner, { agent: "writer" }, { timeoutMs: 10 }), /timed out/);
+	await assert.rejects(requestWorkflowProvider(events, provider, "launch", owner, launchPayload, { timeoutMs: 10 }), /timed out/);
 	assert.equal(cancelled, 1);
 });
 
@@ -143,7 +171,7 @@ test("resume refuses missing identity/context facts or unconfirmed metadata upda
 		});
 	});
 	await assert.rejects(
-		requestWorkflowProvider(events, provider, "resume", owner, { sessionPath: "/tmp/role.jsonl", expected: { agentId: "writer", profileHash: "hash" } }, { timeoutMs: 10 }),
+		requestWorkflowProvider(events, provider, "resume", owner, savedPayload, { timeoutMs: 10 }),
 		/incomplete|unconfirmed/,
 	);
 });
@@ -171,7 +199,7 @@ test("a launch cannot succeed without acknowledged sidecar and session identity"
 			...(request as object), ok: true, data: { accepted: true, metadataConfirmed: false },
 		});
 	});
-	await assert.rejects(requestWorkflowProvider(events, provider, "launch", owner, { agentId: "writer" }, { timeoutMs: 10 }), /unconfirmed|incomplete/);
+	await assert.rejects(requestWorkflowProvider(events, provider, "launch", owner, launchPayload, { timeoutMs: 10 }), /unconfirmed|incomplete/);
 });
 
 test("metadata updates require provider confirmation", async () => {
@@ -182,7 +210,7 @@ test("metadata updates require provider confirmation", async () => {
 		const { requestId } = request as { requestId: string };
 		events.emit(`pi-workflows:provider:reply:${requestId}`, { ...(request as object), ok: true, data: { confirmed: false } });
 	});
-	await assert.rejects(requestWorkflowProvider(events, provider, "update-metadata", owner, { sessionPath: "/tmp/role.jsonl" }, { timeoutMs: 10 }), /unconfirmed/);
+	await assert.rejects(requestWorkflowProvider(events, provider, "update-metadata", owner, savedPayload, { timeoutMs: 10 }), /unconfirmed/);
 });
 
 test("unavailable required agent profiles cannot pass preflight", async () => {
@@ -222,7 +250,7 @@ test("a valid launch returns its correlation ID for subsequent async delivery", 
 			context: { tokens: 100, source: "session" }, metadataConfirmed: true,
 		} });
 	});
-	const response = await requestWorkflowProvider(events, provider, "launch", owner, { agentId: "writer" });
+	const response = await requestWorkflowProvider(events, provider, "launch", owner, launchPayload);
 	assert.equal(response.requestId, sentId);
 	assert.equal(response.data.sessionPath, "/tmp/role.jsonl");
 });
@@ -250,7 +278,7 @@ test("a correlated launch reply must match the requested agent and explicit mode
 			events.emit(`pi-workflows:provider:reply:${requestId}`, { ...(request as object), ok: true, data });
 		});
 		await assert.rejects(
-			requestWorkflowProvider(events, provider, "launch", owner, { agentId: "writer", model }, { timeoutMs: 100 }),
+			requestWorkflowProvider(events, provider, "launch", owner, { ...launchPayload, model }, { timeoutMs: 100 }),
 			(error: unknown) => {
 				assert.ok(error instanceof WorkflowProviderCleanupRequiredError);
 				assert.match(error.message, /incomplete|unconfirmed/);
@@ -277,7 +305,7 @@ test("launch accepts an explicit model match and treats omitted thinking as off"
 	for (const [requested, returned] of [["high", "high"], ["off", undefined], [undefined, "off"]]) {
 		returnedThinking = returned;
 		const response = await requestWorkflowProvider(events, provider, "launch", owner, {
-			agentId: "writer", model: { provider: "test", model: "echo", ...(requested ? { thinking: requested } : {}) },
+			...launchPayload, model: { provider: "test", model: "echo", ...(requested ? { thinking: requested } : {}) },
 		});
 		assert.equal(response.data.model.thinking, returned);
 	}
@@ -302,6 +330,7 @@ test("saved requests accept a different user-selected model only with permission
 					events.emit(`pi-workflows:provider:reply:${requestId}`, { ...(request as object), ok: true, data });
 				});
 				const response = requestWorkflowProvider(events, provider, operation, owner, {
+					...savedPayload, failure: "credits exhausted",
 					sessionPath: data.sessionPath,
 					expected: { agentId: "writer", profileHash: "abc", model: { provider: "test", model: "previous" } },
 					model: { provider: "test", model: "echo" },
@@ -330,7 +359,7 @@ test("a bounded launch request can wait past tmux shell readiness", async () => 
 		}), 5_100);
 	});
 	const response = await requestWorkflowProvider(events, provider, "launch", owner,
-		{ agentId: "writer" }, { timeoutMs: 6_000 });
+		launchPayload, { timeoutMs: 6_000 });
 	assert.equal(response.data.sessionPath, "/tmp/role.jsonl");
 });
 
@@ -349,7 +378,7 @@ test("default launch timeout accommodates asynchronous pane setup", async () => 
 			},
 		}), 350);
 	});
-	const response = await requestWorkflowProvider(events, provider, "launch", owner, { agentId: "writer" });
+	const response = await requestWorkflowProvider(events, provider, "launch", owner, launchPayload);
 	assert.equal(response.data.sessionPath, "/tmp/role.jsonl");
 });
 
@@ -373,6 +402,7 @@ test("resume requires an expected saved session and profile identity", async () 
 	const events = fakeEvents();
 	const owner = { sessionId: "parent", runId: "run-1", roleId: "writer", ownershipId: "lease-1" };
 	const provider = { providerId: "alpha", instanceId: "one", version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES } as const;
+	// @ts-expect-error Deliberately malformed JavaScript caller must still fail at runtime.
 	await assert.rejects(requestWorkflowProvider(events, provider, "resume", owner, {}, { timeoutMs: 10 }), /expected session|identity/);
 });
 
@@ -390,7 +420,8 @@ test("a compatible fake provider confirms owned recovery facts, liveness and sto
 		events.emit(`pi-workflows:provider:reply:${request.requestId}`, { ...request, ok: true, data });
 	});
 	const recovered = await requestWorkflowProvider(events, provider, "recover", owner,
-		{ sessionPath, expected: { agentId: "writer", profileHash: "abc" } });
+		{ ...savedPayload, sessionPath, expected: { agentId: "writer", profileHash: "abc" },
+			model: launchPayload.model, failure: "credits exhausted" });
 	assert.equal(recovered.data.sessionPath, sessionPath);
 	assert.deepEqual((await requestWorkflowProvider(events, provider, "ping", owner, {})).data, { alive: true });
 	assert.deepEqual((await requestWorkflowProvider(events, provider, "stop", owner, { sessionPath })).data, { stopped: true });
@@ -409,7 +440,7 @@ test("saved model/context mismatch or an unapproved rollover cannot pass validat
 			metadataConfirmed: true,
 		} });
 	});
-	const payload = { sessionPath: "/saved.jsonl", expected: {
+	const payload = { ...savedPayload, sessionPath: "/saved.jsonl", expected: {
 		agentId: "writer", profileHash: "hash", model: { provider: "test", model: "different" }, contextTokens: 100,
 	} };
 	await assert.rejects(requestWorkflowProvider(events, provider, "resume", owner, payload), /incomplete|unconfirmed/);

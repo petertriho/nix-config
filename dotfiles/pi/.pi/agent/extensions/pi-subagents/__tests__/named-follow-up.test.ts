@@ -3,6 +3,7 @@ import test, { after } from "node:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { OrdinaryExecutor } from "../runtime/ordinary-agents.ts";
 
 // Import with a private HOME: Claude transcript copies must never reach the
 // developer's real ~/.pi/agent/sessions/claude-code directory.
@@ -18,6 +19,9 @@ process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS = "0";
 process.env.TMUX = "/tmp/mock-tmux,1,0";
 process.chdir(root);
 const { default: register, __test__: testApi } = await import("../index.ts");
+const { createNamedFollowUp } = await import("../runtime/named-followups.ts");
+const { createSessionState } = await import("../runtime/session-state.ts");
+const { registerAgentTool } = await import("../registration/agent-tool.ts");
 
 after(() => {
 	process.chdir(savedCwd);
@@ -29,6 +33,112 @@ after(() => {
 });
 
 type AnyRecord = Record<string, any>;
+
+test("Agent awaits the callable executor once, forwards controls, and marks service errors", async () => {
+	const tools = new Map<string, AnyRecord>();
+	const calls: Parameters<OrdinaryExecutor>[] = [];
+	const failure = { content: [{ type: "text" as const, text: "No launch" }], details: { error: "cancelled" } };
+	const execute: OrdinaryExecutor = async (...args) => { calls.push(args); return failure; };
+	const interrupted: AnyRecord[] = [];
+	registerAgentTool(
+		{ registerTool: (tool: AnyRecord) => tools.set(tool.name, tool) } as never,
+		{ loadAgentDefaults: () => ({ cli: "claude" }) } as never,
+		{ handleSubagentInterrupt: (params: AnyRecord) => { interrupted.push(params); return failure; } } as never,
+		{} as never, execute, {} as never,
+		() => { throw new Error("An ordinary Agent must not launch a teammate"); },
+		() => true,
+	);
+	const ctx = { mode: "print" };
+	const signal = new AbortController().signal;
+	const onUpdate = () => {};
+	const order: string[] = [];
+	const resultPromise = tools.get("Agent")!.execute("callable", {
+		description: "Review", prompt: "Review files", name: "Reviewer", subagent_type: "reviewer",
+		run_in_background: true, model: "inherit",
+	}, signal, onUpdate, ctx);
+	const [result] = await Promise.all([
+		resultPromise.then((value: AnyRecord) => { order.push("settled"); return value; }),
+		Promise.resolve().then(() => { order.push("first"); }).then(() => { order.push("second"); }),
+	]);
+	assert.deepEqual(order, ["first", "settled", "second"], "Agent must retain one await at the service boundary");
+	assert.equal(result.isError, true);
+	assert.equal(result.details, failure.details);
+	assert.equal(calls.length, 1);
+	const [id, params, forwardedSignal, forwardedUpdate, forwardedCtx] = calls[0];
+	assert.equal(id, "callable");
+	assert.equal(params.name, "Reviewer");
+	assert.equal(params.task, "Review files");
+	assert.equal(params.agent, "reviewer");
+	assert.equal(params.model, "inherit");
+	assert.equal(params.runInForeground, false);
+	assert.equal(params.followUpName, "Reviewer");
+	assert.equal(forwardedSignal, signal);
+	assert.equal(forwardedUpdate, onUpdate);
+	assert.equal(forwardedCtx, ctx);
+	const interruptParams = { name: "Reviewer" };
+	assert.strictEqual(await tools.get("AgentInterrupt")!.execute("interrupt", interruptParams), failure);
+	assert.deepEqual(interrupted, [interruptParams]);
+});
+
+for (const rejects of [false, true]) {
+	test(`Claude callable follow-up restores saved state before ${rejects ? "rejection" : "error settlement"} without another await`, async () => {
+		const session = createSessionState();
+		const saved = {
+			backend: "claude" as const, id: "old", claudeSessionId: "claude-session",
+			launch: { agent: "reviewer", cwd: "/original", model: "inherit", interactive: false },
+		};
+		session.finishedOrdinary.set("Reviewer", saved);
+		const failure = new Error("Launch failed");
+		const calls: Parameters<OrdinaryExecutor>[] = [];
+		const execute: OrdinaryExecutor = async (...args) => {
+			calls.push(args);
+			if (rejects) throw failure;
+			return { content: [{ type: "text", text: "No launch" }], details: { error: "tmux not available" } };
+		};
+		const followUp = createNamedFollowUp(
+			{} as never, { loadAgentDefaults: () => ({ cli: "claude" }) } as never,
+			{ runningSubagents: new Map() } as never, {} as never, execute, session,
+		);
+		const signal = new AbortController().signal;
+		const ctx = {} as never;
+		const onUpdate = () => {};
+		const order: string[] = [];
+		const response = followUp("followup", { recipient: "Reviewer", content: "Continue" }, signal, onUpdate, ctx);
+		const settled = response.then(
+			(result) => {
+				assert.equal(rejects, false);
+				assert.equal(result.isError, true);
+				order.push("settled");
+			},
+			(error) => {
+				assert.equal(rejects, true);
+				assert.strictEqual(error, failure);
+				order.push("settled");
+			},
+		).then(() => {
+			assert.strictEqual(session.finishedOrdinary.get("Reviewer"), saved);
+			assert.equal(session.followUpsInFlight.size, 0);
+		});
+		await Promise.all([
+			settled,
+			Promise.resolve().then(() => { order.push("first"); }).then(() => { order.push("second"); }),
+		]);
+		assert.deepEqual(order, ["first", "settled", "second"]);
+		assert.equal(calls.length, 1);
+		const [id, params, forwardedSignal, forwardedUpdate, forwardedCtx] = calls[0];
+		assert.equal(id, "followup");
+		assert.equal(params.resumeSessionId, "claude-session");
+		assert.equal(params.task, "Continue");
+		assert.equal(params.cwd, "/original");
+		assert.equal(params.model, "inherit");
+		assert.equal(params.followUpName, "Reviewer");
+		assert.equal(typeof params.followUpLifecycle?.onResult, "function");
+		assert.equal(typeof params.followUpLifecycle?.onError, "function");
+		assert.equal(forwardedSignal, signal);
+		assert.equal(forwardedUpdate, onUpdate);
+		assert.equal(forwardedCtx, ctx);
+	});
+}
 
 function fixture(backend: "pi" | "claude") {
 	const dir = mkdtempSync(join(root, `${backend}-`));

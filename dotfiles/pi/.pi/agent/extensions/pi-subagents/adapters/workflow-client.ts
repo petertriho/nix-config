@@ -8,56 +8,14 @@ import {
 	WorkflowProviderCleanupRequiredError,
 	type WorkflowAgentProfile, type WorkflowEventBus, type WorkflowOwner,
 	type WorkflowProvider, type WorkflowProviderDelivery, type WorkflowRoleFacts,
-	type WorkflowRoleResult,
+	type WorkflowRoleResult, type WorkflowProviderOperation, type WorkflowProviderPayloads,
+	type WorkflowLaunchRequest, type WorkflowSavedRequest, type WorkflowRecoveryRequest,
 } from "./workflow-contract.ts";
 
-export interface WorkflowLaunchRequest {
-	readonly agentId: string;
-	readonly name: string;
-	readonly task: string;
-	readonly model: { readonly provider: string; readonly model: string; readonly thinking?: string };
-	readonly workflow: WorkflowMetadata;
-	readonly repositoryRoot: string;
-}
-
-/** Transport-neutral shape of the persisted workflow identity in a role sidecar. */
-export interface WorkflowMetadata {
-	readonly version: number;
-	readonly workflowId: string;
-	readonly runId: string;
-	readonly roleId: string;
-	readonly manifestHash: string;
-	readonly skillHash: string;
-	readonly policy: string;
-	readonly assignmentSource: string;
-	readonly projectRoot: string;
-	readonly originalDefault?: { readonly provider: string; readonly model: string; readonly thinking?: string };
-	readonly currentDefault?: { readonly provider: string; readonly model: string; readonly thinking?: string };
-	readonly data: object;
-}
-
-export interface WorkflowSavedRequest {
-	readonly sessionPath: string;
-	readonly expected: {
-		readonly agentId: string;
-		readonly profileHash: string;
-		readonly model?: { readonly provider: string; readonly model: string; readonly thinking?: string };
-		readonly contextTokens?: number;
-	};
-	readonly workflow: WorkflowMetadata;
-	readonly repositoryRoot: string;
-	readonly name?: string;
-	readonly message?: string;
-	readonly rolloverMessage?: string;
-	readonly model?: { readonly provider: string; readonly model: string; readonly thinking?: string };
-	readonly allowRollover?: boolean;
-	readonly allowUserModelSelection?: boolean;
-}
-
-export interface WorkflowRecoveryRequest extends WorkflowSavedRequest {
-	readonly failure: string;
-	readonly model: { readonly provider: string; readonly model: string; readonly thinking?: string };
-}
+// Preserve existing client imports while the wire contract owns these shapes.
+export type {
+	WorkflowLaunchRequest, WorkflowMetadata, WorkflowSavedRequest, WorkflowRecoveryRequest,
+} from "./workflow-contract.ts";
 
 export type WorkflowPing = Readonly<Extract<WorkflowProviderDelivery, { kind: "ping" }>>;
 export type WorkflowPingHandler = (ping: WorkflowPing, facts?: WorkflowRoleFacts) => void;
@@ -144,8 +102,8 @@ export function createWorkflowEventClient(
 	function ensureOpen() {
 		if (disposed) throw new Error("Workflow provider client closed");
 	}
-	function request<K extends Parameters<typeof requestWorkflowProvider>[2]>(
-		operation: K, owner: WorkflowOwner, payload: unknown,
+	function request<K extends WorkflowProviderOperation>(
+		operation: K, owner: WorkflowOwner, payload: WorkflowProviderPayloads[NoInfer<K>],
 		requestId?: string,
 		signal?: AbortSignal,
 	) {
@@ -239,9 +197,9 @@ export function createWorkflowEventClient(
 		leases.add(handle);
 		return handle;
 	}
-	async function start(
-		operation: "launch" | "resume" | "recover", owner: WorkflowOwner,
-		payload: WorkflowLaunchRequest | WorkflowSavedRequest | WorkflowRecoveryRequest,
+	async function start<K extends "launch" | "resume" | "recover">(
+		operation: K, owner: WorkflowOwner,
+		payload: WorkflowProviderPayloads[NoInfer<K>],
 		options?: { onPing?: WorkflowPingHandler; signal?: AbortSignal },
 	): Promise<WorkflowRoleLease> {
 		ensureOpen();

@@ -1,34 +1,34 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { defineTool } from "@earendil-works/pi-coding-agent";
+import type { AgentToolUpdateCallback, ExtensionAPI, ExtensionToolContext } from "@earendil-works/pi-coding-agent";
 import { existsSync } from "node:fs";
 import { allocateAgentWorktree, releaseUnusedWorktree, type OwnedWorktree } from "../execution/worktree.ts";
 import { readAgentModelConfig } from "../profiles/agent-models.ts";
 import { resolveModelPolicy, resolveConfiguredAgentModel, type ResolvedModelSelection } from "../profiles/model-picker.ts";
 import { classifyProviderFailure } from "../execution/provider-failure.ts";
-import { resolveResultPresentation, resolveUsageDetails, type RunningSubagent, type SubagentResult } from "../execution/services.ts";
+import { resolveResultPresentation, resolveUsageDetails, type RunningSubagent, type SubagentResult, type SubagentToolResult } from "../execution/services.ts";
 import { isTmuxAvailable } from "../adapters/tmux.ts";
-import { SubagentParams, normalizeSubagentParams, type SubagentParamsType } from "../registration/schemas.ts";
-import { SUBAGENT_TOOL_DESCRIPTION } from "../registration/descriptions.ts";
-import { ordinaryToolRenderers } from "../presentation/tool-renderers.ts";
+import { normalizeSubagentParams, type SubagentParamsType } from "../registration/schemas.ts";
 import type { AgentDiscovery } from "../profiles/discovery.ts";
 import type { ExecutionRuntime } from "./execution.ts";
 import { muxUnavailableResult } from "./execution.ts";
 import type { SessionState, OrdinaryFollowUp } from "./session-state.ts";
 
-export function createOrdinaryTool(pi: ExtensionAPI, discovery: AgentDiscovery, execution: ExecutionRuntime, session: SessionState) {
+export function createOrdinaryExecutor(pi: ExtensionAPI, discovery: AgentDiscovery, execution: ExecutionRuntime, session: SessionState) {
   const { loadAgentDefaults, resolveSubagentPaths } = discovery;
   const { subagentExecution, launchSubagent, watchSubagent } = execution;
   const { finishedOrdinary } = session;
-  const ordinaryTool = defineTool({
-    name: "subagent",
-    label: "Subagent",
-    description: SUBAGENT_TOOL_DESCRIPTION,
-    promptSnippet: SUBAGENT_TOOL_DESCRIPTION,
-    parameters: SubagentParams,
-
-    async execute(_toolCallId, rawParams, signal, _onUpdate, ctx) {
+  return async function executeOrdinary(
+    _toolCallId: string,
+    rawParams: SubagentParamsType & OrdinaryFollowUp & {
+      runInForeground?: boolean;
+      isolation?: string;
+      maxTurns?: number;
+    },
+    signal: AbortSignal | undefined,
+    _onUpdate: AgentToolUpdateCallback | undefined,
+    ctx: ExtensionToolContext,
+  ): Promise<SubagentToolResult> {
       const params = normalizeSubagentParams(rawParams);
-      const { followUpName, followUpLifecycle } = rawParams as SubagentParamsType & OrdinaryFollowUp;
+      const { followUpName, followUpLifecycle } = rawParams;
       const launchEpoch = session.sessionEpoch;
       // Prevent self-spawning (e.g. executor spawning another executor).
       const currentAgent = process.env.PI_SUBAGENT_AGENT;
@@ -121,7 +121,7 @@ export function createOrdinaryTool(pi: ExtensionAPI, discovery: AgentDiscovery, 
         };
       }
       let ownedWorktree: OwnedWorktree | undefined;
-      if ((rawParams as SubagentParamsType & { isolation?: string }).isolation === "worktree") {
+      if (rawParams.isolation === "worktree") {
         try {
           const sourceCwd = resolveSubagentPaths(params, spawnAgentDefs).effectiveCwd ?? ctx.cwd;
           ownedWorktree = allocateAgentWorktree(sourceCwd);
@@ -144,8 +144,8 @@ export function createOrdinaryTool(pi: ExtensionAPI, discovery: AgentDiscovery, 
             signal,
             isOwned: () => session.sessionActive && session.sessionEpoch === launchEpoch,
             ...(resolvedModel ? { resolvedModel } : {}),
-            ...((rawParams as SubagentParamsType & { maxTurns?: number }).maxTurns
-              ? { taskRuntime: { maxTurns: (rawParams as SubagentParamsType & { maxTurns: number }).maxTurns } }
+            ...(rawParams.maxTurns
+              ? { taskRuntime: { maxTurns: rawParams.maxTurns } }
               : {}),
           },
         );
@@ -195,7 +195,7 @@ export function createOrdinaryTool(pi: ExtensionAPI, discovery: AgentDiscovery, 
         }
       };
 
-      if ((rawParams as SubagentParamsType & { runInForeground?: boolean }).runInForeground) {
+      if (rawParams.runInForeground) {
         const result = await watchSubagent(running, signal ?? new AbortController().signal);
         rememberFinished(result);
         const usage = resolveUsageDetails(result, ctx);
@@ -281,10 +281,6 @@ export function createOrdinaryTool(pi: ExtensionAPI, discovery: AgentDiscovery, 
           status: "started",
         },
       };
-    },
-
-    ...ordinaryToolRenderers,
-  });
-  return ordinaryTool;
+  };
 }
-export type OrdinaryTool = ReturnType<typeof createOrdinaryTool>;
+export type OrdinaryExecutor = ReturnType<typeof createOrdinaryExecutor>;

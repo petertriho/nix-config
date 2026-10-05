@@ -95,8 +95,82 @@ export interface WorkflowOwner {
 	readonly ownershipId: string;
 }
 
-export type WorkflowProviderOperation =
-	| "ping" | "profiles" | "inspect" | "launch" | "resume" | "recover" | "stop" | "update-metadata";
+export interface WorkflowLaunchRequest {
+	readonly agentId: string;
+	readonly name: string;
+	readonly task: string;
+	readonly model: { readonly provider: string; readonly model: string; readonly thinking?: string };
+	readonly workflow: WorkflowMetadata;
+	readonly repositoryRoot: string;
+}
+
+/** Wire metadata, not a validated or version-coupled persisted sidecar. */
+export interface WorkflowMetadata {
+	readonly version: number;
+	readonly workflowId: string;
+	readonly runId: string;
+	readonly roleId: string;
+	readonly manifestHash: string;
+	readonly skillHash: string;
+	readonly policy: string;
+	readonly assignmentSource: string;
+	readonly projectRoot: string;
+	readonly originalDefault?: { readonly provider: string; readonly model: string; readonly thinking?: string };
+	readonly currentDefault?: { readonly provider: string; readonly model: string; readonly thinking?: string };
+	readonly data: object;
+}
+
+export interface WorkflowSavedRequest {
+	readonly sessionPath: string;
+	readonly expected: {
+		readonly agentId: string;
+		readonly profileHash: string;
+		readonly model?: { readonly provider: string; readonly model: string; readonly thinking?: string };
+		readonly contextTokens?: number;
+	};
+	readonly workflow: WorkflowMetadata;
+	readonly repositoryRoot: string;
+	readonly name?: string;
+	readonly message?: string;
+	readonly rolloverMessage?: string;
+	readonly model?: { readonly provider: string; readonly model: string; readonly thinking?: string };
+	readonly allowRollover?: boolean;
+	readonly allowUserModelSelection?: boolean;
+}
+
+export interface WorkflowRecoveryRequest extends WorkflowSavedRequest {
+	readonly failure: string;
+	readonly model: { readonly provider: string; readonly model: string; readonly thinking?: string };
+}
+
+/** Canonical operation/request/outcome pairing for version 1 event messages. */
+export interface WorkflowProviderOperations {
+	ping: { readonly request: Record<string, never>; readonly outcome: { readonly alive: true } };
+	profiles: {
+		readonly request: { readonly requiredAgents: readonly string[] };
+		readonly outcome: { readonly profiles: readonly WorkflowAgentProfile[] };
+	};
+	inspect: { readonly request: WorkflowSavedRequest; readonly outcome: WorkflowRoleFacts };
+	launch: { readonly request: WorkflowLaunchRequest; readonly outcome: WorkflowRoleFacts & { readonly accepted: true } };
+	resume: { readonly request: WorkflowSavedRequest; readonly outcome: WorkflowRoleFacts };
+	recover: { readonly request: WorkflowRecoveryRequest; readonly outcome: WorkflowRoleFacts };
+	stop: {
+		/** No path: cancel/drain this owner's pending starts and stop all its children before confirming. */
+		readonly request: { readonly sessionPath?: string };
+		readonly outcome: { readonly stopped: true };
+	};
+	"update-metadata": { readonly request: WorkflowSavedRequest; readonly outcome: { readonly confirmed: true } };
+}
+
+export type WorkflowProviderOperation = keyof WorkflowProviderOperations;
+export type WorkflowProviderPayloads = {
+	readonly [K in WorkflowProviderOperation]: WorkflowProviderOperations[K]["request"];
+};
+type OperationOutcomes = {
+	[K in WorkflowProviderOperation]: WorkflowProviderOperations[K]["outcome"];
+};
+/** Keep the existing public interface while deriving its outcomes from the pairing. */
+export interface WorkflowProviderOutcomes extends OperationOutcomes {}
 
 const REQUEST_TIMEOUT_MS: Record<WorkflowProviderOperation, number> = {
 	ping: 1_000,
@@ -108,6 +182,11 @@ const REQUEST_TIMEOUT_MS: Record<WorkflowProviderOperation, number> = {
 	stop: 10_000,
 	"update-metadata": 10_000,
 };
+
+/** Validate operation names at unknown event ingress using the contract's complete timeout table. */
+export function isWorkflowProviderOperation(value: unknown): value is WorkflowProviderOperation {
+	return typeof value === "string" && Object.hasOwn(REQUEST_TIMEOUT_MS, value);
+}
 
 export const WORKFLOW_PROVIDER_REQUEST_CHANNEL = "pi-workflows:provider:request";
 export const WORKFLOW_PROVIDER_DELIVERY_CHANNEL = "pi-workflows:provider:delivery";
@@ -123,6 +202,7 @@ function validOwner(owner: WorkflowOwner): boolean {
 		.every((part) => typeof part === "string" && part.length > 0);
 }
 
+/** Compatible correlation envelope: unknown payloads still require provider validation. */
 export interface WorkflowProviderRequest<T = unknown> {
 	readonly requestId: string;
 	readonly providerId: string;
@@ -131,6 +211,11 @@ export interface WorkflowProviderRequest<T = unknown> {
 	readonly operation: WorkflowProviderOperation;
 	readonly payload: T;
 }
+
+/** Narrowing operation also narrows payload; arbitrary event data is not this type. */
+export type WorkflowProviderRequestFor<K extends WorkflowProviderOperation = WorkflowProviderOperation> = {
+	[P in K]: WorkflowProviderRequest<WorkflowProviderPayloads[P]> & { readonly operation: P };
+}[K];
 
 /** Adapter-validated role session identity and facts; no transport-specific data. */
 export interface WorkflowRoleFacts {
@@ -184,18 +269,6 @@ export interface WorkflowAgentProfile {
 	readonly hash: string;
 }
 
-export interface WorkflowProviderOutcomes {
-	ping: { readonly alive: true };
-	profiles: { readonly profiles: readonly WorkflowAgentProfile[] };
-	inspect: WorkflowRoleFacts;
-	launch: WorkflowRoleFacts & { readonly accepted: true };
-	resume: WorkflowRoleFacts;
-	recover: WorkflowRoleFacts;
-	/** With no sessionPath, cancel/drain this owner's pending starts and stop all its children before confirming. */
-	stop: { readonly stopped: true };
-	"update-metadata": { readonly confirmed: true };
-}
-
 /** A launch may own a child, but its facts or cleanup were not confirmed. */
 export class WorkflowProviderCleanupRequiredError extends Error {
 	readonly sessionPath: string | undefined;
@@ -221,21 +294,23 @@ export function requestWorkflowProvider<K extends WorkflowProviderOperation>(
 	providerIdentity: WorkflowProvider,
 	operation: K,
 	owner: WorkflowOwner,
-	payload: unknown,
+	payload: WorkflowProviderPayloads[NoInfer<K>],
 	options: { timeoutMs?: number; signal?: AbortSignal; requestId?: string } = {},
 ): Promise<{ requestId: string; data: WorkflowProviderOutcomes[K] }> {
 	const wait = timeout(options.timeoutMs, MAX_REQUEST_TIMEOUT_MS, REQUEST_TIMEOUT_MS[operation]);
 	if (!provider(providerIdentity) || !validOwner(owner)) {
 		return Promise.reject(new Error("Invalid workflow provider or role ownership"));
 	}
+	// TypeScript callers are typed; JavaScript event peers still supply unknown data.
+	const ingressPayload: unknown = payload;
 	if ((operation === "inspect" || operation === "resume" || operation === "recover")
-		&& (!record(payload) || !nonempty(payload.sessionPath) || !record(payload.expected)
-			|| !nonempty(payload.expected.agentId) || !nonempty(payload.expected.profileHash))) {
+		&& (!record(ingressPayload) || !nonempty(ingressPayload.sessionPath) || !record(ingressPayload.expected)
+			|| !nonempty(ingressPayload.expected.agentId) || !nonempty(ingressPayload.expected.profileHash))) {
 		return Promise.reject(new Error("Workflow provider requires expected session and profile identity"));
 	}
 	if (options.signal?.aborted) return Promise.reject(new Error("Workflow provider request cancelled"));
 	const requestId = options.requestId ?? randomUUID();
-	const request: WorkflowProviderRequest = {
+	const request: WorkflowProviderRequest<WorkflowProviderPayloads[K]> = {
 		requestId, providerId: providerIdentity.providerId, instanceId: providerIdentity.instanceId,
 		owner: { ...owner }, operation, payload,
 	};

@@ -30,19 +30,15 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import {
 	fingerprintStrings,
+	hashText,
 	readLaunchProfile,
 	writeLaunchProfile,
 	type LaunchProfileWorkflowMetadata,
 } from "../execution/launch-profile.ts";
-import type {
-	BackgroundWatchOptions,
-	ResumeLifecycleContext,
-	ResumeRecoveryContext,
-	RunningSubagent,
-	SubagentLaunchParams,
-	SubagentResumeParams,
-} from "../execution/types.ts";
-import { createStatusState } from "../telemetry/status.ts";
+import type { RunningSubagent } from "../execution/types.ts";
+import type { WorkflowEventClient } from "../adapters/workflow-client.ts";
+import { FakeWorkflowProviderExecution, createWorkflowEventExecutionFixture } from "./helpers/workflow-event-execution.ts";
+import { until } from "./helpers/workflow.ts";
 import { loadWorkflowDefinitionFromPackage } from "../workflow/schema.ts";
 import { buildWorkflowRolloverHandoffForRun } from "../workflow/handoff.ts";
 import { buildWorkflowRecoveryMessage, buildWorkflowRecoveryLabels } from "../workflow/recovery.ts";
@@ -58,7 +54,6 @@ import {
 import {
 	createWorkflowLifecycleTools,
 	registerWorkflowLifecycleTools,
-	type WorkflowSubagentExecution,
 	type WorkflowToolDependencies,
 	type WorkflowToolStateStore,
 } from "../workflow/tools.ts";
@@ -114,6 +109,8 @@ async function withTempDir<T>(
 		execFileSync("git", ["init", "-q", root]);
 		return await run(root);
 	} finally {
+		for (const fixture of fixturesByRoot.get(root) ?? []) fixture.dispose();
+		fixturesByRoot.delete(root);
 		rmSync(root, { recursive: true, force: true });
 	}
 }
@@ -204,92 +201,14 @@ class StateStore implements WorkflowToolStateStore {
 	}
 }
 
-class FakeExecution implements WorkflowSubagentExecution {
-	stopSubagent(running: RunningSubagent): void {
-		running.abortController?.abort();
-	}
-	launch?: {
-		params: SubagentLaunchParams;
-		options: {
-			workflow?: LaunchProfileWorkflowMetadata;
-			resolvedModel?: { selection: { provider: string; model: string; thinking?: string } };
-		};
-	};
-	watch?: BackgroundWatchOptions;
-	resume?: {
-		params: SubagentResumeParams;
-		recovery?: ResumeRecoveryContext;
-		lifecycle?: ResumeLifecycleContext;
-	};
-	replacementSessionPath?: string;
-	resumeError?: Error;
-	nextSessionPath = "/tmp/workflow-child.jsonl";
-
-	async launchSubagent(
-		params: SubagentLaunchParams,
-		_ctx: any,
-		options: any = {},
-	): Promise<RunningSubagent> {
-		this.launch = { params, options };
-		return {
-			id: "child-1",
-			name: params.name,
-			task: params.task,
-			agent: params.agent,
-			surface: "%1",
-			startTime: 0,
-			sessionFile: this.nextSessionPath,
-			launchScriptFile: "/tmp/launch.sh",
-			statusState: createStatusState({ source: "pi", startTimeMs: 0 }),
-			interactive: false,
-		};
-	}
-
-	watchInBackground(options: BackgroundWatchOptions): AbortController {
-		this.watch = options;
-		return new AbortController();
-	}
-
-	async executeSubagentResume(
-		_pi: any,
-		params: SubagentResumeParams,
-		_ctx: any,
-		recovery?: ResumeRecoveryContext,
-		lifecycle?: ResumeLifecycleContext,
-	) {
-		this.resume = { params, recovery, lifecycle };
-		if (this.resumeError) throw this.resumeError;
-		const sessionPath = this.replacementSessionPath ?? params.sessionPath;
-		await lifecycle?.onLaunched?.({
-			running: {
-				id: "resume-1",
-				name: params.name ?? "Resume",
-				task: params.message ?? "resumed session",
-				surface: "%2",
-				startTime: 0,
-				sessionFile: sessionPath,
-				statusState: createStatusState({ source: "pi", startTimeMs: 0 }),
-				interactive: false,
-			},
-			replacement: Boolean(this.replacementSessionPath),
-			originalSessionPath: params.sessionPath,
-			sessionPath,
-		});
-		return {
-			content: [{ type: "text" as const, text: "resume started" }],
-			details: {
-				status: "started",
-				sessionPath,
-				...(this.replacementSessionPath
-					? {
-						rollover: "fresh",
-						replacementSessionPath: this.replacementSessionPath,
-					}
-					: {}),
-			},
-		};
+class FakeExecution extends FakeWorkflowProviderExecution {
+	fixture?: ReturnType<typeof createWorkflowEventExecutionFixture>;
+	constructor(root: string) {
+		super(root, { scribe: "You are scribe.", "fact-checker": "You are fact-checker." });
 	}
 }
+
+const fixturesByRoot = new Map<string, Set<ReturnType<typeof createWorkflowEventExecutionFixture>>>();
 
 function startState(
 	root: string,
@@ -346,9 +265,12 @@ function toolContext(
 			scopedModels: [],
 			modelRegistry: { getAvailable: () => TEST_MODELS },
 			hasUI: true,
+			isIdle: () => true,
 			ui: {
 				select: async (title: string, choices: string[]) => {
 					selectionCalls.push({ title, choices });
+					if (title === "Select subagent model") return choices.find((choice) => choice.startsWith("other/recovery-model"));
+					if (title.startsWith("Thinking for ")) return "high";
 					return selected.shift();
 				},
 				notify: (message: string, level: string) => {
@@ -364,19 +286,21 @@ function toolContext(
 function dependencies(
 	store: StateStore,
 	execution: FakeExecution,
+	ctx = toolContext(execution.root).ctx,
 ): WorkflowToolDependencies {
+	if (!execution.fixture) {
+		execution.fixture = createWorkflowEventExecutionFixture(execution, ctx, { sendMessage() {} });
+		const fixtures = fixturesByRoot.get(execution.root) ?? new Set();
+		fixtures.add(execution.fixture);
+		fixturesByRoot.set(execution.root, fixtures);
+	}
+	return eventDependencies(store, execution.fixture.client);
+}
+
+function eventDependencies(store: StateStore, eventExecution: WorkflowEventClient): WorkflowToolDependencies {
 	return {
 		state: store,
-		execution,
-		loadAgentDefaults: (agentName) =>
-			agentName === "scribe" || agentName === "fact-checker"
-				? { body: `You are ${agentName}.`, autoExit: true }
-				: null,
-		isTmuxAvailable: () => true,
-		muxUnavailableResult: () => ({
-			content: [{ type: "text", text: "tmux unavailable" }],
-			details: { error: "tmux not available" },
-		}),
+		eventExecution,
 	};
 }
 
@@ -415,7 +339,8 @@ function writeRoleSession(input: {
 	sessionPath: string;
 }): void {
 	mkdirSync(dirname(input.sessionPath), { recursive: true });
-	writeFileSync(input.sessionPath, "{}\n");
+	writeFileSync(input.sessionPath, `${JSON.stringify({ type: "session", version: 3, id: input.roleId,
+		cwd: input.root, timestamp: "2026-09-01T12:00:00.000Z" })}\n`);
 	const role = input.definition.roleById[input.roleId]!;
 	const data = {
 		draft: join(input.root, ".artifacts", "docs", "DRAFT.md"),
@@ -428,7 +353,7 @@ function writeRoleSession(input: {
 			agentName: role.agent,
 			displayName: role.label,
 			roleBody: `You are ${role.agent}.`,
-			roleBodyHash: "a".repeat(64),
+			roleBodyHash: hashText(`You are ${role.agent}.`),
 			systemPromptMode: "append",
 			cwd: input.root,
 			agentDir: input.root,
@@ -500,10 +425,10 @@ function registeredLifecycle(deps: WorkflowToolDependencies) {
 
 const LAUNCH_TOOLS = ["workflow_spawn", "workflow_resume", "workflow_recover"] as const;
 
-test("direct workflow_spawn propagates cancellation while execution launch is pending", async () => {
+test("event workflow_spawn propagates cancellation while execution launch is pending", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const entered = deferred<void>();
 		const release = deferred<void>();
 		const launch = execution.launchSubagent.bind(execution);
@@ -536,14 +461,14 @@ test("direct workflow_spawn propagates cancellation while execution launch is pe
 });
 
 for (const name of ["workflow_resume", "workflow_recover"]) {
-	test(`direct ${name} propagates cancellation while shared resume is pending`, async () => {
+	test(`event ${name} propagates cancellation while shared resume is pending`, async () => {
 		await withTempDir(async (root) => {
 			const definition = loadDefinition(root);
 			const store = new StateStore(startState(root, definition));
 			const sessionPath = join(root, "cancelled-role.jsonl");
 			writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
 			recordSession(store, "run-docs", "author", sessionPath);
-			const execution = new FakeExecution();
+			const execution = new FakeExecution(root);
 			const entered = deferred<void>();
 			const release = deferred<void>();
 			const resume = execution.executeSubagentResume.bind(execution);
@@ -576,14 +501,14 @@ for (const name of ["workflow_resume", "workflow_recover"]) {
 	});
 }
 
-test("direct workflow recovery stops at a cancelled user gate before recording a launch", async () => {
+test("event workflow recovery stops at a cancelled user gate before recording a launch", async () => {
 	await withTempDir(async (root) => {
 		const definition = loadDefinition(root);
 		const store = new StateStore(startState(root, definition));
 		const sessionPath = join(root, "gate-cancelled.jsonl");
 		writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
 		recordSession(store, "run-docs", "author", sessionPath);
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const registered = registeredLifecycle(dependencies(store, execution));
 		const caller = new AbortController();
 		const { ctx } = toolContext(root);
@@ -609,7 +534,7 @@ test("direct workflow recovery stops at a cancelled user gate before recording a
 test("workflow lifecycle tools are model-only and mark rejected calls as errors", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const registered = registeredLifecycle(dependencies(store, new FakeExecution()));
+		const registered = registeredLifecycle(dependencies(store, new FakeExecution(root)));
 		const { ctx } = toolContext(root);
 		try {
 			for (const name of [...LAUNCH_TOOLS, "workflow_complete"]) {
@@ -633,7 +558,8 @@ test("workflow lifecycle tools are model-only and mark rejected calls as errors"
 test("workflow spawn marks unavailable execution and missing parent sessions as errors", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const deps = dependencies(store, new FakeExecution());
+		const execution = new FakeExecution(root);
+		const deps = dependencies(store, execution);
 		const registered = registeredLifecycle(deps);
 		const { ctx } = toolContext(root);
 		const params = { runId: "run-docs", role: "author", task: "Draft" };
@@ -642,7 +568,8 @@ test("workflow spawn marks unavailable execution and missing parent sessions as 
 			const missingSession = await registered.call("workflow_spawn", params, ctx);
 			assert.equal(missingSession.isError, true);
 			assert.equal(missingSession.details.error, "no session file");
-			deps.isTmuxAvailable = () => false;
+			ctx.sessionManager.getSessionFile = () => join(root, "parent.jsonl");
+			execution.fixture!.setAvailable(false);
 			const unavailable = await registered.call("workflow_spawn", params, ctx);
 			assert.equal(unavailable.isError, true);
 		} finally {
@@ -668,7 +595,7 @@ test("SDK codemode excludes workflow lifecycle tools and preserves nested struct
 						baseUrl: "https://unused.test", apiKey: "test-only",
 						api: "anthropic-messages", models: [TEST_MODELS[0]],
 					});
-					registerWorkflowLifecycleTools(pi, dependencies(store, new FakeExecution()));
+					registerWorkflowLifecycleTools(pi, dependencies(store, new FakeExecution(root)));
 					pi.registerTool({
 						name: "read_probe", label: "Read probe", description: "Read a test value.",
 						parameters: Type.Object({}),
@@ -759,7 +686,7 @@ for (const first of LAUNCH_TOOLS) {
 				version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
 			}, { requestTimeoutMs: 2_000, livenessIntervalMs: 10_000 });
 			const registered = registeredLifecycle({
-				...dependencies(store, new FakeExecution()), execution: undefined, eventExecution: client,
+				...eventDependencies(store, client),
 			});
 			const { ctx } = toolContext(root);
 			ctx.ui.select = async (_title: string, choices: string[]) => choices[0];
@@ -858,7 +785,7 @@ for (const first of LAUNCH_TOOLS) {
 		});
 	});
 
-	test(`registered ${first} excludes concurrent legacy launches and retains child ownership`, { timeout: 5_000 }, async () => {
+	test(`registered ${first} excludes concurrent provider-service launches and retains child ownership`, { timeout: 5_000 }, async () => {
 		await withTempDir(async (root) => {
 			const definition = loadDefinition(root);
 			const store = new StateStore(startState(root, definition));
@@ -867,7 +794,7 @@ for (const first of LAUNCH_TOOLS) {
 				writeRoleSession({ root, definition, runId: "run-docs", roleId, sessionPath });
 				recordSession(store, "run-docs", roleId, sessionPath);
 			}
-			const execution = new FakeExecution();
+			const execution = new FakeExecution(root);
 			execution.nextSessionPath = join(root, "author-launched.jsonl");
 			const started = deferred<void>();
 			const release = deferred<void>();
@@ -933,7 +860,7 @@ test("registered recovery cancellation releases the reservation for a later laun
 		writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
 		recordSession(store, "run-docs", "author", sessionPath);
 		const saved = getActiveWorkflowRun(store.state)!;
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const registered = registeredLifecycle(dependencies(store, execution));
 		const { ctx } = toolContext(root);
 		const gate = deferred<void>();
@@ -966,10 +893,9 @@ test("registered recovery cancellation releases the reservation for a later laun
 test("registered launch errors release the reservation before retry", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const deps = dependencies(store, execution);
-		const loadDefaults = deps.loadAgentDefaults;
-		deps.loadAgentDefaults = () => { throw new Error("preflight failed"); };
+		execution.profileError = new Error("preflight failed");
 		const registered = registeredLifecycle(deps);
 		const { ctx } = toolContext(root);
 		const params = { runId: "run-docs", role: "author", task: "Draft" };
@@ -977,7 +903,7 @@ test("registered launch errors release the reservation before retry", async () =
 		try {
 			assert.match((await registered.call("workflow_spawn", params, ctx)).details.message, /preflight failed/);
 			assert.equal(registered.lifecycle.hasOwnedRole(), false);
-			deps.loadAgentDefaults = loadDefaults;
+			execution.profileError = undefined;
 			execution.launchSubagent = async () => { throw new Error("launch failed"); };
 			assert.match((await registered.call("workflow_spawn", params, ctx)).details.message, /launch failed/);
 			assert.equal(registered.lifecycle.hasOwnedRole(), false);
@@ -997,10 +923,11 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 		execFileSync("git", ["-C", root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
 		const definition = loadDefinition(root);
 		const store = new StateStore(startState(root, definition));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		execution.nextSessionPath = join(root, "author-1.jsonl");
+		const messages: any[] = [];
 		const lifecycle = createWorkflowLifecycleTools(
-			{ sendMessage() {} } as any,
+			{ sendMessage(message: any) { messages.push(message); } } as any,
 			dependencies(store, execution),
 		);
 		const { ctx } = toolContext(root);
@@ -1034,8 +961,8 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 		assert.equal(active?.data.ticket, "DOC-99");
 		assert.ok(store.persisted.length >= 3);
 
-		const asyncResult = await execution.watch!.onSuccess({
-			result: {
+		execution.watch!.running.surfaceClosed = true;
+		execution.watch!.resolve({
 				name: "Documentation author",
 				task: "Draft the deployment guide.",
 				summary: "Draft complete.",
@@ -1043,9 +970,10 @@ test("workflow_spawn resolves arbitrary manifest roles, typed data, models, side
 				exitCode: 0,
 				elapsed: 2,
 				responded: true,
-			},
 		});
-		assert.match(asyncResult.content, /Draft complete/);
+		await until(() => messages.length === 1);
+		assert.match(messages[0].content, /Draft complete/);
+		assert.equal(messages[0].customType, "subagent_result");
 		active = getActiveWorkflowRun(store.getState());
 		assert.equal(active?.activeLaunch?.status, "completed");
 	});
@@ -1088,7 +1016,7 @@ test("registered event-backed spawn delivers an early ping and retains confirmed
 			sendMessage(message: unknown) { messages.push(message); },
 			registerTool(tool: ToolDefinition<any, any>) { tools.set(tool.name, tool); },
 		} as any, {
-			...dependencies(store, new FakeExecution()), execution: undefined, eventExecution: client,
+			...eventDependencies(store, client),
 		});
 		const { ctx } = toolContext(root);
 		try {
@@ -1162,8 +1090,7 @@ test("event-backed spawn delivers correlated result and tree navigation requires
 		});
 		const messages: any[] = [];
 		const deps = {
-			...dependencies(store, new FakeExecution()), execution: undefined, eventExecution: client,
-			loadAgentDefaults: () => null, isTmuxAvailable: () => false,
+			...eventDependencies(store, client),
 		};
 		const lifecycle = createWorkflowLifecycleTools({ sendMessage: (message: unknown) => messages.push(message) } as any, deps);
 		const { ctx } = toolContext(root);
@@ -1209,39 +1136,11 @@ test("event-backed completion accepts a staged change without a workflow write p
 		execFileSync("git", ["-C", root, "add", "README.md"]);
 		execFileSync("git", ["-C", root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "init"]);
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const execution = new FakeExecution();
-		const listeners = new Map<string, Set<(value: unknown) => void>>();
-		const events: WorkflowEventBus = {
-			on(channel, handler) {
-				const set = listeners.get(channel) ?? new Set();
-				set.add(handler);
-				listeners.set(channel, set);
-				return () => set.delete(handler);
-			},
-			emit(channel, value) { for (const handler of [...(listeners.get(channel) ?? [])]) handler(value); },
-		};
-		const client = createWorkflowEventClient(events, {
-			providerId: "pi-agent-teams", instanceId: "one",
-			version: WORKFLOW_PROVIDER_VERSION, ready: true, capabilities: WORKFLOW_PROVIDER_CAPABILITIES,
-		}, { requestTimeoutMs: 30, livenessIntervalMs: 1_000 });
-		let launched: any;
-		const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
-			const request = value as any;
-			const data = request.operation === "ping" ? { alive: true }
-				: request.operation === "profiles" ? { profiles: [{ agentId: "fact-checker", path: "/agents/fact-checker.md", hash: "profile" }] }
-				: {
-					accepted: true, sessionPath: join(root, "role.jsonl"),
-					profile: { agentId: "fact-checker", path: "/agents/fact-checker.md", hash: "profile" },
-					model: request.payload.model, context: { tokens: 10, source: "saved" },
-					metadataConfirmed: true,
-				};
-			if (request.operation === "launch") launched = request;
-			events.emit(`pi-workflows:provider:reply:${request.requestId}`, { ...request, ok: true, data });
-		});
+		const execution = new FakeExecution(root);
 		const messages: any[] = [];
 		const lifecycle = createWorkflowLifecycleTools(
 			{ sendMessage: (message: unknown) => messages.push(message) } as any,
-			{ ...dependencies(store, execution), eventExecution: client },
+			dependencies(store, execution),
 		);
 		const { ctx } = toolContext(root);
 		await lifecycle.spawn({ runId: "run-docs", role: "verifier", task: "verify" }, ctx);
@@ -1250,26 +1149,23 @@ test("event-backed completion accepts a staged change without a workflow write p
 		assert.equal(execFileSync("git", ["-C", root, "status", "--porcelain", "--", "README.md"], {
 			encoding: "utf8",
 		}), "M  README.md\n");
-		events.emit(WORKFLOW_PROVIDER_DELIVERY_CHANNEL, {
-			...launched, kind: "result", result: {
-				sessionPath: join(root, "role.jsonl"), status: "completed",
-				message: "Draft complete",
-			},
+		execution.watch!.running.surfaceClosed = true;
+		execution.watch!.resolve({
+			name: "Documentation verifier", task: "verify", summary: "Draft complete",
+			sessionFile: execution.nextSessionPath, exitCode: 0, elapsed: 0,
 		});
-		await new Promise((resolve) => setImmediate(resolve));
+		await until(() => messages.length === 1);
 		assert.equal(messages.length, 1);
 		assert.match(messages[0].content, /Workflow role "Documentation verifier" \(verifier\) completed\. Result:/);
 		assert.equal(messages[0].customType, "subagent_result");
 		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "completed");
-		off();
-		client.dispose();
 	});
 });
 
 test("tree navigation waits for a pending spawn and stops it without publishing late role state", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
 		const { ctx } = toolContext(root);
 		const launch = execution.launchSubagent.bind(execution);
@@ -1294,7 +1190,8 @@ test("tree navigation waits for a pending spawn and stops it without publishing 
 		await navigation;
 		assert.match(String(await outcome), /branch|navigation/i);
 		assert.equal(stopped.length, 1);
-		assert.equal(execution.watch, undefined);
+		assert.equal(execution.watch?.signal.aborted, true, "navigation leaves no live watcher");
+		assert.equal(execution.fixture!.deliveries.length, 0, "the revoked watcher cannot publish a result");
 		assert.equal(store.persisted.length, persistedBefore + 1, "only the stop may persist an interrupted transition");
 		assert.equal(store.persisted.at(-1)?.activeLaunch?.status, "interrupted");
 		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.author, undefined);
@@ -1304,7 +1201,7 @@ test("tree navigation waits for a pending spawn and stops it without publishing 
 test("stopping for tree navigation persists interruption even when navigation is later cancelled", async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
 		const { ctx } = toolContext(root);
 		await lifecycle.spawn({ runId: "run-docs", role: "author", task: "draft" }, ctx);
@@ -1322,8 +1219,15 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 	await withTempDir(async (root) => {
 		const summarize = phase.includes("summarizer");
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
+		execution.settleWatchOnAbort = false;
 		const { ctx } = toolContext(root);
+		const sessionManager = SessionManager.create(root, join(root, "sessions"));
+		ctx.sessionManager = {
+			getSessionFile: () => sessionManager.getSessionFile(),
+			getSessionId: () => sessionManager.getSessionId(),
+			getSessionDir: () => join(root, "sessions"),
+		};
 		let lifecycle!: ReturnType<typeof createWorkflowLifecycleTools>;
 		let launchCount = 0;
 		const launch = execution.launchSubagent.bind(execution);
@@ -1344,7 +1248,7 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 						baseUrl: "https://unused.test", apiKey: "test-only", api: "anthropic-messages",
 						models: [TEST_MODELS[0]],
 					});
-					lifecycle = registerWorkflowLifecycleTools(pi, dependencies(store, execution));
+					lifecycle = registerWorkflowLifecycleTools(pi, dependencies(store, execution, ctx));
 					pi.on("session_before_tree", async (event) => {
 						navigationSignal = event.signal;
 						await lifecycle.stopBeforeTree();
@@ -1371,7 +1275,6 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 			modelsStorePath: join(root, "models-store.json"),
 		});
 		await modelRuntime.setRuntimeApiKey("anthropic", "test-only");
-		const sessionManager = SessionManager.create(root, join(root, "sessions"));
 		const target = sessionManager.appendCustomEntry("target", {});
 		sessionManager.appendMessage({ role: "user", content: "abandoned work", timestamp: 1 });
 		const { session } = await createAgentSession({
@@ -1444,9 +1347,10 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 				"native cancellation/errors do not reliably abort the navigation signal");
 			const persisted = store.persisted.length;
 			const result = { name: "Author", task: "draft", summary: "late", exitCode: 0, elapsed: 1 };
-			await old.onSuccess({ result });
-			await old.onError("late failure");
-			await old.onPing!({ result: { ...result, ping: { name: "Author", message: "help" } } });
+			old.resolve(result);
+			old.reject(new Error("late failure"));
+			old.resolve({ ...result, ping: { name: "Author", message: "help" } });
+			await new Promise((resolve) => setTimeout(resolve, 0));
 			assert.equal(store.persisted.length, persisted);
 			assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "interrupted");
 			await session.prompt("Continue the restored workflow.");
@@ -1454,16 +1358,19 @@ test(`SDK navigation blocks ordinary-completion role launches during ${phase} an
 			assert.equal(launchCount, 2, "the next idle prompt launches exactly one fresh role");
 		} finally {
 			releaseHandler.resolve();
+			lifecycle.endSession();
 			session.dispose();
 		}
 	});
 });
 }
 
-test("old spawn success, error, and ping callbacks cannot change the restored interrupted role", async () => {
+for (const delivery of ["success", "error", "ping"] as const) {
+test(`old spawn ${delivery} callback cannot change the restored interrupted role`, async () => {
 	await withTempDir(async (root) => {
 		const store = new StateStore(startState(root, loadDefinition(root)));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
+		execution.settleWatchOnAbort = false;
 		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
 		const { ctx } = toolContext(root);
 		await lifecycle.spawn({ runId: "run-docs", role: "author", task: "draft" }, ctx);
@@ -1479,13 +1386,15 @@ test("old spawn success, error, and ping callbacks cannot change the restored in
 		assert.equal(getActiveWorkflowRun(restored)?.activeLaunch?.status, "interrupted");
 		const count = store.persisted.length;
 		const result = { name: "Author", task: "draft", summary: "late", exitCode: 0, elapsed: 1 };
-		await old.onSuccess({ result });
-		await old.onError("late failure");
-		await old.onPing!({ result: { ...result, ping: { name: "Author", message: "help" } } });
+		if (delivery === "error") old.reject(new Error("late failure"));
+		else old.resolve(delivery === "ping" ? { ...result, ping: { name: "Author", message: "help" } } : result);
+		await new Promise((resolve) => setTimeout(resolve, 0));
 		assert.equal(store.state, restored);
 		assert.equal(store.persisted.length, count);
+		assert.equal(execution.fixture!.deliveries.length, 0);
 	});
 });
+}
 
 test("tree navigation ends recovery ownership even when the restored branch has identical role session IDs", async () => {
 	await withTempDir(async (root) => {
@@ -1494,7 +1403,7 @@ test("tree navigation ends recovery ownership even when the restored branch has 
 		const sessionPath = join(root, "author.jsonl");
 		writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
 		recordSession(store, "run-docs", "author", sessionPath);
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const stopped: RunningSubagent[] = [];
 		execution.stopSubagent = (running) => { stopped.push(running); };
 		const lifecycle = createWorkflowLifecycleTools({} as any, dependencies(store, execution));
@@ -1532,7 +1441,7 @@ for (const replacement of [false, true]) {
 			const sessionPath = join(root, "author.jsonl");
 			writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
 			recordSession(store, "run-docs", "author", sessionPath);
-			const execution = new FakeExecution();
+			const execution = new FakeExecution(root);
 			if (replacement) execution.replacementSessionPath = join(root, "replacement.jsonl");
 			const started = deferred<void>();
 			const release = deferred<void>();
@@ -1578,7 +1487,7 @@ test("workflow_resume resolves the current role session and fresh replacements p
 			sessionPath,
 		});
 		recordSession(store, "run-docs", "verifier", sessionPath);
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const lifecycle = createWorkflowLifecycleTools(
 			{ sendMessage() {} } as any,
 			dependencies(store, execution),
@@ -1637,7 +1546,7 @@ test("workflow_resume marks a starting launch failed when shared resume throws",
 			sessionPath,
 		});
 		recordSession(store, "run-docs", "verifier", sessionPath);
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		execution.resumeError = new Error("resume launch exploded");
 		const lifecycle = createWorkflowLifecycleTools(
 			{ sendMessage() {} } as any,
@@ -1680,12 +1589,12 @@ test("workflow_recover uses manifest labels and handoff, then overrides only the
 			sessionPath,
 		});
 		recordSession(store, "run-docs", "verifier", sessionPath);
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const lifecycle = createWorkflowLifecycleTools(
 			{ sendMessage() {} } as any,
 			dependencies(store, execution),
 		);
-		const { ctx, notifications, selectionCalls } = toolContext(root, [
+		const { ctx, selectionCalls } = toolContext(root, [
 			"Select a replacement model and thinking level",
 		]);
 
@@ -1700,13 +1609,12 @@ test("workflow_recover uses manifest labels and handoff, then overrides only the
 		);
 		assert.equal(result.details.status, "started");
 		assert.equal(selectionCalls[0]?.title, "Recover the Documentation verifier role?");
-		assert.match(notifications[0]?.[0] ?? "", /Documentation verifier role failed/);
+		assert.match(execution.resume?.recovery?.failure.message ?? "", /Provider quota exhausted/);
+		assert.equal(execution.resume?.recovery?.failure.kind, "usage");
 		assert.equal(execution.resume?.params.sessionPath, sessionPath);
-		assert.equal(execution.resume?.params.model, "pick");
-		assert.equal(
-			execution.resume?.recovery?.pickerTitle,
-			"Resume model for Documentation verifier recovery",
-		);
+		assert.equal(execution.resume?.params.model, "other/recovery-model:high");
+		assert.equal(selectionCalls[1]?.title, "Select subagent model");
+		assert.equal(selectionCalls[2]?.title, "Thinking for Documentation verifier — other/recovery-model");
 		assert.match(
 			execution.resume?.params.message ?? "",
 			/Verify the current draft independently and update only the report/,
@@ -1719,6 +1627,14 @@ test("workflow_recover uses manifest labels and handoff, then overrides only the
 			model: "recovery-model",
 			thinking: "high",
 		});
+		assert.deepEqual(getActiveWorkflowRun(store.state)?.currentAssignments, getActiveWorkflowRun(store.state)?.originalAssignments,
+			"response evidence alone cannot promote before a correlated result");
+		await execution.completeResume({
+			name: "Documentation verifier", task: "Recover", summary: "Recovery complete.",
+			sessionFile: sessionPath, exitCode: 0, elapsed: 0, responded: true,
+		});
+		await until(() => Boolean(getActiveWorkflowRun(store.state)?.currentAssignments?.verifier
+			&& (getActiveWorkflowRun(store.state)!.currentAssignments!.verifier as any).model === "recovery-model"));
 		const active = getActiveWorkflowRun(store.getState());
 		assert.deepEqual(active?.originalAssignments?.verifier, {
 			provider: "openai",
@@ -1752,7 +1668,7 @@ test("workflow_recover marks a starting launch failed when shared recovery resum
 			sessionPath,
 		});
 		recordSession(store, "run-docs", "verifier", sessionPath);
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		execution.resumeError = new Error("recovery launch exploded");
 		const lifecycle = createWorkflowLifecycleTools(
 			{ sendMessage() {} } as any,
@@ -1788,7 +1704,7 @@ test("workflow_complete and abort invalidate old run tokens while preserving aud
 	await withTempDir(async (root) => {
 		const definition = loadDefinition(root);
 		const store = new StateStore(startState(root, definition, "run-complete"));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const lifecycle = createWorkflowLifecycleTools(
 			{ sendMessage() {} } as any,
 			dependencies(store, execution),
@@ -1841,7 +1757,7 @@ test("workflow lifecycle rejects unknown roles and invalid typed data before lau
 	await withTempDir(async (root) => {
 		const definition = loadDefinition(root);
 		const store = new StateStore(startState(root, definition));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const lifecycle = createWorkflowLifecycleTools(
 			{ sendMessage() {} } as any,
 			dependencies(store, execution),
@@ -1886,14 +1802,15 @@ test("skipped spawn, resume, recovery, and handoffs reject before any data, side
 			data: { ticket: "original" },
 		}).state;
 		const store = new StateStore(state);
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		const deps = dependencies(store, execution);
-		deps.loadAgentDefaults = () => { throw new Error("must not load skipped agent"); };
+		execution.profileError = new Error("must not load skipped agent");
 		const lifecycle = createWorkflowLifecycleTools({ sendMessage() {} } as any, deps);
 		const { ctx, notifications, selectionCalls } = toolContext(root);
 		const sessionPath = join(root, "skipped.jsonl");
 		writeRoleSession({ root, definition, runId: "run-skipped", roleId: "verifier", sessionPath });
 		const sidecar = readLaunchProfile(sessionPath);
+		const sessionBytes = readFileSync(sessionPath, "utf8");
 		const before = JSON.stringify(store.state);
 		const common = { runId: "run-skipped", role: "verifier", data: { ticket: "must not persist" } };
 		await assert.rejects(lifecycle.spawn({ ...common, task: "Must not run" }, ctx), /"verifier" is skipped/);
@@ -1906,12 +1823,13 @@ test("skipped spawn, resume, recovery, and handoffs reject before any data, side
 		assert.equal(JSON.stringify(store.state), before);
 		assert.deepEqual(store.persisted, []);
 		assert.deepEqual(readLaunchProfile(sessionPath), sidecar);
-		assert.equal(readFileSync(sessionPath, "utf8"), "{}\n");
+		assert.equal(readFileSync(sessionPath, "utf8"), sessionBytes);
 		assert.equal(execution.launch, undefined);
 		assert.equal(execution.resume, undefined);
 		assert.equal(execution.watch, undefined);
 		assert.deepEqual(notifications, []);
 		assert.deepEqual(selectionCalls, []);
+		assert.equal(execution.fixture!.requests.length, 0, "skipped roles cannot contact the execution provider");
 	});
 });
 
@@ -1919,7 +1837,7 @@ test("enabled optional roles launch and roll over with model-only metadata and d
 	await withTempDir(async (root) => {
 		const definition = loadDefinition(root, true);
 		const store = new StateStore(startState(root, definition));
-		const execution = new FakeExecution();
+		const execution = new FakeExecution(root);
 		execution.nextSessionPath = join(root, "verifier.jsonl");
 		const lifecycle = createWorkflowLifecycleTools({ sendMessage() {} } as any, dependencies(store, execution));
 		const { ctx } = toolContext(root);
@@ -1947,39 +1865,30 @@ test("event resume preserves historical sessions and records a confirmed rollove
 		const definition = loadDefinition(root);
 		const store = new StateStore(startState(root, definition));
 		const sessionPath = join(root, "historical.jsonl");
+		writeRoleSession({ root, definition, runId: "run-docs", roleId: "author", sessionPath });
 		recordSession(store, "run-docs", "author", sessionPath);
-		const result = deferred<any>();
-		const facts = {
-			sessionPath, profile: { agentId: "scribe", path: "/agents/scribe.md", hash: "hash" },
-			model: { provider: "anthropic", model: "author-model" },
-			context: { tokens: 42, source: "saved" }, metadataConfirmed: true,
-		};
 		const replacement = join(root, "replacement.jsonl");
+		const execution = new FakeExecution(root);
+		execution.replacementSessionPath = replacement;
+		execution.contextFacts = { tokens: 42, source: "saved" };
 		const messages: any[] = [];
-		let request: any;
-		const lifecycle = createWorkflowLifecycleTools({ sendMessage: (m: any) => messages.push(m) } as any, {
-			...dependencies(store, new FakeExecution()), execution: undefined,
-			eventExecution: {
-				provider: { providerId: "pi-agent-teams" },
-				preflight: async () => [facts.profile],
-				inspect: async () => facts,
-				resume: async (_owner: any, payload: any) => {
-					request = payload;
-					return { facts: { ...facts, sessionPath: replacement, originalSessionPath: sessionPath, replacement: true },
-						active: false, result: result.promise, stop: async () => {}, dispose() {} };
-				},
-			} as any,
-		});
+		const lifecycle = createWorkflowLifecycleTools(
+			{ sendMessage: (m: any) => messages.push(m) } as any, dependencies(store, execution),
+		);
 		const { ctx } = toolContext(root);
 		const ack = await lifecycle.resume({ runId: "run-docs", role: "author", message: "Continue." }, ctx);
+		const request = execution.fixture!.requests.find((request) => request.operation === "resume")!.payload as any;
 		assert.equal(ack.details.status, "started");
 		assert.equal(request.sessionPath, sessionPath);
 		assert.equal(request.expected.contextTokens, 42);
 		assert.equal(request.allowRollover, true);
 		assert.equal(getActiveWorkflowRun(store.state)?.roleSessions.author.current, replacement);
 		assert.ok(getActiveWorkflowRun(store.state)?.roleSessions.author.history.includes(sessionPath));
-		result.resolve({ sessionPath: replacement, status: "completed", message: "done" });
-		await new Promise((resolve) => setImmediate(resolve));
+		await execution.completeResume({
+			name: "Documentation author", task: "Continue.", sessionFile: replacement,
+			summary: "done", exitCode: 0, elapsed: 0,
+		});
+		await until(() => messages.length === 1);
 		assert.equal(getActiveWorkflowRun(store.state)?.activeLaunch?.status, "completed");
 		assert.equal(messages[0]?.customType, "subagent_result");
 		assert.equal(messages[0]?.content, "Workflow role \"Documentation author\" (author) completed. Result:\ndone");

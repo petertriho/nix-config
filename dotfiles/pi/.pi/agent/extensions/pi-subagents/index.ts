@@ -21,13 +21,12 @@ import { createWorkflowAdapter } from "./runtime/workflow-adapter.ts";
 import { createSessionState } from "./runtime/session-state.ts";
 import { createTeamRuntime } from "./runtime/teams.ts";
 import { createTeamLauncher } from "./runtime/team-launch.ts";
-import { createOrdinaryTool } from "./runtime/ordinary-agents.ts";
+import { createOrdinaryExecutor } from "./runtime/ordinary-agents.ts";
 import { createNamedFollowUp } from "./runtime/named-followups.ts";
 import { registerSessionLifecycle, registerWorkflowLifecycle } from "./registration/lifecycle.ts";
 import { registerTeamEvents } from "./registration/team-events.ts";
 import { registerAgentTool } from "./registration/agent-tool.ts";
 import { registerMessageTools } from "./registration/message-tools.ts";
-import { registerRetiredTools, type RetiredToolFixtures } from "./registration/retired-tools.ts";
 import { registerCommands } from "./registration/commands.ts";
 import { applyWidgetMargin, formatWidgetRightLabel, renderWidgetAgentContent } from "./presentation/widget.ts";
 import { buildStatusRefreshMessage } from "./presentation/status-message.ts";
@@ -47,7 +46,6 @@ const execution = createExecutionRuntime(SUBAGENTS_DIR, discovery, runtime);
 const tasks = createTaskRpcAdapter(discovery, runtime, execution);
 const workflow = createWorkflowAdapter(discovery, runtime, execution);
 const manageAgentModels = createAgentModelManager(discovery.discoverAgentDefinitions);
-const retiredToolFixtures: RetiredToolFixtures = new Map();
 
 const {
   rearmModuleAbortController, renderSubagentWidgetLines, observeRunningSubagent,
@@ -65,7 +63,6 @@ const {
 const { attachWorkflowProvider, shutdownWorkflowProvider } = workflow;
 
 export const __test__ = {
-  retiredTool: (name: string) => retiredToolFixtures.get(name),
   rearmModuleAbortController,
   applyWidgetMargin,
   getShellReadyDelayMs,
@@ -113,7 +110,6 @@ export const __test__ = {
 };
 
 export default function piTmuxSubagents(pi: ExtensionAPI): void {
-  retiredToolFixtures.clear();
   const session = createSessionState();
   const deniedTools = new Set(
     (process.env.PI_DENY_TOOLS ?? "")
@@ -128,13 +124,11 @@ export default function piTmuxSubagents(pi: ExtensionAPI): void {
   registerSessionLifecycle(pi, runtime, session, team, tasks, workflow);
   registerTeamEvents(pi, discovery, team, shouldRegister);
 
-  const ordinaryTool = createOrdinaryTool(pi, discovery, execution, session);
-  retiredToolFixtures.set("subagent", ordinaryTool);
+  const executeOrdinary = createOrdinaryExecutor(pi, discovery, execution, session);
   const launchTeamAgent = createTeamLauncher(pi, discovery, execution, team);
-  registerAgentTool(pi, discovery, execution, ordinaryTool, team, launchTeamAgent, shouldRegister);
-  const followUp = createNamedFollowUp(pi, discovery, runtime, execution, ordinaryTool, session);
+  registerAgentTool(pi, discovery, runtime, execution, executeOrdinary, team, launchTeamAgent, shouldRegister);
+  const followUp = createNamedFollowUp(pi, discovery, runtime, execution, executeOrdinary, session);
   registerMessageTools(pi, discovery, runtime, session, team, followUp, shouldRegister);
-  registerRetiredTools(pi, discovery, runtime, execution, retiredToolFixtures, shouldRegister);
   registerCommands(pi, discovery, manageAgentModels);
   registerMessageRenderers(pi);
   registerWorkflowLifecycle(pi, createWorkflowCoordinator(pi));

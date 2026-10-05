@@ -3,7 +3,7 @@ import type { SubagentParamsType } from "../registration/schemas.ts";
 import type { AgentDiscovery } from "../profiles/discovery.ts";
 import type { SubagentRuntime } from "./refresh.ts";
 import type { ExecutionRuntime } from "./execution.ts";
-import type { OrdinaryTool } from "./ordinary-agents.ts";
+import type { OrdinaryExecutor } from "./ordinary-agents.ts";
 import type { SessionState, OrdinaryFollowUp } from "./session-state.ts";
 import { activeAgentResult } from "./tool-results.ts";
 
@@ -12,7 +12,7 @@ export function createNamedFollowUp(
   discovery: AgentDiscovery,
   runtime: SubagentRuntime,
   execution: ExecutionRuntime,
-  ordinaryTool: OrdinaryTool,
+  executeOrdinary: OrdinaryExecutor,
   session: SessionState
 ) {
   const { loadAgentDefaults } = discovery;
@@ -23,7 +23,7 @@ export function createNamedFollowUp(
     _toolCallId: string,
     params: { recipient: string; content: string },
     _signal: AbortSignal | undefined,
-    _onUpdate: Parameters<OrdinaryTool["execute"]>[3],
+    _onUpdate: Parameters<OrdinaryExecutor>[3],
     ctx: ExtensionToolContext
   ) {
     const recipient = params.recipient.trim();
@@ -56,7 +56,7 @@ export function createNamedFollowUp(
     };
     try {
       const response = saved.backend === "claude"
-        ? await ordinaryTool.execute(_toolCallId, {
+        ? await executeOrdinary(_toolCallId, {
           ...saved.launch, name: recipient, task: params.content, resumeSessionId: saved.claudeSessionId,
           followUpName: recipient, followUpLifecycle: { onResult, onError: restore },
         } satisfies SubagentParamsType & OrdinaryFollowUp, _signal, _onUpdate, ctx)

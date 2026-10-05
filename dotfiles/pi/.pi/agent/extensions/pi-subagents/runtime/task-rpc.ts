@@ -5,7 +5,7 @@ import { findLastAssistantMessage, getNewEntries } from "../sessions/session.ts"
 import {
   attachTaskRpc, resolveTaskAgentProfile, resolveTaskLaunchModel,
   type AttachedTaskRpc, type NormalizedTaskSpawnOptions, type TaskAgentProfileDirs,
-  type TaskRunHandle, type TaskRpcRuntimeHooks, type TaskSpawnSpec,
+  type TaskRunHandle, type TaskRpcLifecycleHooks, type TaskRpcRuntimeHooks, type TaskSpawnSpec,
 } from "../tasks/rpc.ts";
 import type { LaunchContext } from "../execution/services.ts";
 import { closeSurface, sendEscape } from "../adapters/tmux.ts";
@@ -38,40 +38,42 @@ export function createTaskRpcAdapter(discovery: AgentDiscovery, runtime: Subagen
     }
   }
 
-  function createTaskRpcRuntimeHooks(
+  async function launchTaskRpc(
     pi: ExtensionAPI,
     ctx: LaunchContext,
-  ): TaskRpcRuntimeHooks {
-    return {
-      async launch(spec: TaskSpawnSpec): Promise<TaskRunHandle> {
-        // RPC task launches force autonomous behavior through taskRuntime
-        // (interactive: false, autoExit: true, optional PI_SUBAGENT_MAX_TURNS).
-        const running = await launchSubagent(
-          {
-            name: spec.options.description ?? spec.profile.fileName,
-            task: spec.prompt,
-            agent: spec.profile.fileName,
-            cwd: ctx.cwd,
-          },
-          ctx,
-          {
-            resolvedModel: spec.resolvedModel,
-            taskRuntime: {
-              ...(spec.options.maxTurns == null ? {} : { maxTurns: spec.options.maxTurns }),
-            },
-          },
-        );
-        const watcherAbort = new AbortController();
-        running.abortController = watcherAbort;
-        startWidgetRefresh();
-        startStatusRefresh(pi);
-        return {
-          id: running.id,
-          surface: running.surface,
-          sessionFile: running.sessionFile,
-          abortController: watcherAbort,
-        };
+    spec: TaskSpawnSpec,
+  ): Promise<TaskRunHandle> {
+    // RPC task launches force autonomous behavior through taskRuntime
+    // (interactive: false, autoExit: true, optional PI_SUBAGENT_MAX_TURNS).
+    const running = await launchSubagent(
+      {
+        name: spec.options.description ?? spec.profile.fileName,
+        task: spec.prompt,
+        agent: spec.profile.fileName,
+        cwd: ctx.cwd,
       },
+      ctx,
+      {
+        resolvedModel: spec.resolvedModel,
+        taskRuntime: {
+          ...(spec.options.maxTurns == null ? {} : { maxTurns: spec.options.maxTurns }),
+        },
+      },
+    );
+    const watcherAbort = new AbortController();
+    running.abortController = watcherAbort;
+    startWidgetRefresh();
+    startStatusRefresh(pi);
+    return {
+      id: running.id,
+      surface: running.surface,
+      sessionFile: running.sessionFile,
+      abortController: watcherAbort,
+    };
+  }
+
+  function createTaskRpcLifecycleHooks(): TaskRpcLifecycleHooks {
+    return {
       watch(handle: TaskRunHandle, signal: AbortSignal) {
         const running = runningSubagents.get(handle.id);
         if (!running) {
@@ -99,6 +101,14 @@ export function createTaskRpcAdapter(discovery: AgentDiscovery, runtime: Subagen
     };
   }
 
+  /** @deprecated Retained for callers of the helper exposed through index.__test__. */
+  function createTaskRpcRuntimeHooks(pi: ExtensionAPI, ctx: LaunchContext): TaskRpcRuntimeHooks {
+    return {
+      launch: (spec) => launchTaskRpc(pi, ctx, spec),
+      ...createTaskRpcLifecycleHooks(),
+    };
+  }
+
   async function resolveAndLaunchTaskRpc(
     pi: ExtensionAPI,
     ctx: LaunchContext,
@@ -122,7 +132,7 @@ export function createTaskRpcAdapter(discovery: AgentDiscovery, runtime: Subagen
       profile: resolution.profile,
       resolvedModel,
     };
-    const handle = await createTaskRpcRuntimeHooks(pi, ctx).launch(spec);
+    const handle = await launchTaskRpc(pi, ctx, spec);
     return { spec, handle };
   }
 
@@ -143,7 +153,7 @@ export function createTaskRpcAdapter(discovery: AgentDiscovery, runtime: Subagen
       }) as LaunchContext;
       const attached = await attachTaskRpc({
         events: pi.events,
-        hooks: createTaskRpcRuntimeHooks(pi, launchContext),
+        hooks: createTaskRpcLifecycleHooks(),
         resolveAndLaunch: (request) => resolveAndLaunchTaskRpc(pi, launchContext, request),
         notify: (message) => {
           ctx.ui.notify(message, "info");

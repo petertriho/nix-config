@@ -462,15 +462,9 @@ test("pending gates reject spawn, resume, and recovery before any lifecycle data
 		const forbidden = () => { throw new Error("must not reach a role dependency"); };
 		const dependencies: WorkflowToolDependencies = {
 			state: h.runtime.state,
-			execution: {
-				stopSubagent: () => { throw new Error("Unexpected child stop"); },
-				launchSubagent: forbidden,
-				executeSubagentResume: forbidden,
-				watchInBackground: forbidden,
+			get eventExecution() {
+				return forbidden();
 			},
-			loadAgentDefaults: forbidden,
-			isTmuxAvailable: forbidden,
-			muxUnavailableResult: forbidden,
 		};
 		const lifecycle = createWorkflowLifecycleTools(h.pi as unknown as ExtensionAPI, dependencies);
 		const params = { runId: "run-folio", role: "scribe", data: { ticket: "must not persist" } };

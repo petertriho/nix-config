@@ -4,6 +4,7 @@ import {
 	WORKFLOW_PROVIDER_CAPABILITIES, WORKFLOW_PROVIDER_DELIVERY_CHANNEL,
 	WORKFLOW_PROVIDER_REQUEST_CHANNEL, WORKFLOW_PROVIDER_VERSION,
 	type WorkflowEventBus, type WorkflowOwner, type WorkflowProvider, type WorkflowRoleFacts,
+	type WorkflowProviderRequestFor, type WorkflowProviderOutcomes,
 } from "../adapters/workflow-contract.ts";
 import { createWorkflowEventClient } from "../adapters/workflow-client.ts";
 
@@ -48,17 +49,18 @@ const saved = {
 };
 
 function fakeProvider(events: WorkflowEventBus) {
-	const requests: Array<Record<string, unknown>> = [];
+	const requests: WorkflowProviderRequestFor[] = [];
 	const off = events.on(WORKFLOW_PROVIDER_REQUEST_CHANNEL, (value) => {
-		const request = value as Record<string, unknown>;
+		// This peer receives requests constructed by the typed client, not arbitrary ingress.
+		const request = value as WorkflowProviderRequestFor;
 		requests.push(request);
-		const outcome: Record<string, unknown> = {
+		const outcome: WorkflowProviderOutcomes = {
 			ping: { alive: true }, profiles: { profiles: [facts.profile] },
-			launch: { ...facts, accepted: true }, resume: facts, recover: facts,
+			inspect: facts, launch: { ...facts, accepted: true }, resume: facts, recover: facts,
 			stop: { stopped: true }, "update-metadata": { confirmed: true },
 		};
 		events.emit(`pi-workflows:provider:reply:${request.requestId}`, {
-			...request, ok: true, data: outcome[String(request.operation)],
+			...request, ok: true, data: outcome[request.operation],
 		});
 	});
 	return { requests, off };

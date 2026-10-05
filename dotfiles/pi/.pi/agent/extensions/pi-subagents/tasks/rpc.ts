@@ -192,8 +192,7 @@ export interface TaskSpawnSpec {
 	resolvedModel: ResolvedModelSelection;
 }
 
-export interface TaskRpcRuntimeHooks {
-	launch(spec: TaskSpawnSpec): Promise<TaskRunHandle>;
+export interface TaskRpcLifecycleHooks {
 	watch(handle: TaskRunHandle, signal: AbortSignal): Promise<TaskResultLike>;
 	sendEscape(handle: TaskRunHandle): void;
 	/** Safe to call on an already-dead pane. */
@@ -201,6 +200,15 @@ export interface TaskRpcRuntimeHooks {
 	readPartialResult(handle: TaskRunHandle): string | undefined;
 }
 
+/** @deprecated Use TaskRpcLifecycleHooks for bridge hooks and TaskSpawnResolver for validated launches. */
+export interface TaskRpcRuntimeHooks extends TaskRpcLifecycleHooks {
+	launch(spec: TaskSpawnSpec): Promise<TaskRunHandle>;
+}
+
+/** Accept lifecycle-only hooks and legacy hook object literals without requiring launch. */
+export type TaskRpcBridgeHooks = TaskRpcLifecycleHooks | TaskRpcRuntimeHooks;
+
+/** Validate profile/model selection before launching and returning the spec and handle. */
 export type TaskSpawnResolver = (request: {
 	type: string;
 	prompt: string;
@@ -261,13 +269,13 @@ function handleRpc<P extends { requestId: string }>(
 
 /**
  * The protocol-v2 bridge: adapter-owned task-run records, the idempotent
- * finalizer, deferred watching, terminal stop, and consume semantics. All
- * Pi/tmux operations arrive through `hooks`; profile/model resolution through
- * `resolveAndLaunch`. `attachTaskRpc` binds it to an event bus.
+ * finalizer, deferred watching, terminal stop, and consume semantics.
+ * Watching and pane control arrive through `hooks`; validation and launch
+ * through `resolveAndLaunch`. `attachTaskRpc` binds it to an event bus.
  */
 export function createTaskRpcBridge(
 	deps: {
-		hooks: TaskRpcRuntimeHooks;
+		hooks: TaskRpcBridgeHooks;
 		resolveAndLaunch: TaskSpawnResolver;
 		onLifecycle: (event: TaskLifecycleEvent) => void;
 	},
@@ -490,7 +498,7 @@ export interface AttachedTaskRpc {
 
 export interface AttachTaskRpcDeps {
 	events: RpcEventBus;
-	hooks: TaskRpcRuntimeHooks;
+	hooks: TaskRpcBridgeHooks;
 	/**
 	 * Validate and resolve the spawn request into a spec + pane handle. This
 	 * is where index.ts supplies profile resolution, model precedence, and

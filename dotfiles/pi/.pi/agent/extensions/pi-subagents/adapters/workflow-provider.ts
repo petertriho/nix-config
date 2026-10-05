@@ -12,11 +12,13 @@ import {
 	WORKFLOW_PROVIDER_DISCOVER_CHANNEL,
 	WORKFLOW_PROVIDER_REQUEST_CHANNEL,
 	WORKFLOW_PROVIDER_VERSION,
+	isWorkflowProviderOperation,
 	WorkflowProviderCleanupRequiredError,
 	type WorkflowEventBus,
 	type WorkflowOwner,
 	type WorkflowProvider,
 	type WorkflowProviderRequest,
+	type WorkflowProviderPayloads,
 	type WorkflowRoleFacts,
 } from "./workflow-contract.ts";
 import { estimateSavedSessionContext } from "../sessions/context-fit.ts";
@@ -46,21 +48,9 @@ function resolveGitRoot(startDir: string): string | null {
 type Services = Pick<ReturnType<typeof createSubagentExecutionServices>,
 	"launchSubagent" | "watchSubagent" | "stopSubagent" | "executeSubagentResume">;
 type ProfileIdentity = { agentId: string; path: string; hash: string; roleBodyHash: string };
-type Payload = {
-	agentId?: string;
-	name?: string;
-	task?: string;
-	sessionPath?: string;
-	message?: string;
-	rolloverMessage?: string;
-	model?: { provider: string; model: string; thinking?: string };
-	workflow?: LaunchProfileWorkflowMetadata;
-	repositoryRoot?: string;
-	allowRollover?: boolean;
-	allowUserModelSelection?: boolean;
-	failure?: string;
-	expected?: { agentId: string; profileHash: string; model?: { provider: string; model: string; thinking?: string }; contextTokens?: number };
-};
+// A partial view is not evidence of a valid request. The checks below validate
+// unknown ingress and translate wire metadata into normalized execution metadata.
+type IngressPayload = Partial<WorkflowProviderPayloads["launch"] & WorkflowProviderPayloads["recover"]>;
 
 export interface TmuxWorkflowProviderDependencies {
 	events: WorkflowEventBus;
@@ -111,7 +101,7 @@ function checkedFacts(
 	path: string,
 	agent: ProfileIdentity,
 	workflow: LaunchProfileWorkflowMetadata,
-	expected?: Payload["expected"],
+	expected?: WorkflowProviderPayloads["inspect"]["expected"],
 	launch = false,
 ): WorkflowRoleFacts {
 	const profile = deps.readProfile(path);
@@ -235,11 +225,11 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 		}
 		return resolved;
 	}
-	function checkedRepository(payload: Payload, cwd: string, sessionPath?: string): string {
+	function checkedRepository(payload: IngressPayload, cwd: string, sessionPath?: string): string {
 		if (!text(payload.repositoryRoot)) throw new Error("Workflow repository root required");
 		return deps.checkRepository(payload.repositoryRoot, cwd, sessionPath);
 	}
-	function saved(request: WorkflowProviderRequest, payload: Payload) {
+	function saved(request: WorkflowProviderRequest, payload: IngressPayload) {
 		if (!text(payload.sessionPath) || !payload.expected || !text(payload.expected.agentId)
 			|| !text(payload.expected.profileHash)) throw new Error("Expected saved session and profile identity required");
 		const agent = agentFor(payload.expected.agentId);
@@ -292,7 +282,7 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 		if (!live()) throw new Error("Workflow provider unavailable");
 		const payload = request.payload;
 		if (!object(payload)) throw new Error("Invalid workflow provider payload");
-		const p = payload as Payload;
+		const p = payload as IngressPayload;
 		if (request.operation === "ping") return { alive: true };
 		if (request.operation === "profiles") {
 			if (!Array.isArray(payload.requiredAgents) || !payload.requiredAgents.every(text)) throw new Error("Required agents missing");
@@ -528,9 +518,9 @@ export function attachTmuxWorkflowProvider(deps: TmuxWorkflowProviderDependencie
 			|| !text(value.requestId) || !object(value.owner)
 			|| value.owner.sessionId !== deps.sessionId
 			|| ![value.owner.runId, value.owner.roleId, value.owner.ownershipId].every(text)
-			|| !["ping", "profiles", "inspect", "launch", "resume", "recover", "stop", "update-metadata"].includes(String(value.operation))
+			|| !isWorkflowProviderOperation(value.operation)
 			|| pending.has(value.requestId)) return;
-		// SAFETY: request shape and ownership fields are validated above.
+		// SAFETY: only the envelope is checked here; handle still validates the unknown payload.
 		const request = value as unknown as WorkflowProviderRequest;
 		const controller = new AbortController();
 		let settle!: () => void;

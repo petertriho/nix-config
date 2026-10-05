@@ -13,6 +13,7 @@ import {
 	WORKFLOW_PROVIDER_REQUEST_CHANNEL,
 	WORKFLOW_PROVIDER_CAPABILITIES,
 	type WorkflowOwner,
+	type WorkflowProviderOperation,
 } from "../adapters/workflow-contract.ts";
 import type { RunningSubagent, SubagentResult, ResumeLifecycleContext, ResumeRecoveryContext } from "../subagent-services.ts";
 
@@ -61,6 +62,7 @@ function fixture(options: {
 	refreshStart?: () => void;
 	refreshUpdate?: () => void;
 	watchError?: string;
+	launchGate?: Promise<void>;
 } = {}) {
 	const events = bus();
 	const sidecars = new Map<string, LaunchProfile>([[running.sessionFile, profile]]);
@@ -101,6 +103,7 @@ function fixture(options: {
 				calls.push("launch");
 				assert.equal(params.agent, "writer");
 				assert.deepEqual(launchOptions?.workflow, metadata);
+				if (options.launchGate) await options.launchGate;
 				return running;
 			},
 			async executeSubagentResume(_pi, params, _ctx, _recovery, lifecycle) {
@@ -153,6 +156,65 @@ function fixture(options: {
 
 const launch = { agentId: "writer", name: "Writer", task: "Write", workflow: metadata, model: { provider: "test", model: "echo" }, repositoryRoot: "/repo" };
 const expected = { agentId: "writer", profileHash: agent.hash, model: { provider: "test", model: "echo" } };
+
+test("unknown event ingress rejects malformed operation payloads without launching or writing metadata", { timeout: 3_000 }, async () => {
+	const f = fixture();
+	const saved = { sessionPath: running.sessionFile, expected, workflow: metadata, repositoryRoot: "/repo" };
+	const cases: Array<{ operation: WorkflowProviderOperation; payload: unknown }> = [
+		{ operation: "ping", payload: null },
+		{ operation: "launch", payload: [] },
+		{ operation: "launch", payload: { ...launch, name: undefined } },
+		{ operation: "launch", payload: { ...launch, model: { provider: "test" } } },
+		{ operation: "launch", payload: { ...launch, workflow: { ...metadata, runId: "other" } } },
+		{ operation: "profiles", payload: { requiredAgents: "writer" } },
+		{ operation: "inspect", payload: { ...saved, expected: undefined } },
+		{ operation: "resume", payload: { ...saved, expected: { agentId: "writer" } } },
+		{ operation: "recover", payload: { ...saved, failure: "credits exhausted" } },
+		{ operation: "update-metadata", payload: { ...saved, workflow: null } },
+		{ operation: "stop", payload: { sessionPath: 123 } },
+	];
+	try {
+		for (const [index, { operation, payload }] of cases.entries()) {
+			const requestId = `malformed-${index}`;
+			const response = new Promise<{ ok: boolean; error: string }>((resolve) => {
+				const off = f.events.on(`pi-workflows:provider:reply:${requestId}`, (value) => {
+					off();
+					resolve(value as { ok: boolean; error: string });
+				});
+			});
+			f.events.emit(WORKFLOW_PROVIDER_REQUEST_CHANNEL, {
+				requestId, providerId: f.attached.identity.providerId,
+				instanceId: f.attached.identity.instanceId, owner, operation, payload,
+			});
+			const reply = await response;
+			assert.equal(reply.ok, false, `${operation}: malformed unknown payload must be rejected`);
+			assert.equal(typeof reply.error, "string");
+		}
+		assert.deepEqual(f.calls, []);
+	} finally { f.attached.detach(); }
+});
+
+test("a pathless owned stop drains a timed-out launch before confirming cleanup", { timeout: 3_000 }, async () => {
+	let release!: () => void;
+	const launchGate = new Promise<void>((resolve) => { release = resolve; });
+	const f = fixture({ launchGate });
+	try {
+		await assert.rejects(
+			requestWorkflowProvider(f.events, f.attached.identity, "launch", owner, launch, { timeoutMs: 10 }),
+			/timed out/,
+		);
+		let stopped = false;
+		const cleanup = requestWorkflowProvider(f.events, f.attached.identity, "stop", owner, {}, { timeoutMs: 1_000 });
+		void cleanup.then(() => { stopped = true; }, () => {});
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(stopped, false, "cleanup cannot confirm while the start is still pending");
+		assert.deepEqual(f.calls, ["launch"]);
+		release();
+		assert.deepEqual((await cleanup).data, { stopped: true });
+		assert.deepEqual(f.calls, ["launch", "stop"]);
+		assert.deepEqual(f.refreshCounts, { starts: 0, updates: 0 });
+	} finally { release(); f.attached.detach(); }
+});
 
 test("root discovery, launch acknowledgement, and correlated lifecycle", { timeout: 3_000 }, async () => {
 	const f = fixture();

@@ -23,10 +23,21 @@ import {
 	type RpcEventBus,
 	type TaskAgentProfileDirs,
 	type TaskResultLike,
+	type TaskRpcLifecycleHooks,
 	type TaskRpcRuntimeHooks,
 	type TaskSpawnSpec,
 	type TaskRunHandle,
 } from "../tasks/rpc.ts";
+
+type AssertTrue<T extends true> = T;
+type LegacyLaunchRemainsRequiredAndCallable = AssertTrue<
+	TaskRpcRuntimeHooks extends { launch(spec: TaskSpawnSpec): Promise<TaskRunHandle> }
+		? true
+		: false
+>;
+type LifecycleHooksHaveNoLaunch = AssertTrue<
+	"launch" extends keyof TaskRpcLifecycleHooks ? false : true
+>;
 
 // ── Test event bus: mirrors pi.events' on/emit with delivery logging ──
 
@@ -463,6 +474,67 @@ test("spawn validates through resolveAndLaunch before the pane is created and er
 	assert.equal(harness.completed.length + harness.failed.length, 0);
 });
 
+test("spawn uses the resolver without reading a legacy runtime launch hook", async () => {
+	const harness = createHarness({
+		async watch() {
+			return { exitCode: 0, summary: "resolver launched", responded: true };
+		},
+	});
+	const attached = await harness.attach({
+		hooks: {
+			...harness.hooks,
+			get launch(): TaskRpcRuntimeHooks["launch"] {
+				throw new Error("The bridge must launch only through resolveAndLaunch.");
+			},
+		},
+	});
+	assert.ok(attached);
+	try {
+		const { id } = await rpcCall<{ id: string }>(harness.bus.bus, "subagents:rpc:spawn", {
+			type: "general-purpose",
+			prompt: "Use the validated resolver.",
+			options: { description: "Resolver task", maxTurns: 2.9 },
+		});
+		assert.equal(id, "run1");
+		assert.equal(harness.hooks.launches.length, 1);
+		assert.deepEqual(harness.hooks.launches[0].options, {
+			description: "Resolver task", isBackground: true, maxTurns: 2,
+		});
+		await waitFor(() => harness.completed.length === 1);
+		assert.equal(harness.completed[0].result, "resolver launched");
+	} finally {
+		attached.bridge.shutdown();
+		attached.detach();
+	}
+});
+
+test("RPC attachment accepts lifecycle-only hooks and preserves terminal stop and consume", async () => {
+	const harness = createHarness({}, { stopFlushMs: 0 });
+	const { watch, sendEscape, closeSurface, readPartialResult } = harness.hooks;
+	const hooks: TaskRpcLifecycleHooks = { watch, sendEscape, closeSurface, readPartialResult };
+	const attached = await harness.attach({
+		hooks,
+	});
+	assert.ok(attached);
+	try {
+		const { id } = await rpcCall<{ id: string }>(harness.bus.bus, "subagents:rpc:spawn", {
+			type: "general-purpose", prompt: "Stop this task.",
+		});
+		await rpcCall(harness.bus.bus, "subagents:rpc:stop", { agentId: id });
+		assert.deepEqual(harness.hooks.escapes, [id]);
+		assert.deepEqual(harness.hooks.closedSurfaces, ["%1"]);
+		assert.equal(harness.completed.length, 0);
+		assert.equal(harness.failed.length, 1);
+		assert.equal(harness.failed[0].status, "stopped");
+		assert.equal(harness.failed[0].result, "partial of run1");
+		await rpcCall(harness.bus.bus, "subagents:rpc:consume", { agentId: id });
+		assert.equal(attached.bridge.getRecord(id)?.consumed, true);
+	} finally {
+		attached.bridge.shutdown();
+		attached.detach();
+	}
+});
+
 test("spawn rejects unsupported safety-sensitive options before pane creation", async () => {
 	const harness = createHarness();
 	const attached = await harness.attach();
@@ -807,14 +879,11 @@ test("a launch resolving after shutdown is closed and rejected, never registered
 	assert.equal(harness.completed.length + harness.failed.length, 0);
 });
 
-test("createTaskRpcBridge works standalone with direct lifecycle callbacks", async () => {
+test("createTaskRpcBridge works standalone without a runtime launch hook", async () => {
 	const events: string[] = [];
 	const bridge = createTaskRpcBridge(
 		{
 			hooks: {
-				async launch() {
-					return { id: "direct1", surface: "%9", sessionFile: "/tmp/direct1.jsonl" };
-				},
 				async watch() {
 					return { exitCode: 0, summary: "direct done", responded: true };
 				},
@@ -823,7 +892,7 @@ test("createTaskRpcBridge works standalone with direct lifecycle callbacks", asy
 				readPartialResult() {
 					return undefined;
 				},
-			},
+			} satisfies TaskRpcLifecycleHooks,
 			async resolveAndLaunch(request) {
 				return {
 					spec: {

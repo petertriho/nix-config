@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { getSubagentActivityFile } from "../telemetry/activity.ts";
 import {
@@ -17,7 +17,8 @@ import { shellEscape } from "../adapters/tmux.ts";
 import { fileTimestamp, getArtifactDir, getDefaultSessionDirFor, toSafeFileName } from "./artifacts.ts";
 import type { createProfileResourceServices } from "./profile-resources.ts";
 import type { createLifecycleServices } from "./lifecycle.ts";
-import { buildPiPromptArgs, buildSubagentToolAllowlist } from "./prompts.ts";
+import { buildSubagentToolAllowlist } from "./prompts.ts";
+import { buildPiCommand, type PiCommandArgument } from "./pi-command.ts";
 import { getShellReadyDelayMs } from "./results.ts";
 import type {
 	LaunchContext,
@@ -308,7 +309,7 @@ export function createLaunchService(
 				return running;
 			}
 
-			const parts: string[] = ["pi"];
+			const parts: PiCommandArgument[] = ["pi"];
 			parts.push("--session", shellEscape(subagentSessionFile));
 
 			const subagentDonePath = join(deps.subagentsDir, "subagent-done.ts");
@@ -325,9 +326,7 @@ export function createLaunchService(
 			if (identityInSystemPrompt && identity) {
 				const flag = systemPromptMode === "replace" ? "--system-prompt" : "--append-system-prompt";
 				const syspromptPath = join(artifactDir, `context/${safeName}-${id}-sysprompt-${fileTimestamp()}.md`);
-				mkdirSync(dirname(syspromptPath), { recursive: true });
-				writeFileSync(syspromptPath, identity, "utf8");
-				parts.push(flag, shellEscape(syspromptPath));
+				parts.push({ flag, path: syspromptPath, text: identity });
 			}
 
 			const toolAllowlist = buildSubagentToolAllowlist(effectiveTools);
@@ -347,54 +346,37 @@ export function createLaunchService(
 				envParts.push(`PI_TEAM_LEAD_SESSION_ID=${shellEscape(team.leadSessionId)}`);
 			}
 
-			if (localAgentDir && existsSync(localAgentDir)) {
-				envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(localAgentDir)}`);
-			} else if (process.env.PI_CODING_AGENT_DIR) {
-				envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
-			}
-
-			if (denySet.size > 0) {
-				envParts.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
-			}
-			envParts.push(`PI_SUBAGENT_NAME=${shellEscape(params.name)}`);
 			const childAgentName = rollover ? rollover.stable.agentName : params.agent;
-			if (childAgentName) {
-				envParts.push(`PI_SUBAGENT_AGENT=${shellEscape(childAgentName)}`);
-			}
-			if (autoExitForChild) {
-				envParts.push("PI_SUBAGENT_AUTO_EXIT=1");
-			}
+			const extraEnvParts: string[] = [];
 			if (taskRuntime?.maxTurns != null) {
-				envParts.push(`PI_SUBAGENT_MAX_TURNS=${taskRuntime.maxTurns}`);
+				extraEnvParts.push(`PI_SUBAGENT_MAX_TURNS=${taskRuntime.maxTurns}`);
 			}
-			envParts.push(`PI_SUBAGENT_SESSION=${shellEscape(subagentSessionFile)}`);
-			envParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
-			envParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
-			envParts.push(`PI_SUBAGENT_SURFACE=${shellEscape(surface)}`);
-			const envPrefix = envParts.join(" ") + " ";
-
-			let taskArg: string;
-			if (launchBehavior.taskDelivery === "direct") {
-				taskArg = fullTask;
-			} else {
-				const artifactPath = join(artifactDir, `context/${safeName}-${id}-${fileTimestamp()}.md`);
-				mkdirSync(dirname(artifactPath), { recursive: true });
-				writeFileSync(artifactPath, fullTask, "utf8");
-				taskArg = `@${artifactPath}`;
-			}
-
-			for (const promptArg of buildPiPromptArgs({
-				effectiveSkills,
-				taskDelivery: launchBehavior.taskDelivery,
-				taskArg,
-				taskText: fullTask,
-			})) {
-				parts.push(shellEscape(promptArg));
-			}
-
-			const cdPrefix = `cd ${shellEscape(effectiveCwd)} && `;
-			const piCommand = cdPrefix + envPrefix + parts.join(" ");
-			const command = `${piCommand}; printf '%s\\n' "$?" > ${shellEscape(completionFile)}`;
+			extraEnvParts.push(`PI_SUBAGENT_SURFACE=${shellEscape(surface)}`);
+			const command = buildPiCommand({
+				args: parts,
+				cwd: effectiveCwd,
+				completionFile,
+				environment: {
+					agentDir: localAgentDir,
+					denyTools: [...denySet],
+					name: params.name,
+					agentName: childAgentName,
+					sessionFile: subagentSessionFile,
+					id,
+					activityFile,
+					autoExit: autoExitForChild,
+				},
+				environmentPrefix: envParts,
+				environmentSuffix: extraEnvParts,
+				prompt: launchBehavior.taskDelivery === "direct"
+					? { taskDelivery: "direct", text: fullTask, effectiveSkills }
+					: {
+						taskDelivery: "artifact",
+						artifactPath: join(artifactDir, `context/${safeName}-${id}-${fileTimestamp()}.md`),
+						text: fullTask,
+						effectiveSkills,
+					},
+			});
 			writeLaunchProfile(subagentSessionFile, launchProfile);
 			const executionStartLine = existsSync(subagentSessionFile)
 				? getNewEntries(subagentSessionFile, 0).length : 0;

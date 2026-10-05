@@ -1,11 +1,11 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ToolCallEvent, ToolResultEvent } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { checkLeadAdmission, recordLeadStart, type LeadReceipt } from "../teams/admission.ts";
 import { answerApproval, canonicalCall, verifyApprovalRequest, type ApprovalRequest, type ApprovalResponse } from "../teams/approval.ts";
 import { TeamCoordinator } from "../teams/coordinator.ts";
-import { createMemberMailbox } from "../teams/transport.ts";
+import { createMemberMailbox, LEGACY_NATIVE_TASK_HOLD } from "../teams/transport.ts";
 import { closeSurface } from "../adapters/tmux.ts";
 import type { AgentDiscovery } from "../profiles/discovery.ts";
 import type { SubagentRuntime } from "./refresh.ts";
@@ -47,6 +47,12 @@ export function createTeamRuntime(pi: ExtensionAPI, discovery: AgentDiscovery, r
     for (const requestId of answers.keys()) invalidatedApprovals.add(requestId);
     answers.clear();
   };
+  const checkCurrentLead = (ctx: ExtensionContext) => checkLeadAdmission({
+    cwd: ctx.cwd, agentDir: getAgentConfigDir(),
+    sessionId: ctx.sessionManager.getSessionId(),
+    sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
+    piTasks: capturedPiTasks,
+  }, leadReceipt);
   const openCoordinator = async (
     ctx: ExtensionContext, teamName?: string, taskFingerprint?: string,
   ): Promise<TeamCoordinator> => {
@@ -100,24 +106,24 @@ export function createTeamRuntime(pi: ExtensionAPI, discovery: AgentDiscovery, r
             if (receipt?.type === "task_commit") {
               const granted = receipt.approvalRequestId
                 ? answers.get(receipt.approvalRequestId) : undefined;
-              const current = checkLeadAdmission({
-                cwd: ctx.cwd, agentDir: getAgentConfigDir(),
-                sessionId: ctx.sessionManager.getSessionId(),
-                sessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
-                piTasks: capturedPiTasks,
-              }, leadReceipt);
-              if (!granted?.approved || granted.memberId !== memberId ||
-                  granted.memberEpoch !== memberEpoch || granted.digest !== receipt.digest ||
-                  granted.toolCallId !== receipt.toolCallId || !receipt.previous || !receipt.next ||
-                  !current.ok || current.value.storeFingerprint !== receipt.next) {
+              const current = checkCurrentLead(ctx);
+              try {
+                if (!granted?.approved || granted.memberId !== memberId ||
+                    granted.memberEpoch !== memberEpoch || granted.digest !== receipt.digest ||
+                    granted.toolCallId !== receipt.toolCallId || !receipt.previous || !receipt.next ||
+                    !current.ok || current.value.storeFingerprint !== receipt.next) {
+                  throw new Error("Uncorrelated teammate task commit");
+                }
+                await coordinator!.transport.recordTaskCommit({
+                  teamId: coordinator!.teamId, memberId, epoch: memberEpoch,
+                  previous: receipt.previous, next: receipt.next,
+                });
+              } catch {
+                invalidateApprovals();
                 await coordinator!.transport.pauseTaskWrites(coordinator!.teamId,
                   "Uncorrelated or conflicting teammate task commit");
                 throw new Error("Team task commit could not be correlated; writes paused");
               }
-              await coordinator!.transport.recordTaskCommit({
-                teamId: coordinator!.teamId, memberId, epoch: memberEpoch,
-                previous: receipt.previous, next: receipt.next,
-              });
               answers.delete(receipt.approvalRequestId!);
               return;
             }
@@ -176,6 +182,75 @@ export function createTeamRuntime(pi: ExtensionAPI, discovery: AgentDiscovery, r
     storeFingerprint: string;
     completed: Array<{ id: string; blocks: string[]; blockedBy: string[] }>;
   }>();
+  function observeNativeTaskCall(
+    event: Pick<ToolCallEvent, "toolName" | "toolCallId">, ctx: ExtensionContext,
+  ): void {
+    if (memberMailbox || event.toolName !== "TaskCreate" || !coordinator) return;
+    const disk = checkCurrentLead(ctx);
+    if (disk.ok && disk.value.tasks.length > 0 &&
+        disk.value.tasks.every((task) => task.status === "completed")) {
+      leadRecoveries.set(event.toolCallId, {
+        storeFingerprint: disk.value.storeFingerprint,
+        completed: disk.value.tasks.map((task) => ({
+          id: task.id, blocks: [...task.blocks], blockedBy: [...task.blockedBy],
+        })),
+      });
+    }
+  }
+  async function reconcileNativeTaskResult(
+    event: Pick<ToolResultEvent, "toolName" | "toolCallId" | "isError">, ctx: ExtensionContext,
+  ): Promise<void> {
+    const team = coordinator;
+    if (memberMailbox || !team ||
+        !["TaskCreate", "TaskUpdate", "TaskExecute", "TaskStop"].includes(event.toolName)) return;
+    const disk = checkCurrentLead(ctx);
+    const state = await team.transport.getTaskState(team.teamId);
+    const recovery = leadRecoveries.get(event.toolCallId);
+    leadRecoveries.delete(event.toolCallId);
+    if (recovery && !event.isError && disk.ok && state.fingerprint === recovery.storeFingerprint &&
+        disk.value.tasks.some((task) => task.status === "pending") &&
+        recovery.completed.every((before) => {
+          const after = disk.value.tasks.find((task) => task.id === before.id);
+          return after?.status === "completed" &&
+            JSON.stringify(after.blocks) === JSON.stringify(before.blocks) &&
+            JSON.stringify(after.blockedBy) === JSON.stringify(before.blockedBy);
+        })) {
+      try {
+        await team.transport.recordLeadRecovery({
+          teamId: team.teamId, previous: recovery.storeFingerprint,
+          next: disk.value.storeFingerprint,
+        });
+        invalidateApprovals();
+        return;
+      } catch { /* a competing baseline or unsafe hold won the roster lock; pause below */ }
+    }
+    if (disk.ok && state.fingerprint === disk.value.storeFingerprint) return;
+    invalidateApprovals();
+    // A captured completed-list recovery must never fall back to a native rebase.
+    // Only the legacy native hold is recoverable; uncertain holds remain in place.
+    if (disk.ok && !recovery &&
+        (!state.pauseReason || state.pauseReason === LEGACY_NATIVE_TASK_HOLD)) {
+      try {
+        await team.transport.recordObservedTaskChange({
+          teamId: team.teamId,
+          previous: state.fingerprint ?? "",
+          next: disk.value.storeFingerprint,
+        });
+        return;
+      } catch { /* another team commit or unsafe hold won the roster lock */ }
+    }
+    const reason = !disk.ok ? disk.reason : recovery
+      ? "Lead pending-task recovery did not retain completed history or had an uncertain result"
+      : "Uncorrelated task change or commit";
+    await team.transport.pauseTaskWrites(team.teamId, reason);
+    if (!state.pauseReason) {
+      pi.sendMessage({
+        customType: "teammate_notice",
+        content: `Team task writes paused: ${reason}. Resolve the unsafe or uncertain state before starting a fresh team session.`,
+        display: true,
+      }, { triggerTurn: true, deliverAs: "steer" });
+    }
+  }
   function recordSessionStart(reason: string, ctx: ExtensionContext): void {
     const start = recordLeadStart({
       cwd: ctx.cwd,
@@ -195,8 +270,9 @@ export function createTeamRuntime(pi: ExtensionAPI, discovery: AgentDiscovery, r
     coordinator = undefined;
   }
   return {
-    memberEnv, memberMailbox, capturedPiTasks, leadRecoveries,
-    invalidateApprovals, openCoordinator, existingCoordinator, stopTeamMember,
+    memberEnv, memberMailbox, capturedPiTasks,
+    observeNativeTaskCall, reconcileNativeTaskResult,
+    openCoordinator, existingCoordinator, stopTeamMember,
     recordSessionStart, shutdown,
     get leadReceipt() { return leadReceipt; },
     get coordinator() { return coordinator; },

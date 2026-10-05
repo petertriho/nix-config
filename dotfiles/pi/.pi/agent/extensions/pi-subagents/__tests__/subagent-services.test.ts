@@ -37,6 +37,9 @@ import { buildProviderFailureRecord } from "../workflow/recovery.ts";
 import { attachTmuxWorkflowProvider, tmuxWorkflowProviderIO } from "../workflow-provider.ts";
 import { requestWorkflowProvider, subscribeWorkflowDelivery } from "../adapters/workflow-contract.ts";
 import { resolvePiModelArgument } from "../profiles/launch-policy.ts";
+import { createOrdinaryExecutor } from "../runtime/ordinary-agents.ts";
+import { createAgentDiscovery } from "../profiles/discovery.ts";
+import { createSessionState } from "../runtime/session-state.ts";
 
 const TEST_MODEL = {
 	provider: "test-provider",
@@ -285,6 +288,53 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 	}
 	assert.fail("condition not met before timeout");
 }
+
+test("the agent-less ordinary executor ignores configured defaults and remains a callable service", async () => {
+	await withTempDir(async (root) => {
+		const previousTmux = process.env.TMUX;
+		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		delete process.env.TMUX;
+		process.env.PI_CODING_AGENT_DIR = root;
+		try {
+			const harness = createHarness(root);
+			const execute = createOrdinaryExecutor(
+				harness.pi,
+				createAgentDiscovery(root),
+				{
+					...harness.services,
+					subagentExecution: harness.services,
+					executeSubagentResume: (pi, params, ctx, lifecycle) =>
+						harness.services.executeSubagentResume(pi, params, ctx, undefined, lifecycle),
+				},
+				createSessionState(),
+			);
+			assert.equal(typeof execute, "function");
+			assert.equal("parameters" in execute, false);
+			assert.equal("execute" in execute, false);
+			for (const config of [
+				JSON.stringify({ version: 1, agents: { worker: "missing/gone" } }),
+				"{not json",
+			]) {
+				writeFileSync(join(root, "agent-models.json"), config);
+				const order: string[] = [];
+				const resultPromise = execute("agentless", { name: "Bare", task: "Inspect" }, undefined, undefined, harness.ctx);
+				resultPromise.then(() => { order.push("executor"); });
+				await Promise.resolve().then(() => { order.push("microtask"); });
+				const result = await resultPromise;
+				assert.equal(result.details.error, "tmux not available");
+				assert.match(result.content[0].type === "text" ? result.content[0].text : "", /Subagents require tmux/);
+				assert.deepEqual(order, ["executor", "microtask"], "immediate service results must not gain another async wrapper");
+				assert.equal(harness.surfaceCount, 0);
+				assert.equal(harness.runningSubagents.size, 0);
+			}
+		} finally {
+			if (previousTmux === undefined) delete process.env.TMUX;
+			else process.env.TMUX = previousTmux;
+			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		}
+	});
+});
 
 for (const collision of [false, true]) {
 	test(`launch shares canonical CLI and saved model identity with ${collision ? "a colon-ID collision" : "separate thinking precedence"}`, async () => {
