@@ -1,8 +1,7 @@
 # Prompt principles for model-agnostic agent skills
 
-These practices are hypotheses drawn from authoring and prompting guidance.
-They do not establish how every model or client behaves.
-Evaluate changes against the target skill's actual users, models, and clients before claiming improvement.
+These source-derived hypotheses do not establish behavior across models or clients.
+Before improvement claims, evaluate changes with the target skill's users, models, and clients.
 
 ## Contents
 
@@ -19,16 +18,10 @@ Sources recorded as checked on 2026-10-04:
 - [Agent workflow guidance](https://claude.dev/blog/getting-the-most-out-of-opus-5-5/)
 - [Prompting and runtime guidance](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5)
 
-The main file links each operational reference directly:
-
-- `references/skill-authoring.md` contains authoring practices, limits, examples, and checklists.
-- `references/runtime-guidance.md` contains capability-based runtime checks and workflow safeguards.
-- `references/source-coverage.md` records retained, generalized, and excluded source advice.
-
 For the latest guidance, recheck the sources.
 For a specific runtime, consult its current documentation.
 Separate documented behavior from proposed model-agnostic practices.
-The scope limits and capability checks here are adaptations, not evidence that the sources tested every runtime.
+The scope limits and capability checks here are adaptations, not evidence of source tests on every runtime.
 
 ## Prompting hypotheses
 
@@ -48,42 +41,34 @@ The scope limits and capability checks here are adaptations, not evidence that t
 | Visual inputs | Use original images with supported tools. Crop or inspect dense material where useful. | Disclose absent visual access. Re-evaluate old preprocessing before removing it. | Visual inputs and tools. |
 | Short follow-ups | Evaluate whether unnecessary reconsideration of settled answers causes a concrete problem. | Preserve correction after new evidence. Exclude shortcuts that suppress analysis or task-specific self-correction. | Settled answers. |
 
-These hypotheses concern outcomes and workflow design.
-They promise no universal quality, latency, cost, or token gain.
+These hypotheses promise no universal quality, latency, cost, or token gain.
 If a simplification performs worse, preserve the relevant existing constraints.
 
 ## Authoring hypotheses
 
-| Observed problem | Candidate change | Required limit | Supporting source topic |
-| --- | --- | --- | --- |
-| Generic background | Keep information needed for the task. | Preserve contracts, caveats, and necessary examples. | Context economy. |
-| Variable or fragile operations | Choose instruction freedom according to risk and variability. | Preserve exact safety sequences and exploratory judgment. | Degrees of freedom. |
-| Poor discovery or navigation | Improve specific metadata, direct links, domain organization, and contents lists. | Preserve stable names, manual invocation, and supported metadata. | Names, descriptions, and progressive disclosure. |
-| Complex steps or strict outputs | Use workflows, branches, templates, examples, and feedback loops. | Match strictness to the contract. Do not require tracking for trivial work. | Workflows and output patterns. |
-| Repeated deterministic operations | Use documented scripts and checked intermediate outputs. | Check dependencies, permissions, recovery, and actual tool identifiers. | Executable skills. |
-| Unsupported improvement claims | Define gap-based evaluations and compare behavior with the baseline. | Evaluate intended models and clients. Report missing runs and unconfirmed benefits. | Evaluation and iteration. |
+The directly linked `references/skill-authoring.md` supplies the authoring checks and limits:
+
+- A01–A02: Useful task context and instruction freedom appropriate to risk.
+- A04–A08: Discovery and navigation without unauthorized identity or invocation changes.
+- A09–A12: Workflows, feedback, terminology, templates, and examples appropriate to the contract.
+- A17–A23: Deterministic scripts, intermediate outputs, recovery, dependencies, permissions, and supported tools.
+- A03, A13–A15: Gap-based evaluations, baseline comparisons, navigation observations, and feedback.
+
+Use A24 as the final checklist.
 
 ## Runtime boundaries
 
-Prompt prose defines task behavior, not API parameters or client features.
-Runtime controls need current documentation and actual client support.
-Identical control names do not imply identical behavior across runtimes.
+Prompt prose defines task behavior, not runtime configuration.
+Metadata, scripts, controls, continuation, and progress transport need documented client support.
+Identical control names do not establish identical behavior.
 
-An unattended client can need a bounded continuation mechanism while work remains open.
-Its stop signals, role conventions, and background-result delivery depend on the harness.
-A turn ending does not establish completion.
-Metadata and scripts can support integration features, but ordinary skill prose cannot configure them.
+The directly linked `references/runtime-guidance.md` contains the detailed checks:
 
-Time budgets in prompts are advisory.
-Hard timeouts need harness enforcement.
-Elapsed-time signals need real clock measurements.
-Quality checks remain necessary under time pressure.
+- R03–R08: Configuration, integration, bounded continuation, delegation, safeguards, and progress delivery.
+- R10: Advisory budgets, real elapsed-time measurements, harness-enforced timeouts, and quality under time pressure.
+- R12: Application-generated wrappers that neither guarantee enforcement nor authorize external instructions.
 
-Applications can mark pasted content with generated tags.
-A skill cannot guarantee those wrappers or their enforcement.
-External text has no independent authority to redirect the task.
-
-For runtime recommendations, cite current documentation.
-State the supported configuration and required permissions.
-Evaluate that configuration separately.
-Do not infer capabilities, restrictions, or performance from a different model's documentation.
+For recommendations, cite current documentation and required permissions.
+State the supported configuration.
+Evaluate the supported configuration separately.
+Do not infer capabilities, restrictions, or performance from another model's documentation.

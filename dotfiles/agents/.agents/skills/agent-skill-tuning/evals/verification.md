@@ -1,4 +1,114 @@
-# Portability verification
+# Simplification verification: 2026-10-05
+
+The simplification removes repeated instructions and applies the supplied ASD-STE100 writing guidance.
+It preserves the source inventory, examples, safety conditions, and evaluation expectations.
+
+## Baseline and size
+
+The baseline is the clean working tree at commit `8eb0f59d9f055aaaa10b7fa460df0f5eda87f7d9`.
+Originals and local evidence remain outside installed skill directories in `.pi/agent-skill-tuning-muul0bxi/`.
+That ignored workspace contains checks, preservation reviews, trial snapshots, transcripts, and outputs.
+
+Counts use whitespace-separated words, including headings, tables, and examples.
+They are not model-token counts.
+The instructional total excludes fixtures, evaluation data, and this verification record.
+
+| Instructional file | Before | After |
+| --- | ---: | ---: |
+| `SKILL.md` | 1,357 | 948 |
+| `references/prompt-principles.md` | 965 | 738 |
+| `references/runtime-guidance.md` | 1,877 | 1,781 |
+| `references/skill-authoring.md` | 3,495 | 3,140 |
+| `references/source-coverage.md` | 2,441 | 2,451 |
+| **Total** | **10,135** | **9,058** |
+
+The main word count decreased by 30.1%.
+The main file decreased from 197 to 122 lines.
+Total instructional words decreased by 10.6%.
+No text moved to a new instructional reference.
+
+## Structural and manual evidence
+
+- All 208 structural checks passed, including 88 relative links and their applicable anchors.
+- Frontmatter, all 13 prompting hypotheses, five authoring fences, and 65 authoring inline-code spans remain unchanged.
+- All A01–A24 and R01–R16 headings remain in order.
+- All nine evaluations and both inert fixtures remain byte-identical to the baseline.
+- The manual coverage review covers all nine evaluation expectations.
+- Independent reviews found six compressed statements with changed or unclear meanings. Each received a correction.
+- The prose scan found no prohibited mechanical patterns. The three longest counted sentences contain 19, 18, and 18 words.
+- The writing review preserves technical distinctions, instruction strength, and one primary action per procedure step.
+- Active LSP probes found no diagnostics in the six changed Markdown files.
+
+The constrained frontmatter parser covers the scalar syntax present here, not general YAML.
+Word counts treat code, quotations, and parenthetical text as single units for sentence-length checks.
+The existing software-domain term “check” remains consistent.
+Full dictionary compliance needs the official dictionary and is not certified.
+
+## Behavioral comparisons
+
+Three matched cases compare the revised and original skills in fresh contexts.
+The configured model is `cliproxyapi/gpt-6-astra`, with `xhigh` reasoning, in Pi 1.0.1.
+Each pair has identical task text, inputs, model, reasoning level, client, and 26 exposed tool names.
+Artifact paths differ by disposable run directory.
+
+Iteration 2 passed all 29 assertions per configuration.
+Independent grading still found less explicit partial-input handling, a missing final source-integrity check, and weaker final-only audit delivery.
+It also found less explicit advice about descriptive reference filenames.
+The revisions add focused checks for these gaps.
+These local findings remain separate from primary-source attribution.
+
+Iteration 3 restored partial-report handling and complete final audits.
+Its report edit still omitted the final source-integrity check.
+The final clarification requires that check **inside the target skill**, not only during the tuning audit.
+Iteration 4 reran the affected report-edit pair.
+
+The final evidence set combines that pair with iteration 3's clarification and read-only audit pairs.
+Those earlier snapshots remain unchanged.
+Their only later instruction change concerns emission of the protected-input check during target edits.
+Exact allowed-diff checks enforce that limited difference.
+The clarification stops before edits, and the authoring audit is read-only.
+
+The final grading includes four additional quality assertions.
+Both configurations run without the earlier artificial 24-turn cap.
+No maintained evaluation expectation or fixture changed.
+
+| Case | Revised | Original |
+| --- | ---: | ---: |
+| Bounded scope and required question | 3/3 | 3/3 |
+| Authorized report-skill edit | 14/14 | 12/14 |
+| Read-only authoring audit | 16/16 | 16/16 |
+| **Total** | **33/33** | **31/33** |
+
+The original report-edit run missed the two added partial-output and final-preservation checks.
+Both configurations passed every original assertion.
+The final revised output passed all added checks, with no remaining regression found against the tested requirements.
+The lead reviewed final artifacts, responses, command bodies, and preservation evidence.
+Earlier independent grading informed the corrections.
+Grading was not blinded.
+
+Local review artifacts:
+
+- `.pi/agent-skill-tuning-muul0bxi/review.html`: generated review page with outputs and benchmark results.
+- `.pi/agent-skill-tuning-muul0bxi/final-review/benchmark.json`: assertions, timing, token counts, and limits.
+- `.pi/agent-skill-tuning-muul0bxi/final-review/`: original snapshots, transcripts without private reasoning, outputs, grades, and comparisons.
+
+## Evidence limits
+
+Structural checks and manual review do not establish model behavior.
+These actual trials exercise tuning, not downstream report generation, publication, migrations, or multiple runtimes.
+Each final case has one run per configuration.
+Statistics across different cases do not estimate repeated-trial variance.
+Reported tokens include repeated context and cache reads, not only new output.
+No general speed, token-use, or cost benefit is established.
+Task tools create internal harness metadata, not edits to protected user files.
+The source URLs remain exact, but no new external-source audit or availability check ran.
+No runtime configuration, installed skill, fixture, external record, or unrelated file changed.
+No latency, cost, universal quality, or cross-model improvement claim follows from shorter instructions.
+
+# Historical portability verification
+
+The remaining record describes the earlier portability rewrite, not the current simplification.
+Its counts, file inventory, and trial limits are historical.
 
 This record separates checks of the model-agnostic rewrite from historical source and trial evidence.
 It claims no measured behavioral or performance improvement.

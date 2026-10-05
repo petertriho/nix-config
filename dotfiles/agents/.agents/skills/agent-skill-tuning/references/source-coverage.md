@@ -27,8 +27,8 @@ It reports no hidden tab or expandable-section advice.
 The authoring page's expandable example was a code block.
 Workflow-image descriptions repeated the task, stop, delegation, and checklist lessons.
 
-This portability rewrite used the saved skill files and their source inventory.
-It did not fetch the primary pages again.
+The portability rewrite and subsequent simplification used saved skill files and their source inventory.
+Neither fetched the primary pages again.
 Historical HTTP and extraction checks do not establish current link availability.
 Coverage concerns these three primary sources, not every page they link.
 
@@ -36,6 +36,8 @@ All operational references link directly from `SKILL.md`.
 Sections **A01–A24** identify [skill-authoring practices](skill-authoring.md).
 Sections **R01–R16** identify [runtime guidance](runtime-guidance.md).
 [Prompt principles](prompt-principles.md) contains transferable hypotheses and their limits.
+
+Local evaluation follow-ups in A10, A12, and the final-response rule come from tuning trials, not the primary sources.
 
 Status meanings:
 
@@ -139,16 +141,16 @@ Status meanings:
 | Baseline requirement | Retained destination |
 | --- | --- |
 | Existing-skill tuning, stable identity, manual invocation, bounded scope, and justified no-edit results | Main introduction, frontmatter, scope, and workflow |
-| Purpose, trigger, outputs, supported clients, safety, and useful analysis | Main introduction and editing step |
-| Applicable references before review, not checklist-only edits | Main navigation and opportunity step |
+| Purpose, trigger, outputs, supported clients, safety, and useful analysis | Main scope and editing step |
+| Applicable references before review, not checklist-only edits | Main navigation and justified-edit step |
 | Maintained source resolution, not generated or read-only copy edits | Main scope |
 | Audit-only means no edits or unrelated configuration changes | Main scope |
 | Documented runtime controls or explicit uncertainty | Main scope, R03–R04, R08 |
-| Higher-priority instructions and untrusted-source boundaries | Main scope and decision rules, R09, R12 |
+| Higher-priority instructions and untrusted-source boundaries | Main scope, R09, R12 |
 | Read targets, references, tests, local guidance, and working-tree changes | Baseline step |
 | Save originals and preserve uncommitted changes | Baseline step |
-| Current behavior, proposed change, expected benefit, check, and source evidence | Candidate step |
-| Small edits and no filler replacements for thinking commands | Candidate and editing steps |
+| Current behavior, proposed change, expected benefit, check, and source evidence | Justified-edit step |
+| Small edits and no filler replacements for thinking commands | Justified-edit and editing steps |
 | Preserve frontmatter, formats, links, approvals, interaction, and analysis | Editing step |
 | No generic continuation or reduced-thinking instruction | Editing step |
 | Diff, frontmatter, links, tests, and normal versus stop scenarios | Check step |
@@ -156,18 +158,18 @@ Status meanings:
 | Structural, manual, and actual-run evidence remain separate | Reporting step |
 | Tested configuration, missing runs, and no unmeasured cross-model gains | Reporting step |
 | Blockers first and separate runtime suggestions | Reporting step, R15 |
-| Completion without losing destructive, irreversible, external, or out-of-scope approval | Decision rules, R02, R05 |
-| Usable artifacts unless the user requested an outline | Decision rules, R15 |
-| Background work pending until checked, except explicit launch-only requests | Decision rules, R05–R06 |
-| Observable rationale and evidence, not private reasoning requests | Decision rules, R04, R11 |
-| Useful task tracking and supported delegation with checked evidence | Decision rules, R05–R06 |
-| Uncertainty and source locations without invented findings | Decision rules, R15 |
-| Prompt text does not configure runtime features | Decision rules and prompt-principles runtime boundaries |
+| Completion without losing destructive, irreversible, external, or out-of-scope approval | Main scope and editing step, R02, R05 |
+| Usable artifacts unless the user requested an outline or plan | Editing step, R15 |
+| Background work pending until checked, except explicit launch-only requests | Editing step, R05–R06 |
+| Observable rationale and evidence, not private reasoning requests | Editing step, R04, R11 |
+| Useful task tracking and supported delegation with checked evidence | Editing step, R05–R06 |
+| Uncertainty and source locations without invented findings | Reporting step, R15 |
+| Prompt text does not configure runtime features | Main scope and prompt-principles runtime boundaries |
 | All 13 prompting hypotheses and their operational limits | Prompt-principles prompting table |
 | Source rechecks and documented behavior separate from adaptations | Prompt-principles sources section |
 | Runtime summaries | R03–R13, R16 retain only portable checks and limits. Exact controls and model claims are excluded. |
-| Nine evaluation cases and their underlying safety or evidence scenarios | Evaluation IDs remain stable. Names, client assumptions, and coverage expectations are revised. |
-| Intentional fixture defects and required approvals | Both fixtures retain negative controls. Prose and runtime labels are revised. |
+| Nine evaluation cases and their underlying safety or evidence scenarios | All evaluations remain unchanged by simplification. |
+| Intentional fixture defects and required approvals | Both fixtures remain unchanged by simplification. |
 
 ## Adaptations and exclusions
 
@@ -189,7 +191,7 @@ Status meanings:
 
 ## Maintenance rule
 
-1. Before updating source-derived advice, read its surrounding examples and caveats.
+1. Before you update source-derived advice, read its surrounding examples and caveats.
 2. Update the destination.
 3. Update this map's treatment and destination.
 4. For consolidated advice, preserve conditions and limits.
