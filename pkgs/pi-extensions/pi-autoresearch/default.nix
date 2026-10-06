@@ -5,13 +5,13 @@
 }:
 stdenv.mkDerivation {
   pname = "pi-autoresearch";
-  version = "1.8.1-unstable-2026-09-10";
+  version = "1.8.1-unstable-2026-10-06";
 
   src = fetchFromGitHub {
     owner = "davebcn87";
     repo = "pi-autoresearch";
-    rev = "939ede8220daad440eac6bb7b6e315cc283e0a64";
-    hash = "sha256-4xmDnxk84gLDDH4p6lVJTYAbqUTKgsb37feHDPLOo+o=";
+    rev = "cd5836186c633c54aae71538ba44f51885661514";
+    hash = "sha256-mU10Nk8BrKywSdvOKrYXPaVwHB17v14GdohZLtTotMQ=";
   };
 
   dontBuild = true;
