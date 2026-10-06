@@ -19,15 +19,21 @@ git-diff-scope --ref "$ref" --include-untracked --pretty
 git-diff-scope --staged --pretty -- "$path1" "$path2"
 ```
 
-Explicit paths limit the result. Otherwise `--staged` takes precedence over `--ref`;
-the default is current uncommitted work. Add `--include-untracked` when a ref review
+The default is current uncommitted work. Explicit paths after `--` limit any mode.
+`--staged` and `--ref` cannot be combined. If a request names both, use `--staged`
+and say that the ref was not applied. Add `--include-untracked` when a ref review
 must include repository-wide untracked additions, such as an unstaged implementation
 review. Run from the user's current directory.
 
 ## Interpret
 
+- If the output is too large to read at once, first list `repository_root`, `scope`,
+  `requested_without_diff`, and each entry's `status`, `type`, and `path`. Then read
+  the patches one entry at a time, for example with `jq -r '.entries[N].patch'`. A
+  truncated preview is not the full scope.
 - Review `entries[].patch`; use `entries[].path` as the current path and `old_path`
-  for rename or copy context.
+  for rename or copy context. Both paths are relative to `repository_root`, not to
+  the current directory.
 - Treat status `?` as a whole-file untracked addition. It appears in default mode,
   when `--include-untracked` is set, or when an untracked path is explicitly named.
 - A ref comparison contains all tracked worktree changes against the ref.
@@ -43,8 +49,12 @@ review. Run from the user's current directory.
 
 - For `requested_without_diff`, perform a whole-file review only when the user asked
   for one. Do not broaden a changed-lines request.
+- For a named directory, `entries` lists only its changed files. When any file in
+  it changed, the directory is absent from `requested_without_diff`.
 - Apply `type` before reading content: review `regular`; inspect `symlink` or
-  `submodule` as metadata without following or traversing it.
+  `submodule` as metadata without following or traversing it. Do not traverse an
+  entry of type `directory`, such as an untracked nested repository, or read an
+  `other` entry. List both as skipped.
 - Review `D` from its patch. Stop for `T`, `U`, `X`, `B`, or an unfamiliar status.
 - Empty `entries` means nothing changed unless an explicitly named whole-file item is
   listed in `requested_without_diff`.

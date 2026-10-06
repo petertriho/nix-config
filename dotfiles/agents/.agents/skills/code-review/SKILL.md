@@ -24,7 +24,8 @@ Read these bundled references when needed:
 ## Boundaries
 
 - Use this skill for current changes, staged changes, a comparison against a ref,
-  or explicitly named files.
+  a branch, PR, or merge request, a supplied patch, or explicitly named files or
+  directories.
 - Focus on correctness, security, regressions, contracts, error handling,
   concurrency, resources, and diff-local maintainability risks with a concrete
   failure or drift mode.
@@ -33,7 +34,7 @@ Read these bundled references when needed:
 - Do not change code under this skill. If the user asks to fix findings, stop the
   review, summarize the actionable findings, and wait for explicit approval before
   switching to `execute` as a separate workflow.
-- Keep behavior-preserving cleanup of changed code with `simplify`.
+- Keep behavior-preserving cleanup of changed code or named files with `simplify`.
 - Do not run this as a mandatory post-edit gate when the user did not ask for a
   review.
 
@@ -41,12 +42,26 @@ Read these bundled references when needed:
 
 1. **Frame the review.**
    - Identify whether the user requested default uncommitted changes, staged
-     changes, `--ref=<ref>`, or named paths.
+     changes, `--ref=<ref>`, a branch, PR, or merge request, a supplied patch,
+     or named paths.
+   - Treat a named file or directory as a whole-file review of every file in it.
+     Review only the changes in a path when the request limits a diff to it,
+     such as “my changes in `src/`” or `--staged src/`.
    - If the request is too broad to review responsibly, narrow it with one
      focused question or review in explicit batches and disclose the limit.
 
 2. **Resolve scope without guessing.**
-   - Follow `references/diff-scope.md`.
+   - Follow `references/diff-scope.md`. This includes a branch, PR, or merge
+     request that is checked out as `HEAD`.
+   - For `--ref`, a branch, a PR, or a merge request, pass
+     `git merge-base HEAD "$ref"` to the resolver as the ref. A direct comparison
+     with an advanced base shows its newer commits as reverted changes. For an
+     ancestor of `HEAD`, the merge base is the ref itself. Report the ref and the
+     merge-base commit. Compare with the ref directly only when the user asks.
+   - For a supplied patch, or a PR or merge request that is not checked out,
+     review the patch text. Read a remote patch with a read-only command, such
+     as `gh pr diff` or `glab mr diff`, without checking out its branch. Local
+     files can differ from the patch, so use them only as context.
    - Never silently substitute `HEAD~1`, another ref, or unstaged changes when
      the requested scope is empty or invalid.
    - If no files are in scope or the scope cannot be established, use the
@@ -57,9 +72,11 @@ Read these bundled references when needed:
      and repository-specific review or test guidance.
    - For a diff-backed review, read the patch before judging the final file. The
      review target is the behavior introduced or changed by that patch.
-   - For a named-file review with no patch, mark the scope as whole-file, read the
-     current contents directly, and treat all current code in that path as in
-     scope.
+   - For a whole-file review, read the current contents of every file in each
+     named path, including files without a patch. The resolver lists only changed
+     files. List a directory's files with `git ls-files -- "$path"` and
+     `git ls-files --others --exclude-standard -- "$path"`. Use a patch only to
+     show what changed.
 
 4. **Inspect representative context.**
    - Read the changed functions, classes, modules, or configuration blocks.
@@ -79,7 +96,7 @@ Read these bundled references when needed:
    - In a diff-backed review, prefer issues introduced or worsened by the reviewed
      change. Mention a nearby pre-existing issue only when it is necessary to
      explain the changed code's risk, and label it as pre-existing.
-   - In a named-file whole-file review, all current contents are in scope; do not
+   - In a whole-file review, all current contents are in scope; do not
      suppress a valid issue merely because no patch introduced it.
    - Drop style preferences, speculative future concerns, duplicate findings,
      and issues already prevented by visible validation or invariants.
@@ -89,9 +106,11 @@ Read these bundled references when needed:
    - Order findings by severity: `CRITICAL`, `HIGH`, `MEDIUM`, then `INFO`.
    - Include exact `path:line` references from the scope's source of truth. For a
      staged review, use index content or cached-patch context rather than drifted
-     working-tree lines. Use patch context for deleted code.
+     working-tree lines. Use patch context for deleted code. For a patch-only
+     review, use new-side hunk lines.
    - If no actionable findings remain, say so directly.
-   - State review limits, skipped files, and validation that was not run.
+   - Before you report, make sure that each in-scope file was reviewed or is
+     listed in `Review Limits`. Also state validation that was not run.
 
 ## Discipline
 
