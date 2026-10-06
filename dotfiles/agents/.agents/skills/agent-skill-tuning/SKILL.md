@@ -1,6 +1,6 @@
 ---
 name: agent-skill-tuning
-description: "Manually invoked workflow to audit and improve existing agent skills for model-agnostic use. Use when asked to tune, harden, modernize, or apply authoring and prompting practices to named SKILL.md files. Preserve purpose and safety rules through targeted edits and checks. Not for new skills or an unbounded rewrite of installed skills."
+description: "Manually invoked workflow to audit and improve existing agent skills for model-agnostic use. Use when asked to tune, harden, modernize, or apply authoring and prompting practices to named SKILL.md files. Preserves purpose and safety rules through targeted edits and checks. Not for new skills or an unbounded rewrite of installed skills."
 disable-model-invocation: true
 ---
 
@@ -76,15 +76,18 @@ Nontransferable claims are not universal instructions.
 8. Keep the main body under 500 lines through directly linked detail, without omitting requirements.
 9. For references longer than 100 lines, add a contents list.
 
-Deletion of a generic thinking command needs no filler replacement.
+Deletion of a generic command to think more or less needs no filler replacement.
 Do not add generic “keep going” or “think less” instructions to specialized skills.
 
-For multi-part work, define completion and escalation.
-For long work that needs tracking, use a task tool or persistent checklist.
-Delegate only supported, useful, independent work.
-Unless the request is launch-only, keep background work pending until its evidence is checked.
-Use the harness's completion mechanism, not polling loops.
-Unless the user requested an outline or plan, deliver the usable file for artifact requests.
+Follow these rules in your own run.
+If a target's work needs one of them and the target lacks it, add it to the target.
+
+- For multi-part work, define completion and escalation.
+- For long work that needs tracking, use a task tool or persistent checklist.
+- Delegate only supported, useful, independent work.
+- Unless the request is launch-only, keep background work pending until its evidence is checked.
+- Use the harness's completion mechanism, not polling loops.
+- Unless the user requested an outline or plan, deliver the usable file for artifact requests.
 
 ### 4. Check the change
 
@@ -92,11 +95,11 @@ Unless the user requested an outline or plan, deliver the usable file for artifa
 2. Parse frontmatter.
 3. Check resource links.
 4. Run existing tests.
-5. Where practical, compare at least two representative scenarios against the saved baseline.
-6. Include a normal task and a required stop, question, or refusal of unauthorized action.
-7. Keep the task, model, client, and tool configuration identical within each comparison.
-8. For tests that write files, use disposable copies.
-9. For substantial changes, run the gap-based evaluations where practical.
+5. Where practical, run representative scenarios on the saved baseline and the revision, each in a fresh context.
+6. Use at least two scenarios: a normal task and a required stop, question, or refusal of unauthorized action.
+7. For substantial changes, also run the gap-based evaluations from step 1.
+8. Keep the task, model, client, and tool configuration identical within each comparison.
+9. For tests that write files, use disposable copies.
 10. For script changes, check expected errors, dependencies, and intermediate outputs.
 11. Where available, inspect real workflows, resource access, and user or team feedback.
 12. Check behavior and output quality before speed or token savings.
@@ -104,6 +107,7 @@ Unless the user requested an outline or plan, deliver the usable file for artifa
 14. After fixes, repeat required checks.
 15. Make sure that unrelated user changes remain intact.
 
+The agent that wrote an edit knows its intent, so it cannot test the skill as a fresh user.
 Do not run untrusted scripts or external side effects to satisfy a checklist.
 Before you claim support or improvement, evaluate each intended model and client.
 Shorter text, checklist conformity, and one configuration do not establish broader gains.
@@ -119,4 +123,3 @@ Shorter text, checklist conformity, and one configuration do not establish broad
 7. For exhaustive source work, report the coverage map and preservation checks.
 
 For audit-only work, put findings, evidence, and proposed changes in the final response.
-An untested change is not a measured improvement.

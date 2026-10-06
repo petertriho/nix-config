@@ -26,7 +26,7 @@
     {
       "id": 4,
       "prompt": "Copy the supplied report-skill.md fixture into a disposable directory as sample-report/SKILL.md. Improve that copy for use across models. The skill must produce a usable report file. Each finding needs an accurate source reference. Preserve the existing requirement for approval before publication. Do not change the fixture. Do not change any installed skill.",
-      "expected_output": "Remove redundant commands about internal reasoning. Do not add filler. Replace the premature outline-only stop with completion criteria for REPORT.md. Preserve the Markdown table, source evidence, and frontmatter. Preserve the requirement for approval before publication. Remove the blanket ban on reconsideration of earlier findings. Until you check the results, keep background work incomplete. Report structural and behavioral checks separately. Do not claim cross-model gains without tests.",
+      "expected_output": "Remove the redundant generic commands to think hard. Do not add filler. Replace the premature outline-only stop with completion criteria for REPORT.md. Preserve the Markdown table, source evidence, and frontmatter. Preserve the requirement for approval before publication. Remove the blanket ban on reconsideration of earlier findings. Until you check the results, keep background work incomplete. Report structural and behavioral checks separately. Do not claim cross-model gains without tests.",
       "files": [
         "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
       ]
@@ -34,7 +34,7 @@
     {
       "id": 5,
       "prompt": "Audit the supplied report-skill.md fixture without edits. A guide for one model says that internal reasoning is always active. Can prompt text set medium effort for another model in a different client? If we remove every 'step by step' instruction, can we guarantee faster replies? Do not fetch additional documentation for this test.",
-      "expected_output": "Reject unsupported claims about another model or faster replies. Distinguish redundant commands about internal reasoning from useful procedures and task analysis. Explain that runtime controls require documented client support, not prompt text alone. Keep the audit read-only. State that you did not run a model comparison.",
+      "expected_output": "Reject unsupported claims about another model or faster replies. Distinguish redundant generic commands to think hard from useful procedures and task analysis. Explain that runtime controls require documented client support, not prompt text alone. Keep the audit read-only. State that you did not run a model comparison.",
       "files": [
         "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
       ]

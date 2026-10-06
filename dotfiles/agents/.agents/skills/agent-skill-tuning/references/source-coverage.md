@@ -1,4 +1,4 @@
-# Source coverage and preservation map
+# Source coverage map
 
 This map separates retained lessons from generalized advice and excluded runtime-specific details.
 It does not claim that every source recommendation remains an instruction.
@@ -10,26 +10,32 @@ Source topics use neutral labels rather than model or vendor names.
 - [Skill-authoring source](#skill-authoring-source)
 - [Workflow source](#workflow-source)
 - [Prompting source](#prompting-source)
-- [Existing advice and safeguards](#existing-advice-and-safeguards)
 - [Adaptations and exclusions](#adaptations-and-exclusions)
 - [Maintenance rule](#maintenance-rule)
 
 ## Sources and reading evidence
 
-The previous verification record reports complete primary-source reads on 2026-10-04:
+The last complete read of these primary sources was on 2026-10-06:
 
 - [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
 - [Agent workflow guidance](https://claude.dev/blog/getting-the-most-out-of-opus-5-5/)
 - [Prompting and runtime guidance](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5)
 
-That record includes extracted text, code blocks, live HTML headings, and three authoring diagrams.
-It reports no hidden tab or expandable-section advice.
-The authoring page's expandable example was a code block.
-Workflow-image descriptions repeated the task, stop, delegation, and checklist lessons.
+That read used the Markdown versions of both documentation pages and text extracted from the article HTML.
+It included code blocks, notes, warnings, tips, the three authoring diagrams, and the article's image descriptions.
+The diagrams repeat the A07 resource patterns.
+The article's image descriptions repeat its task, stop, delegation, and checklist lessons.
 
-The portability rewrite and subsequent simplification used saved skill files and their source inventory.
-Neither fetched the primary pages again.
-Historical HTTP and extraction checks do not establish current link availability.
+The read found six unrecorded source points:
+
+- The third-person description rule now appears in A05.
+- The large-workflow file split now appears in A09.
+- The completion checker and continuation messages now appear in R05.
+- Instruction costs now appear in R05, R09, and R12.
+- The removal of generic reasoning bans now appears in R03 and R11.
+- The claim that models know the skill format natively is excluded.
+
+An earlier complete read on 2026-10-04 reported no hidden tab or expandable-section advice.
 Coverage concerns these three primary sources, not every page they link.
 
 All operational references link directly from `SKILL.md`.
@@ -54,7 +60,7 @@ Status meanings:
 | Degrees of freedom | Retained: specificity follows risk and variability, with review, report, migration, and bridge examples. | A02 |
 | Intended models | Generalized: evaluate instruction sufficiency and unnecessary explanation on each intended model. Excluded: family-based guidance assumptions. | A03 |
 | Naming conventions | Retained: descriptive, consistent names and useful alternatives. Generalized: client-specific reserved-name rules. | A04 |
-| Effective descriptions | Retained: capability plus triggers, specific terms, discovery examples, and vague counterexamples. | A05 |
+| Effective descriptions | Retained: third-person point of view, capability plus triggers, specific terms, discovery examples, and vague counterexamples. | A05 |
 | Progressive disclosure | Retained: overview plus detail, under-500-line recommendation, and splitting before complexity grows. Generalized: context-loading behavior. | A06 |
 | Visual resource overview | Retained: metadata, references, scripts, PDF extraction, field branches, JSON, and argument checks. | A07, A18 |
 | Overview with references | Retained: quick start and direct form, API, and example links. | A07 |
@@ -68,9 +74,9 @@ Status meanings:
 | Terminology | Retained: one term for each meaning without merging distinct concepts. | A11 |
 | Templates | Retained: strict or flexible structure according to the output contract. | A12 |
 | Examples | Retained: input/output pairs and commit-message patterns with useful detail. | A12 |
-| Conditional workflows | Retained: library-based creation versus XML editing and checks before repacking. | A09 |
+| Conditional workflows | Retained: library-based creation versus XML editing, checks before repacking, and separate files for large workflows. | A09 |
 | Evaluations first | Retained: observed gaps, three scenarios, appropriate baseline, minimal edits, and complete-output criteria. | A13 |
-| Iterative development | Generalized: separate refining and fresh using agents. Retained: reusable task facts, concrete failures, and reevaluation. | A14 |
+| Iterative development | Generalized: separate refining and fresh using agents. Retained: reusable task facts, concrete failures, and reevaluation. Excluded: the claim that models know the skill format natively, because portable skills cannot assume it. | A14, main check step |
 | Team feedback | Retained: domain expertise and observed activation, clarity, and missing guidance. | A14 |
 | Resource navigation | Retained: unexpected order, missed links, repeated reads, ignored resources, and discovery checks. | A15 |
 | Cross-platform paths | Retained: forward slashes. | A16 |
@@ -124,52 +130,17 @@ Status meanings:
 | --- | --- | --- |
 | Introduction and symptom routing | Retained: select changes by observed need and preserve a baseline. Excluded: named-version and output-speed comparisons. | R01 |
 | Capabilities | Excluded: model-specific quality, token, effort, and success comparisons. Retained elsewhere: concrete review, artifact, and visual checks. | R01, R13, R15 |
-| Effort calibration | Generalized: check supported controls, limits, accounting, and cache effects. Excluded: defaults, maximums, exact parameter semantics, and beta controls. | R03 |
-| Legacy integration migration | Generalized: recheck mitigations and documented response parsing. Excluded: version-specific compatibility, display values, and refusal categories. | R04 |
-| Unattended runs | Retained: turns are not completion, open-item checks, bounded continuation, checked background output, and approval. Excluded: exact signals and system timing rules. | R05, R08 |
+| Effort calibration | Generalized: check supported controls, limits, accounting, and cache effects. Retained: prefer a documented reasoning control to prompt text. Excluded: defaults, maximums, exact parameter semantics, and beta controls. | R03 |
+| Legacy integration migration | Generalized: recheck mitigations and documented response parsing. Retained: remove generic rules that forbid reasoning, and measure quality for any direct-answer instruction. Excluded: version-specific compatibility, display values, and refusal categories. | R04, R11 |
+| Unattended runs | Retained: turns are not completion, completion conditions, open-item checks, continuation messages, separate checker models, bounded continuation with the two-or-three example, checked background output, approval, and added tool-call cost. Excluded: exact signals and system timing rules. | R05, R08 |
 | Safeguard refusals | Excluded: classifier categories, program links, fallback policies, and exact response fields. Retained: applicable safeguards and concise explanations. | R07 |
 | Progress updates | Generalized: transport, verbatim content, cadence, and bounded reminders. Excluded: headers, display values, reminder constants, cache claims, and performance results. | R08 |
-| Context across apps | Retained: relevant unnamed sources and untrusted-record boundaries. Excluded: effort-level correctness and token comparisons. | R09 |
+| Context across apps | Retained: relevant unnamed sources, untrusted-record boundaries, and added tool-call cost. Excluded: effort-level correctness and token comparisons. | R09 |
 | Time signals | Retained: measured elapsed time, advisory budgets, hard timeouts, local evaluation, and quality limits. Excluded: reported team speed comparisons. | R10 |
 | Thinking instructions | Retained conditionally: redundant-language removal and settled-answer limits. Excluded: source-specific latency results. | R11 |
-| Pasted text | Retained: application-generated wrappers, authority limits, hidden identifiers, and imitable-tag warning. Excluded: comparative injection-resistance claim. | R12 |
+| Pasted text | Retained: application-generated wrappers, authority limits, hidden identifiers, imitable-tag warning, and possible added caution. Excluded: comparative injection-resistance claim. | R12 |
 | Visual tools | Retained: original images, resolution, crops, dimensions, coordinates, costs, and tool checks. Excluded: model-specific effort comparisons and vendor recipe link. | R13 |
 | Frontend defaults | Retained: specific exclusions and iterative inspection. Implementation examples are not required defaults. | R14 |
-
-## Existing advice and safeguards
-
-| Baseline requirement | Retained destination |
-| --- | --- |
-| Existing-skill tuning, stable identity, manual invocation, bounded scope, and justified no-edit results | Main introduction, frontmatter, scope, and workflow |
-| Purpose, trigger, outputs, supported clients, safety, and useful analysis | Main scope and editing step |
-| Applicable references before review, not checklist-only edits | Main navigation and justified-edit step |
-| Maintained source resolution, not generated or read-only copy edits | Main scope |
-| Audit-only means no edits or unrelated configuration changes | Main scope |
-| Documented runtime controls or explicit uncertainty | Main scope, R03–R04, R08 |
-| Higher-priority instructions and untrusted-source boundaries | Main scope, R09, R12 |
-| Read targets, references, tests, local guidance, and working-tree changes | Baseline step |
-| Save originals and preserve uncommitted changes | Baseline step |
-| Current behavior, proposed change, expected benefit, check, and source evidence | Justified-edit step |
-| Small edits and no filler replacements for thinking commands | Justified-edit and editing steps |
-| Preserve frontmatter, formats, links, approvals, interaction, and analysis | Editing step |
-| No generic continuation or reduced-thinking instruction | Editing step |
-| Diff, frontmatter, links, tests, and normal versus stop scenarios | Check step |
-| Matched configuration, disposable copies, quality first, and preservation of unrelated changes | Check step |
-| Structural, manual, and actual-run evidence remain separate | Reporting step |
-| Tested configuration, missing runs, and no unmeasured cross-model gains | Reporting step |
-| Blockers first and separate runtime suggestions | Reporting step, R15 |
-| Completion without losing destructive, irreversible, external, or out-of-scope approval | Main scope and editing step, R02, R05 |
-| Usable artifacts unless the user requested an outline or plan | Editing step, R15 |
-| Background work pending until checked, except explicit launch-only requests | Editing step, R05–R06 |
-| Observable rationale and evidence, not private reasoning requests | Editing step, R04, R11 |
-| Useful task tracking and supported delegation with checked evidence | Editing step, R05–R06 |
-| Uncertainty and source locations without invented findings | Reporting step, R15 |
-| Prompt text does not configure runtime features | Main scope and prompt-principles runtime boundaries |
-| All 13 prompting hypotheses and their operational limits | Prompt-principles prompting table |
-| Source rechecks and documented behavior separate from adaptations | Prompt-principles sources section |
-| Runtime summaries | R03–R13, R16 retain only portable checks and limits. Exact controls and model claims are excluded. |
-| Nine evaluation cases and their underlying safety or evidence scenarios | All evaluations remain unchanged by simplification. |
-| Intentional fixture defects and required approvals | Both fixtures remain unchanged by simplification. |
 
 ## Adaptations and exclusions
 

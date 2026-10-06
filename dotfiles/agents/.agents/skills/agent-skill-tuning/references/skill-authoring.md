@@ -1,6 +1,6 @@
 # Skill-authoring practices
 
-Source: [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices), checked 2026-10-04.
+The [source coverage map](source-coverage.md) lists the source and the date of the last check.
 
 This reference preserves source guidance and examples.
 Sections A01–A24 support the coverage map.
@@ -120,6 +120,11 @@ Descriptions state capabilities and use cases.
 Specific terms aid selection among potentially more than 100 skills.
 Body details cannot replace discovery metadata.
 
+Write descriptions in the third person.
+Some clients inject descriptions into the system prompt.
+The source reports that an inconsistent point of view can cause discovery problems.
+Write “Processes Excel files and generates reports,” not “I can help you process Excel files” or “You can use this to process Excel files.”
+
 | Capability | Useful trigger terms |
 | --- | --- |
 | Extract PDF text and tables, fill forms, merge documents | PDFs, forms, document extraction |
@@ -220,6 +225,9 @@ If output checks fail, return to the mapping step.
 If workflows differ, use explicit decision points.
 The document example uses docx-js for creation and unpacked XML for edits.
 The editing branch checks each change before it repacks the files.
+
+If a workflow becomes large, move it to a separate linked file.
+Tell the agent which file to read for each type of task.
 
 ## A10: Feedback loops
 
@@ -519,7 +527,7 @@ Complete every applicable check in the linked sections.
 Core quality:
 
 - [ ] Check task-specific context and instruction freedom ([A01](#a01-context-economy), [A02](#a02-degrees-of-freedom)).
-- [ ] Check frontmatter and discovery ([A04](#a04-names-and-frontmatter), [A05](#a05-discovery-descriptions)).
+- [ ] Check frontmatter, third-person descriptions, and triggers ([A04](#a04-names-and-frontmatter), [A05](#a05-discovery-descriptions)).
 - [ ] Check descriptive filenames, domain organization, paths, and defaults with conditional fallbacks ([A07](#a07-resource-organization), [A16](#a16-paths-and-defaults)).
 - [ ] Check length, disclosure, links, contents, and loading behavior ([A06](#a06-progressive-disclosure), [A08](#a08-reference-depth-and-contents), [A22](#a22-file-access-and-execution)).
 - [ ] Check workflows, terminology, historical patterns, and examples ([A09](#a09-sequential-and-conditional-workflows), [A11](#a11-stable-information-and-terminology), [A12](#a12-templates-and-examples)).

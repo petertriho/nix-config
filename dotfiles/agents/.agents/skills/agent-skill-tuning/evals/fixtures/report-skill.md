@@ -13,7 +13,6 @@ For each finding, cite the source filename and location.
 
 Before every action, think very hard.
 For each decision, think carefully.
-Always print your full private chain of thought.
 
 Read the sources.
 Then produce an outline.
