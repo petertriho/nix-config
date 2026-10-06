@@ -5,6 +5,15 @@ production-observation safeguards below to all production access, including
 non-incident `shared` investigations. Reading production evidence does not
 itself declare an incident.
 
+## Contents
+
+- [First response and coordination](#first-response-and-coordination)
+- [Keep facts, diagnosis, and containment distinct](#keep-facts-diagnosis-and-containment-distinct)
+- [Production boundary](#production-boundary)
+- [Bounded observation procedure](#bounded-observation-procedure)
+- [Sensitive and untrusted evidence](#sensitive-and-untrusted-evidence)
+- [Blockers, transition, and handoff](#blockers-transition-and-handoff)
+
 ## First response and coordination
 
 Before a full notebook, communicate current impact/state, known facts,

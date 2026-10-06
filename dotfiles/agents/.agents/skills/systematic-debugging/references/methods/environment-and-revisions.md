@@ -1,5 +1,12 @@
 # Compare Environments and Revisions
 
+## Contents
+
+- [Compare effective environments](#compare-effective-environments)
+- [Inspect changes conditionally](#inspect-changes-conditionally)
+- [Git bisection](#git-bisection): [preconditions](#preconditions),
+  [procedure](#procedure), [records and restoration](#records-and-restoration)
+
 ## Compare effective environments
 
 Build a compact working/failing matrix containing only relevant factors:

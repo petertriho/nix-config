@@ -8,6 +8,17 @@ safe fact/risk review, communicate containment advice (or why no responsible
 option is available and the next owner decision) before review/full notebook
 work; record that communication here rather than delaying it to fill a template.
 
+## Contents
+
+- [Recording rules](#recording-rules)
+- [Layout](#layout)
+- [Compact template](#compact-template)
+- [Conditional extensions](#conditional-extensions)
+- [Corrective handoff format](#corrective-handoff-format)
+- [Chat report layout](#chat-report-layout)
+- [Readability pass](#readability-pass)
+- [Resuming an older notebook](#resuming-an-older-notebook)
+
 ## Recording rules
 
 - Use timestamps with timezone and stable `E#` evidence / `H#` hypothesis IDs.

@@ -214,6 +214,10 @@ contradiction-seeking fallback and acknowledge its anchoring limits.
 Run review alongside incident work when possible; it never blocks urgent
 updates, escalation, or containment advice. Pending review is a limit, not a
 reason to withhold evidence or manufacture certainty.
+A launched review stays pending until its memo arrives through the host's
+completion mechanism. Do not poll or sleep-wait for it. Before investigation
+`complete`, reconcile the memo. If the review fails, outlasts the run budget,
+or returns no usable memo, record that and use the fallback.
 
 ### 6. Classify, hand off, and verify state
 
@@ -257,8 +261,9 @@ any Git probe state. Remove only investigation-owned changes. The intended
 exact untracked path in the final report so the user can ignore or commit it.
 If cleanup cannot be proved, report exact paths/state, set cleanup `blocked`,
 and keep investigation `blocked` rather than claiming clean completion.
-A blocked diagnosis may otherwise finish with a documented evidence limit;
-final `unassessed` is not a completed diagnosis.
+Otherwise, a diagnosis limited by missing evidence can finish as investigation
+`complete` with that limit documented. A final `unassessed` diagnosis is not
+complete.
 
 Before the final report, do the
 [readability pass](references/output-format.md#readability-pass). Report
