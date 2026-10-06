@@ -67,7 +67,6 @@ in
           ANTHROPIC_DEFAULT_SONNET_MODEL = "gpt-6-luna";
           ANTHROPIC_DEFAULT_HAIKU_MODEL = "gpt-6-luna";
           CLAUDE_CODE_MAX_CONTEXT_TOKENS = "272000";
-          CLAUDE_CODE_DISABLE_1M_CONTEXT = "1";
         })
       ];
     };
