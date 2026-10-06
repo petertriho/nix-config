@@ -1,6 +1,6 @@
 ---
 name: socratic-quiz
-description: "Guide the user to deep understanding through Socratic questioning. Use only when the user explicitly asks to be quizzed: trigger phrases include quiz me, help me understand, Socratic, teach me, walk me through with questions, test my understanding. Asks one open-ended question at a time and never lectures."
+description: "Guide the user to deep understanding through Socratic questioning. Use only when the user invokes this skill by name or explicitly asks to be quizzed or questioned: trigger phrases include quiz me, Socratic, test my understanding, walk me through with questions, and help me understand or teach me with questions. Do not use for plain explanation requests such as help me understand X or teach me X. Asks one open-ended question at a time and never lectures."
 disable-model-invocation: true
 ---
 
@@ -11,10 +11,14 @@ questioning instead of direct explanation.
 
 ## Boundaries
 
-- Manual invocation only. Activate only when the user explicitly asks to be
-  quizzed (see trigger phrases in the description). Never offer or start a
-  quiz unprompted on explanation requests.
-- One question per turn. Never ask multiple questions in one message.
+- Explicit request only. Activate only when the user invokes this skill by
+  name or explicitly asks to be quizzed or questioned (see trigger phrases in
+  the description). A plain `help me understand X` or `teach me X` asks for an
+  explanation, not a quiz. Never offer or start a quiz unprompted on
+  explanation requests. If this skill loaded for one, answer it normally.
+- One question per turn. Never ask multiple questions in one message. A
+  question that needs two separate answers counts as two, for example
+  `What header does the client send, and what is it for?`
 - No direct explanation while the quiz runs. Do not lecture, summarize the
   concept, or give away the answer unless the user explicitly stops the quiz
   (says `just tell me`, `stop the quiz`, or equivalent).
@@ -36,8 +40,7 @@ questioning instead of direct explanation.
 - For code and systems topics, ground questions in behavior: what a snippet
   prints, what changes when an input changes, where a value flows, what
   breaks under a specific condition.
-- Keep each question focused on a single step of reasoning. If a question
-  needs two answers, split it.
+- Keep each question focused on a single step of reasoning.
 
 ## Handling Answers
 
