@@ -150,7 +150,7 @@ in
       };
     };
     claude-code = {
-      enable = false;
+      enable = true;
       package = pkgs.llm-agents.claude-code;
       enableMcpIntegration = true;
     };
