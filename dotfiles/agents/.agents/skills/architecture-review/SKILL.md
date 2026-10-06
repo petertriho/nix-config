@@ -12,10 +12,10 @@ Produce a review artifact, not a patch. Do not implement changes, create docs, o
 
 ## References
 
-Read these bundled files as needed:
+Read each bundled file completely at the step named below:
 
-- `references/exploration.md`: how to inspect the codebase and recognize strong candidates.
-- `references/output-format.md`: the required output shape and handoff prompt format.
+- `references/exploration.md`: before step 3. It covers how to inspect the codebase, test candidates, and recognize counter-signals.
+- `references/output-format.md`: before step 8. It holds the required output shape, the handoff prompt format, and the readability rules for step 10.
 
 ## Process
 
@@ -70,6 +70,7 @@ Read these bundled files as needed:
    - Use revision mode only when the user explicitly asks to edit, revise, or update an existing review and either provides its exact path or unambiguously refers to a review created earlier in the current conversation. Ask which review to revise if the target is ambiguous.
    - In revision mode, modify only the identified `REVIEW.md` in place. Do not create a timestamped replacement unless the user asks for a new version, and never move or delete the review directory.
    - In new-review mode, choose a concise kebab-case `<review-name>` based on the reviewed scope or focus (for example `auth-boundary` or `import-pipeline`). Generate a save-time timestamp in `YYYYMMDD-HHMMSS` form and write the review to `.artifacts/reviews/<review-name>-<timestamp>/REVIEW.md`.
+   - Resolve `.artifacts/` from the project root. If there is no project root, use the working directory.
    - Check that the complete new-review destination directory does not already exist before writing. If it exists, append `-2`, `-3`, and so on until the destination is unused. Create only that new directory.
    - The new destination is the active review for the current invocation and may be edited as needed until the response is finalized.
    - Treat every other existing review as append-only history: never edit, overwrite, move, or delete it.
@@ -116,7 +117,7 @@ Process steps 8 to 10 draft, save, and revise `REVIEW.md`. `references/output-fo
 - An orientation paragraph that names the reviewed scope, how much of it you inspected, and the type of pass.
 - The numbered recommendations, ordered by expected payoff. Most reviews have two to six. Let the evidence set the count, as the Recommendation Standard says.
 - `Top Pick`: the recommendation to explore first, and why.
-- `Secondary Observations` (optional): real but lower-payoff signals. Write simplification findings here as concise `cut -> replacement` notes instead of full recommendations.
+- `Secondary Observations` (optional): real but lower-payoff signals. Write simplification findings that do not need a full recommendation here as concise `cut -> replacement` notes.
 - `Not Recommended`: tempting refactors you considered and rejected, or `None identified` with a reason.
 - `Scope Limits`: important areas you did not inspect.
 

@@ -2,6 +2,16 @@
 
 Explore organically, but gather enough evidence that each recommendation can stand alone.
 
+## Contents
+
+- [First Pass](#first-pass)
+- [Maintenance Cost Signals](#maintenance-cost-signals)
+- [Candidate Tests](#candidate-tests)
+- [Ownership Patterns](#ownership-patterns)
+- [Counter-Signals](#counter-signals)
+- [Dependency Shapes](#dependency-shapes)
+- [Exploration Boundaries](#exploration-boundaries)
+
 ## First Pass
 
 1. Identify the review frame: whole repository, current diff, named files, or subsystem.

@@ -4,6 +4,14 @@ Recommendations should be concise enough to skim and complete enough for another
 
 Open with a short orientation paragraph that names the reviewed scope, how much of it was inspected, and whether the recommendations are based on a whole-repo pass, a sampled subsystem pass, or a current-diff pass.
 
+## Contents
+
+- [Recommendation Template](#recommendation-template)
+- [Handoff Prompt Requirements](#handoff-prompt-requirements)
+- [Final Sections](#final-sections)
+- [Style](#style)
+- [Readability Pass](#readability-pass)
+
 ## Recommendation Template
 
 Use this template for each recommendation:
@@ -100,6 +108,7 @@ Omit `Secondary Observations` if it would only pad the report. If there are no c
 ## Style
 
 - Keep each recommendation focused on one improvement.
+- For `Label`, `Severity`, and `Complexity`, use exactly one of the listed values.
 - Prefer concrete file evidence over abstract architecture language.
 - Use plain language first. If jargon helps, define it where it appears.
 - Include a short `Before` and `After` shape for every recommendation. Use text diagrams when they clarify ownership; use prose when the change is simple.
