@@ -8,7 +8,13 @@
     ../profiles/desktop.nix
     ../programs/intel-gpu.nix
   ];
-  programs.niri.settings.outputs."eDP-1".scale = 1.25;
+  programs = {
+    claude-code = {
+      enable = true;
+      cliProxyApi.enable = true;
+    };
+    niri.settings.outputs."eDP-1".scale = 1.25;
+  };
 
   # Shared hypridle lives in home/programs/wayland-common.nix. Repeat its
   # listeners here and add dim. No effect while active.

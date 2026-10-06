@@ -8,6 +8,9 @@ let
   cfg = config.programs.claude-code;
 in
 {
+  options.programs.claude-code.cliProxyApi.enable =
+    lib.mkEnableOption "Claude Code routing through the local CLIProxyAPI";
+
   config = lib.mkIf cfg.enable {
     programs.claude-code.outputStyles.ste = config.lib.meta.mkDotfilesSymlink "agents/.agents/output-styles/ste.md";
 
@@ -33,27 +36,40 @@ in
       # };
       file.".claude/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
-      file.".claude/skills/peter".source = config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter";
+      file.".claude/skills/peter".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter";
       file.".claude/skills/peter-exp".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter-exp";
       file.".claude/skills/pi-subagent".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pi-subagent";
-      sessionVariables = {
-        CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
-        CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
-        CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = 1;
-        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = 1;
-        CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
-        CLAUDE_CODE_NO_FLICKER = 1;
-        CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION = 1;
-        # Native install self-updates ignore `autoUpdates: false`. These env
-        # vars are the only reliable lever, and teammate child processes that
-        # bypass the Nix wrapper only see them via settings.json / this block.
-        DISABLE_AUTOUPDATER = 1;
-        DISABLE_TELEMETRY = 1;
-        DISABLE_UPDATES = 1;
-        ENABLE_CLAUDEAI_MCP_SERVERS = "false";
-      };
+      sessionVariables = lib.mkMerge [
+        {
+          CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
+          CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
+          CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = 1;
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = 1;
+          CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
+          CLAUDE_CODE_NO_FLICKER = 1;
+          CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION = 1;
+          # Native install self-updates ignore `autoUpdates: false`. These env
+          # vars are the only reliable lever, and teammate child processes that
+          # bypass the Nix wrapper only see them via settings.json / this block.
+          DISABLE_AUTOUPDATER = 1;
+          DISABLE_TELEMETRY = 1;
+          DISABLE_UPDATES = 1;
+          ENABLE_CLAUDEAI_MCP_SERVERS = "false";
+        }
+        (lib.mkIf cfg.cliProxyApi.enable {
+          ANTHROPIC_BASE_URL = config.home.sessionVariables.CLIPROXYAPI_BASE_URL;
+          ANTHROPIC_AUTH_TOKEN = config.home.sessionVariables.CLI_PROXY_API_KEY;
+          ANTHROPIC_DEFAULT_FABLE_MODEL = "gpt-6-astra";
+          ANTHROPIC_DEFAULT_OPUS_MODEL = "gpt-6.1-sol";
+          ANTHROPIC_DEFAULT_SONNET_MODEL = "gpt-6-luna";
+          ANTHROPIC_DEFAULT_HAIKU_MODEL = "gpt-6-luna";
+          CLAUDE_CODE_MAX_CONTEXT_TOKENS = "272000";
+          CLAUDE_CODE_DISABLE_1M_CONTEXT = "1";
+        })
+      ];
     };
 
     # The files and skill directory above are out-of-store symlinks; the

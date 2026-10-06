@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  lib,
   ...
 }:
 let
@@ -150,7 +151,7 @@ in
       };
     };
     claude-code = {
-      enable = true;
+      enable = lib.mkDefault false;
       package = pkgs.llm-agents.claude-code;
       enableMcpIntegration = true;
     };
@@ -236,7 +237,7 @@ in
         "$HOME/.nix-config/dotfiles/opencode/.config/opencode/plugins"
       ];
       profiles = {
-        claude-nix = {
+        claude-nix = lib.mkIf config.programs.claude-code.enable {
           agent = "claude";
           extends = "nono-claude-base";
           description = "Claude profile with read access to out-of-store Nix configuration targets";

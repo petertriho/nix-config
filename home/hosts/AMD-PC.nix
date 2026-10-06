@@ -36,38 +36,44 @@ in
       on-resume = "${pkgs.niri-unstable}/bin/niri msg action power-on-monitors; ${pkgs.lg-buddy}/bin/lg-buddy screen-on";
     }
   ];
-  programs.niri.settings = {
-    input.trackball = {
-      accel-profile = "adaptive";
-      scroll-method = "on-button-down";
-      scroll-button = 274;
+  programs = {
+    claude-code = {
+      enable = true;
+      cliProxyApi.enable = true;
     };
-    spawn-at-startup = [
-      { command = [ "discord" ]; }
-      { command = [ "${inputRemapperAutoload}" ]; }
-    ];
-    outputs = {
-      "HDMI-A-1" = {
-        focus-at-startup = true;
-        position = {
-          x = 0;
-          y = 0;
-        };
-        scale = 1.25;
-        mode = {
-          width = 3840;
-          height = 2160;
-          refresh = 120.000;
-        };
-        variable-refresh-rate = false;
+    niri.settings = {
+      input.trackball = {
+        accel-profile = "adaptive";
+        scroll-method = "on-button-down";
+        scroll-button = 274;
       };
-      "DP-2" = {
-        position = {
-          x = 3072;
-          y = 0;
+      spawn-at-startup = [
+        { command = [ "discord" ]; }
+        { command = [ "${inputRemapperAutoload}" ]; }
+      ];
+      outputs = {
+        "HDMI-A-1" = {
+          focus-at-startup = true;
+          position = {
+            x = 0;
+            y = 0;
+          };
+          scale = 1.25;
+          mode = {
+            width = 3840;
+            height = 2160;
+            refresh = 120.000;
+          };
+          variable-refresh-rate = false;
         };
-        scale = 2;
-        transform.rotation = 90;
+        "DP-2" = {
+          position = {
+            x = 3072;
+            y = 0;
+          };
+          scale = 2;
+          transform.rotation = 90;
+        };
       };
     };
   };
