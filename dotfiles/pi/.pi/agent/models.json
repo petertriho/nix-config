@@ -9,7 +9,7 @@
     "opencode-go": {
       "compat": {
         "sendSessionAffinityHeaders": true,
-        "supportsLongCacheRetention": true
+        "supportsLongCacheRetention": false
       }
     }
   }
