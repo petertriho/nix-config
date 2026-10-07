@@ -1,0 +1,7 @@
+{
+  "name": "cockpit",
+  "version": "0.1.0",
+  "description": "Live agent, tool, review, context, activity, and image views for Claude Code.",
+  "author": { "name": "Peter Tri Ho" },
+  "types": "./types/index.d.ts"
+}

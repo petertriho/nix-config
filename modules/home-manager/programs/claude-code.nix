@@ -36,6 +36,10 @@ in
       # };
       file.".claude/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
+      # The managed-plugin wrapper snapshots top-level entries and can cache
+      # a manifest-only plugin. Link the complete plugin root directly instead.
+      file.".claude/skills/cockpit".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/plugins/cockpit";
       file.".claude/skills/peter".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter";
       file.".claude/skills/peter-exp".source =
@@ -67,6 +71,7 @@ in
           ANTHROPIC_DEFAULT_SONNET_MODEL = "gpt-6-luna";
           ANTHROPIC_DEFAULT_HAIKU_MODEL = "gpt-6-luna";
           CLAUDE_CODE_MAX_CONTEXT_TOKENS = "272000";
+          API_TIMEOUT_MS = "3000000";
         })
       ];
     };
@@ -79,6 +84,7 @@ in
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter"
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter-exp"
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/pi-subagent"
+        "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
       ];
       read_file = [
         "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"
