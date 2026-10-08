@@ -2,7 +2,7 @@ import type { RenderElement } from 'claude-code'
 import type { CockpitViewProps } from '../types'
 import type { Segment } from './summary'
 import type { CockpitElements } from './theme'
-import { colors, padEnd, rule } from './theme'
+import { clip, colors, padEnd, rule } from './theme'
 
 const width = (segments: readonly Segment[]): number =>
   segments.reduce((total, segment) => total + [...segment.text].length, 0)
@@ -162,4 +162,22 @@ export const tabMark = (
     used += size
   }
   return undefined
+}
+
+/**
+ * The pane footer: the keys that work in this pane, in reading order. When it
+ * does not fit, the least needed part drops first: read-only, close, views.
+ */
+export const paneFooter = (surface: string, placement: 'dock' | 'inline', columns: number): string => {
+  if (surface !== 'terminal') return 'Read-only'
+  const parts = [
+    { text: 'Read-only', need: 4 },
+    { text: '1–5 views', need: 2 },
+    { text: 'Ctrl+X Tab focus', need: 0 },
+    { text: placement === 'dock' ? 'Ctrl+X ←/→ resize' : 'Ctrl+X ↑/↓ resize', need: 1 },
+    { text: 'Esc close', need: 3 },
+  ]
+  const text = (limit: number): string => parts.filter(part => part.need <= limit).map(part => part.text).join(' · ')
+  for (let limit = 4; limit > 0; limit -= 1) if ([...text(limit)].length <= columns) return text(limit)
+  return clip(text(0), columns)
 }

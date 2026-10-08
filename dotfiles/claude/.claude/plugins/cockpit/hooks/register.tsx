@@ -13,7 +13,7 @@ import {
   endBackground, gitOperationOf, mergeAgents, mergeBackground, normalizeObservedChanges, parseGitDiff,
   parseGitStatus, summarizeCheck, todosOf, toolTarget, withSample,
 } from './data'
-import { line, tabMark, tabRows } from './layout'
+import { line, paneFooter, tabMark, tabRows } from './layout'
 import { activityOf, contextOf, initialActivity, initialContext, initialReview, reviewOf } from './state'
 import type { Segment } from './summary'
 import {
@@ -311,6 +311,15 @@ const actionsFor = ($: EngineInterface, surface: RenderSurface, viewedAgent: str
     selectTool: async id => { await updateActivity($, previous => ({ ...previous, selectedTool: id })) },
     refreshChanges: () => refreshChanges($),
     selectChange: async path => { await updateReview($, previous => ({ ...previous, selectedPath: path })) },
+    copyPath: async path => {
+      if (path === '') return
+      // An edit seen before the first Git read keeps the absolute path the tool reported.
+      const root = (await read($, review)).root ?? (await $.session.repo())?.root ?? null
+      const relative = root === null ? path : relativePath(root, path)
+      const copied = await $.ui.copy({ text: relative, surface })
+      if (!copied.isCopied) $.ui.toast('Clipboard access is not available on this surface.')
+      else $.ui.toast(relative.startsWith('/') ? 'The file is outside the repository. Its full path was copied.' : `Copied ${clip(relative, 60)}.`)
+    },
     copyPatch: async path => {
       const patch = await patchFor(path)
       if (patch !== null) {
@@ -437,7 +446,10 @@ export const register: Register = on => {
       const command = cut < 0 ? args : args.slice(0, cut)
       const tail = cut < 0 ? '' : args.slice(cut).trim()
       if (command === 'help') {
-        return { text: '/cockpit [agents|tools|changes|context|activity]\n/cockpit band [on|off]\n/cockpit close' }
+        return { text: [
+          '/cockpit [agents|tools|changes|context|activity]', '/cockpit band [on|off]', '/cockpit close', '',
+          'Ctrl+X Tab focuses the pane. Then Ctrl+X ← or → resizes a docked pane, and Ctrl+X ↑ or ↓ a pane above the prompt.',
+        ].join('\n') }
       }
       if (command === 'close') {
         await $.ui.close({ id: PANE })
@@ -929,7 +941,7 @@ export const register: Register = on => {
           {failure && <Text color={colors.red} wrap="wrap">{clip(`✗ Last turn stopped: ${humanize(failure.error)}${failure.details ? ` · ${failure.details}` : ''}`, 320)}</Text>}
         </Box>
         {content}
-        <Text dimColor>{clip('Read-only · 1–5 views · Ctrl+X Tab focus · Esc close', props.columns)}</Text>
+        <Text dimColor>{paneFooter(e.surface, e.props.placement, props.columns)}</Text>
       </Box>
     )
   })

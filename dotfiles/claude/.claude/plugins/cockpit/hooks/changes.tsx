@@ -167,8 +167,9 @@ const summary = (ui: CockpitElements, props: CockpitViewProps, selected: Cockpit
       { key: 'changes:refresh', label: props.review.loading ? 'Reading git…' : 'Read git', hotkey: 'r', onPress: props.actions.refreshChanges },
       { key: 'changes:prev', label: 'Previous', hotkey: 'k', onPress: () => chooseNeighbor(-1), hidden: changes.length < 2 },
       { key: 'changes:next', label: 'Next', hotkey: 'j', onPress: () => chooseNeighbor(1), hidden: changes.length < 2 },
-      { key: 'changes:copy', label: 'Copy', hotkey: 'c', onPress: () => props.actions.copyPatch(selected?.path ?? ''), hidden: !selected?.patch },
-      { key: 'changes:quote', label: 'Quote', hotkey: 'q', onPress: () => props.actions.quotePatch(selected?.path ?? ''), hidden: !selected?.patch },
+      { key: 'changes:copy-path', label: 'Copy path', hotkey: 'p', onPress: () => props.actions.copyPath(selected?.path ?? ''), hidden: !selected },
+      { key: 'changes:copy', label: 'Copy patch', hotkey: 'c', onPress: () => props.actions.copyPatch(selected?.path ?? ''), hidden: !selected?.patch },
+      { key: 'changes:quote', label: 'Quote patch', hotkey: 'q', onPress: () => props.actions.quotePatch(selected?.path ?? ''), hidden: !selected?.patch },
     ]),
   ])
 }

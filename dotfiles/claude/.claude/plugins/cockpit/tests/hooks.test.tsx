@@ -372,6 +372,14 @@ describe('cockpit commands and surfaces', () => {
     expect(world.spawned).toBe(0)
   })
 
+  test('help names the views, the band, and the keys that focus and resize the pane', async ($, on) => {
+    setup(on)
+    const help = await $.command.run(command('help'))
+    expect(help.text).toContain('/cockpit [agents|tools|changes|context|activity]')
+    expect(help.text).toContain('Ctrl+X ← or → resizes a docked pane')
+    expect(help.text).toContain('Ctrl+X ↑ or ↓ a pane above the prompt')
+  })
+
   test('rejects unknown views and malformed arguments before doing work', async ($, on) => {
     const world = setup(on)
     for (const args of ['unknown', 'tools extra', 'band maybe', 'images', 'images /tmp/screenshot.png']) {
@@ -424,6 +432,8 @@ describe('cockpit commands and surfaces', () => {
         expect(body?.props.width).toBeUndefined()
         expect(body?.props.minHeight).toBeUndefined()
         expect(await ui.find({ key: 'view-activity' })).toBeDefined()
+        const resize = placement === 'dock' ? 'Ctrl+X ←/→ resize' : 'Ctrl+X ↑/↓ resize'
+        expect(await ui.find({ type: 'Text', text: resize })).toBeDefined()
         await ui.unmount()
       }
     }
@@ -525,14 +535,32 @@ describe('cockpit explicit read-only actions', () => {
       path: 'tracked.ts', patch: PATCH, additions: 1, deletions: 1, source: 'observed', updatedAt: 1000,
     }] })
     const ui = await mountPane($, 'terminal')
+    await ui.press({ key: 'changes:copy-path' })
     await ui.press({ key: 'changes:copy' })
     await ui.press({ key: 'changes:quote' })
-    expect(world.copies).toEqual([PATCH])
+    expect(world.copies).toEqual(['tracked.ts', PATCH])
     expect(world.drafts.length).toBe(1)
     expect(world.drafts[0]).toContain(PATCH)
     expect(world.submitted).toBe(0)
     expect(world.processes).toEqual([])
     await ui.unmount()
+  })
+
+  test('copy path gives the path from the repository root, also for an edit seen before a Git read', async ($, on) => {
+    const world = setup(on)
+    world.seed('preferences', { ...world.get('preferences'), view: 'changes' })
+    const observed = (path: string) => ({ path, patch: '', additions: 0, deletions: 0, source: 'observed' as const, updatedAt: 1000 })
+    world.seed('review', { ...world.get('review'), selectedPath: '/project/src/a.ts', changes: [observed('/project/src/a.ts'), observed('/elsewhere/b.ts')] })
+    let ui = await mountPane($, 'terminal')
+    await ui.press({ key: 'changes:copy-path' })
+    await ui.press({ key: 'changes:select:/elsewhere/b.ts' })
+    await ui.unmount()
+    ui = await mountPane($, 'terminal')
+    await ui.press({ key: 'changes:copy-path' })
+    await ui.unmount()
+    expect(world.copies).toEqual(['src/a.ts', '/elsewhere/b.ts'])
+    expect(world.processes).toEqual([])
+    expect(world.submitted).toBe(0)
   })
 
   test('a view removed in an earlier version falls back to the agents view', async ($, on) => {

@@ -247,6 +247,7 @@ export const viewFixture = (view: CockpitView, columns = 80): { props: CockpitVi
       selectTool: async id => { calls.push(`tool:${id}`); props.activity.selectedTool = id },
       refreshChanges: async () => { calls.push('refresh:changes') },
       selectChange: async path => { calls.push(`file:${path}`); props.review.selectedPath = path },
+      copyPath: async path => { calls.push(`path:${path}`) },
       copyPatch: async path => { calls.push(`copy:${path}`) },
       quotePatch: async path => { calls.push(`quote:${path}`) },
       refreshContext: async () => { calls.push('refresh:context') },

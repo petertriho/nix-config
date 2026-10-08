@@ -298,6 +298,8 @@ export type CockpitActions = {
   selectTool: (id: string | null) => Promise<void>
   refreshChanges: () => Promise<void>
   selectChange: (path: string) => Promise<void>
+  /** Copies the path relative to the repository root, as the file list shows it. */
+  copyPath: (path: string) => Promise<void>
   copyPatch: (path: string) => Promise<void>
   quotePatch: (path: string) => Promise<void>
   refreshContext: () => Promise<void>

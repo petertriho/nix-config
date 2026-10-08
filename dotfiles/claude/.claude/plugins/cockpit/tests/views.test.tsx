@@ -6,7 +6,7 @@ import { agentHierarchy, agentStatusLabel, renderAgents } from '../hooks/agents'
 import { changeGroups, gitOperationLines, patchPreview, renderChanges } from '../hooks/changes'
 import { compactionLine, contextGauge, costPerTurn, rankedEstimates, renderContext } from '../hooks/context'
 import { renderTools } from '../hooks/tools'
-import { tabMark, tabRows, visibleWindow } from '../hooks/layout'
+import { paneFooter, tabMark, tabRows, visibleWindow } from '../hooks/layout'
 import type { CockpitElements } from '../hooks/theme'
 import { agent, breakdown, colorsOf, elementsOf, PATCH, shownText, testElements, themeKeys, viewFixture } from './kit'
 
@@ -199,17 +199,23 @@ describe('changes view', () => {
     expect(elementsOf(view.tree(), 'Link')[0]?.props.href).toBe('https://example.test/pull/12')
   })
 
-  test('buttons refresh, copy, quote, and select; a file without a patch says why', async () => {
+  test('buttons refresh, copy the path or the patch, quote, and select; a file without a patch says why', async () => {
     const view = draw('changes')
+    expect(view.text()).toContain('Copy path  Copy patch  Quote patch')
     await view.press('changes:refresh')
+    await view.press('changes:copy-path')
     await view.press('changes:copy')
     await view.press('changes:quote')
     await view.press('changes:select:src/edited.ts')
     expect(view.text()).toContain('Patch omitted: no complete hunk fits the capture limit.')
     expect(view.has('changes:copy')).toBe(false)
+    expect(view.has('changes:copy-path')).toBe(true)
     await view.press('changes:select:src/new.ts')
     expect(view.text()).toContain('Untracked file: Git shows no patch until it is added.')
-    expect(view.calls).toEqual(['refresh:changes', 'copy:src/view.ts', 'quote:src/view.ts', 'file:src/edited.ts', 'file:src/new.ts'])
+    await view.press('changes:copy-path')
+    expect(view.calls).toEqual([
+      'refresh:changes', 'path:src/view.ts', 'copy:src/view.ts', 'quote:src/view.ts', 'file:src/edited.ts', 'file:src/new.ts', 'path:src/new.ts',
+    ])
   })
 })
 
@@ -308,5 +314,18 @@ describe('header tabs', () => {
     expect(tabMark(tabs, [0, 1, 2], 1, true, 3)).toEqual([{ text: ' '.repeat(15) }, { text: '▔'.repeat(11), color: 'suggestion' }])
     expect(tabMark(tabs, [3, 4], 4, true, 3)).toEqual([{ text: ' '.repeat(17) }, { text: '▔'.repeat(11), color: 'suggestion' }])
     expect(tabMark(tabs, [0, 1, 2], 4, true, 3)).toBeUndefined()
+  })
+})
+
+describe('pane footer', () => {
+  test('the footer names the resize keys for the placement and keeps focus and resize when narrow', () => {
+    expect(paneFooter('terminal', 'dock', 120)).toBe('Read-only · 1–5 views · Ctrl+X Tab focus · Ctrl+X ←/→ resize · Esc close')
+    expect(paneFooter('terminal', 'inline', 120)).toBe('Read-only · 1–5 views · Ctrl+X Tab focus · Ctrl+X ↑/↓ resize · Esc close')
+    expect(paneFooter('terminal', 'dock', 64)).toBe('1–5 views · Ctrl+X Tab focus · Ctrl+X ←/→ resize · Esc close')
+    expect(paneFooter('terminal', 'dock', 56)).toBe('1–5 views · Ctrl+X Tab focus · Ctrl+X ←/→ resize')
+    expect(paneFooter('terminal', 'dock', 40)).toBe('Ctrl+X Tab focus · Ctrl+X ←/→ resize')
+    expect(paneFooter('terminal', 'dock', 20)).toBe('Ctrl+X Tab focus')
+    expect(paneFooter('terminal', 'dock', 10)).toBe('Ctrl+X Ta…')
+    expect(paneFooter('desktop', 'dock', 120)).toBe('Read-only')
   })
 })

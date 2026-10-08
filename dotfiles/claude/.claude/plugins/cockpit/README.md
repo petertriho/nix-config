@@ -115,7 +115,9 @@ The command can run during a model turn. `/cockpit reactor` is an alias for `/co
 2. Use `Ctrl+X Tab` to focus the pane.
 3. While the pane has focus, press `1` through `5` to select a view.
 4. Press `Tab` to move between controls.
-5. Press `Esc` to close the pane.
+5. To resize a docked pane, press `Ctrl+X ←` to widen it or `Ctrl+X →` to narrow it.
+6. To resize a pane above the prompt, press `Ctrl+X ↑` to make it taller or `Ctrl+X ↓` to make it shorter.
+7. Press `Esc` to close the pane.
 
 The views also have letter keys while the pane has focus:
 
@@ -124,10 +126,11 @@ The views also have letter keys while the pane has focus:
 | `r` | Refresh agents | | Read Git | Estimate categories | |
 | `j` / `k` | Next or previous agent | Older or newer call | Next or previous file | | |
 | `t` | Show its tools | | | | |
+| `p` | | | Copy the file path | | |
 | `c` / `q` | | | Copy or quote the patch | | |
 | `z` / `p` | | | | | Zoom, pause or wake the cat |
 
-The pane uses native scrolling and resizing.
+The pane uses native scrolling and resizing. The cockpit asks for 58 columns in the dock and 24 rows above the prompt. A size that you set wins over that request. The footer shows the resize keys for the current placement, and every view fits its layout to the new size.
 
 ## Data and limits
 
@@ -175,7 +178,7 @@ The mod does not retain raw prompts, shell command arguments, or shell output. A
 
 Review patches, finding summaries, todo text, and the last answer of each agent remain in bounded session memory. The mod does not write them to disk. Plugin storage holds only the view, band, animation, and zoom preferences.
 
-Copy places a patch on the clipboard. Quote appends a patch to the draft. Quote does not submit the draft or replace existing text.
+Copy path places the path of the selected file on the clipboard, relative to the repository root as the file list shows it. A file outside the repository gives its full path. Copy patch places a patch on the clipboard. Quote patch appends a patch to the draft. Quote patch does not submit the draft or replace existing text.
 
 Observation errors go to the debug log. They do not change tool arguments, results, permission decisions, or streamed chunks. Existing shell hooks remain active.
 
