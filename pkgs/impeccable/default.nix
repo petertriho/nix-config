@@ -12,8 +12,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "pbakaus";
     repo = "impeccable";
-    rev = "bbcb29d9dee6c94915d760bcfc36818ad5be66ad";
-    hash = "sha256-b1gJbsEgg3EaXipSgbrnxL5yqnOTmBVLzdfZgNf9pSw=";
+    rev = "778c8a7b71ccd5bfe3ca6ac68c15d9d872d0f87d";
+    hash = "sha256-tIY5FgzPsg3O1IZAS1xxyXq+kj3TBzT6LxgzTCfAD6w=";
   };
 
   nativeBuildInputs = [
