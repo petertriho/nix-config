@@ -148,6 +148,8 @@
       opsi = "openspec init";
       opsl = "openspec list";
       opsv = "openspec view";
+      pl = "plannotator";
+      plr = "plannotator review --git .";
       pv = "python -m venv .venv";
       rand = "openssl rand -base64 16";
       rmf = "rm -rf";
