@@ -1,16 +1,19 @@
-import type { Elements, RenderSurface } from 'claude-code'
+import type { Elements, RenderSurface, ThemeKey } from 'claude-code'
 
 export type CockpitElements = Elements[RenderSurface]
 
+// Theme keys follow the person's theme. An ANSI theme draws them with the
+// terminal's own palette. Raw hex and color names are fixed RGB values, which
+// a 256-color terminal (any tmux session) rounds to the nearest xterm color.
 export const colors = {
-  accent: '#7aa2f7',
-  cyan: '#7dcfff',
-  green: '#9ece6a',
-  yellow: '#e0af68',
-  red: '#f7768e',
-  magenta: '#bb9af7',
-  muted: '#787c99',
-} as const
+  accent: 'suggestion',
+  cyan: 'planMode',
+  green: 'success',
+  yellow: 'warning',
+  red: 'error',
+  magenta: 'merged',
+  muted: 'inactive',
+} as const satisfies Record<string, ThemeKey>
 
 export const cleanText = (text: string): string =>
   text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
@@ -39,7 +42,7 @@ export const meter = (percent: number, width = 16): string => {
   return `${'━'.repeat(filled)}${'─'.repeat(cells - filled)}`
 }
 
-export const statusColor = (status: string): string => {
+export const statusColor = (status: string): ThemeKey => {
   if (['failed', 'error', 'denied', 'killed', 'interrupted'].includes(status)) return colors.red
   if (['running', 'thinking', 'tools', 'pending'].includes(status)) return colors.cyan
   if (['waiting', 'missing'].includes(status)) return colors.yellow

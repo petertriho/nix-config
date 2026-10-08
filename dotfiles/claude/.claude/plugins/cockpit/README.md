@@ -17,6 +17,19 @@ The mod uses the early-access function-hook API from Claude Code 2.1.291. A late
 
 A compact activity band appears above the prompt. The pane opens only after a command or button press.
 
+### Colors
+
+The pane does not paint a background. In the terminal dock, the engine fills the pane with the `composerSidebarBackground` color of the Claude Code theme. A plugin cannot paint the default terminal background over this fill.
+
+All text and border colors are Claude Code theme keys, such as `suggestion`, `success`, and `inactive`. An ANSI theme, such as `dark-ansi`, draws these keys with the terminal palette.
+
+Hex values and color names are fixed RGB values. Claude Code limits output to 256 colors in tmux unless `CLAUDE_CODE_TMUX_TRUECOLOR` is set. In that mode, a hex value changes to the nearest xterm color.
+
+This configuration makes the dock match the terminal background:
+
+- Home Manager writes the custom theme `~/.claude/themes/stylix.json`. The theme extends the ANSI theme for the Stylix polarity, and sets `composerSidebarBackground` to Stylix `base00`.
+- `settings.json` selects `custom:stylix` and sets `CLAUDE_CODE_TMUX_TRUECOLOR` to `1`. Without truecolor, tmux sessions round `base00` to a gray xterm color.
+
 ## Commands
 
 ```text
@@ -46,8 +59,6 @@ The command can run during a model turn. A quoted image path can contain spaces.
 
 The pane uses native scrolling and resizing. The images view has a text field on terminal, desktop, and VS Code surfaces. Mobile uses the command path instead.
 
-The docked terminal body uses `#1a1b26`, which matches the configured terminal background. This local content repaint covers the fullscreen sidebar fill. The native frame and controls keep their styles. Inline and remote panes keep their default backgrounds.
-
 ## Data and limits
 
 History starts when the mod loads. Session memory holds the history. Hot reload keeps that memory, and `/clear` removes it.
@@ -70,7 +81,7 @@ The cost figure is the engine ledger, not a statement of account billing. Catego
 
 The reactor shows relative observed activity, not an exact running token rate. Animation runs only in the visible reactor view. The pause control stops frame updates.
 
-The reactor graphic keeps its dark background on terminal and remote surfaces.
+The reactor draws its orb as braille text on every surface. The orb uses theme colors and the background of the surface.
 
 ### Images
 
@@ -147,7 +158,7 @@ The tests use the native test engine, explicit surfaces, and mocked host operati
 - `hooks/data.ts` holds bounded parsers and observation helpers.
 - `hooks/operations.tsx` draws agent, tool, and change views.
 - `hooks/visuals.tsx` draws context, reactor, and image views.
-- `hooks/theme.ts` holds shared colors and text formatting.
+- `hooks/theme.ts` holds shared theme-key colors and text formatting.
 - `types/index.d.ts` declares the self-contained state contract.
 - `tests/` holds parser, view, lifecycle, and safety tests.
 

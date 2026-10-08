@@ -655,13 +655,10 @@ export const register: Register = on => {
       : prefs.view === 'context' ? renderContext(ui, props)
       : prefs.view === 'reactor' ? renderReactor(ui, props)
       : renderImages(ui, props)
-    const docked = e.surface === 'terminal' && e.props.placement === 'dock'
-    // Match the configured terminal background instead of the fullscreen sidebar fill.
+    // No backgroundColor: the dock paints its own theme fill, and a plugin cannot
+    // paint the terminal's default background over it.
     return (
-      <Box flexDirection="column" gap={1}
-        backgroundColor={docked ? '#1a1b26' : undefined}
-        width={docked ? e.props.bodyColumns : undefined}
-        minHeight={docked ? e.props.scroll.bodyRows : undefined}>
+      <Box flexDirection="column" gap={1}>
         <Text bold color={colors.accent}>COCKPIT <Text dimColor> / {viewLabels[prefs.view]}</Text></Text>
         <Box flexWrap="wrap" gap={1}>
           {VIEWS.map((view, index) => (

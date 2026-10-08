@@ -1,5 +1,6 @@
 {
   "env": {
+    "CLAUDE_CODE_TMUX_TRUECOLOR": "1",
     "DISABLE_AUTOUPDATER": "1",
     "DISABLE_UPDATES": "1"
   },
@@ -112,7 +113,7 @@
   "autoCompactWindow": 400000,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
-  "theme": "dark-ansi",
+  "theme": "custom:stylix",
   "editorMode": "vim",
   "teammateMode": "auto",
   "remoteControlAtStartup": false

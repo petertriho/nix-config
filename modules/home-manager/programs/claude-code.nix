@@ -36,6 +36,16 @@ in
       # };
       file.".claude/settings.json".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
+      # Selected as `custom:stylix` in settings.json. The ANSI base keeps text in
+      # the terminal palette. Docked panes otherwise fill with ANSI bright black,
+      # and no ANSI color is the terminal background. The hex needs
+      # CLAUDE_CODE_TMUX_TRUECOLOR (settings.json) inside tmux, or Claude Code
+      # rounds it to the nearest xterm-256 color.
+      file.".claude/themes/stylix.json".text = builtins.toJSON {
+        name = "Stylix";
+        base = "${config.stylix.polarity}-ansi";
+        overrides.composerSidebarBackground = config.lib.stylix.colors.withHashtag.base00;
+      };
       # The managed-plugin wrapper snapshots top-level entries and can cache
       # a manifest-only plugin. Link the complete plugin root directly instead.
       file.".claude/skills/cockpit".source =

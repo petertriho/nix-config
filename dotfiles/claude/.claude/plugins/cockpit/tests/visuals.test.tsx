@@ -18,11 +18,12 @@ import type {
 } from 'claude-code'
 import type { CockpitActions, CockpitViewProps } from '../types'
 import type { CockpitElements } from '../hooks/theme'
+import { colors } from '../hooks/theme'
 import {
   activitySparkline,
   imageSize,
   rankedEstimates,
-  reactorRaster,
+  reactorOrb,
   reactorSize,
   renderContext,
   renderImages,
@@ -147,53 +148,41 @@ const breakdown = (): SessionContextBreakdown => ({
   autoCompactThreshold: 89500, isAutoCompactEnabled: true, apiUsage: null,
 })
 
-const decodeCells = (value: string): Uint8Array => {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-  const bytes: number[] = []
-  for (let index = 0; index < value.length; index += 4) {
-    const a = alphabet.indexOf(value[index] ?? '')
-    const b = alphabet.indexOf(value[index + 1] ?? '')
-    const c = alphabet.indexOf(value[index + 2] ?? '')
-    const d = alphabet.indexOf(value[index + 3] ?? '')
-    bytes.push((a << 2) | (b >>> 4))
-    if (value[index + 2] !== '=') bytes.push(((b & 15) << 4) | (c >>> 2))
-    if (value[index + 3] !== '=') bytes.push(((c & 3) << 6) | d)
-  }
-  return Uint8Array.from(bytes)
-}
+const themeKeys = new Set<string>(Object.values(colors))
 
-test('reactor encodes a real deterministic little-endian braille drawing', () => {
+test('reactor draws deterministic braille rows in theme colors', () => {
   const reactor = { frame: 0, phase: 'thinking' as const, samples: [0, 1, 2] }
-  const raster = reactorRaster(reactor, 40, 14)
-  const bytes = decodeCells(raster.cells)
-  expect(bytes.length).toBe(40 * 14 * 12)
-  const view = new DataView(bytes.buffer)
+  const orb = reactorOrb(reactor, 40, 14)
+  expect(orb).toHaveLength(14)
   let dots = 0
-  let highlights = 0
-  for (let offset = 0; offset < bytes.length; offset += 12) {
-    const glyph = view.getUint32(offset, true)
-    expect(glyph === 32 || (glyph >= 0x2801 && glyph <= 0x28ff)).toBe(true)
-    expect(view.getUint32(offset + 4, true)).toBeLessThanOrEqual(0x00ffffff)
-    expect(view.getUint32(offset + 8, true)).toBe(0x1a1b26)
-    if (glyph !== 32) dots += 1
-    if (view.getUint32(offset + 4, true) === 0x7dcfff) highlights += 1
+  for (const runs of orb) {
+    const row = runs.map(run => run.glyphs).join('')
+    expect(row).toHaveLength(40)
+    for (const glyph of row) {
+      const code = glyph.charCodeAt(0)
+      expect(code >= 0x2800 && code <= 0x28ff).toBe(true)
+      if (code !== 0x2800) dots += 1
+    }
+    for (const run of runs) expect(run.color).toBe(colors.cyan)
   }
   expect(dots).toBeGreaterThan(20)
-  expect(highlights).toBeGreaterThan(0)
-  expect(reactorRaster(reactor, 40, 14).cells).toBe(raster.cells)
-  expect(reactorRaster({ ...reactor, frame: 7 }, 40, 14).cells).not.toBe(raster.cells)
-  expect(reactorRaster({ ...reactor, phase: 'error' }, 40, 14).cells).not.toBe(raster.cells)
+  const failed = reactorOrb({ ...reactor, phase: 'error' }, 40, 14).flat().map(run => run.color)
+  expect(new Set(failed)).toEqual(new Set([colors.red, colors.yellow]))
+  expect(reactorOrb(reactor, 40, 14)).toEqual(orb)
+  expect(reactorOrb({ ...reactor, frame: 7 }, 40, 14)).not.toEqual(orb)
 })
 
-test('remote reactor graphics retain their dark background', () => {
+test('reactor leaves the background to the surface and uses only theme keys', () => {
   const props = fixture()
-  for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
+  props.reactor.phase = 'error'
+  for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const { ui } = testElements(surface)
-    const output = renderReactor(ui, props)
-    const source = nodes(output).find(node => node.type === 'Svg')?.props.source
-    expect(source).toBeDefined()
-    expect(source).toContain('<rect')
-    expect(source).toContain('fill="#1a1b26"')
+    const all = nodes(renderReactor(ui, props))
+    expect(all.filter(node => node.type === 'Raster' || node.type === 'Svg')).toHaveLength(0)
+    for (const node of all) {
+      expect(node.props.backgroundColor).toBeUndefined()
+      if (node.props.color !== undefined) expect(themeKeys.has(node.props.color as string)).toBe(true)
+    }
   }
 })
 
@@ -209,7 +198,9 @@ test('graphics dimensions stay bounded at 40, 80, and 140 columns', () => {
     expect(image.rows).toBeGreaterThan(0)
   }
   expect(reactorSize(Number.NaN, Number.NaN)).toEqual({ columns: 64, rows: 18 })
-  expect(reactorRaster({ frame: Number.NaN, phase: 'idle', samples: [] }, -10, 9999).rows).toBe(40)
+  const clamped = reactorOrb({ frame: Number.NaN, phase: 'idle', samples: [] }, -10, 9999)
+  expect(clamped).toHaveLength(40)
+  expect(clamped.every(runs => runs.map(run => run.glyphs).join('').length === 1)).toBe(true)
 })
 
 test('activity history is relative observed data, not invented tokens', () => {
@@ -263,7 +254,7 @@ test('context distinguishes actual usage from local estimates and accepts a zero
   expect(output).toContain('Session cost ledger: $0.0000')
 })
 
-test('reactor chooses only surface-supported graphics and pause callback', async () => {
+test('reactor draws the orb as text on every surface and keeps the pause callback', async () => {
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     let toggles = 0
     const props = fixture({ toggleAnimation: async () => { toggles += 1 } })
@@ -271,8 +262,8 @@ test('reactor chooses only surface-supported graphics and pause callback', async
     props.reactor.samples = [1, 2, 1]
     const { ui, controls } = testElements(surface)
     const output = renderReactor(ui, props)
-    expect(nodes(output).filter(node => node.type === 'Raster')).toHaveLength(surface === 'terminal' ? 1 : 0)
-    expect(nodes(output).filter(node => node.type === 'Svg')).toHaveLength(surface === 'terminal' ? 0 : 1)
+    expect(nodes(output).filter(node => node.type === 'Raster' || node.type === 'Svg')).toHaveLength(0)
+    expect(text(output)).toMatch(/[⠁-⣿]/)
     expect(text(output)).toContain('TOOLS')
     expect(text(output)).toContain('Motion is decorative')
     expect(text(output)).not.toContain('tokens/s')

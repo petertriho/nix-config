@@ -1,23 +1,21 @@
 import type {
   ContextCategory,
-  RasterProps,
   RenderElement,
   SessionContextBreakdown,
+  ThemeKey,
 } from 'claude-code'
 import type { CockpitImage, CockpitReactor, CockpitViewProps } from '../types'
 import type { CockpitElements } from './theme'
 import { cleanText, clip, colors, count, duration, meter, statusColor } from './theme'
 
-const background = '#1a1b26'
-const ink = '#c0caf5'
-const palette = [colors.accent, colors.cyan, colors.green, colors.magenta, colors.yellow, colors.red]
+const palette: ThemeKey[] = [colors.accent, colors.cyan, colors.green, colors.magenta, colors.yellow, colors.red]
 const finite = (value: number | undefined): value is number =>
   value !== undefined && Number.isFinite(value)
 const percent = (value: number | undefined): string =>
   finite(value) ? `${Math.round(value * 10) / 10}%` : 'unknown'
 const widthOf = (columns: number): number =>
   Math.max(16, Math.min(140, Math.floor(Number.isFinite(columns) ? columns : 80)))
-const categoryColor = (category: ContextCategory, index: number): string => {
+const categoryColor = (category: ContextCategory, index: number): ThemeKey => {
   if (category.kind === 'free') return colors.muted
   if (category.kind === 'buffer') return colors.yellow
   if (category.kind === 'deferred') return colors.magenta
@@ -101,7 +99,7 @@ const renderHeatmap = (
   return <Box flexDirection="column" width={columns >= 80 ? gridWidth * 2 : undefined}>
     <Text bold color={colors.accent}>Category heatmap · estimated</Text>
     {rows.length === 0 ? <Text color={colors.muted}>No category grid reported</Text> : rows.map((row, rowIndex) => {
-      const runs: { color: string; glyphs: string }[] = []
+      const runs: { color: ThemeKey; glyphs: string }[] = []
       for (const square of row) {
         if (!square) continue
         const categoryIndex = breakdown.categories.findIndex(category => category.name === square.categoryName)
@@ -187,22 +185,6 @@ export const renderContext = (ui: CockpitElements, props: CockpitViewProps): Ren
   </Box>
 }
 
-const hex = (color: string): number => Number.parseInt(color.slice(1), 16)
-const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-const encodeBase64 = (bytes: Uint8Array): string => {
-  let output = ''
-  for (let index = 0; index < bytes.length; index += 3) {
-    const a = bytes[index] ?? 0
-    const b = bytes[index + 1] ?? 0
-    const c = bytes[index + 2] ?? 0
-    output += alphabet[a >>> 2]
-    output += alphabet[((a & 3) << 4) | (b >>> 4)]
-    output += index + 1 < bytes.length ? alphabet[((b & 15) << 2) | (c >>> 6)] : '='
-    output += index + 2 < bytes.length ? alphabet[c & 63] : '='
-  }
-  return output
-}
-
 export const reactorSize = (columns: number, rows: number): { columns: number; rows: number } => {
   const width = Math.max(16, Math.min(64, widthOf(columns) - 2))
   const height = width >= 60 ? 18 : width >= 40 ? 14 : 10
@@ -212,20 +194,23 @@ export const reactorSize = (columns: number, rows: number): { columns: number; r
   }
 }
 
-export const reactorRaster = (reactor: CockpitReactor, columns: number, rows: number): RasterProps => {
+export type ReactorRun = { color: ThemeKey; glyphs: string }
+
+// Text runs, not a Raster: Raster cells take only RGB values, and theme keys
+// keep the orb in the terminal's palette.
+export const reactorOrb = (reactor: CockpitReactor, columns: number, rows: number): ReactorRun[][] => {
   const width = Math.max(1, Math.min(128, Math.floor(Number.isFinite(columns) ? columns : 32)))
   const height = Math.max(1, Math.min(40, Math.floor(Number.isFinite(rows) ? rows : 12)))
-  const bytes = new Uint8Array(width * height * 12)
-  const view = new DataView(bytes.buffer)
   const phase = reactor.phase
   const time = (Number.isFinite(reactor.frame) ? reactor.frame : 0) / 8
   const energetic = phase === 'thinking' || phase === 'tools'
-  const baseColor = hex(statusColor(phase))
-  const highlight = hex(phase === 'error' ? colors.yellow : colors.cyan)
-  const dark = hex(background)
+  const baseColor = statusColor(phase)
+  const highlight = phase === 'error' ? colors.yellow : colors.cyan
   const bits = [[0, 3], [1, 4], [2, 5], [6, 7]] as const
   const aspect = width / (height * 2)
+  const lines: ReactorRun[][] = []
   for (let y = 0; y < height; y += 1) {
+    const runs: ReactorRun[] = []
     for (let x = 0; x < width; x += 1) {
       let dots = 0
       let core = false
@@ -247,13 +232,16 @@ export const reactorRaster = (reactor: CockpitReactor, columns: number, rows: nu
           }
         }
       }
-      const offset = (y * width + x) * 12
-      view.setUint32(offset, dots === 0 ? 0x20 : 0x2800 + dots, true)
-      view.setUint32(offset + 4, core ? highlight : baseColor, true)
-      view.setUint32(offset + 8, dark, true)
+      const previous = runs[runs.length - 1]
+      const color = dots === 0 ? previous?.color ?? baseColor : core ? highlight : baseColor
+      // The blank braille pattern, not a space, keeps every row the same width.
+      const glyph = String.fromCharCode(0x2800 + dots)
+      if (previous?.color === color) previous.glyphs += glyph
+      else runs.push({ color, glyphs: glyph })
     }
+    lines.push(runs)
   }
-  return { key: 'reactor-orb', columns: width, rows: height, cells: encodeBase64(bytes) }
+  return lines
 }
 
 export const activitySparkline = (samples: readonly number[], columns: number): string => {
@@ -264,23 +252,11 @@ export const activitySparkline = (samples: readonly number[], columns: number): 
   return values.map(value => glyphs[Math.max(0, Math.min(7, Math.round((Number.isFinite(value) ? value : 0) / maximum * 7)))] ?? '▁').join('')
 }
 
-const reactorSvg = (reactor: CockpitReactor): string => {
-  const time = (Number.isFinite(reactor.frame) ? reactor.frame : 0) / 8
-  const active = reactor.phase === 'tools' || reactor.phase === 'thinking'
-  const radius = 76 + (active ? 4 : 1) * Math.sin(time * 2)
-  const angle = time * (active ? 1 : 0.3)
-  const x = 160 + radius * Math.cos(angle)
-  const y = 120 + radius * Math.sin(angle)
-  const color = statusColor(reactor.phase)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240"><rect width="320" height="240" rx="12" fill="${background}"/><circle cx="160" cy="120" r="102" fill="none" stroke="${color}" stroke-width="1" stroke-dasharray="8 12" opacity="0.4"/><circle cx="160" cy="120" r="${radius.toFixed(2)}" fill="none" stroke="${color}" stroke-width="2"/><ellipse cx="160" cy="120" rx="108" ry="31" transform="rotate(${(time * 12).toFixed(2)} 160 120)" fill="none" stroke="${colors.magenta}" opacity="0.55"/><circle cx="160" cy="120" r="34" fill="${color}" opacity="0.15"/><circle cx="160" cy="120" r="20" fill="${colors.cyan}"/><circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="6" fill="${color}"/><circle cx="153" cy="115" r="4" fill="${ink}"/></svg>`
-}
-
 export const renderReactor = (ui: CockpitElements, props: CockpitViewProps): RenderElement => {
   const { Box, Text, Button } = ui
   const width = widthOf(props.columns)
   const size = reactorSize(width, props.rows)
   const phase = props.reactor.phase
-  const alt = `Activity reactor: ${phase}. Orb motion is decorative, not a token counter.`
   const runningTools = props.activity.tools.filter(tool => tool.outcome === 'running').length
   const runningAgents = props.activity.agents.filter(agent => agent.status === 'running').length
   return <Box flexDirection="column" gap={1}>
@@ -289,15 +265,12 @@ export const renderReactor = (ui: CockpitElements, props: CockpitViewProps): Ren
       <Button key="reactor-toggle" label={props.preferences.animation ? 'Pause animation' : 'Resume animation'} onPress={props.actions.toggleAnimation} />
     </Box>
     <Text color={statusColor(phase)}>{phase.toUpperCase()} · {props.preferences.animation ? 'animation on' : 'animation paused'}</Text>
-    <Box justifyContent="center">
-      {'Raster' in ui ? <ui.Raster {...reactorRaster(props.reactor, size.columns, size.rows)} /> :
-        'Svg' in ui ? <ui.Svg source={reactorSvg(props.reactor)} alt={alt} width={Math.min(400, width * 8)} height={Math.min(300, size.rows * 16)} /> :
-          <Box flexDirection="column" alignItems="center">
-            <Text color={statusColor(phase)}>╭───────╮</Text>
-            <Text color={colors.cyan}>│ ◉ ─ ◉ │</Text>
-            <Text color={statusColor(phase)}>╰───┬───╯</Text>
-            <Text color={colors.muted}>{alt}</Text>
-          </Box>}
+    <Box flexDirection="column" alignItems="center">
+      {reactorOrb(props.reactor, size.columns, size.rows).map((runs, row) =>
+        <Box flexDirection="row" key={`reactor-${row}`}>
+          {runs.map(run => <Text color={run.color}>{run.glyphs}</Text>)}
+        </Box>,
+      )}
     </Box>
     <Text color={colors.cyan}>{activitySparkline(props.reactor.samples, width - 2)}</Text>
     <Text color={colors.muted}>Observed activity history · relative scale</Text>

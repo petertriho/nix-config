@@ -14,8 +14,11 @@ import type {
   TurnUsage,
 } from 'claude-code'
 import { initialActivity, initialContext, initialImages, initialReview } from '../hooks/state'
+import { colors } from '../hooks/theme'
 
 type State = PluginState['cockpit']
+
+const themeKeys = new Set<string>(Object.values(colors))
 
 const PATCH = 'diff --git a/tracked.ts b/tracked.ts\n--- a/tracked.ts\n+++ b/tracked.ts\n@@ -1 +1 @@\n-old\n+new\n'
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+i40YAAAAASUVORK5CYII='
@@ -379,13 +382,16 @@ describe('cockpit commands and surfaces', () => {
           expect(await ui.find({ type: 'Text', text: 'COCKPIT' })).toBeDefined()
           expect((await ui.findAll({ type: 'Button' })).length).toBeGreaterThanOrEqual(6)
           const body = await ui.find({ type: 'Box' })
-          expect(body?.props.backgroundColor).toBe(surface === 'terminal' ? '#1a1b26' : undefined)
-          expect(body?.props.width).toBe(surface === 'terminal' ? columns : undefined)
-          expect(body?.props.minHeight).toBe(surface === 'terminal' ? 28 : undefined)
-          if (surface !== 'terminal') {
-            expect(await ui.find({ type: 'Raster' })).toBeUndefined()
-            expect(await ui.find({ type: 'Image' })).toBeUndefined()
+          expect(body?.props.backgroundColor).toBeUndefined()
+          for (const element of await ui.findAll({})) {
+            for (const prop of ['color', 'borderColor', 'backgroundColor']) {
+              const value = element.props[prop]
+              if (value !== undefined) expect(themeKeys.has(value as string)).toBe(true)
+            }
           }
+          expect(await ui.find({ type: 'Raster' })).toBeUndefined()
+          expect(await ui.find({ type: 'Svg' })).toBeUndefined()
+          if (surface !== 'terminal') expect(await ui.find({ type: 'Image' })).toBeUndefined()
           await ui.unmount()
         }
       }
@@ -394,7 +400,7 @@ describe('cockpit commands and surfaces', () => {
     expect(world.network).toBe(0)
   })
 
-  test('only docked terminal bodies cover the sidebar fill, with or without focus', async ($, on) => {
+  test('docked and inline bodies leave the background to the engine, with or without focus', async ($, on) => {
     const world = setup(on)
     for (const placement of ['dock', 'inline'] as const) {
       for (const isFocused of [false, true]) {
@@ -404,9 +410,9 @@ describe('cockpit commands and surfaces', () => {
           viewport: { columns: 82, rows: 32, isFullscreen: placement === 'dock' },
         })
         const body = await ui.find({ type: 'Box' })
-        expect(body?.props.backgroundColor).toBe(placement === 'dock' ? '#1a1b26' : undefined)
-        expect(body?.props.width).toBe(placement === 'dock' ? 80 : undefined)
-        expect(body?.props.minHeight).toBe(placement === 'dock' ? 28 : undefined)
+        expect(body?.props.backgroundColor).toBeUndefined()
+        expect(body?.props.width).toBeUndefined()
+        expect(body?.props.minHeight).toBeUndefined()
         expect(await ui.find({ key: 'view-reactor' })).toBeDefined()
         await ui.unmount()
       }
