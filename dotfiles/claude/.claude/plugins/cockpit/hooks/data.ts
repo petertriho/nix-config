@@ -1,6 +1,6 @@
 import type { AgentInfo } from 'claude-code'
 import type {
-  CockpitActivity, CockpitAgent, CockpitAgentTotals, CockpitBackgroundTask, CockpitChange,
+  CockpitActivity, CockpitAgent, CockpitAgentTotals, CockpitBackgroundTask, CockpitChange, CockpitChangeState,
   CockpitCheck, CockpitCron, CockpitGitOperation, CockpitTask, CockpitTodo,
 } from '../types'
 import { cleanText } from './theme'
@@ -53,6 +53,7 @@ export const mergeAgents = (
       parentId: agent.parentId,
       teammateId: agent.teammateId,
       spawnedBy: agent.spawnedBy,
+      startedAt: prior?.startedAt ?? seenAt,
       lastSeenAt: seenAt,
       completedAt: terminal(agent.status) ? prior?.completedAt ?? seenAt : undefined,
       durationMs: prior?.durationMs,
@@ -253,6 +254,16 @@ export type GitStatusEntry = {
   staged: boolean
   untracked: boolean
   originalPath?: string
+}
+
+// Porcelain v1 XY codes: X is the index, Y the work tree.
+export const changeState = (status: string): CockpitChangeState => {
+  if (status === '??') return 'untracked'
+  if (status.includes('U') || status === 'AA' || status === 'DD') return 'conflict'
+  if (/[RC]/.test(status)) return 'renamed'
+  if (status.charAt(0) === 'A') return 'added'
+  if (status.includes('D')) return 'deleted'
+  return 'modified'
 }
 
 export const parseGitStatus = (porcelain: string): GitStatusEntry[] => {

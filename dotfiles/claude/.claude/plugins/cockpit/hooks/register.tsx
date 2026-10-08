@@ -2,31 +2,39 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface, Timer } from 'claude-code'
 import type {
   CockpitActions, CockpitActivity, CockpitAgent, CockpitChange, CockpitCompaction, CockpitContext, CockpitFinding,
-  CockpitPreferences, CockpitReactor, CockpitReview, CockpitTool, CockpitView, CockpitViewProps,
+  CockpitMascot, CockpitPreferences, CockpitReview, CockpitSpan, CockpitTool, CockpitView, CockpitViewProps,
 } from '../types'
+import { renderActivity, SPAN_ORDER } from './activity'
+import { renderAgents } from './agents'
+import { renderChanges } from './changes'
+import { renderContext } from './context'
 import {
-  agentResult, answerText, applyTaskResult, backgroundLaunch, backgroundSnapshot, cronSnapshot, detectCheck,
+  agentResult, answerText, applyTaskResult, backgroundLaunch, backgroundSnapshot, changeState, cronSnapshot, detectCheck,
   endBackground, gitOperationOf, mergeAgents, mergeBackground, normalizeObservedChanges, parseGitDiff,
   parseGitStatus, summarizeCheck, todosOf, toolTarget, withSample,
 } from './data'
-import { bandSummary, renderAgents, renderChanges, renderTools } from './operations'
+import { line, tabMark, tabRows } from './layout'
 import { activityOf, contextOf, initialActivity, initialContext, initialReview, reviewOf } from './state'
-import { clip, colors, humanize } from './theme'
-import { renderContext, renderReactor } from './visuals'
+import type { Segment } from './summary'
+import {
+  bandSegments, changeTotals, contextColor, contextFill, isLive, mainTurns, runningTools, sessionStart, sessionStatus,
+} from './summary'
+import { brief, clip, colors, humanize, meter, percent, shortModel, usd } from './theme'
+import { renderTools } from './tools'
 
 const PANE = 'cockpit'
 const STORE_KEY = 'preferences'
-const VIEWS: CockpitView[] = ['agents', 'tools', 'changes', 'context', 'reactor']
+const VIEWS: CockpitView[] = ['agents', 'tools', 'changes', 'context', 'activity']
 
 const activity = atom({ plugin: 'cockpit', key: 'activity' } as const, initialActivity())
 const review = atom({ plugin: 'cockpit', key: 'review' } as const, initialReview())
 const context = atom({ plugin: 'cockpit', key: 'context' } as const, initialContext())
 const preferences = atom({ plugin: 'cockpit', key: 'preferences' } as const, {
-  view: 'agents', band: true, animation: true, paneOpen: false,
+  view: 'agents', band: true, animation: true, span: 'fit', paneOpen: false,
 } satisfies CockpitPreferences)
-const reactor = atom({ plugin: 'cockpit', key: 'reactor' } as const, {
+const mascot = atom({ plugin: 'cockpit', key: 'mascot' } as const, {
   frame: 0, phase: 'idle',
-} satisfies CockpitReactor)
+} satisfies CockpitMascot)
 
 // Session memory can hold an earlier version's shape. Every update reads it
 // filled in, and an updater that returns its input writes nothing.
@@ -73,7 +81,7 @@ const ensureSession = async ($: EngineInterface): Promise<string> => {
     await update($, activity, (value): CockpitActivity => ({ ...initialActivity(), sessionId: id, model }))
     await update($, review, (value): CockpitReview => ({ ...initialReview(), sessionId: id }))
     await update($, context, (value): CockpitContext => ({ ...initialContext(), sessionId: id }))
-    await update($, reactor, (): CockpitReactor => ({ frame: 0, phase: 'idle' }))
+    await update($, mascot, (): CockpitMascot => ({ frame: 0, phase: 'idle' }))
     return id
   }
   const pending = initialize()
@@ -89,7 +97,7 @@ const resetSession = async ($: EngineInterface): Promise<void> => {
   await update($, activity, initialActivity)
   await update($, review, initialReview)
   await update($, context, initialContext)
-  await update($, reactor, (): CockpitReactor => ({ frame: 0, phase: 'idle' }))
+  await update($, mascot, (): CockpitMascot => ({ frame: 0, phase: 'idle' }))
 }
 
 // Changes to tools, agents or the working flag also record the activity level.
@@ -170,7 +178,7 @@ const refreshChanges = async ($: EngineInterface): Promise<void> => {
       remaining -= patch.length
       return {
         path: entry.path, source: 'git', updatedAt: now, staged: entry.staged,
-        untracked: entry.untracked, patch,
+        untracked: entry.untracked, patch, state: changeState(entry.status),
         additions: matching.reduce((total, change) => total + change.additions, 0),
         deletions: matching.reduce((total, change) => total + change.deletions, 0),
         truncated: Boolean(truncated || full.length > patch.length || matching.some(change => change.truncated)),
@@ -179,8 +187,14 @@ const refreshChanges = async ($: EngineInterface): Promise<void> => {
     await updateReview($, (previous): CockpitReview => {
       if (previous.sessionId !== id) return previous
       const selected = previous.selectedPath === null ? null : relativePath(repo.root, previous.selectedPath)
+      // Git knows the state. The session knows who edited the file and how often.
+      const history = new Map(previous.changes.map(change => [relativePath(repo.root, change.path), change]))
       return {
-        ...previous, changes,
+        ...previous,
+        changes: changes.map(change => {
+          const prior = history.get(change.path)
+          return prior ? { ...change, edits: prior.edits, agentId: prior.agentId } : change
+        }),
         selectedPath: changes.some(change => change.path === selected) ? selected : changes[0]?.path ?? null,
         branch: branch.exitCode === 0 ? branch.stdout.trim() : 'detached HEAD',
         root: repo.root, refreshedAt: now, loading: false,
@@ -197,7 +211,12 @@ const rememberChange = async ($: EngineInterface, change: CockpitChange, session
   await updateReview($, (previous): CockpitReview => {
     if (previous.sessionId !== sessionId) return previous
     const path = previous.root === null ? change.path : relativePath(previous.root, change.path)
-    const next = { ...change, path, patch: change.patch.slice(0, 24000) }
+    const prior = previous.changes.find(item => item.path === path)
+    const next = {
+      ...change, path, patch: change.patch.slice(0, 24000),
+      edits: (prior?.edits ?? 0) + 1, agentId: change.agentId,
+      ...(prior?.state === undefined ? {} : { state: prior.state, staged: prior.staged }),
+    }
     const changes = [...previous.changes.filter(item => item.path !== path), next].slice(-100)
     let remaining = 200000
     const bounded = changes.reverse().map(item => {
@@ -217,18 +236,21 @@ const record = (value: unknown): Record<string, unknown> | null =>
 const loadPreferences = async ($: EngineInterface): Promise<void> => {
   const saved = record(await $.store.get(STORE_KEY))
   if (saved === null) return
+  // The activity view replaced the reactor; a saved reactor choice opens it.
+  const view = saved.view === 'reactor' ? 'activity' : saved.view
   await update($, preferences, previous => ({
     ...previous,
-    view: VIEWS.includes(saved.view as CockpitView) ? saved.view as CockpitView : previous.view,
+    view: VIEWS.includes(view as CockpitView) ? view as CockpitView : previous.view,
     band: typeof saved.band === 'boolean' ? saved.band : previous.band,
     animation: typeof saved.animation === 'boolean' ? saved.animation : previous.animation,
+    span: SPAN_ORDER.includes(saved.span as CockpitSpan) ? saved.span as CockpitSpan : previous.span,
   }))
 }
 
 // $.state lasts one session. The store keeps the person's choices for the next.
 const savePreferences = ($: EngineInterface): Promise<void> => observe($, async () => {
-  const { view, band, animation } = await read($, preferences)
-  await $.store.set(STORE_KEY, { view, band, animation })
+  const { view, band, animation, span } = await read($, preferences)
+  await $.store.set(STORE_KEY, { view, band, animation, span })
 })
 
 const recordRunTime = async ($: EngineInterface, id: string, ms: number | undefined): Promise<void> => {
@@ -310,6 +332,12 @@ const actionsFor = ($: EngineInterface, surface: RenderSurface, viewedAgent: str
       await update($, preferences, previous => ({ ...previous, animation: !previous.animation }))
       await savePreferences($)
     },
+    cycleSpan: async () => {
+      await update($, preferences, previous => ({
+        ...previous, span: SPAN_ORDER[(SPAN_ORDER.indexOf(previous.span) + 1) % SPAN_ORDER.length] ?? 'fit',
+      }))
+      await savePreferences($)
+    },
   }
 }
 
@@ -318,45 +346,54 @@ const viewLabels: Record<CockpitView, string> = {
   tools: 'Tools',
   changes: 'Changes',
   context: 'Context',
-  reactor: 'Reactor',
+  activity: 'Activity',
 }
 
 let timer: Timer | undefined
 let ticking = false
+let tick = 0
 let lastAgentRefresh = 0
 
+/** What the cat acts out: tools first, then a working turn or a live agent. */
+const mascotPhase = (state: CockpitActivity): CockpitActivity['phase'] =>
+  state.tools.some(tool => tool.outcome === 'running') ? 'tools'
+    : state.working || state.agents.some(agent => agent.status === 'running') ? 'thinking'
+    : state.phase
+
+// Four ticks a second: the cat's frames while the activity view shows. Elapsed
+// times redraw once a second while work runs, in the band as well as the pane.
 const startTimer = ($: EngineInterface) => {
-    if (timer !== undefined) return
-    timer = $.clock.every(250, async () => {
-      if (ticking) return
-      ticking = true
-      try {
-        const prefs = await read($, preferences)
-        if (!prefs.paneOpen) return
-        const pane = (await $.ui.panes()).find(item => item.id === PANE)
-        if (!pane?.isPlaced || !pane.isShown) return
+  if (timer !== undefined) return
+  timer = $.clock.every(250, async () => {
+    if (ticking) return
+    ticking = true
+    tick = (tick + 1) % 1000000
+    try {
+      const prefs = await read($, preferences)
+      const pane = prefs.paneOpen ? (await $.ui.panes()).find(item => item.id === PANE) : undefined
+      const shown = pane?.isPlaced === true && pane.isShown
+      if (!shown && tick % 4 !== 0) return
+      const state = await read($, activity)
+      const busy = state.working || state.tools.some(tool => tool.outcome === 'running')
+      if (shown) {
         await ensureSession($)
         const now = await $.clock.now()
         if (now - lastAgentRefresh >= 2000) {
           lastAgentRefresh = now
           await refreshAgents($)
         }
-        const state = await read($, activity)
-        if (prefs.view === 'reactor' && prefs.animation) {
-          const running = state.tools.filter(tool => tool.outcome === 'running').length
-          const agents = state.agents.filter(agent => agent.status === 'running').length
-          const phase = running > 0 ? 'tools' : state.working || agents > 0 ? 'thinking' : state.phase
-          await update($, reactor, (previous): CockpitReactor => ({ frame: (previous.frame + 1) % 1000000, phase }))
-        } else if (state.tools.some(tool => tool.outcome === 'running')) {
-          $.ui.invalidate('ui.render')
-        }
-      } catch (error) {
-        $.ui.log(`cockpit timer: ${errorText(error)}`, { to: 'debug' })
-      } finally {
-        ticking = false
       }
-    })
-  }
+      if (shown && prefs.view === 'activity' && prefs.animation) {
+        await update($, mascot, (previous): CockpitMascot => ({ frame: (previous.frame + 1) % 1000000, phase: mascotPhase(state) }))
+      }
+      if (busy && tick % 4 === 0) $.ui.invalidate('ui.render')
+    } catch (error) {
+      $.ui.log(`cockpit timer: ${errorText(error)}`, { to: 'debug' })
+    } finally {
+      ticking = false
+    }
+  })
+}
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -367,8 +404,8 @@ export const register: Register = on => {
       await ensureSession($)
       await $.command.register({
         name: 'cockpit',
-        description: 'Open agent, tool, review, context, or reactor views.',
-        argumentHint: '[agents|tools|changes|context|reactor|band|close]',
+        description: 'Open agent, tool, change, context, or activity views.',
+        argumentHint: '[agents|tools|changes|context|activity|band|close]',
         immediate: true,
       })
       await refreshAgents($)
@@ -400,7 +437,7 @@ export const register: Register = on => {
       const command = cut < 0 ? args : args.slice(0, cut)
       const tail = cut < 0 ? '' : args.slice(cut).trim()
       if (command === 'help') {
-        return { text: '/cockpit [agents|tools|changes|context|reactor]\n/cockpit band [on|off]\n/cockpit close' }
+        return { text: '/cockpit [agents|tools|changes|context|activity]\n/cockpit band [on|off]\n/cockpit close' }
       }
       if (command === 'close') {
         await $.ui.close({ id: PANE })
@@ -419,13 +456,14 @@ export const register: Register = on => {
         const prefs = await read($, preferences)
         return { text: `Cockpit band ${prefs.band ? 'enabled' : 'hidden'}.` }
       }
-      if (command !== '' && !VIEWS.includes(command as CockpitView)) {
+      const view = command === 'reactor' ? 'activity' : command
+      if (view !== '' && !VIEWS.includes(view as CockpitView)) {
         return { text: 'Unknown cockpit view. Use /cockpit help.', exitCode: 1 }
       }
       if (tail !== '') {
         return { text: 'Cockpit views take no arguments. Use /cockpit help.', exitCode: 1 }
       }
-      await openCockpit($, command === '' ? undefined : command as CockpitView)
+      await openCockpit($, view === '' ? undefined : view as CockpitView)
       startTimer($)
       return { text: 'Cockpit opened. Use the view buttons or /cockpit help.' }
     } catch (error) {
@@ -446,7 +484,7 @@ export const register: Register = on => {
       const id = await ensureSession($)
       const now = await $.clock.now()
       await changeActivity($, id, now, previous => ({
-        ...previous, working: true, phase: 'thinking', stopFailure: null, updatedAt: now,
+        ...previous, working: true, turnStartedAt: now, phase: 'thinking', stopFailure: null, updatedAt: now,
       }))
     })
     return next(e)
@@ -570,6 +608,7 @@ export const register: Register = on => {
           description: clip(e.description, 240),
           type: clip(e.subagent_type ?? 'general-purpose', 80),
           status: 'completed',
+          startedAt,
           lastSeenAt: now,
           completedAt: now,
         } : undefined
@@ -610,7 +649,7 @@ export const register: Register = on => {
             && typeof output?.filePath === 'string' && output.staged !== true) {
             changes.push({ path: output.filePath, patch: '', additions: 0, deletions: 0, source: 'observed', updatedAt: now })
           }
-          for (const change of changes) await rememberChange($, change, id)
+          for (const change of changes) await rememberChange($, { ...change, agentId: e.agentId }, id)
         }
         const gitOp = succeeded && e.tool === 'Bash' ? gitOperationOf(e.tool_use_id, result, now) : undefined
         if (gitOp !== undefined) {
@@ -670,6 +709,7 @@ export const register: Register = on => {
           usage: e.usage,
         }].slice(-100),
         working: e.agentId === undefined ? false : previous.working,
+        turnStartedAt: e.agentId === undefined ? null : previous.turnStartedAt,
         phase: e.agentId === undefined ? e.reason === 'error' ? 'error' : 'idle' : previous.phase,
         agents: previous.agents.map(agent => agent.id === e.agentId ? {
           ...agent,
@@ -717,6 +757,7 @@ export const register: Register = on => {
           ...previous,
           stopFailure: { error: e.error, details: e.error_details ? clip(e.error_details, 240) : undefined, at: now },
           working: false,
+          turnStartedAt: null,
           phase: 'error',
           updatedAt: now,
         }))
@@ -748,6 +789,7 @@ export const register: Register = on => {
       const id = await ensureSession($)
       const now = await $.clock.now()
       const usd = e.cost?.usd
+      const fill = e.context.tokens
       await updateContext($, (previous): CockpitContext => previous.sessionId === id ? {
         ...previous,
         usage: {
@@ -758,6 +800,8 @@ export const register: Register = on => {
         },
         costs: usd !== undefined && Number.isFinite(usd) && previous.costs.at(-1)?.usd !== usd
           ? [...previous.costs, { at: now, usd }].slice(-100) : previous.costs,
+        fills: fill !== undefined && Number.isFinite(fill) && previous.fills.at(-1)?.tokens !== fill
+          ? [...previous.fills, { at: now, tokens: fill }].slice(-100) : previous.fills,
       } : previous)
     })
     return result
@@ -766,40 +810,47 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const prefs = await read($, preferences)
     if (e.props.hasSurvey || !prefs.band || e.props.maxRows < 1) return next(e)
-    const state = activityOf(await read($, activity))
-    const { Box, Text, Button } = $.ui.resolve(e)
-    const summary = bandSummary(state, { isWorking: e.props.isWorking, columns: e.props.bodyColumns })
+    const [stored, r, c, now] = await Promise.all([read($, activity), read($, review), read($, context), $.clock.now()])
+    const ui = $.ui.resolve(e)
+    const { Box, Button } = ui
+    const segments = bandSegments(activityOf(stored), reviewOf(r), contextOf(c), {
+      isWorking: e.props.isWorking, columns: Math.max(8, e.props.bodyColumns - 13), now,
+    })
     const base = await next(e)
     return (
       <Box flexDirection="column">
         {base}
         <Box gap={1}>
           <Button key="cockpit-open" label="◉ cockpit" onPress={() => { void observe($, () => openCockpit($)) }} />
-          <Text color={summary.color}>{clip(summary.text, Math.max(8, e.props.bodyColumns - 13))}</Text>
+          {line(ui, 'cockpit-band', segments)}
         </Box>
       </Box>
     )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const [stored, r, c, storedPrefs, animation, now] = await Promise.all([
+    const [stored, r, c, storedPrefs, frame, now] = await Promise.all([
       read($, activity), read($, review), read($, context), read($, preferences),
-      read($, reactor), $.clock.now(),
+      read($, mascot), $.clock.now(),
     ])
     // Hot reload keeps session memory, which an earlier version can have shaped.
     const a = activityOf(stored)
-    const prefs = VIEWS.includes(storedPrefs.view) ? storedPrefs : { ...storedPrefs, view: 'agents' as const }
+    const prefs: CockpitPreferences = {
+      ...storedPrefs,
+      view: VIEWS.includes(storedPrefs.view) ? storedPrefs.view : 'agents',
+      span: SPAN_ORDER.includes(storedPrefs.span) ? storedPrefs.span : 'fit',
+    }
     const viewedAgent = e.props.view.agentId ?? null
     // Follow the transcript in view until the person chooses while viewing it.
     const selectedAgent = viewedAgent !== null && viewedAgent !== a.selectedFor ? viewedAgent : a.selectedAgent
     const ui = $.ui.resolve(e)
-    const { Box, Text, Button } = ui
+    const { Box, Button, Text } = ui
     const props: CockpitViewProps = {
       activity: { ...a, selectedAgent },
       review: reviewOf(r),
       context: contextOf(c),
       preferences: prefs,
-      reactor: animation,
+      mascot: { frame: Number.isFinite(frame?.frame) ? frame.frame : 0, phase: mascotPhase(a) },
       actions: actionsFor($, e.surface, viewedAgent),
       viewedAgent,
       columns: Math.max(12, e.props.bodyColumns),
@@ -810,23 +861,75 @@ export const register: Register = on => {
       : prefs.view === 'tools' ? renderTools(ui, props)
       : prefs.view === 'changes' ? renderChanges(ui, props)
       : prefs.view === 'context' ? renderContext(ui, props)
-      : renderReactor(ui, props)
+      : renderActivity(ui, props)
+    const width = Math.max(12, props.columns - 1)
+    const status = sessionStatus(props.activity, a.working)
+    const fill = contextFill(props.context)
+    const cost = props.context.usage?.cost?.usd
+    const started = sessionStart(props.activity, props.context)
+    const turns = mainTurns(props.activity).length
+    const since = status.since === undefined ? '' : ` ${brief(now - status.since)}`
+    const statusLine: Segment[] = [
+      { text: 'COCKPIT', color: colors.accent, bold: true },
+      { text: a.model ? ` ${shortModel(a.model)}` : '', color: colors.muted },
+      { text: ' · ', color: colors.muted },
+      { text: clip(`${status.glyph} ${status.label}${since}`, Math.max(8, width - 12 - shortModel(a.model).length)), color: status.color, bold: status.color !== colors.muted },
+    ]
+    const ctxColor = contextColor(fill)
+    const meterLine: Segment[] = [
+      { text: 'ctx ', color: colors.muted },
+      { text: meter(fill.percent ?? 0, Math.max(6, Math.min(16, width - 40))), color: ctxColor === colors.muted ? colors.accent : ctxColor },
+      { text: ` ${percent(fill.percent)}`, color: ctxColor === colors.muted ? undefined : ctxColor },
+      { text: cost !== undefined && Number.isFinite(cost) ? ` · ${usd(cost)}` : '', color: colors.muted },
+      { text: ` · ${turns} ${turns === 1 ? 'turn' : 'turns'}`, color: colors.muted },
+      { text: started === undefined ? '' : ` · ${brief(now - started)} session`, color: colors.muted },
+    ]
+    const live = props.activity.agents.filter(isLive).length
+    const running = runningTools(props.activity).length
+    const files = changeTotals(props.review).files
+    const ctxBadge = fill.percent !== undefined && Number.isFinite(fill.percent) ? percent(fill.percent) : ''
+    const badges: Record<CockpitView, Segment> = {
+      agents: live > 0 ? { text: `${live}▸`, color: colors.accent } : { text: props.activity.agents.length > 0 ? `${props.activity.agents.length}` : '', color: colors.muted },
+      tools: running > 0 ? { text: `${running}▸`, color: colors.accent } : { text: props.activity.tools.length > 0 ? `${props.activity.tools.length}` : '', color: colors.muted },
+      changes: { text: files > 0 ? `${files}` : '', color: colors.muted },
+      context: { text: ctxBadge, color: ctxColor },
+      activity: { text: '' },
+    }
+    const tabs = VIEWS.map(view => ({ label: viewLabels[view], badge: badges[view].text || undefined }))
+    const tabLayout = tabRows(tabs, width)
+    const activeTab = VIEWS.indexOf(prefs.view)
+    // Each plain tab reads `1: Label`; the active one is at full strength over
+    // an accent mark, the rest dim.
+    const tabBar = tabLayout.rows.flatMap((row, number) => [
+      <Box key={`cockpit:tabs:${number}`} flexDirection="row" columnGap={tabLayout.gap}>
+        {row.map(index => {
+          const view = VIEWS[index] ?? 'agents'
+          const badge = badges[view]
+          return (
+            <Box key={`cockpit:tab:${view}`} flexDirection="row">
+              <Button key={`view-${view}`} plain dimColor={prefs.view !== view} label={viewLabels[view]}
+                hotkey={String(index + 1) as '1' | '2' | '3' | '4' | '5'}
+                onPress={() => props.actions.selectView(view)} />
+              {tabLayout.badges && badge.text !== '' && <Text color={badge.color} dimColor={prefs.view !== view && badge.color === colors.muted}>{` ${badge.text}`}</Text>}
+            </Box>
+          )
+        })}
+      </Box>,
+      ...[tabMark(tabs, row, activeTab, tabLayout.badges, tabLayout.gap)].flatMap(mark => mark ? [line(ui, `cockpit:tabs:${number}:mark`, mark)] : []),
+    ])
     const failure = a.stopFailure
     // No backgroundColor: the dock paints its own theme fill, and a plugin cannot
     // paint the terminal's default background over it.
     return (
       <Box flexDirection="column" gap={1}>
-        <Text bold color={colors.accent}>COCKPIT <Text dimColor> / {viewLabels[prefs.view]}</Text></Text>
-        {failure && <Text color={colors.red} wrap="wrap">{clip(`Last turn stopped: ${humanize(failure.error)}${failure.details ? ` · ${failure.details}` : ''}`, 320)}</Text>}
-        <Box flexWrap="wrap" gap={1}>
-          {VIEWS.map((view, index) => (
-            <Button key={`view-${view}`} label={`${prefs.view === view ? '● ' : ''}${viewLabels[view]}`}
-              hotkey={String(index + 1) as '1' | '2' | '3' | '4' | '5'}
-              onPress={() => props.actions.selectView(view)} />
-          ))}
+        <Box flexDirection="column">
+          {line(ui, 'cockpit:status', statusLine)}
+          {line(ui, 'cockpit:meter', meterLine)}
+          {tabBar}
+          {failure && <Text color={colors.red} wrap="wrap">{clip(`✗ Last turn stopped: ${humanize(failure.error)}${failure.details ? ` · ${failure.details}` : ''}`, 320)}</Text>}
         </Box>
         {content}
-        <Text dimColor>{clip('Read-only · Ctrl+X Tab focuses · 1–5 switch · Esc closes', props.columns)}</Text>
+        <Text dimColor>{clip('Read-only · 1–5 views · Ctrl+X Tab focus · Esc close', props.columns)}</Text>
       </Box>
     )
   })

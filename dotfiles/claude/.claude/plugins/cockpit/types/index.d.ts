@@ -1,4 +1,7 @@
-export type CockpitView = 'agents' | 'tools' | 'changes' | 'context' | 'reactor'
+export type CockpitView = 'agents' | 'tools' | 'changes' | 'context' | 'activity'
+
+/** How much time the activity timeline spans: from the first event, or a fixed window. */
+export type CockpitSpan = 'fit' | '5m' | '15m' | '60m'
 
 export type CockpitTokenUsage = {
   input_tokens: number
@@ -86,6 +89,8 @@ export type CockpitAgent = {
   parentId?: string
   teammateId?: string
   spawnedBy?: string
+  /** When the roster or a tool result first reported the agent. */
+  startedAt?: number
   lastSeenAt: number
   completedAt?: number
   durationMs?: number
@@ -156,6 +161,8 @@ export type CockpitActivity = {
   sessionId: string | null
   model: string
   working: boolean
+  /** When the main turn in progress started; null between turns. */
+  turnStartedAt: number | null
   phase: 'idle' | 'thinking' | 'tools' | 'error'
   tools: CockpitTool[]
   agents: CockpitAgent[]
@@ -175,14 +182,21 @@ export type CockpitActivity = {
   error: string | null
 }
 
+export type CockpitChangeState = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflict'
+
 export type CockpitChange = {
   path: string
   patch: string
   additions: number
   deletions: number
   source: 'observed' | 'git'
+  /** The Git status of the file; absent for an edit before the next Git read. */
+  state?: CockpitChangeState
   staged?: boolean
   untracked?: boolean
+  /** How many observed edits changed the file, and which agent made the last one. */
+  edits?: number
+  agentId?: string
   updatedAt: number
   truncated?: boolean
 }
@@ -246,11 +260,18 @@ export type CockpitCostSample = {
   usd: number
 }
 
+/** The live context fill each time a measurement moved it. */
+export type CockpitFillSample = {
+  at: number
+  tokens: number
+}
+
 export type CockpitContext = {
   sessionId: string | null
   usage: CockpitUsage | null
   compactions: CockpitCompaction[]
   costs: CockpitCostSample[]
+  fills: CockpitFillSample[]
   refreshedAt: number | null
   loading: boolean
   error: string | null
@@ -260,10 +281,12 @@ export type CockpitPreferences = {
   view: CockpitView
   band: boolean
   animation: boolean
+  span: CockpitSpan
   paneOpen: boolean
 }
 
-export type CockpitReactor = {
+/** The Bongo Cat's animation frame and the phase it acts out. */
+export type CockpitMascot = {
   frame: number
   phase: CockpitActivity['phase']
 }
@@ -279,6 +302,7 @@ export type CockpitActions = {
   quotePatch: (path: string) => Promise<void>
   refreshContext: () => Promise<void>
   toggleAnimation: () => Promise<void>
+  cycleSpan: () => Promise<void>
 }
 
 export type CockpitViewProps = {
@@ -286,7 +310,7 @@ export type CockpitViewProps = {
   review: CockpitReview
   context: CockpitContext
   preferences: CockpitPreferences
-  reactor: CockpitReactor
+  mascot: CockpitMascot
   actions: CockpitActions
   /** The agent whose transcript is beside the pane; null for the main session. */
   viewedAgent: string | null
@@ -302,7 +326,7 @@ declare module 'claude-code' {
       review: CockpitReview
       context: CockpitContext
       preferences: CockpitPreferences
-      reactor: CockpitReactor
+      mascot: CockpitMascot
     }
   }
 }

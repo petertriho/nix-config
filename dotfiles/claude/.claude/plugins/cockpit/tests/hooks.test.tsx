@@ -77,6 +77,7 @@ type World = {
   logs: string[]
   store: Map<string, unknown>
   failStore: boolean
+  invalidations: number
   get: <K extends keyof State>(key: K) => State[K]
   seed: <K extends keyof State>(key: K, value: State[K]) => void
 }
@@ -90,15 +91,15 @@ const setup = (on: On): World => {
     agents: [], clock, permission: 'allow', failStateReads: false,
     commands: [], opened: [], closed: [], usageRequests: [], processes: [],
     fsStats: [], fsReads: [], copies: [], drafts: [], submitted: 0,
-    network: 0, spawned: 0, logs: [], store: new Map(), failStore: false,
+    network: 0, spawned: 0, logs: [], store: new Map(), failStore: false, invalidations: 0,
     get: key => values.get(key)?.value as State[typeof key],
     seed: (key, value) => { values.set(key, { value, version: (values.get(key)?.version ?? 0) + 1 }) },
   }
   world.seed('activity', { ...initialActivity(), sessionId: world.id, model: 'test-model' })
   world.seed('review', { ...initialReview(), sessionId: world.id })
   world.seed('context', { ...initialContext(), sessionId: world.id, usage: world.usage })
-  world.seed('preferences', { view: 'agents', band: true, animation: true, paneOpen: false })
-  world.seed('reactor', { frame: 0, phase: 'idle' })
+  world.seed('preferences', { view: 'agents', band: true, animation: true, span: 'fit', paneOpen: false })
+  world.seed('mascot', { frame: 0, phase: 'idle' })
 
   on('state.get', (_$, e) => {
     if (world.failStateReads) throw new Error('State observation refused.')
@@ -150,7 +151,7 @@ const setup = (on: On): World => {
     id, title: 'Cockpit', isShown: true, isFocused: true, isPlaced: true,
   })) }))
   on('ui.toast', () => ({ value: undefined }))
-  on('ui.invalidate', () => ({ value: undefined }))
+  on('ui.invalidate', () => { world.invalidations += 1; return { value: undefined } })
   on('ui.log', (_$, e) => { world.logs.push(e.text); return { value: undefined } })
   on('ui.copy', (_$, e) => { world.copies.push(e.text); return { value: { isCopied: true } } })
   on('prompt.fill', (_$, e) => {
@@ -386,7 +387,7 @@ describe('cockpit commands and surfaces', () => {
     const world = setup(on)
     for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
       for (const columns of [40, 80, 140]) {
-        for (const view of ['agents', 'tools', 'changes', 'context', 'reactor'] as const) {
+        for (const view of ['agents', 'tools', 'changes', 'context', 'activity'] as const) {
           world.seed('preferences', { ...world.get('preferences'), view })
           const ui = await mountPane($, surface, columns)
           expect(await ui.find({ type: 'Text', text: 'COCKPIT' })).toBeDefined()
@@ -422,7 +423,7 @@ describe('cockpit commands and surfaces', () => {
         expect(body?.props.backgroundColor).toBeUndefined()
         expect(body?.props.width).toBeUndefined()
         expect(body?.props.minHeight).toBeUndefined()
-        expect(await ui.find({ key: 'view-reactor' })).toBeDefined()
+        expect(await ui.find({ key: 'view-activity' })).toBeDefined()
         await ui.unmount()
       }
     }
@@ -453,24 +454,44 @@ describe('cockpit commands and surfaces', () => {
     await survey.unmount()
   })
 
-  test('animation advances only while the reactor is active and pauses on request', async ($, on) => {
+  test('the cat animates only in the activity view and pauses on request', async ($, on) => {
     const world = setup(on)
     await $.session.start({ cwd: '/project', surface: 'terminal', isInteractive: true })
     await world.clock.advance(1000)
-    expect(world.get('reactor').frame).toBe(0)
-    await $.command.run(command('reactor'))
+    expect(world.get('mascot').frame).toBe(0)
+    await $.command.run(command('activity'))
     await world.clock.advance(1000)
-    const activeFrame = world.get('reactor').frame
+    const activeFrame = world.get('mascot').frame
     expect(activeFrame).toBeGreaterThan(0)
     const ui = await mountPane($, 'terminal')
-    await ui.press({ key: 'reactor-toggle' })
+    await ui.press({ key: 'activity:animation' })
+    expect(world.get('preferences').animation).toBe(false)
     await world.clock.advance(1000)
-    expect(world.get('reactor').frame).toBe(activeFrame)
+    expect(world.get('mascot').frame).toBe(activeFrame)
+    await ui.press({ key: 'activity:span' })
+    expect(world.get('preferences').span).toBe('5m')
     await ui.unmount()
     await $.command.run(command('tools'))
     await world.clock.advance(1000)
-    expect(world.get('reactor').frame).toBe(activeFrame)
+    expect(world.get('mascot').frame).toBe(activeFrame)
     expect(world.spawned).toBe(0)
+  })
+
+  test('the header tabs keep their order, mark the active view, and switch with the real action', async ($, on) => {
+    const world = setup(on)
+    for (const columns of [44, 80, 140]) {
+      const ui = await mountPane($, 'terminal', columns)
+      const tabs = (await ui.findAll({ type: 'Button' })).map(button => button.key).filter(key => String(key).startsWith('view-'))
+      expect(tabs).toEqual(['view-agents', 'view-tools', 'view-changes', 'view-context', 'view-activity'])
+      expect((await ui.find({ key: 'view-agents' }))?.props.dimColor).toBe(false)
+      expect((await ui.find({ key: 'view-tools' }))?.props.dimColor).toBe(true)
+      expect(await ui.find({ type: 'Text', text: '▔▔▔▔▔▔▔▔▔' })).toBeDefined()
+      await ui.unmount()
+    }
+    const ui = await mountPane($, 'terminal')
+    await ui.press({ key: 'view-tools' })
+    expect(world.get('preferences').view).toBe('tools')
+    await ui.unmount()
   })
 })
 
@@ -504,8 +525,8 @@ describe('cockpit explicit read-only actions', () => {
       path: 'tracked.ts', patch: PATCH, additions: 1, deletions: 1, source: 'observed', updatedAt: 1000,
     }] })
     const ui = await mountPane($, 'terminal')
-    await ui.press({ key: 'ops:copy-patch' })
-    await ui.press({ key: 'ops:quote-patch' })
+    await ui.press({ key: 'changes:copy' })
+    await ui.press({ key: 'changes:quote' })
     expect(world.copies).toEqual([PATCH])
     expect(world.drafts.length).toBe(1)
     expect(world.drafts[0]).toContain(PATCH)
@@ -519,7 +540,7 @@ describe('cockpit explicit read-only actions', () => {
     // Session memory from before a hot reload can hold the removed images view.
     world.seed('preferences', { ...world.get('preferences'), view: 'images' as unknown as State['preferences']['view'] })
     const ui = await mountPane($, 'terminal')
-    expect(await ui.find({ type: 'Text', text: 'Agent hierarchy' })).toBeDefined()
+    expect(await ui.find({ key: 'agents:refresh' })).toBeDefined()
     expect(JSON.stringify(await ui.drawn())).not.toContain('undefined')
     await ui.unmount()
   })
@@ -569,7 +590,7 @@ describe('cockpit live data', () => {
     await $.tool.call({ tool: 'TaskUpdate', tool_use_id: 'task-2', taskId: '1', status: 'in_progress' })
     expect(world.get('activity').tasks).toEqual([{ id: '1', subject: 'Release', status: 'in_progress' }])
     const band = await $.ui.mount({ plugin: 'cockpit', surface: 'terminal', component: 'AbovePrompt', requestId: 'band', props: bandProps() })
-    expect(await band.find({ type: 'Text', text: '1/2 todos' })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: '1/2 Writing tests' })).toBeDefined()
     await band.unmount()
     await $.tool.call({ tool: 'TaskUpdate', tool_use_id: 'task-3', taskId: '1', status: 'deleted' })
     expect(world.get('activity').tasks).toEqual([])
@@ -664,8 +685,9 @@ describe('cockpit live data', () => {
     expect(world.get('context').costs.map(sample => sample.usd)).toEqual([1, 1.5, 2.25])
     world.seed('preferences', { ...world.get('preferences'), view: 'context' })
     const pane = await mountPane($, 'terminal')
-    expect(await pane.find({ type: 'Text', text: 'Last turn: $0.7500' })).toBeDefined()
-    expect(await pane.find({ type: 'Text', text: 'auto · 150,000 → 20,000 tokens' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: 'Last turn ' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: '$0.75' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: 'auto · 150k → 20k (−87%)' })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: 'manual · skipped: A hook blocked it.' })).toBeDefined()
     await pane.unmount()
   })
@@ -677,7 +699,7 @@ describe('cockpit live data', () => {
     expect(world.get('preferences')).toMatchObject({ view: 'context', band: false, animation: false })
     await $.command.run(command('band on'))
     await $.command.run(command('tools'))
-    expect(world.store.get('preferences')).toEqual({ view: 'tools', band: true, animation: false })
+    expect(world.store.get('preferences')).toEqual({ view: 'tools', band: true, animation: false, span: 'fit' })
   })
 
   test('a store that cannot be read or written leaves the defaults and the command works', async ($, on) => {
@@ -699,16 +721,16 @@ describe('cockpit live data', () => {
     await $.command.run(command('agents'))
     const viewing = (agentId: string) => mountPaneWith($, { ...paneProps(), view: { agentId } })
     let ui = await viewing('first')
-    expect(await ui.find({ type: 'Text', text: 'Selected agent · in view' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'ID: first' })).toBeDefined()
-    await ui.press({ key: 'ops:agent:second' })
+    expect(await ui.find({ key: 'agents:detail:first' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: ' · in view' })).toBeDefined()
+    await ui.press({ key: 'agents:select:second' })
     expect(world.get('activity')).toMatchObject({ selectedAgent: 'second', selectedFor: 'first' })
     await ui.unmount()
     ui = await viewing('first')
-    expect(await ui.find({ type: 'Text', text: 'ID: second' })).toBeDefined()
+    expect(await ui.find({ key: 'agents:detail:second' })).toBeDefined()
     await ui.unmount()
     ui = await viewing('third')
-    expect(await ui.find({ type: 'Text', text: 'ID: third' })).toBeDefined()
+    expect(await ui.find({ key: 'agents:detail:third' })).toBeDefined()
     await ui.unmount()
   })
 
@@ -722,6 +744,76 @@ describe('cockpit live data', () => {
     expect(times[2]! - times[1]!).toBe(2000)
   })
 
+  test('the turn clock starts with a main turn and stops when it completes or fails', async ($, on) => {
+    const world = setup(on)
+    on('turn.complete', (_$, e) => ({ text: e.answer, usage: e.usage }))
+    await $.turn.start({ text: 'Work.', turnId: 'main-turn' })
+    expect(world.get('activity').turnStartedAt).toBe(10000)
+    await $.turn.complete(completion({ turnId: 'child-turn', agentId: 'child' }))
+    expect(world.get('activity').turnStartedAt).toBe(10000)
+    await $.turn.complete(completion())
+    expect(world.get('activity').turnStartedAt).toBeNull()
+    await $.turn.start({ text: 'Again.', turnId: 'failing' })
+    await $.classic.StopFailure({ error: 'overloaded' })
+    expect(world.get('activity').turnStartedAt).toBeNull()
+  })
+
+  test('each measured context fill is kept once, and at most 100 are', async ($, on) => {
+    const world = setup(on)
+    for (const tokens of [1000, 1000, 2000]) {
+      await $.session.measure({ context: { window: 200000, tokens }, rateLimits: [], changed: ['context'] })
+    }
+    expect(world.get('context').fills.map(fill => fill.tokens)).toEqual([1000, 2000])
+    for (let index = 0; index < 120; index += 1) {
+      await $.session.measure({ context: { window: 200000, tokens: 3000 + index }, rateLimits: [], changed: ['context'] })
+    }
+    expect(world.get('context').fills).toHaveLength(100)
+    expect(world.get('context').fills.at(-1)?.tokens).toBe(3119)
+  })
+
+  test('observed edits count per file, and a git read keeps the counts', async ($, on) => {
+    const world = setup(on)
+    on('tool.call', { tool: 'Edit' }, () => ({ result: { filePath: '/project/tracked.ts', structuredPatch: [
+      { oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ['-old', '+new'] },
+    ] } }) as never)
+    await $.command.run(command('changes'))
+    const edit = { tool: 'Edit' as const, file_path: '/project/tracked.ts', old_string: 'old', new_string: 'new' }
+    await $.tool.call({ ...edit, tool_use_id: 'edit-1' })
+    await $.tool.call({ ...edit, tool_use_id: 'edit-2' })
+    const edited = () => world.get('review').changes.find(change => change.path === 'tracked.ts')
+    expect(edited()).toMatchObject({ edits: 2, state: 'modified' })
+    const ui = await mountPane($, 'terminal')
+    await ui.press({ key: 'changes:refresh' })
+    await ui.unmount()
+    expect(edited()).toMatchObject({ edits: 2, state: 'modified' })
+    expect(world.get('review').changes.find(change => change.path === 'new.txt')).toMatchObject({ state: 'untracked' })
+    expect(world.processes.every(argv => argv[0] === 'git')).toBe(true)
+  })
+
+  test('the old reactor name opens the activity view, from the command and from the store', async ($, on) => {
+    const world = setup(on)
+    await $.command.run(command('reactor'))
+    expect(world.get('preferences').view).toBe('activity')
+    world.store.set('preferences', { view: 'reactor', band: true, animation: true, span: 'sideways' })
+    world.seed('preferences', { ...world.get('preferences'), view: 'agents', span: '15m' })
+    await $.session.start({ cwd: '/project', surface: 'terminal', isInteractive: false })
+    expect(world.get('preferences')).toMatchObject({ view: 'activity', span: '15m' })
+  })
+
+  test('running work redraws elapsed times each second, even with the pane closed', async ($, on) => {
+    const world = setup(on)
+    await $.session.start({ cwd: '/project', surface: 'terminal', isInteractive: true })
+    await world.clock.advance(2000)
+    const idle = world.invalidations
+    await world.clock.advance(3000)
+    expect(world.invalidations).toBe(idle)
+    await $.turn.start({ text: 'Work.', turnId: 'busy' })
+    const started = world.invalidations
+    await world.clock.advance(3000)
+    expect(world.invalidations - started).toBeGreaterThanOrEqual(2)
+    expect(world.spawned).toBe(0)
+  })
+
   test('state saved by an earlier version is filled in instead of breaking hooks or the pane', async ($, on) => {
     const world = setup(on)
     const legacy: Record<string, unknown> = { ...initialActivity(), sessionId: world.id, samples: [1, 2] }
@@ -733,7 +825,7 @@ describe('cockpit live data', () => {
     await $.tool.call({ tool: 'TodoWrite', tool_use_id: 'legacy-todo', todos: [] })
     expect(world.get('activity').todos).toHaveLength(1)
     expect(world.get('activity').samples.every(sample => typeof sample === 'object')).toBe(true)
-    for (const view of ['agents', 'tools', 'changes', 'context', 'reactor'] as const) {
+    for (const view of ['agents', 'tools', 'changes', 'context', 'activity'] as const) {
       world.seed('preferences', { ...world.get('preferences'), view })
       const ui = await mountPane($, 'terminal')
       expect(await ui.find({ type: 'Text', text: 'COCKPIT' })).toBeDefined()

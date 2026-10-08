@@ -2,7 +2,7 @@ import type { AgentInfo } from 'claude-code'
 import { describe, expect, test } from 'claude-code/testing'
 import type { CockpitAgent } from '../types'
 import {
-  detectCheck, mergeAgents, normalizeObservedChanges,
+  changeState, detectCheck, mergeAgents, normalizeObservedChanges,
   parseGitDiff, parseGitStatus, summarizeCheck, toolTarget,
 } from '../hooks/data'
 
@@ -37,6 +37,13 @@ describe('agent snapshots', () => {
     const merged = mergeAgents([old], [{ ...agent('a', 'idle'), parentId: 'parent', teammateId: 'a@team' }], 50)
     expect(first(merged)).toMatchObject({ status: 'idle', lastSeenAt: 50, usage, parentId: 'parent', teammateId: 'a@team' })
     expect(first(mergeAgents(merged, [agent('a', 'completed')], 60)).completedAt).toBe(60)
+  })
+
+  test('an agent keeps the time it was first seen', () => {
+    const seen = mergeAgents([], [agent('a')], 30)
+    expect(first(seen).startedAt).toBe(30)
+    expect(first(mergeAgents(seen, [agent('a', 'completed')], 90)).startedAt).toBe(30)
+    expect(first(mergeAgents([{ ...remembered('b'), startedAt: 5 }], [agent('b')], 90)).startedAt).toBe(5)
   })
 
   test('bounds and deduplicates agents with incoming entries first', () => {
@@ -233,5 +240,17 @@ describe('review patches', () => {
     const change = first(normalizeObservedChanges('Write', {}, result, 30))
     expect(change.patch.length).toBeLessThanOrEqual(24000)
     expect(change.truncated).toBe(true)
+  })
+})
+
+describe('change states', () => {
+  test('porcelain codes name what Git sees for each file', () => {
+    const states = ['??', 'UU', 'AA', 'DD', 'AU', 'R ', ' C', 'A ', 'AM', ' D', 'D ', ' M', 'M ', 'MM', 'T ']
+      .map(status => [status, changeState(status)])
+    expect(states).toEqual([
+      ['??', 'untracked'], ['UU', 'conflict'], ['AA', 'conflict'], ['DD', 'conflict'], ['AU', 'conflict'],
+      ['R ', 'renamed'], [' C', 'renamed'], ['A ', 'added'], ['AM', 'added'], [' D', 'deleted'], ['D ', 'deleted'],
+      [' M', 'modified'], ['M ', 'modified'], ['MM', 'modified'], ['T ', 'modified'],
+    ])
   })
 })

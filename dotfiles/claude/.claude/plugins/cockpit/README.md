@@ -8,39 +8,76 @@ The mod uses the early-access function-hook API from Claude Code 2.1.292. A late
 
 | View | Content | Data source |
 | --- | --- | --- |
-| Agents | Plan, agent hierarchy, reported status, recent tools, run totals, and last answer | Native agent, turn, and tool events |
-| Tools | Tool timeline, run time, approval and hook time, outcomes, background tasks, and agent filters | Native tool, permission, and stop events |
-| Changes | File list, unified diffs, existing review findings, observed check summaries, and Git activity | Native edit and shell results, and requested Git reads |
-| Context | Context heatmap, ranked category estimates, compactions, rate limits, and cost per turn | Local summary and native measurements |
-| Reactor | Animated braille reactor, activity history, and pause control | Observed tool and agent activity |
+| Agents | Session summary, plan, agent tree, and a detail card for the selected agent with its status, tokens, models, tool mix, todos, recent tools, and last answer | Native agent, turn, and tool events |
+| Tools | Totals with approval wait, running calls, the call log with actor filters, a detail card, time per tool, background tasks, and crons | Native tool, permission, and stop events |
+| Changes | Branch and totals, file groups by Git state with diffstat bars, the selected diff, checks, review findings, and Git activity | Native edit and shell results, and requested Git reads |
+| Context | Fill gauge with the auto-compact mark, headroom and trend, category estimates, a token table, cost and rate limits, largest consumers, and compactions | Local summary and native measurements |
+| Activity | Bongo Cat, activity counts and history, a timeline per actor, and a summary of where the time went | Observed tool, agent, and turn activity |
 
-A compact activity band appears above the prompt. It shows running agents and tools, plan progress, and background tasks. At 64 columns or more, it also shows the duration of the last main turn. After a turn stops on an error, the band shows the error in red until the next turn starts. The pane opens only after a command or button press.
+### Band
+
+A compact band appears above the prompt. It shows these parts, in priority order:
+
+1. The status: the lead tool and its elapsed time, "thinking" with the turn time, or "idle".
+2. Plan progress, such as `1/3 Writing tests`.
+3. Running agents.
+4. The context fill, colored before auto-compact.
+5. The latest check result, such as `✗ npm test 2 failed`.
+6. Changed files with added and removed lines.
+7. The session cost.
+8. Running background tasks.
+9. The duration of the last main turn, only when idle.
+
+When the band is too narrow, each part changes to a short form first. Then the parts with the lowest priority drop out. After a turn stops on an error, the band shows the error in red until the next turn starts. The pane opens only after a command or button press.
+
+### Header
+
+The pane header shows the model, the session status, a context meter, the cost, the number of turns, and the session time. Below it, the view tabs show counts: agents and tool calls, with `▸` when some are running, changed files, and the context fill. The active tab has an accent mark under it. A narrow pane drops the counts first, and then puts the tabs on more than one row, in order.
 
 ### Agents
 
-The plan comes from the last `TodoWrite` result of the main thread and from the task tools (`TaskCreate`, `TaskUpdate`, `TaskList`). A subagent plan appears under that agent.
+The session summary shows the current status, the turn count and average turn time, failed tool calls, token totals with the cache hit rate, and live agents.
 
-A completed `Agent` call reports run totals: tokens, tool uses, duration, changed lines, and models. The last answer of an agent appears as Markdown. Agents without totals show the usage of their last turn.
+The plan comes from the last `TodoWrite` result of the main thread and from the task tools (`TaskCreate`, `TaskUpdate`, `TaskList`). The list shows the items near the one in progress. A subagent plan appears in the detail card of that agent.
+
+A completed `Agent` call reports run totals: tokens, tool uses, duration, changed lines, and models. The last answer of an agent appears as Markdown. Agents without totals show the usage of their last turn. "Show its tools" opens the Tools view, filtered to that agent.
 
 When the transcript in view changes to a subagent, the pane selects that agent. A selection that you make stays until the transcript in view changes again.
 
 ### Tools
 
-A finished tool shows two durations. "Ran" is the execution time that the engine reports. "Approval and hooks" is the remaining time of the call, which includes the permission dialog and hooks. A tool that waits for a permission answer shows "running · approval asked".
+The summary shows the total tool time, the number of approval prompts, and the time spent waiting for an answer. "Running now" lists the running calls with the lead call first.
+
+A finished tool shows two durations. "Ran" is the execution time that the engine reports. "Approval" is the remaining time of the call, which includes the permission dialog and hooks. A tool that waits for a permission answer shows a `?` mark.
+
+"By tool" ranks the tools by total time, with call and failure counts. `Agent` calls are counted but get no bar, because their time is the time of the subagent.
 
 Background tasks come from `Bash` calls with `run_in_background`, `Agent` calls with `run_in_background`, and `Monitor` calls. The engine snapshot at each stop updates their status. Scheduled crons appear below the background tasks.
 
 ### Changes
 
+Files are grouped as staged, changed, untracked, and edited but not yet read from Git. Each row shows the Git state, the path, the number of observed edits, the number of findings, a diffstat bar, and the line counts. The diff heading names the agent that made the last edit.
+
 Git activity comes from shell results that the engine marks as commits, pushes, branch changes, or pull requests. A pull request with an `https` URL shows a link.
 
 ### Context
 
-The context view lists the last 20 compactions with their trigger and token counts. Cost per turn is the difference between consecutive cost measurements of the main thread.
+The gauge scales the category estimates to the live fill and marks the auto-compact threshold. The headroom line shows the tokens left before auto-compact. The engine measures the fill after each model response. The trend line shows the average growth of the last five measurements that grew, and an estimate of the responses left before auto-compact.
+
+The context view lists the last 20 compactions with their trigger, token counts, and reduction. Cost per turn is the difference between consecutive cost measurements of the main thread.
+
+### Activity
+
+The Activity view replaces the reactor view of earlier versions. The reactor drew an animated orb with an activity history. The orb was decorative, and the other views already showed the counts. The Activity view keeps the phase, the counts, the history, and the pause control, and adds these parts:
+
+- **Bongo Cat** acts out the session. It sleeps on the drums when idle, taps while the model thinks, and drums on the bongos while tools run, faster with more work at once. After an error, it holds its paws up. A speech bubble names the lead tool and its elapsed time.
+- **Timeline** shows one lane for the main thread and one for each recent agent. Each cell shows the model, a tool, a delegated agent, an approval wait, or an error. "Zoom" changes the span between the session and the last 5, 15, or 60 minutes.
+- **Where time went** shows the busy share of the session, tool time by tool, agent time, approval wait, parallel work, and the call rate.
 
 ### Preferences
+### Preferences
 
-The selected view, the band setting, and the animation setting persist across sessions in plugin storage. Storage errors go to the debug log and do not block the commands.
+The selected view, the band setting, the animation setting, and the timeline zoom persist across sessions in plugin storage. A saved `reactor` view opens the Activity view. Storage errors go to the debug log and do not block the commands.
 
 ### Colors
 
@@ -63,14 +100,14 @@ This configuration makes the dock match the terminal background:
 /cockpit tools
 /cockpit changes
 /cockpit context
-/cockpit reactor
+/cockpit activity
 /cockpit band off
 /cockpit band on
 /cockpit close
 /cockpit help
 ```
 
-The command can run during a model turn.
+The command can run during a model turn. `/cockpit reactor` is an alias for `/cockpit activity`.
 
 ### Terminal controls
 
@@ -79,6 +116,16 @@ The command can run during a model turn.
 3. While the pane has focus, press `1` through `5` to select a view.
 4. Press `Tab` to move between controls.
 5. Press `Esc` to close the pane.
+
+The views also have letter keys while the pane has focus:
+
+| Key | Agents | Tools | Changes | Context | Activity |
+| --- | --- | --- | --- | --- | --- |
+| `r` | Refresh agents | | Read Git | Estimate categories | |
+| `j` / `k` | Next or previous agent | Older or newer call | Next or previous file | | |
+| `t` | Show its tools | | | | |
+| `c` / `q` | | | Copy or quote the patch | | |
+| `z` / `p` | | | | | Zoom, pause or wake the cat |
 
 The pane uses native scrolling and resizing.
 
@@ -93,7 +140,7 @@ History starts when the mod loads. Session memory holds the history. Hot reload 
 - The background list holds at most 40 tasks.
 - The review view holds at most 100 files, 100 findings, 40 check summaries, and 30 Git operations.
 - Review patches hold at most 24,000 characters per file and 200,000 characters in total.
-- The context view holds at most 20 compactions and 100 cost measurements.
+- The context view holds at most 20 compactions, 100 cost measurements, and 100 fill measurements.
 - The activity history holds at most 240 samples.
 
 Agent status comes from the engine roster. An external teammate can leave an old status after its terminal closes. Missing entries show an unknown status, not proof that an agent stopped.
@@ -110,9 +157,13 @@ The context summary estimates categories locally. It makes no token-count API re
 
 The cost figure is the engine ledger, not a statement of account billing. Category estimates can differ from the live input count.
 
-The reactor shows relative observed activity, not an exact running token rate. The activity history records each change in the number of running tools, running agents, and main turns, also while the pane is closed. Animation runs only in the visible reactor view. The pause control stops frame updates.
+The cat is braille line art after the original Bongo Cat: the table edge falls to the right, the face tilts with it, and the two bongos stand in front. A raised paw shows its toe beans, and a hit shows impact lines. The cat is 40 columns wide, or 34 or fewer in a narrow pane, and uses theme colors.
 
-The reactor draws its orb as braille text on every surface. The orb uses theme colors and the background of the surface.
+The Activity view shows relative observed activity, not an exact running token rate. The activity history records each change in the number of running tools, running agents, and main turns, also while the pane is closed. The cat animates only in the visible Activity view. The pause control stops frame updates.
+
+The timeline knows the start and end of each tool call and main turn. Model time is the part of a turn without a running tool. An agent lane starts when the mod first observes the agent.
+
+While work runs, elapsed times redraw once a second, also while the pane is closed, so the band stays current.
 
 ## Safety
 
@@ -122,7 +173,7 @@ Git reads happen only after the changes view or its refresh control is requested
 
 The mod does not retain raw prompts, shell command arguments, or shell output. A background shell task shows its description or its executable name, not its command. A cron shows its schedule, not its prompt.
 
-Review patches, finding summaries, todo text, and the last answer of each agent remain in bounded session memory. The mod does not write them to disk. Plugin storage holds only the view, band, and animation preferences.
+Review patches, finding summaries, todo text, and the last answer of each agent remain in bounded session memory. The mod does not write them to disk. Plugin storage holds only the view, band, animation, and zoom preferences.
 
 Copy places a patch on the clipboard. Quote appends a patch to the draft. Quote does not submit the draft or replace existing text.
 
@@ -174,13 +225,14 @@ The tests use the native test engine, explicit surfaces, and mocked host operati
 
 ## Source structure
 
-- `hooks/register.tsx` holds hooks, host operations, and literal state references.
+- `hooks/register.tsx` holds hooks, host operations, literal state references, the band, and the pane header.
 - `hooks/state.ts` holds initial state factories and fills missing fields in state from an earlier version.
 - `hooks/data.ts` holds bounded parsers and observation helpers.
-- `hooks/operations.tsx` draws agent, tool, and change views.
-- `hooks/visuals.tsx` draws context and reactor views.
+- `hooks/summary.ts` derives the status, totals, plan, context fill, and band parts from state.
+- `hooks/layout.tsx` holds shared drawing blocks: lines, headings, fields, cards, actions, and tabs.
+- `hooks/agents.tsx`, `hooks/tools.tsx`, `hooks/changes.tsx`, `hooks/context.tsx`, and `hooks/activity.tsx` draw one view each.
 - `hooks/theme.ts` holds shared theme-key colors and text formatting.
 - `types/index.d.ts` declares the self-contained state contract.
-- `tests/` holds parser, view, lifecycle, and safety tests.
+- `tests/` holds parser, summary, view, lifecycle, and safety tests. `tests/kit.tsx` holds the shared fixtures.
 
 The native source analyzer follows host capabilities only through top-level functions in the hooks module. It does not follow `$` across imported helpers.
