@@ -1,26 +1,49 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface, Timer } from 'claude-code'
-import type { CockpitActions, CockpitActivity, CockpitChange, CockpitContext, CockpitFinding, CockpitImage, CockpitImages, CockpitPreferences, CockpitReactor, CockpitReview, CockpitTool, CockpitView, CockpitViewProps } from '../types'
-import { detectCheck, normalizeObservedChanges, summarizeCheck, toolTarget } from './data'
-import { renderAgents, renderChanges, renderTools } from './operations'
-import { inspectPng, isRemotePath, mergeAgents, parseGitDiff, parseGitStatus } from './data'
-import { initialActivity, initialContext, initialImages, initialReview } from './state'
-import { clip, colors, duration, statusColor } from './theme'
-import { renderContext, renderImages, renderReactor } from './visuals'
+import type {
+  CockpitActions, CockpitActivity, CockpitAgent, CockpitChange, CockpitCompaction, CockpitContext, CockpitFinding,
+  CockpitPreferences, CockpitReactor, CockpitReview, CockpitTool, CockpitView, CockpitViewProps,
+} from '../types'
+import {
+  agentResult, answerText, applyTaskResult, backgroundLaunch, backgroundSnapshot, cronSnapshot, detectCheck,
+  endBackground, gitOperationOf, mergeAgents, mergeBackground, normalizeObservedChanges, parseGitDiff,
+  parseGitStatus, summarizeCheck, todosOf, toolTarget, withSample,
+} from './data'
+import { bandSummary, renderAgents, renderChanges, renderTools } from './operations'
+import { activityOf, contextOf, initialActivity, initialContext, initialReview, reviewOf } from './state'
+import { clip, colors, humanize } from './theme'
+import { renderContext, renderReactor } from './visuals'
 
 const PANE = 'cockpit'
-const VIEWS: CockpitView[] = ['agents', 'tools', 'changes', 'context', 'reactor', 'images']
+const STORE_KEY = 'preferences'
+const VIEWS: CockpitView[] = ['agents', 'tools', 'changes', 'context', 'reactor']
 
 const activity = atom({ plugin: 'cockpit', key: 'activity' } as const, initialActivity())
 const review = atom({ plugin: 'cockpit', key: 'review' } as const, initialReview())
 const context = atom({ plugin: 'cockpit', key: 'context' } as const, initialContext())
-const images = atom({ plugin: 'cockpit', key: 'images' } as const, initialImages())
 const preferences = atom({ plugin: 'cockpit', key: 'preferences' } as const, {
   view: 'agents', band: true, animation: true, paneOpen: false,
 } satisfies CockpitPreferences)
 const reactor = atom({ plugin: 'cockpit', key: 'reactor' } as const, {
-  frame: 0, phase: 'idle', samples: [],
+  frame: 0, phase: 'idle',
 } satisfies CockpitReactor)
+
+// Session memory can hold an earlier version's shape. Every update reads it
+// filled in, and an updater that returns its input writes nothing.
+const normalized = <T,>(fill: (value: T) => T, change: (previous: T) => T) => (previous: T): T => {
+  const current = fill(previous)
+  const next = change(current)
+  return next === current ? previous : next
+}
+const updateActivity = async ($: EngineInterface, change: (previous: CockpitActivity) => CockpitActivity): Promise<void> => {
+  await update($, activity, normalized(activityOf, change))
+}
+const updateReview = async ($: EngineInterface, change: (previous: CockpitReview) => CockpitReview): Promise<void> => {
+  await update($, review, normalized(reviewOf, change))
+}
+const updateContext = async ($: EngineInterface, change: (previous: CockpitContext) => CockpitContext): Promise<void> => {
+  await update($, context, normalized(contextOf, change))
+}
 
 const errorText = (error: unknown): string =>
   clip(error instanceof Error ? error.message : 'The operation could not complete.', 240)
@@ -50,8 +73,7 @@ const ensureSession = async ($: EngineInterface): Promise<string> => {
     await update($, activity, (value): CockpitActivity => ({ ...initialActivity(), sessionId: id, model }))
     await update($, review, (value): CockpitReview => ({ ...initialReview(), sessionId: id }))
     await update($, context, (value): CockpitContext => ({ ...initialContext(), sessionId: id }))
-    await update($, images, (value): CockpitImages => ({ ...initialImages(), sessionId: id, generation: value.generation }))
-    await update($, reactor, (): CockpitReactor => ({ frame: 0, phase: 'idle', samples: [] }))
+    await update($, reactor, (): CockpitReactor => ({ frame: 0, phase: 'idle' }))
     return id
   }
   const pending = initialize()
@@ -67,23 +89,33 @@ const resetSession = async ($: EngineInterface): Promise<void> => {
   await update($, activity, initialActivity)
   await update($, review, initialReview)
   await update($, context, initialContext)
-  await update($, images, previous => ({ ...initialImages(), generation: previous.generation }))
-  await update($, reactor, (): CockpitReactor => ({ frame: 0, phase: 'idle', samples: [] }))
+  await update($, reactor, (): CockpitReactor => ({ frame: 0, phase: 'idle' }))
+}
+
+// Changes to tools, agents or the working flag also record the activity level.
+const changeActivity = async (
+  $: EngineInterface, sessionId: string, now: number,
+  change: (previous: CockpitActivity) => CockpitActivity,
+): Promise<void> => {
+  await updateActivity($, (previous): CockpitActivity => {
+    if (previous.sessionId !== sessionId) return previous
+    const next = change(previous)
+    return next === previous ? previous : withSample(next, now)
+  })
 }
 
 const refreshAgents = async ($: EngineInterface): Promise<void> => {
   const id = await ensureSession($)
   try {
     const [incoming, now] = await Promise.all([$.agent.list(), $.clock.now()])
-    await update($, activity, (previous): CockpitActivity => {
-      if (previous.sessionId !== id) return previous
+    await changeActivity($, id, now, previous => {
       const merged = mergeAgents(previous.agents, incoming, now)
       const identity = (list: typeof merged) => list.map(agent => ({ ...agent, lastSeenAt: 0 }))
       if (JSON.stringify(identity(previous.agents)) === JSON.stringify(identity(merged))) return previous
       return { ...previous, agents: merged, updatedAt: now, error: null }
     })
   } catch (error) {
-    await update($, activity, (previous): CockpitActivity =>
+    await updateActivity($, (previous): CockpitActivity =>
       previous.sessionId === id ? { ...previous, error: errorText(error) } : previous,
     )
   }
@@ -91,14 +123,14 @@ const refreshAgents = async ($: EngineInterface): Promise<void> => {
 
 const refreshContext = async ($: EngineInterface): Promise<void> => {
   const id = await ensureSession($)
-  await update($, context, previous => ({ ...previous, loading: true, error: null }))
+  await updateContext($, previous => ({ ...previous, loading: true, error: null }))
   try {
     const usage = await $.session.usage({ breakdown: 'summary', columns: 80 })
     const now = await $.clock.now()
-    await update($, context, (previous): CockpitContext => previous.sessionId === id
-      ? { sessionId: id, usage, refreshedAt: now, loading: false, error: null } : previous)
+    await updateContext($, (previous): CockpitContext => previous.sessionId === id
+      ? { ...previous, usage, refreshedAt: now, loading: false, error: null } : previous)
   } catch (error) {
-    await update($, context, previous => previous.sessionId === id
+    await updateContext($, previous => previous.sessionId === id
       ? { ...previous, loading: false, error: errorText(error) } : previous)
   }
 }
@@ -110,7 +142,7 @@ const relativePath = (root: string, path: string): string => {
 
 const refreshChanges = async ($: EngineInterface): Promise<void> => {
   const id = await ensureSession($)
-  await update($, review, previous => ({ ...previous, loading: true, error: null }))
+  await updateReview($, previous => ({ ...previous, loading: true, error: null }))
   try {
     const repo = await $.session.repo()
     if (repo === null) throw new Error('This session is not inside a Git repository.')
@@ -144,7 +176,7 @@ const refreshChanges = async ($: EngineInterface): Promise<void> => {
         truncated: Boolean(truncated || full.length > patch.length || matching.some(change => change.truncated)),
       }
     })
-    await update($, review, (previous): CockpitReview => {
+    await updateReview($, (previous): CockpitReview => {
       if (previous.sessionId !== id) return previous
       const selected = previous.selectedPath === null ? null : relativePath(repo.root, previous.selectedPath)
       return {
@@ -156,13 +188,13 @@ const refreshChanges = async ($: EngineInterface): Promise<void> => {
       }
     })
   } catch (error) {
-    await update($, review, previous => previous.sessionId === id
+    await updateReview($, previous => previous.sessionId === id
       ? { ...previous, loading: false, error: errorText(error) } : previous)
   }
 }
 
 const rememberChange = async ($: EngineInterface, change: CockpitChange, sessionId: string): Promise<void> => {
-  await update($, review, (previous): CockpitReview => {
+  await updateReview($, (previous): CockpitReview => {
     if (previous.sessionId !== sessionId) return previous
     const path = previous.root === null ? change.path : relativePath(previous.root, change.path)
     const next = { ...change, path, patch: change.patch.slice(0, 24000) }
@@ -177,46 +209,57 @@ const rememberChange = async ($: EngineInterface, change: CockpitChange, session
   })
 }
 
-const loadImage = async ($: EngineInterface, input: string): Promise<void> => {
+const record = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+
+const loadPreferences = async ($: EngineInterface): Promise<void> => {
+  const saved = record(await $.store.get(STORE_KEY))
+  if (saved === null) return
+  await update($, preferences, previous => ({
+    ...previous,
+    view: VIEWS.includes(saved.view as CockpitView) ? saved.view as CockpitView : previous.view,
+    band: typeof saved.band === 'boolean' ? saved.band : previous.band,
+    animation: typeof saved.animation === 'boolean' ? saved.animation : previous.animation,
+  }))
+}
+
+// $.state lasts one session. The store keeps the person's choices for the next.
+const savePreferences = ($: EngineInterface): Promise<void> => observe($, async () => {
+  const { view, band, animation } = await read($, preferences)
+  await $.store.set(STORE_KEY, { view, band, animation })
+})
+
+const recordRunTime = async ($: EngineInterface, id: string, ms: number | undefined): Promise<void> => {
+  if (ms === undefined || !Number.isFinite(ms) || ms < 0) return
+  await updateActivity($, (previous): CockpitActivity => previous.tools.some(tool => tool.id === id)
+    ? { ...previous, tools: previous.tools.map(tool => tool.id === id ? { ...tool, runMs: Math.round(ms) } : tool) }
+    : previous)
+}
+
+const recordBackground = async (
+  $: EngineInterface, tasks: unknown, crons: unknown, endedAgent?: string,
+): Promise<void> => {
   const id = await ensureSession($)
-  await update($, images, previous => ({ ...previous, loading: true, error: null }))
-  try {
-    let path = input.trim()
-    if ((path.startsWith('"') && path.endsWith('"')) || (path.startsWith("'") && path.endsWith("'"))) {
-      path = path.slice(1, -1)
+  const now = await $.clock.now()
+  await updateActivity($, (previous): CockpitActivity => {
+    if (previous.sessionId !== id) return previous
+    const snapshot = Array.isArray(tasks)
+    let background = snapshot ? mergeBackground(previous.background, backgroundSnapshot(tasks, now), now) : previous.background
+    if (endedAgent !== undefined) background = endBackground(background, endedAgent, 'completed', now)
+    return {
+      ...previous, background,
+      crons: Array.isArray(crons) ? cronSnapshot(crons) : previous.crons,
+      backgroundAt: snapshot ? now : previous.backgroundAt,
     }
-    if (!path || isRemotePath(path)) throw new Error('Choose a local PNG file, not a URL or network path.')
-    if (path.startsWith('~/')) {
-      const home = await $.env.get('HOME')
-      if (!home) throw new Error('HOME is not available. Use an absolute file path.')
-      path = `${home}/${path.slice(2)}`
-    }
-    const stat = await $.fs.stat(path, { resolve: true })
-    if (stat.kind !== 'file' || stat.realPath === undefined || stat.size > 2097152) {
-      throw new Error('Choose a regular PNG file no larger than 2 MiB.')
-    }
-    const { base64 } = await $.fs.read(stat.realPath, { as: 'bytes' })
-    const dimensions = inspectPng(base64)
-    if (!dimensions.ok) throw new Error(dimensions.error)
-    const item: CockpitImage = {
-      path: stat.realPath, label: clip(stat.realPath.split('/').at(-1) ?? stat.realPath, 80),
-      width: dimensions.width, height: dimensions.height, bytes: dimensions.bytes,
-    }
-    await update($, images, (previous): CockpitImages => {
-      if (previous.sessionId !== id) return previous
-      const generation = Math.max(previous.generation ?? 0, ...previous.images.map(image => image.generation ?? 0)) + 1
-      const list = [...previous.images.filter(image => image.path !== item.path), { ...item, generation }].slice(-8)
-      return { ...previous, generation, images: list, selected: list.length - 1, draft: '', loading: false, error: null }
-    })
-  } catch (error) {
-    await update($, images, previous => previous.sessionId === id
-      ? { ...previous, loading: false, error: errorText(error) } : previous)
-  }
+  })
 }
 
 const selectView = async ($: EngineInterface, view: CockpitView): Promise<void> => {
   await ensureSession($)
   await update($, preferences, previous => ({ ...previous, view }))
+  await savePreferences($)
   if (view === 'agents' || view === 'tools') await refreshAgents($)
   if (view === 'changes') await refreshChanges($)
   if (view === 'context') await refreshContext($)
@@ -230,7 +273,7 @@ const openCockpit = async ($: EngineInterface, view?: CockpitView): Promise<void
   await update($, preferences, previous => ({ ...previous, paneOpen: true }))
 }
 
-const actionsFor = ($: EngineInterface, surface: RenderSurface): CockpitActions => {
+const actionsFor = ($: EngineInterface, surface: RenderSurface, viewedAgent: string | null): CockpitActions => {
   const patchFor = async (path: string): Promise<string | null> => {
     const state = await read($, review)
     const patch = state.changes.find(change => change.path === path)?.patch
@@ -240,10 +283,12 @@ const actionsFor = ($: EngineInterface, surface: RenderSurface): CockpitActions 
   return {
     selectView: view => selectView($, view),
     refreshAgents: () => refreshAgents($),
-    selectAgent: async id => { await update($, activity, previous => ({ ...previous, selectedAgent: id })) },
-    selectTool: async id => { await update($, activity, previous => ({ ...previous, selectedTool: id })) },
+    selectAgent: async id => {
+      await updateActivity($, previous => ({ ...previous, selectedAgent: id, selectedFor: viewedAgent }))
+    },
+    selectTool: async id => { await updateActivity($, previous => ({ ...previous, selectedTool: id })) },
     refreshChanges: () => refreshChanges($),
-    selectChange: async path => { await update($, review, previous => ({ ...previous, selectedPath: path })) },
+    selectChange: async path => { await updateReview($, previous => ({ ...previous, selectedPath: path })) },
     copyPatch: async path => {
       const patch = await patchFor(path)
       if (patch !== null) {
@@ -261,22 +306,12 @@ const actionsFor = ($: EngineInterface, surface: RenderSurface): CockpitActions 
       }
     },
     refreshContext: () => refreshContext($),
-    toggleAnimation: async () => { await update($, preferences, previous => ({ ...previous, animation: !previous.animation })) },
-    loadImage: path => loadImage($, path),
-    selectImage: async index => {
-      await update($, images, previous => ({ ...previous, selected: Math.max(0, Math.min(previous.images.length - 1, Math.floor(index))) }))
+    toggleAnimation: async () => {
+      await update($, preferences, previous => ({ ...previous, animation: !previous.animation }))
+      await savePreferences($)
     },
-    clearImages: async () => {
-      await update($, images, previous => ({ ...initialImages(), sessionId: previous.sessionId, generation: previous.generation }))
-    },
-    setImageDraft: async draft => { await update($, images, previous => ({ ...previous, draft })) },
   }
 }
-
-const record = (value: unknown): Record<string, unknown> | null =>
-  value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null
 
 const viewLabels: Record<CockpitView, string> = {
   agents: 'Agents',
@@ -284,13 +319,11 @@ const viewLabels: Record<CockpitView, string> = {
   changes: 'Changes',
   context: 'Context',
   reactor: 'Reactor',
-  images: 'Images',
 }
 
 let timer: Timer | undefined
 let ticking = false
 let lastAgentRefresh = 0
-let lastSample = 0
 
 const startTimer = ($: EngineInterface) => {
     if (timer !== undefined) return
@@ -313,14 +346,7 @@ const startTimer = ($: EngineInterface) => {
           const running = state.tools.filter(tool => tool.outcome === 'running').length
           const agents = state.agents.filter(agent => agent.status === 'running').length
           const phase = running > 0 ? 'tools' : state.working || agents > 0 ? 'thinking' : state.phase
-          const sample = running + agents + (state.working ? 1 : 0)
-          const sampleNow = now - lastSample >= 1000
-          if (sampleNow) lastSample = now
-          await update($, reactor, (previous): CockpitReactor => ({
-            frame: (previous.frame + 1) % 1000000,
-            phase,
-            samples: sampleNow ? [...previous.samples, sample].slice(-48) : previous.samples,
-          }))
+          await update($, reactor, (previous): CockpitReactor => ({ frame: (previous.frame + 1) % 1000000, phase }))
         } else if (state.tools.some(tool => tool.outcome === 'running')) {
           $.ui.invalidate('ui.render')
         }
@@ -335,18 +361,20 @@ const startTimer = ($: EngineInterface) => {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
+    // A store that cannot be read leaves the defaults and skips nothing else.
+    await observe($, () => loadPreferences($))
     await observe($, async () => {
       await ensureSession($)
       await $.command.register({
         name: 'cockpit',
-        description: 'Open agent, tool, review, context, reactor, or local image views.',
-        argumentHint: '[agents|tools|changes|context|reactor|images|band|close] [PNG path]',
+        description: 'Open agent, tool, review, context, or reactor views.',
+        argumentHint: '[agents|tools|changes|context|reactor|band|close]',
         immediate: true,
       })
       await refreshAgents($)
       const id = await $.session.id()
       const usage = await $.session.usage()
-      await update($, context, (previous): CockpitContext => previous.sessionId === id ? { ...previous, usage } : previous)
+      await updateContext($, (previous): CockpitContext => previous.sessionId === id ? { ...previous, usage } : previous)
       if (e.isInteractive) startTimer($)
     })
     return result
@@ -372,7 +400,7 @@ export const register: Register = on => {
       const command = cut < 0 ? args : args.slice(0, cut)
       const tail = cut < 0 ? '' : args.slice(cut).trim()
       if (command === 'help') {
-        return { text: '/cockpit [agents|tools|changes|context|reactor|images]\n/cockpit images <local PNG path>\n/cockpit band [on|off]\n/cockpit close' }
+        return { text: '/cockpit [agents|tools|changes|context|reactor]\n/cockpit band [on|off]\n/cockpit close' }
       }
       if (command === 'close') {
         await $.ui.close({ id: PANE })
@@ -387,18 +415,18 @@ export const register: Register = on => {
           ...previous,
           band: tail === '' ? !previous.band : tail === 'on',
         }))
+        await savePreferences($)
         const prefs = await read($, preferences)
         return { text: `Cockpit band ${prefs.band ? 'enabled' : 'hidden'}.` }
       }
       if (command !== '' && !VIEWS.includes(command as CockpitView)) {
         return { text: 'Unknown cockpit view. Use /cockpit help.', exitCode: 1 }
       }
-      if (tail !== '' && command !== 'images') {
-        return { text: 'Only the images view takes a file path.', exitCode: 1 }
+      if (tail !== '') {
+        return { text: 'Cockpit views take no arguments. Use /cockpit help.', exitCode: 1 }
       }
       await openCockpit($, command === '' ? undefined : command as CockpitView)
       startTimer($)
-      if (command === 'images' && tail !== '') await loadImage($, tail)
       return { text: 'Cockpit opened. Use the view buttons or /cockpit help.' }
     } catch (error) {
       return { text: `Cockpit: ${errorText(error)}`, exitCode: 1 }
@@ -415,9 +443,11 @@ export const register: Register = on => {
 
   on('turn.start', async ($, e, next) => {
     await observe($, async () => {
-      await ensureSession($)
+      const id = await ensureSession($)
       const now = await $.clock.now()
-      await update($, activity, (previous): CockpitActivity => ({ ...previous, working: true, phase: 'thinking', updatedAt: now }))
+      await changeActivity($, id, now, previous => ({
+        ...previous, working: true, phase: 'thinking', stopFailure: null, updatedAt: now,
+      }))
     })
     return next(e)
   }).catch(($, e, next) => next(e))
@@ -427,7 +457,7 @@ export const register: Register = on => {
     await observe($, async () => {
       sessionId = await ensureSession($)
       if (e.agentId === undefined) {
-        await update($, activity, (previous): CockpitActivity => ({ ...previous, model: e.model, phase: 'thinking' }))
+        await updateActivity($, (previous): CockpitActivity => ({ ...previous, model: e.model, phase: 'thinking' }))
       }
     })
     const result = yield* next(e)
@@ -444,7 +474,7 @@ export const register: Register = on => {
         retrospective: true,
       }))
       if (retrospective.length > 0) {
-        await update($, activity, (previous): CockpitActivity => ({
+        await updateActivity($, (previous): CockpitActivity => ({
           ...previous,
           tools: [...previous.tools.filter(tool => !retrospective.some(server => server.id === tool.id)), ...retrospective].slice(-200),
           updatedAt: now,
@@ -466,6 +496,33 @@ export const register: Register = on => {
     return result
   }).catch(($, e, next) => next(e))
 
+  on('tool.check', async ($, e, next) => {
+    const result = await next(e)
+    const id = e.tool_use_id
+    // A query from $.tool.check has no call id and decides nothing that runs.
+    if (result.decision === 'ask' && id !== undefined) {
+      await observe($, () => updateActivity($, (previous): CockpitActivity => ({
+        ...previous,
+        tools: previous.tools.map(tool => tool.id === id ? { ...tool, approval: 'asked' } : tool),
+      })))
+    }
+    return result
+  }).catch(($, e, next) => next(e))
+
+  // PostToolUse is the only source of execution time without the permission
+  // prompt. No event marks the moment a person answers the prompt.
+  on('classic.PostToolUse', async ($, e, next) => {
+    const result = await next(e)
+    await observe($, () => recordRunTime($, e.tool_use_id, e.duration_ms))
+    return result
+  }).catch(($, e, next) => next(e))
+
+  on('classic.PostToolUseFailure', async ($, e, next) => {
+    const result = await next(e)
+    await observe($, () => recordRunTime($, e.tool_use_id, e.duration_ms))
+    return result
+  }).catch(($, e, next) => next(e))
+
   on('tool.call', async ($, e, next) => {
     let sessionId: string | undefined
     let startedAt = 0
@@ -481,14 +538,14 @@ export const register: Register = on => {
         startedAt,
         outcome: 'running',
       }
-      await update($, activity, (previous): CockpitActivity => ({
+      await changeActivity($, sessionId, startedAt, previous => ({
         ...previous,
         tools: [...previous.tools.filter(item => item.id !== tool.id), tool].slice(-200),
         phase: 'tools',
         updatedAt: startedAt,
       }))
       if (checkLabel !== undefined) {
-        await update($, review, (previous): CockpitReview => ({
+        await updateReview($, (previous): CockpitReview => ({
           ...previous,
           checks: [...previous.checks.filter(check => check.id !== tool.id), { id: tool.id, label: checkLabel, status: 'running' as const }].slice(-40),
         }))
@@ -498,31 +555,69 @@ export const register: Register = on => {
       const result = await next(e)
       await observe($, async () => {
         if (sessionId === undefined || await $.session.id() !== sessionId) return
+        const id = sessionId
         const now = await $.clock.now()
         const output = record(result.result)
         const outcome: CockpitTool['outcome'] = result.deny ? 'denied' : result.isError ? 'error' : output?.interrupted === true ? 'interrupted' : 'success'
-        await update($, activity, (previous): CockpitActivity => {
-          if (previous.sessionId !== sessionId) return previous
+        const succeeded = !result.isError && !result.deny
+        const todos = succeeded && e.tool === 'TodoWrite' ? todosOf(result) : undefined
+        const launch = succeeded ? backgroundLaunch(e.tool, e, result, now) : undefined
+        const stopped = succeeded && e.tool === 'TaskStop' && typeof output?.task_id === 'string' ? output.task_id : undefined
+        const finished = succeeded && e.tool === 'Agent' ? agentResult(result) : undefined
+        const spawned: CockpitAgent | undefined = finished && e.tool === 'Agent' ? {
+          id: finished.agentId,
+          name: typeof e.name === 'string' ? clip(e.name, 80) : undefined,
+          description: clip(e.description, 240),
+          type: clip(e.subagent_type ?? 'general-purpose', 80),
+          status: 'completed',
+          lastSeenAt: now,
+          completedAt: now,
+        } : undefined
+        await changeActivity($, id, now, previous => {
           const tools = previous.tools.map(tool => tool.id === e.tool_use_id ? { ...tool, outcome, finishedAt: now } : tool)
           const phase = tools.some(tool => tool.outcome === 'running') ? 'tools' : previous.working ? 'thinking' : outcome === 'error' ? 'error' : 'idle'
-          return { ...previous, tools, phase, updatedAt: now }
+          const tasks = succeeded ? applyTaskResult(previous.tasks, e.tool, e, result) : undefined
+          let background = launch ? [...previous.background.filter(task => task.id !== launch.id), launch].slice(-40) : previous.background
+          if (stopped !== undefined) background = endBackground(background, stopped, 'stopped', now)
+          // An agent can leave the roster before a refresh lists it. Keep its report anyway.
+          const agents = finished === undefined ? previous.agents
+            : previous.agents.some(agent => agent.id === finished.agentId)
+              ? previous.agents.map(agent => agent.id === finished.agentId
+                ? { ...agent, totals: finished.totals, answer: finished.answer ?? agent.answer } : agent)
+              : spawned ? [...previous.agents, { ...spawned, totals: finished.totals, answer: finished.answer }].slice(-100) : previous.agents
+          return {
+            ...previous, tools, phase, agents, background,
+            tasks: tasks ?? previous.tasks,
+            todos: todos === undefined ? previous.todos : [
+              ...previous.todos.filter(list => list.agentId !== e.agentId),
+              { agentId: e.agentId, items: todos, updatedAt: now },
+            ].slice(-20),
+            updatedAt: now,
+          }
         })
         if (checkLabel !== undefined) {
-          const check = summarizeCheck(e.tool_use_id, checkLabel, result, { error: result.isError, denied: result.deny !== undefined }, Math.max(0, now - startedAt))
-          await update($, review, (previous): CockpitReview => previous.sessionId === sessionId ? {
+          // Prefer the execution time, which leaves out a permission prompt.
+          const runMs = (await read($, activity)).tools.find(tool => tool.id === e.tool_use_id)?.runMs
+          const check = summarizeCheck(e.tool_use_id, checkLabel, result, { error: result.isError, denied: result.deny !== undefined }, runMs ?? Math.max(0, now - startedAt))
+          await updateReview($, (previous): CockpitReview => previous.sessionId === id ? {
             ...previous,
             checks: [...previous.checks.filter(item => item.id !== check.id), { ...check, finishedAt: now }].slice(-40),
           } : previous)
         }
-        if (!result.isError && !result.deny) {
+        if (succeeded) {
           const changes = normalizeObservedChanges(e.tool, e, result, now)
           if ((e.tool === 'Edit' || e.tool === 'Write') && changes.length === 0
             && typeof output?.filePath === 'string' && output.staged !== true) {
             changes.push({ path: output.filePath, patch: '', additions: 0, deletions: 0, source: 'observed', updatedAt: now })
           }
-          for (const change of changes) await rememberChange($, change, sessionId)
+          for (const change of changes) await rememberChange($, change, id)
         }
-        if (!result.isError && !result.deny && e.tool === 'ReportFindings' && Array.isArray(e.findings)) {
+        const gitOp = succeeded && e.tool === 'Bash' ? gitOperationOf(e.tool_use_id, result, now) : undefined
+        if (gitOp !== undefined) {
+          await updateReview($, (previous): CockpitReview => previous.sessionId === id
+            ? { ...previous, gitOps: [...previous.gitOps.filter(item => item.id !== gitOp.id), gitOp].slice(-30) } : previous)
+        }
+        if (succeeded && e.tool === 'ReportFindings' && Array.isArray(e.findings)) {
           const findings: CockpitFinding[] = e.findings.flatMap((value, index) => {
             const finding = record(value)
             if (finding === null || typeof finding.file !== 'string' || typeof finding.summary !== 'string') return []
@@ -536,7 +631,7 @@ export const register: Register = on => {
               outcome: typeof finding.outcome === 'string' ? clip(finding.outcome, 40) : undefined,
             }]
           })
-          await update($, review, (previous): CockpitReview => previous.sessionId === sessionId
+          await updateReview($, (previous): CockpitReview => previous.sessionId === id
             ? { ...previous, findings: [...previous.findings, ...findings].slice(-100) } : previous)
         }
         if (e.tool === 'Agent' || e.agentId !== undefined) await refreshAgents($)
@@ -544,13 +639,14 @@ export const register: Register = on => {
       return result
     } catch (error) {
       await observe($, async () => {
+        if (sessionId === undefined) return
         const now = await $.clock.now()
-        await update($, activity, (previous): CockpitActivity => previous.sessionId === sessionId ? {
+        await changeActivity($, sessionId, now, previous => ({
           ...previous,
           tools: previous.tools.map(tool => tool.id === e.tool_use_id ? { ...tool, outcome: 'error', finishedAt: now } : tool),
           phase: 'error',
           updatedAt: now,
-        } : previous)
+        }))
       })
       throw error
     }
@@ -563,7 +659,7 @@ export const register: Register = on => {
     await observe($, async () => {
       if (id === undefined || await $.session.id() !== id) return
       const now = await $.clock.now()
-      await update($, activity, (previous): CockpitActivity => previous.sessionId === id ? {
+      await changeActivity($, id, now, previous => ({
         ...previous,
         turns: [...previous.turns.filter(turn => turn.id !== e.turnId), {
           id: e.turnId,
@@ -580,11 +676,69 @@ export const register: Register = on => {
           completedAt: now,
           durationMs: e.durationMs,
           usage: e.usage,
+          answer: answerText(e.answer) ?? agent.answer,
         } : agent),
         updatedAt: now,
-      } : previous)
+      }))
       await refreshAgents($)
     })
+    return result
+  }).catch(($, e, next) => next(e))
+
+  on('classic.Stop', async ($, e, next) => {
+    const result = await next(e)
+    await observe($, () => recordBackground($, e.background_tasks, e.session_crons))
+    return result
+  }).catch(($, e, next) => next(e))
+
+  on('classic.SubagentStop', async ($, e, next) => {
+    const result = await next(e)
+    await observe($, async () => {
+      await recordBackground($, e.background_tasks, e.session_crons, e.agent_id)
+      const answer = answerText(e.last_assistant_message)
+      if (answer !== undefined) {
+        await updateActivity($, (previous): CockpitActivity => ({
+          ...previous,
+          agents: previous.agents.map(agent => agent.id === e.agent_id && agent.answer === undefined ? { ...agent, answer } : agent),
+        }))
+      }
+    })
+    return result
+  }).catch(($, e, next) => next(e))
+
+  on('classic.StopFailure', async ($, e, next) => {
+    const result = await next(e)
+    // A subagent's failure reaches its spawner as a tool error.
+    if (e.agent_id === undefined) {
+      await observe($, async () => {
+        const id = await ensureSession($)
+        const now = await $.clock.now()
+        await changeActivity($, id, now, previous => ({
+          ...previous,
+          stopFailure: { error: e.error, details: e.error_details ? clip(e.error_details, 240) : undefined, at: now },
+          working: false,
+          phase: 'error',
+          updatedAt: now,
+        }))
+      })
+    }
+    return result
+  }).catch(($, e, next) => next(e))
+
+  on('session.compact', async ($, e, next) => {
+    const result = await next(e)
+    // A precompute installs nothing. Its result waits for a later compaction.
+    if (e.trigger !== 'precompute') {
+      await observe($, async () => {
+        const id = await ensureSession($)
+        const now = await $.clock.now()
+        const entry: CockpitCompaction = result.skip !== undefined
+          ? { at: now, trigger: e.trigger, agentId: e.agentId, skipped: clip(result.skip, 240) }
+          : { at: now, trigger: e.trigger, agentId: e.agentId, tokensBefore: result.tokensBefore, tokensAfter: result.tokensAfter }
+        await updateContext($, (previous): CockpitContext => previous.sessionId === id
+          ? { ...previous, compactions: [...previous.compactions, entry].slice(-20) } : previous)
+      })
+    }
     return result
   }).catch(($, e, next) => next(e))
 
@@ -593,7 +747,8 @@ export const register: Register = on => {
     await observe($, async () => {
       const id = await ensureSession($)
       const now = await $.clock.now()
-      await update($, context, (previous): CockpitContext => previous.sessionId === id ? {
+      const usd = e.cost?.usd
+      await updateContext($, (previous): CockpitContext => previous.sessionId === id ? {
         ...previous,
         usage: {
           startedAt: previous.usage?.startedAt ?? now,
@@ -601,6 +756,8 @@ export const register: Register = on => {
           rateLimits: e.rateLimits,
           cost: e.cost,
         },
+        costs: usd !== undefined && Number.isFinite(usd) && previous.costs.at(-1)?.usd !== usd
+          ? [...previous.costs, { at: now, usd }].slice(-100) : previous.costs,
       } : previous)
     })
     return result
@@ -609,42 +766,42 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const prefs = await read($, preferences)
     if (e.props.hasSurvey || !prefs.band || e.props.maxRows < 1) return next(e)
-    const state = await read($, activity)
+    const state = activityOf(await read($, activity))
     const { Box, Text, Button } = $.ui.resolve(e)
-    const agents = state.agents.filter(agent => agent.status === 'running' || agent.status === 'waiting').length
-    const running = state.tools.filter(tool => tool.outcome === 'running')
-    const last = state.turns.filter(turn => turn.agentId === undefined).at(-1)
-    const label = running.length > 0 ? `${running.length} tools running` : e.props.isWorking ? 'thinking' : state.phase
-    const details = e.props.bodyColumns >= 64
-      ? `${agents} agents · ${label}${last === undefined ? '' : ` · last turn ${duration(last.durationMs)}`}`
-      : `${agents} agents · ${label}`
+    const summary = bandSummary(state, { isWorking: e.props.isWorking, columns: e.props.bodyColumns })
     const base = await next(e)
     return (
       <Box flexDirection="column">
         {base}
         <Box gap={1}>
           <Button key="cockpit-open" label="◉ cockpit" onPress={() => { void observe($, () => openCockpit($)) }} />
-          <Text color={statusColor(state.phase)}>{clip(details, Math.max(8, e.props.bodyColumns - 13))}</Text>
+          <Text color={summary.color}>{clip(summary.text, Math.max(8, e.props.bodyColumns - 13))}</Text>
         </Box>
       </Box>
     )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const [a, r, c, prefs, animation, gallery, now] = await Promise.all([
+    const [stored, r, c, storedPrefs, animation, now] = await Promise.all([
       read($, activity), read($, review), read($, context), read($, preferences),
-      read($, reactor), read($, images), $.clock.now(),
+      read($, reactor), $.clock.now(),
     ])
+    // Hot reload keeps session memory, which an earlier version can have shaped.
+    const a = activityOf(stored)
+    const prefs = VIEWS.includes(storedPrefs.view) ? storedPrefs : { ...storedPrefs, view: 'agents' as const }
+    const viewedAgent = e.props.view.agentId ?? null
+    // Follow the transcript in view until the person chooses while viewing it.
+    const selectedAgent = viewedAgent !== null && viewedAgent !== a.selectedFor ? viewedAgent : a.selectedAgent
     const ui = $.ui.resolve(e)
     const { Box, Text, Button } = ui
     const props: CockpitViewProps = {
-      activity: a,
-      review: r,
-      context: c,
+      activity: { ...a, selectedAgent },
+      review: reviewOf(r),
+      context: contextOf(c),
       preferences: prefs,
       reactor: animation,
-      images: gallery,
-      actions: actionsFor($, e.surface),
+      actions: actionsFor($, e.surface, viewedAgent),
+      viewedAgent,
       columns: Math.max(12, e.props.bodyColumns),
       rows: Math.max(6, e.props.scroll.bodyRows - 5),
       now,
@@ -653,22 +810,23 @@ export const register: Register = on => {
       : prefs.view === 'tools' ? renderTools(ui, props)
       : prefs.view === 'changes' ? renderChanges(ui, props)
       : prefs.view === 'context' ? renderContext(ui, props)
-      : prefs.view === 'reactor' ? renderReactor(ui, props)
-      : renderImages(ui, props)
+      : renderReactor(ui, props)
+    const failure = a.stopFailure
     // No backgroundColor: the dock paints its own theme fill, and a plugin cannot
     // paint the terminal's default background over it.
     return (
       <Box flexDirection="column" gap={1}>
         <Text bold color={colors.accent}>COCKPIT <Text dimColor> / {viewLabels[prefs.view]}</Text></Text>
+        {failure && <Text color={colors.red} wrap="wrap">{clip(`Last turn stopped: ${humanize(failure.error)}${failure.details ? ` · ${failure.details}` : ''}`, 320)}</Text>}
         <Box flexWrap="wrap" gap={1}>
           {VIEWS.map((view, index) => (
             <Button key={`view-${view}`} label={`${prefs.view === view ? '● ' : ''}${viewLabels[view]}`}
-              hotkey={String(index + 1) as '1' | '2' | '3' | '4' | '5' | '6'}
+              hotkey={String(index + 1) as '1' | '2' | '3' | '4' | '5'}
               onPress={() => props.actions.selectView(view)} />
           ))}
         </Box>
         {content}
-        <Text dimColor>{clip('Read-only · Ctrl+X Tab focuses · 1–6 switch · Esc closes', props.columns)}</Text>
+        <Text dimColor>{clip('Read-only · Ctrl+X Tab focuses · 1–5 switch · Esc closes', props.columns)}</Text>
       </Box>
     )
   })

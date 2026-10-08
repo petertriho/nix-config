@@ -1,18 +1,22 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import type { Mounted } from 'claude-code/testing'
 import type { On, RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { CockpitAgent, CockpitTool, CockpitView, CockpitViewProps } from '../types'
 import {
   agentHierarchy,
   agentStatusLabel,
+  bandSummary,
+  gitOperationLines,
   patchPreview,
+  planProgress,
   renderAgents,
   renderChanges,
   renderTools,
   toolDuration,
   visibleWindow,
+  waitDuration,
 } from '../hooks/operations'
-import { initialActivity, initialContext, initialImages, initialReview } from '../hooks/state'
+import { initialActivity, initialContext, initialReview } from '../hooks/state'
 
 const agent = (id: string, fields: Partial<CockpitAgent> = {}): CockpitAgent => ({
   id,
@@ -68,6 +72,46 @@ test('operations: duration uses elapsed time only for running tools', () => {
   expect(toolDuration(tool('unknown', { outcome: 'error' }), 3500)).toBeUndefined()
   expect(toolDuration(tool('clock-skew', { finishedAt: 500 }), 3500)).toBe(0)
   expect(toolDuration(tool('bad-time', { startedAt: NaN }), 3500)).toBeUndefined()
+})
+
+test('operations: a PostToolUse time replaces the wall time and leaves the wait apart', () => {
+  const asked = tool('asked', { outcome: 'success', finishedAt: 16000, runMs: 1200, approval: 'asked' })
+  expect(toolDuration(asked, 20000)).toBe(1200)
+  expect(waitDuration(asked)).toBe(13800)
+  // A running call has no execution time yet: its elapsed time includes the prompt.
+  expect(toolDuration(tool('live', { runMs: 50 }), 3500)).toBe(2500)
+  expect(waitDuration(tool('live'))).toBeUndefined()
+})
+
+test('operations: the band counts with plurals, shows the plan, background work and a stop failure', () => {
+  const activity = {
+    ...initialActivity(),
+    agents: [agent('one')],
+    tools: [tool('only')],
+    todos: [{ items: [
+      { content: 'Read', status: 'completed' as const, activeForm: 'Reading' },
+      { content: 'Write', status: 'in_progress' as const, activeForm: 'Writing' },
+      { content: 'Test', status: 'pending' as const, activeForm: 'Testing' },
+    ], updatedAt: 1 }],
+    background: [
+      { id: 'b1', type: 'shell', status: 'running', description: 'Watch', updatedAt: 1 },
+      { id: 'b2', type: 'shell', status: 'ended', description: 'Done', updatedAt: 1, endedAt: 2 },
+    ],
+  }
+  expect(bandSummary(activity, { isWorking: true, columns: 80 }).text).toBe('1 agent · 1 tool running · 1/3 todos · 1 background')
+  expect(planProgress({ todos: [], tasks: [{ id: '1', subject: 'Ship', status: 'completed' }] })).toBe('1/1 tasks')
+  const failed = { ...initialActivity(), stopFailure: { error: 'rate_limit', at: 1 } }
+  expect(bandSummary(failed, { isWorking: false, columns: 80 })).toEqual({ text: '0 agents · stopped: rate limit', color: 'error' })
+  expect(bandSummary(failed, { isWorking: true, columns: 80 }).text).toBe('0 agents · thinking')
+})
+
+test('operations: git operations read as short lines', () => {
+  expect(gitOperationLines({
+    id: 'g', at: 0,
+    commit: { sha: '0123456789abcdef', kind: 'committed', branch: 'main' },
+    push: { branch: 'main' },
+    pr: { number: 7, action: 'auto-merge-enabled' },
+  })).toEqual(['committed 0123456789 on main', 'pushed main', 'PR #7 auto-merge-enabled'])
 })
 
 test('operations: patch preview preserves complete hunks and strips unsafe controls', () => {
@@ -132,8 +176,8 @@ const fixture = (view: CockpitView, columns = 80): { props: CockpitViewProps; ca
     },
     context: initialContext(),
     preferences: { view, band: false, animation: false, paneOpen: false },
-    reactor: { frame: 0, phase: 'idle', samples: [] },
-    images: initialImages(),
+    reactor: { frame: 0, phase: 'idle' },
+    viewedAgent: null,
     columns,
     rows: 30,
     now: 6000,
@@ -148,10 +192,6 @@ const fixture = (view: CockpitView, columns = 80): { props: CockpitViewProps; ca
       quotePatch: async path => { calls.push(`quote:${path}`) },
       refreshContext: async () => { calls.push('unexpected:context') },
       toggleAnimation: async () => { calls.push('unexpected:animation') },
-      loadImage: async () => { calls.push('unexpected:image') },
-      selectImage: async () => { calls.push('unexpected:image-selection') },
-      clearImages: async () => { calls.push('unexpected:image-clear') },
-      setImageDraft: async () => { calls.push('unexpected:image-draft') },
     },
   }
   return { props, calls }
@@ -191,12 +231,12 @@ for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
           expect(await mounted.find({ type: 'Text', text: 'unknown (not listed)' })).toBeDefined()
         } else if (view === 'tools') {
           for (const outcome of ['running', 'success', 'error', 'denied', 'interrupted']) expect(await mounted.find({ type: 'Text', text: outcome })).toBeDefined()
-          expect(await mounted.find({ type: 'Text', text: 'Retrospective server tool' })).toBeDefined()
+          expect(await mounted.find({ type: 'Text', text: 'server tool' })).toBeDefined()
         } else {
           expect((await mounted.find({ type: 'Code' }))?.props.format).toBe('diff')
           expect(await mounted.find({ type: 'Text', text: 'Missing return value' })).toBeDefined()
           expect(await mounted.find({ type: 'Text', text: 'Finding on an unchanged file' })).toBeDefined()
-          expect(await mounted.find({ type: 'Text', text: 'Completed does not mean passed' })).toBeDefined()
+          expect(await mounted.find({ type: 'Text', text: '0 running · 1 passed · 0 failed' })).toBeDefined()
           expect(await mounted.find({ type: 'Text', text: 'Pass/fail counts unknown' })).toBeDefined()
           expect(await mounted.find({ type: 'Text', text: 'Line counts unavailable' })).toBeDefined()
           expect(await mounted.find({ type: 'Text', text: '+0' })).toBeUndefined()
@@ -235,7 +275,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await mounted.find({ key: 'ops:tool:live' })).toBeDefined()
     await press(mounted, 'ops:tool:server')
     await mounted.redraw()
-    expect(await mounted.find({ type: 'Text', text: 'observed after the result' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'reported after the response' })).toBeDefined()
     await press(mounted, 'ops:tools-all')
     await mounted.redraw()
     expect(await mounted.find({ key: 'ops:tool:main' })).toBeDefined()
@@ -279,10 +319,9 @@ const nativeState = (on: On, props: CockpitViewProps): Map<string, unknown> => {
   props.activity.sessionId = 'operations-test-session'
   props.review.sessionId = 'operations-test-session'
   props.context.sessionId = 'operations-test-session'
-  props.images.sessionId = 'operations-test-session'
   const state = new Map<string, unknown>([
     ['activity', props.activity], ['review', props.review], ['context', props.context],
-    ['preferences', props.preferences], ['reactor', props.reactor], ['images', props.images],
+    ['preferences', props.preferences], ['reactor', props.reactor],
   ])
   const versions = new Map<string, number>()
   on('state.get', { plugin: 'cockpit' }, ($, e) => ({ value: { value: state.get(e.key), version: versions.get(e.key) ?? 0 } }))
@@ -296,6 +335,7 @@ const nativeState = (on: On, props: CockpitViewProps): Map<string, unknown> => {
   on('session.id', () => ({ value: 'operations-test-session' }))
   on('clock.now', () => ({ value: 6000 }))
   on('ui.toast', () => ({ value: undefined }))
+  mock.store(on)
   return state
 }
 
@@ -345,6 +385,75 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await mounted.redraw()
     expect(state.get('review')).toMatchObject({ selectedPath: 'src/new.ts' })
     expect(await mounted.find({ type: 'Text', text: 'Patch omitted: no complete hunk fits the capture limit' })).toBeDefined()
+    await mounted.unmount()
+  })
+}
+
+for (const surface of ['terminal', 'mobile'] as const) {
+  test(`operations: agents show the plan, run totals, todos and last answer on ${surface}`, async ($, on) => {
+    const { props } = fixture('agents')
+    props.activity.selectedAgent = 'finished'
+    props.viewedAgent = 'finished'
+    props.activity.todos = [
+      { items: [{ content: 'Plan', status: 'completed', activeForm: 'Planning' }, { content: 'Build', status: 'in_progress', activeForm: 'Building' }], updatedAt: 1 },
+      { agentId: 'finished', items: [{ content: 'Check', status: 'pending', activeForm: 'Checking' }], updatedAt: 1 },
+    ]
+    props.activity.tasks = [{ id: '4', subject: 'Release', status: 'pending', owner: 'lead' }]
+    props.activity.agents = props.activity.agents.map(item => item.id === 'finished' ? {
+      ...item,
+      totals: { tokens: 45000, toolUses: 1, durationMs: 130000, linesAdded: 12, linesRemoved: 3, models: ['test-model'] },
+      answer: '## Report\n\nAll **done**.',
+    } : item)
+    on('ui.render', { component: 'Pane', requestId: 'ops:test' }, ($, e) => renderAgents($.ui.resolve(e), props))
+    const mounted = await $.ui.mount({ plugin: 'cockpit', surface, component: 'Pane', requestId: 'ops:test', props: paneProps(80) })
+    expect(await mounted.find({ type: 'Text', text: 'Plan · 1/2 todos · 0/1 tasks' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: '▸ Building' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: '#4 Release · lead' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'Selected agent · in view' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'Todos · 0/1 done' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: '45,000 tokens · 1 tool use · 2m 10s' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: '+12' })).toBeDefined()
+    expect((await mounted.find({ type: 'Markdown' }))?.props.text).toBe('## Report\n\nAll **done**.')
+    expect(await mounted.find({ type: 'Text', text: 'Last turn usage' })).toBeUndefined()
+    await mounted.unmount()
+  })
+
+  test(`operations: tools show approval, execution time, wait and background work on ${surface}`, async ($, on) => {
+    const { props } = fixture('tools')
+    props.activity.tools = [
+      tool('asked', { tool: 'Bash', outcome: 'success', startedAt: 1000, finishedAt: 5000, runMs: 1500, approval: 'asked' }),
+      tool('pending', { tool: 'Bash', startedAt: 5500, approval: 'asked' }),
+    ]
+    props.activity.selectedTool = 'asked'
+    props.activity.background = [
+      { id: 'shell-1', type: 'shell', status: 'running', description: 'Watch tests', startedAt: 2000, updatedAt: 2000 },
+      { id: 'agent-1', type: 'subagent', status: 'ended', description: 'Survey', startedAt: 1000, endedAt: 3000, updatedAt: 3000 },
+    ]
+    props.activity.backgroundAt = 4000
+    props.activity.crons = [{ id: 'c1', schedule: '*/5 * * * *', recurring: true }]
+    on('ui.render', { component: 'Pane', requestId: 'ops:test' }, ($, e) => renderTools($.ui.resolve(e), props))
+    const mounted = await $.ui.mount({ plugin: 'cockpit', surface, component: 'Pane', requestId: 'ops:test', props: paneProps(80) })
+    expect(await mounted.find({ type: 'Text', text: 'running · approval asked' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'Ran 1.5s' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'Approval and hooks 2.5s' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'Background · 1 in flight · reported 2.0s ago' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'shell · running · Watch tests · 4.0s' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'subagent · ended · Survey · 2.0s' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'Scheduled: */5 * * * *' })).toBeDefined()
+    await mounted.unmount()
+  })
+
+  test(`operations: changes show git activity with a PR link on ${surface}`, async ($, on) => {
+    const { props } = fixture('changes')
+    props.review.gitOps = [
+      { id: 'g1', at: 1000, commit: { sha: 'abcdef0123456789', kind: 'committed', branch: 'feature/cockpit' } },
+      { id: 'g2', at: 2000, pr: { number: 12, action: 'created', url: 'https://example.test/pull/12' } },
+    ]
+    on('ui.render', { component: 'Pane', requestId: 'ops:test' }, ($, e) => renderChanges($.ui.resolve(e), props))
+    const mounted = await $.ui.mount({ plugin: 'cockpit', surface, component: 'Pane', requestId: 'ops:test', props: paneProps(80) })
+    expect(await mounted.find({ type: 'Text', text: 'committed abcdef0123 on feature/cockpit · 5.0s ago' })).toBeDefined()
+    expect(await mounted.find({ type: 'Text', text: 'PR #12 created · 4.0s ago' })).toBeDefined()
+    expect((await mounted.find({ type: 'Link' }))?.props.href).toBe('https://example.test/pull/12')
     await mounted.unmount()
   })
 }

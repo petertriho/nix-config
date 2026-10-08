@@ -36,6 +36,11 @@ export const count = (value: number | undefined): string => {
   return Math.round(Math.max(0, value)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
+export const humanize = (code: string): string => cleanText(code).replace(/_/g, ' ')
+
+export const plural = (value: number, noun: string): string =>
+  `${count(value)} ${value === 1 ? noun : `${noun}s`}`
+
 export const meter = (percent: number, width = 16): string => {
   const cells = Math.max(1, Math.min(80, Math.floor(width)))
   const filled = Math.round((Math.max(0, Math.min(100, percent)) / 100) * cells)

@@ -1,21 +1,46 @@
 # Cockpit
 
-Cockpit adds six read-only views to Claude Code. It keeps the existing status line, prompts, tool results, and permission dialogs unchanged.
+Cockpit adds five read-only views to Claude Code. It keeps the existing status line, prompts, tool results, and permission dialogs unchanged.
 
-The mod uses the early-access function-hook API from Claude Code 2.1.291. A later engine release can change this API.
+The mod uses the early-access function-hook API from Claude Code 2.1.292. A later engine release can change this API.
 
 ## Views
 
 | View | Content | Data source |
 | --- | --- | --- |
-| Agents | Agent hierarchy, reported status, recent tools, and completed token usage | Native agent and turn events |
-| Tools | Tool timeline, duration bars, outcomes, and agent filters | Native tool events |
-| Changes | File list, unified diffs, existing review findings, and observed check summaries | Native edit results and requested Git reads |
-| Context | Context heatmap, ranked category estimates, compaction threshold, rate limits, and cost ledger | Local summary and native measurements |
+| Agents | Plan, agent hierarchy, reported status, recent tools, run totals, and last answer | Native agent, turn, and tool events |
+| Tools | Tool timeline, run time, approval and hook time, outcomes, background tasks, and agent filters | Native tool, permission, and stop events |
+| Changes | File list, unified diffs, existing review findings, observed check summaries, and Git activity | Native edit and shell results, and requested Git reads |
+| Context | Context heatmap, ranked category estimates, compactions, rate limits, and cost per turn | Local summary and native measurements |
 | Reactor | Animated braille reactor, activity history, and pause control | Observed tool and agent activity |
-| Images | Local PNG preview, image selection, and metadata fallback | A file that the person selects |
 
-A compact activity band appears above the prompt. The pane opens only after a command or button press.
+A compact activity band appears above the prompt. It shows running agents and tools, plan progress, and background tasks. At 64 columns or more, it also shows the duration of the last main turn. After a turn stops on an error, the band shows the error in red until the next turn starts. The pane opens only after a command or button press.
+
+### Agents
+
+The plan comes from the last `TodoWrite` result of the main thread and from the task tools (`TaskCreate`, `TaskUpdate`, `TaskList`). A subagent plan appears under that agent.
+
+A completed `Agent` call reports run totals: tokens, tool uses, duration, changed lines, and models. The last answer of an agent appears as Markdown. Agents without totals show the usage of their last turn.
+
+When the transcript in view changes to a subagent, the pane selects that agent. A selection that you make stays until the transcript in view changes again.
+
+### Tools
+
+A finished tool shows two durations. "Ran" is the execution time that the engine reports. "Approval and hooks" is the remaining time of the call, which includes the permission dialog and hooks. A tool that waits for a permission answer shows "running · approval asked".
+
+Background tasks come from `Bash` calls with `run_in_background`, `Agent` calls with `run_in_background`, and `Monitor` calls. The engine snapshot at each stop updates their status. Scheduled crons appear below the background tasks.
+
+### Changes
+
+Git activity comes from shell results that the engine marks as commits, pushes, branch changes, or pull requests. A pull request with an `https` URL shows a link.
+
+### Context
+
+The context view lists the last 20 compactions with their trigger and token counts. Cost per turn is the difference between consecutive cost measurements of the main thread.
+
+### Preferences
+
+The selected view, the band setting, and the animation setting persist across sessions in plugin storage. Storage errors go to the debug log and do not block the commands.
 
 ### Colors
 
@@ -39,39 +64,45 @@ This configuration makes the dock match the terminal background:
 /cockpit changes
 /cockpit context
 /cockpit reactor
-/cockpit images
-/cockpit images "/absolute/path/to/screenshot.png"
 /cockpit band off
 /cockpit band on
 /cockpit close
 /cockpit help
 ```
 
-The command can run during a model turn. A quoted image path can contain spaces. Relative paths use the session directory, and `~/` uses `HOME`.
+The command can run during a model turn.
 
 ### Terminal controls
 
 1. Run `/cockpit` to open the pane.
 2. Use `Ctrl+X Tab` to focus the pane.
-3. While the pane has focus, press `1` through `6` to select a view.
+3. While the pane has focus, press `1` through `5` to select a view.
 4. Press `Tab` to move between controls.
 5. Press `Esc` to close the pane.
 
-The pane uses native scrolling and resizing. The images view has a text field on terminal, desktop, and VS Code surfaces. Mobile uses the command path instead.
+The pane uses native scrolling and resizing.
 
 ## Data and limits
 
 History starts when the mod loads. Session memory holds the history. Hot reload keeps that memory, and `/clear` removes it.
 
 - The timeline holds at most 200 tool calls.
-- The agent view holds at most 100 agent records.
-- The review view holds at most 100 files, 100 findings, and 40 check summaries.
+- The agent view holds at most 100 agent records and 100 turns.
+- Each agent holds at most 4,000 characters of its last answer.
+- The plan holds at most 20 todo lists of 50 items each, and 100 tasks.
+- The background list holds at most 40 tasks.
+- The review view holds at most 100 files, 100 findings, 40 check summaries, and 30 Git operations.
 - Review patches hold at most 24,000 characters per file and 200,000 characters in total.
-- The image view holds at most eight file records.
+- The context view holds at most 20 compactions and 100 cost measurements.
+- The activity history holds at most 240 samples.
 
 Agent status comes from the engine roster. An external teammate can leave an old status after its terminal closes. Missing entries show an unknown status, not proof that an agent stopped.
 
 Tool durations measure the call, not the full life of a background process. Server-side tools appear retrospectively after the response. General live stdout is not available through passive tool hooks.
+
+No event reports when the person answers a permission dialog. The approval mark therefore stays until the tool finishes, and the band does not show it. "Approval and hooks" is known only after the call ends.
+
+Background status updates only when a turn or subagent stops. A task that ends between stops keeps its last reported status until the next stop.
 
 Check summaries use known Jest, Vitest, pytest, cargo, and Go output formats. Unknown output shows a completed call without an invented pass count. A background check retains its last reported state.
 
@@ -79,21 +110,9 @@ The context summary estimates categories locally. It makes no token-count API re
 
 The cost figure is the engine ledger, not a statement of account billing. Category estimates can differ from the live input count.
 
-The reactor shows relative observed activity, not an exact running token rate. Animation runs only in the visible reactor view. The pause control stops frame updates.
+The reactor shows relative observed activity, not an exact running token rate. The activity history records each change in the number of running tools, running agents, and main turns, also while the pane is closed. Animation runs only in the visible reactor view. The pause control stops frame updates.
 
 The reactor draws its orb as braille text on every surface. The orb uses theme colors and the background of the surface.
-
-### Images
-
-The image view accepts local PNG files, not URLs or network paths. Existing filesystem and sandbox access still applies.
-
-The mod checks the PNG header, dimensions, and size. The image must not exceed 2 MiB, 8,192 pixels per dimension, or 16,000,000 pixels in total.
-
-Each successful load changes the image revision. A reload reads new pixels even when the path stays the same.
-
-The terminal renderer decodes the image. Compatible Kitty-protocol terminals, such as Kitty and Ghostty, show the pixels. Other terminals show alternative text, and remote surfaces show metadata.
-
-SSH and tmux can limit terminal graphics. The metadata fallback remains available. Native Linux audio playback is not part of this mod.
 
 ## Safety
 
@@ -101,7 +120,9 @@ The mod observes existing work. It does not start builds, reviews, browser captu
 
 Git reads happen only after the changes view or its refresh control is requested. The commands use argument vectors, disable external diff drivers and text conversion, and disable filesystem monitor commands.
 
-The mod does not retain raw prompts, shell command arguments, or shell output. Review patches and finding summaries remain in bounded session memory. The mod does not write them to disk.
+The mod does not retain raw prompts, shell command arguments, or shell output. A background shell task shows its description or its executable name, not its command. A cron shows its schedule, not its prompt.
+
+Review patches, finding summaries, todo text, and the last answer of each agent remain in bounded session memory. The mod does not write them to disk. Plugin storage holds only the view, band, and animation preferences.
 
 Copy places a patch on the clipboard. Quote appends a patch to the draft. Quote does not submit the draft or replace existing text.
 
@@ -154,10 +175,10 @@ The tests use the native test engine, explicit surfaces, and mocked host operati
 ## Source structure
 
 - `hooks/register.tsx` holds hooks, host operations, and literal state references.
-- `hooks/state.ts` holds initial state factories.
+- `hooks/state.ts` holds initial state factories and fills missing fields in state from an earlier version.
 - `hooks/data.ts` holds bounded parsers and observation helpers.
 - `hooks/operations.tsx` draws agent, tool, and change views.
-- `hooks/visuals.tsx` draws context, reactor, and image views.
+- `hooks/visuals.tsx` draws context and reactor views.
 - `hooks/theme.ts` holds shared theme-key colors and text formatting.
 - `types/index.d.ts` declares the self-contained state contract.
 - `tests/` holds parser, view, lifecycle, and safety tests.

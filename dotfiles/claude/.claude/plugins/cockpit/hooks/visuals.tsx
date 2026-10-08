@@ -4,7 +4,7 @@ import type {
   SessionContextBreakdown,
   ThemeKey,
 } from 'claude-code'
-import type { CockpitImage, CockpitReactor, CockpitViewProps } from '../types'
+import type { CockpitCompaction, CockpitCostSample, CockpitReactor, CockpitSample, CockpitViewProps } from '../types'
 import type { CockpitElements } from './theme'
 import { cleanText, clip, colors, count, duration, meter, statusColor } from './theme'
 
@@ -118,6 +118,19 @@ const renderHeatmap = (
   </Box>
 }
 
+// Each cost sample is the session total after a main turn grew it. The first
+// sample can hold earlier turns, so only differences between samples count.
+export const costPerTurn = (costs: readonly CockpitCostSample[]): number[] =>
+  costs.slice(1).map((sample, index) => Math.max(0, sample.usd - (costs[index]?.usd ?? sample.usd)))
+
+const usd = (value: number): string => `$${value.toFixed(4)}`
+
+const compactionLine = (entry: CockpitCompaction, now: number): string => {
+  const who = `${entry.trigger}${entry.agentId ? ' (agent)' : ''}`
+  if (entry.skipped !== undefined) return `${who} · skipped: ${entry.skipped} · ${age(entry.at, now)}`
+  return `${who} · ${count(entry.tokensBefore)} → ${count(entry.tokensAfter)} tokens · ${age(entry.at, now)}`
+}
+
 export const renderContext = (ui: CockpitElements, props: CockpitViewProps): RenderElement => {
   const { Box, Text, Button } = ui
   const width = widthOf(props.columns)
@@ -129,19 +142,20 @@ export const renderContext = (ui: CockpitElements, props: CockpitViewProps): Ren
   const rankWidth = wide ? Math.floor((width - 4) / 3) : width
   const rankLimit = width < 60 ? 4 : 6
   const categoryWidth = width >= 80 ? width - (width >= 100 ? 40 : 20) - 2 : width
+  const turnCosts = costPerTurn(props.context.costs)
+  const lastCost = turnCosts.at(-1)
   return <Box flexDirection="column" gap={1}>
     <Box flexDirection={width < 60 ? 'column' : 'row'} justifyContent="space-between" gap={1}>
       <Text bold color={colors.accent}>CONTEXT / LOCAL SUMMARY</Text>
       <Button key="context-refresh" label={props.context.loading ? 'Refreshing…' : 'Refresh summary'}
         onPress={props.actions.refreshContext} />
     </Box>
-    <Text color={colors.muted}>Summary only · no token-count API request · {age(props.context.refreshedAt, props.now)}</Text>
+    <Text color={colors.muted}>Category summary {age(props.context.refreshedAt, props.now)}</Text>
     {props.context.error && <Text color={colors.red}>{cleanText(props.context.error)}</Text>}
     <Box flexDirection="column" borderStyle="round" borderColor={colors.accent} paddingX={1}>
       <Text bold>Last response · actual input</Text>
       <Text color={colors.cyan}>{count(live?.tokens)} / {count(live?.window)} tokens · {percent(live?.percent)}</Text>
       {finite(live?.percent) && <Text color={colors.accent}>{meter(live.percent, Math.max(8, Math.min(40, width - 6)))}</Text>}
-      <Text color={colors.muted}>Input includes cache reads and writes. Not a running token counter.</Text>
     </Box>
     {breakdown ? <Box flexDirection="column" gap={1}>
       <Box flexDirection={width >= 80 ? 'row' : 'column'} gap={2}>
@@ -149,14 +163,12 @@ export const renderContext = (ui: CockpitElements, props: CockpitViewProps): Ren
         <Box flexDirection="column" width={categoryWidth} flexShrink={0}>
           <Text bold color={colors.accent}>Estimated category tokens</Text>
           <Text>{count(breakdown.totalTokens)} / {count(breakdown.rawMaxTokens)} · {percent(breakdown.percentage)}</Text>
-          <Text color={colors.muted}>Estimates need not match actual input.</Text>
           {breakdown.categories.slice(0, 16).map((category, index) =>
             <Box flexDirection="row" justifyContent="space-between" key={`category-${index}`} gap={1}>
               <Text color={categoryColor(category, index)}>{clip(`${category.name}${category.kind === 'deferred' ? ' (deferred)' : ''}`, Math.max(12, categoryWidth - 14))}</Text>
               <Text>{count(category.tokens)}</Text>
             </Box>,
           )}
-          <Text color={colors.muted}>Deferred schemas are outside the window.</Text>
         </Box>
       </Box>
       <Box flexDirection="column" borderStyle="round" borderColor={colors.yellow} paddingX={1}>
@@ -171,16 +183,25 @@ export const renderContext = (ui: CockpitElements, props: CockpitViewProps): Ren
       </Box>}
       {breakdown.skills && <Text color={colors.muted}>Skills listed: {count(breakdown.skills.includedSkills)} / {count(breakdown.skills.totalSkills)} · {count(breakdown.skills.tokens)} estimated tokens</Text>}
     </Box> : <Text color={colors.muted}>No category summary yet. Refresh to compute local estimates.</Text>}
+    <Box flexDirection="column">
+      <Text bold color={colors.accent}>Compactions</Text>
+      {props.context.compactions.length === 0 ? <Text color={colors.muted}>None observed.</Text>
+        : props.context.compactions.slice(-5).reverse().map((entry, index) =>
+          <Text key={`compaction-${index}`} color={entry.skipped === undefined ? colors.cyan : colors.yellow} wrap="wrap">{clip(compactionLine(entry, props.now), width)}</Text>,
+        )}
+    </Box>
     <Box flexDirection="column" gap={1}>
       <Text bold color={colors.accent}>Rate windows · last reported</Text>
-      {!usage || usage.rateLimits.length === 0 ? <Text color={colors.muted}>Not reported. No zero usage assumed.</Text> : usage.rateLimits.slice(0, 8).map((rate, index) =>
+      {!usage || usage.rateLimits.length === 0 ? <Text color={colors.muted}>Not reported.</Text> : usage.rateLimits.slice(0, 8).map((rate, index) =>
         <Box flexDirection="column" key={`rate-${index}`}>
           <Text color={rate.percentUsed >= 90 ? colors.yellow : colors.cyan}>{cleanText(rate.kind)} · {percent(rate.percentUsed)}</Text>
           {finite(rate.percentUsed) && <Text color={colors.accent}>{meter(rate.percentUsed, Math.min(32, width - 4))}</Text>}
           <Text color={colors.muted}>Reset: {rate.resetsAt ? cleanText(rate.resetsAt) : 'unknown'}</Text>
         </Box>,
       )}
-      <Text>Session cost ledger: {finite(usage?.cost?.usd) ? `$${usage.cost.usd.toFixed(4)}` : 'unknown'}</Text>
+      <Text>Session cost ledger: {finite(usage?.cost?.usd) ? usd(usage.cost.usd) : 'unknown'}</Text>
+      {lastCost !== undefined && <Text>Last turn: {usd(lastCost)} · average {usd(turnCosts.reduce((total, value) => total + value, 0) / turnCosts.length)} over {count(turnCosts.length)}</Text>}
+      {turnCosts.length > 1 && <Text color={colors.cyan}>{activitySparkline(turnCosts, Math.min(48, width - 2))}</Text>}
     </Box>
   </Box>
 }
@@ -244,6 +265,38 @@ export const reactorOrb = (reactor: CockpitReactor, columns: number, rows: numbe
   return lines
 }
 
+export const HISTORY_BUCKET_MS = 5000
+
+// The level per bucket for the newest buckets up to `now`: the highest level
+// reached in the bucket, or the level carried from the sample before it.
+export const activityHistory = (
+  samples: readonly CockpitSample[], now: number, columns: number, bucketMs = HISTORY_BUCKET_MS,
+): number[] => {
+  const sorted = samples.filter(sample => finite(sample?.at) && finite(sample?.level)).slice().sort((left, right) => left.at - right.at)
+  const first = sorted[0]
+  if (first === undefined || !finite(now)) return []
+  const width = Math.max(1, Math.min(80, Math.floor(Number.isFinite(columns) ? columns : 40)))
+  const end = Math.floor(now / bucketMs)
+  const begin = Math.max(end - width + 1, Math.floor(first.at / bucketMs))
+  let carried = 0
+  let cursor = 0
+  while (cursor < sorted.length && Math.floor((sorted[cursor]?.at ?? 0) / bucketMs) < begin) {
+    carried = sorted[cursor]?.level ?? carried
+    cursor += 1
+  }
+  const levels: number[] = []
+  for (let bucket = begin; bucket <= end; bucket += 1) {
+    let peak = carried
+    while (cursor < sorted.length && Math.floor((sorted[cursor]?.at ?? 0) / bucketMs) === bucket) {
+      carried = sorted[cursor]?.level ?? carried
+      peak = Math.max(peak, carried)
+      cursor += 1
+    }
+    levels.push(peak)
+  }
+  return levels
+}
+
 export const activitySparkline = (samples: readonly number[], columns: number): string => {
   const values = samples.slice(-Math.max(1, Math.min(80, Math.floor(Number.isFinite(columns) ? columns : 40))))
   if (values.length === 0) return 'No activity samples yet'
@@ -259,6 +312,7 @@ export const renderReactor = (ui: CockpitElements, props: CockpitViewProps): Ren
   const phase = props.reactor.phase
   const runningTools = props.activity.tools.filter(tool => tool.outcome === 'running').length
   const runningAgents = props.activity.agents.filter(agent => agent.status === 'running').length
+  const history = activityHistory(props.activity.samples, props.now, width - 2)
   return <Box flexDirection="column" gap={1}>
     <Box flexDirection={width < 60 ? 'column' : 'row'} justifyContent="space-between" gap={1}>
       <Text bold color={colors.accent}>ACTIVITY REACTOR</Text>
@@ -272,77 +326,9 @@ export const renderReactor = (ui: CockpitElements, props: CockpitViewProps): Ren
         </Box>,
       )}
     </Box>
-    <Text color={colors.cyan}>{activitySparkline(props.reactor.samples, width - 2)}</Text>
-    <Text color={colors.muted}>Observed activity history · relative scale</Text>
-    <Text color={colors.muted}>Running tools + running agents + main turn · 1s samples while animated</Text>
+    <Text color={colors.cyan}>{activitySparkline(history, width - 2)}</Text>
+    {history.length > 0 && <Text color={colors.muted}>Activity, last {duration(history.length * HISTORY_BUCKET_MS)} · tools + agents + main turn</Text>}
     <Text>Running tools: {count(runningTools)} · running agents: {count(runningAgents)}</Text>
-    <Text color={colors.muted}>Phase and history follow observed events. Motion is decorative.</Text>
-    <Text color={colors.muted}>No generated or running token counts. Animation stays in this pane.</Text>
     {props.activity.error && <Text color={colors.red}>{cleanText(props.activity.error)}</Text>}
-  </Box>
-}
-
-export const imageSize = (
-  image: CockpitImage,
-  columns: number,
-  rows: number,
-): { columns: number; rows: number } => {
-  const maxColumns = Math.max(8, Math.min(100, widthOf(columns) - 2))
-  const maxRows = Math.max(4, Math.min(30, Math.floor(Number.isFinite(rows) ? rows : 30) - 12))
-  const ratio = image.width > 0 && image.height > 0 ? image.width / image.height : 1
-  const pictureRows = Math.max(1, Math.min(maxRows, Math.round(maxColumns / (ratio * 2))))
-  return {
-    columns: Math.max(1, Math.min(maxColumns, Math.round(pictureRows * ratio * 2))),
-    rows: pictureRows,
-  }
-}
-
-const fileSize = (bytes: number): string =>
-  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(2)} MiB` : `${(bytes / 1024).toFixed(1)} KiB`
-
-export const renderImages = (ui: CockpitElements, props: CockpitViewProps): RenderElement => {
-  const { Box, Text, Button } = ui
-  const width = widthOf(props.columns)
-  const images = props.images.images
-  const selected = images[props.images.selected]
-  const size = selected ? imageSize(selected, width, props.rows) : null
-  return <Box flexDirection="column" gap={1}>
-    <Text bold color={colors.accent}>LOCAL IMAGE VIEWER</Text>
-    <Text color={colors.muted}>User-selected PNG files only · no network or image generation</Text>
-    {'Input' in ui ? <ui.Input key="image-path" label="PNG path" placeholder="/absolute/path/image.png"
-      value={props.images.draft} submitLabel="load"
-      onInput={value => props.actions.setImageDraft(value)}
-      onSubmit={value => props.actions.loadImage(value)} /> :
-      <Box flexDirection="column">
-        <Text color={colors.muted}>This surface has no file input.</Text>
-        <Text color={colors.muted}>Load with /cockpit images /absolute/path/image.png on a surface with input.</Text>
-      </Box>}
-    <Box flexDirection="row" flexWrap="wrap" gap={1}>
-      {props.images.draft.trim() !== '' && <Button key="image-load" label={props.images.loading ? 'Loading…' : 'Load PNG'} onPress={() => props.actions.loadImage(props.images.draft)} />}
-      {images.length > 0 && <Button key="images-clear" label="Clear images" onPress={props.actions.clearImages} />}
-    </Box>
-    {props.images.loading && <Text color={colors.cyan}>Reading and validating the selected local file…</Text>}
-    {props.images.error && <Text color={colors.red}>{cleanText(props.images.error)}</Text>}
-    {images.length === 0 ? <Text color={colors.muted}>No image loaded. Enter a local PNG path to view it.</Text> :
-      <Box flexDirection="row" flexWrap="wrap" gap={1}>
-        {images.slice(0, 20).map((image, index) => <Button key={`image-select-${index}`}
-          label={clip(`${index === props.images.selected ? '● ' : ''}${image.label}`, Math.max(12, Math.min(32, width - 6)))}
-          variant={index === props.images.selected ? 'primary' : 'secondary'}
-          onPress={() => props.actions.selectImage(index)} />)}
-      </Box>}
-    {selected && size && <Box flexDirection="column" gap={1}>
-      <Text bold color={colors.accent}>{cleanText(selected.label)}</Text>
-      <Text>{count(selected.width)} × {count(selected.height)} px · PNG · {fileSize(selected.bytes)}</Text>
-      <Text color={colors.muted}>{cleanText(selected.path)}</Text>
-      {'Image' in ui ? <ui.Image key="selected-image" source={{ file: selected.path, format: 'png', ...(selected.generation === undefined ? {} : { generation: selected.generation }) }}
-        columns={size.columns} rows={size.rows}
-        alt={`${cleanText(selected.label)}: ${selected.width} × ${selected.height} px, local PNG. Inline preview needs a Kitty-compatible terminal such as Ghostty or Kitty.`} /> :
-        <Box flexDirection="column" borderStyle="round" borderColor={colors.muted} paddingX={1}>
-          <Text color={colors.muted}>Inline PNG preview is terminal-only in this SDK.</Text>
-          <Text>Local file: {cleanText(selected.path)}</Text>
-          <Text color={colors.muted}>Metadata is available here. View pixels in a compatible local terminal.</Text>
-        </Box>}
-      <Text color={colors.muted}>Inline pixels need Kitty graphics support and access to this local file. Other terminals show the image description.</Text>
-    </Box>}
   </Box>
 }

@@ -4,7 +4,6 @@ import type {
   ButtonProps,
   CodeProps,
   ElementConstructor,
-  ImageProps,
   InputProps,
   LinkProps,
   MarkdownProps,
@@ -19,14 +18,15 @@ import type {
 import type { CockpitActions, CockpitViewProps } from '../types'
 import type { CockpitElements } from '../hooks/theme'
 import { colors } from '../hooks/theme'
+import { initialActivity, initialContext, initialReview } from '../hooks/state'
 import {
+  activityHistory,
   activitySparkline,
-  imageSize,
+  costPerTurn,
   rankedEstimates,
   reactorOrb,
   reactorSize,
   renderContext,
-  renderImages,
   renderReactor,
 } from '../hooks/visuals'
 
@@ -75,7 +75,7 @@ const testElements = (surface: RenderSurface): {
   const input = { Input: make<InputProps>('Input'), Select: make<SelectProps>('Select') }
   const remote = { Svg: make<SvgProps>('Svg') }
   if (surface === 'terminal') return {
-    ui: { ...common, ...input, Raster: make<RasterProps>('Raster'), Image: make<ImageProps>('Image') } as CockpitElements,
+    ui: { ...common, ...input, Raster: make<RasterProps>('Raster') } as CockpitElements,
     controls,
   }
   return { ui: { ...common, ...remote, ...(surface === 'mobile' ? {} : input) } as CockpitElements, controls }
@@ -92,23 +92,16 @@ const text = (tree: RenderElement | Drawn): string => nodes(tree)
 const fixture = (actions: Partial<CockpitActions> = {}): CockpitViewProps => {
   const noop = async (): Promise<void> => {}
   return {
-    activity: {
-      sessionId: null, model: '', working: false, phase: 'idle', tools: [], agents: [], turns: [],
-      samples: [], selectedAgent: null, selectedTool: null, updatedAt: 0, error: null,
-    },
-    review: {
-      sessionId: null, changes: [], findings: [], checks: [], selectedPath: null, branch: null,
-      root: null, refreshedAt: null, loading: false, error: null,
-    },
-    context: { sessionId: null, usage: null, refreshedAt: null, loading: false, error: null },
+    activity: initialActivity(),
+    review: initialReview(),
+    context: initialContext(),
     preferences: { view: 'context', band: true, animation: true, paneOpen: true },
-    reactor: { frame: 0, phase: 'idle', samples: [] },
-    images: { sessionId: null, images: [], selected: 0, draft: '', loading: false, error: null },
+    reactor: { frame: 0, phase: 'idle' },
+    viewedAgent: null,
     actions: {
       selectView: noop, refreshAgents: noop, selectAgent: noop, selectTool: noop,
       refreshChanges: noop, selectChange: noop, copyPatch: noop, quotePatch: noop,
-      refreshContext: noop, toggleAnimation: noop, loadImage: noop, selectImage: noop,
-      clearImages: noop, setImageDraft: noop, ...actions,
+      refreshContext: noop, toggleAnimation: noop, ...actions,
     },
     columns: 80, rows: 40, now: 1000,
   }
@@ -151,7 +144,7 @@ const breakdown = (): SessionContextBreakdown => ({
 const themeKeys = new Set<string>(Object.values(colors))
 
 test('reactor draws deterministic braille rows in theme colors', () => {
-  const reactor = { frame: 0, phase: 'thinking' as const, samples: [0, 1, 2] }
+  const reactor = { frame: 0, phase: 'thinking' as const }
   const orb = reactorOrb(reactor, 40, 14)
   expect(orb).toHaveLength(14)
   let dots = 0
@@ -192,13 +185,9 @@ test('graphics dimensions stay bounded at 40, 80, and 140 columns', () => {
     expect(orb.columns).toBeLessThanOrEqual(columns)
     expect(orb.columns).toBeLessThanOrEqual(64)
     expect(orb.rows).toBeLessThanOrEqual(18)
-    const image = imageSize({ path: '/test.png', label: 'test', width: 1600, height: 900, bytes: 1000 }, columns, 40)
-    expect(image.columns).toBeLessThanOrEqual(columns)
-    expect(image.rows).toBeLessThanOrEqual(30)
-    expect(image.rows).toBeGreaterThan(0)
   }
   expect(reactorSize(Number.NaN, Number.NaN)).toEqual({ columns: 64, rows: 18 })
-  const clamped = reactorOrb({ frame: Number.NaN, phase: 'idle', samples: [] }, -10, 9999)
+  const clamped = reactorOrb({ frame: Number.NaN, phase: 'idle' }, -10, 9999)
   expect(clamped).toHaveLength(40)
   expect(clamped.every(runs => runs.map(run => run.glyphs).join('').length === 1)).toBe(true)
 })
@@ -208,6 +197,19 @@ test('activity history is relative observed data, not invented tokens', () => {
   expect(activitySparkline([0, 1, 2, 4], 40)).toBe('▁▃▅█')
   expect(activitySparkline([0, Number.NaN, -1], 40)).toBe('▁▁▁')
   expect(activitySparkline([0, 1, 2, 4], 2)).toHaveLength(2)
+})
+
+test('activity history holds each level until the next sample and keeps the peak of a bucket', () => {
+  const samples = [{ at: 0, level: 0 }, { at: 6000, level: 2 }, { at: 7000, level: 1 }, { at: 21000, level: 0 }]
+  expect(activityHistory(samples, 24000, 40, 5000)).toEqual([0, 2, 1, 1, 1])
+  expect(activityHistory(samples, 24000, 2, 5000)).toEqual([1, 1])
+  expect(activityHistory(samples, 40000, 40, 5000)).toEqual([0, 2, 1, 1, 1, 0, 0, 0, 0])
+  expect(activityHistory([], 24000, 40)).toEqual([])
+})
+
+test('cost per turn uses only differences between samples', () => {
+  expect(costPerTurn([{ at: 0, usd: 1 }, { at: 1, usd: 1.5 }, { at: 2, usd: 1.75 }])).toEqual([0.5, 0.25])
+  expect(costPerTurn([{ at: 0, usd: 3 }])).toEqual([])
 })
 
 test('ranked estimates preserve inputs and label deferred MCP schemas', () => {
@@ -228,7 +230,7 @@ test('context keeps absent usage, thresholds, rates, and cost unknown', async ()
   expect(text(output)).toContain('unknown / unknown tokens · unknown')
   expect(text(output)).toContain('Session cost ledger: unknown')
   expect(text(output)).toContain('No category summary yet')
-  expect(text(output)).toContain('No zero usage assumed')
+  expect(text(output)).toContain('Rate windows · last reported\nNot reported.')
   await controls.get('context-refresh')?.onPress?.()
   expect(refreshed).toBe(1)
   props.context.usage = { startedAt: 0, context: { window: 200000, breakdown: { ...breakdown(), autoCompactThreshold: undefined } }, rateLimits: [] }
@@ -247,11 +249,24 @@ test('context distinguishes actual usage from local estimates and accepts a zero
   expect(output).toContain('4,000 / 200,000 tokens · 2%')
   expect(output).toContain('4,500 / 100,000 · 4.5%')
   expect(output).toContain('Threshold: 89,500 tokens')
-  expect(output).toContain('Deferred schemas are outside the window')
   expect(output).toContain('five_hour · 23.5%')
   expect(output).toContain('spend_limit · 104%')
   expect(output).toContain('Reset: unknown')
   expect(output).toContain('Session cost ledger: $0.0000')
+  expect(output).not.toContain('Last turn:')
+})
+
+test('context lists compactions and cost per turn', () => {
+  const props = fixture()
+  props.context.compactions = [
+    { at: 0, trigger: 'auto', tokensBefore: 150000, tokensAfter: 20000 },
+    { at: 500, trigger: 'manual', skipped: 'Blocked.' },
+  ]
+  props.context.costs = [{ at: 0, usd: 1 }, { at: 1, usd: 1.5 }, { at: 2, usd: 1.75 }]
+  const output = text(renderContext(testElements('terminal').ui, props))
+  expect(output).toContain('manual · skipped: Blocked. · 500ms ago')
+  expect(output).toContain('auto · 150,000 → 20,000 tokens · 1.0s ago')
+  expect(output).toContain('Last turn: $0.2500 · average $0.3750 over 2')
 })
 
 test('reactor draws the orb as text on every surface and keeps the pause callback', async () => {
@@ -259,77 +274,19 @@ test('reactor draws the orb as text on every surface and keeps the pause callbac
     let toggles = 0
     const props = fixture({ toggleAnimation: async () => { toggles += 1 } })
     props.reactor.phase = 'tools'
-    props.reactor.samples = [1, 2, 1]
+    props.activity.samples = [{ at: 0, level: 1 }, { at: 5000, level: 2 }, { at: 10000, level: 1 }]
+    props.now = 12000
     const { ui, controls } = testElements(surface)
     const output = renderReactor(ui, props)
     expect(nodes(output).filter(node => node.type === 'Raster' || node.type === 'Svg')).toHaveLength(0)
     expect(text(output)).toMatch(/[⠁-⣿]/)
     expect(text(output)).toContain('TOOLS')
-    expect(text(output)).toContain('Motion is decorative')
+    expect(text(output)).toContain('Activity, last 15.0s')
     expect(text(output)).not.toContain('tokens/s')
     await controls.get('reactor-toggle')?.onPress?.()
     expect(toggles).toBe(1)
     props.preferences.animation = false
     expect(text(renderReactor(ui, props))).toContain('Resume animation')
-  }
-})
-
-test('image view uses a local PNG source and forwards user actions', async () => {
-  const loads: string[] = []
-  const drafts: string[] = []
-  const selections: number[] = []
-  let clears = 0
-  const props = fixture({
-    loadImage: async path => { loads.push(path) },
-    setImageDraft: async value => { drafts.push(value) },
-    selectImage: async index => { selections.push(index) },
-    clearImages: async () => { clears += 1 },
-  })
-  props.images.images = [
-    { path: '/tmp/first.png', label: 'first.png', width: 640, height: 480, bytes: 1024 },
-    { path: '/tmp/second.png', label: 'second.png', width: 320, height: 240, bytes: 2048 },
-  ]
-  props.images.selected = 1
-  props.images.draft = '/tmp/third.png'
-  const { ui, controls } = testElements('terminal')
-  const output = renderImages(ui, props)
-  const picture = nodes(output).find(node => node.type === 'Image')
-  expect(picture?.props.source).toEqual({ file: '/tmp/second.png', format: 'png' })
-  expect(picture?.props.alt).toContain('Kitty-compatible terminal')
-  expect(text(output)).toContain('320 × 240 px · PNG · 2.0 KiB')
-  await controls.get('image-path')?.onInput?.('/tmp/new.png')
-  await controls.get('image-path')?.onSubmit?.('/tmp/new.png')
-  await controls.get('image-load')?.onPress?.()
-  await controls.get('image-select-0')?.onPress?.()
-  await controls.get('images-clear')?.onPress?.()
-  expect(drafts).toEqual(['/tmp/new.png'])
-  expect(loads).toEqual(['/tmp/new.png', '/tmp/third.png'])
-  expect(selections).toEqual([0])
-  expect(clears).toBe(1)
-})
-
-test('image sources include the revision of reloaded files', () => {
-  const props = fixture()
-  const image = { path: '/tmp/reload.png', label: 'reload.png', width: 100, height: 80, bytes: 1024, generation: 17 }
-  props.images.images = [image]
-  const { ui } = testElements('terminal')
-  const output = renderImages(ui, props)
-  expect(nodes(output).find(node => node.type === 'Image')?.props.source).toEqual({
-    file: '/tmp/reload.png', format: 'png', generation: 17,
-  })
-})
-
-test('remote image fallback keeps metadata and mobile omits unsupported input', () => {
-  for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
-    const props = fixture()
-    props.images.images = [{ path: '/tmp/art.png', label: 'art.png', width: 100, height: 80, bytes: 1024 }]
-    const { ui } = testElements(surface)
-    const output = renderImages(ui, props)
-    expect(nodes(output).filter(node => node.type === 'Image')).toHaveLength(0)
-    expect(nodes(output).filter(node => node.type === 'Input')).toHaveLength(surface === 'mobile' ? 0 : 1)
-    expect(text(output)).toContain('Inline PNG preview is terminal-only')
-    expect(text(output)).toContain('/tmp/art.png')
-    expect(text(output)).toContain('100 × 80 px')
   }
 })
 
@@ -340,7 +297,7 @@ test('all visual views render bounded graphics and lists at supported widths', (
       props.columns = columns
       props.context.usage = { startedAt: 0, context: { window: 200000, breakdown: breakdown() }, rateLimits: [] }
       const { ui } = testElements(surface)
-      for (const render of [renderContext, renderReactor, renderImages]) {
+      for (const render of [renderContext, renderReactor]) {
         const tree = render(ui, props)
         expect(nodes(tree).length).toBeLessThan(200)
         expect(text(tree)).not.toContain('undefined')

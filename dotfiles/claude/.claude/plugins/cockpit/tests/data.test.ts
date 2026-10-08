@@ -2,7 +2,7 @@ import type { AgentInfo } from 'claude-code'
 import { describe, expect, test } from 'claude-code/testing'
 import type { CockpitAgent } from '../types'
 import {
-  detectCheck, inspectPng, isRemotePath, mergeAgents, normalizeObservedChanges,
+  detectCheck, mergeAgents, normalizeObservedChanges,
   parseGitDiff, parseGitStatus, summarizeCheck, toolTarget,
 } from '../hooks/data'
 
@@ -19,12 +19,6 @@ const remembered = (id: string, status: CockpitAgent['status'] = 'running'): Coc
 })
 const diff = (path: string, added = 'new', removed = 'old'): string =>
   `diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-${removed}\n+${added}\n`
-const onePixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aSRsAAAAASUVORK5CYII='
-const amendPng = (offset: number, bytes: number[]): string => {
-  const data = atob(onePixel).split('')
-  bytes.forEach((byte, index) => { data[offset + index] = String.fromCharCode(byte) })
-  return btoa(data.join(''))
-}
 
 describe('agent snapshots', () => {
   test('marks disappeared agents missing but keeps terminal outcomes and timing', () => {
@@ -239,31 +233,5 @@ describe('review patches', () => {
     const change = first(normalizeObservedChanges('Write', {}, result, 30))
     expect(change.patch.length).toBeLessThanOrEqual(24000)
     expect(change.truncated).toBe(true)
-  })
-})
-
-describe('local PNG inspection', () => {
-  test('reads PNG dimensions and size from validated base64 headers', () => {
-    expect(inspectPng(onePixel)).toEqual({ ok: true, width: 1, height: 1, bytes: atob(onePixel).length })
-  })
-
-  test('rejects malformed base64, non-PNG data, and incomplete headers', () => {
-    for (const value of ['', 'not base64', 'AAAA=AAA', btoa('small'), amendPng(0, [0])]) expect(inspectPng(value).ok).toBe(false)
-  })
-
-  test('rejects dimensions, pixel counts, and invalid PNG header fields', () => {
-    for (const value of [
-      amendPng(16, [0, 0, 0, 0]), amendPng(16, [0, 0, 32, 1]),
-      amendPng(16, [0, 0, 31, 64, 0, 0, 31, 64]), amendPng(24, [3]), amendPng(26, [1]),
-    ]) expect(inspectPng(value).ok).toBe(false)
-  })
-
-  test('rejects PNG input over 2 MiB before decoding', () => {
-    expect(inspectPng('A'.repeat((Math.ceil(2 * 1024 * 1024 / 3) + 1) * 4)).ok).toBe(false)
-  })
-
-  test('refuses URL, data, file URL, network-share, and scp paths without networking', () => {
-    for (const path of ['https://example.org/image.png', 'file:///tmp/image.png', 'data:image/png;base64,abc', '//host/share/image.png', '\\\\host\\share\\image.png', 'user@host:picture.png', 'host:picture.png', '192.0.2.1:picture.png', 'x://host/image.png']) expect(isRemotePath(path)).toBe(true)
-    for (const path of ['/tmp/image.png', './image.png', 'image.png', '~/image.png', 'C:\\local\\image.png']) expect(isRemotePath(path)).toBe(false)
   })
 })

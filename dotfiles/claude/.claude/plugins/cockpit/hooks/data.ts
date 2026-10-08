@@ -1,5 +1,8 @@
 import type { AgentInfo } from 'claude-code'
-import type { CockpitAgent, CockpitChange, CockpitCheck } from '../types'
+import type {
+  CockpitActivity, CockpitAgent, CockpitAgentTotals, CockpitBackgroundTask, CockpitChange,
+  CockpitCheck, CockpitCron, CockpitGitOperation, CockpitTask, CockpitTodo,
+} from '../types'
 import { cleanText } from './theme'
 
 const MAX_ITEMS = 100
@@ -54,6 +57,8 @@ export const mergeAgents = (
       completedAt: terminal(agent.status) ? prior?.completedAt ?? seenAt : undefined,
       durationMs: prior?.durationMs,
       usage: prior?.usage,
+      totals: prior?.totals,
+      answer: prior?.answer,
     })
   }
   for (const agent of previous.slice(0, MAX_ITEMS)) {
@@ -507,38 +512,198 @@ export const normalizeObservedChanges = (
   return [change]
 }
 
-export type PngInspection =
-  | { ok: true; width: number; height: number; bytes: number }
-  | { ok: false; error: string }
+const MAX_SAMPLES = 240
+const MAX_TODOS = 50
+const MAX_TASKS = 100
+const MAX_BACKGROUND = 40
+const MAX_ANSWER = 4000
 
-export const inspectPng = (base64: string): PngInspection => {
-  const fail = (error: string): PngInspection => ({ ok: false, error })
-  if (!base64 || base64.length > Math.ceil(MAX_INPUT / 3) * 4) return fail('PNG must be at most 2 MiB.')
-  if (base64.length % 4 !== 0 || /[^A-Za-z0-9+/=]/.test(base64)) return fail('Invalid base64 data.')
-  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
-  const equal = base64.indexOf('=')
-  if (equal !== -1 && equal !== base64.length - padding) return fail('Invalid base64 padding.')
-  const bytes = base64.length / 4 * 3 - padding
-  if (bytes > MAX_INPUT) return fail('PNG must be at most 2 MiB.')
-  if (bytes < 33) return fail('PNG header is incomplete.')
-  let header: string
-  try { header = atob(base64.slice(0, 44)) }
-  catch { return fail('Invalid base64 data.') }
-  const byte = (index: number): number => header.charCodeAt(index)
-  const uint32 = (index: number): number => byte(index) * 16777216 + byte(index + 1) * 65536 + byte(index + 2) * 256 + byte(index + 3)
-  const signature = [137, 80, 78, 71, 13, 10, 26, 10]
-  if (signature.some((value, index) => byte(index) !== value) || uint32(8) !== 13 || header.slice(12, 16) !== 'IHDR') return fail('Only PNG images are supported.')
-  const width = uint32(16)
-  const height = uint32(20)
-  if (!width || !height || width > 8192 || height > 8192 || width * height > 16_000_000) return fail('PNG dimensions exceed the supported limit.')
-  const depths: Record<number, number[]> = { 0: [1, 2, 4, 8, 16], 2: [8, 16], 3: [1, 2, 4, 8], 4: [8, 16], 6: [8, 16] }
-  if (!depths[byte(25)]?.includes(byte(24)) || byte(26) !== 0 || byte(27) !== 0 || byte(28) > 1) return fail('Invalid PNG header.')
-  return { ok: true, width, height, bytes }
+const text = (value: unknown, limit = 240): string | undefined =>
+  typeof value === 'string' && value.length > 0 ? label(value, limit) : undefined
+const array = (value: unknown, limit: number): unknown[] =>
+  Array.isArray(value) ? value.slice(0, limit) : []
+const resultOf = (result: unknown): Record<string, unknown> | undefined => {
+  const wrapper = record(result)
+  return record(wrapper?.result) ?? wrapper
+}
+const workStatus = (value: unknown): CockpitTodo['status'] | undefined =>
+  value === 'pending' || value === 'in_progress' || value === 'completed' ? value : undefined
+
+export const activityLevel = (activity: Pick<CockpitActivity, 'tools' | 'agents' | 'working'>): number =>
+  activity.tools.filter(tool => tool.outcome === 'running').length
+  + activity.agents.filter(agent => agent.status === 'running').length
+  + (activity.working ? 1 : 0)
+
+// Record the level only where it changes. The level holds between samples, so
+// a history needs no timer and has no gaps while the pane is closed.
+export const withSample = (activity: CockpitActivity, now: number): CockpitActivity => {
+  const level = activityLevel(activity)
+  const samples = Array.isArray(activity.samples) ? activity.samples : []
+  if (samples.at(-1)?.level === level) return activity
+  return { ...activity, samples: [...samples, { at: now, level }].slice(-MAX_SAMPLES) }
 }
 
-export const isRemotePath = (path: string): boolean => {
-  const value = path.trim()
-  if (/^[\\/]{2}/.test(value) || /[\u0000-\u001f\u007f]/.test(value)) return true
-  if (/^[A-Za-z]:[\\/](?![\\/])/.test(value)) return false
-  return /^[^/\\\s]+:/.test(value)
+// Answers keep newlines and tabs for Markdown, and lose other control characters.
+export const answerText = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined
+  return safePatch(value.slice(0, MAX_ANSWER)).trim() || undefined
 }
+
+export const agentResult = (result: unknown): { agentId: string; totals: CockpitAgentTotals; answer?: string } | undefined => {
+  const value = resultOf(result)
+  const agentId = text(value?.agentId, 200)
+  if (!value || !agentId || value.status !== 'completed') return undefined
+  const stats = record(value.toolStats)
+  const models = array(value.modelsUsed, 8).flatMap(model => text(model, 80) ?? [])
+  const resolved = text(value.resolvedModel, 80)
+  const answer = answerText(array(value.content, 50).flatMap(block => {
+    const blockText = record(block)?.text
+    return typeof blockText === 'string' ? [blockText] : []
+  }).join('\n'))
+  return {
+    agentId,
+    totals: {
+      tokens: finite(value.totalTokens, Number.MAX_SAFE_INTEGER) ?? 0,
+      toolUses: finite(value.totalToolUseCount) ?? 0,
+      durationMs: finite(value.totalDurationMs, Number.MAX_SAFE_INTEGER) ?? 0,
+      linesAdded: finite(stats?.linesAdded),
+      linesRemoved: finite(stats?.linesRemoved),
+      models: models.length > 0 ? models : resolved ? [resolved] : [],
+    },
+    answer,
+  }
+}
+
+export const todosOf = (result: unknown): CockpitTodo[] | undefined => {
+  const value = resultOf(result)
+  if (!Array.isArray(value?.newTodos)) return undefined
+  return value.newTodos.slice(0, MAX_TODOS).flatMap(item => {
+    const todo = record(item)
+    const status = workStatus(todo?.status)
+    const content = text(todo?.content)
+    if (!status || !content) return []
+    return [{ content, status, activeForm: text(todo?.activeForm) ?? content }]
+  })
+}
+
+// TaskList is authoritative. Create, Get and Update change one entry.
+export const applyTaskResult = (
+  tasks: CockpitTask[], tool: string, input: unknown, result: unknown,
+): CockpitTask[] | undefined => {
+  const value = resultOf(result)
+  const args = record(input)
+  if (!value) return undefined
+  const task = (item: unknown): CockpitTask | undefined => {
+    const entry = record(item)
+    const id = text(entry?.id, 80)
+    const subject = text(entry?.subject)
+    if (!id || !subject) return undefined
+    return { id, subject, status: workStatus(entry?.status) ?? 'pending', owner: text(entry?.owner, 80) }
+  }
+  const upsert = (next: CockpitTask): CockpitTask[] =>
+    [...tasks.filter(item => item.id !== next.id), next].slice(-MAX_TASKS)
+  if (tool === 'TaskList' && Array.isArray(value.tasks)) {
+    return value.tasks.slice(0, MAX_TASKS).flatMap(item => task(item) ?? [])
+  }
+  if (tool === 'TaskCreate' || tool === 'TaskGet') {
+    const next = task(value.task)
+    return next ? upsert({ ...tasks.find(item => item.id === next.id), ...next }) : undefined
+  }
+  if (tool === 'TaskUpdate' && value.success === true) {
+    const id = text(value.taskId, 80)
+    const existing = tasks.find(item => item.id === id)
+    if (!id) return undefined
+    if (args?.status === 'deleted') return tasks.filter(item => item.id !== id)
+    const status = workStatus(record(value.statusChange)?.to) ?? workStatus(args?.status)
+    const subject = text(args?.subject) ?? existing?.subject
+    if (!subject) return undefined
+    return upsert({
+      id, subject, status: status ?? existing?.status ?? 'pending',
+      owner: text(args?.owner, 80) ?? existing?.owner,
+    })
+  }
+  return undefined
+}
+
+export const gitOperationOf = (id: string, result: unknown, now: number): CockpitGitOperation | undefined => {
+  const operation = record(resultOf(result)?.gitOperation)
+  if (!operation) return undefined
+  const commit = record(operation.commit)
+  const push = record(operation.push)
+  const branch = record(operation.branch)
+  const pr = record(operation.pr)
+  const found: CockpitGitOperation = { id, at: now }
+  const sha = text(commit?.sha, 64)
+  if (sha) found.commit = { sha, kind: text(commit?.kind, 40) ?? 'committed', branch: text(commit?.branch, 200) }
+  const pushed = text(push?.branch, 200)
+  if (pushed) found.push = { branch: pushed }
+  const ref = text(branch?.ref, 200)
+  if (ref) found.branch = { ref, action: text(branch?.action, 40) ?? 'changed' }
+  const number = finite(pr?.number)
+  const url = text(pr?.url, 2048)
+  if (number !== undefined) {
+    found.pr = { number, action: text(pr?.action, 40) ?? 'changed', url: url?.startsWith('https://') ? url : undefined }
+  }
+  return found.commit || found.push || found.branch || found.pr ? found : undefined
+}
+
+// A launch is known from the tool result. The Stop snapshots report later
+// states. A shell command line is never kept: only its description.
+export const backgroundLaunch = (
+  tool: string, input: unknown, result: unknown, now: number,
+): CockpitBackgroundTask | undefined => {
+  const value = resultOf(result)
+  const args = record(input)
+  const launched = (id: string | undefined, type: string, description: string | undefined): CockpitBackgroundTask | undefined =>
+    id ? { id, type, status: 'running', description: description ?? type, startedAt: now, updatedAt: now } : undefined
+  if (tool === 'Bash') {
+    const command = typeof args?.command === 'string' ? toolTarget('Bash', args) : undefined
+    return launched(text(value?.backgroundTaskId, 80), 'shell', text(args?.description) ?? command)
+  }
+  if (tool === 'Agent' && value?.status === 'async_launched') {
+    return launched(text(value.agentId, 200), 'subagent', text(value.description) ?? text(args?.description))
+  }
+  if (tool === 'Monitor') return launched(text(value?.taskId, 80), 'monitor', text(args?.description))
+  return undefined
+}
+
+export const backgroundSnapshot = (list: unknown, now: number): CockpitBackgroundTask[] =>
+  array(list, MAX_BACKGROUND).flatMap(item => {
+    const task = record(item)
+    const id = text(task?.id, 200)
+    if (!id) return []
+    const type = text(task?.type, 40) ?? 'task'
+    return [{
+      id, type, status: text(task?.status, 40) ?? 'unknown',
+      description: text(task?.description) ?? text(task?.name, 80) ?? type,
+      agentType: text(task?.agent_type, 80), updatedAt: now,
+    }]
+  })
+
+// The snapshot lists in-flight work only. A task that leaves it has ended,
+// without a reported outcome.
+export const mergeBackground = (
+  previous: CockpitBackgroundTask[], snapshot: CockpitBackgroundTask[], now: number,
+): CockpitBackgroundTask[] => {
+  const live = new Map(snapshot.map(task => [task.id, task]))
+  const kept = previous.map(task => {
+    const current = live.get(task.id)
+    if (current) return { ...task, ...current, startedAt: task.startedAt }
+    return task.endedAt === undefined ? { ...task, status: 'ended', endedAt: now, updatedAt: now } : task
+  })
+  const added = snapshot.filter(task => !previous.some(item => item.id === task.id))
+  return [...kept, ...added].slice(-MAX_BACKGROUND)
+}
+
+export const endBackground = (
+  previous: CockpitBackgroundTask[], id: string, status: string, now: number,
+): CockpitBackgroundTask[] =>
+  previous.map(task => task.id === id && task.endedAt === undefined ? { ...task, status, endedAt: now, updatedAt: now } : task)
+
+export const cronSnapshot = (list: unknown): CockpitCron[] =>
+  array(list, 20).flatMap(item => {
+    const cron = record(item)
+    const id = text(cron?.id, 80)
+    const schedule = text(cron?.schedule, 80)
+    return id && schedule ? [{ id, schedule, recurring: cron?.recurring === true }] : []
+  })

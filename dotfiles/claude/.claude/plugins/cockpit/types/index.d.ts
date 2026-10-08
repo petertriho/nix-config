@@ -1,4 +1,4 @@
-export type CockpitView = 'agents' | 'tools' | 'changes' | 'context' | 'reactor' | 'images'
+export type CockpitView = 'agents' | 'tools' | 'changes' | 'context' | 'reactor'
 
 export type CockpitTokenUsage = {
   input_tokens: number
@@ -62,6 +62,19 @@ export type CockpitTool = {
   finishedAt?: number
   outcome: 'running' | 'success' | 'error' | 'denied' | 'interrupted'
   retrospective?: boolean
+  /** The permission check put the call to the mode's decider (a dialog, a classifier). */
+  approval?: 'asked'
+  /** Execution time from PostToolUse, without permission-prompt and hook time. */
+  runMs?: number
+}
+
+export type CockpitAgentTotals = {
+  tokens: number
+  toolUses: number
+  durationMs: number
+  linesAdded?: number
+  linesRemoved?: number
+  models: string[]
 }
 
 export type CockpitAgent = {
@@ -77,6 +90,57 @@ export type CockpitAgent = {
   completedAt?: number
   durationMs?: number
   usage?: CockpitTurnUsage
+  totals?: CockpitAgentTotals
+  answer?: string
+}
+
+export type CockpitTodo = {
+  content: string
+  status: 'pending' | 'in_progress' | 'completed'
+  activeForm: string
+}
+
+/** One loop's TodoWrite list; `agentId` is absent for the main session. */
+export type CockpitTodoList = {
+  agentId?: string
+  items: CockpitTodo[]
+  updatedAt: number
+}
+
+export type CockpitTask = {
+  id: string
+  subject: string
+  status: 'pending' | 'in_progress' | 'completed'
+  owner?: string
+}
+
+export type CockpitBackgroundTask = {
+  id: string
+  type: string
+  status: string
+  description: string
+  agentType?: string
+  startedAt?: number
+  endedAt?: number
+  updatedAt: number
+}
+
+export type CockpitCron = {
+  id: string
+  schedule: string
+  recurring: boolean
+}
+
+/** A change in the activity level: running tools + running agents + main turn. */
+export type CockpitSample = {
+  at: number
+  level: number
+}
+
+export type CockpitStopFailure = {
+  error: string
+  details?: string
+  at: number
 }
 
 export type CockpitTurn = {
@@ -96,8 +160,16 @@ export type CockpitActivity = {
   tools: CockpitTool[]
   agents: CockpitAgent[]
   turns: CockpitTurn[]
-  samples: number[]
+  samples: CockpitSample[]
+  todos: CockpitTodoList[]
+  tasks: CockpitTask[]
+  background: CockpitBackgroundTask[]
+  crons: CockpitCron[]
+  backgroundAt: number | null
+  stopFailure: CockpitStopFailure | null
   selectedAgent: string | null
+  /** The agent in view when the person last chose; a later view change is followed. */
+  selectedFor: string | null
   selectedTool: string | null
   updatedAt: number
   error: string | null
@@ -135,11 +207,22 @@ export type CockpitCheck = {
   finishedAt?: number
 }
 
+/** A Bash call's `gitOperation`: what the engine detected the command did. */
+export type CockpitGitOperation = {
+  id: string
+  at: number
+  commit?: { sha: string; kind: string; branch?: string }
+  push?: { branch: string }
+  branch?: { ref: string; action: string }
+  pr?: { number: number; url?: string; action: string }
+}
+
 export type CockpitReview = {
   sessionId: string | null
   changes: CockpitChange[]
   findings: CockpitFinding[]
   checks: CockpitCheck[]
+  gitOps: CockpitGitOperation[]
   selectedPath: string | null
   branch: string | null
   root: string | null
@@ -148,9 +231,26 @@ export type CockpitReview = {
   error: string | null
 }
 
+export type CockpitCompaction = {
+  at: number
+  trigger: string
+  agentId?: string
+  tokensBefore?: number
+  tokensAfter?: number
+  skipped?: string
+}
+
+/** The session cost total each time it grew, about once per main turn. */
+export type CockpitCostSample = {
+  at: number
+  usd: number
+}
+
 export type CockpitContext = {
   sessionId: string | null
   usage: CockpitUsage | null
+  compactions: CockpitCompaction[]
+  costs: CockpitCostSample[]
   refreshedAt: number | null
   loading: boolean
   error: string | null
@@ -166,26 +266,6 @@ export type CockpitPreferences = {
 export type CockpitReactor = {
   frame: number
   phase: CockpitActivity['phase']
-  samples: number[]
-}
-
-export type CockpitImage = {
-  path: string
-  label: string
-  width: number
-  height: number
-  bytes: number
-  generation?: number
-}
-
-export type CockpitImages = {
-  sessionId: string | null
-  generation?: number
-  images: CockpitImage[]
-  selected: number
-  draft: string
-  loading: boolean
-  error: string | null
 }
 
 export type CockpitActions = {
@@ -199,10 +279,6 @@ export type CockpitActions = {
   quotePatch: (path: string) => Promise<void>
   refreshContext: () => Promise<void>
   toggleAnimation: () => Promise<void>
-  loadImage: (path: string) => Promise<void>
-  selectImage: (index: number) => Promise<void>
-  clearImages: () => Promise<void>
-  setImageDraft: (text: string) => Promise<void>
 }
 
 export type CockpitViewProps = {
@@ -211,8 +287,9 @@ export type CockpitViewProps = {
   context: CockpitContext
   preferences: CockpitPreferences
   reactor: CockpitReactor
-  images: CockpitImages
   actions: CockpitActions
+  /** The agent whose transcript is beside the pane; null for the main session. */
+  viewedAgent: string | null
   columns: number
   rows: number
   now: number
@@ -226,7 +303,6 @@ declare module 'claude-code' {
       context: CockpitContext
       preferences: CockpitPreferences
       reactor: CockpitReactor
-      images: CockpitImages
     }
   }
 }

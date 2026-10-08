@@ -1,12 +1,17 @@
-import type { RenderElement } from 'claude-code'
+import type { RenderElement, ThemeKey } from 'claude-code'
 import type {
+  CockpitActivity,
   CockpitAgent,
+  CockpitAgentTotals,
+  CockpitBackgroundTask,
   CockpitChange,
+  CockpitGitOperation,
+  CockpitTodo,
   CockpitTool,
   CockpitTurnUsage,
   CockpitViewProps,
 } from '../types'
-import { cleanText, clip, colors, count, duration, meter, statusColor } from './theme'
+import { cleanText, clip, colors, count, duration, humanize, meter, plural, statusColor } from './theme'
 import type { CockpitElements } from './theme'
 
 const terminalStatuses = new Set(['completed', 'failed', 'killed'])
@@ -53,10 +58,19 @@ export const visibleWindow = <T,>(
   return items.slice(start, start + size)
 }
 
+// A finished call with a PostToolUse time reports execution alone. Otherwise
+// the time includes any permission prompt and hook time.
 export const toolDuration = (tool: CockpitTool, now: number): number | undefined => {
+  if (tool.outcome !== 'running' && tool.runMs !== undefined) return tool.runMs
   const end = tool.finishedAt ?? (tool.outcome === 'running' ? now : undefined)
   if (end === undefined || !Number.isFinite(end) || !Number.isFinite(tool.startedAt)) return undefined
   return Math.max(0, end - tool.startedAt)
+}
+
+// The time around the execution: the permission prompt when one was asked, and hooks.
+export const waitDuration = (tool: CockpitTool): number | undefined => {
+  if (tool.finishedAt === undefined || tool.runMs === undefined) return undefined
+  return Math.max(0, tool.finishedAt - tool.startedAt - tool.runMs)
 }
 
 export const patchPreview = (patch: string, maxChars = 24000): { source: string; truncated: boolean } => {
@@ -68,6 +82,34 @@ export const patchPreview = (patch: string, maxChars = 24000): { source: string;
   const boundary = starts.filter(index => index <= limit).at(-1)
   return { source: boundary === undefined || boundary === starts[0] ? '' : source.slice(0, boundary), truncated: true }
 }
+
+const progress = (items: readonly { status: string }[], noun: string): string | undefined =>
+  items.length === 0 ? undefined : `${items.filter(item => item.status === 'completed').length}/${items.length} ${noun}`
+
+export const planProgress = (activity: Pick<CockpitActivity, 'todos' | 'tasks'>): string | undefined =>
+  progress(activity.todos.find(list => list.agentId === undefined)?.items ?? [], 'todos')
+  ?? progress(activity.tasks, 'tasks')
+
+export const bandSummary = (
+  activity: CockpitActivity,
+  options: { isWorking: boolean; columns: number },
+): { text: string; color: ThemeKey } => {
+  const agents = activity.agents.filter(agent => agent.status === 'running' || agent.status === 'waiting').length
+  const running = activity.tools.filter(tool => tool.outcome === 'running').length
+  const background = activity.background.filter(task => task.endedAt === undefined).length
+  const failure = options.isWorking ? null : activity.stopFailure
+  const last = activity.turns.filter(turn => turn.agentId === undefined).at(-1)
+  const label = failure ? `stopped: ${humanize(failure.error)}`
+    : running > 0 ? `${plural(running, 'tool')} running`
+    : options.isWorking ? 'thinking' : activity.phase
+  const parts = [plural(agents, 'agent'), label, planProgress(activity), background > 0 ? `${count(background)} background` : undefined]
+  if (options.columns >= 64 && last !== undefined) parts.push(`last turn ${duration(last.durationMs)}`)
+  return { text: parts.filter(Boolean).join(' · '), color: failure ? colors.red : statusColor(activity.phase) }
+}
+
+// Stored answers are already cleaned. `clip` would also turn their newlines into spaces.
+const excerpt = (value: string, limit: number): string =>
+  value.length <= limit ? value : `${value.slice(0, limit - 1)}…`
 
 const agentName = (agent: CockpitAgent): string => cleanText(agent.name || agent.description || agent.id)
 
@@ -85,25 +127,77 @@ const age = (now: number, timestamp: number): string =>
 const neighboringIndex = (length: number, selected: number, direction: number): number =>
   length > 0 ? (Math.max(0, selected) + direction + length) % length : 0
 
+const todoMark: Record<CockpitTodo['status'], string> = { completed: '✓', in_progress: '▸', pending: '○' }
+const todoColor: Record<CockpitTodo['status'], ThemeKey> = { completed: colors.green, in_progress: colors.cyan, pending: colors.muted }
+
+const todoRows = (ui: CockpitElements, key: string, items: readonly CockpitTodo[], columns: number, limit = 8): RenderElement => {
+  const { Box, Text } = ui
+  // Keep the active item in view: open work first, finished work last.
+  const order = { in_progress: 0, pending: 1, completed: 2 }
+  const shown = items.slice().sort((left, right) => order[left.status] - order[right.status]).slice(0, limit)
+  return (
+    <Box flexDirection="column">
+      {shown.map((todo, index) => (
+        <Text key={`${key}:${index}`} color={todoColor[todo.status]} wrap="wrap">
+          {clip(`${todoMark[todo.status]} ${todo.status === 'in_progress' ? todo.activeForm : todo.content}`, columns)}
+        </Text>
+      ))}
+      {items.length > shown.length && <Text color={colors.muted}>{items.length - shown.length} more</Text>}
+    </Box>
+  )
+}
+
+const planSection = (ui: CockpitElements, props: CockpitViewProps, columns: number): RenderElement | null => {
+  const { Box, Text } = ui
+  const todos = props.activity.todos.find(list => list.agentId === undefined)?.items ?? []
+  const tasks = props.activity.tasks
+  if (todos.length === 0 && tasks.length === 0) return null
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text bold color={colors.accent}>Plan · {[progress(todos, 'todos'), progress(tasks, 'tasks')].filter(Boolean).join(' · ')}</Text>
+      {todos.length > 0 && todoRows(ui, 'ops:plan-todo', todos, columns)}
+      {tasks.slice(0, 8).map(task => (
+        <Text key={`ops:plan-task:${task.id}`} color={todoColor[task.status]} wrap="wrap">
+          {clip(`${todoMark[task.status]} #${task.id} ${task.subject}${task.owner ? ` · ${task.owner}` : ''}`, columns)}
+        </Text>
+      ))}
+      {tasks.length > 8 && <Text color={colors.muted}>{tasks.length - 8} more tasks</Text>}
+    </Box>
+  )
+}
+
+const totalRows = (ui: CockpitElements, totals: CockpitAgentTotals, columns: number): RenderElement => {
+  const { Box, Text } = ui
+  return (
+    <Box flexDirection="column">
+      <Text color={colors.magenta} bold>Run totals</Text>
+      <Text>{count(totals.tokens)} tokens · {plural(totals.toolUses, 'tool use')} · {duration(totals.durationMs)}</Text>
+      {(totals.linesAdded !== undefined || totals.linesRemoved !== undefined) && (
+        <Text><Text color={colors.green}>+{count(totals.linesAdded ?? 0)}</Text> <Text color={colors.red}>−{count(totals.linesRemoved ?? 0)}</Text> lines</Text>
+      )}
+      {totals.models.length > 0 && <Text color={colors.muted} wrap="wrap">{clip(totals.models.join(', '), columns)}</Text>}
+    </Box>
+  )
+}
+
 const usageRows = (ui: CockpitElements, usage: CockpitTurnUsage | undefined, columns: number): RenderElement => {
   const { Box, Text } = ui
   return (
     <Box flexDirection="column">
-      <Text color={colors.magenta} bold>Reported completed usage</Text>
+      <Text color={colors.magenta} bold>Last turn usage</Text>
       {usage ? (
         <Box flexDirection="column">
           <Text wrap="wrap">{clip(usage.model, columns)}</Text>
           <Text>Input {count(usage.input_tokens)} · Output {count(usage.output_tokens)}</Text>
-          <Text>Cache read {count(usage.cache_read_input_tokens)}</Text>
-          <Text>Cache write {count(usage.cache_creation_input_tokens)}</Text>
+          <Text>Cache read {count(usage.cache_read_input_tokens)} · write {count(usage.cache_creation_input_tokens)}</Text>
         </Box>
-      ) : <Text color={colors.muted}>Usage not reported. No live token estimate.</Text>}
+      ) : <Text color={colors.muted}>Not reported.</Text>}
     </Box>
   )
 }
 
 export const renderAgents = (ui: CockpitElements, props: CockpitViewProps): RenderElement => {
-  const { Box, Text, Button } = ui
+  const { Box, Text, Button, Markdown } = ui
   const width = paneWidth(props)
   const wide = width >= 108
   const sidebar = wide ? Math.min(48, Math.floor(width * 0.4)) : width
@@ -119,6 +213,7 @@ export const renderAgents = (ui: CockpitElements, props: CockpitViewProps): Rend
     .slice().sort((left, right) => right.startedAt - left.startedAt).slice(0, 4) : []
   const completedUsage = selected?.usage ?? props.activity.turns.slice().reverse()
     .find(turn => turn.agentId === selected?.id && turn.usage)?.usage
+  const selectedTodos = selected ? props.activity.todos.find(list => list.agentId === selected.id)?.items ?? [] : []
   const chooseNeighbor = (direction: number): Promise<void> => {
     const next = rows[neighboringIndex(rows.length, selectedIndex, direction)]?.agent
     return next ? props.actions.selectAgent(next.id) : Promise.resolve()
@@ -128,6 +223,7 @@ export const renderAgents = (ui: CockpitElements, props: CockpitViewProps): Rend
     <Box flexDirection="column" width="100%" minWidth={0}>
       <Text bold color={colors.accent}>Agent hierarchy</Text>
       <Text color={colors.muted}>{rows.length} observed · {active} active · {completed} finished · {unknown} unknown</Text>
+      {planSection(ui, props, width)}
       <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
         <Button key="ops:refresh-agents" label="Refresh agents" hotkey="r" onPress={props.actions.refreshAgents} />
         {rows.length > 1 && <Button key="ops:agent-prev" label="Previous agent" onPress={() => chooseNeighbor(-1)} />}
@@ -136,24 +232,24 @@ export const renderAgents = (ui: CockpitElements, props: CockpitViewProps): Rend
       {props.activity.error && <Text color={colors.red} wrap="wrap">{clip(props.activity.error, 280)}</Text>}
       <Box flexDirection={wide ? 'row' : 'column'} gap={1} marginTop={1} alignItems="flex-start">
         <Box flexDirection="column" width={sidebar} minWidth={0} flexShrink={0}>
-          {rows.length === 0 && <Text color={colors.muted}>No agents observed. Refresh to read the native agent list.</Text>}
+          {rows.length === 0 && <Text color={colors.muted}>No agents observed.</Text>}
           {visible.map(({ agent, depth }) => (
             <Box key={`ops:agent-row:${agent.id}`} flexDirection="column" marginBottom={1}>
               <Button
                 key={`ops:agent:${agent.id}`}
                 plain
-                label={clip(`${agent.id === selected?.id ? '› ' : '  '}${'  '.repeat(Math.min(4, depth))}${depth > 0 ? '└ ' : ''}${agentName(agent)}`, sidebar - 2)}
+                label={clip(`${agent.id === selected?.id ? '› ' : '  '}${'  '.repeat(Math.min(4, depth))}${depth > 0 ? '└ ' : ''}${agentName(agent)}${agent.id === props.viewedAgent ? ' ◉' : ''}`, sidebar - 2)}
                 variant={agent.id === selected?.id ? 'primary' : 'secondary'}
                 onPress={() => props.actions.selectAgent(agent.id)}
               />
               <Text color={statusColor(agent.status)} wrap="wrap">{clip(agent.type, Math.min(80, sidebar - 2))} · {agentStatusLabel(agent)}</Text>
-              <Text color={colors.muted} wrap="wrap">{clip(`parent: ${agent.parentId ? actorName(props, agent.parentId) : 'Main session'}`, sidebar - 2)}</Text>
+              {agent.parentId && <Text color={colors.muted} wrap="wrap">{clip(`parent: ${actorName(props, agent.parentId)}`, sidebar - 2)}</Text>}
             </Box>
           ))}
-          {rows.length > visible.length && <Text color={colors.muted}>Showing {visible.length}/{rows.length}. Previous/Next reveals other agents.</Text>}
+          {rows.length > visible.length && <Text color={colors.muted}>Showing {visible.length}/{rows.length}.</Text>}
         </Box>
         <Box flexDirection="column" width={wide ? detailWidth + 4 : '100%'} minWidth={0} borderStyle="round" borderColor={colors.muted} paddingX={1}>
-          <Text bold color={colors.cyan}>Selected agent</Text>
+          <Text bold color={colors.cyan}>Selected agent{selected && selected.id === props.viewedAgent ? ' · in view' : ''}</Text>
           {selected ? (
             <Box flexDirection="column">
               <Text bold wrap="wrap">{clip(agentName(selected), 200)}</Text>
@@ -162,14 +258,19 @@ export const renderAgents = (ui: CockpitElements, props: CockpitViewProps): Rend
               <Text color={statusColor(selected.status)} wrap="wrap">{agentStatusLabel(selected)}</Text>
               <Text wrap="wrap">{clip(`Parent: ${selected.parentId ? actorName(props, selected.parentId) : 'Main session'}`, 200)}</Text>
               {selected.spawnedBy && <Text color={colors.muted} wrap="wrap">{clip(`Spawned by: ${selected.spawnedBy}`, 160)}</Text>}
-              <Text color={colors.muted}>Last seen {age(props.now, selected.lastSeenAt)}</Text>
-              <Text color={colors.muted}>Duration {selected.durationMs === undefined ? 'unknown' : duration(selected.durationMs)}</Text>
+              <Text color={colors.muted}>Last seen {age(props.now, selected.lastSeenAt)} · duration {selected.durationMs === undefined ? 'unknown' : duration(selected.durationMs)}</Text>
               <Text wrap="wrap">{clip(selected.description, 320)}</Text>
-              {selected.teammateId && <Text color={colors.yellow} wrap="wrap">External teammate status is last reported, not a live heartbeat.</Text>}
-              {selected.status === 'missing' && <Text color={colors.yellow} wrap="wrap">Not listed on the last refresh. Its current status is unknown.</Text>}
+              {selected.teammateId && <Text color={colors.yellow} wrap="wrap">Teammate status is its last report.</Text>}
+              {selected.status === 'missing' && <Text color={colors.yellow} wrap="wrap">Not listed on the last refresh.</Text>}
+              {selectedTodos.length > 0 && (
+                <Box flexDirection="column" marginTop={1}>
+                  <Text bold color={colors.cyan}>Todos · {progress(selectedTodos, 'done')}</Text>
+                  {todoRows(ui, `ops:agent-todo:${selected.id}`, selectedTodos, detailWidth)}
+                </Box>
+              )}
               <Box flexDirection="column" marginTop={1}>
-                <Text bold color={colors.cyan}>Active / recent tools</Text>
-                {recentTools.length === 0 && <Text color={colors.muted}>No tool activity captured for this agent.</Text>}
+                <Text bold color={colors.cyan}>Recent tools</Text>
+                {recentTools.length === 0 && <Text color={colors.muted}>None captured.</Text>}
                 {recentTools.map(tool => (
                   <Box key={`ops:agent-tool-row:${tool.id}`} flexDirection="column">
                     <Button key={`ops:agent-tool:${tool.id}`} plain label={clip(tool.tool, detailWidth)} onPress={async () => {
@@ -177,13 +278,19 @@ export const renderAgents = (ui: CockpitElements, props: CockpitViewProps): Rend
                       await props.actions.selectTool(tool.id)
                       await props.actions.selectView('tools')
                     }} />
-                    <Text color={statusColor(tool.outcome)}>{tool.outcome}{tool.retrospective ? ' · retrospective server tool' : ''}</Text>
+                    <Text color={statusColor(tool.outcome)}>{tool.outcome}{tool.retrospective ? ' · server tool' : ''}</Text>
                   </Box>
                 ))}
               </Box>
               <Box marginTop={1} flexDirection="column">
-                {usageRows(ui, completedUsage, detailWidth)}
+                {selected.totals ? totalRows(ui, selected.totals, detailWidth) : usageRows(ui, completedUsage, detailWidth)}
               </Box>
+              {selected.answer && (
+                <Box flexDirection="column" marginTop={1}>
+                  <Text bold color={colors.cyan}>Last answer</Text>
+                  <Markdown key={`ops:agent-answer:${selected.id}`} text={excerpt(selected.answer, 1200)} />
+                </Box>
+              )}
             </Box>
           ) : <Text color={colors.muted}>Select an agent after one is observed.</Text>}
         </Box>
@@ -191,6 +298,34 @@ export const renderAgents = (ui: CockpitElements, props: CockpitViewProps): Rend
     </Box>
   )
 }
+
+const backgroundStatus = (task: CockpitBackgroundTask): ThemeKey =>
+  task.endedAt !== undefined ? colors.muted : statusColor(task.status === 'pending' ? 'pending' : 'running')
+
+const backgroundSection = (ui: CockpitElements, props: CockpitViewProps, columns: number): RenderElement | null => {
+  const { Box, Text } = ui
+  const tasks = props.activity.background
+  const crons = props.activity.crons
+  if (tasks.length === 0 && crons.length === 0) return null
+  const live = tasks.filter(task => task.endedAt === undefined)
+  // In-flight work first, then the most recently ended.
+  const shown = [...live, ...tasks.filter(task => task.endedAt !== undefined).reverse()].slice(0, 6)
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text bold color={colors.accent}>Background · {count(live.length)} in flight{props.activity.backgroundAt === null ? '' : ` · reported ${age(props.now, props.activity.backgroundAt)}`}</Text>
+      {shown.map(task => (
+        <Text key={`ops:background:${task.id}`} color={backgroundStatus(task)} wrap="wrap">
+          {clip(`${task.type} · ${task.status} · ${task.description}${task.startedAt === undefined ? '' : ` · ${duration((task.endedAt ?? props.now) - task.startedAt)}`}`, columns)}
+        </Text>
+      ))}
+      {tasks.length > shown.length && <Text color={colors.muted}>{tasks.length - shown.length} more</Text>}
+      {crons.length > 0 && <Text color={colors.muted} wrap="wrap">{clip(`Scheduled: ${crons.map(cron => `${cron.schedule}${cron.recurring ? '' : ' (once)'}`).join(', ')}`, columns)}</Text>}
+    </Box>
+  )
+}
+
+const toolStatus = (tool: CockpitTool): string =>
+  `${tool.outcome}${tool.approval === 'asked' ? ' · approval asked' : ''}`
 
 export const renderTools = (ui: CockpitElements, props: CockpitViewProps): RenderElement => {
   const { Box, Text, Button } = ui
@@ -219,12 +354,13 @@ export const renderTools = (ui: CockpitElements, props: CockpitViewProps): Rende
     const next = filtered[neighboringIndex(filtered.length, selectedIndex, direction)]
     return next ? props.actions.selectTool(next.id) : Promise.resolve()
   }
+  const selectedWait = selected ? waitDuration(selected) : undefined
 
   return (
     <Box flexDirection="column" width="100%" minWidth={0}>
       <Text bold color={colors.accent}>Tool timeline</Text>
       <Text color={colors.muted}>{allTools.length} captured · {allTools.filter(tool => tool.outcome === 'running').length} running</Text>
-      <Text color={colors.muted} wrap="wrap">Metadata only. Commands, arguments and outputs are not shown.</Text>
+      {backgroundSection(ui, props, width)}
       <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
         <Button key="ops:tools-all" label="All agents" variant={props.activity.selectedAgent === null ? 'primary' : 'secondary'} onPress={() => setFilter(null)} />
         {filters.map(agent => <Button key={`ops:tools-agent:${agent.id}`} label={clip(agentName(agent), Math.min(22, width - 6))} variant={agent.id === props.activity.selectedAgent ? 'primary' : 'secondary'} onPress={() => setFilter(agent.id)} />)}
@@ -234,7 +370,7 @@ export const renderTools = (ui: CockpitElements, props: CockpitViewProps): Rende
           return next ? setFilter(next.id) : Promise.resolve()
         }} />}
       </Box>
-      <Text color={colors.cyan} wrap="wrap">{clip(props.activity.selectedAgent === null ? 'Grouped by agent · newest first within each group' : `Agent filter: ${actorName(props, props.activity.selectedAgent)}`, 200)}</Text>
+      <Text color={colors.cyan} wrap="wrap">{clip(props.activity.selectedAgent === null ? 'Grouped by agent · newest first' : `Agent filter: ${actorName(props, props.activity.selectedAgent)}`, 200)}</Text>
       {filtered.length > 1 && <Box flexDirection="row" flexWrap="wrap" gap={1}>
         <Button key="ops:tool-prev" label="Newer tool" onPress={() => chooseNeighbor(-1)} />
         <Button key="ops:tool-next" label="Older tool" onPress={() => chooseNeighbor(1)} />
@@ -250,32 +386,32 @@ export const renderTools = (ui: CockpitElements, props: CockpitViewProps): Rende
                 return (
                   <Box key={`ops:tool-row:${tool.id}`} flexDirection="column" marginBottom={1}>
                     <Button key={`ops:tool:${tool.id}`} plain label={clip(`${tool.id === selected?.id ? '› ' : '  '}${tool.tool}`, timelineWidth - 2)} onPress={() => props.actions.selectTool(tool.id)} />
-                    <Text color={statusColor(tool.outcome)}>{tool.outcome} · {elapsed === undefined ? 'duration unknown' : duration(elapsed)}{tool.outcome === 'running' ? ' elapsed' : ''}</Text>
+                    <Text color={tool.approval === 'asked' && tool.outcome === 'running' ? colors.yellow : statusColor(tool.outcome)}>{toolStatus(tool)} · {elapsed === undefined ? 'duration unknown' : duration(elapsed)}{tool.outcome === 'running' ? ' elapsed' : ''}</Text>
                     <Text color={statusColor(tool.outcome)}>{meter(elapsed === undefined ? 0 : elapsed / longest * 100, width < 60 ? 10 : 18)} <Text color={colors.muted}>{age(props.now, tool.startedAt)}</Text></Text>
                     {tool.target && <Text color={colors.muted} wrap="wrap">{clip(tool.target, Math.min(160, timelineWidth - 2))}</Text>}
-                    {tool.retrospective && <Text color={colors.yellow} wrap="wrap">Retrospective server tool, not live execution.</Text>}
+                    {tool.retrospective && <Text color={colors.muted}>server tool</Text>}
                   </Box>
                 )
               })}
             </Box>
           ))}
-          {filtered.length > visible.length && <Text color={colors.muted}>Showing {visible.length}/{filtered.length}. Newer/Older reveals other tools.</Text>}
+          {filtered.length > visible.length && <Text color={colors.muted}>Showing {visible.length}/{filtered.length}.</Text>}
         </Box>
         <Box flexDirection="column" width={wide ? detailWidth + 4 : '100%'} minWidth={0} borderStyle="round" borderColor={colors.muted} paddingX={1}>
           <Text bold color={colors.cyan}>Selected tool</Text>
           {selected ? (
             <Box flexDirection="column">
               <Text bold wrap="wrap">{clip(selected.tool, 200)}</Text>
-              <Text color={statusColor(selected.outcome)}>{selected.outcome}</Text>
+              <Text color={statusColor(selected.outcome)}>{toolStatus(selected)}</Text>
               <Text color={colors.muted} wrap="wrap">{clip(`ID: ${selected.id}`, 200)}</Text>
               <Text wrap="wrap">{clip(`Agent: ${actorName(props, selected.agentId)}`, 200)}</Text>
               <Text color={colors.muted}>Started {age(props.now, selected.startedAt)}</Text>
-              <Text>Duration {toolDuration(selected, props.now) === undefined ? 'unknown' : duration(toolDuration(selected, props.now) ?? 0)}</Text>
+              <Text>{selected.runMs !== undefined && selected.outcome !== 'running' ? 'Ran' : 'Duration'} {toolDuration(selected, props.now) === undefined ? 'unknown' : duration(toolDuration(selected, props.now) ?? 0)}</Text>
+              {selectedWait !== undefined && <Text color={selected.approval === 'asked' ? colors.yellow : colors.muted}>{selected.approval === 'asked' ? 'Approval and hooks' : 'Hooks'} {duration(selectedWait)}</Text>}
               <Text wrap="wrap">{selected.target ? clip(`Target: ${selected.target}`, 240) : 'Target not reported'}</Text>
-              {selected.retrospective && <Text color={colors.yellow} wrap="wrap">Retrospective server tool. It was observed after the result, not as a live call.</Text>}
-              <Text color={colors.muted} wrap="wrap">Duration bars compare only the tools currently shown.</Text>
+              {selected.retrospective && <Text color={colors.muted} wrap="wrap">Server tool, reported after the response.</Text>}
             </Box>
-          ) : <Text color={colors.muted}>Select a captured tool to read its metadata.</Text>}
+          ) : <Text color={colors.muted}>Select a captured tool.</Text>}
         </Box>
       </Box>
     </Box>
@@ -288,6 +424,30 @@ const changeLabels = (change: CockpitChange): string => [
   change.untracked ? 'untracked' : undefined,
   change.truncated ? 'truncated' : undefined,
 ].filter(Boolean).join(' · ')
+
+export const gitOperationLines = (operation: CockpitGitOperation): string[] => [
+  operation.commit && `${humanize(operation.commit.kind)} ${operation.commit.sha.slice(0, 10)}${operation.commit.branch ? ` on ${operation.commit.branch}` : ''}`,
+  operation.push && `pushed ${operation.push.branch}`,
+  operation.branch && `${humanize(operation.branch.action)} ${operation.branch.ref}`,
+  operation.pr && `PR #${operation.pr.number} ${humanize(operation.pr.action)}`,
+].filter((line): line is string => Boolean(line)).map(line => cleanText(line))
+
+const gitSection = (ui: CockpitElements, props: CockpitViewProps, columns: number): RenderElement | null => {
+  const { Box, Text, Link } = ui
+  const operations = props.review.gitOps.slice(-6).reverse()
+  if (operations.length === 0) return null
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text bold color={colors.magenta}>Git activity</Text>
+      {operations.map(operation => (
+        <Box key={`ops:git:${operation.id}`} flexDirection="column">
+          <Text wrap="wrap">{clip(`${gitOperationLines(operation).join(' · ')} · ${age(props.now, operation.at)}`, columns)}</Text>
+          {operation.pr?.url && <Link key={`ops:git-pr:${operation.id}`} href={operation.pr.url} label={clip(operation.pr.url, columns)} />}
+        </Box>
+      ))}
+    </Box>
+  )
+}
 
 export const renderChanges = (ui: CockpitElements, props: CockpitViewProps): RenderElement => {
   const { Box, Text, Button, Code } = ui
@@ -310,19 +470,18 @@ export const renderChanges = (ui: CockpitElements, props: CockpitViewProps): Ren
   return (
     <Box flexDirection="column" width="100%" minWidth={0}>
       <Text bold color={colors.accent}>Changes & checks</Text>
-      <Text color={colors.muted} wrap="wrap">{clip(`Branch: ${props.review.branch ?? 'unknown'} · ${props.review.changes.length} files`, 200)}</Text>
-      <Text color={colors.muted} wrap="wrap">Read-only git snapshot and observed edits. No staging, checkout or writes.</Text>
+      <Text color={colors.muted} wrap="wrap">{clip(`Branch: ${props.review.branch ?? 'unknown'} · ${props.review.changes.length} files · refreshed ${props.review.refreshedAt === null ? 'never' : age(props.now, props.review.refreshedAt)}`, 200)}</Text>
       <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
-        <Button key="ops:refresh-changes" label={props.review.loading ? 'Refreshing git…' : 'Refresh read-only git'} hotkey="r" onPress={props.actions.refreshChanges} />
+        <Button key="ops:refresh-changes" label={props.review.loading ? 'Refreshing git…' : 'Refresh git'} hotkey="r" onPress={props.actions.refreshChanges} />
         {props.review.changes.length > 1 && <Button key="ops:file-prev" label="Previous file" onPress={() => chooseNeighbor(-1)} />}
         {props.review.changes.length > 1 && <Button key="ops:file-next" label="Next file" onPress={() => chooseNeighbor(1)} />}
       </Box>
-      <Text color={colors.muted}>Git refresh: {props.review.refreshedAt === null ? 'not requested' : age(props.now, props.review.refreshedAt)}</Text>
       {props.review.error && <Text color={colors.red} wrap="wrap">{clip(props.review.error, 320)}</Text>}
+      {gitSection(ui, props, width)}
       <Box flexDirection={wide ? 'row' : 'column'} gap={1} marginTop={1} alignItems="flex-start">
         <Box flexDirection="column" width={sidebar} minWidth={0} flexShrink={0}>
           <Text bold color={colors.magenta}>Files</Text>
-          {visible.length === 0 && <Text color={colors.muted}>No changes captured. Refresh reads the working tree.</Text>}
+          {visible.length === 0 && <Text color={colors.muted}>No changes captured.</Text>}
           {visible.map(change => (
             <Box key={`ops:file-row:${change.path}`} flexDirection="column" marginBottom={1}>
               <Button key={`ops:file:${change.path}`} plain label={clip(`${change.path === selected?.path ? '› ' : '  '}${change.path}`, sidebar - 2)} onPress={() => props.actions.selectChange(change.path)} />
@@ -330,7 +489,7 @@ export const renderChanges = (ui: CockpitElements, props: CockpitViewProps): Ren
               <Text color={change.truncated ? colors.yellow : colors.muted} wrap="wrap">{changeLabels(change)}</Text>
             </Box>
           ))}
-          {props.review.changes.length > visible.length && <Text color={colors.muted}>Showing {visible.length}/{props.review.changes.length}. Previous/Next reveals other files.</Text>}
+          {props.review.changes.length > visible.length && <Text color={colors.muted}>Showing {visible.length}/{props.review.changes.length}.</Text>}
         </Box>
         <Box flexDirection="column" width={wide ? width - sidebar - 1 : '100%'} minWidth={0}>
           <Text bold color={colors.cyan}>Selected file patch</Text>
@@ -338,18 +497,17 @@ export const renderChanges = (ui: CockpitElements, props: CockpitViewProps): Ren
             <Box flexDirection="column">
               <Text bold wrap="wrap">{clip(selected.path, 240)}</Text>
               <Text color={colors.muted} wrap="wrap">{changeLabels(selected)}</Text>
-              {(selected.truncated || preview.truncated) && <Text color={colors.yellow} wrap="wrap">Truncated patch. This preview is not the complete file change.</Text>}
+              {(selected.truncated || preview.truncated) && <Text color={colors.yellow} wrap="wrap">Truncated patch.</Text>}
               {selected.patch.length > 0 && <Box flexDirection="row" flexWrap="wrap" gap={1} marginY={1}>
                 <Button key="ops:copy-patch" label="Copy patch" onPress={() => props.actions.copyPatch(selected.path)} />
                 <Button key="ops:quote-patch" label="Quote patch" onPress={() => props.actions.quotePatch(selected.path)} />
               </Box>}
-              {preview.source ? <Code source={preview.source} path={selected.path} format="diff" wrap="wrap" /> : <Text color={colors.muted} wrap="wrap">{preview.truncated ? 'No complete hunk fits the preview limit. Copy or quote the captured patch to inspect it.' : selected.truncated ? 'Patch omitted: no complete hunk fits the capture limit. Only file metadata is available.' : 'No text patch captured. Only file metadata is available.'}</Text>}
+              {preview.source ? <Code source={preview.source} path={selected.path} format="diff" wrap="wrap" /> : <Text color={colors.muted} wrap="wrap">{preview.truncated ? 'No complete hunk fits the preview limit. Copy or quote the captured patch to inspect it.' : selected.truncated ? 'Patch omitted: no complete hunk fits the capture limit.' : 'No text patch captured.'}</Text>}
             </Box>
           ) : <Text color={colors.muted}>Select a file after a change is captured.</Text>}
           <Box flexDirection="column" marginTop={1}>
             <Text bold color={colors.magenta}>Reported findings</Text>
-            <Text color={colors.muted} wrap="wrap">{props.review.findings.length} reported{selected ? ` · ${selectedFindings.length} for selected file, shown first` : ''}</Text>
-            {findings.length === 0 && <Text color={colors.muted}>No findings reported. This is not a review result.</Text>}
+            <Text color={colors.muted} wrap="wrap">{props.review.findings.length} reported{selected ? ` · ${selectedFindings.length} for this file` : ''}</Text>
             {findings.map(finding => (
               <Box key={`ops:finding:${finding.id}`} flexDirection="column" borderStyle="single" borderColor={colors.muted} paddingX={1} marginTop={1}>
                 <Text bold wrap="wrap">{clip(finding.summary, 360)}</Text>
@@ -357,13 +515,11 @@ export const renderChanges = (ui: CockpitElements, props: CockpitViewProps): Ren
                 <Text color={finding.outcome === 'fixed' ? colors.green : colors.yellow} wrap="wrap">{clip([finding.category, finding.verdict, finding.outcome].filter(Boolean).join(' · ') || 'Classification not reported', 180)}</Text>
               </Box>
             ))}
-            {rankedFindings.length > findings.length && <Text color={colors.muted}>Showing {findings.length}/{rankedFindings.length} findings. Selecting a file moves its findings first.</Text>}
+            {rankedFindings.length > findings.length && <Text color={colors.muted}>Showing {findings.length}/{rankedFindings.length}.</Text>}
           </Box>
           <Box flexDirection="column" marginTop={1}>
             <Text bold color={colors.cyan}>Observed checks</Text>
-            <Text color={colors.muted} wrap="wrap">Only captured tool results. Completed does not mean passed.</Text>
             <Text wrap="wrap">{props.review.checks.filter(check => check.status === 'running').length} running · {props.review.checks.filter(check => check.status === 'passed').length} passed · {props.review.checks.filter(check => check.status === 'failed').length} failed</Text>
-            {checks.length === 0 && <Text color={colors.muted}>No checks observed. This view does not run checks.</Text>}
             {checks.map(check => (
               <Box key={`ops:check:${check.id}`} flexDirection="column" marginTop={1}>
                 <Text bold wrap="wrap">{clip(check.label, 160)}</Text>
@@ -371,7 +527,7 @@ export const renderChanges = (ui: CockpitElements, props: CockpitViewProps): Ren
                 <Text color={colors.muted} wrap="wrap">{check.passed === undefined && check.failed === undefined ? 'Pass/fail counts unknown' : `${count(check.passed)} passed · ${count(check.failed)} failed`}</Text>
               </Box>
             ))}
-            {props.review.checks.length > checks.length && <Text color={colors.muted}>Showing the latest {checks.length}/{props.review.checks.length} checks.</Text>}
+            {props.review.checks.length > checks.length && <Text color={colors.muted}>Showing the latest {checks.length}/{props.review.checks.length}.</Text>}
           </Box>
         </Box>
       </Box>

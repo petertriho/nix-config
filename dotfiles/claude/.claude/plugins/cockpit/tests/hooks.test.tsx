@@ -13,7 +13,7 @@ import type {
   TurnStepResult,
   TurnUsage,
 } from 'claude-code'
-import { initialActivity, initialContext, initialImages, initialReview } from '../hooks/state'
+import { initialActivity, initialContext, initialReview } from '../hooks/state'
 import { colors } from '../hooks/theme'
 
 type State = PluginState['cockpit']
@@ -21,7 +21,6 @@ type State = PluginState['cockpit']
 const themeKeys = new Set<string>(Object.values(colors))
 
 const PATCH = 'diff --git a/tracked.ts b/tracked.ts\n--- a/tracked.ts\n+++ b/tracked.ts\n@@ -1 +1 @@\n-old\n+new\n'
-const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+i40YAAAAASUVORK5CYII='
 const USAGE: TurnUsage = {
   input_tokens: 20,
   output_tokens: 12,
@@ -76,6 +75,8 @@ type World = {
   network: number
   spawned: number
   logs: string[]
+  store: Map<string, unknown>
+  failStore: boolean
   get: <K extends keyof State>(key: K) => State[K]
   seed: <K extends keyof State>(key: K, value: State[K]) => void
 }
@@ -89,16 +90,15 @@ const setup = (on: On): World => {
     agents: [], clock, permission: 'allow', failStateReads: false,
     commands: [], opened: [], closed: [], usageRequests: [], processes: [],
     fsStats: [], fsReads: [], copies: [], drafts: [], submitted: 0,
-    network: 0, spawned: 0, logs: [],
+    network: 0, spawned: 0, logs: [], store: new Map(), failStore: false,
     get: key => values.get(key)?.value as State[typeof key],
     seed: (key, value) => { values.set(key, { value, version: (values.get(key)?.version ?? 0) + 1 }) },
   }
   world.seed('activity', { ...initialActivity(), sessionId: world.id, model: 'test-model' })
   world.seed('review', { ...initialReview(), sessionId: world.id })
   world.seed('context', { ...initialContext(), sessionId: world.id, usage: world.usage })
-  world.seed('images', { ...initialImages(), sessionId: world.id })
   world.seed('preferences', { view: 'agents', band: true, animation: true, paneOpen: false })
-  world.seed('reactor', { frame: 0, phase: 'idle', samples: [] })
+  world.seed('reactor', { frame: 0, phase: 'idle' })
 
   on('state.get', (_$, e) => {
     if (world.failStateReads) throw new Error('State observation refused.')
@@ -110,6 +110,15 @@ const setup = (on: On): World => {
     if (e.ifVersion !== undefined && e.ifVersion !== version) return { value: { isSet: false, version } }
     values.set(e.key, { value: e.value, version: version + 1 })
     return { value: { isSet: true, version: version + 1 } }
+  })
+  on('store.get', (_$, e) => {
+    if (world.failStore) throw new Error('Store refused.')
+    return { value: world.store.get(e.key) }
+  })
+  on('store.set', (_$, e) => {
+    if (world.failStore) throw new Error('Store refused.')
+    world.store.set(e.key, JSON.parse(JSON.stringify(e.value)))
+    return { value: undefined }
   })
   on('session.id', () => ({ value: world.id }))
   on('session.model', () => ({ value: 'test-model' }))
@@ -149,6 +158,10 @@ const setup = (on: On): World => {
     return { isFilled: true, text: e.text, cursor: e.text.length }
   })
   on('prompt.submit', (_$, e) => { world.submitted += 1; return { text: e.text } })
+  // No settings hooks run beneath the classic events in a session without them.
+  for (const event of ['PostToolUse', 'PostToolUseFailure', 'Stop', 'SubagentStop', 'StopFailure'] as const) {
+    on(`classic.${event}`, () => ({}))
+  }
   on('classic.PreToolUse', () => world.permission === 'deny' ? { deny: 'Policy refused this call.' } : { allow: true })
   on('process.run', (_$, e) => {
     world.processes = [...world.processes, [...e.argv]]
@@ -160,15 +173,8 @@ const setup = (on: On): World => {
   on('process.spawn', async function* () { world.spawned += 1; throw new Error('No process should start.') })
   on('http.fetch', () => { world.network += 1; throw new Error('No network request should start.') })
   on('mcp.call', () => { world.network += 1; throw new Error('No capture should start.') })
-  on('fs.stat', (_$, e) => {
-    world.fsStats.push(e.path)
-    return { value: { kind: 'file', size: 68, mtimeMs: 1000, isLink: false, realPath: '/project/image.png' } }
-  })
-  on('fs.read', (_$, e) => {
-    world.fsReads.push(e.path)
-    return { value: { base64: PNG } }
-  })
-  mock.env(on, { HOME: '/home/test' })
+  on('fs.stat', (_$, e) => { world.fsStats.push(e.path); throw new Error('No file should be read.') })
+  on('fs.read', (_$, e) => { world.fsReads.push(e.path); throw new Error('No file should be read.') })
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text key="native-content">Native content remains.</Text>
@@ -179,6 +185,11 @@ const setup = (on: On): World => {
 const mountPane = <P extends RenderSurface>(engine: Engine, surface: P, columns = 80) => engine.ui.mount({
   plugin: 'cockpit', surface, component: 'Pane', requestId: 'cockpit',
   props: paneProps(columns), viewport: { columns: columns + 2, rows: 32, isFullscreen: true },
+})
+
+const mountPaneWith = (engine: Engine, props: RenderPropsOf['Pane']) => engine.ui.mount({
+  plugin: 'cockpit', surface: 'terminal', component: 'Pane', requestId: 'cockpit',
+  props, viewport: { columns: props.bodyColumns + 2, rows: 32, isFullscreen: true },
 })
 
 describe('cockpit observer hooks', () => {
@@ -296,7 +307,6 @@ describe('cockpit observer hooks', () => {
     expect(world.get('activity').sessionId).toBe('session-2')
     expect(world.get('activity').tools).toEqual([])
     expect(world.get('review').changes).toEqual([])
-    expect(world.get('images').images).toEqual([])
   })
 
   test('a delayed completion does not attach the old turn to a cleared session', async ($, on) => {
@@ -363,7 +373,7 @@ describe('cockpit commands and surfaces', () => {
 
   test('rejects unknown views and malformed arguments before doing work', async ($, on) => {
     const world = setup(on)
-    for (const args of ['unknown', 'tools extra', 'band maybe']) {
+    for (const args of ['unknown', 'tools extra', 'band maybe', 'images', 'images /tmp/screenshot.png']) {
       expect((await $.command.run(command(args))).exitCode).toBe(1)
     }
     expect(world.opened).toEqual([])
@@ -376,11 +386,11 @@ describe('cockpit commands and surfaces', () => {
     const world = setup(on)
     for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
       for (const columns of [40, 80, 140]) {
-        for (const view of ['agents', 'tools', 'changes', 'context', 'reactor', 'images'] as const) {
+        for (const view of ['agents', 'tools', 'changes', 'context', 'reactor'] as const) {
           world.seed('preferences', { ...world.get('preferences'), view })
           const ui = await mountPane($, surface, columns)
           expect(await ui.find({ type: 'Text', text: 'COCKPIT' })).toBeDefined()
-          expect((await ui.findAll({ type: 'Button' })).length).toBeGreaterThanOrEqual(6)
+          expect((await ui.findAll({ type: 'Button' })).length).toBeGreaterThanOrEqual(5)
           const body = await ui.find({ type: 'Box' })
           expect(body?.props.backgroundColor).toBeUndefined()
           for (const element of await ui.findAll({})) {
@@ -391,7 +401,6 @@ describe('cockpit commands and surfaces', () => {
           }
           expect(await ui.find({ type: 'Raster' })).toBeUndefined()
           expect(await ui.find({ type: 'Svg' })).toBeUndefined()
-          if (surface !== 'terminal') expect(await ui.find({ type: 'Image' })).toBeUndefined()
           await ui.unmount()
         }
       }
@@ -505,60 +514,233 @@ describe('cockpit explicit read-only actions', () => {
     await ui.unmount()
   })
 
-  test('image URLs and network paths are refused before accessing the filesystem', async ($, on) => {
+  test('a view removed in an earlier version falls back to the agents view', async ($, on) => {
     const world = setup(on)
-    for (const path of ['https://example.test/image.png', '//server/share/image.png', '\\\\server\\image.png', 'data:image/png;base64,AAAA']) {
-      await $.command.run(command(`images ${path}`))
-      expect(world.get('images').error).not.toBeNull()
-    }
-    expect(world.fsStats).toEqual([])
-    expect(world.fsReads).toEqual([])
-    expect(world.network).toBe(0)
-    expect(world.spawned).toBe(0)
+    // Session memory from before a hot reload can hold the removed images view.
+    world.seed('preferences', { ...world.get('preferences'), view: 'images' as unknown as State['preferences']['view'] })
+    const ui = await mountPane($, 'terminal')
+    expect(await ui.find({ type: 'Text', text: 'Agent hierarchy' })).toBeDefined()
+    expect(JSON.stringify(await ui.drawn())).not.toContain('undefined')
+    await ui.unmount()
+  })
+})
+
+describe('cockpit live data', () => {
+  test('an asked permission and the PostToolUse time separate the wait from the run', async ($, on) => {
+    const world = setup(on)
+    let asking = false
+    on('tool.check', () => ({ decision: asking ? 'ask' as const : 'allow' as const }))
+    on('tool.call', { tool: 'Bash' }, async (_$, e) => {
+      asking = true
+      await $.tool.check({ tool: 'Bash', input: { command: e.command }, tool_use_id: e.tool_use_id })
+      asking = false
+      await world.clock.advance(3000)
+      await $.classic.PostToolUse({ tool_name: 'Bash', tool_input: {}, tool_response: {}, tool_use_id: e.tool_use_id, duration_ms: 1200 })
+      return { result: { stdout: 'Tests: 2 passed', stderr: '', interrupted: false } }
+    })
+    await $.tool.call({ tool: 'Bash', tool_use_id: 'asked', command: 'npm test' })
+    const tool = world.get('activity').tools.find(item => item.id === 'asked')
+    expect(tool).toMatchObject({ approval: 'asked', runMs: 1200, outcome: 'success' })
+    expect((tool?.finishedAt ?? 0) - (tool?.startedAt ?? 0)).toBe(3000)
+    expect(world.get('review').checks.at(-1)).toMatchObject({ status: 'passed', durationMs: 1200 })
+    // A query carries no call id, so it marks no tool.
+    asking = true
+    await $.tool.check({ tool: 'Bash', input: { command: 'ls' } })
+    expect(world.get('activity').tools.filter(item => item.approval === 'asked')).toHaveLength(1)
   })
 
-  test('a selected local PNG is validated before it is shown and has remote fallbacks', async ($, on) => {
+  test('TodoWrite and task results build the plan that the band summarizes', async ($, on) => {
     const world = setup(on)
-    await $.command.run(command('images /project/image.png'))
-    expect(world.fsStats).toEqual(['/project/image.png'])
-    expect(world.fsReads).toEqual(['/project/image.png'])
-    expect(world.get('images').error).toBeNull()
-    expect(world.get('images').images.at(-1)).toMatchObject({ path: '/project/image.png', width: 1, height: 1 })
-    const terminal = await mountPane($, 'terminal')
-    expect(await terminal.find({ type: 'Image', key: 'selected-image' })).toBeDefined()
-    await terminal.unmount()
-    for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
-      const ui = await mountPane($, surface)
-      expect(await ui.find({ type: 'Image' })).toBeUndefined()
-      expect(await ui.find({ type: 'Text', text: 'image.png' })).toBeDefined()
+    on('tool.call', { tool: 'TodoWrite' }, () => ({ result: { oldTodos: [], newTodos: [
+      { content: 'Read code', status: 'completed', activeForm: 'Reading code' },
+      { content: 'Write tests', status: 'in_progress', activeForm: 'Writing tests' },
+    ] } }))
+    on('tool.call', { tool: 'TaskCreate' }, () => ({ result: { task: { id: '1', subject: 'Release' } } }))
+    on('tool.call', { tool: 'TaskUpdate' }, (_$, e) => ({ result: e.status === 'deleted'
+      ? { success: true, taskId: e.taskId, updatedFields: ['status'] }
+      : { success: true, taskId: e.taskId, updatedFields: ['status'], statusChange: { from: 'pending', to: 'in_progress' } } }))
+    on('tool.call', { tool: 'TaskList' }, () => ({ result: { tasks: [
+      { id: '2', subject: 'Review', status: 'completed', blockedBy: [] },
+      { id: '3', subject: 'Deploy', status: 'pending', owner: 'lead', blockedBy: ['2'] },
+    ] } }))
+    await $.tool.call({ tool: 'TodoWrite', tool_use_id: 'todo-1', todos: [] })
+    expect(world.get('activity').todos).toMatchObject([{ items: [{ content: 'Read code', status: 'completed' }, { content: 'Write tests', activeForm: 'Writing tests' }] }])
+    await $.tool.call({ tool: 'TaskCreate', tool_use_id: 'task-1', subject: 'Release', description: 'Ship it.' })
+    await $.tool.call({ tool: 'TaskUpdate', tool_use_id: 'task-2', taskId: '1', status: 'in_progress' })
+    expect(world.get('activity').tasks).toEqual([{ id: '1', subject: 'Release', status: 'in_progress' }])
+    const band = await $.ui.mount({ plugin: 'cockpit', surface: 'terminal', component: 'AbovePrompt', requestId: 'band', props: bandProps() })
+    expect(await band.find({ type: 'Text', text: '1/2 todos' })).toBeDefined()
+    await band.unmount()
+    await $.tool.call({ tool: 'TaskUpdate', tool_use_id: 'task-3', taskId: '1', status: 'deleted' })
+    expect(world.get('activity').tasks).toEqual([])
+    await $.tool.call({ tool: 'TaskList', tool_use_id: 'task-4' })
+    expect(world.get('activity').tasks.map(task => [task.id, task.status, task.owner])).toEqual([['2', 'completed', undefined], ['3', 'pending', 'lead']])
+  })
+
+  test('a finished Agent call keeps run totals and its answer after the roster drops it', async ($, on) => {
+    const world = setup(on)
+    on('tool.call', { tool: 'Agent' }, () => ({ result: {
+      status: 'completed', agentId: 'agent-7', agentType: 'Explore', prompt: 'Find files.',
+      content: [{ type: 'text', text: 'Found **3** files.' }, { type: 'text', text: 'Done.' }],
+      totalToolUseCount: 4, totalDurationMs: 9000, totalTokens: 12000, modelsUsed: ['test-model'],
+      toolStats: { readCount: 3, searchCount: 1, bashCount: 0, editFileCount: 1, linesAdded: 5, linesRemoved: 1, otherToolCount: 0 },
+      usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
+    } }) as never)
+    on('turn.complete', (_$, e) => ({ text: e.answer, usage: e.usage }))
+    await $.tool.call({ tool: 'Agent', tool_use_id: 'spawn-7', description: 'Find files', prompt: 'Find files.', subagent_type: 'Explore' })
+    expect(world.get('activity').agents.find(agent => agent.id === 'agent-7')).toMatchObject({
+      status: 'completed', type: 'Explore', description: 'Find files',
+      totals: { tokens: 12000, toolUses: 4, durationMs: 9000, linesAdded: 5, linesRemoved: 1, models: ['test-model'] },
+      answer: 'Found **3** files.\nDone.',
+    })
+    await $.classic.SubagentStop({ stop_hook_active: false, agent_id: 'agent-7', agent_type: 'Explore', agent_transcript_path: '', last_assistant_message: 'Ignored: an answer is known.' })
+    expect(world.get('activity').agents.find(agent => agent.id === 'agent-7')?.answer).toBe('Found **3** files.\nDone.')
+    await $.turn.complete(completion({ turnId: 'agent-turn', agentId: 'agent-7', answer: 'Final report.' }))
+    expect(world.get('activity').agents.find(agent => agent.id === 'agent-7')).toMatchObject({ answer: 'Final report.', totals: { tokens: 12000 } })
+  })
+
+  test('background work and git operations are recorded without command lines or cron prompts', async ($, on) => {
+    const world = setup(on)
+    on('tool.call', { tool: 'Bash' }, (_$, e) => e.tool_use_id === 'bg'
+      ? { result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'shell-1' } }
+      : { result: { stdout: '', stderr: '', interrupted: false, gitOperation: {
+        commit: { sha: 'abc123def456', kind: 'committed', branch: 'main' },
+        pr: { number: 9, action: 'created', url: 'https://example.test/pull/9' },
+      } } })
+    on('tool.call', { tool: 'TaskStop' }, () => ({ result: { message: 'Stopped.', task_id: 'mon-1', task_type: 'monitor' } }))
+    await $.tool.call({ tool: 'Bash', tool_use_id: 'bg', command: 'npm run watch --secret-flag', description: 'Watch the build', run_in_background: true })
+    expect(world.get('activity').background).toMatchObject([{ id: 'shell-1', type: 'shell', status: 'running', description: 'Watch the build' }])
+    await $.classic.Stop({ stop_hook_active: false, background_tasks: [
+      { id: 'shell-1', type: 'shell', status: 'running', description: 'Watch the build', command: 'npm run watch --secret-flag' },
+      { id: 'mon-1', type: 'monitor', status: 'running', description: 'Tail logs', server: 'logs', tool: 'tail' },
+    ], session_crons: [{ id: 'cron-1', schedule: '0 9 * * 1-5', recurring: true, prompt: 'private cron prompt' }] })
+    expect(world.get('activity').background.map(task => [task.id, task.status])).toEqual([['shell-1', 'running'], ['mon-1', 'running']])
+    expect(world.get('activity').crons).toEqual([{ id: 'cron-1', schedule: '0 9 * * 1-5', recurring: true }])
+    expect(world.get('activity').backgroundAt).not.toBeNull()
+    await $.tool.call({ tool: 'TaskStop', tool_use_id: 'stop-1', task_id: 'mon-1' })
+    await $.classic.Stop({ stop_hook_active: false, background_tasks: [], session_crons: [] })
+    expect(world.get('activity').background.map(task => [task.id, task.status, task.endedAt !== undefined])).toEqual([['shell-1', 'ended', true], ['mon-1', 'stopped', true]])
+    expect(JSON.stringify(world.get('activity'))).not.toContain('secret-flag')
+    expect(JSON.stringify(world.get('activity'))).not.toContain('private cron prompt')
+    await $.tool.call({ tool: 'Bash', tool_use_id: 'commit', command: 'git commit -m "message"' })
+    expect(world.get('review').gitOps).toMatchObject([{
+      id: 'commit', commit: { sha: 'abc123def456', kind: 'committed', branch: 'main' },
+      pr: { number: 9, action: 'created', url: 'https://example.test/pull/9' },
+    }])
+  })
+
+  test('a stop failure shows in the band and the pane until the next turn', async ($, on) => {
+    const world = setup(on)
+    await $.classic.StopFailure({ error: 'rate_limit', error_details: 'Retry in 30 seconds.' })
+    expect(world.get('activity').stopFailure).toMatchObject({ error: 'rate_limit', details: 'Retry in 30 seconds.' })
+    const band = await $.ui.mount({ plugin: 'cockpit', surface: 'terminal', component: 'AbovePrompt', requestId: 'band', props: bandProps() })
+    expect(await band.find({ type: 'Text', text: 'stopped: rate limit' })).toBeDefined()
+    await band.unmount()
+    const pane = await mountPane($, 'terminal')
+    expect(await pane.find({ type: 'Text', text: 'Last turn stopped: rate limit · Retry in 30 seconds.' })).toBeDefined()
+    await pane.unmount()
+    await $.turn.start({ text: 'Again.', turnId: 'next-turn' })
+    expect(world.get('activity').stopFailure).toBeNull()
+    await $.classic.StopFailure({ error: 'overloaded', agent_id: 'child' })
+    expect(world.get('activity').stopFailure).toBeNull()
+  })
+
+  test('compactions and cost growth are recorded, and a precompute is not', async ($, on) => {
+    const world = setup(on)
+    const messages = [{ role: 'user' as const, text: 'Summary.', toolUses: [] }]
+    on('session.compact', (_$, e) => e.trigger === 'manual'
+      ? { skip: 'A hook blocked it.' }
+      : { messages, tokensBefore: 150000, tokensAfter: 20000 })
+    await $.session.compact({ trigger: 'auto', messages })
+    await $.session.compact({ trigger: 'precompute', messages })
+    await $.session.compact({ trigger: 'manual', messages })
+    expect(world.get('context').compactions).toMatchObject([
+      { trigger: 'auto', tokensBefore: 150000, tokensAfter: 20000 },
+      { trigger: 'manual', skipped: 'A hook blocked it.' },
+    ])
+    for (const usd of [1, 1, 1.5, 2.25]) {
+      await $.session.measure({ context: { window: 200000 }, rateLimits: [], cost: { usd }, changed: ['cost'] })
+    }
+    expect(world.get('context').costs.map(sample => sample.usd)).toEqual([1, 1.5, 2.25])
+    world.seed('preferences', { ...world.get('preferences'), view: 'context' })
+    const pane = await mountPane($, 'terminal')
+    expect(await pane.find({ type: 'Text', text: 'Last turn: $0.7500' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: 'auto · 150,000 → 20,000 tokens' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: 'manual · skipped: A hook blocked it.' })).toBeDefined()
+    await pane.unmount()
+  })
+
+  test('saved preferences load at session start, and choices are saved for the next session', async ($, on) => {
+    const world = setup(on)
+    world.store.set('preferences', { view: 'context', band: false, animation: false })
+    await $.session.start({ cwd: '/project', surface: 'terminal', isInteractive: false })
+    expect(world.get('preferences')).toMatchObject({ view: 'context', band: false, animation: false })
+    await $.command.run(command('band on'))
+    await $.command.run(command('tools'))
+    expect(world.store.get('preferences')).toEqual({ view: 'tools', band: true, animation: false })
+  })
+
+  test('a store that cannot be read or written leaves the defaults and the command works', async ($, on) => {
+    const world = setup(on)
+    world.failStore = true
+    await $.session.start({ cwd: '/project', surface: 'terminal', isInteractive: false })
+    expect(world.commands).toEqual(['cockpit'])
+    expect((await $.command.run(command('band off'))).exitCode).toBeUndefined()
+    expect(world.get('preferences').band).toBe(false)
+  })
+
+  test('the pane follows the agent in view until the person chooses another', async ($, on) => {
+    const world = setup(on)
+    world.agents = [
+      { id: 'first', name: 'First worker', description: 'One', type: 'Explore', status: 'running' },
+      { id: 'second', name: 'Second worker', description: 'Two', type: 'Explore', status: 'running' },
+      { id: 'third', name: 'Third worker', description: 'Three', type: 'Explore', status: 'running' },
+    ]
+    await $.command.run(command('agents'))
+    const viewing = (agentId: string) => mountPaneWith($, { ...paneProps(), view: { agentId } })
+    let ui = await viewing('first')
+    expect(await ui.find({ type: 'Text', text: 'Selected agent · in view' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'ID: first' })).toBeDefined()
+    await ui.press({ key: 'ops:agent:second' })
+    expect(world.get('activity')).toMatchObject({ selectedAgent: 'second', selectedFor: 'first' })
+    await ui.unmount()
+    ui = await viewing('first')
+    expect(await ui.find({ type: 'Text', text: 'ID: second' })).toBeDefined()
+    await ui.unmount()
+    ui = await viewing('third')
+    expect(await ui.find({ type: 'Text', text: 'ID: third' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('activity samples record each level change from events, with no timer', async ($, on) => {
+    const world = setup(on)
+    on('tool.call', { tool: 'Read' }, async () => { await world.clock.advance(2000); return { result: { type: 'text' } } as never })
+    await $.turn.start({ text: 'Work.', turnId: 'sampled' })
+    await $.tool.call({ tool: 'Read', tool_use_id: 'read-1', file_path: '/project/a.ts' })
+    expect(world.get('activity').samples.map(sample => sample.level)).toEqual([1, 2, 1])
+    const times = world.get('activity').samples.map(sample => sample.at)
+    expect(times[2]! - times[1]!).toBe(2000)
+  })
+
+  test('state saved by an earlier version is filled in instead of breaking hooks or the pane', async ($, on) => {
+    const world = setup(on)
+    const legacy: Record<string, unknown> = { ...initialActivity(), sessionId: world.id, samples: [1, 2] }
+    for (const key of ['todos', 'tasks', 'background', 'crons', 'backgroundAt', 'stopFailure', 'selectedFor']) delete legacy[key]
+    world.seed('activity', legacy as unknown as State['activity'])
+    world.seed('review', { ...initialReview(), sessionId: world.id, gitOps: undefined } as unknown as State['review'])
+    world.seed('context', { sessionId: world.id, usage: null, refreshedAt: null, loading: false, error: null } as unknown as State['context'])
+    on('tool.call', { tool: 'TodoWrite' }, () => ({ result: { oldTodos: [], newTodos: [{ content: 'Upgrade', status: 'pending', activeForm: 'Upgrading' }] } }))
+    await $.tool.call({ tool: 'TodoWrite', tool_use_id: 'legacy-todo', todos: [] })
+    expect(world.get('activity').todos).toHaveLength(1)
+    expect(world.get('activity').samples.every(sample => typeof sample === 'object')).toBe(true)
+    for (const view of ['agents', 'tools', 'changes', 'context', 'reactor'] as const) {
+      world.seed('preferences', { ...world.get('preferences'), view })
+      const ui = await mountPane($, 'terminal')
+      expect(await ui.find({ type: 'Text', text: 'COCKPIT' })).toBeDefined()
       await ui.unmount()
     }
-    expect(world.network).toBe(0)
-  })
-
-  test('same-path PNG reloads change the image generation even at the same clock time', async ($, on) => {
-    const world = setup(on)
-    await $.command.run(command('images /project/image.png'))
-    expect(world.get('images').images[0]).toMatchObject({ generation: 1 })
-    let ui = await mountPane($, 'terminal')
-    expect(JSON.stringify(await ui.drawn())).toContain('"generation":1')
-    await ui.unmount()
-
-    await $.command.run(command('images /project/image.png'))
-    expect(world.get('images').images.length).toBe(1)
-    expect(world.get('images').images[0]).toMatchObject({ generation: 2 })
-    // Mocked state does not invalidate an existing mounted drawing.
-    ui = await mountPane($, 'terminal')
-    expect(JSON.stringify(await ui.drawn())).toContain('"generation":2')
-
-    await ui.press({ key: 'images-clear' })
-    expect(world.get('images').images).toEqual([])
-    await ui.unmount()
-    await $.command.run(command('images /project/image.png'))
-    expect(world.get('images').images[0]).toMatchObject({ generation: 3 })
-    ui = await mountPane($, 'terminal')
-    expect(JSON.stringify(await ui.drawn())).toContain('"generation":3')
-    expect(world.network).toBe(0)
-    await ui.unmount()
+    await $.session.measure({ context: { window: 200000 }, rateLimits: [], cost: { usd: 1 }, changed: ['cost'] })
+    expect(world.get('context').costs).toHaveLength(1)
+    expect(world.logs).toEqual([])
   })
 })
