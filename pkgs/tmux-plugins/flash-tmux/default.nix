@@ -6,7 +6,7 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "flash";
-  version = "0.2.2-unstable-2026-09-24";
+  version = "unstable-2026-09-24";
   src = fetchFromGitHub {
     owner = "and-rs";
     repo = "flash.tmux";

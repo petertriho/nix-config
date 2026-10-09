@@ -6,13 +6,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-cache-optimizer";
-  version = "2.8.21-unstable-2026-10-07";
+  version = "2.8.22-unstable-2026-10-08";
 
   src = fetchFromGitHub {
     owner = "jiangge";
     repo = "pi-cache-optimizer";
-    rev = "33974d5f24a429fa551f8fe1499c8c9b373bc69e";
-    hash = "sha256-wSnQi21nBX9P8cZijO06F1TuEC/21iPdyEZ1h1ghWgw=";
+    rev = "6874a6a4d78517117f9c08dd3558a71100aa11b1";
+    hash = "sha256-YzpYUDHiJd60Zwo23JIkZujVw8ZsybbBOGAvRhJDQm4=";
   };
 
   nativeBuildInputs = [ jq ];

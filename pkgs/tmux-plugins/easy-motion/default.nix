@@ -8,12 +8,12 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "easy-motion";
-  version = "0-unstable-2026-07-16";
+  version = "unstable-2026-07-16";
   src = fetchFromGitHub {
     owner = "IngoMeyer441";
     repo = "tmux-easy-motion";
     rev = "1a1aca6ed82b6b02dbfee99e0125540b6f590743";
-    sha256 = "sha256-8RRIXQc5odHSI1kVehU/tfqBw+IOcRUB5oPu7rqFTSo=";
+    sha256 = "0ajdhnxfxvl3wq0iaw8fwb1q3ymm7wapl5ar4g9d389r0xflh57i";
   };
   nativeBuildInputs = [ makeWrapper ];
   rtpFilePath = "easy_motion.tmux";
