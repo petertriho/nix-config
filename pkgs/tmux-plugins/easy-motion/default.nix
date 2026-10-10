@@ -8,7 +8,7 @@
 }:
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "easy-motion";
-  version = "unstable-2026-07-16";
+  version = "0-unstable-2026-07-16";
   src = fetchFromGitHub {
     owner = "IngoMeyer441";
     repo = "tmux-easy-motion";
