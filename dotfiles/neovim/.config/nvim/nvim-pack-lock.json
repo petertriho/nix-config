@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "656a99f7cdcadfc5ed6fc5095dd8957bee3e3de0",
+      "rev": "7efcd3711b9028e97f95bb0eda9963e08a341e41",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -38,7 +38,7 @@
       "src": "https://github.com/kwkarlwang/bufjump.nvim"
     },
     "celeste_comment.nvim": {
-      "rev": "d3b0c0ca694c07aafd336619a400ef5c085b9b16",
+      "rev": "7faffcdb5a3f9c75e98580a85a62e1ecb890b9bc",
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
@@ -122,7 +122,7 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini.nvim": {
-      "rev": "0513ad9ada655a07af321c129b69dafaf9e63d80",
+      "rev": "9ee72c26ac1440ee6c95ce708c1d739684be316a",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
@@ -154,7 +154,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "db68de3575fff9dd9bb78b34c8371759ed35fe34",
+      "rev": "c59fc922f718fa055f69f5f3bc888f23211571eb",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -229,7 +229,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "31626d9d0a95418bf12a8b3f0e8f9f42e73e1f35",
+      "rev": "b463a5e79f84fd9ca22dd47f41754387d8fe7af4",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
