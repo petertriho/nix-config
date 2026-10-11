@@ -10,8 +10,8 @@ let
   src = fetchFromGitHub {
     owner = "jvm";
     repo = "pi-mono";
-    rev = "5df90c1b95fabc7d19ffcd622715129414d111ca";
-    hash = "sha256-sM4hfr0+DhfBrk4357AzT+VIztNlzR9/vpD9hjyDiBU=";
+    rev = "e75c25ac0b8e15fa15d13020d1b127637ee11226";
+    hash = "sha256-/D3TFjWZp3h7hpz0HM9HTvKG9J+7IDk0nNIgMSCUaPw=";
   };
 in
 buildNpmPackage (finalAttrs: {
