@@ -10,13 +10,13 @@ let
   src = fetchFromGitHub {
     owner = "jvm";
     repo = "pi-mono";
-    rev = "e75c25ac0b8e15fa15d13020d1b127637ee11226";
-    hash = "sha256-/D3TFjWZp3h7hpz0HM9HTvKG9J+7IDk0nNIgMSCUaPw=";
+    rev = "c78b7d76599fd1fcdb0c64546d657e4f70e1d1d5";
+    hash = "sha256-Ip+AFXfET57Nj3qhxf7uSECLdzUkjo6luNq5o7rDROc=";
   };
 in
 buildNpmPackage (finalAttrs: {
   pname = "pi-codex-tools";
-  version = "pi-skillful@0.5.0-unstable-2026-10-10";
+  version = "pi-skillful@0.5.0-unstable-2026-10-11";
   inherit src;
 
   sourceRoot = "${src.name}/packages/pi-codex-tools";
