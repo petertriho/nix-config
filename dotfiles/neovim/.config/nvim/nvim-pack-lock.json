@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "911cce0b9a827196492e8d2229cb16a4c8a7d4cf",
+      "rev": "38bf1c580423ecdcabc6672138052d33a3eb53b2",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -38,7 +38,7 @@
       "src": "https://github.com/kwkarlwang/bufjump.nvim"
     },
     "celeste_comment.nvim": {
-      "rev": "7faffcdb5a3f9c75e98580a85a62e1ecb890b9bc",
+      "rev": "38efbd64c47f8958d6a8a04cf28f1a9765b8bfa7",
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
@@ -122,7 +122,7 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini.nvim": {
-      "rev": "9ee72c26ac1440ee6c95ce708c1d739684be316a",
+      "rev": "8831fa150fa26492cfe135801fa498132f1491d2",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
@@ -130,7 +130,7 @@
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
-      "rev": "70708be9664b7fcdd010eb07bdc3ebc9311c2027",
+      "rev": "2063bd554255ec29a709540f5c51572b2d834a6c",
       "src": "https://github.com/NeogitOrg/neogit"
     },
     "nui.nvim": {
@@ -154,7 +154,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "6d27c288ff951e1e94cb5f91c800adeddf0dc0c2",
+      "rev": "ac062d0d01c019c0dbdb798968f3e5d8b35c3853",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -201,7 +201,7 @@
       "src": "https://github.com/chrisgrieser/nvim-various-textobjs"
     },
     "nvim-web-devicons": {
-      "rev": "58447c1fca354bbf184425e4a8d01deecbd6f3c4",
+      "rev": "ec309a0eaff6ea967e58c275996155ab5c16938d",
       "src": "https://github.com/nvim-tree/nvim-web-devicons"
     },
     "plenary.nvim": {
@@ -229,11 +229,11 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "a470cbcd112e717a8955efee3929bd59f7473c7b",
+      "rev": "1c6d5e0b721c877c4c8061d2361f8fc20adaf896",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
-      "rev": "228aabdb1b9cc74f0c0ccec88e79873857236e49",
+      "rev": "01cc3d5bb794e6d7afbb1b02a7e941ddf736d9ea",
       "src": "https://github.com/tiagovla/scope.nvim"
     },
     "select-undo.nvim": {
