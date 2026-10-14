@@ -6,13 +6,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-tasks";
-  version = "0.9.0-unstable-2026-08-24";
+  version = "0.9.1-unstable-2026-10-13";
 
   src = fetchFromGitHub {
     owner = "tintinweb";
     repo = "pi-tasks";
-    rev = "29180d72498bdd77d5601dc77a9093d25da42102";
-    hash = "sha256-2Wa+lUHQP6qvnRERaqFNu1IkOD4d5etb+x6oTCqh6Vg=";
+    rev = "c820715be1bf05db36d0739e88061b97b8c2c9d3";
+    hash = "sha256-H+l6YII6IyYCBdTARP4W3MyYiHMANgjOJWrMHDZolJk=";
   };
 
   nativeBuildInputs = [ jq ];
