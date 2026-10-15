@@ -1,10 +1,11 @@
 {
   lib,
   stdenv,
-  stdenvNoCC,
   buildNpmPackage,
+  esbuild,
   fetchFromGitHub,
   fetchurl,
+  nixfmt,
   nodejs_24,
   autoPatchelfHook,
   writeText,
@@ -32,48 +33,6 @@ let
     }
   ) grammars;
 
-  esbuildVersion = "0.28.1";
-  esbuildPlatform =
-    {
-      "x86_64-linux" = {
-        package = "linux-x64";
-        hash = "sha512-u/anNYF2mmVOEDwLtnQ1wOr3EZ9sTNGLWrsYGYwHWzGA3Si84IOkHXlbWTD1NB+9/1lcnweYKO54uhxZydNzfA==";
-      };
-      "aarch64-linux" = {
-        package = "linux-arm64";
-        hash = "sha512-yHs+0uc8+nvEAfAfxrWQKK5peSNzBc4PegcMO0EJ2hT71uA7vB8Ihg2e77R2P7SG5uYjPbHlLLmve4LLLRCf0g==";
-      };
-      "x86_64-darwin" = {
-        package = "darwin-x64";
-        hash = "sha512-zfdzgK9ACBNZLI/CyHTOx81SyNbM6YXn7rxSgX97VjyiPl9W1i4Ka4fgKECEoFCKGpvBj5qArWIGgQjOwkgskQ==";
-      };
-      "aarch64-darwin" = {
-        package = "darwin-arm64";
-        hash = "sha512-TZbWkQY7kvTAXbXUT7uVACR5cMHsDiSz9z7ZKAX/RTq/WJEk3QyRr0wZpNhBDX+/0CtdqUIJlOiodQcta6tY3Q==";
-      };
-    }
-    .${stdenv.hostPlatform.system};
-
-  esbuildBinary = stdenvNoCC.mkDerivation {
-    pname = "esbuild-${esbuildPlatform.package}";
-    version = esbuildVersion;
-
-    src = fetchurl {
-      url = "https://registry.npmjs.org/@esbuild/${esbuildPlatform.package}/-/${esbuildPlatform.package}-${esbuildVersion}.tgz";
-      inherit (esbuildPlatform) hash;
-    };
-
-    dontUnpack = true;
-
-    installPhase = ''
-      runHook preInstall
-
-      tar -xzf "$src"
-      install -Dm755 package/bin/esbuild "$out/bin/esbuild"
-
-      runHook postInstall
-    '';
-  };
 in
 buildNpmPackage (finalAttrs: {
   pname = "pi-lens";
@@ -124,7 +83,44 @@ buildNpmPackage (finalAttrs: {
     lockfile = ./package-lock.json;
   };
   passthru.updateScript = updateNpmLock {
-    inherit (finalAttrs) pname src postPatch npmDepsFetcherVersion;
+    inherit (finalAttrs)
+      pname
+      src
+      postPatch
+      npmDepsFetcherVersion
+      ;
+    extraFiles."grammars.nix" = ''
+      echo '# Generated from pi-lens scripts/grammars.lock.json by passthru.updateScript. Do not edit.'
+      nix eval --impure --expr '
+        let
+          manifest = builtins.fromJSON (
+            builtins.readFile ${builtins.toJSON "${finalAttrs.src}/scripts/grammars.lock.json"}
+          );
+          overrides = manifest.overrides or {};
+        in
+        map (
+          filename:
+          let
+            source =
+              if builtins.hasAttr filename overrides then
+                builtins.getAttr filename overrides
+              else {
+                package = manifest.package;
+                version = manifest.version;
+                url = "https://unpkg.com/" + manifest.package + "@" + manifest.version + "/out/" + filename;
+              };
+            hash = builtins.getAttr filename manifest.grammars;
+          in
+          assert builtins.match "sha256:[0-9a-f]{64}" hash != null;
+          {
+            inherit filename;
+            npmPackage = source.package;
+            inherit (source) version url;
+            sha256 = builtins.substring 7 64 hash;
+          }
+        ) (builtins.attrNames manifest.grammars)
+      ' | ${lib.getExe nixfmt} -
+    '';
   };
 
   buildPhase = ''
@@ -132,7 +128,7 @@ buildNpmPackage (finalAttrs: {
 
     rm -rf dist
     ./node_modules/.bin/tsc --project tsconfig.dist.json --noCheck
-    ${esbuildBinary}/bin/esbuild dist/index.js \
+    esbuild dist/index.js \
       --bundle \
       --platform=node \
       --format=esm \
@@ -150,7 +146,10 @@ buildNpmPackage (finalAttrs: {
     runHook postBuild
   '';
 
-  nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];
+  nativeBuildInputs = [
+    esbuild
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];
   buildInputs = lib.optionals stdenv.hostPlatform.isLinux [ stdenv.cc.cc.lib ];
 
   postInstall = ''
