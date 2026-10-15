@@ -13,22 +13,22 @@ let
   assets = {
     x86_64-linux = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-linux-x64";
-      hash = "sha256-0DsbKvFNgtzA4iNUU+O9l/PUxe6+r+quVyf5th3cAFE=";
+      hash = "sha256-N3T85cvpDsf9GiktD2H7jldFDudj6wGWbHrim9M0GfM=";
     };
     aarch64-linux = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-linux-arm64";
-      hash = "sha256-c+SoJb5xqeNpy4Gf+8JEeli5TxkD/Zta3wPSWq7PkoM=";
+      hash = "sha256-LVtdmsBPeduhjjdMk9DmPlWxVtQRRqZcW3I49W51GJ0=";
     };
     aarch64-darwin = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-darwin-arm64";
-      hash = "sha256-h9wQj1HqfA5pDT1huVH2pJISInMoB6dgcPIl3RaTaOc=";
+      hash = "sha256-zNWR8gRpdmjN/itQ1gHp5GKdGJG4QDcY47NLoIvlPak=";
     };
     x86_64-darwin = {
       url = "https://github.com/dondai44423/bladebro/releases/download/v${version}/bladebro-darwin-x64";
-      hash = "sha256-xpgGmdjOGHdGb0LHw+bwTSXhSjNMXIavpeWD5sPiE7A=";
+      hash = "sha256-BdpXVgC9ANS94wumbdC8Ne6VqchgRAU5p+sKlYlEzPc=";
     };
   };
-  version = "4.5.2";
+  version = "4.6.1";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "bladebro";
