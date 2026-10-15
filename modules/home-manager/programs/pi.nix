@@ -156,6 +156,7 @@ let
   # Every color token required by Pi's theme schema (see theme-schema.json in
   # the Pi package), mapped onto the Stylix base16 palette.
   stylixTheme = {
+    "$schema" = "https://pi.dev/schemas/theme.schema.json";
     name = "stylix";
     vars = {
       inherit (colors)
@@ -341,6 +342,7 @@ in
         prettier
       ];
       keybindings = {
+        "$schema" = "https://pi.dev/schemas/keybindings.schema.json";
         "app.model.cycleForward" = [ ];
         "tui.select.up" = [
           "up"
@@ -366,6 +368,7 @@ in
         "app.message.dequeue" = [ "ctrl+q" ];
       };
       settings = {
+        "$schema" = "https://pi.dev/schemas/settings.schema.json";
         defaultProjectTrust = "always";
         defaultTools = [ "+codemode" ];
         editorPaddingX = 1;
