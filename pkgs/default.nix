@@ -23,7 +23,6 @@ with pkgs;
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
   nono-packs = callPackage ./nono-packs { };
-  pi-acp = callPackage ./pi-acp { };
   playwriter = callPackage ./playwriter { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   python-validity = callPackage ./python-validity { };

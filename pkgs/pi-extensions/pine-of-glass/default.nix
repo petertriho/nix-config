@@ -21,13 +21,13 @@ stdenvNoCC.mkDerivation (let
     ++ lib.optional enableMeantime "./extensions/pi-meantime";
  in {
   pname = "pine-of-glass";
-  version = "0.15.3-unstable-2026-10-09";
+  version = "0.18.0-unstable-2026-10-17";
 
   src = fetchFromGitHub {
     owner = "tmustier";
     repo = "pine-of-glass";
-    rev = "36813620e4e4fda379bd17c368c3095f3213cf47";
-    hash = "sha256-VH/aDPh0wUsjBFObSvBdLMr+TSEaLbiryRKmnEXWYaU=";
+    rev = "257ae19050394f8d6f0fa1e083c5086bb83a0be2";
+    hash = "sha256-r/I7RQ+/YNWRzZvVxLmKD1ziMsjGdYy/miQJ0y9sUPI=";
   };
 
   dontBuild = true;

@@ -10,6 +10,7 @@ let
     # pkgs.terraform-mcp-server
   ];
   llmAgents = with pkgs.llm-agents; [
+    pi-acp
     tokscale
     # docker-sbx
     # terminal-browser
@@ -23,7 +24,6 @@ in
       with pkgs;
       [
         nodejs
-        pi-acp
         python3
         python3Packages.tiktoken
         tmuxai
