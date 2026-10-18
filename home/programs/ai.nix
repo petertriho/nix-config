@@ -273,6 +273,7 @@ in
     jscpd.enable = true;
     plannotator.enable = true;
     playwriter.enable = false;
+    rea.enable = true;
     repowise.enable = false;
     spawnpoint.enable = false;
     superpowers.enable = false;

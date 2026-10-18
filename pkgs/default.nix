@@ -26,6 +26,7 @@ with pkgs;
   playwriter = callPackage ./playwriter { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   python-validity = callPackage ./python-validity { };
+  rea = callPackage ./rea { };
   repowise = callPackage ./repowise {
     inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
   };

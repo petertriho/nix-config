@@ -18,6 +18,7 @@
     ./pi.nix
     ./plannotator.nix
     ./playwriter.nix
+    ./rea.nix
     ./repowise.nix
     ./spawnpoint.nix
     ./superpowers.nix
