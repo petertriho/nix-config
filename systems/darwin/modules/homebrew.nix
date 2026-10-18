@@ -66,7 +66,7 @@ in
       "orbstack"
       "reminders-menubar"
       "steipete/tap/codexbar"
-      "thaw"
+      "thaw@beta"
       # "TabularisDB/tabularis/tabularis"
       # "aionui"
       # "airbuddy"
