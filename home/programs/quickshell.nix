@@ -53,12 +53,6 @@ in
               readonly property int workspaceIconSize: 12
           }
 
-          readonly property QtObject osd: QtObject {
-              readonly property real opacity: 0.9
-              readonly property int titleFontSize: 16
-              readonly property int valueFontSize: 14
-          }
-
           readonly property QtObject notifications: QtObject {
               readonly property int summaryFontSize: 14
               readonly property int appFontSize: 11

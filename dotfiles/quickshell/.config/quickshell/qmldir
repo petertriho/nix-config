@@ -1,4 +1,1 @@
 Bar 1.0 modules/Bar/main.qml
-Brightness 1.0 modules/ControlOSD/Brightness.qml
-ControlOSD 1.0 modules/ControlOSD/main.qml
-Volume 1.0 modules/ControlOSD/Volume.qml

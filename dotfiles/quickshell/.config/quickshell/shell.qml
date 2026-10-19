@@ -54,6 +54,17 @@ ShellRoot {
         id: caffeineSvc
     }
 
+    // Volume and brightness controls plus the mini OSD state for every bar.
+    // NOTE: id is `osdSvc`, not `osdService`, for the same shadowing reason as
+    // `codexBarSvc` above.
+    OsdFeature.Service {
+        id: osdSvc
+        colors: config.colors
+        osdConfig: config.osd
+        stepsConfig: config.steps
+        thresholdsConfig: config.thresholds
+    }
+
     // Bar components, one per connected screen.
     Variants {
         model: Quickshell.screens
@@ -76,96 +87,32 @@ ShellRoot {
                 notificationsManager: notifications
                 codexBarService: codexBarSvc
                 workspaceService: workspaceSvc
-                brightnessControl: brightnessSvc
+                osdService: osdSvc
                 caffeineService: caffeineSvc
             }
         }
-    }
-
-    // Control components
-    OsdFeature.Brightness {
-        id: brightnessSvc
-        colors: config.colors
-    }
-
-    OsdFeature.Volume {
-        id: volumeControl
-        colors: config.colors
-    }
-
-    // OSD components
-    OsdFeature.ControlOSD {
-        id: brightnessOsd
-        title: "Brightness"
-        value: brightnessSvc.brightness
-        progressColor: config.colors.base0A
-        colors: config.colors
-        osdConfig: config.osd
-    }
-
-    OsdFeature.ControlOSD {
-        id: volumeOsd
-        title: "Volume"
-        value: volumeControl.volume
-        progressColor: config.colors.base0B
-        showMute: true
-        isMuted: volumeControl.muted
-        colors: config.colors
-        osdConfig: config.osd
-    }
-
-    // Volume pushes state; brightness re-reads before stepping, so no polling is needed.
-
-    function brightnessUp() {
-        brightnessSvc.increase(config.steps.brightness);
-        brightnessOsd.show();
-    }
-
-    function brightnessDown() {
-        brightnessSvc.decrease(config.steps.brightness);
-        brightnessOsd.show();
-    }
-
-    function brightnessShow() {
-        brightnessSvc.getBrightness();
-        brightnessOsd.show();
-    }
-
-    function volumeUp() {
-        volumeControl.increase(config.steps.volume);
-        volumeOsd.show();
-    }
-
-    function volumeDown() {
-        volumeControl.decrease(config.steps.volume);
-        volumeOsd.show();
-    }
-
-    function volumeMute() {
-        volumeControl.toggleMute();
-        volumeOsd.show();
     }
 
     IpcHandler {
         target: "quickshell-osd"
 
         function brightnessUp(): void {
-            root.brightnessUp();
+            osdSvc.brightnessUp();
         }
         function brightnessDown(): void {
-            root.brightnessDown();
+            osdSvc.brightnessDown();
         }
         function brightnessShow(): void {
-            root.brightnessShow();
+            osdSvc.brightnessShow();
         }
         function volumeUp(): void {
-            root.volumeUp();
+            osdSvc.volumeUp();
         }
         function volumeDown(): void {
-            root.volumeDown();
+            osdSvc.volumeDown();
         }
         function volumeMute(): void {
-            root.volumeMute();
+            osdSvc.volumeMute();
         }
     }
 
@@ -202,7 +149,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    root.brightnessUp();
+                    osdSvc.brightnessUp();
                 }
             }
 
@@ -212,7 +159,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    root.brightnessDown();
+                    osdSvc.brightnessDown();
                 }
             }
 
@@ -222,7 +169,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    root.volumeUp();
+                    osdSvc.volumeUp();
                 }
             }
 
@@ -232,7 +179,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    root.volumeDown();
+                    osdSvc.volumeDown();
                 }
             }
 
@@ -242,7 +189,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    root.volumeMute();
+                    osdSvc.volumeMute();
                 }
             }
         }

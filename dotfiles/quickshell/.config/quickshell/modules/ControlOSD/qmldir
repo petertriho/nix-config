@@ -1,3 +1,4 @@
 Brightness 1.0 Brightness.qml
-ControlOSD 1.0 main.qml
+MiniOsd 1.0 MiniOsd.qml
+Service 1.0 Service.qml
 Volume 1.0 Volume.qml

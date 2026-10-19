@@ -2,25 +2,20 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Services.Pipewire
 
 BaseModule {
     id: root
 
     hoverHighlight: true
-    property var sink: Pipewire.defaultAudioSink
-    property real volume: sink && sink.audio ? Math.round(sink.audio.volume * 100) : 0
-    property bool isMuted: sink && sink.audio ? sink.audio.muted : false
+    property var osdService
+    readonly property var volumeControl: osdService ? osdService.volumeControl : null
+    property real volume: volumeControl ? volumeControl.volume : 0
+    property bool isMuted: volumeControl ? volumeControl.muted : false
     property bool isBluetooth: false
     property string deviceType: "default"
     property string icon: isMuted ? "󰖁" : isBluetooth ? "󰂯 " + getVolumeIcon() : getVolumeIcon()
     property QtObject intervalsConfig: parent.intervalsConfig
-    property QtObject thresholdsConfig: parent.thresholdsConfig
     property QtObject stepsConfig: parent.stepsConfig
-
-    PwObjectTracker {
-        objects: [Pipewire.defaultAudioSink]
-    }
 
     function getVolumeIcon() {
         if (deviceType === "headphone")
@@ -36,14 +31,7 @@ BaseModule {
         if (deviceType === "car")
             return "󰄋";
 
-        var lowThreshold = thresholdsConfig.volume.low;
-        var mediumThreshold = thresholdsConfig.volume.medium;
-
-        if (volume < lowThreshold)
-            return "󰕿";
-        if (volume < mediumThreshold)
-            return "󰖀";
-        return "󰕾";
+        return volumeControl ? volumeControl.icon : "󰕾";
     }
 
     text: icon

@@ -69,21 +69,13 @@ QtObject {
         readonly property var ignoreClasses: ["xwaylandvideobridge"]
     }
 
-    // OSD (On Screen Display) configuration
+    // Mini OSD (On Screen Display) that replaces the bar clock after a volume or
+    // brightness change.
     readonly property QtObject osd: QtObject {
-        readonly property int bottomMargin: 50
-        readonly property int width: 300
-        readonly property int height: 100
-        readonly property int cornerRadius: 10
-        readonly property real opacity: theme.osd.opacity
-        readonly property int contentMargins: 20
-        readonly property int contentSpacing: 10
-        readonly property int titleFontSize: theme.osd.titleFontSize
-        readonly property int progressBarHeight: 20
-        readonly property int progressBarCornerRadius: 5
-        readonly property int progressFillCornerRadius: 5
-        readonly property int valueFontSize: theme.osd.valueFontSize
         readonly property int hideInterval: 2000
+        readonly property int progressBarHeight: 6
+        readonly property int progressBarCornerRadius: 3
+        readonly property int spacing: 4
     }
 
     // Update intervals (consumed keys only).

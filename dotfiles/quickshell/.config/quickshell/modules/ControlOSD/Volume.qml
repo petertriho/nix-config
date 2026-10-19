@@ -10,6 +10,19 @@ Item {
     property real volume: (sink && sink.audio) ? Math.round(sink.audio.volume * 100) : 0
     property bool muted: (sink && sink.audio) ? sink.audio.muted : false
     property QtObject colors: null
+    property QtObject thresholdsConfig: null
+
+    readonly property string icon: {
+        if (muted)
+            return "󰖁";
+        if (!thresholdsConfig || !thresholdsConfig.volume)
+            return "󰕾";
+        if (volume < thresholdsConfig.volume.low)
+            return "󰕿";
+        if (volume < thresholdsConfig.volume.medium)
+            return "󰖀";
+        return "󰕾";
+    }
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]

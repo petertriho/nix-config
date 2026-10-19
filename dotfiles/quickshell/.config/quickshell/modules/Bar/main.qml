@@ -31,7 +31,7 @@ PanelWindow {
     required property var notificationsManager
     property var codexBarService
     property var workspaceService
-    property var brightnessControl
+    property var osdService
     property var caffeineService
 
     Rectangle {
@@ -111,6 +111,7 @@ PanelWindow {
                 fontsConfig: root.fontsConfig
                 popupsConfig: root.popupsConfig
                 overlayConfig: root.overlayConfig
+                osdService: root.osdService
             }
 
             // Right modules
@@ -232,9 +233,8 @@ PanelWindow {
                     colors: root.colors
                     moduleConfig: root.moduleConfig
                     intervalsConfig: root.intervalsConfig
-                    thresholdsConfig: root.thresholdsConfig
                     fontsConfig: root.fontsConfig
-                    brightnessControl: root.brightnessControl
+                    osdService: root.osdService
                 }
 
                 Audio {
@@ -244,9 +244,9 @@ PanelWindow {
                     colors: root.colors
                     moduleConfig: root.moduleConfig
                     intervalsConfig: root.intervalsConfig
-                    thresholdsConfig: root.thresholdsConfig
                     stepsConfig: root.stepsConfig
                     fontsConfig: root.fontsConfig
+                    osdService: root.osdService
                 }
 
                 Battery {

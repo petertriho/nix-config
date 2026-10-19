@@ -8,6 +8,17 @@ Item {
     id: root
     property var brightness: 0
     property QtObject colors: null
+    property QtObject thresholdsConfig: null
+
+    readonly property string icon: {
+        if (!thresholdsConfig || !thresholdsConfig.brightness)
+            return "󰃞";
+        if (brightness < thresholdsConfig.brightness.low)
+            return "󰃞";
+        if (brightness < thresholdsConfig.brightness.medium)
+            return "󰃟";
+        return "󰃠";
+    }
 
     // Queued step applied to the next fresh reading, so presses never use a stale base.
     property int pendingDelta: 0

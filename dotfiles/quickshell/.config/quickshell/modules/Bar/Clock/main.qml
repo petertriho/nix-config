@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Quickshell
 import ".."
 import "../../Common" as Common
+import "../../ControlOSD" as Osd
 import "." as Local
 
 BaseModule {
@@ -12,9 +13,58 @@ BaseModule {
     property QtObject popupsConfig: parent.popupsConfig
     property QtObject overlayConfig: parent.overlayConfig
     property var barWindow: null
+    property var osdService: null
 
     // Minute-precision label without per-second wakeups.
     text: Qt.formatDateTime(sysClock.date, "yyyy-MM-dd HH:mm")
+
+    // The mini OSD covers the clock text in place. The text stays set, so the
+    // implicit width (and `clock.x` in the bar layout) does not change. The text
+    // fades through its color alpha, not opacity, because the mini OSD is a
+    // child of the text item.
+    readonly property bool osdShown: osdService ? osdService.shown : false
+    readonly property int fadeMs: overlayConfig ? overlayConfig.animationDurationMs : 90
+    readonly property color clockColor: colors.base05
+    property real clockAlpha: osdShown ? 0 : 1
+    Behavior on clockAlpha {
+        NumberAnimation {
+            duration: root.fadeMs
+        }
+    }
+    textColor: Qt.rgba(clockColor.r, clockColor.g, clockColor.b, clockAlpha)
+
+    Osd.MiniOsd {
+        anchors.fill: parent
+        osdService: root.osdService
+        colors: root.colors
+        fontsConfig: root.fontsConfig
+        opacity: root.osdShown ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: root.fadeMs
+            }
+        }
+    }
+
+    // One step per wheel notch (120 units). Touchpad deltas accumulate until
+    // they reach a notch.
+    property real wheelRemainder: 0
+    onOsdShownChanged: wheelRemainder = 0
+
+    WheelHandler {
+        enabled: root.osdShown
+        target: null
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: function (event) {
+            root.wheelRemainder += event.angleDelta.y;
+            while (Math.abs(root.wheelRemainder) >= 120) {
+                var direction = root.wheelRemainder > 0 ? 1 : -1;
+                root.osdService.step(direction);
+                root.wheelRemainder -= direction * 120;
+            }
+        }
+    }
 
     // Calendar popup state
     property bool showPopup: false
