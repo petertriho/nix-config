@@ -51,6 +51,19 @@ in
               "${agentStateScript}" --agent claude --state done
             '';
         };
+        programs.claude-code.settings.hooks =
+          lib.genAttrs [ "UserPromptSubmit" "PermissionRequest" "Stop" ]
+            (event: [
+              {
+                matcher = "";
+                hooks = [
+                  {
+                    type = "command";
+                    command = ''bash "$HOME/.claude/hooks/${event}"'';
+                  }
+                ];
+              }
+            ]);
       })
       # (lib.mkIf (config.programs.codex.enable) {
       #   programs.codex.settings.notify = [

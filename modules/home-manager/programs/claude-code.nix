@@ -14,6 +14,57 @@ in
   config = lib.mkIf cfg.enable {
     programs.claude-code.outputStyles.ste = config.lib.meta.mkDotfilesSymlink "agents/.agents/output-styles/ste.md";
 
+    # Activation merges these keys into a writable settings.json, so Claude
+    # Code can still save runtime changes. Declared keys win on every switch.
+    # `model` and `effortLevel` stay undeclared so `/model` changes persist.
+    programs.claude-code.mutableSettings = true;
+    programs.claude-code.settings = {
+      # Teammate child processes that bypass the Nix wrapper only see these.
+      # CLAUDE_CODE_TMUX_TRUECOLOR keeps the stylix theme hex exact in tmux.
+      env = {
+        CLAUDE_CODE_TMUX_TRUECOLOR = "1";
+        DISABLE_AUTOUPDATER = "1";
+        DISABLE_UPDATES = "1";
+      };
+      attribution = {
+        commit = "";
+        pr = "";
+        sessionUrl = false;
+      };
+      includeCoAuthoredBy = false;
+      permissions.defaultMode = "bypassPermissions";
+      disableClaudeAiConnectors = true;
+      disableBundledSkills = true;
+      disableRemoteControl = true;
+      disableArtifact = true;
+      enableWorkflows = false;
+      workflowKeywordTriggerEnabled = false;
+      statusLine = {
+        type = "command";
+        command = "claude-statusline";
+        padding = 0;
+      };
+      outputStyle = "ste";
+      autoCompactWindow = 400000;
+      tui = "fullscreen";
+      skipDangerousModePermissionPrompt = true;
+      theme = "custom:stylix";
+      editorMode = "vim";
+      teammateMode = "auto";
+      remoteControlAtStartup = false;
+      hooks.PreToolUse = [
+        {
+          matcher = "EnterPlanMode";
+          hooks = [
+            {
+              type = "command";
+              command = ''bash "$HOME/.claude/hooks/PreToolUse"'';
+            }
+          ];
+        }
+      ];
+    };
+
     # Block model-initiated plan mode. Custom planning skills (e.g. `planner`)
     # own their own interview-and-write workflow, and Claude Code's built-in
     # plan mode hijacks it: it is read-only, so it blocks the skill's Write, and
@@ -34,12 +85,10 @@ in
       # file.".claude/skills/context7" = {
       #   source = config.lib.meta.mkDotfilesSymlink "opencode/.config/opencode/skills/context7";
       # };
-      file.".claude/settings.json".source =
-        config.lib.meta.mkDotfilesSymlink "claude/.claude/settings.json";
-      # Selected as `custom:stylix` in settings.json. The ANSI base keeps text in
+      # Selected by `theme` in programs.claude-code.settings. The ANSI base keeps text in
       # the terminal palette. Docked panes otherwise fill with ANSI bright black,
       # and no ANSI color is the terminal background. The hex needs
-      # CLAUDE_CODE_TMUX_TRUECOLOR (settings.json) inside tmux, or Claude Code
+      # CLAUDE_CODE_TMUX_TRUECOLOR (settings `env`) inside tmux, or Claude Code
       # rounds it to the nearest xterm-256 color.
       file.".claude/themes/stylix.json".text = builtins.toJSON {
         name = "Stylix";
@@ -67,7 +116,7 @@ in
           CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION = 1;
           # Native install self-updates ignore `autoUpdates: false`. These env
           # vars are the only reliable lever, and teammate child processes that
-          # bypass the Nix wrapper only see them via settings.json / this block.
+          # bypass the Nix wrapper only see them via settings `env` / this block.
           DISABLE_AUTOUPDATER = 1;
           DISABLE_TELEMETRY = 1;
           DISABLE_UPDATES = 1;
@@ -86,7 +135,7 @@ in
       ];
     };
 
-    # The files and skill directory above are out-of-store symlinks; the
+    # The skill directories and output style above are out-of-store symlinks; the
     # sandbox resolves through to the tracked target, so it needs the target
     # granted as well.
     programs.nono.agentFilesystem.claude = {
@@ -97,7 +146,6 @@ in
         "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
       ];
       read_file = [
-        "$HOME/.nix-config/dotfiles/claude/.claude/settings.json"
         "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
       ];
     };

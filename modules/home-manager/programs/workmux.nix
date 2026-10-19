@@ -39,6 +39,27 @@ in
         home.file."${config.programs.pi-coding-agent.configDir}/extensions/workmux-status.ts".source =
           "${cfg.package.src}/resources/pi/extensions/workmux-status.ts";
       })
+      (lib.mkIf config.programs.claude-code.enable {
+        programs.claude-code.settings.hooks =
+          let
+            setStatus = status: {
+              hooks = [
+                {
+                  type = "command";
+                  command = "workmux set-window-status ${status}";
+                }
+              ];
+            };
+          in
+          {
+            Notification = [
+              ((setStatus "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
+            ];
+            PostToolUse = [ (setStatus "working") ];
+            UserPromptSubmit = [ (setStatus "working") ];
+            Stop = [ (setStatus "done") ];
+          };
+      })
     ]
   );
 }

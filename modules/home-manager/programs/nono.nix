@@ -16,7 +16,7 @@ let
   # does not follow symlinks it finds underneath that path:
   #
   #   * A link to a file or to a whole directory can be named directly
-  #     (`$HOME/.claude/settings.json`, `$HOME/.gittemplates`). The tracked
+  #     (`$HOME/.config/workmux/config.yaml`, `$HOME/.gittemplates`). The tracked
   #     target is granted with it, so the grant survives moves in `dotfiles/`.
   #   * A real directory holding per-entry links (`$HOME/.config/git`,
   #     `$HOME/.agents/skills`) only gets traversal that way, so name the
@@ -108,7 +108,7 @@ in
       type = lib.types.attrsOf grantSubmodule;
       default = { };
       example = lib.literalExpression ''
-        { claude.read_file = [ "$HOME/.claude/settings.json" ]; }
+        { claude.read_file = [ "$HOME/.config/workmux/config.yaml" ]; }
       '';
       description = ''
         Grants merged into every profile whose `agent` matches the attribute
