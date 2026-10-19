@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "fc4b60ef550db99f65132a06cc1c24aaef081632",
+      "rev": "01e5d9b492ba2a9726029909664cea65e37f1033",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -166,7 +166,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "a5456bffc29908f31e3da443f9922de852bd5e22",
+      "rev": "bb4f79c12c8f31c40afd92ebbebdd43fa3a7f9db",
       "src": "https://github.com/petertriho/nvim-scrollbar",
       "version": "'refactor/v2'"
     },
@@ -183,7 +183,7 @@
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
-      "rev": "d3e4a28b63961ba972b0945d66c73b6eec969953",
+      "rev": "29212d826054bb2948fa9d3a99eca9bf6a050eb2",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
       "version": "'main'"
     },

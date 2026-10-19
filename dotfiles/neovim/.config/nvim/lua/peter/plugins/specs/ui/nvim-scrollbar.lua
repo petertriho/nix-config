@@ -8,19 +8,15 @@ return {
     end,
     config = function()
         require("scrollbar").setup({
-            minimap = {
-                enabled = false,
-                width = 5,
-                excluded_filetypes = require("peter.core.filetypes").excludes,
-                float = {
-                    blend = 50,
-                },
-                providers = {
-                    -- cursor = false,
-                },
+            exclude = {
+                filetypes = require("peter.core.filetypes").excludes,
+            },
+            providers = {
+                mini_diff = true,
+                -- cursor = { minimap = false },
             },
             scrollbar = {
-                float = { placement = { anchor = "NW", gutter = "avoid", gutter_position = "outer" } },
+                placement = { anchor = "NW", gutter = "outer" },
                 layout = {
                     direction = "auto",
                     columns = {
@@ -35,10 +31,11 @@ return {
                     MiniDiffChange = { text = "│" },
                     MiniDiffDelete = { text = "│" },
                 },
-                excluded_filetypes = require("peter.core.filetypes").excludes,
-                providers = {
-                    mini_diff = true,
-                },
+            },
+            minimap = {
+                enabled = false,
+                width = 5,
+                blend = 50,
             },
         })
     end,
