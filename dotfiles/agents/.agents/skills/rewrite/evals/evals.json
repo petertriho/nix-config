@@ -1,0 +1,47 @@
+{
+  "skill_name": "rewrite",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Rewrite readme.md.",
+      "expected_output": "Edit readme.md in place. Rewrite the Installation section as numbered imperative steps with each condition before its command and at most 20 words per sentence. Keep `cargo install tidyq` and `chmod +x tidyq` exact. Keep the pitch persuasive and in the author's voice, remove promotional words and the em dash, and keep the 1 GB, 3 seconds, and 2023 facts without new numbers. Keep the fenced code block byte-for-byte, including its inline comment. Keep the words of the \"Stuff That Breaks Sometimes\" heading so that the `#stuff-that-breaks-sometimes` link still resolves. Keep \"may\" and the unconfirmed-versions qualifier in the macOS note. Remove the semicolons. Keep `xattr -d com.apple.quarantine ./tidyq` exact. Give a short report and do not paste the full file.",
+      "files": [
+        "dotfiles/agents/.agents/skills/rewrite/evals/fixtures/readme.md"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Rewrite the comments in ratelimit.py.",
+      "expected_output": "Change only comment and docstring lines. Keep every code token, including the string literal \"capacity gotta be positive!!\". Keep the copyright and SPDX lines, `# noqa: F401`, `# type: ignore[operator]`, and `# pragma: no cover` byte-for-byte. Delete the comments that restate the code (`# import time`, `# set the capacity`, `# increment tokens`) and list each one in the report. Rewrite the history comment about time.time() as current behavior. Keep the intent of the comment about not raising, and remove its em dash and contraction. Keep `TODO(peter)` and `#42`. Reword the class docstring prose, and keep `Args:`, `capacity`, and `refill_rate`. Do not say the string literal was rewritten.",
+      "files": [
+        "dotfiles/agents/.agents/skills/rewrite/evals/fixtures/ratelimit.py"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Rewrite this email:\n\nHi Sam,\n\nI hope this email finds you well! I just wanted to reach out and touch base regarding the Q3 budget thing. So basically, I've been looking at the numbers and it's kind of looking like we might be about $12k over on the cloud spend, which honestly isn't great but it's not the end of the world either. I was wondering if perhaps, when you get a chance, you could maybe take a look at the attached breakdown and let me know if you think we should cut the staging cluster or just eat the cost? We'd need to decide by Friday though since that's when finance locks the numbers.\n\nAnyway, let me know your thoughts! Don't hesitate to reach out if you have any questions.\n\nCheers,\nJo",
+      "expected_output": "Return the rewrite in chat and create or edit no files. Put the request (cut the staging cluster or accept the cost) and the Friday deadline near the start. Keep Q3, about $12k, cloud spend, the attached breakdown, the staging cluster, and the reason for Friday. Keep one qualifier for the uncertain overspend instead of a plain statement or a stacked hedge. Keep the casual, friendly register, contractions, the greeting, and the sign-off. Remove the filler openers and closers. Do not turn the email into STE numbered steps or a formal memo.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Rewrite these CLI error messages:\n\n1. Oops! Something went wrong while trying to read your config. Please ensure that the file exists and is valid YAML and try again.\n2. Error: we couldn't connect to the server at `api.example.com:443`. This might be due to network issues, a firewall, or the server being down.\n3. Uh oh, looks like you don't have permission to write to `/var/lib/tidyq`. You may want to run with sudo or change the directory using `--data-dir`.",
+      "expected_output": "Return the rewrite in chat and create or edit no files. For each message, state what happened, then the cause if known, then the fix as an imperative. Remove \"Oops\", \"Uh oh\", and \"Please ensure\". Keep `api.example.com:443`, `/var/lib/tidyq`, `--data-dir`, and sudo exact. In message 2, keep the causes as possible causes and do not state one cause as fact. Put each condition before its command. Keep each sentence at 20 words or fewer.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Rewrite this landing page copy:\n\nMeet Brightline — the revolutionary, AI-powered note app that's redefining how teams capture ideas. It's not just a notebook. It's your team's second brain. With seamless real-time sync, blazing-fast search, and a gorgeous, intuitive interface, Brightline empowers you to unlock your full potential. Trusted by thousands of teams worldwide. Start your free 14-day trial today!",
+      "expected_output": "Return the rewrite in chat and create or edit no files. Keep the copy persuasive, keep the call to action, and keep the 14-day trial. Remove or replace with stated facts: revolutionary, redefining, seamless, blazing-fast, gorgeous, empowers, and unlock your full potential. Remove the \"It's not just X. It's Y.\" slogan or rewrite it plainly. Do not invent numbers, customers, or features. Do not turn the copy into STE procedure steps. Keep or flag \"Trusted by thousands of teams worldwide\" as an unverifiable claim, and do not inflate it.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Rewrite cache.md.",
+      "expected_output": "Edit cache.md in place. Do not resolve the ambiguous \"it\" (cache or session store) by a guess, and do not resolve \"This\". Keep the 3x claim without removing or changing it. Flag both spots in the report, each with a question. Keep `cache.toml`, `max_entries`, and 10 minutes. Replace the semicolon, and put the purpose or condition before the instruction about `max_entries`. Add no new facts.",
+      "files": [
+        "dotfiles/agents/.agents/skills/rewrite/evals/fixtures/cache.md"
+      ]
+    }
+  ]
+}
