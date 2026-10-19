@@ -8,17 +8,17 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "pi-blackhole";
-  version = "0.5.13-unstable-2026-10-13";
+  version = "0.5.15-unstable-2026-10-18";
 
   src = fetchFromGitHub {
     owner = "k0valik";
     repo = "pi-blackhole";
-    rev = "1907ede09b5f81922a149ff1622a42325b60b87e";
-    hash = "sha256-vElVEXnzxkMq8eema4AFXGONhlq4EJXiUGdPtkUoFQA=";
+    rev = "0ce5ce5fec47223651644fcc967da34dd269f6f1";
+    hash = "sha256-9wpwmfLbsL08VzR7ysgdhKnpiH1s4rPkqGx9A0YRS6M=";
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-XPWLzNPo0OyBGJdTSkoQYr+RlImkfbRVTBJu7euijsc=";
+  npmDepsHash = "sha256-5XDUj5y9i8FRJkr0frNI5f1BkaEUXcco75YtiwRFxYc=";
   npmDepsFetcherVersion = 2;
   npmPackFlags = [ "--ignore-scripts" ];
   npmInstallFlags = [ "--ignore-scripts" ];
