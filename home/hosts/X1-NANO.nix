@@ -11,7 +11,7 @@
   programs = {
     claude-code = {
       enable = true;
-      cliProxyApi.enable = true;
+      # cliProxyApi.enable = true;
     };
     niri.settings.outputs."eDP-1".scale = 1.25;
   };

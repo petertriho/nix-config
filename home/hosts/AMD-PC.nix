@@ -39,7 +39,7 @@ in
   programs = {
     claude-code = {
       enable = true;
-      cliProxyApi.enable = true;
+      # cliProxyApi.enable = true;
     };
     niri.settings = {
       input.trackball = {
