@@ -231,7 +231,7 @@ in
           "/System/Cryptexes/App/System/Applications/Safari.app"
           "/System/Applications/Mail.app"
           "/System/Applications/Calendar.app"
-          "/Applications/Floorp.app"
+          "/Applications/Firefox.app"
           "/Applications/Ghostty.app"
         ];
         persistent-others = [

@@ -165,7 +165,7 @@ in
           "Mod+T" = {
             repeat = false;
             hotkey-overlay.title = "Open Browser";
-            action = spawn "floorp";
+            action = spawn "firefox";
           };
           "Mod+V" = {
             repeat = false;

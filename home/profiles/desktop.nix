@@ -42,6 +42,12 @@
         "media.av1.enabled" = false;
       };
     };
+    firefox = {
+      enable = true;
+      policies = config.programs.betterfox.policies // {
+        DisableAppUpdate = true;
+      };
+    };
     chromium = {
       enable = true;
       package = pkgs.ungoogled-chromium;

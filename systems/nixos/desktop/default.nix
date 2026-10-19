@@ -36,6 +36,5 @@
     };
   };
 
-  programs.firefox.enable = true;
   programs.vicinae.input-server.package = pkgs.vicinae;
 }

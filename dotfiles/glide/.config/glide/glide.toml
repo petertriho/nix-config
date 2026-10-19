@@ -52,4 +52,4 @@ column_width_presets = [0.333, 0.5, 0.667, 1.0]
 # Launch
 "Alt + Enter" = { exec = ["/usr/bin/open", "-n", "-a", "Ghostty"] }
 "Alt + F" = { exec = ["/usr/bin/open", "-n", "-a", "Finder"] }
-"Alt + T" = { exec = ["/usr/bin/open", "-n", "-a", "Floorp"] }
+"Alt + T" = { exec = ["/usr/bin/open", "-n", "-a", "Firefox"] }

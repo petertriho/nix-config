@@ -18,7 +18,8 @@ let
     (lib.filter (configName: cfg.configs.${configName}) configOrder)
     ++ lib.optional (cfg.configs.smoothfox != "none") "smoothfox-${cfg.configs.smoothfox}";
 
-  parsePrefLine = line:
+  parsePrefLine =
+    line:
     let
       trimmed = lib.strings.trim line;
       stringMatch = builtins.match ''user_pref\("([^"]+)",[[:space:]]*"([^"]*)"\);.*'' trimmed;
@@ -55,9 +56,12 @@ let
         };
       };
 
-  parseConfig = configName:
+  parseConfig =
+    configName:
     lib.foldl' (preferences: line: preferences // parsePrefLine line) { } (
-      lib.splitString "\n" (builtins.readFile "${cfg.package}/share/betterfox/${configFiles.${configName}}")
+      lib.splitString "\n" (
+        builtins.readFile "${cfg.package}/share/betterfox/${configFiles.${configName}}"
+      )
     );
 
   betterfoxPreferences = lib.foldl' (
@@ -72,9 +76,7 @@ let
   preferences = betterfoxPreferences // extraPreferences;
 
   wrappedPackage = pkgs.wrapFirefox cfg.browserPackage {
-    extraPolicies = {
-      Preferences = preferences;
-    };
+    extraPolicies = cfg.policies;
   };
 in
 {
@@ -150,6 +152,15 @@ in
         "media.ffmpeg.vaapi.enabled" = true;
       };
       description = "Additional Mozilla preferences appended as policies after Betterfox configs.";
+    };
+
+    policies = lib.mkOption {
+      type = (pkgs.formats.json { }).type;
+      readOnly = true;
+      default = {
+        Preferences = preferences;
+      };
+      description = "Mozilla policies generated from the selected Betterfox configs and extra preferences.";
     };
 
     wrappedPackage = lib.mkOption {

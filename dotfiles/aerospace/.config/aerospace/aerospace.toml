@@ -99,7 +99,7 @@ outer.right = 0
 # Launch
 alt-enter = 'exec-and-forget open -n -a Ghostty'
 alt-f = 'exec-and-forget open -n finder'
-alt-t = 'exec-and-forget open -n -a "Floorp"'
+alt-t = 'exec-and-forget open -n -a "Firefox"'
 # Raycast disabled; use default macOS Spotlight (Cmd+Space) as launcher.
 # alt-v = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
 
