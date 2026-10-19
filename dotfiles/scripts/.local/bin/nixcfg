@@ -34,6 +34,7 @@ SKIP_PACKAGES=(
 # Packages that use stable versioning (updated with --version=stable)
 STABLE_PACKAGES=(
     "bladebro"
+    "chrome-extensions.chromium-web-store"
     "codexbar"
     "donsetch"
     "playwriter"
@@ -853,8 +854,8 @@ function tool:pkgs:update {
         mapfile -t packages < <(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]')
 
         for package in "${packages[@]}"; do
-            # Check if this is a plugin collection (fish-plugins, tmux-plugins, pi-extensions)
-            if [[ $package == "fish-plugins" || $package == "tmux-plugins" || $package == "pi-extensions" ]]; then
+            # Check if this is a plugin collection (chrome-extensions, fish-plugins, tmux-plugins, pi-extensions)
+            if [[ $package == "chrome-extensions" || $package == "fish-plugins" || $package == "tmux-plugins" || $package == "pi-extensions" ]]; then
                 # Get individual plugins from the collection
                 local plugins=()
                 mapfile -t plugins < <(nix eval --json ".#packages.$system.$package" --apply 'builtins.attrNames' | jq -r '.[]')

@@ -36,6 +36,7 @@ let
     };
 
   customPluginPackages = pkgs: {
+    chrome-extensions = import ./chrome-extensions { inherit pkgs; };
     fish-plugins = import ./fish-plugins { inherit pkgs; };
     pi-extensions = import ./pi-extensions { inherit pkgs; };
     tmux-plugins = import ./tmux-plugins { inherit pkgs; };
@@ -46,6 +47,7 @@ let
       final: prev:
       customPackages final
       // {
+        chromeExtensions = (prev.chromeExtensions or { }) // import ./chrome-extensions { pkgs = final; };
         fishPlugins = (prev.fishPlugins or { }) // import ./fish-plugins { pkgs = final; };
         piExtensions = (prev.piExtensions or { }) // import ./pi-extensions { pkgs = final; };
         tmuxPlugins = (prev.tmuxPlugins or { }) // import ./tmux-plugins { pkgs = final; };

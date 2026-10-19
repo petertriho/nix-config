@@ -51,6 +51,14 @@
     chromium = {
       enable = true;
       package = pkgs.ungoogled-chromium;
+      # ungoogled-chromium strips Web Store support. chromium-web-store
+      # restores "Add to Chromium", and needs the flag to accept CRX installs.
+      commandLineArgs = [ "--extension-mime-request-handling=always-prompt-for-install" ];
+      # ungoogled-chromium does not install external extensions from an
+      # external_update_url, so pin the CRX instead.
+      extensions = with pkgs.chromeExtensions; [
+        { inherit (chromium-web-store) id version crxPath; }
+      ];
     };
   };
 
