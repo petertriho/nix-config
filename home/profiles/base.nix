@@ -18,6 +18,7 @@
     ../programs/fish.nix
     ../programs/git.nix
     ../programs/neovim.nix
+    ../programs/rbw.nix
     ../programs/scripts.nix
     ../programs/starship.nix
     ../programs/tmux.nix
