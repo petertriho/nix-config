@@ -68,6 +68,19 @@ let
 
       pythonPackagesExtensions = prev.pythonPackagesExtensions or [ ] ++ [
         (_final: prev': {
+          autoflake = prev'.autoflake.overridePythonAttrs (
+            old:
+            final.lib.optionalAttrs (old.version == "2.4.0") {
+              # The PyPI 2.4.0 archive omits the tests required by pytestCheckHook.
+              src = final.fetchFromGitHub {
+                owner = "PyCQA";
+                repo = "autoflake";
+                tag = "v${old.version}";
+                hash = "sha256-Th2MyC6Yu+OLF7WZCG1e5VQqBIGz6Eaxx2dTaEpqTtA=";
+              };
+            }
+          );
+
           ssort = prev'.ssort.overridePythonAttrs (old: {
             postPatch = (old.postPatch or "") + ''
               python scripts/freeze_version.py ${old.version}

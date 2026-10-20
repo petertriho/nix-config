@@ -10,8 +10,8 @@ stdenvNoCC.mkDerivation {
   src = fetchFromGitHub {
     owner = "dimk90";
     repo = "pi-context-view";
-    rev = "851dc4152af9e5afa68f883276aaa36af1c16c40";
-    hash = "sha256-Pw4/mJSAqOmVTj/AxtgjZecqa1pb701ydhSDB2jB8Dc=";
+    rev = "6aa79e334c4dc8762667d508e8d2f81942762472";
+    hash = "sha256-3v9sX/5C61OMtInavgUjmEJlj1/2X48eKxQCLJFfKO4=";
   };
 
   dontBuild = true;
