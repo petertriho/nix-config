@@ -1,3 +1,3 @@
-Service 1.0 Service.qml
+singleton CodexBarService 1.0 Service.qml
 Panel 1.0 Panel.qml
 UsageMeter 1.0 UsageMeter.qml

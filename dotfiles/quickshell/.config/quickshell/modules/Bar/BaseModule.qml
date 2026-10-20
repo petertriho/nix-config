@@ -1,49 +1,59 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
+import Quickshell
+import "../Common"
 
 Rectangle {
     id: root
-    radius: 4
+    radius: Config.style.radiusSmall
     // Clickable bar modules opt into a hover background that mirrors the
-    // tray-icon highlight (`colors.base02`). `hoverHighlight` is
+    // tray-icon highlight (`style.hoverColor`). `hoverHighlight` is
     // deliberately decoupled from `hoverEnabled`: some modules track hover for
     // other reasons (accent text color, hover-to-open detail popups) without
     // being clickable, and must not light up as if they were.
-    color: root.hoverHighlight && hoverArea.containsMouse ? colors.base02 : "transparent"
+    color: root.hoverHighlight && hoverArea.containsMouse ? Config.style.hoverColor : "transparent"
     height: parent.height
-    implicitWidth: content.implicitWidth + moduleConfig.widthPadding
+    implicitWidth: label.implicitWidth + Config.module.widthPadding
 
-    // Accept colors from parent
-    property QtObject colors: parent.colors
-    property QtObject moduleConfig: parent.moduleConfig
-    property QtObject fontsConfig: parent.fontsConfig
+    // False hides the module and drops it from the bar fit calculation.
+    property bool available: true
 
-    property alias text: content.text
-    property alias textColor: content.color
-    property alias textFormat: content.textFormat
-    property alias font: content.font
-    property alias horizontalAlignment: content.horizontalAlignment
-    property alias verticalAlignment: content.verticalAlignment
-    property alias elide: content.elide
+    // A popup module sets `popupId` (clock, battery, bluetooth, caffeine, stats,
+    // tray). A left click toggles the popup unless `popupOnClick` is false.
+    property string popupId: ""
+    property bool popupOnClick: root.popupId !== ""
+    readonly property var barWindow: QsWindow.window
+    readonly property string popupKey: root.popupId !== "" && root.barWindow && root.barWindow.screen ? root.barWindow.screen.name + ":" + root.popupId : ""
+    readonly property bool popupOpen: root.popupKey !== "" && Popups.active === root.popupKey
+    // An open popup keeps the keyboard focus, so a click that starts an app
+    // closes it first. A module that opens or closes popups in its own click
+    // handlers sets this to true.
+    property bool managesPopups: false
+
+    property alias text: label.text
+    property alias textColor: label.color
+    property alias textFormat: label.textFormat
+    property alias font: label.font
+    property alias horizontalAlignment: label.horizontalAlignment
+    property alias verticalAlignment: label.verticalAlignment
+    property alias elide: label.elide
 
     property bool hoverEnabled: false
     property bool hoverHighlight: false
     readonly property bool hovered: hoverArea.containsMouse
 
-    default property alias children: content.data
+    default property alias content: label.data
 
     Text {
-        id: content
+        id: label
         height: parent.height
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: moduleConfig.contentMargins
-        anchors.rightMargin: moduleConfig.contentMargins
-        color: colors.base05
-        font.family: fontsConfig.defaultFamily
-        font.pixelSize: fontsConfig.defaultSize
+        anchors.leftMargin: Config.module.contentMargins
+        anchors.rightMargin: Config.module.contentMargins
+        color: Config.colors.base05
+        font.family: Config.fonts.defaultFamily
+        font.pixelSize: Config.fonts.defaultSize
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }
@@ -54,13 +64,24 @@ Rectangle {
         hoverEnabled: root.hoverEnabled || root.hoverHighlight
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onClicked: function (mouse) {
-            if (mouse.button === Qt.RightButton)
-                root.rightClicked();
-            else
-                root.clicked();
+            root.handleClick(mouse.button);
         }
     }
 
     signal clicked
     signal rightClicked
+
+    // The tray overflow row also calls this for a hidden module.
+    function handleClick(button: int): void {
+        if (button === Qt.LeftButton && root.popupOnClick) {
+            Popups.toggle(root.popupKey);
+            return;
+        }
+        if (!root.managesPopups)
+            Popups.close();
+        if (button === Qt.RightButton)
+            root.rightClicked();
+        else
+            root.clicked();
+    }
 }

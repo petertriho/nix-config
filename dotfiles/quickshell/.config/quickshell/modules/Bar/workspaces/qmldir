@@ -1,1 +1,1 @@
-WorkspaceService 1.0 WorkspaceService.qml
+singleton WorkspaceService 1.0 WorkspaceService.qml

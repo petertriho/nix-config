@@ -1,4 +1,4 @@
 Card 1.0 Card.qml
 Center 1.0 Center.qml
-Manager 1.0 Manager.qml
+singleton NotificationService 1.0 Manager.qml
 Toasts 1.0 Toasts.qml

@@ -1,4 +1,4 @@
 Brightness 1.0 Brightness.qml
 MiniOsd 1.0 MiniOsd.qml
-Service 1.0 Service.qml
+singleton OsdService 1.0 Service.qml
 Volume 1.0 Volume.qml

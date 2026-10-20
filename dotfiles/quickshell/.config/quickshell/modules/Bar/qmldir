@@ -5,12 +5,11 @@ Battery 1.0 Battery/main.qml
 Bluetooth 1.0 Bluetooth/main.qml
 Tray 1.0 Tray/main.qml
 Caffeine 1.0 Caffeine/main.qml
-CaffeineService 1.0 Caffeine/Service.qml
 Bar 1.0 main.qml
 BaseModule 1.0 BaseModule.qml
-PopupAnchor 1.0 PopupAnchor.qml
 CodexBar 1.0 CodexBar.qml
 Network 1.0 Network.qml
+singleton NetworkService 1.0 NetworkService.qml
 Audio 1.0 Audio.qml
 Notifications 1.0 Notifications.qml
 VicinaeButton 1.0 VicinaeButton.qml

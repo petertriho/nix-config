@@ -3,66 +3,47 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import "modules/Bar"
-import "modules/Bar/workspaces" as WorkspaceFeature
-import "modules/CodexBar" as CodexFeature
-import "modules/ControlOSD" as OsdFeature
-import "modules/Notifications" as NotifyFeature
+import "modules/Bar/Caffeine"
+import "modules/Bar/workspaces"
+import "modules/Common"
+import "modules/ControlOSD"
+import "modules/Notifications"
 
 ShellRoot {
     id: root
 
-    // Configuration component with colors
-    Loader {
-        id: configLoader
-        source: "config.qml"
-    }
+    // Singletons load on first use. These two must exist at startup: the
+    // notification server registers on D-Bus, and the OSD serves IPC and shortcuts.
+    readonly property var eagerServices: [NotificationService, OsdService]
 
-    // Expose config colors for easier access
-    property QtObject config: configLoader.item
+    // Quickshell shows its own popup after each reload. While that popup exists,
+    // IPC answers "Not ready to accept queries yet.", and a pointer over it keeps
+    // it open until the next reload that shows a popup. IPC (and with it the
+    // volume keys) then stops. A failed reload shows a notification instead.
+    Connections {
+        id: reloadWatcher
 
-    // Notification manager must be declared before Bar since Bar requires it.
-    NotifyFeature.Manager {
-        id: notifications
-        colors: config.colors
-        fontsConfig: config.fonts
-        notificationsConfig: config.notifications
-        overlayConfig: config.overlay
-    }
+        property real lastFailureMs: 0
 
-    // CodexBar usage service (one instance; owns the polling process + panel).
-    // NOTE: id is `codexBarSvc`, not `codexBarService` — the Bar exposes a
-    // property of that name, and `codexBarService: codexBarService` in the
-    // delegate would resolve to the Bar's own (null) property instead of this
-    // id. Distinct names avoid the QML shadowing footgun.
-    CodexFeature.Service {
-        id: codexBarSvc
-        colors: config.colors
-        fontsConfig: config.fonts
-        codexbarConfig: config.codexbar
-        overlayConfig: config.overlay
-    }
+        target: Quickshell
 
-    WorkspaceFeature.WorkspaceService {
-        id: workspaceSvc
-        ignoreClasses: config && config.workspaces ? config.workspaces.ignoreClasses : []
-        windowIcons: config ? config.windowIcons : ({})
-        updateInterval: config && config.workspaces ? config.workspaces.updateInterval : 200
-        activeUpdateInterval: config && config.workspaces ? config.workspaces.activeUpdateInterval : 100
-    }
-
-    CaffeineService {
-        id: caffeineSvc
-    }
-
-    // Volume and brightness controls plus the mini OSD state for every bar.
-    // NOTE: id is `osdSvc`, not `osdService`, for the same shadowing reason as
-    // `codexBarSvc` above.
-    OsdFeature.Service {
-        id: osdSvc
-        colors: config.colors
-        osdConfig: config.osd
-        stepsConfig: config.steps
-        thresholdsConfig: config.thresholds
+        function onReloadCompleted(): void {
+            Quickshell.inhibitReloadPopup();
+        }
+        function onReloadFailed(errorString: string): void {
+            Quickshell.inhibitReloadPopup();
+            // Quickshell emits this signal twice for one failed reload.
+            const now = Date.now();
+            if (now - reloadWatcher.lastFailureMs < 1000)
+                return;
+            reloadWatcher.lastFailureMs = now;
+            // The last line names the file and line that failed. The log has the full chain.
+            const lines = errorString.trim().split("\n");
+            const cause = lines[lines.length - 1].trim().replace(/^caused by /, "");
+            // The old configuration keeps running, so its notification server shows this.
+            // Transient: repeated saves of a broken file do not fill the center.
+            Quickshell.execDetached(["notify-send", "-a", "Quickshell", "-e", "-t", "10000", "Configuration reload failed", cause]);
+        }
     }
 
     // Bar components, one per connected screen.
@@ -74,21 +55,6 @@ ShellRoot {
                 required property var modelData
 
                 screen: modelData
-                colors: config.colors
-                barConfig: config.bar
-                moduleConfig: config.module
-                workspacesConfig: config.workspaces
-                intervalsConfig: config.intervals
-                thresholdsConfig: config.thresholds
-                stepsConfig: config.steps
-                popupsConfig: config.popups
-                overlayConfig: config.overlay
-                fontsConfig: config.fonts
-                notificationsManager: notifications
-                codexBarService: codexBarSvc
-                workspaceService: workspaceSvc
-                osdService: osdSvc
-                caffeineService: caffeineSvc
             }
         }
     }
@@ -97,22 +63,22 @@ ShellRoot {
         target: "quickshell-osd"
 
         function brightnessUp(): void {
-            osdSvc.brightnessUp();
+            OsdService.brightnessUp();
         }
         function brightnessDown(): void {
-            osdSvc.brightnessDown();
+            OsdService.brightnessDown();
         }
         function brightnessShow(): void {
-            osdSvc.brightnessShow();
+            OsdService.brightnessShow();
         }
         function volumeUp(): void {
-            osdSvc.volumeUp();
+            OsdService.volumeUp();
         }
         function volumeDown(): void {
-            osdSvc.volumeDown();
+            OsdService.volumeDown();
         }
         function volumeMute(): void {
-            osdSvc.volumeMute();
+            OsdService.volumeMute();
         }
     }
 
@@ -120,22 +86,67 @@ ShellRoot {
         target: "quickshell-notifications"
 
         function toggle(): void {
-            notifications.toggleCenter();
+            NotificationService.toggleCenter();
         }
         function show(): void {
-            notifications.showCenter();
+            NotificationService.showCenter();
         }
         function hide(): void {
-            notifications.hideCenter();
+            NotificationService.hideCenter();
         }
         function clear(): void {
-            notifications.clearAll();
+            NotificationService.clearAll();
+        }
+    }
+
+    // Keys: "<screen name>:<id>" for bar popups, "notifications", "codexbar".
+    IpcHandler {
+        target: "quickshell-popups"
+
+        function toggle(key: string): void {
+            Popups.toggle(key);
+        }
+        function open(key: string): void {
+            Popups.open(key);
+        }
+        function close(): void {
+            Popups.close();
+        }
+    }
+
+    // A file change does not always reload the shell. This reloads it on demand.
+    IpcHandler {
+        target: "quickshell-shell"
+
+        function reload(): void {
+            // Later, so the IPC call returns before this generation is destroyed.
+            Qt.callLater(() => Quickshell.reload(false));
+        }
+    }
+
+    IpcHandler {
+        target: "quickshell-caffeine"
+
+        function toggle(): void {
+            CaffeineService.toggleIndefinite();
+        }
+        function activate(minutes: int): void {
+            CaffeineService.activateWithDuration(minutes);
+        }
+        function deactivate(): void {
+            CaffeineService.deactivate();
+        }
+        // "off", "on" (no time limit), or the remaining seconds.
+        function status(): string {
+            if (!CaffeineService.active)
+                return "off";
+            return CaffeineService.remainingSeconds > 0 ? String(CaffeineService.remainingSeconds) : "on";
         }
     }
 
     // Hyprland global shortcuts use the compositor protocol; Niri calls the IPC handler above.
     Loader {
-        active: workspaceSvc.compositorName === "hyprland"
+        active: WorkspaceService.compositorName === "hyprland"
         sourceComponent: hyprlandGlobalShortcuts
     }
 
@@ -149,7 +160,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    osdSvc.brightnessUp();
+                    OsdService.brightnessUp();
                 }
             }
 
@@ -159,7 +170,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    osdSvc.brightnessDown();
+                    OsdService.brightnessDown();
                 }
             }
 
@@ -169,7 +180,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    osdSvc.volumeUp();
+                    OsdService.volumeUp();
                 }
             }
 
@@ -179,7 +190,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    osdSvc.volumeDown();
+                    OsdService.volumeDown();
                 }
             }
 
@@ -189,7 +200,7 @@ ShellRoot {
                 appid: "quickshell-osd"
 
                 onPressed: {
-                    osdSvc.volumeMute();
+                    OsdService.volumeMute();
                 }
             }
         }

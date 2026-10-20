@@ -7,7 +7,7 @@ LazyLoader {
     id: root
 
     property bool open: false
-    property int unloadDelay: 250
+    property int unloadDelay: Config.overlay.closeGraceMs + 20
     readonly property Timer unloadTimer: Timer {
         interval: root.unloadDelay
     }

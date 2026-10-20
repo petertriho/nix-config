@@ -1,0 +1,7 @@
+singleton Config 1.0 Config.qml
+singleton Popups 1.0 Popups.qml
+BarPopup 1.0 BarPopup.qml
+DeferredLoader 1.0 DeferredLoader.qml
+OverlayHost 1.0 OverlayHost.qml
+PopupCard 1.0 PopupCard.qml
+StatRow 1.0 StatRow.qml
