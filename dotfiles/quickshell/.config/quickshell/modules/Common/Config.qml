@@ -58,17 +58,19 @@ Singleton {
         readonly property int contentMargins: 4
         readonly property int moduleSpacing: 4
 
-        // Right-side modules hidden first→last when the right Row would
-        // overlap the centered clock. Order = hide order; any module NOT
-        // listed is always shown. Hidden modules reappear inside the tray
-        // popup. `tray` is always shown (it hosts the overflow).
-        // Valid keys: tray, caffeine, stats, backlight, audio, battery,
-        // bluetooth, network, codexbar, notifications, power. The `audio`
-        // key maps to the `pulseaudio` module id; `power` →
+        // Modules hidden first→last when the right Row would come too close
+        // to the bar center (the stats module, or the OSD when the stats are
+        // hidden). Order = hide order; any module NOT listed is always shown.
+        // Hidden modules reappear inside the tray popup. `tray` is always
+        // shown (it hosts the overflow).
+        // Valid keys: stats (the center module), tray, caffeine, backlight,
+        // audio, battery, bluetooth, network, codexbar, notifications, power,
+        // clock. The `audio` key maps to the `pulseaudio` module id; `power` →
         // powerManagementLauncher.
         readonly property var rightHidePriority: ["stats", "codexbar", "caffeine", "bluetooth", "backlight", "audio", "battery"]
-        // Min gap (px) kept between the clock and the right Row or the window title.
-        readonly property int clockGap: 20
+        // Min gap (px) between the center (stats or OSD) and the window title
+        // or the right Row.
+        readonly property int centerGap: 20
     }
 
     component ModuleGroup: QtObject {
@@ -89,9 +91,10 @@ Singleton {
         readonly property var ignoreClasses: ["xwaylandvideobridge"]
     }
 
-    // Mini OSD (On Screen Display) that replaces the bar clock after a volume or
-    // brightness change.
+    // Mini OSD (On Screen Display) that covers the center of the bar after a
+    // volume or brightness change.
     component OsdGroup: QtObject {
+        readonly property int barWidth: 160
         readonly property int hideInterval: 2000
         readonly property int progressBarHeight: 6
         readonly property int progressBarCornerRadius: 3

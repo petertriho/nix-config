@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../Common"
+import "../ControlOSD" as Osd
 import "workspaces"
 
 PanelWindow {
@@ -61,15 +62,62 @@ PanelWindow {
                 anchors.left: workspaces.right
                 anchors.leftMargin: Config.bar.moduleSpacing
                 anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(0, clock.x - Config.bar.clockGap - windowTitle.x)
+                // Up to the stats. When they are hidden, up to the right Row
+                // (the OSD then covers part of the title while it shows).
+                width: Math.max(0, (stats.visible ? (parent.width - stats.fitWidth) / 2 : rightRow.x) - Config.bar.centerGap - windowTitle.x)
                 height: parent.height
                 title: WorkspaceService.activeWindowTitleForOutput(root.screen ? root.screen.name : "")
             }
 
-            // Center modules
-            Clock {
-                id: clock
+            // Center module. Its width follows its values.
+            Stats {
+                id: stats
                 anchors.centerIn: parent
+                visible: rightRow.isShown("stats")
+                height: parent.height
+            }
+
+            // Volume and brightness OSD over the center of the bar. The bar
+            // color behind it covers the stats, or the window title when the
+            // stats are hidden.
+            Rectangle {
+                id: osd
+                anchors.centerIn: parent
+                // Covers the stats completely.
+                width: Math.max(Config.osd.barWidth, stats.visible ? stats.width : 0)
+                height: parent.height
+                color: Config.colors.base01
+                opacity: Osd.OsdService.shown ? 1 : 0
+                visible: opacity > 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Config.overlay.animationDurationMs
+                    }
+                }
+
+                Osd.MiniOsd {
+                    anchors.fill: parent
+                    anchors.leftMargin: Config.module.contentMargins
+                    anchors.rightMargin: Config.module.contentMargins
+                }
+
+                // One step per wheel notch (120 units). Touchpad deltas
+                // accumulate until they reach a notch.
+                property real wheelRemainder: 0
+                onVisibleChanged: osd.wheelRemainder = 0
+
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: function (event) {
+                        osd.wheelRemainder += event.angleDelta.y;
+                        while (Math.abs(osd.wheelRemainder) >= 120) {
+                            const direction = osd.wheelRemainder > 0 ? 1 : -1;
+                            Osd.OsdService.step(direction);
+                            osd.wheelRemainder -= direction * 120;
+                        }
+                    }
+                }
             }
 
             // Right modules
@@ -87,7 +135,8 @@ PanelWindow {
                     "tray": tray, "caffeine": caffeine, "stats": stats,
                     "backlight": backlight, "audio": pulseaudio, "battery": battery,
                     "bluetooth": bluetooth, "network": network, "codexbar": codexbar,
-                    "notifications": notifications, "power": powerManagementLauncher
+                    "notifications": notifications, "power": powerManagementLauncher,
+                    "clock": clock
                 })
                 // Display name shown for a module in the tray overflow.
                 readonly property var overflowNames: ({
@@ -107,40 +156,42 @@ PanelWindow {
                     const it = rightRow.idMap[key];
                     return !!it && (key === "tray" || it.available);
                 }
-                // Prefix of rightHidePriority that must hide for the visible
-                // modules to fit the space left of the centered clock. Pure
-                // function of module implicitWidths + availability + clock.x +
-                // clockGap: hiding a module does not change its implicitWidth,
-                // so the hiddenIds binding cannot oscillate. Unavailable
-                // modules are left out, so the tray overflow never lists them.
+                // Prefix of rightHidePriority that must hide for the right Row
+                // to end `centerGap` before the center: before the stats (at
+                // their widest) when they show, else before the OSD. Pure
+                // function of module implicitWidths, availability and the bar
+                // width: hiding a module does not change its implicitWidth, so
+                // the hiddenIds binding cannot oscillate. Unavailable modules
+                // are left out, so the tray overflow never lists them.
                 function computeHiddenIds() {
                     const prio = Config.bar.rightHidePriority || [];
-                    // clock.x isn't laid out yet (startup) → hide nothing.
-                    // (Once laid out clock.x > 0; the loop below returns all
-                    // of prio if even hiding everything can't fit.)
-                    if (clock.x <= 0)
+                    const barWidth = rightRow.parent.width;
+                    // Not laid out yet (startup) → hide nothing.
+                    if (barWidth <= 0)
                         return [];
-                    const budget = clock.x - Config.bar.clockGap;
                     const listed = {};
                     for (const key of prio)
                         listed[key] = true;
-                    // never-hidden (unlisted) modules always reserve their width
+                    // never-hidden (unlisted) modules of the Row always reserve their width
                     let rw = 0;
                     let rn = 0;
                     for (const key in rightRow.idMap)
-                        if (!listed[key] && rightRow.takesSpace(key)) {
+                        if (key !== "stats" && !listed[key] && rightRow.takesSpace(key)) {
                             rw += rightRow.widthOf(rightRow.idMap[key]);
                             rn++;
                         }
                     for (let c = 0; c <= prio.length; c++) {
                         let w = rw;
                         let n = rn;
+                        const statsShown = rightRow.takesSpace("stats") && (!listed["stats"] || prio.indexOf("stats") >= c);
                         for (let j = c; j < prio.length; j++) {
-                            if (rightRow.takesSpace(prio[j])) {
+                            if (prio[j] !== "stats" && rightRow.takesSpace(prio[j])) {
                                 w += rightRow.widthOf(rightRow.idMap[prio[j]]);
                                 n++;
                             }
                         }
+                        const centerHalf = Math.max(statsShown ? stats.fitWidth : 0, Config.osd.barWidth) / 2;
+                        const budget = barWidth / 2 - centerHalf - Config.bar.centerGap;
                         if (w + Math.max(0, n - 1) * Config.bar.moduleSpacing <= budget)
                             return prio.slice(0, c).filter(rightRow.takesSpace);
                     }
@@ -166,12 +217,6 @@ PanelWindow {
                 Caffeine {
                     id: caffeine
                     visible: rightRow.isShown("caffeine")
-                    height: parent.height
-                }
-
-                Stats {
-                    id: stats
-                    visible: rightRow.isShown("stats")
                     height: parent.height
                 }
 
@@ -224,6 +269,12 @@ PanelWindow {
                     icon: "󰐥"
                     url: "vicinae://launch/power"
                     accentColor: Config.colors.base08
+                }
+
+                Clock {
+                    id: clock
+                    visible: rightRow.isShown("clock")
+                    height: parent.height
                 }
             }
         }

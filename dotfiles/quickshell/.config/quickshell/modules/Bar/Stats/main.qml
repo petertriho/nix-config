@@ -13,11 +13,9 @@ BaseModule {
     popupId: "stats"
 
     readonly property string temperatureIcon: StatsService.temperatureCritical ? "󰸁" : StatsService.temperatureWarning ? "󱃃" : "󰜗"
-    // Characters of the used memory: those of the total ("62.6" -> 4).
-    readonly property int memoryDigits: Math.max(3, StatsService.totalMemory.toFixed(1).length)
-
-    // Numbers are left-padded to their widest value, so the text keeps its
-    // width in a monospace font.
+    // The text has no padding, so its width follows the values. The bar fit
+    // uses `fitWidth`, the width of the widest text, so a change of digits
+    // does not move modules into or out of the tray overflow.
     function barText(cpu: string, memory: string, gpu: string, tempIcon: string, temp: string): string {
         const parts = ["󰍛 " + cpu + "%", "󰾆 " + memory + "G"];
         if (StatsService.gpuAvailable)
@@ -28,31 +26,28 @@ BaseModule {
     }
 
     function percent(value: real): string {
-        return String(Math.round(Math.max(0, Math.min(100, value)))).padStart(3, " ");
+        return String(Math.round(Math.max(0, Math.min(100, value))));
     }
 
-    text: root.barText(root.percent(StatsService.cpuUsage), StatsService.usedMemory.toFixed(1).padStart(root.memoryDigits, " "), root.percent(StatsService.gpuUsage), root.temperatureIcon, String(Math.round(StatsService.temperature)).padStart(3, " "))
+    text: root.barText(root.percent(StatsService.cpuUsage), StatsService.usedMemory.toFixed(1), root.percent(StatsService.gpuUsage), root.temperatureIcon, String(Math.round(StatsService.temperature)))
     textColor: StatsService.temperatureCritical ? Config.colors.base08 : Config.colors.base05
 
-    // The module width is that of the widest possible text, measured with each
-    // temperature icon (the icons differ in width). So it stays the same when
-    // a value gains a digit, in any font.
+    // Measured with each temperature icon, because the icons differ in width.
     FontMetrics {
         id: barMetrics
         font: root.font
     }
-    readonly property real widestTextWidth: {
+    readonly property real fitWidth: {
         // Read the font, so that a font change measures again.
         if (!barMetrics.font.family)
             return 0;
-        const zeros = n => "".padStart(n, "0");
-        const memory = zeros(root.memoryDigits - 2) + ".0";
+        // The used memory has at most the digits of the total ("62.6").
+        const memory = "".padStart(Math.max(3, StatsService.totalMemory.toFixed(1).length) - 2, "0") + ".0";
         let widest = 0;
         for (const icon of ["󰜗", "󱃃", "󰸁"])
-            widest = Math.max(widest, barMetrics.advanceWidth(root.barText("000", memory, "000", icon, "000")));
-        return widest;
+            widest = Math.max(widest, barMetrics.advanceWidth(root.barText("100", memory, "100", icon, "100")));
+        return Math.ceil(widest) + Config.module.widthPadding;
     }
-    implicitWidth: Math.ceil(root.widestTextWidth) + Config.module.widthPadding
 
     BarPopup {
         module: root

@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import "../Common"
 
-// Icon, bar, and percent for the control that the service shows. The bar clock
-// hosts this item in its own footprint, so it must not set the clock's width.
+// Icon, bar, and percent for the control that the service shows. The bar sets
+// its size (`osd.barWidth`).
 Item {
     id: root
 

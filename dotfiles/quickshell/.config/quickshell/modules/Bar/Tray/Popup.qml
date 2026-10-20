@@ -363,8 +363,8 @@ Column {
         }
     }
 
-    // Right-side bar modules hidden to make room for the centered clock. A
-    // click does what a click on the module in the bar does.
+    // Bar modules hidden because the bar is too narrow. A click does what a
+    // click on the module in the bar does.
     Row {
         id: overflowRow
         x: (root.contentWidth - width) / 2
