@@ -1,115 +1,117 @@
 import QtQuick
 import Quickshell
+import "../Common"
 
+// Toast stack in the top-right corner, newest first.
 PanelWindow {
     id: root
 
-    required property var toastModel
-    required property QtObject colors
-    required property QtObject fontsConfig
-    required property QtObject notificationsConfig
+    // NotificationService.toastEntries.
+    required property var entries
 
     property real clock
+    // Length of the add, remove and displaced transitions.
+    readonly property int animationMs: 180
 
-    readonly property int resolvedToastWidth: notificationsConfig ? notificationsConfig.toastWidth : 360
-    readonly property int resolvedTopMargin: notificationsConfig ? notificationsConfig.topMargin : 36
-    readonly property int resolvedRightMargin: notificationsConfig ? notificationsConfig.rightMargin : 12
-    readonly property int resolvedToastTimeoutMs: notificationsConfig ? notificationsConfig.toastTimeoutMs : 6000
-    readonly property int resolvedSpacing: notificationsConfig ? notificationsConfig.spacing : 8
-
-    signal hideToastRequested(var entry)
-    signal dismissRequested(var entry)
-    signal actionRequested(var entry, string actionIdentifier)
-
-    visible: modelCount() > 0
+    // Stays mapped until the remove transition of the last toast ends.
+    visible: root.entries.length > 0 || hideGrace.running
     color: "transparent"
     exclusiveZone: -1
-    implicitWidth: resolvedToastWidth
-    implicitHeight: toastList.height
+    implicitWidth: Config.notifications.toastWidth
 
+    // The window spans the screen height, so that a remove transition is not
+    // cut off. Only the toasts take input.
     anchors {
         top: true
         right: true
+        bottom: true
     }
 
     margins {
-        top: resolvedTopMargin
-        right: resolvedRightMargin
+        top: Config.bar.height + Config.style.gap
+        right: Config.style.gap
     }
 
-    function modelCount() {
-        if (!root.toastModel)
-            return 0;
-        if (typeof root.toastModel.length === "number")
-            return root.toastModel.length;
-        if (typeof root.toastModel.count === "number")
-            return root.toastModel.count;
-        return 0;
+    mask: Region {
+        item: toastList
+    }
+
+    onEntriesChanged: {
+        if (root.entries.length === 0)
+            hideGrace.restart();
+    }
+
+    Timer {
+        id: hideGrace
+        interval: root.animationMs + 40
     }
 
     ListView {
         id: toastList
-        width: resolvedToastWidth
+        width: parent.width
         height: contentHeight
-        spacing: resolvedSpacing
+        spacing: Config.notifications.spacing
         interactive: false
-        model: toastModel
+        model: ScriptModel {
+            values: root.entries
+            objectProp: "key"
+        }
 
-        delegate: Item {
+        delegate: Card {
+            id: toast
+
             required property var modelData
-            width: resolvedToastWidth
-            height: card.implicitHeight
+            // Epoch ms at which the toast ends, 0 = when it is dismissed.
+            readonly property real toastUntil: toast.entry.toastUntil
 
-            Card {
-                id: card
-                anchors.fill: parent
-                entry: modelData
-                colors: root.colors
-                fontsConfig: root.fontsConfig
-                notificationsConfig: root.notificationsConfig
-                inCenter: false
-                clock: root.clock
-                onDismissRequested: function (entry) {
-                    root.dismissRequested(entry);
-                }
-                onActionRequested: function (entry, actionIdentifier) {
-                    root.actionRequested(entry, actionIdentifier);
-                }
+            width: toastList.width
+            entry: toast.modelData
+            clock: root.clock
+
+            // The pointer holds the toast. When it leaves, the toast gets its full time again.
+            onHoveredChanged: {
+                if (!toast.hovered)
+                    NotificationService.restartToast(toast.entry);
+            }
+
+            // A new deadline (replacement, hover) restarts the timer, also when
+            // the new interval comes out the same as the old one.
+            onToastUntilChanged: {
+                if (toastTimer.running)
+                    toastTimer.restart();
+            }
+
+            Timer {
+                id: toastTimer
+                interval: Math.max(1, toast.toastUntil - Date.now())
+                running: toast.toastUntil > 0 && !toast.hovered
+                onTriggered: NotificationService.hideToast(toast.entry)
             }
         }
 
         add: Transition {
             ParallelAnimation {
-                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 180; easing.type: Easing.OutCubic }
-                NumberAnimation { property: "scale"; from: 0.9; to: 1; duration: 180; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: root.animationMs; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "scale"; from: 0.9; to: 1; duration: root.animationMs; easing.type: Easing.OutCubic }
             }
         }
 
         remove: Transition {
             ParallelAnimation {
-                NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 180; easing.type: Easing.InCubic }
-                NumberAnimation { property: "scale"; from: 1; to: 0.9; duration: 180; easing.type: Easing.InCubic }
+                NumberAnimation { property: "opacity"; to: 0; duration: root.animationMs; easing.type: Easing.InCubic }
+                NumberAnimation { property: "scale"; to: 0.9; duration: root.animationMs; easing.type: Easing.InCubic }
             }
         }
 
+        // A replaced notification moves to the top.
+        move: Transition {
+            NumberAnimation { property: "y"; duration: root.animationMs; easing.type: Easing.OutCubic }
+        }
+
+        // Also completes an add transition that a second change interrupted.
         displaced: Transition {
-            NumberAnimation { property: "y"; duration: 180; easing.type: Easing.OutCubic }
-        }
-    }
-
-    Timer {
-        interval: 1000
-        running: modelCount() > 0
-        repeat: true
-        onTriggered: {
-            const now = Date.now();
-            const toasts = root.toastModel;
-            for (let i = 0; i < toasts.length; ++i) {
-                const entry = toasts[i];
-                if (entry.hideAt && entry.hideAt > 0 && now >= entry.hideAt) {
-                    root.hideToastRequested(entry);
-                }
-            }
+            NumberAnimation { property: "y"; duration: root.animationMs; easing.type: Easing.OutCubic }
+            NumberAnimation { properties: "opacity,scale"; to: 1; duration: root.animationMs; easing.type: Easing.OutCubic }
         }
     }
 

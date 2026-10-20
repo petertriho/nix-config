@@ -1,18 +1,18 @@
 import QtQuick
+import "../Common"
+import "../Notifications"
 
 BaseModule {
     id: root
 
     hoverHighlight: true
-    required property var notificationsManager
 
-    property int count: notificationsManager ? notificationsManager.notificationCount : 0
+    property int count: NotificationService.notificationCount
 
     text: count > 0 ? "󰂚 " + count : "󰂜"
-    textColor: count > 0 ? colors.base0A : colors.base05
+    textColor: count > 0 ? Config.colors.base0A : Config.colors.base05
 
-    onClicked: {
-        if (notificationsManager)
-            notificationsManager.toggleCenter();
-    }
+    managesPopups: true
+
+    onClicked: NotificationService.toggleCenter()
 }

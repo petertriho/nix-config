@@ -1,89 +1,51 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Widgets
+import "../Common"
 
+// One notification: a toast, or a card nested in the notification center.
+// `entry` is a NotificationService snapshot. The clicks go to the service.
 Rectangle {
     id: root
 
     required property var entry
-    required property QtObject colors
-    required property QtObject fontsConfig
-    required property QtObject notificationsConfig
 
     property bool inCenter: false
     property real clock
+    readonly property bool hovered: hoverHandler.hovered
+    readonly property bool clickable: root.entry.hasDefaultAction || root.entry.canOpenApp
 
-    signal dismissRequested(var entry)
-    signal actionRequested(var entry, string actionIdentifier)
-
-    width: inCenter && parent ? parent.width : notificationsConfig.toastWidth
-    implicitHeight: cardColumn.implicitHeight + notificationsConfig.cardPadding * 2
-    color: colors.base01
-    border.color: colors.base10
-    radius: notificationsConfig.cornerRadius
+    implicitHeight: cardColumn.implicitHeight + Config.style.padding * 2
+    color: root.inCenter ? Config.style.cardColor : Config.style.surfaceColor
+    radius: root.inCenter ? Config.style.radiusSmall : Config.style.radius
+    // A center card sits on the drawer surface and needs no border unless it is critical.
+    border.width: root.inCenter && !root.entry.critical ? 0 : 1
+    border.color: root.entry.critical ? Config.colors.base08 : Config.style.borderColor
     clip: true
-    opacity: notificationsConfig.panelOpacity
+
+    HoverHandler {
+        id: hoverHandler
+    }
 
     MouseArea {
         anchors.fill: parent
         z: -1
-        cursorShape: root.actions().length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: {
-            var actions = root.actions();
-            if (actions.length === 0)
-                return;
-            var found = false;
-            for (var i = 0; i < actions.length; i++) {
-                if (actions[i].identifier === "default") {
-                    found = true;
-                    break;
-                }
-            }
-            root.actionRequested(root.entry, found ? "default" : actions[0].identifier);
-        }
-    }
-
-    function appName() {
-        if (entry && entry.appName && entry.appName.length > 0)
-            return entry.appName;
-        return "Notification";
+        cursorShape: root.clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: NotificationService.activate(root.entry)
     }
 
     function relativeTime(createdAtMs, nowMs) {
         if (!createdAtMs)
             return "";
-        var diffMs = Math.max(0, nowMs - createdAtMs);
-        var minutes = Math.floor(diffMs / 60000);
+        const minutes = Math.floor(Math.max(0, nowMs - createdAtMs) / 60000);
         if (minutes < 1)
             return "now";
         if (minutes < 60)
             return minutes + "m";
-        var hours = Math.floor(minutes / 60);
+        const hours = Math.floor(minutes / 60);
         if (hours < 24)
             return hours + "h";
         return Math.floor(hours / 24) + "d";
-    }
-
-    function summary() {
-        return entry && entry.summary ? entry.summary : "";
-    }
-
-    function body() {
-        return entry && entry.body ? entry.body : "";
-    }
-
-    function iconSource() {
-        if (!entry)
-            return "";
-        if (entry.image && entry.image.length > 0)
-            return entry.image;
-        if (entry.appIcon && entry.appIcon.length > 0)
-            return entry.appIcon;
-        return "";
-    }
-
-    function actions() {
-        return entry && entry.actions ? entry.actions : [];
     }
 
     ColumnLayout {
@@ -91,17 +53,19 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: notificationsConfig.cardPadding
+        anchors.margins: Config.style.padding
         spacing: 8
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
 
+            // Hidden until it loads, so a missing icon leaves no gap.
             IconImage {
-                visible: root.iconSource().length > 0
-                source: root.iconSource()
-                implicitSize: notificationsConfig.iconSize
+                id: icon
+                visible: icon.status === Image.Ready
+                source: root.entry.iconSource
+                implicitSize: Config.notifications.iconSize
                 Layout.alignment: Qt.AlignTop
             }
 
@@ -114,29 +78,30 @@ Rectangle {
                     spacing: 6
 
                     Text {
-                        text: root.appName()
-                        color: colors.base0D
-                        font.family: fontsConfig.defaultFamily
-                        font.pixelSize: notificationsConfig.appFontSize
+                        text: root.entry.appName || "Notification"
+                        color: root.entry.critical ? Config.colors.base08 : Config.style.accentColor
+                        font.family: Config.fonts.defaultFamily
+                        font.pixelSize: Config.notifications.appFontSize
+                        font.bold: root.entry.critical
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
 
                     Text {
-                        text: root.relativeTime(entry.createdAt, clock)
-                        color: colors.base03
-                        font.family: fontsConfig.defaultFamily
-                        font.pixelSize: notificationsConfig.appFontSize
+                        text: root.relativeTime(root.entry.createdAt, root.clock)
+                        color: Config.colors.base03
+                        font.family: Config.fonts.defaultFamily
+                        font.pixelSize: Config.notifications.appFontSize
                         Layout.alignment: Qt.AlignVCenter
                     }
                 }
 
                 Text {
-                    text: root.summary()
+                    text: root.entry.summary
                     visible: text.length > 0
-                    color: colors.base06
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: notificationsConfig.summaryFontSize
+                    color: Config.colors.base06
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.notifications.summaryFontSize
                     font.bold: true
                     wrapMode: Text.WordWrap
                     maximumLineCount: 2
@@ -145,13 +110,13 @@ Rectangle {
                 }
 
                 Text {
-                    text: root.body()
+                    text: root.entry.body
                     visible: text.length > 0
-                    color: colors.base05
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: notificationsConfig.bodyFontSize
+                    color: Config.colors.base05
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.notifications.bodyFontSize
                     wrapMode: Text.WordWrap
-                    maximumLineCount: root.inCenter ? notificationsConfig.centerBodyLines : notificationsConfig.toastBodyLines
+                    maximumLineCount: root.inCenter ? Config.notifications.centerBodyLines : Config.notifications.toastBodyLines
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
@@ -159,49 +124,53 @@ Rectangle {
 
             Text {
                 text: "󰅖"
-                color: closeMouse.containsMouse ? colors.base08 : colors.base03
-                font.family: fontsConfig.defaultFamily
-                font.pixelSize: notificationsConfig.summaryFontSize
+                color: closeMouse.containsMouse ? Config.colors.base08 : Config.colors.base03
+                font.family: Config.fonts.defaultFamily
+                font.pixelSize: Config.notifications.summaryFontSize
                 Layout.alignment: Qt.AlignTop
 
                 MouseArea {
                     id: closeMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    onClicked: root.dismissRequested(root.entry)
+                    onClicked: NotificationService.dismiss(root.entry)
                 }
             }
         }
 
         Flow {
-            visible: root.actions().length > 0
+            visible: root.entry.actions.length > 0
             Layout.fillWidth: true
             spacing: 6
 
             Repeater {
-                model: root.actions()
+                model: root.entry.actions
 
                 delegate: Rectangle {
+                    id: actionButton
+
+                    required property var modelData
+
                     height: actionText.implicitHeight + 8
                     width: actionText.implicitWidth + 16
-                    color: actionMouse.containsMouse ? colors.base02 : colors.base11
-                    border.color: colors.base0C
-                    radius: 6
+                    color: actionMouse.containsMouse ? Config.style.hoverColor : Config.colors.base11
+                    border.color: Config.colors.base0C
+                    radius: Config.style.radiusSmall
 
                     Text {
                         id: actionText
                         anchors.centerIn: parent
-                        text: modelData.text
-                        color: colors.base05
-                        font.family: fontsConfig.defaultFamily
-                        font.pixelSize: notificationsConfig.actionFontSize
+                        text: actionButton.modelData.text
+                        color: Config.colors.base05
+                        font.family: Config.fonts.defaultFamily
+                        font.pixelSize: Config.notifications.actionFontSize
                     }
 
                     MouseArea {
                         id: actionMouse
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: root.actionRequested(root.entry, modelData.identifier)
+                        onClicked: NotificationService.invokeAction(root.entry, actionButton.modelData.identifier)
                     }
                 }
             }

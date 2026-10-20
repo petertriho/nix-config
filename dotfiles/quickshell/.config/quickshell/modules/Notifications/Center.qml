@@ -2,41 +2,23 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Wayland
 import "../Common"
 
+// The notification center: the "notifications" drawer, top-right.
 OverlayHost {
     id: root
 
-    required property var centerModel
-    required property QtObject colors
-    required property QtObject fontsConfig
-    required property QtObject notificationsConfig
-    property QtObject overlayConfig
-
-    animationDurationMs: overlayConfig ? overlayConfig.animationDurationMs : 180
-    closeGraceMs: overlayConfig ? overlayConfig.closeGraceMs : 220
+    // NotificationService.centerEntries.
+    required property var entries
 
     property real clock
-    readonly property int maxPanelHeight: Math.max(1, Screen.height - notificationsConfig.topMargin - notificationsConfig.bottomMargin)
-    readonly property int maxListHeight: Math.max(1, maxPanelHeight - headerRow.implicitHeight - notificationsConfig.spacing - notificationsConfig.cardPadding * 2)
+    readonly property int animationMs: 180
+    readonly property int topMargin: Config.bar.height + Config.style.gap
+    readonly property int maxPanelHeight: Math.max(1, Screen.height - root.topMargin - Config.notifications.bottomMargin)
+    readonly property int maxListHeight: Math.max(1, maxPanelHeight - headerRow.implicitHeight - Config.notifications.spacing - Config.style.padding * 2)
     readonly property real listHeight: Math.min(listView.contentHeight, maxListHeight)
-    readonly property real emptyHeight: emptyText.implicitHeight + 72
-    readonly property real contentHeight: notificationsConfig.cardPadding * 2 + headerRow.implicitHeight + notificationsConfig.spacing + (modelCount() > 0 ? listHeight : emptyHeight)
 
     signal clearRequested
-    signal dismissRequested(var entry)
-    signal actionRequested(var entry, string actionIdentifier)
-
-    function modelCount() {
-        if (!root.centerModel)
-            return 0;
-        if (typeof root.centerModel.length === "number")
-            return root.centerModel.length;
-        if (typeof root.centerModel.count === "number")
-            return root.centerModel.count;
-        return 0;
-    }
 
     // Mod (Super) combos reach the overlay via exclusive focus while the center is open.
     // Mod+B closes (completing the toggle); Mod+Shift+B clears all (and closes).
@@ -50,34 +32,20 @@ OverlayHost {
         }
     }
 
-    Rectangle {
-        id: drawerRect
-        width: notificationsConfig ? notificationsConfig.drawerWidth : 0
-        height: Math.min(root.contentHeight, root.maxPanelHeight)
-        x: root.width - width - (notificationsConfig ? notificationsConfig.rightMargin : 0)
-        y: notificationsConfig ? notificationsConfig.topMargin : 0
-        color: colors.base01
-        border.color: colors.base10
-        radius: notificationsConfig.cornerRadius
-        clip: true
-        opacity: open ? notificationsConfig.panelOpacity : 0
-        // Popover settle: fade + slight scale from the top-right corner. Avoids the
-        // horizontal slide (which depended on root.width and traveled across-screen).
-        scale: open ? 1.0 : 0.97
+    PopupCard {
+        id: drawer
+        open: root.open
+        preferredWidth: Config.notifications.drawerWidth
+        maxHeight: root.maxPanelHeight
+        x: root.width - width - Config.style.gap
+        y: root.topMargin
+        // Popover settle: fade + slight scale from the top-right corner.
         transformOrigin: Item.TopRight
-
-        Behavior on opacity {
-            NumberAnimation { duration: root.animationDurationMs; easing.type: open ? Easing.OutCubic : Easing.InCubic }
-        }
-        Behavior on scale {
-            NumberAnimation { duration: root.animationDurationMs; easing.type: open ? Easing.OutCubic : Easing.InCubic }
-        }
 
         ColumnLayout {
             id: panelColumn
-            anchors.fill: parent
-            anchors.margins: notificationsConfig.cardPadding
-            spacing: notificationsConfig.spacing
+            width: parent.width
+            spacing: Config.notifications.spacing
 
             RowLayout {
                 id: headerRow
@@ -87,20 +55,20 @@ OverlayHost {
 
                 Text {
                     text: "Notifications"
-                    color: colors.base06
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: notificationsConfig.headerFontSize
+                    color: Config.colors.base06
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.notifications.headerFontSize
                     font.bold: true
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
                 }
 
                 Text {
-                    text: root.modelCount() > 0 ? "󰆳 Clear" : ""
-                    visible: text.length > 0
-                    color: clearMouse.containsMouse ? colors.base08 : colors.base03
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: notificationsConfig.headerFontSize
+                    text: "󰆳 Clear"
+                    visible: root.entries.length > 0
+                    color: clearMouse.containsMouse ? Config.colors.base08 : Config.colors.base03
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.notifications.headerFontSize
                     Layout.alignment: Qt.AlignVCenter
 
                     MouseArea {
@@ -113,9 +81,9 @@ OverlayHost {
 
                 Text {
                     text: "󰅖"
-                    color: closeMouse.containsMouse ? colors.base08 : colors.base03
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: notificationsConfig.headerFontSize
+                    color: closeMouse.containsMouse ? Config.colors.base08 : Config.colors.base03
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.notifications.headerFontSize
                     Layout.alignment: Qt.AlignVCenter
 
                     MouseArea {
@@ -130,19 +98,20 @@ OverlayHost {
             Text {
                 id: emptyText
 
-                visible: root.modelCount() === 0
+                visible: root.entries.length === 0
                 text: "No notifications"
-                color: colors.base03
-                font.family: fontsConfig.defaultFamily
-                font.pixelSize: notificationsConfig.bodyFontSize
+                color: Config.colors.base03
+                font.family: Config.fonts.defaultFamily
+                font.pixelSize: Config.notifications.bodyFontSize
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 Layout.alignment: Qt.AlignTop
                 Layout.topMargin: 32
+                Layout.bottomMargin: 40
             }
 
             ScrollView {
-                visible: root.modelCount() > 0
+                visible: root.entries.length > 0
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.listHeight
                 Layout.maximumHeight: root.maxListHeight
@@ -150,30 +119,46 @@ OverlayHost {
 
                 ListView {
                     id: listView
-                    model: centerModel
-                    spacing: notificationsConfig.spacing
+                    spacing: Config.notifications.spacing
+                    model: ScriptModel {
+                        values: root.entries
+                        objectProp: "key"
+                    }
 
-                    delegate: Item {
+                    delegate: Card {
+                        id: card
+
                         required property var modelData
-                        width: listView.width
-                        height: card.implicitHeight
 
-                        Card {
-                            id: card
-                            anchors.fill: parent
-                            entry: modelData
-                            colors: root.colors
-                            fontsConfig: root.fontsConfig
-                            notificationsConfig: root.notificationsConfig
-                            inCenter: true
-                            clock: root.clock
-                            onDismissRequested: function (entry) {
-                                root.dismissRequested(entry);
-                            }
-                            onActionRequested: function (entry, actionIdentifier) {
-                                root.actionRequested(entry, actionIdentifier);
-                            }
+                        width: listView.width
+                        entry: card.modelData
+                        inCenter: true
+                        clock: root.clock
+                    }
+
+                    add: Transition {
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: root.animationMs; easing.type: Easing.OutCubic }
+                            NumberAnimation { property: "scale"; from: 0.95; to: 1; duration: root.animationMs; easing.type: Easing.OutCubic }
                         }
+                    }
+
+                    remove: Transition {
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; to: 0; duration: root.animationMs; easing.type: Easing.InCubic }
+                            NumberAnimation { property: "scale"; to: 0.95; duration: root.animationMs; easing.type: Easing.InCubic }
+                        }
+                    }
+
+                    // A replaced notification moves to the top.
+                    move: Transition {
+                        NumberAnimation { property: "y"; duration: root.animationMs; easing.type: Easing.OutCubic }
+                    }
+
+                    // Also completes an add transition that a second change interrupted.
+                    displaced: Transition {
+                        NumberAnimation { property: "y"; duration: root.animationMs; easing.type: Easing.OutCubic }
+                        NumberAnimation { properties: "opacity,scale"; to: 1; duration: root.animationMs; easing.type: Easing.OutCubic }
                     }
                 }
             }
