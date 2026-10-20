@@ -854,8 +854,8 @@ function tool:pkgs:update {
         mapfile -t packages < <(nix eval --json ".#packages.$system" --apply 'builtins.attrNames' | jq -r '.[]')
 
         for package in "${packages[@]}"; do
-            # Check if this is a plugin collection (chrome-extensions, fish-plugins, tmux-plugins, pi-extensions)
-            if [[ $package == "chrome-extensions" || $package == "fish-plugins" || $package == "tmux-plugins" || $package == "pi-extensions" ]]; then
+            # Check if this is an extension or plugin collection.
+            if [[ $package == "chrome-extensions" || $package == "fish-plugins" || $package == "tmux-plugins" || $package == "pi-extensions" || $package == "vicinae-extensions" ]]; then
                 # Get individual plugins from the collection
                 local plugins=()
                 mapfile -t plugins < <(nix eval --json ".#packages.$system.$package" --apply 'builtins.attrNames' | jq -r '.[]')

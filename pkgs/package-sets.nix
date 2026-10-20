@@ -40,6 +40,7 @@ let
     fish-plugins = import ./fish-plugins { inherit pkgs; };
     pi-extensions = import ./pi-extensions { inherit pkgs; };
     tmux-plugins = import ./tmux-plugins { inherit pkgs; };
+    vicinae-extensions = import ./vicinae-extensions { inherit pkgs; };
   };
 
   overlays = {
@@ -51,6 +52,8 @@ let
         fishPlugins = (prev.fishPlugins or { }) // import ./fish-plugins { pkgs = final; };
         piExtensions = (prev.piExtensions or { }) // import ./pi-extensions { pkgs = final; };
         tmuxPlugins = (prev.tmuxPlugins or { }) // import ./tmux-plugins { pkgs = final; };
+        vicinaeExtensions =
+          (prev.vicinaeExtensions or { }) // import ./vicinae-extensions { pkgs = final; };
         mcp-servers = inputs.mcp-servers-nix.packages.${final.stdenv.hostPlatform.system};
         llm-agents = inputs.llm-agents.packages.${final.stdenv.hostPlatform.system};
         nix-auth = inputs.nix-auth.packages.${final.stdenv.hostPlatform.system}.default;

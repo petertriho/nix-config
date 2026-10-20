@@ -1,8 +1,14 @@
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 {
   programs.vicinae = {
     enable = true;
     package = pkgs.vicinae;
+    extensions = [ pkgs.vicinaeExtensions.bitwarden ];
     systemd = {
       enable = true;
       autoStart = true;
@@ -28,5 +34,10 @@
       search_files_in_root = true;
       telemetry.system_info = false;
     };
+  };
+
+  systemd.user.services.vicinae = lib.mkIf config.programs.vicinae.systemd.enable {
+    # Restart after extension updates so Vicinae rescans the new symlink targets.
+    Unit.X-Restart-Triggers = config.programs.vicinae.extensions;
   };
 }
