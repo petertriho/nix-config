@@ -1,50 +1,38 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
-import Quickshell
-import Quickshell.Bluetooth
+// Aliased: the bar type `Bluetooth` (this file) shadows the module's `Bluetooth` singleton.
+import Quickshell.Bluetooth as QsBluetooth
 import ".."
-import "../../Common" as Common
+import "../../Common"
 import "." as Local
 
 BaseModule {
     id: root
 
-    property var adapter: Bluetooth.defaultAdapter
-    property var devices: Bluetooth.devices.values
-    property var connectedDevices: devices.filter(function (device) {
-        return device.connected;
-    })
-    property var pairedDevices: devices.filter(function (device) {
-        return (device.paired || device.bonded) && !device.connected;
-    })
-    property bool available: adapter != null
-    property bool enabled: available && adapter.enabled
-    property bool showPopup: false
-    readonly property real globalX: popupAnchor.globalX
-    property var barWindow: null
-    property bool inOverflow: false
-    property var overflowAnchorModule: null
-    property QtObject popupsConfig: parent.popupsConfig
-    property QtObject overlayConfig: parent.overlayConfig
-    property string icon: !available ? "󰂲" : !enabled ? "󰂲" : connectedDevices.length > 0 ? "󰂱" : "󰂯"
+    readonly property var adapter: QsBluetooth.Bluetooth.defaultAdapter
+    readonly property var devices: QsBluetooth.Bluetooth.devices.values
+    readonly property var connectedDevices: root.devices.filter(device => device.connected)
+    readonly property var pairedDevices: root.devices.filter(device => (device.paired || device.bonded) && !device.connected)
+    // Not `available`: that BaseModule property hides the module, and the
+    // module stays visible without an adapter.
+    readonly property bool adapterAvailable: !!root.adapter
+    readonly property bool adapterEnabled: root.adapterAvailable && root.adapter.enabled
+    readonly property string icon: !root.adapterEnabled ? "󰂲" : root.connectedDevices.length > 0 ? "󰂱" : "󰂯"
 
+    popupId: "bluetooth"
     hoverEnabled: true
     hoverHighlight: true
-    text: icon
-    textColor: !available || !enabled ? colors.base03 : connectedDevices.length > 0 ? colors.base0D : colors.base05
+    text: root.icon
+    textColor: !root.adapterEnabled ? Config.colors.base03 : root.connectedDevices.length > 0 ? Config.colors.base0D : Config.colors.base05
 
-    function displayName(device) {
+    function displayName(device: var): string {
         if (!device)
             return "Unknown device";
-        if (device.name)
-            return device.name;
-        if (device.deviceName)
-            return device.deviceName;
-        return device.address;
+        return device.name || device.deviceName || device.address;
     }
 
-    function statusText(device) {
+    function statusText(device: var): string {
         if (device.connected)
             return device.batteryAvailable ? "Connected " + Math.round(device.battery * 100) + "%" : "Connected";
         if (device.pairing)
@@ -54,48 +42,18 @@ BaseModule {
         return "Known";
     }
 
-    function adapterText() {
-        if (!available)
+    function adapterText(): string {
+        if (!root.adapterAvailable)
             return "No adapter";
-        return (adapter.name || adapter.adapterId || "Bluetooth") + (enabled ? " on" : " off");
+        return (root.adapter.name || root.adapter.adapterId || "Bluetooth") + (root.adapterEnabled ? " on" : " off");
     }
 
-    function popupX(popupWidth) {
-        return popupAnchor.popupX(popupWidth);
-    }
-
-    function closePopup() {
-        root.showPopup = false;
-    }
-
-    Common.DeferredLoader {
-        open: root.showPopup
-        unloadDelay: root.overlayConfig ? root.overlayConfig.closeGraceMs + 20 : 250
+    BarPopup {
+        module: root
+        preferredWidth: 320
 
         Local.Popup {
             module: root
-            barWindow: root.barWindow
-            colors: root.colors
-            fontsConfig: root.fontsConfig
-            popupsConfig: root.popupsConfig
-            overlayConfig: root.overlayConfig
         }
-    }
-
-    PopupAnchor {
-        id: popupAnchor
-        module: root
-        barWindow: root.barWindow
-        inOverflow: root.inOverflow
-        overflowAnchorModule: root.overflowAnchorModule
-    }
-
-    onXChanged: popupAnchor.updatePosition()
-    onWidthChanged: popupAnchor.updatePosition()
-    Component.onCompleted: popupAnchor.updatePosition()
-
-    onClicked: {
-        popupAnchor.updatePosition();
-        showPopup = !showPopup;
     }
 }
