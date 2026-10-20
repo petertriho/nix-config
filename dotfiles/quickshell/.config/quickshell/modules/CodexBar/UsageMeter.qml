@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "../Common"
 
 // UsageMeter — one labeled usage meter for Panel: a [label ......... %]
 // row, an optional reset countdown, a colored progress bar, and optional pacing
@@ -17,30 +18,18 @@ ColumnLayout {
     property string paceState: ""
     property string paceSummary: ""
     property string paceProjection: ""
-    required property QtObject colors
-    required property QtObject fontsConfig
 
     readonly property bool paceAvailable: paceState.length > 0 && paceSummary.length > 0
     readonly property bool markerVisible: paceAvailable
         && (paceState === "reserve" || paceState === "deficit")
         && paceExpectedPercent >= 0 && paceExpectedPercent <= 100
 
-    function bandColor(p) {
-        if (p < 0 || isNaN(p))
-            return colors.base03;
-        if (p >= 90)
-            return colors.base08;
-        if (p >= 70)
-            return colors.base0A;
-        return colors.base0B;
-    }
-
     function paceColor(state) {
         if (state === "reserve")
-            return colors.base0B;
+            return Config.colors.base0B;
         if (state === "deficit")
-            return colors.base08;
-        return colors.base03;
+            return Config.colors.base08;
+        return Config.colors.base03;
     }
 
     spacing: 2
@@ -52,18 +41,18 @@ ColumnLayout {
 
         Text {
             text: root.labelText
-            color: colors.base05
-            font.family: fontsConfig.defaultFamily
-            font.pixelSize: fontsConfig.defaultSize - 1
+            color: Config.colors.base05
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize - 1
             elide: Text.ElideRight
             Layout.fillWidth: true
         }
 
         Text {
             text: root.percent >= 0 ? Math.round(root.percent) + "%" : "—"
-            color: root.bandColor(root.percent)
-            font.family: fontsConfig.defaultFamily
-            font.pixelSize: fontsConfig.defaultSize - 1
+            color: CodexBarService.bandColor(root.percent)
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize - 1
             font.bold: true
         }
     }
@@ -73,9 +62,9 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.showReset && root.resetShort !== "—" && root.resetShort.length > 0
         text: "resets " + root.resetShort + "  ·  " + root.resetFull
-        color: colors.base03
-        font.family: fontsConfig.defaultFamily
-        font.pixelSize: fontsConfig.defaultSize - 2
+        color: Config.colors.base03
+        font.family: Config.fonts.defaultFamily
+        font.pixelSize: Config.fonts.defaultSize - 2
     }
 
     // Meter bar
@@ -83,13 +72,13 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredHeight: 4
         radius: 2
-        color: colors.base02
+        color: Config.colors.base02
 
         Rectangle {
             width: parent.width * (root.percent < 0 ? 0 : Math.min(100, root.percent)) / 100
             height: parent.height
             radius: parent.radius
-            color: root.bandColor(root.percent)
+            color: CodexBarService.bandColor(root.percent)
         }
 
         Item {
@@ -101,7 +90,7 @@ ColumnLayout {
 
             Rectangle {
                 anchors.fill: parent
-                color: root.colors.base06
+                color: Config.colors.base06
             }
 
             Rectangle {
@@ -122,8 +111,8 @@ ColumnLayout {
         Text {
             text: root.paceSummary
             color: root.paceColor(root.paceState)
-            font.family: root.fontsConfig.defaultFamily
-            font.pixelSize: root.fontsConfig.defaultSize - 2
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize - 2
             Layout.fillWidth: true
             elide: Text.ElideRight
         }
@@ -131,9 +120,9 @@ ColumnLayout {
         Text {
             visible: root.paceProjection.length > 0
             text: root.paceProjection
-            color: root.colors.base03
-            font.family: root.fontsConfig.defaultFamily
-            font.pixelSize: root.fontsConfig.defaultSize - 2
+            color: Config.colors.base03
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize - 2
             elide: Text.ElideRight
             Layout.maximumWidth: 220
         }

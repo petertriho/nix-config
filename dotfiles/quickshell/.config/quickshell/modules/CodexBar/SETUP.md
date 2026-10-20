@@ -83,9 +83,11 @@ since the window began. Windows with missing or inconsistent duration/reset data
 newly started windows, and depleted windows continue to show the ordinary usage
 meter without pacing details.
 
-Pacing and reset text update only when the widget polls; there is no local
-heartbeat between requests. The cadence is configured in `config.qml` through
-`codexbar.refreshIntervalSec` (currently 900 seconds).
+The widget polls codexbar every `codexbar.refreshIntervalSec` seconds (set in
+`modules/Common/Config.qml`, currently 900). It keeps the raw output of the last poll, so
+reset times and pacing stay current without new queries: the panel re-parses that output
+when it opens and every 60 seconds while it is open. The output and the poll schedule
+survive a Quickshell config reload, so a reload does not start new queries either.
 
 Bump the codexbar version later by changing `version` + the two hashes in
 `pkgs/codexbar/default.nix`; if a provider's JSON shape changed, re-capture it here and

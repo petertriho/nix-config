@@ -4,7 +4,7 @@
 // layer that turns codexbar's `--format json` output into normalized rows for
 // the bar segment + panel. It deliberately does NO provider/auth logic itself.
 //
-// JSON contract (verified against codexbar v0.48.0 with REAL keys):
+// JSON contract (verified against codexbar v0.78.0 with real keys):
 //   - Top-level is an ARRAY of segment objects (one per provider, or one per
 //     Codex account when multi-account). A bare object is tolerated too.
 //   - Each segment: { provider, source, error?:{kind,message,code}, usage?:{...} }
@@ -22,6 +22,8 @@
 //   - Codex also carries usage.codexResetCredits (free rate-limit resets;
 //     each credit has its own expires_at); surfaced as ONE compact info line
 //     on quota rows: count plus every usable credit's expiry.
+//   - Other fields (usage.providerCost, Claude's usage.extraRateWindows) are
+//     not shown.
 //
 // Pure functions only (no QML globals). `now` is injectable for testing; it
 // defaults to Date.now() so the service can call parseAll(output) directly.
@@ -35,6 +37,7 @@ function providerLabel(id) {
         codex: "Codex",
         zai: "z.ai",
         openrouter: "OpenRouter",
+        opencodego: "OpenCode Go",
         openai: "OpenAI",
         claude: "Claude",
         gemini: "Gemini",
@@ -44,18 +47,6 @@ function providerLabel(id) {
     if (!id)
         return "Unknown";
     return labels[id] || String(id).charAt(0).toUpperCase() + String(id).slice(1);
-}
-
-// Map a percent to a color band keyword; the QML side maps band -> config color.
-//   unknown (<0): neutral  · green (<70) · amber (<90) · red (>=90)
-function usageBand(percent) {
-    if (percent < 0 || isNaN(percent))
-        return "unknown";
-    if (percent >= 90)
-        return "red";
-    if (percent >= 70)
-        return "amber";
-    return "green";
 }
 
 function windowLabel(minutes) {
@@ -231,9 +222,7 @@ function emptyRow() {
         creditsBalance: "",
         creditsTotal: "",
         creditsUsed: "",
-        // Codex free rate-limit reset credits (>0 => show the summary line).
-        resetCredits: -1,
-        // Compact one-line expiry for those credits, e.g.
+        // Codex free rate-limit reset credits as one line, e.g.
         // "1 reset credit · expires in 29d". "" if none.
         resetCreditSummary: "",
         cost: "",
@@ -285,16 +274,6 @@ function quotaRow(provider, account, primary, secondary, tertiary, now) {
     row.tertiaryPaceState = tertiaryPace.state;
     row.tertiaryPaceSummary = tertiaryPace.summary;
     row.tertiaryPaceProjection = tertiaryPace.projection;
-    return row;
-}
-
-function costRow(provider, account, cost) {
-    var row = emptyRow();
-    row.kind = "cost";
-    row.provider = provider;
-    row.account = account || "";
-    row.label = providerLabel(provider) + (account ? " · " + account : "");
-    row.cost = cost;
     return row;
 }
 
@@ -365,11 +344,8 @@ function mapQuota(item, provider, now) {
         || (usage.identity && usage.identity.accountEmail)
         || "";
     var row = quotaRow(provider, account, windows[0] || {}, windows[1] || {}, windows[2] || {}, now);
-    // Codex grants free rate-limit reset credits; surface the count and a
-    // compact one-line expiry list when present.
-    var credits = usage.codexResetCredits && usage.codexResetCredits.availableCount;
-    if (typeof credits === "number" && credits > 0)
-        row.resetCredits = credits;
+    // Codex grants free rate-limit reset credits: one line with the count and
+    // the expiry of each usable credit.
     row.resetCreditSummary = resetCreditSummary(usage, now);
     return row;
 }

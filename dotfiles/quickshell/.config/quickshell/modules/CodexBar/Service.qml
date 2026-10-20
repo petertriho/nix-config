@@ -1,21 +1,19 @@
+pragma Singleton
+
 import QtQuick
+import Quickshell
 import Quickshell.Io
-import "../Common" as Common
+import "../Common"
 import "codexbar.js" as CodexBar
 
-// Service — polls `codexbar usage` (every enabled provider in one call)
+// CodexBarService — polls `codexbar usage` (every enabled provider in one call)
 // on a timer, plus — when Codex is among the results — a second
 // `--provider codex --all-accounts` call so both Codex accounts stay visible and
 // grouped. Exposes a normalized ListModel plus an exhaustion-aware summary for
 // the compact bar. CodexBar owns all provider/auth/API-key state; this is a
-// display layer only.
-Item {
+// display layer only. The panel is the "codexbar" drawer in Popups.
+Singleton {
     id: root
-
-    required property QtObject colors
-    required property QtObject fontsConfig
-    required property QtObject codexbarConfig
-    property QtObject overlayConfig
 
     // Normalized rows, one per provider/account segment (see codexbar.js).
     ListModel {
@@ -32,33 +30,39 @@ Item {
     property bool configured: false
     property bool busy: false
     // Wall-clock time of the last refresh that produced data (panel footer).
-    property string lastUpdated: ""
+    readonly property string lastUpdated: persist.lastDataMs > 0 ? Qt.formatDateTime(new Date(persist.lastDataMs), "HH:mm") : ""
 
-    property bool panelOpen: false
+    readonly property bool panelOpen: Popups.active === "codexbar"
+    readonly property int refreshIntervalMs: Math.max(10, Config.codexbar.refreshIntervalSec || 90) * 1000
+    // Earliest retry of a fetch that a reload interrupted, counted from its start.
+    readonly property int retryMs: 60000
 
     function togglePanel() {
-        root.panelOpen = !root.panelOpen;
+        Popups.toggle("codexbar");
     }
     function showPanel() {
-        root.panelOpen = true;
+        Popups.open("codexbar");
     }
     function hidePanel() {
-        root.panelOpen = false;
+        if (root.panelOpen)
+            Popups.close();
     }
 
-    // Map a percent to a config color band (shared by the bar segment + panel).
-    function bandColor(percent) {
+    // Color band of a usage percent, shared by the bar segment and the panel:
+    // base03 when unknown, `normal` below 70 % (default base0B), base0A below
+    // 90 %, base08 from 90 %.
+    function bandColor(percent, normal) {
         if (percent < 0 || isNaN(percent))
-            return colors.base03;
+            return Config.colors.base03;
         if (percent >= 90)
-            return colors.base08;
+            return Config.colors.base08;
         if (percent >= 70)
-            return colors.base0A;
-        return colors.base0B;
+            return Config.colors.base0A;
+        return normal === undefined ? Config.colors.base0B : normal;
     }
 
     function buildCommand() {
-        var path = (codexbarConfig && codexbarConfig.codexbarPath) || "codexbar";
+        var path = Config.codexbar.codexbarPath || "codexbar";
         // One all-providers call returns every enabled provider. If Codex is
         // among them, run a second `--all-accounts` call so both Codex accounts
         // stay visible. The codex chunk is EMITTED FIRST so Codex groups at the
@@ -80,28 +84,76 @@ Item {
         if (root.busy)
             return;
         root.busy = true;
+        persist.fetchStartedMs = Date.now();
         usageProc.exec({
             "command": root.buildCommand()
         });
     }
 
-    function applyParsed(parsed) {
-        usageRows.clear();
-        for (var i = 0; parsed.rows && i < parsed.rows.length; i++)
-            usageRows.append(parsed.rows[i]);
+    function scheduleRefreshAt(dueMs) {
+        refreshTimer.interval = Math.max(1000, dueMs - Date.now());
+        refreshTimer.restart();
+    }
+
+    // Runs once per config generation, after `persist` has its values back.
+    // A reload re-parses the last output and does not start new network
+    // queries before the interval has passed.
+    function start() {
+        root.reparse();
+        var now = Date.now();
+        // A fetch that an earlier generation started and did not finish lost
+        // its output. Retry it, but at most once a minute during reload bursts.
+        if (persist.fetchStartedMs > persist.lastFetchMs && now - persist.fetchStartedMs < root.retryMs)
+            root.scheduleRefreshAt(persist.fetchStartedMs + root.retryMs);
+        else if (persist.lastFetchMs > 0 && now >= persist.lastFetchMs && now - persist.lastFetchMs < root.refreshIntervalMs)
+            root.scheduleRefreshAt(persist.lastFetchMs + root.refreshIntervalMs);
+        else
+            root.refresh();
+    }
+
+    function reparse() {
+        if (persist.lastOutput !== "")
+            root.applyOutput(persist.lastOutput);
+    }
+
+    function applyOutput(output) {
+        var parsed = CodexBar.parseProviders(output);
+        var rows = parsed.rows || [];
+        // Update the rows in place, so the panel keeps its delegates.
+        for (var i = 0; i < rows.length; i++) {
+            if (i < usageRows.count)
+                usageRows.set(i, rows[i]);
+            else
+                usageRows.append(rows[i]);
+        }
+        if (usageRows.count > rows.length)
+            usageRows.remove(rows.length, usageRows.count - rows.length);
         root.barSummary = parsed.barSummary || null;
         // Latch configured on the first real row (see property comment above).
-        if (!root.configured && parsed.rows) {
-            for (var j = 0; j < parsed.rows.length; j++) {
-                if (parsed.rows[j].kind !== "error") {
+        if (!root.configured) {
+            for (var j = 0; j < rows.length; j++) {
+                if (rows[j].kind !== "error") {
                     root.configured = true;
                     break;
                 }
             }
         }
-        if (parsed.rows && parsed.rows.length > 0)
-            root.lastUpdated = Qt.formatDateTime(new Date(), "HH:mm");
-        root.busy = false;
+        return rows.length;
+    }
+
+    // Survives config reloads (see start()).
+    PersistentProperties {
+        id: persist
+        reloadableId: "codexbarService"
+
+        // Raw stdout of the last fetch. Relative reset times and pace come
+        // from it and the current time, so a re-parse keeps them current.
+        property string lastOutput: ""
+        property real fetchStartedMs: 0
+        property real lastFetchMs: 0
+        property real lastDataMs: 0
+
+        onLoaded: root.start()
     }
 
     // One Process, reused per tick. stdout carries JSON regardless of exit code
@@ -110,37 +162,41 @@ Item {
         id: usageProc
         stdout: StdioCollector {
             onStreamFinished: {
-                root.applyParsed(CodexBar.parseProviders(this.text));
+                var now = Date.now();
+                persist.lastOutput = this.text;
+                persist.lastFetchMs = now;
+                if (root.applyOutput(this.text) > 0)
+                    persist.lastDataMs = now;
+                root.busy = false;
+                root.scheduleRefreshAt(now + root.refreshIntervalMs);
             }
         }
     }
 
     Timer {
         id: refreshTimer
-        interval: Math.max(10, (codexbarConfig && codexbarConfig.refreshIntervalSec) || 90) * 1000
-        repeat: true
-        running: true
         onTriggered: root.refresh()
     }
 
-    Component.onCompleted: {
-        root.refresh();
+    // Re-parse each minute while the panel is open (no new CLI call), and
+    // once when it opens.
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.panelOpen
+        triggeredOnStart: true
+        onTriggered: root.reparse()
     }
 
-    Common.DeferredLoader {
+    DeferredLoader {
         open: root.panelOpen
-        unloadDelay: root.overlayConfig ? root.overlayConfig.closeGraceMs + 20 : 250
 
         Panel {
             open: root.panelOpen
             usageModel: usageRows
             busy: root.busy
             lastUpdated: root.lastUpdated
-            refreshIntervalSec: codexbarConfig.refreshIntervalSec
-            topMargin: codexbarConfig.topMargin
-            colors: root.colors
-            fontsConfig: root.fontsConfig
-            overlayConfig: root.overlayConfig
+            refreshIntervalSec: Config.codexbar.refreshIntervalSec
             onCloseRequested: root.hidePanel()
             onRefreshRequested: root.refresh()
         }

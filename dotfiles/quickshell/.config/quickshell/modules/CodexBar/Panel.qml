@@ -1,72 +1,42 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
-import Quickshell
-import Quickshell.Wayland
 import "../Common"
 
-// Panel — full-screen overlay (mirrors Center.qml) listing
-// every normalized usage row. Quota rows render up to three compacted source
+// Panel — the "codexbar" drawer (mirrors Center.qml) with one card per
+// normalized usage row. Quota rows render up to three compacted source
 // windows, each with reset and pacing details plus an expected-usage marker, and
 // any free Codex reset credits. Cost rows (OpenRouter) render a credits-used
-// meter + balance/total/used; error rows show a clean message. Footer = Refresh.
+// meter + balance/total/used; error rows show a clean message. PopupCard
+// scrolls the content when it is taller than the screen allows.
 OverlayHost {
     id: root
 
     required property var usageModel
     property bool busy
-    required property QtObject colors
-    required property QtObject fontsConfig
-    property QtObject overlayConfig
-
-    animationDurationMs: overlayConfig ? overlayConfig.animationDurationMs : 180
-    closeGraceMs: overlayConfig ? overlayConfig.closeGraceMs : 220
 
     signal refreshRequested
 
-    readonly property int drawerWidth: 420
-    readonly property int padding: 12
-    // Footer: last-updated time + auto-refresh cadence.
+    // Footer values: time of the last fetch with data, and the poll interval.
     property string lastUpdated: ""
     property int refreshIntervalSec: 300
-    // The drawer drops just below the bar (config.codexbar.topMargin =
-    // bar.height + 12, mirroring notifications.topMargin) so it never overlaps it.
-    required property int topMargin
-    readonly property int bottomMargin: 12
-    // A ListView has no intrinsic height, so size it explicitly (mirrors
-    // Center.qml) — Layout.fillHeight alone yields 0 and hides rows.
-    readonly property int maxPanelHeight: Math.max(160, Screen.height - root.topMargin - root.bottomMargin)
-    readonly property int maxListHeight: Math.max(120, root.maxPanelHeight - 104)
-    readonly property real listHeight: usageModel.count > 0 ? Math.min(listView.contentHeight, root.maxListHeight) : 0
+    // The drawer drops just below the bar so it never overlaps it.
+    readonly property int topMargin: Config.bar.height + Config.style.gap
+    readonly property int maxPanelHeight: Math.max(1, Screen.height - root.topMargin - Config.notifications.bottomMargin)
 
-    Rectangle {
+    PopupCard {
         id: drawer
-        width: root.drawerWidth
-        height: Math.min(column.implicitHeight + root.padding * 2, root.maxPanelHeight)
-        x: root.width - width - 12
+        open: root.open
+        preferredWidth: Config.notifications.drawerWidth
+        maxHeight: root.maxPanelHeight
+        x: root.width - width - Config.style.gap
         y: root.topMargin
-        radius: 10
-        color: colors.base01
-        border.color: colors.base10
-
-        // Popover settle: fade + slight scale from the top-right corner. Avoids the
-        // horizontal slide (which depended on root.width and traveled across-screen).
-        opacity: root.open ? 1.0 : 0.0
-        scale: root.open ? 1.0 : 0.97
+        // Popover settle: fade + slight scale from the top-right corner.
         transformOrigin: Item.TopRight
-
-        Behavior on opacity {
-            NumberAnimation { duration: root.animationDurationMs; easing.type: root.open ? Easing.OutCubic : Easing.InCubic }
-        }
-        Behavior on scale {
-            NumberAnimation { duration: root.animationDurationMs; easing.type: root.open ? Easing.OutCubic : Easing.InCubic }
-        }
 
         ColumnLayout {
             id: column
-            anchors.fill: parent
-            anchors.margins: root.padding
-            spacing: 8
+            width: parent.width
+            spacing: Config.notifications.spacing
 
             // Header
             RowLayout {
@@ -75,18 +45,18 @@ OverlayHost {
 
                 Text {
                     text: "Usage"
-                    color: colors.base06
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: fontsConfig.defaultSize + 2
+                    color: Config.colors.base06
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.fonts.defaultSize + 2
                     font.bold: true
                     Layout.fillWidth: true
                 }
 
                 Text {
                     text: root.busy ? "󰇦" : "󰑐"
-                    color: refreshMouse.containsMouse ? colors.base0D : colors.base03
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: fontsConfig.defaultSize
+                    color: refreshMouse.containsMouse ? Config.colors.base0D : Config.colors.base03
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.fonts.defaultSize
                     Layout.alignment: Qt.AlignVCenter
 
                     MouseArea {
@@ -99,9 +69,9 @@ OverlayHost {
 
                 Text {
                     text: "󰅖"
-                    color: closeMouse.containsMouse ? colors.base08 : colors.base03
-                    font.family: fontsConfig.defaultFamily
-                    font.pixelSize: fontsConfig.defaultSize
+                    color: closeMouse.containsMouse ? Config.colors.base08 : Config.colors.base03
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.fonts.defaultSize
                     Layout.alignment: Qt.AlignVCenter
 
                     MouseArea {
@@ -113,52 +83,46 @@ OverlayHost {
                 }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: colors.base02
-            }
-
             // Empty state
             Text {
-                visible: usageModel.count === 0
+                visible: root.usageModel.count === 0
                 text: root.busy ? "Fetching…" : "No usage data yet.\nConfigure a provider: codexbar config enable --provider <name>"
-                color: colors.base05
-                font.family: fontsConfig.defaultFamily
-                font.pixelSize: fontsConfig.defaultSize
+                color: Config.colors.base05
+                font.family: Config.fonts.defaultFamily
+                font.pixelSize: Config.fonts.defaultSize
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
             }
 
-            // Rows
-            ListView {
-                id: listView
-                Layout.fillWidth: true
-                Layout.preferredHeight: root.listHeight
-                visible: usageModel.count > 0
-                model: usageModel
-                spacing: 8
-                clip: true
+            // One card per row, styled like the notification center cards.
+            Repeater {
+                model: root.usageModel
 
                 delegate: Rectangle {
-                    width: ListView.view.width
-                    height: delegateCol.implicitHeight
-                    color: "transparent"
-                    radius: 6
+                    id: card
+
+                    required property var model
+
+                    Layout.fillWidth: true
+                    implicitHeight: cardColumn.implicitHeight + Config.style.padding * 2
+                    color: Config.style.cardColor
+                    radius: Config.style.radiusSmall
 
                     ColumnLayout {
-                        id: delegateCol
+                        id: cardColumn
                         anchors.left: parent.left
                         anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Config.style.padding
                         spacing: 6
 
                         // Title: provider · account
                         Text {
                             Layout.fillWidth: true
-                            text: model.label || model.provider
-                            color: colors.base05
-                            font.family: fontsConfig.defaultFamily
-                            font.pixelSize: fontsConfig.defaultSize
+                            text: card.model.label || card.model.provider
+                            color: Config.colors.base05
+                            font.family: Config.fonts.defaultFamily
+                            font.pixelSize: Config.fonts.defaultSize
                             font.bold: true
                             elide: Text.ElideRight
                         }
@@ -166,109 +130,100 @@ OverlayHost {
                         // First available quota window
                         UsageMeter {
                             Layout.fillWidth: true
-                            visible: model.kind === "quota"
-                            labelText: model.windowLabel
-                            percent: model.percent
-                            resetShort: model.resetShort
-                            resetFull: model.resetFull
-                            paceExpectedPercent: model.paceExpectedPercent
-                            paceState: model.paceState
-                            paceSummary: model.paceSummary
-                            paceProjection: model.paceProjection
-                            colors: root.colors
-                            fontsConfig: root.fontsConfig
+                            visible: card.model.kind === "quota"
+                            labelText: card.model.windowLabel
+                            percent: card.model.percent
+                            resetShort: card.model.resetShort
+                            resetFull: card.model.resetFull
+                            paceExpectedPercent: card.model.paceExpectedPercent
+                            paceState: card.model.paceState
+                            paceSummary: card.model.paceSummary
+                            paceProjection: card.model.paceProjection
                         }
 
                         // Second available quota window
                         UsageMeter {
                             Layout.fillWidth: true
-                            visible: model.kind === "quota" && model.secondaryPercent >= 0
-                            labelText: model.secondaryLabel.length > 0 ? model.secondaryLabel : "2nd window"
-                            percent: model.secondaryPercent
-                            resetShort: model.secondaryResetShort
-                            resetFull: model.secondaryResetFull
-                            paceExpectedPercent: model.secondaryPaceExpectedPercent
-                            paceState: model.secondaryPaceState
-                            paceSummary: model.secondaryPaceSummary
-                            paceProjection: model.secondaryPaceProjection
-                            colors: root.colors
-                            fontsConfig: root.fontsConfig
+                            visible: card.model.kind === "quota" && card.model.secondaryPercent >= 0
+                            labelText: card.model.secondaryLabel.length > 0 ? card.model.secondaryLabel : "2nd window"
+                            percent: card.model.secondaryPercent
+                            resetShort: card.model.secondaryResetShort
+                            resetFull: card.model.secondaryResetFull
+                            paceExpectedPercent: card.model.secondaryPaceExpectedPercent
+                            paceState: card.model.secondaryPaceState
+                            paceSummary: card.model.secondaryPaceSummary
+                            paceProjection: card.model.secondaryPaceProjection
                         }
 
                         // Third available quota window
                         UsageMeter {
                             Layout.fillWidth: true
-                            visible: model.kind === "quota" && model.tertiaryPercent >= 0
-                            labelText: model.tertiaryLabel.length > 0 ? model.tertiaryLabel : "3rd window"
-                            percent: model.tertiaryPercent
-                            resetShort: model.tertiaryResetShort
-                            resetFull: model.tertiaryResetFull
-                            paceExpectedPercent: model.tertiaryPaceExpectedPercent
-                            paceState: model.tertiaryPaceState
-                            paceSummary: model.tertiaryPaceSummary
-                            paceProjection: model.tertiaryPaceProjection
-                            colors: root.colors
-                            fontsConfig: root.fontsConfig
+                            visible: card.model.kind === "quota" && card.model.tertiaryPercent >= 0
+                            labelText: card.model.tertiaryLabel.length > 0 ? card.model.tertiaryLabel : "3rd window"
+                            percent: card.model.tertiaryPercent
+                            resetShort: card.model.tertiaryResetShort
+                            resetFull: card.model.tertiaryResetFull
+                            paceExpectedPercent: card.model.tertiaryPaceExpectedPercent
+                            paceState: card.model.tertiaryPaceState
+                            paceSummary: card.model.tertiaryPaceSummary
+                            paceProjection: card.model.tertiaryPaceProjection
                         }
 
                         // Codex free rate-limit reset credits + their expiry
                         // times, one compact line (quota rows only)
                         Text {
                             Layout.fillWidth: true
-                            visible: model.kind === "quota"
-                                && model.resetCreditSummary.length > 0
-                            text: model.resetCreditSummary
-                            color: colors.base03
-                            font.family: fontsConfig.defaultFamily
-                            font.pixelSize: fontsConfig.defaultSize - 2
+                            visible: card.model.kind === "quota" && card.model.resetCreditSummary.length > 0
+                            text: card.model.resetCreditSummary
+                            color: Config.colors.base03
+                            font.family: Config.fonts.defaultFamily
+                            font.pixelSize: Config.fonts.defaultSize - 2
                             wrapMode: Text.WordWrap
                         }
 
                         // Credits-used meter — cost rows (OpenRouter)
                         UsageMeter {
                             Layout.fillWidth: true
-                            visible: model.kind === "cost"
+                            visible: card.model.kind === "cost"
                             labelText: "Credits"
-                            percent: model.percent
+                            percent: card.model.percent
                             showReset: false
-                            colors: root.colors
-                            fontsConfig: root.fontsConfig
                         }
 
                         // Balance / total / used figures — cost rows
                         RowLayout {
                             Layout.fillWidth: true
-                            visible: model.kind === "cost"
+                            visible: card.model.kind === "cost"
                             spacing: 8
 
                             Text {
-                                text: (model.creditsBalance.length > 0 && model.creditsTotal.length > 0)
-                                    ? model.creditsBalance + " of " + model.creditsTotal
-                                    : (model.creditsBalance || model.cost || "—")
-                                color: colors.base05
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize - 2
+                                text: (card.model.creditsBalance.length > 0 && card.model.creditsTotal.length > 0)
+                                    ? card.model.creditsBalance + " of " + card.model.creditsTotal
+                                    : (card.model.creditsBalance || card.model.cost || "—")
+                                color: Config.colors.base05
+                                font.family: Config.fonts.defaultFamily
+                                font.pixelSize: Config.fonts.defaultSize - 2
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
                             }
 
                             Text {
-                                visible: model.creditsUsed.length > 0
-                                text: model.creditsUsed
-                                color: colors.base05
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize - 2
+                                visible: card.model.creditsUsed.length > 0
+                                text: card.model.creditsUsed
+                                color: Config.colors.base05
+                                font.family: Config.fonts.defaultFamily
+                                font.pixelSize: Config.fonts.defaultSize - 2
                             }
                         }
 
                         // Error message
                         Text {
                             Layout.fillWidth: true
-                            visible: model.kind === "error"
-                            text: model.message
-                            color: colors.base05
-                            font.family: fontsConfig.defaultFamily
-                            font.pixelSize: fontsConfig.defaultSize - 1
+                            visible: card.model.kind === "error"
+                            text: card.model.message
+                            color: Config.colors.base05
+                            font.family: Config.fonts.defaultFamily
+                            font.pixelSize: Config.fonts.defaultSize - 1
                             wrapMode: Text.WordWrap
                             elide: Text.ElideRight
                         }
@@ -279,12 +234,12 @@ OverlayHost {
             // Footer: last-updated time + auto-refresh cadence.
             Text {
                 Layout.fillWidth: true
-                visible: usageModel.count > 0
+                visible: root.usageModel.count > 0
                 text: "Updated " + (root.lastUpdated.length > 0 ? root.lastUpdated : "—")
                       + "  ·  auto " + Math.max(1, Math.round(root.refreshIntervalSec / 60)) + "m"
-                color: colors.base03
-                font.family: fontsConfig.defaultFamily
-                font.pixelSize: fontsConfig.defaultSize - 2
+                color: Config.colors.base03
+                font.family: Config.fonts.defaultFamily
+                font.pixelSize: Config.fonts.defaultSize - 2
                 horizontalAlignment: Text.AlignRight
             }
         }
