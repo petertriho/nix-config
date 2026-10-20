@@ -1,21 +1,20 @@
+pragma Singleton
+
 import QtQuick
+import Quickshell
+import "../Common"
 
 // One shared instance owns the volume and brightness controls and the mini OSD
 // state. Every bar's clock slot binds to it, so all screens show the same OSD.
 // Volume pushes state; brightness re-reads before stepping, so no polling is needed.
-Item {
+// Without a backlight device, the brightness functions do nothing and show no OSD.
+Singleton {
     id: root
-
-    property QtObject colors: null
-    property QtObject osdConfig: null
-    property QtObject stepsConfig: null
-    property QtObject thresholdsConfig: null
 
     property alias brightnessControl: brightnessCtl
     property alias volumeControl: volumeCtl
 
-    // `shown`, not `visible`: this Item is never rendered, and Item.visible
-    // already has a meaning.
+    // True while the mini OSD shows.
     property bool shown: false
     // "volume" or "brightness": the control that the mini OSD shows.
     property string kind: "volume"
@@ -24,23 +23,19 @@ Item {
     readonly property real value: isVolume ? volumeCtl.volume : brightnessCtl.brightness
     readonly property bool muted: isVolume && volumeCtl.muted
     readonly property string icon: isVolume ? volumeCtl.icon : brightnessCtl.icon
-    readonly property color fillColor: !colors ? "transparent" : muted ? colors.base12 : isVolume ? colors.base0B : colors.base0A
+    readonly property color fillColor: muted ? Config.colors.base12 : isVolume ? Config.colors.base0B : Config.colors.base0A
 
     Brightness {
         id: brightnessCtl
-        colors: root.colors
-        thresholdsConfig: root.thresholdsConfig
     }
 
     Volume {
         id: volumeCtl
-        colors: root.colors
-        thresholdsConfig: root.thresholdsConfig
     }
 
     Timer {
         id: hideTimer
-        interval: root.osdConfig ? root.osdConfig.hideInterval : 2000
+        interval: Config.osd.hideInterval
         onTriggered: root.shown = false
     }
 
@@ -50,36 +45,34 @@ Item {
         hideTimer.restart();
     }
 
-    function brightnessStep() {
-        return root.stepsConfig ? root.stepsConfig.brightness : 5;
-    }
-
-    function volumeStep() {
-        return root.stepsConfig ? root.stepsConfig.volume : 5;
-    }
-
     function brightnessUp() {
-        brightnessCtl.increase(brightnessStep());
+        if (!brightnessCtl.available)
+            return;
+        brightnessCtl.increase(Config.steps.brightness);
         show("brightness");
     }
 
     function brightnessDown() {
-        brightnessCtl.decrease(brightnessStep());
+        if (!brightnessCtl.available)
+            return;
+        brightnessCtl.decrease(Config.steps.brightness);
         show("brightness");
     }
 
     function brightnessShow() {
-        brightnessCtl.getBrightness();
+        if (!brightnessCtl.available)
+            return;
+        brightnessCtl.refresh();
         show("brightness");
     }
 
     function volumeUp() {
-        volumeCtl.increase(volumeStep());
+        volumeCtl.increase(Config.steps.volume);
         show("volume");
     }
 
     function volumeDown() {
-        volumeCtl.decrease(volumeStep());
+        volumeCtl.decrease(Config.steps.volume);
         show("volume");
     }
 

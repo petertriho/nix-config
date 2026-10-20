@@ -1,21 +1,24 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import "../Common"
 
+// Screen backlight through brightnessctl. Every call names the backlight class:
+// without it, brightnessctl falls back to the first device of any class (a
+// keyboard LED on a desktop). The read at start detects the device once.
 Item {
     id: root
-    property var brightness: 0
-    property QtObject colors: null
-    property QtObject thresholdsConfig: null
+
+    // True after the read at start found a backlight device. Without one, the
+    // functions below do nothing.
+    property bool available: false
+    // Percent, 0 to 100.
+    property real brightness: 0
 
     readonly property string icon: {
-        if (!thresholdsConfig || !thresholdsConfig.brightness)
+        if (root.brightness < Config.thresholds.brightness.low)
             return "󰃞";
-        if (brightness < thresholdsConfig.brightness.low)
-            return "󰃞";
-        if (brightness < thresholdsConfig.brightness.medium)
+        if (root.brightness < Config.thresholds.brightness.medium)
             return "󰃟";
         return "󰃠";
     }
@@ -23,134 +26,81 @@ Item {
     // Queued step applied to the next fresh reading, so presses never use a stale base.
     property int pendingDelta: 0
     property bool pendingAdjust: false
-    property int maxBrightness: 0
 
-    Component.onCompleted: {
-        getBrightness();
-    }
-
+    // Machine-readable output: "device,class,current,percent,max".
     Process {
-        id: brightnessProcess
+        id: readProcess
+        command: ["brightnessctl", "--class=backlight", "--machine-readable", "info"]
+        running: true
         stdout: StdioCollector {
-            onStreamFinished: {
-                var output = this.text.trim();
-                if (output) {
-                    var current = parseInt(output);
-                    if (isNaN(current)) {
-                        root.flushPendingFallback();
-                    } else {
-                        brightnessProcess.currentValue = current;
-                        if (root.maxBrightness > 0)
-                            root.applyCurrentValue();
-                        else if (!maxBrightnessProcess.running)
-                            maxBrightnessProcess.exec({
-                                command: ["brightnessctl", "max"]
-                            });
-                    }
-                } else {
-                    root.flushPendingFallback();
-                }
-            }
-        }
-        property int currentValue: 0
-    }
-
-    Process {
-        id: maxBrightnessProcess
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var maxOutput = this.text.trim();
-                if (maxOutput) {
-                    var max = parseInt(maxOutput);
-                    if (!isNaN(max) && max > 0) {
-                        root.maxBrightness = max;
-                        root.applyCurrentValue();
-                    } else {
-                        root.flushPendingFallback();
-                    }
-                } else {
-                    root.flushPendingFallback();
-                }
-            }
+            id: readOutput
+            onStreamFinished: root.applyReading(readOutput.text)
         }
     }
 
-    function applyCurrentValue() {
-        if (root.maxBrightness <= 0) {
+    function applyReading(output) {
+        const fields = output.trim().split(",");
+        const current = parseInt(fields[2]);
+        const max = parseInt(fields[4]);
+        if (fields.length < 5 || isNaN(current) || isNaN(max) || max <= 0) {
             root.flushPendingFallback();
             return;
         }
-
-        var fresh = Math.round((brightnessProcess.currentValue / root.maxBrightness) * 100);
-        if (isNaN(fresh)) {
-            root.flushPendingFallback();
-        } else if (root.pendingAdjust) {
-            var adjusted = Math.max(0, Math.min(100, fresh + root.pendingDelta));
-            root.pendingAdjust = false;
-            root.pendingDelta = 0;
-            if (adjusted === fresh)
-                root.brightness = fresh;
-            else
-                root.setBrightness(adjusted);
-        } else {
-            root.brightness = fresh;
-        }
+        root.available = true;
+        const fresh = Math.round(current / max * 100);
+        root.brightness = fresh;
+        if (!root.pendingAdjust)
+            return;
+        const adjusted = Math.max(0, Math.min(100, fresh + root.pendingDelta));
+        root.pendingAdjust = false;
+        root.pendingDelta = 0;
+        if (adjusted !== fresh)
+            root.setBrightness(adjusted);
     }
 
-    function getBrightness() {
-        if (root.pendingAdjust) {
-            return brightness;
-        }
-        return refreshBrightness();
-    }
-
-    function refreshBrightness() {
-        brightnessProcess.exec({
-            command: ["brightnessctl", "get"]
-        });
-        return brightness;
+    // A read that is already running also applies a step queued meanwhile.
+    function refresh() {
+        if (root.available && !readProcess.running)
+            readProcess.running = true;
     }
 
     function setBrightness(value) {
-        var clampedValue = Math.max(0, Math.min(100, value));
-        brightness = clampedValue;
+        const clamped = Math.max(0, Math.min(100, Math.round(value)));
+        root.brightness = clamped;
         Quickshell.execDetached({
-            command: ["brightnessctl", "set", clampedValue.toString() + "%"]
+            command: ["brightnessctl", "--class=backlight", "set", clamped + "%"]
         });
     }
 
     // On re-read failure, apply the queued step to the cached value.
     function flushPendingFallback() {
-        if (!pendingAdjust) {
+        if (!root.pendingAdjust)
             return;
-        }
-        var fallback = Math.max(0, Math.min(100, brightness + pendingDelta));
-        pendingAdjust = false;
-        pendingDelta = 0;
-        if (fallback !== brightness) {
-            setBrightness(fallback);
+        const fallback = Math.max(0, Math.min(100, root.brightness + root.pendingDelta));
+        root.pendingAdjust = false;
+        root.pendingDelta = 0;
+        if (fallback !== root.brightness)
+            root.setBrightness(fallback);
+    }
+
+    // Changes the brightness by `delta` percent from a fresh reading.
+    function adjust(delta) {
+        if (!root.available)
+            return;
+        if (root.pendingAdjust) {
+            root.pendingDelta += delta;
+        } else {
+            root.pendingAdjust = true;
+            root.pendingDelta = delta;
+            root.refresh();
         }
     }
 
     function increase(step) {
-        var stepValue = step || 5;
-        if (pendingAdjust) {
-            pendingDelta += stepValue;
-        } else {
-            pendingAdjust = true;
-            pendingDelta = stepValue;
-            refreshBrightness();
-        }
+        root.adjust(step);
     }
 
     function decrease(step) {
-        var stepValue = step || 5;
-        if (pendingAdjust) {
-            pendingDelta -= stepValue;
-        } else {
-            pendingAdjust = true;
-            pendingDelta = -stepValue;
-            refreshBrightness();
-        }
+        root.adjust(-step);
     }
 }

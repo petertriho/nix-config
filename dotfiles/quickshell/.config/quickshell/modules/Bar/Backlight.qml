@@ -1,19 +1,13 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
+import "../ControlOSD"
 
 BaseModule {
     id: root
 
     hoverHighlight: true
-    property var osdService
-    readonly property string icon: osdService ? osdService.brightnessControl.icon : "󰃞"
-    property QtObject intervalsConfig: parent.intervalsConfig
+    // Hidden on a host without a backlight device.
+    available: OsdService.brightnessControl.available
+    text: OsdService.brightnessControl.icon
 
-    text: icon
-
-    onClicked: {
-        if (osdService)
-            osdService.brightnessShow();
-    }
+    onClicked: OsdService.brightnessShow()
 }

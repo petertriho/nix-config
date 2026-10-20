@@ -1,40 +1,29 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell
+import "../ControlOSD"
 
 BaseModule {
     id: root
 
     hoverHighlight: true
-    property var osdService
-    readonly property var volumeControl: osdService ? osdService.volumeControl : null
-    property real volume: volumeControl ? volumeControl.volume : 0
-    property bool isMuted: volumeControl ? volumeControl.muted : false
-    property bool isBluetooth: false
-    property string deviceType: "default"
-    property string icon: isMuted ? "󰖁" : isBluetooth ? "󰂯 " + getVolumeIcon() : getVolumeIcon()
-    property QtObject intervalsConfig: parent.intervalsConfig
-    property QtObject stepsConfig: parent.stepsConfig
+    readonly property Volume volumeControl: OsdService.volumeControl
+    readonly property var sinkProperties: root.volumeControl.sink ? root.volumeControl.sink.properties : ({})
+    readonly property bool isBluetooth: root.sinkProperties["device.api"] === "bluez5"
+    // WirePlumber copies the form factor of an ALSA device (for example a USB
+    // headset) to its nodes. Bluetooth nodes do not carry it.
+    readonly property string formFactor: root.sinkProperties["device.form-factor"] || ""
+    readonly property var formFactorIcons: ({
+            "headphone": "󰋋",
+            "hands-free": "󱡏",
+            "headset": "󰋎",
+            "handset": "󰏲",
+            "portable": "󰦢",
+            "car": "󰄋"
+        })
+    readonly property string deviceIcon: root.formFactorIcons[root.formFactor] || root.volumeControl.icon
+    readonly property string icon: root.volumeControl.muted ? "󰖁" : root.isBluetooth ? "󰂯 " + root.deviceIcon : root.deviceIcon
 
-    function getVolumeIcon() {
-        if (deviceType === "headphone")
-            return "󰋋";
-        if (deviceType === "hands-free")
-            return "󱡏";
-        if (deviceType === "headset")
-            return "󰋎";
-        if (deviceType === "phone")
-            return "󰏲";
-        if (deviceType === "portable")
-            return "󰦢";
-        if (deviceType === "car")
-            return "󰄋";
-
-        return volumeControl ? volumeControl.icon : "󰕾";
-    }
-
-    text: icon
+    text: root.icon
 
     onClicked: {
         Quickshell.execDetached({

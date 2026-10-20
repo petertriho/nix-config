@@ -1,65 +1,53 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell.Services.Pipewire
+import "../Common"
 
 Item {
     id: root
     // Bindings over the default Pipewire sink; setters write straight back.
-    property PwNode sink: Pipewire.defaultAudioSink
-    property real volume: (sink && sink.audio) ? Math.round(sink.audio.volume * 100) : 0
-    property bool muted: (sink && sink.audio) ? sink.audio.muted : false
-    property QtObject colors: null
-    property QtObject thresholdsConfig: null
+    readonly property PwNode sink: Pipewire.defaultAudioSink
+    // Percent. Another tool can set it above 100.
+    readonly property real volume: (root.sink && root.sink.audio) ? Math.round(root.sink.audio.volume * 100) : 0
+    readonly property bool muted: (root.sink && root.sink.audio) ? root.sink.audio.muted : false
 
     readonly property string icon: {
-        if (muted)
+        if (root.muted)
             return "󰖁";
-        if (!thresholdsConfig || !thresholdsConfig.volume)
-            return "󰕾";
-        if (volume < thresholdsConfig.volume.low)
+        if (root.volume < Config.thresholds.volume.low)
             return "󰕿";
-        if (volume < thresholdsConfig.volume.medium)
+        if (root.volume < Config.thresholds.volume.medium)
             return "󰖀";
         return "󰕾";
     }
 
     PwObjectTracker {
-        objects: [Pipewire.defaultAudioSink]
+        objects: [root.sink]
     }
 
     function setVolume(value) {
-        if (!sink || !sink.audio)
+        if (!root.sink || !root.sink.audio)
             return;
-        var clampedValue = Math.max(0, Math.min(100, value));
-        sink.audio.volume = clampedValue / 100;
+        root.sink.audio.volume = Math.max(0, value) / 100;
     }
 
     function toggleMute() {
-        if (!sink || !sink.audio)
+        if (!root.sink || !root.sink.audio)
             return;
-        sink.audio.muted = !sink.audio.muted;
+        root.sink.audio.muted = !root.sink.audio.muted;
     }
 
-    function isMuted() {
-        return muted;
-    }
-
-    function getVolume() {
-        return volume;
-    }
-
+    // Steps up to 100 % at most. A volume above 100 % stays as it is.
     function increase(step) {
-        if (muted)
-            toggleMute();
-        var stepValue = step || 5;
-        setVolume(Math.min(100, volume + stepValue));
+        if (root.muted)
+            root.toggleMute();
+        if (root.volume < 100)
+            root.setVolume(Math.min(100, root.volume + step));
     }
 
+    // Steps down from the current volume, also from above 100 %.
     function decrease(step) {
-        if (muted)
-            toggleMute();
-        var stepValue = step || 5;
-        setVolume(Math.max(0, volume - stepValue));
+        if (root.muted)
+            root.toggleMute();
+        root.setVolume(root.volume - step);
     }
 }
