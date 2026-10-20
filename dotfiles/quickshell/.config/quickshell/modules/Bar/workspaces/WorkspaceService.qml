@@ -31,6 +31,7 @@ Singleton {
     property var cachedNiriWindows: []
     property int niriStreamFailures: 0
     readonly property bool niriPolling: root.compositorName === "niri" && !niriEventStream.running
+    readonly property string focusedOutput: root.compositorName === "niri" ? WorkspaceHelpers.focusedNiriOutput(root.cachedNiriWorkspaces) : ""
 
     function workspacesForOutput(outputName) {
         if (root.compositorName === "hyprland")
@@ -50,6 +51,40 @@ Singleton {
             return WorkspaceHelpers.activeNiriWindowTitleForOutput(outputName, root.cachedNiriWorkspaces, root.cachedNiriWindows);
 
         return "";
+    }
+
+    // The niri window object (`niri msg -j windows`) that the title of an
+    // output shows, or null. Null on Hyprland: the window actions below are
+    // for niri only.
+    function activeWindowForOutput(outputName) {
+        if (root.compositorName === "niri")
+            return WorkspaceHelpers.activeNiriWindowForOutput(outputName, root.cachedNiriWorkspaces, root.cachedNiriWindows);
+
+        return null;
+    }
+
+    function toggleOverview() {
+        if (root.compositorName === "niri")
+            Quickshell.execDetached(["niri", "msg", "action", "toggle-overview"]);
+    }
+
+    // Moves the column focus on the focused output.
+    function focusColumn(direction) {
+        if (root.compositorName === "niri")
+            Quickshell.execDetached(["niri", "msg", "action", direction < 0 ? "focus-column-left" : "focus-column-right"]);
+    }
+
+    // Focuses the window, then runs the action as its key binding would.
+    // Column actions such as maximize-column have no window id argument. Niri
+    // moves the pointer when the focus goes to another output. The click that
+    // opened the menu focused the output of the window, so this focus change
+    // does not move it. One `sh` keeps the two actions in order. The id and the action are arguments of the
+    // script, so the shell does not parse them.
+    function windowAction(windowId, action) {
+        if (root.compositorName !== "niri")
+            return;
+
+        Quickshell.execDetached(["sh", "-c", "niri msg action focus-window --id \"$1\" && shift && niri msg action \"$@\"", "sh", String(windowId)].concat(action));
     }
 
     function logUnsupportedCompositor() {

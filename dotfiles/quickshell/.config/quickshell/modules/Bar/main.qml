@@ -2,7 +2,6 @@ import QtQuick
 import Quickshell
 import "../Common"
 import "../ControlOSD" as Osd
-import "workspaces"
 
 PanelWindow {
     id: root
@@ -62,11 +61,13 @@ PanelWindow {
                 anchors.left: workspaces.right
                 anchors.leftMargin: Config.bar.moduleSpacing
                 anchors.verticalCenter: parent.verticalCenter
-                // Up to the stats. When they are hidden, up to the right Row
-                // (the OSD then covers part of the title while it shows).
-                width: Math.max(0, (stats.visible ? (parent.width - stats.fitWidth) / 2 : rightRow.x) - Config.bar.centerGap - windowTitle.x)
+                // As wide as the text, so that the hover highlight and the
+                // menu fit it. At most up to the stats. When they are hidden,
+                // up to the right Row (the OSD then covers part of the title
+                // while it shows).
+                width: Math.min(windowTitle.implicitWidth, Math.max(0, (stats.visible ? (parent.width - stats.fitWidth) / 2 : rightRow.x) - Config.bar.centerGap - windowTitle.x))
                 height: parent.height
-                title: WorkspaceService.activeWindowTitleForOutput(root.screen ? root.screen.name : "")
+                outputName: root.screen ? root.screen.name : ""
             }
 
             // Center module. Its width follows its values.
