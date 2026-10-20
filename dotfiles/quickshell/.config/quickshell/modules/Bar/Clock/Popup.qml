@@ -1,290 +1,253 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import "../../Common"
 
-OverlayHost {
-    id: calendarPopup
+// Calendar content of the clock popup. "Today" follows the module clock. Each
+// open starts at the current month. The wheel and a click on a grey day change
+// the month.
+Item {
+    id: root
 
     property var module
-    property var barWindow
-    property QtObject colors
-    property QtObject fontsConfig
-    property QtObject popupsConfig
-    property QtObject overlayConfig
-    animationDurationMs: overlayConfig ? overlayConfig.animationDurationMs : 180
-    closeGraceMs: overlayConfig ? overlayConfig.closeGraceMs : 220
-    screen: barWindow ? barWindow.screen : null
-    open: module && module.showPopup
-    onCloseRequested: if (module)
-        module.showPopup = false
 
-    Rectangle {
-        id: calendarBg
-        readonly property int popupPadding: popupsConfig ? popupsConfig.padding : 16
-        readonly property int popupMargin: popupsConfig ? popupsConfig.margin : 8
-        readonly property real preferredHeight: calendarCol.implicitHeight + popupMargin
-        readonly property real availableHeight: Math.max(1, (parent ? parent.height : preferredHeight) - y - popupMargin)
+    readonly property date today: root.module ? root.module.now : new Date()
+    // Month in view (month 0-indexed).
+    property int viewYear: 0
+    property int viewMonth: 0
+    readonly property bool weekStartsOnMonday: true
 
-        width: __gridWidth + popupPadding
-        height: Math.min(preferredHeight, availableHeight)
-        x: module ? module.popupX(width) : 0
-        y: (barWindow ? barWindow.height : 0) + 4
-        color: colors.base01
-        border.color: colors.base10
-        radius: popupsConfig.cornerRadius
-        opacity: calendarPopup.open ? 1.0 : 0.0
-        scale: calendarPopup.open ? 1.0 : 0.98
-        transformOrigin: Item.Top
+    readonly property int cellSize: Config.fonts.defaultSize + 22
+    readonly property int gridGap: 2
+    readonly property int gridWidth: root.cellSize * 7 + root.gridGap * 6
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: calendarPopup.animationDurationMs
+    readonly property var monthNames: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    readonly property var weekdayLabels: root.weekStartsOnMonday ? ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+
+    // Six weeks of cells. `offset` is the month of the cell relative to the
+    // view: -1, 0 or 1.
+    readonly property var cells: {
+        const first = new Date(root.viewYear, root.viewMonth, 1);
+        const lead = root.weekStartsOnMonday ? (first.getDay() + 6) % 7 : first.getDay();
+        const ty = root.today.getFullYear();
+        const tm = root.today.getMonth();
+        const td = root.today.getDate();
+        const result = [];
+        for (let i = 0; i < 42; i++) {
+            const date = new Date(root.viewYear, root.viewMonth, i - lead + 1);
+            const monthIndex = date.getFullYear() * 12 + date.getMonth();
+            result.push({
+                "day": date.getDate(),
+                "offset": monthIndex - (root.viewYear * 12 + root.viewMonth),
+                "isToday": date.getFullYear() === ty && date.getMonth() === tm && date.getDate() === td
+            });
+        }
+        return result;
+    }
+
+    function shiftMonth(delta: int): void {
+        const date = new Date(root.viewYear, root.viewMonth + delta, 1);
+        root.viewYear = date.getFullYear();
+        root.viewMonth = date.getMonth();
+    }
+
+    function goToday(): void {
+        root.viewYear = root.today.getFullYear();
+        root.viewMonth = root.today.getMonth();
+    }
+
+    implicitWidth: root.gridWidth
+    implicitHeight: calendarCol.implicitHeight
+
+    Component.onCompleted: root.goToday()
+
+    // The overlay outlives a close by a short grace period, so a quick reopen
+    // reuses this item.
+    Connections {
+        target: root.module
+        function onPopupOpenChanged() {
+            if (root.module.popupOpen)
+                root.goToday();
+        }
+    }
+
+    // One month per wheel notch (120 units), up = earlier. Touchpad deltas
+    // accumulate until they reach a notch.
+    property real wheelRemainder: 0
+
+    WheelHandler {
+        target: null
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: function (event) {
+            root.wheelRemainder += event.angleDelta.y;
+            while (Math.abs(root.wheelRemainder) >= 120) {
+                const direction = root.wheelRemainder > 0 ? 1 : -1;
+                root.shiftMonth(-direction);
+                root.wheelRemainder -= direction * 120;
             }
         }
-        Behavior on scale {
-            NumberAnimation {
-                duration: calendarPopup.animationDurationMs
-            }
-        }
+    }
 
-        // Single hover-only overlay on top of the whole popup.
-        // acceptedButtons: NoButton lets clicks fall through to the
-        // buttons/cells beneath while this surface reliably tracks
-        // enter/leave (no nested-MouseArea hover thrashing).
-        // onPositionChanged resolves the hovered cell + button flags ONCE
-        // per move; children bind to those cheaply instead of each doing
-        // their own coordinate transform.
-        MouseArea {
-            id: calHover
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.NoButton
-            z: 1000
-            onExited: {
-                calendarBg.hoveredCellIndex = -1;
-                calendarBg.prevHovered = false;
-                calendarBg.nextHovered = false;
-                calendarBg.todayHovered = false;
-            }
-            onPositionChanged: function (mouse) {
-                var mx = mouse.x;
-                var my = mouse.y;
-                calendarBg.prevHovered = calendarBg.__contains(prevBtn, mx, my);
-                calendarBg.nextHovered = calendarBg.__contains(nextBtn, mx, my);
-                calendarBg.todayHovered = calendarBg.__contains(todayBtn, mx, my);
-                var o = dayGrid.mapToItem(calendarBg, 0, 0);
-                var relX = mx - o.x;
-                var relY = my - o.y;
-                var pitch = calendarBg.__gridPitch;
-                var cs = calendarBg.__cellSize;
-                if (relX < 0 || relY < 0 || relX >= dayGrid.width || relY >= dayGrid.height) {
-                    calendarBg.hoveredCellIndex = -1;
-                    return;
+    Column {
+        id: calendarCol
+        width: parent.width
+        spacing: Config.popups.itemSpacing
+
+        // Header: prev | month label | next
+        Row {
+            id: headerRow
+            width: root.gridWidth
+            spacing: Config.popups.itemSpacing
+
+            Rectangle {
+                width: root.cellSize
+                height: root.cellSize
+                radius: Config.style.radiusSmall
+                color: prevMouse.containsMouse ? Config.style.hoverColor : "transparent"
+
+                Text {
+                    id: prevText
+                    anchors.centerIn: parent
+                    text: "‹"
+                    color: Config.colors.base05
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.fonts.defaultSize + 2
                 }
-                var col = Math.floor(relX / pitch);
-                var row = Math.floor(relY / pitch);
-                var cx = col * pitch;
-                var cy = row * pitch;
-                if (col >= 0 && col < 7 && row >= 0 && row < 6 && relX < cx + cs && relY < cy + cs)
-                    calendarBg.hoveredCellIndex = row * 7 + col;
-                else
-                    calendarBg.hoveredCellIndex = -1;
+
+                MouseArea {
+                    id: prevMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: root.shiftMonth(-1)
+                }
+            }
+
+            Text {
+                width: Math.max(1, root.gridWidth - root.cellSize * 2 - headerRow.spacing * 2)
+                height: root.cellSize
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                text: root.monthNames[root.viewMonth] + " " + root.viewYear
+                color: Config.colors.base05
+                font.family: Config.fonts.defaultFamily
+                font.pixelSize: Config.fonts.defaultSize
+                font.bold: true
+
+                MouseArea {
+                    anchors.fill: parent
+                    onDoubleClicked: root.goToday()
+                }
+            }
+
+            Rectangle {
+                width: root.cellSize
+                height: root.cellSize
+                radius: Config.style.radiusSmall
+                color: nextMouse.containsMouse ? Config.style.hoverColor : "transparent"
+
+                Text {
+                    id: nextText
+                    anchors.centerIn: parent
+                    text: "›"
+                    color: Config.colors.base05
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.fonts.defaultSize + 2
+                }
+
+                MouseArea {
+                    id: nextMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: root.shiftMonth(1)
+                }
             }
         }
 
-        readonly property int __cellSize: fontsConfig.defaultSize + 22
-        readonly property int __gridGap: 2
-        readonly property int __gridPitch: __cellSize + __gridGap
-        readonly property int __gridWidth: __cellSize * 7 + __gridGap * 6
+        // Weekday header
+        Row {
+            width: root.gridWidth
+            spacing: root.gridGap
 
-        // Hover state, resolved once per move by calHover above.
-        property int hoveredCellIndex: -1
-        property bool prevHovered: false
-        property bool nextHovered: false
-        property bool todayHovered: false
+            Repeater {
+                model: root.weekdayLabels
+                delegate: Text {
+                    required property string modelData
 
-        // Bounds check of a calendarBg-space point against an item.
-        function __contains(item, mx, my) {
-            var o = item.mapToItem(calendarBg, 0, 0);
-            return mx >= o.x && my >= o.y && mx < o.x + item.width && my < o.y + item.height;
+                    width: root.cellSize
+                    height: root.cellSize * 0.7
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    text: modelData
+                    color: Config.colors.base03
+                    font.family: Config.fonts.defaultFamily
+                    font.pixelSize: Config.fonts.defaultSize - 1
+                }
+            }
         }
 
-        Flickable {
-            id: calendarFlick
-            x: calendarBg.popupPadding / 2
-            y: calendarBg.popupMargin / 2
-            width: Math.max(1, parent.width - calendarBg.popupPadding)
-            height: Math.max(1, parent.height - calendarBg.popupMargin)
-            clip: true
-            contentWidth: width
-            contentHeight: calendarCol.implicitHeight
-            boundsBehavior: Flickable.StopAtBounds
-            interactive: contentHeight > height
+        // Day grid (6 weeks x 7 days)
+        Grid {
+            columns: 7
+            spacing: root.gridGap
+            width: root.gridWidth
 
-            Column {
-                id: calendarCol
-                width: calendarFlick.width
-                spacing: popupsConfig.itemSpacing
+            // An integer model keeps the delegates when the month changes.
+            Repeater {
+                model: 42
+                delegate: Rectangle {
+                    id: dayCell
 
-                // Header: prev | month label | next
-                Row {
-                    id: headerRow
-                    width: calendarBg.__gridWidth
-                    spacing: popupsConfig.itemSpacing
+                    required property int index
+                    readonly property var modelData: root.cells[dayCell.index]
 
-                    Rectangle {
-                        id: prevBtn
-                        width: calendarBg.__cellSize
-                        height: calendarBg.__cellSize
-                        color: calendarBg.prevHovered ? colors.base02 : "transparent"
-                        radius: 4
-                        Text {
-                            anchors.centerIn: parent
-                            text: "‹"
-                            color: colors.base05
-                            font.family: fontsConfig.defaultFamily
-                            font.pixelSize: fontsConfig.defaultSize + 2
-                        }
-                        MouseArea {
-                            id: prevMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: module.goPrevMonth()
-                        }
-                    }
+                    width: root.cellSize
+                    height: root.cellSize
+                    radius: Config.style.radiusSmall
+                    color: dayCell.modelData.isToday ? Config.style.accentColor : dayMouse.containsMouse ? Config.style.hoverColor : "transparent"
 
                     Text {
-                        width: Math.max(1, calendarBg.__gridWidth - calendarBg.__cellSize * 2 - headerRow.spacing * 2)
-                        height: calendarBg.__cellSize
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        text: module.monthLabel
-                        color: colors.base05
-                        font.family: fontsConfig.defaultFamily
-                        font.pixelSize: fontsConfig.defaultSize
-                        font.bold: true
-                        MouseArea {
-                            anchors.fill: parent
-                            onDoubleClicked: module.goToday()
-                        }
-                    }
-
-                    Rectangle {
-                        id: nextBtn
-                        width: calendarBg.__cellSize
-                        height: calendarBg.__cellSize
-                        color: calendarBg.nextHovered ? colors.base02 : "transparent"
-                        radius: 4
-                        Text {
-                            anchors.centerIn: parent
-                            text: "›"
-                            color: colors.base05
-                            font.family: fontsConfig.defaultFamily
-                            font.pixelSize: fontsConfig.defaultSize + 2
-                        }
-                        MouseArea {
-                            id: nextMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: module.goNextMonth()
-                        }
-                    }
-                }
-
-                // Weekday header
-                Row {
-                    width: calendarBg.__gridWidth
-                    spacing: calendarBg.__gridGap
-                    Repeater {
-                        model: module.weekdayLabels
-                        delegate: Text {
-                            width: calendarBg.__cellSize
-                            height: calendarBg.__cellSize * 0.7
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            text: modelData
-                            color: colors.base03
-                            font.family: fontsConfig.defaultFamily
-                            font.pixelSize: fontsConfig.defaultSize - 1
-                        }
-                    }
-                }
-
-                // Day grid (6 weeks x 7 days). Grid gives a uniform pitch so
-                // the overlay can resolve the hovered cell from coordinates.
-                Grid {
-                    id: dayGrid
-                    columns: 7
-                    spacing: calendarBg.__gridGap
-                    width: calendarBg.__gridWidth
-
-                    Repeater {
-                        model: 42
-                        delegate: Rectangle {
-                            id: dayCell
-                            width: calendarBg.__cellSize
-                            height: calendarBg.__cellSize
-                            radius: 4
-                            readonly property var cell: module.cellModel[index]
-                            color: {
-                                if (!cell)
-                                    return "transparent";
-                                if (cell.isToday)
-                                    return colors.base0D;
-                                if (index === calendarBg.hoveredCellIndex)
-                                    return colors.base02;
-                                return "transparent";
-                            }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: cell ? cell.day : ""
-                                color: {
-                                    if (!cell)
-                                        return colors.base05;
-                                    if (cell.isToday)
-                                        return colors.base01;
-                                    return cell.inMonth ? colors.base05 : colors.base03;
-                                }
-                                font.family: fontsConfig.defaultFamily
-                                font.pixelSize: fontsConfig.defaultSize
-                                font.bold: cell && cell.isToday
-                            }
-
-                            MouseArea {
-                                id: dayMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onDoubleClicked: {
-                                    if (cell && cell.isToday)
-                                        module.goToday();
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Today button
-                Rectangle {
-                    id: todayBtn
-                    width: calendarBg.__gridWidth
-                    height: todayText.implicitHeight + 8
-                    color: calendarBg.todayHovered ? colors.base02 : "transparent"
-                    radius: 4
-                    Text {
-                        id: todayText
                         anchors.centerIn: parent
-                        text: "Today"
-                        color: colors.base0D
-                        font.family: fontsConfig.defaultFamily
-                        font.pixelSize: fontsConfig.defaultSize
+                        text: dayCell.modelData.day
+                        color: dayCell.modelData.isToday ? Config.colors.base01 : dayCell.modelData.offset === 0 ? Config.colors.base05 : Config.colors.base03
+                        font.family: Config.fonts.defaultFamily
+                        font.pixelSize: Config.fonts.defaultSize
+                        font.bold: dayCell.modelData.isToday
                     }
+
+                    // A grey day moves the view to its month.
                     MouseArea {
-                        id: todayMouse
+                        id: dayMouse
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: module.goToday()
+                        onClicked: {
+                            if (dayCell.modelData.offset !== 0)
+                                root.shiftMonth(dayCell.modelData.offset);
+                        }
                     }
                 }
+            }
+        }
+
+        Rectangle {
+            width: root.gridWidth
+            height: todayText.implicitHeight + 8
+            radius: Config.style.radiusSmall
+            color: todayMouse.containsMouse ? Config.style.hoverColor : "transparent"
+
+            Text {
+                id: todayText
+                anchors.centerIn: parent
+                text: "Today"
+                color: Config.style.accentColor
+                font.family: Config.fonts.defaultFamily
+                font.pixelSize: Config.fonts.defaultSize
+            }
+
+            MouseArea {
+                id: todayMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: root.goToday()
             }
         }
     }
