@@ -1,14 +1,14 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
+import "../Common"
 
 BaseModule {
     id: root
 
     property string title: ""
 
-    text: title
-    visible: title.length > 0 && width > (moduleConfig ? moduleConfig.widthPadding : 0)
+    text: root.title
+    textColor: Config.colors.base04
+    visible: root.title.length > 0 && root.width > Config.module.widthPadding
     clip: true
     horizontalAlignment: Text.AlignLeft
     elide: Text.ElideRight

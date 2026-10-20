@@ -1,110 +1,101 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
+import "../Common"
+import "workspaces"
 
 Item {
     id: root
     implicitWidth: workspaceRow.implicitWidth
-    implicitHeight: root.workspacesConfig.height
+    implicitHeight: Config.workspaces.height
 
-    // Accept colors from parent
-    property var colors
-    property var workspacesConfig
-    property var fontsConfig
     property string outputName: ""
-    property var workspaceService
-    property var workspacesData: {
-        if (!root.workspaceService)
-            return [];
-
-        root.workspaceService.compositorName;
-        root.workspaceService.cachedHyprlandWorkspaces;
-        root.workspaceService.cachedHyprlandClients;
-        root.workspaceService.cachedHyprlandMonitors;
-        root.workspaceService.cachedNiriWorkspaces;
-        root.workspaceService.cachedNiriWindows;
-        root.workspaceService.ignoreClasses;
-        root.workspaceService.windowIcons;
-
-        return root.workspaceService.workspacesForOutput(root.outputName);
-    }
+    // The binding reads the service caches inside workspacesForOutput(), so it
+    // updates on every workspace or window change.
+    readonly property var workspacesData: WorkspaceService.workspacesForOutput(root.outputName)
 
     Row {
         id: workspaceRow
         anchors.verticalCenter: parent.verticalCenter
-        spacing: root.workspacesConfig.spacing
+        spacing: Config.workspaces.spacing
 
-        // Repeater for workspace buttons
         Repeater {
-            id: workspaceRepeater
-            model: root.workspacesData
+            // Keyed by workspace id: a change (for example a window title)
+            // updates the existing pills instead of recreating all of them.
+            model: ScriptModel {
+                values: root.workspacesData
+                objectProp: "id"
+            }
 
             delegate: Rectangle {
-                id: workspaceDelegate
+                id: pill
                 required property var modelData
 
-                property var icons: {
-                    const iconsArray = [];
-                    if (modelData && modelData.windowIcons) {
-                        for (let i = 0; i < modelData.windowIcons.length; i++) {
-                            if (modelData.windowIcons[i]) {
-                                iconsArray.push(modelData.windowIcons[i]);
-                            }
-                        }
-                    }
-                    return iconsArray;
-                }
-                property string workspaceName: modelData.name || ""
-                property string switchTarget: modelData.switchTarget || workspaceName
-                property bool isActive: modelData.active || false
-                property bool hovered: false
+                readonly property bool active: !!pill.modelData.active
+                readonly property bool urgent: !!pill.modelData.urgent
+                // An urgent workspace takes the urgent color even when it is active.
+                readonly property color accent: pill.urgent ? Config.colors.base08 : Config.style.accentColor
 
-                width: {
-                    const baseWidth = root.workspacesConfig.baseWidth;
-                    const iconWidth = icons.length > 0 ? icons.length * root.workspacesConfig.iconWidth + root.workspacesConfig.iconPadding : 0;
-                    return Math.max(baseWidth, iconWidth);
-                }
-                height: root.workspacesConfig.height
-                color: isActive || hovered ? root.colors.base02 : root.colors.base01
-                radius: 4
+                implicitWidth: Math.max(Config.workspaces.baseWidth, pillRow.implicitWidth + Config.module.widthPadding)
+                implicitHeight: Config.workspaces.height
+                radius: Config.style.radiusSmall
+                color: pillMouse.containsMouse ? Config.style.hoverColor : "transparent"
 
                 Row {
+                    id: pillRow
                     anchors.centerIn: parent
-                    spacing: root.workspacesConfig.spacing
+                    spacing: Config.workspaces.spacing
 
                     Text {
-                        text: workspaceDelegate.workspaceName
-                        color: root.colors.base05
-                        font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
-                        font.pixelSize: root.workspacesConfig.fontSize
                         anchors.verticalCenter: parent.verticalCenter
+                        text: pill.modelData.name || ""
+                        color: pill.active || pill.urgent ? pill.accent : Config.colors.base05
+                        font.family: Config.fonts.defaultFamily
+                        font.pixelSize: Config.workspaces.fontSize
                     }
 
                     Repeater {
-                        model: workspaceDelegate.icons
+                        model: ScriptModel {
+                            values: pill.modelData.windowIcons || []
+                            objectProp: "id"
+                        }
+
                         delegate: Text {
+                            id: windowIcon
                             required property var modelData
 
-                            property string iconText: typeof modelData === "string" ? modelData : (modelData.icon || "")
-                            property bool isFocusedIcon: typeof modelData === "object" && !!modelData.focused
-
-                            text: iconText
-                            color: isFocusedIcon ? root.colors.base0D : root.colors.base05
-                            font.pixelSize: root.workspacesConfig.iconFontSize
-                            font.family: root.fontsConfig ? root.fontsConfig.defaultFamily : "JetBrainsMono Nerd Font Propo"
-                            visible: iconText.length > 0
                             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+                            visible: windowIcon.text.length > 0
+                            text: windowIcon.modelData.icon || ""
+                            color: windowIcon.modelData.urgent ? Config.colors.base08 : windowIcon.modelData.focused ? Config.style.accentColor : Config.colors.base05
+                            font.family: Config.fonts.defaultFamily
+                            font.pixelSize: Config.workspaces.iconFontSize
                         }
                     }
                 }
 
+                // Marks the active and the urgent workspaces.
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: Config.style.radiusSmall
+                    anchors.rightMargin: Config.style.radiusSmall
+                    height: 2
+                    radius: 1
+                    color: pill.accent
+                    visible: pill.active || pill.urgent
+                }
+
                 MouseArea {
+                    id: pillMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    onContainsMouseChanged: workspaceDelegate.hovered = containsMouse
                     onClicked: {
-                        if (root.workspaceService)
-                            root.workspaceService.switchWorkspace(workspaceDelegate.switchTarget);
+                        // An open popup keeps the keyboard focus.
+                        Popups.close();
+                        WorkspaceService.switchWorkspace(pill.modelData.switchTarget);
                     }
                 }
             }

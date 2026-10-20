@@ -1,23 +1,27 @@
+pragma Singleton
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import "../../Common"
 import "workspaceHelpers.js" as WorkspaceHelpers
 
-Item {
+// Workspaces and window titles for every bar. Niri: the event stream sends the
+// full state on connect, then deltas that workspaceHelpers.js applies to the
+// caches. Hyprland: a debounced refresh after each socket event.
+Singleton {
     id: root
-    width: 0
-    height: 0
-    visible: false
 
     property string compositorName: ""
-    property var ignoreClasses: []
-    property var windowIcons: ({})
-    // Live updates are event-driven; these are slow fallbacks (overridden from config.qml).
-    property int updateInterval: 5000
-    property int activeUpdateInterval: 2000
+    property var ignoreClasses: Config.workspaces.ignoreClasses
+    property var windowIcons: Config.windowIcons
+    // Niri polls only while its event stream is down.
+    property int updateInterval: Config.workspaces.updateInterval
+    property int activeUpdateInterval: Config.workspaces.activeUpdateInterval
+    // Hyprland events drive the updates. This slow poll only catches a missed event.
+    property int hyprlandFallbackInterval: 60000
     property bool unsupportedCompositorLogged: false
 
     property var cachedHyprlandWorkspaces: []
@@ -26,6 +30,7 @@ Item {
     property var cachedNiriWorkspaces: []
     property var cachedNiriWindows: []
     property int niriStreamFailures: 0
+    readonly property bool niriPolling: root.compositorName === "niri" && !niriEventStream.running
 
     function workspacesForOutput(outputName) {
         if (root.compositorName === "hyprland")
@@ -39,7 +44,7 @@ Item {
 
     function activeWindowTitleForOutput(outputName) {
         if (root.compositorName === "hyprland")
-            return WorkspaceHelpers.activeHyprlandWindowTitleForOutput(outputName, root.cachedHyprlandMonitors);
+            return WorkspaceHelpers.activeHyprlandWindowTitleForOutput(outputName, root.cachedHyprlandMonitors, root.cachedHyprlandWorkspaces);
 
         if (root.compositorName === "niri")
             return WorkspaceHelpers.activeNiriWindowTitleForOutput(outputName, root.cachedNiriWorkspaces, root.cachedNiriWindows);
@@ -87,12 +92,9 @@ Item {
         }
     }
 
+    // Niri fallback poll for the active workspace while the event stream is down.
     function refreshActive() {
-        if (root.compositorName === "hyprland") {
-            hyprlandMonitorsProcess.exec({
-                command: ["hyprctl", "monitors", "-j"]
-            });
-        } else if (root.compositorName === "niri") {
+        if (root.compositorName === "niri") {
             niriWorkspacesProcess.exec({
                 command: ["niri", "msg", "-j", "workspaces"]
             });
@@ -114,7 +116,6 @@ Item {
         }
     }
 
-    // Focus deltas carry no arrays: patch caches in place, refresh on anything else.
     function niriStreamBackoffInterval() {
         if (root.niriStreamFailures >= 4)
             return 30000;
@@ -125,99 +126,36 @@ Item {
         return 2000;
     }
 
+    // Patch the caches with the event. Only an event that cannot be patched
+    // starts a (debounced) full refresh.
     function handleNiriEvent(line) {
         if (!line)
             return;
+
+        let event;
         try {
-            var ev = JSON.parse(line);
-            if (root.niriStreamFailures > 0) {
-                root.niriStreamFailures = 0;
-                niriStreamRestart.interval = 2000;
-            }
-            var payload = (ev && ev.Event) ? ev.Event : ev;
-            if (!payload || typeof payload !== "object") {
-                niriDebounce.restart();
-                return;
-            }
-            if (payload.WorkspacesChanged && payload.WorkspacesChanged.workspaces) {
-                root.cachedNiriWorkspaces = payload.WorkspacesChanged.workspaces;
-                return;
-            }
-            if (payload.WindowsChanged && payload.WindowsChanged.windows) {
-                root.cachedNiriWindows = payload.WindowsChanged.windows;
-                return;
-            }
-            if (payload.WorkspaceActivated) {
-                var activatedId = payload.WorkspaceActivated.id;
-                var focused = payload.WorkspaceActivated.focused !== false;
-                var workspaces = root.cachedNiriWorkspaces.slice();
-                var targetOutput = "";
-                var i = 0;
-                for (i = 0; i < workspaces.length; i++) {
-                    if (workspaces[i] && workspaces[i].id === activatedId) {
-                        targetOutput = workspaces[i].output;
-                        break;
-                    }
-                }
-                for (i = 0; i < workspaces.length; i++) {
-                    if (!workspaces[i])
-                        continue;
-                    if (workspaces[i].id === activatedId)
-                        workspaces[i].is_active = focused;
-                    else if (focused && targetOutput !== "" && workspaces[i].output === targetOutput)
-                        workspaces[i].is_active = false;
-                }
-                root.cachedNiriWorkspaces = workspaces;
-                return;
-            }
-            if (payload.WorkspaceActiveWindowChanged) {
-                var wsId = payload.WorkspaceActiveWindowChanged.workspace_id;
-                var activeWindowId = payload.WorkspaceActiveWindowChanged.active_window_id;
-                var cached = root.cachedNiriWorkspaces.slice();
-                for (var k = 0; k < cached.length; k++) {
-                    if (cached[k] && cached[k].id === wsId)
-                        cached[k].active_window_id = activeWindowId;
-                }
-                root.cachedNiriWorkspaces = cached;
-                return;
-            }
-            if (payload.WindowFocusChanged) {
-                var focusedId = payload.WindowFocusChanged.id;
-                var windows = root.cachedNiriWindows.slice();
-                for (var m = 0; m < windows.length; m++) {
-                    if (windows[m])
-                        windows[m].is_focused = (focusedId !== null && focusedId !== undefined && windows[m].id === focusedId);
-                }
-                root.cachedNiriWindows = windows;
-                return;
-            }
-            if (payload.WindowOpenedOrChanged && payload.WindowOpenedOrChanged.window) {
-                var changed = payload.WindowOpenedOrChanged.window;
-                var current = root.cachedNiriWindows.slice();
-                var replaced = false;
-                for (var n = 0; n < current.length; n++) {
-                    if (current[n] && changed && current[n].id === changed.id) {
-                        current[n] = changed;
-                        replaced = true;
-                        break;
-                    }
-                }
-                if (!replaced)
-                    current.push(changed);
-                root.cachedNiriWindows = current;
-                return;
-            }
-            if (payload.WindowClosed) {
-                var closedId = payload.WindowClosed.id;
-                root.cachedNiriWindows = root.cachedNiriWindows.slice().filter(function (w) {
-                    return !w || w.id !== closedId;
-                });
-                return;
-            }
-            niriDebounce.restart();
+            event = JSON.parse(line);
         } catch (e) {
             console.log("WorkspaceService niri event parse error:", e);
+            niriDebounce.restart();
+            return;
         }
+
+        if (root.niriStreamFailures > 0) {
+            root.niriStreamFailures = 0;
+            niriStreamRestart.interval = 2000;
+        }
+
+        const result = WorkspaceHelpers.applyNiriEvent({
+            workspaces: root.cachedNiriWorkspaces,
+            windows: root.cachedNiriWindows
+        }, event);
+        if (result.workspaces)
+            root.cachedNiriWorkspaces = result.workspaces;
+        if (result.windows)
+            root.cachedNiriWindows = result.windows;
+        if (result.refresh)
+            niriDebounce.restart();
     }
 
     // Socket events burst; coalesce into one refresh.
@@ -239,15 +177,16 @@ Item {
             return;
         }
 
-        root.refresh();
-        root.refreshActive();
+        // Niri needs no query here: the event stream starts with the full state.
+        if (root.compositorName === "hyprland")
+            root.refresh();
     }
 
     Timer {
         id: updateTimer
-        interval: root.updateInterval
+        interval: root.compositorName === "hyprland" ? root.hyprlandFallbackInterval : root.updateInterval
         repeat: true
-        running: root.compositorName.length > 0 && (root.compositorName !== "niri" || !niriEventStream.running)
+        running: root.compositorName === "hyprland" || root.niriPolling
         onTriggered: root.refresh()
     }
 
@@ -255,7 +194,7 @@ Item {
         id: activeWorkspaceTimer
         interval: root.activeUpdateInterval
         repeat: true
-        running: root.compositorName.length > 0 && (root.compositorName !== "niri" || !niriEventStream.running)
+        running: root.niriPolling
         onTriggered: root.refreshActive()
     }
 
@@ -301,7 +240,7 @@ Item {
             if (root.compositorName !== "niri")
                 return;
             root.niriStreamFailures += 1;
-            var nextInterval = root.niriStreamBackoffInterval();
+            const nextInterval = root.niriStreamBackoffInterval();
             if (root.niriStreamFailures === 1 || nextInterval !== niriStreamRestart.interval)
                 console.log("WorkspaceService: niri event-stream exited, restarting in " + nextInterval + "ms");
             niriStreamRestart.interval = nextInterval;

@@ -16,29 +16,6 @@ function getWindowIcon(windowIcons, key) {
   return "󰘔";
 }
 
-function parseEnvironmentSnapshot(output) {
-  const env = {
-    NIRI_SOCKET: "",
-    HYPRLAND_INSTANCE_SIGNATURE: "",
-    XDG_CURRENT_DESKTOP: "",
-    XDG_SESSION_DESKTOP: "",
-  };
-
-  const lines = (output || "").split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-
-    const separator = line.indexOf("=");
-    if (separator === -1) continue;
-
-    const key = line.slice(0, separator);
-    env[key] = line.slice(separator + 1).trim();
-  }
-
-  return env;
-}
-
 function detectCompositor(env) {
   if (env.NIRI_SOCKET) return "niri";
 
@@ -56,8 +33,196 @@ function detectCompositor(env) {
   return "";
 }
 
-function shouldEnableHyprlandGlobalShortcuts(compositorName) {
-  return compositorName === "hyprland";
+// Niri events that never change the bar. Event names that start with
+// "Cast" or "KeyboardLayout" are ignored too.
+const ignoredNiriEvents = {
+  ConfigLoaded: true,
+  OverviewOpenedOrClosed: true,
+  ScreenshotCaptured: true,
+  WindowFocusTimestampChanged: true,
+};
+
+function isIgnoredNiriEvent(name) {
+  return (
+    Object.prototype.hasOwnProperty.call(ignoredNiriEvents, name) ||
+    name.indexOf("Cast") === 0 ||
+    name.indexOf("KeyboardLayout") === 0
+  );
+}
+
+function findById(list, id) {
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] && list[i].id === id) return list[i];
+  }
+
+  return null;
+}
+
+// Returns a copy of `list` where `patch(item)` replaced each item it changed,
+// or null when it changed nothing. `patch` returns an object with the new
+// field values, or null to keep the item. The input is never modified, so
+// QML sees a new array only when something changed.
+function patchEach(list, patch) {
+  let changed = false;
+  const result = list.map(function (item) {
+    const fields = item ? patch(item) : null;
+    if (!fields) return item;
+
+    for (const key in fields) {
+      if (item[key] !== fields[key]) {
+        changed = true;
+        return Object.assign({}, item, fields);
+      }
+    }
+
+    return item;
+  });
+
+  return changed ? result : null;
+}
+
+// Applies one niri event-stream event to the cached `state.workspaces` and
+// `state.windows`, with the semantics of niri_ipc::state. Returns
+// `{ workspaces, windows, refresh }`: a new array for each part that changed
+// (null when unchanged), and `refresh: true` when the cache cannot be patched
+// (unknown event, or a workspace that is not in the cache).
+function applyNiriEvent(state, event) {
+  const result = { workspaces: null, windows: null, refresh: false };
+  const payload = event && event.Event ? event.Event : event;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    result.refresh = true;
+    return result;
+  }
+
+  const name = Object.keys(payload)[0] || "";
+  const data = payload[name] || {};
+  const workspaces = (state && state.workspaces) || [];
+  const windows = (state && state.windows) || [];
+
+  if (isIgnoredNiriEvent(name)) return result;
+
+  switch (name) {
+    case "WorkspacesChanged":
+      if (Array.isArray(data.workspaces)) result.workspaces = data.workspaces;
+      else result.refresh = true;
+      break;
+
+    case "WindowsChanged":
+      if (Array.isArray(data.windows)) result.windows = data.windows;
+      else result.refresh = true;
+      break;
+
+    // The workspace becomes the active one on its output. With `focused`, it
+    // also becomes the only focused workspace on all outputs.
+    case "WorkspaceActivated": {
+      const target = findById(workspaces, data.id);
+      if (!target) {
+        result.refresh = true;
+        break;
+      }
+
+      result.workspaces = patchEach(workspaces, function (ws) {
+        const activated = ws.id === data.id;
+        const fields = {};
+        if (ws.output === target.output) fields.is_active = activated;
+        if (data.focused) fields.is_focused = activated;
+        return fields;
+      });
+      break;
+    }
+
+    case "WorkspaceActiveWindowChanged":
+      if (!findById(workspaces, data.workspace_id)) {
+        result.refresh = true;
+        break;
+      }
+
+      result.workspaces = patchEach(workspaces, function (ws) {
+        return ws.id === data.workspace_id
+          ? { active_window_id: displayName(data.active_window_id, null) }
+          : null;
+      });
+      break;
+
+    case "WorkspaceUrgencyChanged":
+      if (!findById(workspaces, data.id)) {
+        result.refresh = true;
+        break;
+      }
+
+      result.workspaces = patchEach(workspaces, function (ws) {
+        return ws.id === data.id ? { is_urgent: !!data.urgent } : null;
+      });
+      break;
+
+    // A focused window takes the focus from every other window.
+    case "WindowOpenedOrChanged": {
+      const window = data.window;
+      if (!window || window.id === null || window.id === undefined) {
+        result.refresh = true;
+        break;
+      }
+
+      let found = false;
+      const next = windows.map(function (w) {
+        if (w && w.id === window.id) {
+          found = true;
+          return window;
+        }
+
+        if (window.is_focused && w && w.is_focused)
+          return Object.assign({}, w, { is_focused: false });
+
+        return w;
+      });
+      if (!found) next.push(window);
+
+      result.windows = next;
+      break;
+    }
+
+    case "WindowClosed":
+      if (findById(windows, data.id))
+        result.windows = windows.filter(function (w) {
+          return !w || w.id !== data.id;
+        });
+      break;
+
+    // A null id means that no window has the focus.
+    case "WindowFocusChanged":
+      result.windows = patchEach(windows, function (w) {
+        return { is_focused: data.id !== null && data.id !== undefined && w.id === data.id };
+      });
+      break;
+
+    case "WindowUrgencyChanged":
+      result.windows = patchEach(windows, function (w) {
+        return w.id === data.id ? { is_urgent: !!data.urgent } : null;
+      });
+      break;
+
+    // `changes` is a list of [window id, layout] pairs.
+    case "WindowLayoutsChanged": {
+      const layouts = {};
+      const changes = Array.isArray(data.changes) ? data.changes : [];
+      for (let i = 0; i < changes.length; i++) {
+        if (Array.isArray(changes[i]) && changes[i].length === 2)
+          layouts[changes[i][0]] = changes[i][1];
+      }
+
+      result.windows = patchEach(windows, function (w) {
+        return Object.prototype.hasOwnProperty.call(layouts, w.id)
+          ? { layout: layouts[w.id] }
+          : null;
+      });
+      break;
+    }
+
+    default:
+      result.refresh = true;
+  }
+
+  return result;
 }
 
 function normalizeHyprland(
@@ -104,8 +269,10 @@ function normalizeHyprland(
       if (ignored.indexOf(className) !== -1) continue;
 
       icons.push({
+        id: client.address,
         icon: getWindowIcon(windowIcons, className),
         focused: client.focusHistoryID === 0,
+        urgent: false,
       });
     }
 
@@ -114,6 +281,7 @@ function normalizeHyprland(
       name: displayName(workspace.name, workspace.id.toString()),
       switchTarget: workspace.id.toString(),
       active: workspace.id === activeWorkspaceId,
+      urgent: false,
       windowIcons: icons,
     });
   }
@@ -143,6 +311,7 @@ function normalizeNiri(outputName, workspaces, windows, ignoreClasses, windowIco
     const display = displayName(workspace.name, workspace.idx.toString());
     const icons = [];
     const workspaceWindows = [];
+    let urgent = !!workspace.is_urgent;
 
     for (let j = 0; j < (windows || []).length; j++) {
       const window = windows[j];
@@ -152,6 +321,8 @@ function normalizeNiri(outputName, workspaces, windows, ignoreClasses, windowIco
         continue;
 
       if (window.workspace_id !== workspace.id) continue;
+
+      if (window.is_urgent) urgent = true;
 
       if (ignored.indexOf(appId) !== -1) continue;
 
@@ -178,12 +349,14 @@ function normalizeNiri(outputName, workspaces, windows, ignoreClasses, windowIco
       const appId = window.app_id || window.appId || "";
 
       icons.push({
+        id: window.id,
         icon: getWindowIcon(windowIcons, appId),
         focused:
           (workspace.active_window_id !== null &&
             workspace.active_window_id !== undefined &&
             window.id === workspace.active_window_id) ||
           !!window.is_focused,
+        urgent: !!window.is_urgent,
       });
     }
 
@@ -192,6 +365,7 @@ function normalizeNiri(outputName, workspaces, windows, ignoreClasses, windowIco
       name: display,
       switchTarget: display,
       active: !!workspace.is_active,
+      urgent: urgent,
       windowIcons: icons,
     });
   }
@@ -239,21 +413,14 @@ function findHyprlandMonitor(outputName, monitors) {
   return null;
 }
 
-function activeHyprlandWindowTitleForOutput(outputName, monitors) {
+// `hyprctl monitors` gives only the id and name of the active workspace. The
+// last window title of a workspace is in `hyprctl workspaces`.
+function activeHyprlandWindowTitleForOutput(outputName, monitors, workspaces) {
   const monitor = findHyprlandMonitor(outputName, monitors);
   if (!monitor || !monitor.activeWorkspace) return "";
 
-  return displayName(monitor.activeWorkspace.lastwindowtitle, "");
-}
+  const workspace = findById(workspaces || [], monitor.activeWorkspace.id);
+  if (workspace) return displayName(workspace.lastwindowtitle, "");
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    activeHyprlandWindowTitleForOutput,
-    activeNiriWindowTitleForOutput,
-    detectCompositor,
-    normalizeHyprland,
-    normalizeNiri,
-    parseEnvironmentSnapshot,
-    shouldEnableHyprlandGlobalShortcuts,
-  };
+  return displayName(monitor.activeWorkspace.lastwindowtitle, "");
 }
