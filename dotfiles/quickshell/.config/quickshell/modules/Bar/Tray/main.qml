@@ -1,64 +1,31 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
-import Quickshell
+import Quickshell.Services.SystemTray
 import ".."
-import "../../Common" as Common
+import "../../Common"
 import "." as Local
 
 BaseModule {
     id: root
 
     hoverHighlight: true
-    property bool expanded: false
-    readonly property real globalX: popupAnchor.globalX
-    property var barWindow: null
-    property QtObject popupsConfig: parent.popupsConfig
-    property QtObject overlayConfig: parent.overlayConfig
+    popupId: "tray"
     property var hiddenIds: []
     property var idMap: ({})
     property var overflowNames: ({})
 
-    text: expanded ? "󰅃" : "󰅀"
+    // Shown while it has tray items or hosts hidden bar modules. The bar fit
+    // always reserves its width, so this cannot make a binding loop.
+    available: SystemTray.items.values.length > 0 || root.hiddenIds.length > 0
 
-    function popupX(popupWidth) {
-        return popupAnchor.popupX(popupWidth);
-    }
+    text: root.popupOpen ? "󰅃" : "󰅀"
 
-    function closePopup() {
-        root.expanded = false;
-    }
-
-    Common.DeferredLoader {
-        open: root.expanded
-        unloadDelay: root.overlayConfig ? root.overlayConfig.closeGraceMs + 20 : 250
+    BarPopup {
+        module: root
 
         Local.Popup {
             module: root
-            barWindow: root.barWindow
-            colors: root.colors
-            fontsConfig: root.fontsConfig
-            popupsConfig: root.popupsConfig
-            overlayConfig: root.overlayConfig
-            hiddenIds: root.hiddenIds
-            idMap: root.idMap
-            overflowNames: root.overflowNames
         }
-    }
-
-    PopupAnchor {
-        id: popupAnchor
-        module: root
-        barWindow: root.barWindow
-    }
-
-    onXChanged: popupAnchor.updatePosition()
-    onWidthChanged: popupAnchor.updatePosition()
-    onBarWindowChanged: popupAnchor.updatePosition()
-    Component.onCompleted: popupAnchor.updatePosition()
-
-    onClicked: {
-        popupAnchor.updatePosition();
-        expanded = !expanded;
     }
 }
