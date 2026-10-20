@@ -122,7 +122,7 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini.nvim": {
-      "rev": "66b9e643b6dabe15079be7197ee4b4d59ff98c61",
+      "rev": "e4e61006afcf6b399924e64b43c1168fca7b4301",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
@@ -166,7 +166,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "f813a6cfc993d705a7f7574fa475b0590230c901",
+      "rev": "90665755de1ba5b29012419dbd844b7871bc1b6d",
       "src": "https://github.com/petertriho/nvim-scrollbar",
       "version": "'refactor/v2'"
     },
@@ -179,7 +179,7 @@
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
-      "rev": "0142ac30ba84fa6ebf7818b097b2addffed78668",
+      "rev": "e2f08a1cdbe5a37ad4d7691ea7918e91e4b5b89f",
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
@@ -229,7 +229,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "7fca30f2890a6acf9d21d194876c6ac960d92070",
+      "rev": "82037f0534e303c3bb39472340fd23b9c46ab528",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
