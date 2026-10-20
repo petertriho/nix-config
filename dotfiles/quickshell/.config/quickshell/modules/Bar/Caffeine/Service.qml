@@ -1,93 +1,89 @@
+pragma Singleton
+
 import QtQuick
+import Quickshell
 import Quickshell.Io
 
-QtObject {
+// Caffeine state shared by every bar: an idle inhibitor with an optional countdown.
+// The state survives a config reload. The new generation starts its own inhibitor
+// for the rest of the time when the old one is killed.
+Singleton {
     id: root
 
-    property bool active: false
-    property int remainingSeconds: 0
-    property bool starting: false
-    property bool stopping: false
-    property bool pendingStart: false
-    property int pendingSeconds: 0
+    readonly property bool active: persist.enabled
+    // Seconds left, 0 when caffeine is off or has no time limit.
+    readonly property int remainingSeconds: persist.enabled && persist.endsAt > 0 ? Math.max(0, Math.ceil((persist.endsAt - root.now) / 1000)) : 0
 
-    function start(seconds) {
-        root.remainingSeconds = seconds;
-        root.starting = true;
-        inhibitProcess.running = true;
+    // Wall clock in ms, updated each second while a countdown runs.
+    property real now: Date.now()
+    // True from a stop request until the inhibitor exits, so that this exit
+    // does not count as a failure.
+    property bool stopping: false
+
+    // Singleton matches its children by index across reloads, so this stays
+    // the first (and only) child. Keep the properties free of bindings: a
+    // reload overwrites them.
+    PersistentProperties {
+        id: persist
+        reloadableId: "caffeine"
+
+        property bool enabled: false
+        // Epoch ms at which caffeine turns off, 0 for no time limit.
+        property real endsAt: 0
+
+        onLoaded: {
+            root.now = Date.now();
+            if (persist.enabled && persist.endsAt > 0 && persist.endsAt <= root.now)
+                root.deactivate();
+        }
     }
 
+    // 0 minutes = no time limit. While caffeine is on, this only changes the end time.
     function activateWithDuration(minutes) {
-        var seconds = minutes * 60;
-        if (root.stopping) {
-            root.pendingStart = true;
-            root.pendingSeconds = seconds;
-        } else if (root.active || root.starting) {
-            root.remainingSeconds = seconds;
-            if (seconds > 0)
-                countdownTimer.restart();
-        } else {
-            root.start(seconds);
-        }
+        root.now = Date.now();
+        persist.endsAt = minutes > 0 ? root.now + minutes * 60000 : 0;
+        persist.enabled = true;
     }
 
     function toggleIndefinite() {
-        if (root.active || root.starting || root.pendingStart) {
+        if (persist.enabled)
             root.deactivate();
-        } else {
+        else
             root.activateWithDuration(0);
-        }
     }
 
     function deactivate() {
-        root.pendingStart = false;
-        root.active = false;
-        root.starting = false;
-        root.remainingSeconds = 0;
-        if (inhibitProcess.running) {
-            // Wait for the old process to exit before starting a new session.
-            root.stopping = !!inhibitProcess.processId;
-            inhibitProcess.running = false;
-        }
+        root.stopping = root.stopping || inhibitProcess.running;
+        persist.enabled = false;
+        persist.endsAt = 0;
     }
 
     property Process inhibitor: Process {
         id: inhibitProcess
         command: ["systemd-inhibit", "--what=idle", "--who=caffeine", "--why=manual inhibit", "--mode=block", "sleep", "infinity"]
+        // Process starts it after the reload completes. After a quick off and
+        // on, it starts the new inhibitor when the old one has exited.
+        running: persist.enabled
 
-        onStarted: {
-            if (root.starting && !root.stopping) {
-                root.starting = false;
-                root.active = true;
-            }
-        }
-        onExited: {
-            if (root.stopping) {
+        // `running` turns false on exit and on a failed start (missing binary).
+        onRunningChanged: {
+            if (inhibitProcess.running)
+                return;
+            if (root.stopping)
                 root.stopping = false;
-                if (root.pendingStart) {
-                    var seconds = root.pendingSeconds;
-                    root.pendingStart = false;
-                    root.start(seconds);
-                }
-            } else {
+            else if (persist.enabled)
                 root.deactivate();
-            }
         }
     }
 
     property Timer countdown: Timer {
-        id: countdownTimer
         interval: 1000
         repeat: true
-        running: root.starting || (root.active && root.remainingSeconds > 0)
+        running: persist.enabled && persist.endsAt > 0
         onTriggered: {
-            // Process has no public launch-error signal; a missing started
-            // callback at this tick also covers failed executable launches.
-            if (root.starting) {
+            root.now = Date.now();
+            if (root.now >= persist.endsAt)
                 root.deactivate();
-            } else if (--root.remainingSeconds <= 0) {
-                root.deactivate();
-            }
         }
     }
 }
