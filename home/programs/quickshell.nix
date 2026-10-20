@@ -59,7 +59,6 @@ in
               readonly property int bodyFontSize: 12
               readonly property int actionFontSize: 11
               readonly property int headerFontSize: 16
-              readonly property real panelOpacity: 0.96
           }
       }
     '';
@@ -79,6 +78,9 @@ in
     };
 
     Service = {
+      # Quickshell picks its network backend only at start. Wait up to 15 s for
+      # NetworkManager on the system bus. The "-" prefix lets a timeout not stop the start.
+      ExecStartPre = "-${pkgs.glib.bin}/bin/gdbus wait --system --timeout 15 org.freedesktop.NetworkManager";
       ExecStart = "${
         inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default
       }/bin/quickshell --no-detailed-logs";
