@@ -1,11 +1,13 @@
 local navic = require("nvim-navic")
+local escape = require("heirline-components.utils.statusline").escape
 
 local config = {
     separator = " ❭ ",
     separator_hl = { fg = "fg_bright" },
-    default_hl = { fg = "fg" },
     click_name = "heirline_navic",
-    update_event = "CursorHold",
+    -- A cached component hides its flexible levels from heirline's resize pass. WinResized clears
+    -- the cache, so the levels fit the new width.
+    update_events = { "CursorHold", "BufEnter", "WinResized" },
     ellipsis = "…",
     ellipsis_hl = { fg = "fg_bright" },
     -- max_depth folded into level 1's min_items (inclusive cap 10 -> exclusive 11)
@@ -19,17 +21,18 @@ local config = {
     },
 }
 
-local TYPE_HIGHLIGHTS = {
+-- Used when the colorscheme does not define `NavicIcons<Kind>` (mini.base16 does not).
+local FALLBACK_HIGHLIGHTS = {
     File = "Directory",
-    Module = "@include",
-    Namespace = "@namespace",
-    Package = "@include",
-    Class = "@structure",
-    Method = "@method",
+    Module = "@module",
+    Namespace = "@module",
+    Package = "@module",
+    Class = "@type",
+    Method = "@function.method",
     Property = "@property",
-    Field = "@field",
+    Field = "@property",
     Constructor = "@constructor",
-    Enum = "@field",
+    Enum = "@type",
     Interface = "@type",
     Function = "@function",
     Variable = "@variable",
@@ -37,55 +40,45 @@ local TYPE_HIGHLIGHTS = {
     String = "@string",
     Number = "@number",
     Boolean = "@boolean",
-    Array = "@field",
+    Array = "@property",
     Object = "@type",
     Key = "@keyword",
     Null = "@comment",
-    EnumMember = "@field",
-    Struct = "@structure",
+    EnumMember = "@constant",
+    Struct = "@type",
     Event = "@keyword",
     Operator = "@operator",
     TypeParameter = "@type",
 }
 
-local function encode_position(line, col, winnr)
-    return bit.bor(bit.lshift(line, 16), bit.lshift(col, 6), winnr)
+-- Navic data of the last render, per window. A click reads the symbol position from here, so
+-- `minwid` only holds the item index and cannot overflow.
+local window_data = {}
+
+local function get_fg(name)
+    return vim.api.nvim_get_hl(0, { name = name, link = false, create = false }).fg
 end
 
-local function decode_position(encoded)
-    local line = bit.rshift(encoded, 16)
-    local col = bit.band(bit.rshift(encoded, 6), 1023)
-    local winnr = bit.band(encoded, 63)
-    return line, col, winnr
-end
-
-local function sanitize_name(name)
-    return name:gsub("%%", "%%%%"):gsub("%s*->%s*", "")
-end
-
-local function create_click_handler(encoded_pos)
-    return function(_, minwid)
-        local line, col, winnr = decode_position(minwid)
-        vim.api.nvim_win_set_cursor(vim.fn.win_getid(winnr), { line, col })
+local function resolve_icon_hl(symbol_type, cache)
+    if cache[symbol_type] == nil then
+        local fallback = FALLBACK_HIGHLIGHTS[symbol_type]
+        local fg = fallback and (get_fg("NavicIcons" .. symbol_type) or get_fg(fallback))
+        cache[symbol_type] = fg and { fg = fg } or false
     end
+    return cache[symbol_type] or nil
 end
 
-local function create_icon_component(icon, symbol_type)
-    return {
-        provider = icon,
-        hl = TYPE_HIGHLIGHTS[symbol_type],
-    }
-end
+local function on_click(_, index)
+    local winid = vim.fn.getmousepos().winid
+    local item = window_data[winid] and window_data[winid][index]
+    if not item then
+        return
+    end
 
-local function create_name_component(name, encoded_pos)
-    return {
-        provider = sanitize_name(name),
-        on_click = {
-            minwid = encoded_pos,
-            callback = create_click_handler(encoded_pos),
-            name = config.click_name,
-        },
-    }
+    local line = item.scope.start.line
+    if line <= vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(winid)) then
+        vim.api.nvim_win_set_cursor(winid, { line, item.scope.start.character })
+    end
 end
 
 local function create_separator_component()
@@ -102,12 +95,20 @@ local function create_ellipsis_component()
     }
 end
 
-local function create_navic_item(data_item, winnr, is_last)
-    local encoded_pos = encode_position(data_item.scope.start.line, data_item.scope.start.character, winnr)
-
+local function create_navic_item(data_item, index, is_last, hl_cache)
     local item = {
-        create_icon_component(data_item.icon, data_item.type),
-        create_name_component(data_item.name, encoded_pos),
+        {
+            provider = data_item.icon,
+            hl = resolve_icon_hl(data_item.type, hl_cache),
+        },
+        {
+            provider = escape((data_item.name:gsub("%s*->%s*", ""))),
+            on_click = {
+                minwid = index,
+                callback = on_click,
+                name = config.click_name,
+            },
+        },
     }
 
     if not is_last then
@@ -117,7 +118,7 @@ local function create_navic_item(data_item, winnr, is_last)
     return item
 end
 
-local function build_children(navic_data, winnr, level)
+local function build_children(navic_data, level, hl_cache)
     local children = {}
     local count = #navic_data
 
@@ -131,70 +132,57 @@ local function build_children(navic_data, winnr, level)
 
     -- Full display when below the floor, or when the request already covers
     -- the whole list (no items would be hidden).
-    local full = count < min_items or count <= first_n + last_n
-
-    if full then
+    if count < min_items or count <= first_n + last_n then
         for i = 1, count do
-            table.insert(children, create_navic_item(navic_data[i], winnr, i == count))
+            table.insert(children, create_navic_item(navic_data[i], i, i == count, hl_cache))
         end
     else
         for i = 1, first_n do
-            table.insert(children, create_navic_item(navic_data[i], winnr, false))
+            table.insert(children, create_navic_item(navic_data[i], i, false, hl_cache))
         end
 
-        if first_n == 0 and last_n == 0 then
-            table.insert(children, create_ellipsis_component())
-        else
-            table.insert(children, create_ellipsis_component())
-            if last_n > 0 then
-                table.insert(children, create_separator_component())
-            end
+        table.insert(children, create_ellipsis_component())
+        if last_n > 0 then
+            table.insert(children, create_separator_component())
         end
 
-        for i = math.max(first_n + 1, count - last_n + 1), count do
-            if i > first_n then
-                table.insert(children, create_navic_item(navic_data[i], winnr, i == count))
-            end
+        for i = count - last_n + 1, count do
+            table.insert(children, create_navic_item(navic_data[i], i, i == count, hl_cache))
         end
     end
 
-    if #children > 0 then
-        table.insert(children, 1, create_separator_component())
-    end
+    table.insert(children, 1, create_separator_component())
 
     return children
+end
+
+local flexible_levels = { flexible = 1 }
+for _, level in ipairs(config.flexible_levels) do
+    table.insert(flexible_levels, {
+        init = function(self)
+            self.child = self:new(build_children(self.navic_data, level, self.icon_hl_cache), 1)
+        end,
+        provider = function(self)
+            return self.child:eval()
+        end,
+    })
 end
 
 return {
     condition = function()
         return navic.is_available()
     end,
-    static = {
-        type_hl = TYPE_HIGHLIGHTS,
-        enc = encode_position,
-        dec = decode_position,
-    },
     init = function(self)
         self.navic_data = navic.get_data() or {}
-        self.data_count = #self.navic_data
-    end,
-    (function()
-        local flexible_components = { flexible = true }
+        self.icon_hl_cache = {}
 
-        for i, level_config in ipairs(config.flexible_levels) do
-            table.insert(flexible_components, {
-                init = function(self)
-                    local children = build_children(self.navic_data, self.winnr, level_config)
-                    self.child = self:new(children, 1)
-                end,
-                provider = function(self)
-                    return self.child:eval()
-                end,
-            })
+        for winid in pairs(window_data) do
+            if not vim.api.nvim_win_is_valid(winid) then
+                window_data[winid] = nil
+            end
         end
-
-        return flexible_components
-    end)(),
-    hl = config.default_hl,
-    update = config.update_event,
+        window_data[vim.api.nvim_get_current_win()] = self.navic_data
+    end,
+    flexible_levels,
+    update = config.update_events,
 }

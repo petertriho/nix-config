@@ -1,24 +1,8 @@
-local conditions = require("heirline.conditions")
-
-local cache = {}
-
-vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach" }, {
-    group = vim.api.nvim_create_augroup("heirline_lsp_count", { clear = true }),
-    callback = function(args)
-        cache[args.buf] = #vim.lsp.get_clients({ bufnr = args.buf })
-    end,
-})
-
+-- Not cached: `LspDetach` fires before the client leaves the buffer, and a per-window cache would show
+-- the previous buffer's count after `:buffer`. Counting is as cheap as the attach check it replaces.
 return {
-    condition = conditions.lsp_attached,
     provider = function()
-        local bufnr = vim.api.nvim_get_current_buf()
-        local count = cache[bufnr]
-        if count == nil then
-            count = #vim.lsp.get_clients({ bufnr = bufnr })
-            cache[bufnr] = count
-        end
-        return "󰒓 " .. count
+        local count = #vim.lsp.get_clients({ bufnr = 0 })
+        return count > 0 and (" 󰒓 " .. count)
     end,
-    update = { "LspAttach", "LspDetach" },
 }

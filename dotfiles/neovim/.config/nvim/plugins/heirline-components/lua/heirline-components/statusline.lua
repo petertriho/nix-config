@@ -1,4 +1,22 @@
 local conditions = require("heirline.conditions")
+local filename = require("heirline-components.utils.filename")
+local mode = require("heirline-components.statusline.mode")
+
+local Align = require("heirline-components.components.align")
+local Diagnostics = require("heirline-components.components.diagnostics")
+local FileName = require("heirline-components.components.filename")
+local FileNameBlock = require("heirline-components.components.filenameblock")
+local FileStats = require("heirline-components.components.filestats")
+local FileType = require("heirline-components.components.filetype")
+local Git = require("heirline-components.components.git")
+local LspClientCount = require("heirline-components.components.lspclientscount")
+local MacroRecorder = require("heirline-components.components.macrorecorder")
+local Position = require("heirline-components.components.position")
+local RightAngle = require("heirline-components.components.rightangle")
+local Ruler = require("heirline-components.components.ruler")
+local Space = require("heirline-components.components.space")
+local TerminalName = require("heirline-components.components.terminalname")
+local ViMode = require("heirline-components.components.vimode")
 
 local StatusLineHl = function()
     if conditions.is_active() then
@@ -8,49 +26,29 @@ local StatusLineHl = function()
     end
 end
 
-local Align = require("heirline-components.components.align")
-local RightAngle = require("heirline-components.components.rightangle")
-local Space = require("heirline-components.components.space")
-
-local ViMode = require("heirline-components.components.vimode")
-local FileName = require("heirline-components.components.filename")
-local filename = require("heirline-components.utils.filename")
-local FileNameBlock = require("heirline-components.components.filenameblock")
-local Git = require("heirline-components.components.git")
-local Diagnostics = require("heirline-components.components.diagnostics")
-local Position = require("heirline-components.components.position")
-local LspClientCount = require("heirline-components.components.lspclientscount")
-local FileType = require("heirline-components.components.filetype")
-local FileStats = require("heirline-components.components.filestats")
-local Ruler = require("heirline-components.components.ruler")
-local MacroRecorder = require("heirline-components.components.macrorecorder")
-
-local MacroRuler = {
-    condition = function()
-        return vim.g.reg_recording == ""
-    end,
-    Ruler,
-}
-
+-- Optional components carry their own leading separator, so a hidden component leaves no gap.
 local DefaultStatusLine = {
     -- LHS
     ViMode,
     FileNameBlock,
-    Space,
     Git,
     Align,
     -- RHS
     Diagnostics,
-    Space,
     Position,
-    Space,
     LspClientCount,
-    RightAngle,
-    FileType,
+    {
+        condition = FileType.condition,
+        RightAngle,
+        FileType,
+    },
     Space,
     FileStats,
-    MacroRecorder,
-    MacroRuler,
+    {
+        fallthrough = false,
+        MacroRecorder,
+        Ruler,
+    },
 }
 
 local WindowNumber = {
@@ -61,6 +59,7 @@ local WindowNumber = {
 
 local BgHighlight = function(component)
     return {
+        condition = component.condition,
         hl = { bg = "bg_highlight" },
         Space,
         component,
@@ -99,8 +98,6 @@ local SpecialStatusLine = {
     BgHighlight(WindowNumber),
 }
 
-local TerminalName = require("heirline-components.components.terminalname")
-
 local TerminalStatusLine = {
     condition = function()
         return conditions.buffer_matches({ buftype = { "terminal" } })
@@ -113,6 +110,11 @@ local TerminalStatusLine = {
 }
 
 return {
+    -- Children read `self.mode` and `self.mode_color` (a color name).
+    init = function(self)
+        self.mode = vim.fn.mode(1)
+        self.mode_color = mode.color(self.mode)
+    end,
     hl = StatusLineHl,
     fallthrough = false,
     InactiveStatusLine,

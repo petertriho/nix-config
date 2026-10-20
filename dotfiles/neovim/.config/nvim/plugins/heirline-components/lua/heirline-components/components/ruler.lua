@@ -1,6 +1,6 @@
 return {
-    hl = function()
-        return { fg = "bg", bg = vim.g.heirline_mode_color, bold = true }
+    hl = function(self)
+        return { fg = "bg", bg = self.mode_color, bold = true }
     end,
     provider = " %P ",
 }

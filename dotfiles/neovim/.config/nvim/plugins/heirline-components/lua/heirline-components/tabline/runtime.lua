@@ -1,4 +1,9 @@
+local filename = require("heirline-components.utils.filename")
+
 local M = {}
+
+-- Picker labels when no character of the file name is free.
+local PICKER_FALLBACK_LABELS = "asdfghjklqwertyuiopzxcvbnm1234567890ASDFGHJKLQWERTYUIOPZXCVBNM"
 
 local buflist = {}
 local bufmap = {}
@@ -15,15 +20,10 @@ local function clear(tbl)
     end
 end
 
-local function get_bufs()
+local function listed_bufs()
     return vim.tbl_filter(function(bufnr)
-        return vim.api.nvim_get_option_value("buflisted", { buf = bufnr })
+        return vim.bo[bufnr].buflisted
     end, vim.api.nvim_list_bufs())
-end
-
-local function clear_picker()
-    clear(picker_labels)
-    clear(picker_buf_labels)
 end
 
 local function redraw_tabline()
@@ -33,7 +33,7 @@ end
 local function refresh(redraw)
     clear(bufmap)
 
-    local buffers = get_bufs()
+    local buffers = listed_bufs()
     for i, bufnr in ipairs(buffers) do
         buflist[i] = bufnr
         bufmap[bufnr] = i
@@ -42,6 +42,9 @@ local function refresh(redraw)
     for i = #buffers + 1, #buflist do
         buflist[i] = nil
     end
+
+    -- The labels must be current before the redraw below renders them.
+    filename.refresh(buffers)
 
     if redraw then
         redraw_tabline()
@@ -69,22 +72,18 @@ function M.setup()
     refresh(false)
 
     local group = vim.api.nvim_create_augroup("heirline_components_tabline_runtime", { clear = true })
-    vim.api.nvim_create_autocmd({ "VimEnter", "UIEnter", "BufAdd", "BufDelete", "BufFilePost", "TabEnter" }, {
+    vim.api.nvim_create_autocmd(
+        { "VimEnter", "UIEnter", "BufAdd", "BufDelete", "BufFilePost", "TabEnter", "DirChanged" },
+        {
+            group = group,
+            callback = schedule_refresh,
+        }
+    )
+    vim.api.nvim_create_autocmd("OptionSet", {
         group = group,
+        pattern = "buflisted",
         callback = schedule_refresh,
     })
-
-    for i = 1, 9 do
-        vim.keymap.set("n", "<leader>" .. i, function()
-            M.switch_by_index(i)
-        end, { desc = "Switch to buffer " .. i })
-    end
-
-    vim.keymap.set("n", "<leader>0", function()
-        M.switch_by_index(10)
-    end, { desc = "Switch to buffer 10" })
-
-    vim.keymap.set("n", "gb", M.pick, { desc = "Pick buffer" })
 end
 
 function M.buffers()
@@ -105,12 +104,63 @@ function M.switch_by_index(index)
     M.switch(buflist[index])
 end
 
-function M.close(bufnr)
-    local ok, err = pcall(vim.api.nvim_buf_delete, bufnr, { force = false })
-    if ok then
-        redraw_tabline()
+local function replacement_buf(win, bufnr, fallback)
+    local alternate = vim.api.nvim_win_call(win, function()
+        return vim.fn.bufnr("#")
+    end)
+    if alternate > 0 and alternate ~= bufnr and vim.bo[alternate].buflisted then
+        return alternate
+    end
+    return fallback()
+end
+
+-- Like `:bdelete`, but each window that shows the buffer stays open and shows another buffer.
+local function delete_keep_layout(bufnr)
+    if vim.bo[bufnr].modified then
+        return false, ("Buffer %d has unsaved changes"):format(bufnr)
     end
 
+    local other
+    local function fallback()
+        if not other then
+            local recent
+            for _, info in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+                if info.bufnr ~= bufnr and (not recent or info.lastused > recent.lastused) then
+                    recent = info
+                end
+            end
+            other = recent and recent.bufnr or vim.api.nvim_create_buf(true, false)
+        end
+        return other
+    end
+
+    for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
+        local ok, err = pcall(vim.api.nvim_win_set_buf, win, replacement_buf(win, bufnr, fallback))
+        if not ok then
+            return false, err
+        end
+    end
+
+    return pcall(vim.cmd.bdelete, bufnr)
+end
+
+function M.close(bufnr)
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+        return false
+    end
+
+    local ok, err
+    local has_snacks, snacks = pcall(require, "snacks")
+    if has_snacks then
+        -- Snacks asks before it closes a modified buffer.
+        ok, err = pcall(snacks.bufdelete.delete, { buf = bufnr })
+    else
+        ok, err = delete_keep_layout(bufnr)
+    end
+
+    if not ok then
+        vim.notify(("Cannot close buffer: %s"):format(err), vim.log.levels.WARN)
+    end
     return ok, err
 end
 
@@ -118,31 +168,42 @@ function M.is_picking()
     return show_picker
 end
 
-function M.picker_label(bufnr)
-    if picker_buf_labels[bufnr] then
-        return picker_buf_labels[bufnr]
-    end
-
-    local bufname = vim.api.nvim_buf_get_name(bufnr)
-    bufname = vim.fn.fnamemodify(bufname, ":t")
-
-    local label = bufname:sub(1, 1)
-    local i = 2
-    while picker_labels[label] do
-        if i > #bufname then
-            break
+local function assign_picker_label(bufnr, candidates)
+    for char in candidates:gmatch(".") do
+        if not picker_labels[char] then
+            picker_labels[char] = bufnr
+            picker_buf_labels[bufnr] = char
+            return
         end
-        label = bufname:sub(i, i)
-        i = i + 1
+    end
+end
+
+local function assign_picker_labels()
+    clear(picker_labels)
+    clear(picker_buf_labels)
+
+    local pending = {}
+    for _, bufnr in ipairs(buflist) do
+        local name = vim.fs.basename(vim.api.nvim_buf_get_name(bufnr)):lower():gsub("[^%w]", "")
+        if name ~= "" then
+            assign_picker_label(bufnr, name)
+        end
+        if not picker_buf_labels[bufnr] then
+            table.insert(pending, bufnr)
+        end
     end
 
-    picker_labels[label] = bufnr
-    picker_buf_labels[bufnr] = label
-    return label
+    for _, bufnr in ipairs(pending) do
+        assign_picker_label(bufnr, PICKER_FALLBACK_LABELS)
+    end
+end
+
+function M.picker_label(bufnr)
+    return picker_buf_labels[bufnr]
 end
 
 function M.pick()
-    clear_picker()
+    assign_picker_labels()
     show_picker = true
     redraw_tabline()
 
@@ -152,7 +213,8 @@ function M.pick()
     end
 
     show_picker = false
-    clear_picker()
+    clear(picker_labels)
+    clear(picker_buf_labels)
     redraw_tabline()
 
     if not ok then

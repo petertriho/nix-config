@@ -5,9 +5,8 @@ return {
     hl = { bg = "bg_highlight" },
     Space,
     {
-
-        hl = function()
-            return { fg = vim.g.heirline_mode_color }
+        hl = function(self)
+            return { fg = self.mode_color }
         end,
         FileName,
     },

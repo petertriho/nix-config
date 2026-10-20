@@ -11,18 +11,16 @@ local Navic = require("heirline-components.components.navic")
 local ShortFileName = {
     init = function(self)
         self.filename = vim.api.nvim_buf_get_name(0)
-        self.is_active = conditions.is_active()
     end,
     FileIcon,
     {
         provider = function()
-            return filename.short(0)
+            return filename.smart(0)
         end,
-        hl = function(self)
-            if self.is_active then
+        -- Inactive windows keep the WinBarNC colors.
+        hl = function()
+            if conditions.is_active() then
                 return { fg = "blue" }
-            else
-                return { fg = "fg" }
             end
         end,
     },
@@ -40,12 +38,6 @@ local WinBar = {
             TerminalName,
         },
     },
-    -- {
-    --     condition = function()
-    --         return not conditions.is_active()
-    --     end,
-    --     { Space, ShortFileName, Navic },
-    -- },
     { Space, ShortFileName, Navic },
 }
 

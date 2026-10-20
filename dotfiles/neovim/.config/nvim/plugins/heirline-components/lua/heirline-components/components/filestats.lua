@@ -1,67 +1,38 @@
-local RightAngle = require("heirline-components.components.rightangle")
-local Space = require("heirline-components.components.space")
+local separator = require("heirline-components.components.rightangle").provider
 
-local FileEncoding = {
-    provider = function(self)
-        local file_enc = (vim.bo[self.bufnr].fenc ~= "" and vim.bo[self.bufnr].fenc) or vim.o.enc
-        return file_enc:upper()
-    end,
-}
+local function join(stats, keys)
+    local parts = {}
+    for _, key in ipairs(keys) do
+        table.insert(parts, stats[key])
+    end
+    return " " .. table.concat(parts, separator) .. " "
+end
 
-local FileFormat = {
-    provider = function(self)
-        local file_format = vim.bo[self.bufnr].fileformat
-        return file_format:upper()
-    end,
-}
-
-local TabStyle = {
-    provider = function(self)
-        local tab_style = vim.bo[self.bufnr].expandtab and "●" or "󰌒"
-        local tab = vim.bo[self.bufnr].shiftwidth
-
-        if tab == 0 then
-            tab = vim.bo[self.bufnr].tabstop
-        end
-
-        return tab_style .. " " .. tab
-    end,
-}
-
-local LineCount = {
-    provider = function(self)
-        local lines = vim.api.nvim_buf_line_count(self.bufnr)
-        return " " .. lines
-    end,
-}
+local function Level(keys)
+    return {
+        provider = function(self)
+            return join(self.stats, keys)
+        end,
+    }
+end
 
 return {
     init = function(self)
-        self.bufnr = vim.api.nvim_get_current_buf()
+        local bo = vim.bo
+        local encoding = bo.fileencoding ~= "" and bo.fileencoding or vim.o.encoding
+        local width = bo.shiftwidth ~= 0 and bo.shiftwidth or bo.tabstop
+
+        self.stats = {
+            encoding = encoding:upper(),
+            format = bo.fileformat:upper(),
+            indent = (bo.expandtab and "●" or "󰌒") .. " " .. width,
+            lines = " %L",
+        }
     end,
     hl = { bg = "bg_highlight" },
-    flexible = true,
-    {
-        { Space, FileEncoding },
-        { RightAngle, FileFormat },
-        { RightAngle, TabStyle },
-        { RightAngle, LineCount },
-        Space,
-    },
-    {
-        { Space, FileFormat },
-        { RightAngle, TabStyle },
-        { RightAngle, LineCount },
-        Space,
-    },
-    {
-        { Space, TabStyle },
-        { RightAngle, LineCount },
-        Space,
-    },
-    {
-        Space,
-        LineCount,
-        Space,
-    },
+    flexible = 1,
+    Level({ "encoding", "format", "indent", "lines" }),
+    Level({ "format", "indent", "lines" }),
+    Level({ "indent", "lines" }),
+    Level({ "lines" }),
 }

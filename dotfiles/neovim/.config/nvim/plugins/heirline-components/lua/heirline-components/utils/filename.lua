@@ -1,8 +1,13 @@
+local escape = require("heirline-components.utils.statusline").escape
+
 local M = {}
 
+local NO_NAME = "[No Name]"
+
+-- basename -> relative paths of the listed buffers with that basename
 local basename_paths = {}
-local is_setup = false
-local refresh_scheduled = false
+-- bufnr -> { name = <buffer name at refresh>, full = <escaped>, smart = <escaped> }
+local labels = {}
 
 local function clear(tbl)
     for k in pairs(tbl) do
@@ -16,6 +21,11 @@ local function path_parts(path)
         table.insert(parts, part)
     end
     return parts
+end
+
+-- A pattern, because `vim.fs.basename()` calls `fnamemodify()`, and `smart()` runs on every render.
+local function basename_of(path)
+    return path:match("[^/]*$")
 end
 
 local function relative_path(path)
@@ -71,88 +81,75 @@ local function readable_unique_suffix(path, duplicate_paths)
     return path
 end
 
-local function buf_name(bufnr)
-    return vim.api.nvim_buf_get_name(bufnr)
-end
-
-local function listed_bufs()
-    return vim.tbl_filter(function(bufnr)
-        return vim.api.nvim_get_option_value("buflisted", { buf = bufnr })
-    end, vim.api.nvim_list_bufs())
-end
-
-local function refresh()
-    clear(basename_paths)
-    for _, bufnr in ipairs(listed_bufs()) do
-        local name = vim.api.nvim_buf_get_name(bufnr)
-        if name ~= "" then
-            local basename = vim.fn.fnamemodify(name, ":t")
-            basename_paths[basename] = basename_paths[basename] or {}
-            table.insert(basename_paths[basename], relative_path(name))
-        end
+local function smart_label(name, relative)
+    local basename = basename_of(name)
+    local duplicate_paths = basename_paths[basename]
+    if duplicate_paths and #duplicate_paths > 1 then
+        return readable_unique_suffix(relative, duplicate_paths)
     end
-end
-
-local function schedule_refresh()
-    if refresh_scheduled then
-        return
-    end
-
-    refresh_scheduled = true
-    vim.schedule(function()
-        refresh_scheduled = false
-        refresh()
-    end)
-end
-
-function M.setup()
-    if is_setup then
-        return
-    end
-
-    is_setup = true
-    refresh()
-
-    local group = vim.api.nvim_create_augroup("heirline_components_filename", { clear = true })
-    vim.api.nvim_create_autocmd({ "VimEnter", "UIEnter", "BufAdd", "BufDelete", "BufFilePost", "TabEnter" }, {
-        group = group,
-        callback = schedule_refresh,
-    })
-end
-
-function M.full(bufnr)
-    local path = relative_path(buf_name(bufnr))
-    if path == "" then
-        return "[No Name]"
-    end
-    return path
-end
-
-function M.basename(bufnr)
-    local name = vim.fn.fnamemodify(buf_name(bufnr), ":t")
-    if name == "" then
-        return "[No Name]"
-    end
-    return name
-end
-
-function M.smart(bufnr)
-    local name = buf_name(bufnr)
-    if name == "" then
-        return "[No Name]"
-    end
-
-    local basename = vim.fn.fnamemodify(name, ":t")
-    local duplicate_paths = basename_paths[basename] or {}
-    if #duplicate_paths > 1 then
-        return readable_unique_suffix(relative_path(name), duplicate_paths)
-    end
-
     return basename
 end
 
-function M.short(bufnr)
-    return M.smart(bufnr)
+local function cached(bufnr, name)
+    if bufnr == 0 then
+        bufnr = vim.api.nvim_get_current_buf()
+    end
+    local entry = labels[bufnr]
+    if entry and entry.name == name then
+        return entry
+    end
+end
+
+--- Recompute the labels of `buffers` (the listed buffers). Call this before the tabline redraws.
+function M.refresh(buffers)
+    clear(basename_paths)
+    clear(labels)
+
+    local named = {}
+    for _, bufnr in ipairs(buffers) do
+        local name = vim.api.nvim_buf_get_name(bufnr)
+        if name ~= "" then
+            local basename = basename_of(name)
+            local relative = relative_path(name)
+            basename_paths[basename] = basename_paths[basename] or {}
+            table.insert(basename_paths[basename], relative)
+            table.insert(named, { bufnr = bufnr, name = name, relative = relative })
+        end
+    end
+
+    for _, buf in ipairs(named) do
+        labels[buf.bufnr] = {
+            name = buf.name,
+            full = escape(buf.relative),
+            smart = escape(smart_label(buf.name, buf.relative)),
+        }
+    end
+end
+
+function M.full(bufnr)
+    local name = vim.api.nvim_buf_get_name(bufnr)
+    if name == "" then
+        return NO_NAME
+    end
+
+    local entry = cached(bufnr, name)
+    if entry then
+        return entry.full
+    end
+    return escape(relative_path(name))
+end
+
+function M.smart(bufnr)
+    local name = vim.api.nvim_buf_get_name(bufnr)
+    if name == "" then
+        return NO_NAME
+    end
+
+    local entry = cached(bufnr, name)
+    if entry then
+        return entry.smart
+    end
+    return escape(smart_label(name, relative_path(name)))
 end
 
 function M.label(bufnr)

@@ -16,28 +16,30 @@ local ActiveIndicator = {
     end,
 }
 
-local LeftSeparator = {
-    provider = "▌",
-    hl = { fg = "tabline_bg" },
-}
-
-local RightSeparator = {
-    provider = "▐",
-    hl = { fg = "tabline_bg" },
-}
-
-local Bufnr = {
-    provider = function(self)
-        return tostring(self.bufnr) .. ". "
-    end,
-    hl = "Comment",
-}
-
+-- While picking, the picker label takes the place of the index, padded to the same width.
 local BufIndex = {
-    provider = function(self)
-        return tostring(runtime.index(self.bufnr)) .. ". "
+    init = function(self)
+        self.index_text = tostring(runtime.index(self.bufnr)) .. ". "
+        self.picker_label = runtime.is_picking() and runtime.picker_label(self.bufnr)
     end,
-    hl = "Comment",
+    {
+        condition = function(self)
+            return not self.picker_label
+        end,
+        provider = function(self)
+            return self.index_text
+        end,
+        hl = "Comment",
+    },
+    {
+        condition = function(self)
+            return self.picker_label
+        end,
+        provider = function(self)
+            return self.picker_label .. string.rep(" ", #self.index_text - 1)
+        end,
+        hl = { fg = "red", bold = true },
+    },
 }
 
 local FileName = {
@@ -79,12 +81,9 @@ local FileNameBlock = {
     end,
     hl = function(self)
         if self.is_active then
-            return {
-                fg = "tabline_sel_fg",
-                bg = "tabline_sel_bg",
-            }
+            return { fg = "tabline_sel_fg" }
         else
-            return { fg = "tabline_fg", bg = "tabline_bg" }
+            return { fg = "tabline_fg" }
         end
     end,
     on_click = {
@@ -130,19 +129,6 @@ local BufferCloseButton = {
     Space,
 }
 
-local BufferPicker = {
-    condition = function(self)
-        return runtime.is_picking()
-    end,
-    init = function(self)
-        self.label = runtime.picker_label(self.bufnr)
-    end,
-    provider = function(self)
-        return " " .. self.label .. " "
-    end,
-    hl = { fg = "red", bold = true },
-}
-
 local BufferBlock = {
     hl = function(self)
         if self.is_active then
@@ -151,16 +137,14 @@ local BufferBlock = {
             return { bg = "tabline_bg" }
         end
     end,
-    { ActiveIndicator, Space, FileNameBlock, Space, FileFlags, BufferCloseButton, BufferPicker },
+    { ActiveIndicator, Space, FileNameBlock, Space, FileFlags, BufferCloseButton },
 }
 
 local BufferLine = utils.make_buflist(
     BufferBlock,
     { provider = " ", hl = { fg = "gray" } },
     { provider = " ", hl = { fg = "gray" } },
-    function()
-        return runtime.buffers()
-    end,
+    runtime.buffers,
     false
 )
 
@@ -202,26 +186,25 @@ local SIDEBAR_TITLES = {
 local TabLineOffset = {
     condition = function(self)
         local win = vim.api.nvim_tabpage_list_wins(0)[1]
-        local bufnr = vim.api.nvim_win_get_buf(win)
-        self.winid = win
-
-        local filetype = vim.bo[bufnr].filetype
-        local title = SIDEBAR_TITLES[filetype]
-
+        local title = SIDEBAR_TITLES[vim.bo[vim.api.nvim_win_get_buf(win)].filetype]
         if title then
+            self.winid = win
             self.title = title
             return true
         end
+        return false
     end,
     provider = function(self)
-        local title = self.title
+        -- Cover the sidebar and its vertical separator, so the buffer list starts above the next window.
         local width = vim.api.nvim_win_get_width(self.winid)
-        local pad = math.ceil((width - #title) / 2)
-        return string.rep(" ", pad) .. title .. string.rep(" ", pad)
+        if width < vim.o.columns then
+            width = width + 1
+        end
+        local title = self.title:sub(1, width)
+        local left = math.floor((width - #title) / 2)
+        return string.rep(" ", left) .. title .. string.rep(" ", width - #title - left)
     end,
-    hl = function(self)
-        return { fg = "blue", bg = "tabline_bg" }
-    end,
+    hl = { fg = "blue", bg = "tabline_bg" },
 }
 
 local TabLine = {

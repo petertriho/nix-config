@@ -1,3 +1,24 @@
+local function buffer_keys()
+    local keys = {}
+    for i = 1, 10 do
+        table.insert(keys, {
+            "<leader>" .. (i % 10),
+            function()
+                require("heirline-components.tabline.runtime").switch_by_index(i)
+            end,
+            desc = "Switch to buffer " .. i,
+        })
+    end
+    table.insert(keys, {
+        "gb",
+        function()
+            require("heirline-components.tabline.runtime").pick()
+        end,
+        desc = "Pick buffer",
+    })
+    return keys
+end
+
 return {
     "rebelot/heirline.nvim",
     event = { "UiEnter", "VeryLazy" },
@@ -7,6 +28,7 @@ return {
             dir = "~/.config/nvim/plugins/heirline-components",
         },
     },
+    keys = buffer_keys(),
     init = function()
         vim.opt.laststatus = 2
         vim.o.showtabline = 2
@@ -34,7 +56,7 @@ return {
             tabline = require("heirline-components.tabline"),
             winbar = require("heirline-components.winbar"),
             opts = {
-                colors = require("heirline-components.colors"),
+                colors = require("heirline-components.colors").get,
                 disable_winbar_cb = function(args)
                     return conditions.buffer_matches({
                         buftype = { "nofile", "prompt", "help", "quickfix" },

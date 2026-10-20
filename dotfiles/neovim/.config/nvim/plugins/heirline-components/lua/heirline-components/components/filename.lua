@@ -1,7 +1,7 @@
 local filename = require("heirline-components.utils.filename")
 
 return {
-    flexible = true,
+    flexible = 2,
     {
         provider = function()
             return filename.full(0)
