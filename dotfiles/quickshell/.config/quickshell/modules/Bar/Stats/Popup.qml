@@ -3,9 +3,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../../Common"
 
-// Content of the stats popup. It reads StatsService only.
+// Content of the stats popup. It reads StatsService, and `module` for the
+// settings footer.
 Column {
     id: root
+
+    property var module
 
     readonly property int coreColumnSpacing: 12
     readonly property int processRows: 5
@@ -473,5 +476,9 @@ Column {
         apps: StatsService.topGpuApps
         showUsage: StatsService.gpuAppUsageAvailable
         showMemory: true
+    }
+    SettingsFooter {
+        width: root.width
+        module: root.module
     }
 }

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
 import "../../Common"
 
 // Content of the Bluetooth popup.
@@ -120,36 +119,8 @@ Column {
         visible: root.module.pairedDevices.length === 0
     }
 
-    Item {
-        width: 1
-        height: 6
-    }
-
-    Rectangle {
-        width: parent.width
-        height: openBluemanText.height + 8
-        color: openBluemanMouse.containsMouse ? Config.style.hoverColor : "transparent"
-        radius: Config.style.radiusSmall
-
-        Text {
-            id: openBluemanText
-            anchors.centerIn: parent
-            text: "Open Bluetooth Settings"
-            color: Config.colors.base05
-            font.family: Config.fonts.defaultFamily
-            font.pixelSize: Config.fonts.defaultSize
-        }
-
-        MouseArea {
-            id: openBluemanMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: {
-                Popups.close();
-                Quickshell.execDetached({
-                    command: ["blueman-manager"]
-                });
-            }
-        }
+    SettingsFooter {
+        width: root.width
+        module: root.module
     }
 }

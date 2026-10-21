@@ -414,7 +414,7 @@ Column {
                     id: overflowMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                     onClicked: function (mouse) {
                         // A popup module replaces this popup, so two overlays
                         // never stack. Any other click closes it first.

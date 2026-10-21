@@ -25,6 +25,12 @@ Rectangle {
     // the screen edge and its text stays centered.
     property real extraPadding: 0
 
+    // Click rule of the status modules: a left click opens the popup, a middle
+    // click does the quick toggle (`middleClicked`), a right click opens the
+    // settings app (`settingsCommand`), and the wheel changes the value
+    // (`wheelStepped`). A module without one of these does nothing for it.
+    // Objects such as the window title keep left = activate, right = menu.
+
     // A popup module sets `popupId` (clock, battery, bluetooth, caffeine, stats,
     // tray). A left click toggles the popup unless `popupOnClick` is false.
     property string popupId: ""
@@ -36,6 +42,17 @@ Rectangle {
     // closes it first. A module that opens or closes popups in its own click
     // handlers sets this to true.
     property bool managesPopups: false
+
+    // The settings app of the module. A right click runs it, and so does the
+    // `SettingsFooter` row of the popup, which shows `settingsLabel`.
+    property var settingsCommand: []
+    property string settingsLabel: ""
+
+    // True makes the wheel emit `wheelStepped`.
+    property bool wheelEnabled: false
+    // One step per wheel notch (120 units). Touchpad deltas accumulate until
+    // they reach a notch.
+    property real wheelRemainder: 0
 
     property alias text: label.text
     property alias textColor: label.color
@@ -70,19 +87,55 @@ Rectangle {
         id: hoverArea
         anchors.fill: parent
         hoverEnabled: root.hoverEnabled || root.hoverHighlight
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         onClicked: function (mouse) {
             root.handleClick(mouse.button);
         }
     }
 
+    // Up is +1.
+    WheelHandler {
+        enabled: root.wheelEnabled
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onEnabledChanged: root.wheelRemainder = 0
+        onWheel: function (event) {
+            root.wheelRemainder += event.angleDelta.y;
+            while (Math.abs(root.wheelRemainder) >= 120) {
+                const direction = root.wheelRemainder > 0 ? 1 : -1;
+                root.wheelStepped(direction);
+                root.wheelRemainder -= direction * 120;
+            }
+        }
+    }
+
     signal clicked
+    signal middleClicked
     signal rightClicked
+    signal wheelStepped(int direction)
+
+    function openSettings(): void {
+        if (root.settingsCommand.length === 0)
+            return;
+        Popups.close();
+        Quickshell.execDetached({
+            command: root.settingsCommand
+        });
+    }
 
     // The tray overflow row also calls this for a hidden module.
     function handleClick(button: int): void {
         if (button === Qt.LeftButton && root.popupOnClick) {
             Popups.toggle(root.popupKey);
+            return;
+        }
+        // A quick toggle starts no app, so an open popup can stay open and
+        // show the new state.
+        if (button === Qt.MiddleButton) {
+            root.middleClicked();
+            return;
+        }
+        if (button === Qt.RightButton && root.settingsCommand.length > 0) {
+            root.openSettings();
             return;
         }
         if (!root.managesPopups)

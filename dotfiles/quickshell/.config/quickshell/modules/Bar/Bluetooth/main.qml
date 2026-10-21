@@ -21,6 +21,8 @@ BaseModule {
     readonly property string icon: !root.adapterEnabled ? "󰂲" : root.connectedDevices.length > 0 ? "󰂱" : "󰂯"
 
     popupId: "bluetooth"
+    settingsCommand: ["blueman-manager"]
+    settingsLabel: "Open Bluetooth Settings"
     hoverEnabled: true
     hoverHighlight: true
     text: root.icon

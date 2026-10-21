@@ -1,5 +1,6 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import Quickshell
 import ".."
 import "../../Common"
 import "." as Local
@@ -12,6 +13,8 @@ BaseModule {
 
     hoverHighlight: true
     popupId: "stats"
+    settingsCommand: ["ghostty", "-e", "btop"]
+    settingsLabel: "Open btop"
 
     readonly property string temperatureIcon: StatsService.temperatureCritical ? "󰸁" : StatsService.temperatureWarning ? "󱃃" : "󰜗"
     // Color of each metric, by the `key` of its part.
@@ -80,12 +83,8 @@ BaseModule {
         module: root
         preferredWidth: 440
 
-        Local.Popup {}
-    }
-
-    onRightClicked: {
-        Quickshell.execDetached({
-            command: ["ghostty", "-e", "btop"]
-        });
+        Local.Popup {
+            module: root
+        }
     }
 }
