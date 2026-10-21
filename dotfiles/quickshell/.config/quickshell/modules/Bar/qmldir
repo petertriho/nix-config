@@ -8,7 +8,7 @@ Caffeine 1.0 Caffeine/main.qml
 Bar 1.0 main.qml
 BaseModule 1.0 BaseModule.qml
 CodexBar 1.0 CodexBar.qml
-Network 1.0 Network.qml
+Network 1.0 Network/main.qml
 singleton NetworkService 1.0 NetworkService.qml
 Audio 1.0 Audio/main.qml
 Notifications 1.0 Notifications.qml

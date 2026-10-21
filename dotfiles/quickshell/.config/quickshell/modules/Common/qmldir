@@ -8,4 +8,5 @@ StatRow 1.0 StatRow.qml
 MenuList 1.0 MenuList.qml
 SettingsFooter 1.0 SettingsFooter.qml
 PopupSlider 1.0 PopupSlider.qml
+PopupToggle 1.0 PopupToggle.qml
 PopupListRow 1.0 PopupListRow.qml

@@ -31,8 +31,9 @@ Rectangle {
     // (`wheelStepped`). A module without one of these does nothing for it.
     // Objects such as the window title keep left = activate, right = menu.
 
-    // A popup module sets `popupId` (clock, battery, bluetooth, caffeine, stats,
-    // tray). A left click toggles the popup unless `popupOnClick` is false.
+    // A popup module sets `popupId` (audio, backlight, battery, bluetooth,
+    // caffeine, clock, network, stats, tray). A left click toggles the popup
+    // unless `popupOnClick` is false.
     property string popupId: ""
     property bool popupOnClick: root.popupId !== ""
     readonly property var barWindow: QsWindow.window
