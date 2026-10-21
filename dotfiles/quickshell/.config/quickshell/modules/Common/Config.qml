@@ -243,22 +243,88 @@ Singleton {
         source: root.theme ? root.theme.fonts : null
     }
 
-    // Window class to icon mapping
-    readonly property var windowIcons: ({
-            "Alacritty": "󰆍",
-            "chromium": "󰊯",
-            "com.mitchellh.ghostty": "󰆍",
-            "discord": "󰙯",
-            "firefox": "󰈹",
-            "floorp": "󰈹",
-            "kitty": "󰄛",
-            "org.gnome.Nautilus": "󰉋",
-            "slack": "󰒱",
-            "thunderbird": "󰇮",
-            "thunar": "󰉋",
-            "wezterm": "󰆍",
-            "org.pwmt.zathura": ""
+    // Glyph to the window app IDs (niri `app_id`, Hyprland `class`) that use
+    // it. Give each glyph one entry, because a repeated key replaces the
+    // earlier one. An app ID can differ from the name of its desktop file, so
+    // read it from `niri msg windows`.
+    readonly property var windowIconGroups: ({
+            // nf-md-console
+            "\u{f018d}": ["Alacritty", "com.mitchellh.ghostty", "wezterm"],
+            // nf-md-cat
+            "\u{f011b}": ["kitty"],
+            // nf-md-firefox
+            "\u{f0239}": ["firefox", "floorp"],
+            // nf-md-google_chrome
+            "\u{f02af}": ["chromium-browser"],
+            // nf-md-discord
+            "\u{f066f}": ["discord"],
+            // nf-md-slack
+            "\u{f04b1}": ["slack"],
+            // nf-md-email
+            "\u{f01ee}": ["thunderbird"],
+            // nf-md-cloud_sync
+            "\u{f063f}": ["com.nextcloud.desktopclient.nextcloud"],
+            // nf-md-movie_open
+            "\u{f0fce}": ["com.github.iwalton3.jellyfin-mpv-shim"],
+            // nf-md-steam
+            "\u{f04d3}": ["steam"],
+            // nf-md-folder
+            "\u{f024b}": ["org.gnome.Nautilus", "thunar"],
+            // nf-md-archive
+            "\u{f003c}": ["org.gnome.FileRoller"],
+            // nf-md-chart_pie
+            "\u{f012b}": ["org.gnome.baobab"],
+            // nf-md-harddisk
+            "\u{f02ca}": ["gnome-disks"],
+            // nf-fa-file_pdf_o
+            "\u{f1c1}": ["org.pwmt.zathura", "org.gnome.Evince"],
+            // nf-md-image
+            "\u{f02e9}": ["org.gnome.Loupe"],
+            // nf-linux-libreoffice. LibreOffice dialogs, such as the Base
+            // database wizard, use `soffice`.
+            "\u{f376}": ["libreoffice-startcenter", "soffice"],
+            // nf-linux-libreofficewriter
+            "\u{f37c}": ["libreoffice-writer"],
+            // nf-linux-libreofficecalc
+            "\u{f378}": ["libreoffice-calc"],
+            // nf-linux-libreofficeimpress
+            "\u{f37a}": ["libreoffice-impress"],
+            // nf-linux-libreofficedraw
+            "\u{f379}": ["libreoffice-draw"],
+            // nf-linux-libreofficemath
+            "\u{f37b}": ["libreoffice-math"],
+            // nf-linux-libreofficebase
+            "\u{f377}": ["libreoffice-base"],
+            // nf-md-database
+            "\u{f01bc}": ["tabularis"],
+            // nf-md-calculator
+            "\u{f00ec}": ["org.gnome.Calculator"],
+            // nf-md-key
+            "\u{f0306}": ["org.gnome.seahorse.Application", "org.gnupg.pinentry-qt"],
+            // nf-md-volume_high
+            "\u{f057e}": ["com.saivert.pwvucontrol"],
+            // nf-md-equalizer
+            "\u{f0ea2}": ["com.github.wwmm.easyeffects"],
+            // nf-md-lan
+            "\u{f0317}": ["nm-connection-editor"],
+            // nf-md-bluetooth
+            "\u{f00af}": ["blueman-manager", "blueman-adapters"],
+            // nf-md-expansion_card
+            "\u{f08ae}": ["amdgpu_top"],
+            // nf-md-keyboard_settings
+            "\u{f09f9}": ["input-remapper-gtk"],
+            // nf-md-palette
+            "\u{f03d8}": ["qt5ct", "qt6ct"],
+            // nf-md-cog
+            "\u{f0493}": ["dconf-editor"]
         })
+    readonly property var windowIcons: {
+        const map = {};
+        for (const glyph in root.windowIconGroups)
+            for (const app of root.windowIconGroups[glyph])
+                map[app] = glyph;
+        return map;
+    }
 
     readonly property BarGroup bar: BarGroup {}
     readonly property ModuleGroup module: ModuleGroup {}
