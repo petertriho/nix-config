@@ -64,8 +64,8 @@ Singleton {
         // Hidden modules reappear inside the tray popup. `tray` is always
         // shown (it hosts the overflow).
         // Valid keys: stats (the center module), tray, caffeine, backlight,
-        // audio, battery, bluetooth, network, codexbar, notifications, power,
-        // clock. The `audio` key maps to the `pulseaudio` module id; `power` →
+        // audio, battery, bluetooth, network, codexbar, clock, notifications,
+        // power. The `audio` key maps to the `pulseaudio` module id; `power` →
         // powerManagementLauncher.
         readonly property var rightHidePriority: ["stats", "codexbar", "caffeine", "bluetooth", "backlight", "audio", "battery"]
         // Min gap (px) between the center (stats or OSD) and the window title

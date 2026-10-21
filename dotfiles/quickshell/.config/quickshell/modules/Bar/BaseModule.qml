@@ -12,10 +12,18 @@ Rectangle {
     // being clickable, and must not light up as if they were.
     color: root.hoverHighlight && hoverArea.containsMouse ? Config.style.hoverColor : "transparent"
     height: parent.height
-    implicitWidth: label.implicitWidth + Config.module.widthPadding
+    implicitWidth: Math.max(label.implicitWidth, root.minContentWidth) + Config.module.widthPadding + root.extraPadding * 2
 
     // False hides the module and drops it from the bar fit calculation.
     property bool available: true
+
+    // A module whose text changes width sets this, so that the modules to its
+    // left in the right-anchored Row do not move.
+    property real minContentWidth: 0
+    // Space on both sides of the text. A module at an end of the bar uses it
+    // to fill the bar margin, so that its hover highlight and click area reach
+    // the screen edge and its text stays centered.
+    property real extraPadding: 0
 
     // A popup module sets `popupId` (clock, battery, bluetooth, caffeine, stats,
     // tray). A left click toggles the popup unless `popupOnClick` is false.
@@ -49,8 +57,8 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: Config.module.contentMargins
-        anchors.rightMargin: Config.module.contentMargins
+        anchors.leftMargin: Config.module.contentMargins + root.extraPadding
+        anchors.rightMargin: Config.module.contentMargins + root.extraPadding
         color: Config.colors.base05
         font.family: Config.fonts.defaultFamily
         font.pixelSize: Config.fonts.defaultSize

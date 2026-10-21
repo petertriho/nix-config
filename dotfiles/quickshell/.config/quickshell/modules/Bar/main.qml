@@ -18,6 +18,10 @@ PanelWindow {
 
     // The popup of a module in the tray overflow opens under this item.
     readonly property Item overflowAnchor: tray
+    // The modules at both ends of the bar reach into the bar margins up to the
+    // screen edges. They fill the margins with padding, so that their hover
+    // highlight and click area reach the corners.
+    readonly property int edgeOverhang: Config.bar.contentMargins
 
     Rectangle {
         anchors.fill: parent
@@ -40,8 +44,10 @@ PanelWindow {
             VicinaeButton {
                 id: applicationsLauncher
                 anchors.left: parent.left
+                anchors.leftMargin: -root.edgeOverhang
                 anchors.verticalCenter: parent.verticalCenter
                 height: parent.height
+                extraPadding: root.edgeOverhang
                 icon: "󰀻"
                 url: "vicinae://launch/applications"
                 accentColor: Config.colors.base0D
@@ -125,6 +131,7 @@ PanelWindow {
             Row {
                 id: rightRow
                 anchors.right: parent.right
+                anchors.rightMargin: -root.edgeOverhang
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Config.bar.moduleSpacing
                 height: parent.height
@@ -192,7 +199,7 @@ PanelWindow {
                             }
                         }
                         const centerHalf = Math.max(statsShown ? stats.fitWidth : 0, Config.osd.barWidth) / 2;
-                        const budget = barWidth / 2 - centerHalf - Config.bar.centerGap;
+                        const budget = barWidth / 2 + root.edgeOverhang - centerHalf - Config.bar.centerGap;
                         if (w + Math.max(0, n - 1) * Config.bar.moduleSpacing <= budget)
                             return prio.slice(0, c).filter(rightRow.takesSpace);
                     }
@@ -257,6 +264,12 @@ PanelWindow {
                     height: parent.height
                 }
 
+                Clock {
+                    id: clock
+                    visible: rightRow.isShown("clock")
+                    height: parent.height
+                }
+
                 Notifications {
                     id: notifications
                     visible: rightRow.isShown("notifications")
@@ -267,15 +280,10 @@ PanelWindow {
                     id: powerManagementLauncher
                     visible: rightRow.isShown("power")
                     height: parent.height
+                    extraPadding: root.edgeOverhang
                     icon: "󰐥"
                     url: "vicinae://launch/power"
                     accentColor: Config.colors.base08
-                }
-
-                Clock {
-                    id: clock
-                    visible: rightRow.isShown("clock")
-                    height: parent.height
                 }
             }
         }
