@@ -53,6 +53,7 @@ set -g status-right "${status_right_content}"
 # Window Status Styling
 # ----------------------------------------------------------------------------
 setw -g window-status-activity-style "underscore,fg=${stylix_secondary_fg},bg=${stylix_status_bg}"
+setw -g window-status-current-style "default"
 setw -g window-status-separator ""
 setw -g window-status-style "${stylix_none},fg=${stylix_secondary_fg},bg=${stylix_status_bg}"
 
