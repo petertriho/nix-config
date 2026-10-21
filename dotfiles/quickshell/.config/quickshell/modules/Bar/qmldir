@@ -10,7 +10,7 @@ BaseModule 1.0 BaseModule.qml
 CodexBar 1.0 CodexBar.qml
 Network 1.0 Network.qml
 singleton NetworkService 1.0 NetworkService.qml
-Audio 1.0 Audio.qml
+Audio 1.0 Audio/main.qml
 Notifications 1.0 Notifications.qml
 VicinaeButton 1.0 VicinaeButton.qml
 Workspaces 1.0 Workspaces.qml

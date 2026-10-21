@@ -1,11 +1,22 @@
-import QtQuick
-import Quickshell
-import "../ControlOSD"
+pragma ComponentBehavior: Bound
 
+import QtQuick
+import ".."
+import "../../Common"
+import "../../ControlOSD"
+import "." as Local
+
+// Output volume. A left click opens the volume popup, a middle click mutes, a
+// right click opens pwvucontrol, and the wheel changes the volume.
 BaseModule {
     id: root
 
     hoverHighlight: true
+    popupId: "audio"
+    settingsCommand: ["pwvucontrol"]
+    settingsLabel: "Open Volume Control"
+    wheelEnabled: true
+
     readonly property Volume volumeControl: OsdService.volumeControl
     readonly property var sinkProperties: root.volumeControl.sink ? root.volumeControl.sink.properties : ({})
     readonly property bool isBluetooth: root.sinkProperties["device.api"] === "bluez5"
@@ -25,9 +36,21 @@ BaseModule {
 
     text: root.icon
 
-    onClicked: {
-        Quickshell.execDetached({
-            command: ["pwvucontrol"]
-        });
+    BarPopup {
+        module: root
+        preferredWidth: 360
+
+        Local.Popup {
+            module: root
+        }
+    }
+
+    onMiddleClicked: OsdService.volumeMute()
+
+    onWheelStepped: function (direction) {
+        if (direction > 0)
+            OsdService.volumeUp();
+        else
+            OsdService.volumeDown();
     }
 }
