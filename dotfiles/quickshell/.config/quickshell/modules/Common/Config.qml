@@ -102,15 +102,33 @@ Singleton {
     }
 
     component IntervalsGroup: QtObject {
-        readonly property int cpu: 2000
-        readonly property int memory: 3000
+        // One tick reads CPU, load, memory, the temperatures and the AMD GPU
+        // sysfs files, and adds one sample to each stats history.
+        readonly property int stats: 2000
+        // GPU tools that run as a process (amdgpu_top, intel_gpu_top, nvidia-smi).
         readonly property int gpu: 5000
-        readonly property int temperature: 5000
+    }
+
+    component StatsGroup: QtObject {
+        // Length of each stats history: 60 samples × 2 s tick = 2 min.
+        readonly property int historySamples: 60
     }
 
     component TemperatureThresholds: QtObject {
         readonly property int warning: 60
         readonly property int critical: 80
+    }
+
+    // A GPU runs hotter than a CPU under normal load.
+    component GpuTemperatureThresholds: QtObject {
+        readonly property int warning: 80
+        readonly property int critical: 95
+    }
+
+    // CPU, memory and GPU usage in percent.
+    component UsageThresholds: QtObject {
+        readonly property int warning: 70
+        readonly property int critical: 90
     }
 
     component LevelThresholds: QtObject {
@@ -125,6 +143,8 @@ Singleton {
 
     component ThresholdsGroup: QtObject {
         readonly property TemperatureThresholds temperature: TemperatureThresholds {}
+        readonly property GpuTemperatureThresholds gpuTemperature: GpuTemperatureThresholds {}
+        readonly property UsageThresholds usage: UsageThresholds {}
         readonly property LevelThresholds volume: LevelThresholds {}
         readonly property LevelThresholds brightness: LevelThresholds {}
         readonly property BatteryThresholds battery: BatteryThresholds {}
@@ -230,6 +250,7 @@ Singleton {
     }
     readonly property OsdGroup osd: OsdGroup {}
     readonly property IntervalsGroup intervals: IntervalsGroup {}
+    readonly property StatsGroup stats: StatsGroup {}
     readonly property ThresholdsGroup thresholds: ThresholdsGroup {}
     readonly property StepsGroup steps: StepsGroup {}
     readonly property PopupsGroup popups: PopupsGroup {}

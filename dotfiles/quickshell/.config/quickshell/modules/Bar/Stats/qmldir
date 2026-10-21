@@ -1,2 +1,3 @@
 Popup 1.0 Popup.qml
+HistoryGraph 1.0 HistoryGraph.qml
 singleton StatsService 1.0 Service.qml

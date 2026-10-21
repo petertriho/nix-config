@@ -8,6 +8,7 @@ Column {
     id: root
 
     readonly property int coreColumnSpacing: 12
+    readonly property int processRows: 5
 
     spacing: Config.popups.itemSpacing
 
@@ -15,27 +16,80 @@ Column {
         return mb >= 1024 ? (mb / 1024).toFixed(1) + "G" : Math.round(mb) + "M";
     }
 
-    // A colored dot and the bold title of a section.
-    component SectionHeader: Row {
+    function usageColor(value: real, normal: string): string {
+        return StatsService.levelColor(value, Config.thresholds.usage, normal);
+    }
+
+    // The colored dot and the bold title on the left, then an optional dim
+    // subtitle that elides. The HeaderValue children sit on the right.
+    component SectionHeader: Item {
         id: header
 
         property string title
         property color dotColor
+        property string subtitle: ""
+        default property alias values: valueRow.data
 
-        spacing: 8
+        width: root.width
+        implicitHeight: titleText.implicitHeight
 
         Text {
+            id: dot
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
             text: "●"
             color: header.dotColor
             font.family: Config.fonts.defaultFamily
             font.pixelSize: Config.fonts.defaultSize
         }
         Text {
+            id: titleText
+            anchors.left: dot.right
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
             text: header.title
             color: Config.colors.base05
             font.family: Config.fonts.defaultFamily
             font.pixelSize: Config.fonts.defaultSize
             font.bold: true
+        }
+        Text {
+            anchors.left: titleText.right
+            anchors.leftMargin: 8
+            anchors.right: valueRow.left
+            anchors.rightMargin: 8
+            anchors.baseline: titleText.baseline
+            text: header.subtitle
+            color: Config.colors.base03
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize - 1
+            elide: Text.ElideRight
+        }
+        Row {
+            id: valueRow
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 10
+        }
+    }
+
+    // A value in a section header. At least as wide as `widestText`, so that
+    // a change of digits does not move the values beside it.
+    component HeaderValue: Text {
+        id: headerValue
+
+        property string widestText: ""
+
+        width: Math.max(headerValue.implicitWidth, widestMetrics.advanceWidth)
+        color: Config.colors.base05
+        font.family: Config.fonts.defaultFamily
+        font.pixelSize: Config.fonts.defaultSize
+        horizontalAlignment: Text.AlignRight
+
+        TextMetrics {
+            id: widestMetrics
+            font: headerValue.font
+            text: headerValue.widestText
         }
     }
 
@@ -50,6 +104,73 @@ Column {
     component Separator: Rectangle {
         height: 1
         color: Config.colors.base02
+    }
+
+    // A horizontal level bar, as in the core grid.
+    component Meter: Rectangle {
+        id: meter
+
+        property real percent: 0
+        property color fillColor: Config.colors.base0D
+
+        height: 8
+        radius: 2
+        color: Config.colors.base02
+
+        Rectangle {
+            width: Math.max(1, meter.width * Math.max(0, Math.min(100, meter.percent)) / 100)
+            height: parent.height
+            radius: parent.radius
+            color: meter.fillColor
+
+            Behavior on width {
+                NumberAnimation {
+                    duration: 200
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+    }
+
+    // The label, a Meter that fills the free width, then `value` on the right.
+    component MeterRow: Item {
+        id: meterRow
+
+        property string label
+        property real percent: 0
+        property color fillColor: Config.colors.base0D
+        property string value
+
+        width: root.width
+        implicitHeight: meterValue.implicitHeight
+
+        Text {
+            id: meterLabel
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: meterRow.label
+            color: Config.colors.base03
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize - 1
+        }
+        Meter {
+            anchors.left: meterLabel.right
+            anchors.leftMargin: 8
+            anchors.right: meterValue.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            percent: meterRow.percent
+            fillColor: meterRow.fillColor
+        }
+        Text {
+            id: meterValue
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            text: meterRow.value
+            color: Config.colors.base05
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize - 1
+        }
     }
 
     // One process: the name on the left, then the right-aligned columns that
@@ -101,20 +222,62 @@ Column {
         }
     }
 
+    // The first `processRows` entries of `apps`, one row each. The model is a
+    // count, so the rows stay across polls and only their values change.
+    component ProcessList: Column {
+        id: list
+
+        property var apps: []
+        // Keeps the height of all rows while `apps` is short or empty, so the
+        // popup does not grow when the first CPU shares arrive.
+        property bool reserveRows: false
+        property bool showUsage: false
+        property bool showMemory: false
+
+        width: root.width
+        spacing: Config.popups.itemSpacing
+
+        Repeater {
+            model: root.processRows
+
+            delegate: ProcessRow {
+                id: processItem
+
+                required property int index
+                readonly property var app: list.apps[processItem.index] || null
+
+                width: list.width
+                visible: processItem.app !== null || list.reserveRows
+                name: processItem.app ? processItem.app.name : ""
+                usage: processItem.app && list.showUsage ? processItem.app.usage.toFixed(1) + "%" : ""
+                memory: processItem.app && list.showMemory ? root.formatMemoryMb(processItem.app.memoryMb) : ""
+            }
+        }
+    }
+
     // ---------- CPU ----------
     SectionHeader {
         title: "CPU"
         dotColor: Config.colors.base0D
+
+        HeaderValue {
+            widestText: "100%"
+            text: Math.round(StatsService.cpuUsage) + "%"
+            color: root.usageColor(StatsService.cpuUsage, Config.colors.base05)
+        }
+        HeaderValue {
+            visible: StatsService.temperatureAvailable
+            widestText: "100°C"
+            text: Math.round(StatsService.temperature) + "°C"
+            color: StatsService.levelColor(StatsService.temperature, Config.thresholds.temperature, Config.colors.base05)
+        }
     }
-    StatRow {
+    HistoryGraph {
         width: root.width
-        label: "Load"
-        value: StatsService.loadAvg
-    }
-    StatRow {
-        width: root.width
-        label: "Processes"
-        value: StatsService.processCount
+        values: StatsService.cpuHistory
+        lineColor: Config.colors.base0D
+        secondaryValues: StatsService.cpuTemperatureHistory
+        secondaryCritical: Config.thresholds.temperature.critical
     }
     // Two columns of cores. The models are core counts, so the rows stay
     // across polls and only their values change.
@@ -157,26 +320,11 @@ Column {
                             font.family: Config.fonts.defaultFamily
                             font.pixelSize: Config.fonts.defaultSize - 1
                         }
-                        Rectangle {
+                        Meter {
                             width: coreRow.width - coreRow.labelWidth - coreRow.percentWidth - 2 * coreRow.spacing
-                            height: 8
-                            radius: 2
-                            color: Config.colors.base02
                             anchors.verticalCenter: parent.verticalCenter
-
-                            Rectangle {
-                                width: Math.max(1, parent.width * coreRow.usage / 100)
-                                height: parent.height
-                                radius: parent.radius
-                                color: coreRow.usage > 80 ? Config.colors.base08 : coreRow.usage > 50 ? Config.colors.base0A : Config.colors.base0D
-
-                                Behavior on width {
-                                    NumberAnimation {
-                                        duration: 200
-                                        easing.type: Easing.OutCubic
-                                    }
-                                }
-                            }
+                            percent: coreRow.usage
+                            fillColor: root.usageColor(coreRow.usage, Config.colors.base0D)
                         }
                         Text {
                             width: coreRow.percentWidth
@@ -191,20 +339,24 @@ Column {
             }
         }
     }
+    StatRow {
+        width: root.width
+        label: "Load (1/5/15 min)"
+        value: StatsService.loadAvg
+    }
+    StatRow {
+        width: root.width
+        label: "Tasks"
+        value: StatsService.runningTasks + " running / " + StatsService.totalTasks
+    }
     ListLabel {
         width: root.width
         text: "Top processes"
     }
-    Repeater {
-        model: StatsService.topCpuApps
-
-        delegate: ProcessRow {
-            required property var modelData
-
-            width: root.width
-            name: modelData.name
-            usage: modelData.usage.toFixed(1) + "%"
-        }
+    ProcessList {
+        apps: StatsService.topCpuApps
+        reserveRows: true
+        showUsage: true
     }
 
     Separator {
@@ -215,10 +367,22 @@ Column {
     SectionHeader {
         title: "Memory"
         dotColor: Config.colors.base0B
+
+        HeaderValue {
+            widestText: "100%"
+            text: Math.round(StatsService.memoryUsage) + "%"
+            color: root.usageColor(StatsService.memoryUsage, Config.colors.base05)
+        }
     }
-    StatRow {
+    HistoryGraph {
         width: root.width
-        label: "Used"
+        values: StatsService.memoryHistory
+        lineColor: Config.colors.base0B
+    }
+    MeterRow {
+        label: "RAM"
+        percent: StatsService.memoryUsage
+        fillColor: root.usageColor(StatsService.memoryUsage, Config.colors.base0B)
         value: StatsService.usedMemory.toFixed(1) + "G / " + StatsService.totalMemory.toFixed(1) + "G"
     }
     StatRow {
@@ -232,39 +396,15 @@ Column {
         visible: StatsService.swapTotal > 0
         label: "Swap"
         value: StatsService.swapUsed.toFixed(1) + "G / " + StatsService.swapTotal.toFixed(1) + "G"
-        valueColor: Config.colors.base03
     }
     ListLabel {
         width: root.width
         text: "Top memory"
     }
-    Repeater {
-        model: StatsService.topMemoryApps
-
-        delegate: ProcessRow {
-            required property var modelData
-
-            width: root.width
-            name: modelData.name
-            memory: root.formatMemoryMb(modelData.memoryMb)
-        }
-    }
-
-    Separator {
-        width: root.width
-    }
-
-    // ---------- Temperature ----------
-    SectionHeader {
-        title: "Temperature"
-        dotColor: StatsService.temperatureCritical ? Config.colors.base08 : Config.colors.base0A
-    }
-    StatRow {
-        width: root.width
-        label: "Package"
-        value: StatsService.temperatureAvailable ? Math.round(StatsService.temperature) + "°C" : "No sensor"
-        valueColor: StatsService.temperatureCritical ? Config.colors.base08 : Config.colors.base05
-        bold: true
+    ProcessList {
+        apps: StatsService.topMemoryApps
+        reserveRows: true
+        showMemory: true
     }
 
     Separator {
@@ -275,6 +415,20 @@ Column {
     SectionHeader {
         title: "GPU"
         dotColor: Config.colors.base0E
+        subtitle: StatsService.gpuAvailable ? StatsService.gpuName : ""
+
+        HeaderValue {
+            visible: StatsService.gpuAvailable
+            widestText: "100%"
+            text: Math.round(StatsService.gpuUsage) + "%"
+            color: root.usageColor(StatsService.gpuUsage, Config.colors.base05)
+        }
+        HeaderValue {
+            visible: StatsService.gpuAvailable && StatsService.gpuTemperatureAvailable
+            widestText: "100°C"
+            text: Math.round(StatsService.gpuTemperature) + "°C"
+            color: StatsService.levelColor(StatsService.gpuTemperature, Config.thresholds.gpuTemperature, Config.colors.base05)
+        }
     }
     Text {
         width: root.width
@@ -285,32 +439,22 @@ Column {
         font.pixelSize: Config.fonts.defaultSize - 1
         wrapMode: Text.WordWrap
     }
-    Text {
+    HistoryGraph {
         width: root.width
         visible: StatsService.gpuAvailable
-        text: StatsService.gpuName
-        color: Config.colors.base03
-        font.family: Config.fonts.defaultFamily
-        font.pixelSize: Config.fonts.defaultSize - 1
-        elide: Text.ElideRight
+        values: StatsService.gpuHistory
+        lineColor: Config.colors.base0E
+        secondaryValues: StatsService.gpuTemperatureHistory
+        secondaryCritical: Config.thresholds.gpuTemperature.critical
     }
-    StatRow {
-        width: root.width
-        visible: StatsService.gpuAvailable
-        label: "Usage"
-        value: Math.round(StatsService.gpuUsage) + "%"
-    }
-    StatRow {
-        width: root.width
-        visible: StatsService.gpuAvailable
+    MeterRow {
+        id: vramRow
+
+        visible: StatsService.gpuAvailable && StatsService.gpuMemoryTotal > 0
         label: "VRAM"
-        value: StatsService.gpuMemoryTotal > 0 ? root.formatMemoryMb(StatsService.gpuMemoryUsed) + " / " + root.formatMemoryMb(StatsService.gpuMemoryTotal) : "—"
-    }
-    StatRow {
-        width: root.width
-        visible: StatsService.gpuAvailable
-        label: "Temperature"
-        value: Math.round(StatsService.gpuTemperature) + "°C"
+        percent: StatsService.gpuMemoryUsed / StatsService.gpuMemoryTotal * 100
+        fillColor: root.usageColor(vramRow.percent, Config.colors.base0E)
+        value: root.formatMemoryMb(StatsService.gpuMemoryUsed) + " / " + root.formatMemoryMb(StatsService.gpuMemoryTotal)
     }
     ListLabel {
         width: root.width
@@ -318,22 +462,16 @@ Column {
         text: "Processes"
     }
     Text {
-        visible: StatsService.gpuAvailable && StatsService.gpuApps.length === 0
+        visible: StatsService.gpuAvailable && StatsService.topGpuApps.length === 0
         text: "No process data"
         color: Config.colors.base03
         font.family: Config.fonts.defaultFamily
         font.pixelSize: Config.fonts.defaultSize - 1
     }
-    Repeater {
-        model: StatsService.gpuAvailable ? StatsService.gpuApps : []
-
-        delegate: ProcessRow {
-            required property var modelData
-
-            width: root.width
-            name: modelData.name
-            usage: modelData.usage > 0 ? modelData.usage.toFixed(1) + "%" : "—"
-            memory: root.formatMemoryMb(modelData.memoryMb)
-        }
+    ProcessList {
+        visible: StatsService.gpuAvailable
+        apps: StatsService.topGpuApps
+        showUsage: StatsService.gpuAppUsageAvailable
+        showMemory: true
     }
 }
