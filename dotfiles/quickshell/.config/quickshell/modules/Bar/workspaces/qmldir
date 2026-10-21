@@ -1,1 +1,3 @@
 singleton WorkspaceService 1.0 WorkspaceService.qml
+WorkspaceMiniMap 1.0 WorkspaceMiniMap.qml
+WorkspaceMenu 1.0 WorkspaceMenu.qml

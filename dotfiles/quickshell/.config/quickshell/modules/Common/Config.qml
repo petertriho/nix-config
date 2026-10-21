@@ -89,6 +89,24 @@ Singleton {
         required property int fontSize
         required property int iconFontSize
         readonly property var ignoreClasses: ["xwaylandvideobridge"]
+        // Window glyphs on a pill. More windows show as "+k".
+        readonly property int maxIcons: 5
+        // A named pill shows at most this many characters of the name.
+        readonly property int nameMaxChars: 12
+        readonly property int animationMs: 120
+        // The underline of the active workspace slides to the new pill.
+        readonly property int indicatorAnimationMs: 150
+        // Hover time before the mini-map opens.
+        readonly property int hoverDelayMs: 350
+        // The mini-map stays open this long after the pointer leaves the
+        // pill and the card. This covers the gap between them.
+        readonly property int hoverGraceMs: 150
+        readonly property int mapMaxWidth: 360
+        readonly property int mapHeight: 80
+        // A mini-map tile narrower than this shows only the glyph.
+        readonly property int mapTitleMinWidth: 48
+        // "Close all windows" waits this long for the second click.
+        readonly property int confirmMs: 3000
     }
 
     // Mini OSD (On Screen Display) that covers the center of the bar after a

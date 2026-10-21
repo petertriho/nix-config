@@ -5,8 +5,8 @@ import Quickshell
 
 // Open state of every popup and drawer. One is open at a time, across all
 // screens. Bar popup keys are "<screen name>:<id>" (id: clock, battery,
-// bluetooth, caffeine, stats, tray). The drawers use "notifications" and
-// "codexbar".
+// bluetooth, caffeine, stats, tray, window, workspaces). The drawers use
+// "notifications" and "codexbar".
 Singleton {
     id: root
 

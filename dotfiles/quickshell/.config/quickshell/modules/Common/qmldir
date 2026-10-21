@@ -5,3 +5,4 @@ DeferredLoader 1.0 DeferredLoader.qml
 OverlayHost 1.0 OverlayHost.qml
 PopupCard 1.0 PopupCard.qml
 StatRow 1.0 StatRow.qml
+MenuList 1.0 MenuList.qml

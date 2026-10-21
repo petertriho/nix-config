@@ -16,7 +16,6 @@ Column {
     readonly property var window: root.module ? root.module.window : null
     readonly property string appId: root.window ? root.window.app_id || "" : ""
     readonly property bool floating: !!root.window && root.window.is_floating
-    readonly property int iconWidth: Config.fonts.defaultSize + 8
 
     // Items ({icon, label, action, color}) and separators. The list depends
     // only on the floating state and the screens, so a title change does not
@@ -108,71 +107,9 @@ Column {
         color: Config.style.borderColor
     }
 
-    Column {
+    MenuList {
         width: root.width
-
-        Repeater {
-            model: root.entries
-
-            delegate: Item {
-                id: entry
-
-                required property var modelData
-                readonly property bool separator: !!entry.modelData.separator
-
-                width: root.width
-                height: entry.separator ? 9 : entryLabel.implicitHeight + 8
-
-                Rectangle {
-                    visible: entry.separator
-                    x: 8
-                    width: parent.width - 16
-                    height: 1
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: Config.style.borderColor
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    visible: !entry.separator
-                    radius: Config.style.radiusSmall
-                    color: entryMouse.containsMouse ? Config.style.hoverColor : "transparent"
-                }
-
-                Text {
-                    id: entryIcon
-                    x: 8
-                    width: root.iconWidth
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !entry.separator
-                    text: entry.modelData.icon || ""
-                    color: entry.modelData.color || Config.colors.base04
-                    font.family: Config.fonts.defaultFamily
-                    font.pixelSize: Config.fonts.defaultSize
-                }
-
-                Text {
-                    id: entryLabel
-                    anchors.left: entryIcon.right
-                    anchors.right: parent.right
-                    anchors.rightMargin: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !entry.separator
-                    text: entry.modelData.label || ""
-                    color: entry.modelData.color || Config.colors.base05
-                    font.family: Config.fonts.defaultFamily
-                    font.pixelSize: Config.fonts.defaultSize
-                    elide: Text.ElideRight
-                }
-
-                MouseArea {
-                    id: entryMouse
-                    anchors.fill: parent
-                    enabled: !entry.separator
-                    hoverEnabled: true
-                    onClicked: root.run(entry.modelData.action)
-                }
-            }
-        }
+        entries: root.entries
+        onTriggered: entry => root.run(entry.action)
     }
 }

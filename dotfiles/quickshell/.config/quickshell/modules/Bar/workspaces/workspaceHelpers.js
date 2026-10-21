@@ -225,6 +225,74 @@ function applyNiriEvent(state, event) {
   return result;
 }
 
+function appIdOf(window) {
+  return window.app_id || window.appId || "";
+}
+
+// Groups the items of `list` by `keyOf(item)`. Items without a key are left
+// out.
+function groupBy(list, keyOf) {
+  const groups = {};
+  for (let i = 0; i < (list || []).length; i++) {
+    const item = list[i];
+    const key = item ? keyOf(item) : null;
+    if (key === null || key === undefined) continue;
+
+    if (!Object.prototype.hasOwnProperty.call(groups, key)) groups[key] = [];
+    groups[key].push(item);
+  }
+
+  return groups;
+}
+
+// Orders niri windows by column, then by row. Windows without a scrolling
+// position (floating windows) come last.
+function compareScrollingPosition(a, b) {
+  const aPos =
+    a.layout && a.layout.pos_in_scrolling_layout
+      ? a.layout.pos_in_scrolling_layout
+      : [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
+  const bPos =
+    b.layout && b.layout.pos_in_scrolling_layout
+      ? b.layout.pos_in_scrolling_layout
+      : [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
+
+  if (aPos[0] !== bPos[0]) return aPos[0] - bPos[0];
+
+  return aPos[1] - bPos[1];
+}
+
+function isNiriWindowFocused(workspace, window) {
+  const activeId = workspace.active_window_id;
+  return (
+    (activeId !== null && activeId !== undefined && window.id === activeId) ||
+    !!window.is_focused
+  );
+}
+
+// Keeps the first `max` icons. The focused icon always stays: when it comes
+// later, it takes the place of the last kept icon. A `max` of 0 or less keeps
+// all icons. Returns `{ icons, hiddenCount }`.
+function capIcons(icons, max) {
+  const list = icons || [];
+  if (!(max > 0) || list.length <= max) return { icons: list, hiddenCount: 0 };
+
+  const kept = list.slice(0, max);
+  const keptFocused = kept.some(function (icon) {
+    return icon.focused;
+  });
+  if (!keptFocused) {
+    for (let i = max; i < list.length; i++) {
+      if (list[i].focused) {
+        kept[max - 1] = list[i];
+        break;
+      }
+    }
+  }
+
+  return { icons: kept, hiddenCount: list.length - max };
+}
+
 function normalizeHyprland(
   outputName,
   workspaces,
@@ -232,6 +300,7 @@ function normalizeHyprland(
   monitors,
   ignoreClasses,
   windowIcons,
+  maxIcons,
 ) {
   const requestedOutput = displayName(outputName, "");
   if (!requestedOutput) return [];
@@ -245,26 +314,19 @@ function normalizeHyprland(
     return a.id - b.id;
   });
   const ignored = ignoreClasses || [];
-  const workspaceIds = {};
+  const clientsByWorkspace = groupBy(clients, function (client) {
+    return client.workspace ? client.workspace.id : null;
+  });
   const result = [];
 
   for (let i = 0; i < sortedWorkspaces.length; i++) {
-    workspaceIds[sortedWorkspaces[i].id] = true;
-  }
-
-  for (let i = 0; i < sortedWorkspaces.length; i++) {
     const workspace = sortedWorkspaces[i];
+    const workspaceClients = clientsByWorkspace[workspace.id] || [];
     const icons = [];
 
-    for (let j = 0; j < (clients || []).length; j++) {
-      const client = clients[j];
-      const workspaceRef = client.workspace || {};
+    for (let j = 0; j < workspaceClients.length; j++) {
+      const client = workspaceClients[j];
       const className = client.class || client.initialClass || "";
-
-      if (!Object.prototype.hasOwnProperty.call(workspaceIds, workspaceRef.id))
-        continue;
-
-      if (workspaceRef.id !== workspace.id) continue;
 
       if (ignored.indexOf(className) !== -1) continue;
 
@@ -276,20 +338,39 @@ function normalizeHyprland(
       });
     }
 
+    const index = workspace.id.toString();
+    const name = displayName(workspace.name, index);
+    const capped = capIcons(icons, maxIcons);
+
     result.push({
       id: workspace.id,
-      name: displayName(workspace.name, workspace.id.toString()),
-      switchTarget: workspace.id.toString(),
+      idx: workspace.id,
+      name: name,
+      named: name !== index,
+      reference: index,
+      switchTarget: index,
       active: workspace.id === activeWorkspaceId,
       urgent: false,
-      windowIcons: icons,
+      empty: icons.length === 0,
+      windowCount: icons.length,
+      hiddenCount: capped.hiddenCount,
+      windowIcons: capped.icons,
     });
   }
 
   return result;
 }
 
-function normalizeNiri(outputName, workspaces, windows, ignoreClasses, windowIcons) {
+// `reference` is the workspace argument of `niri msg action`: the name of a
+// named workspace, else its index on the output.
+function normalizeNiri(
+  outputName,
+  workspaces,
+  windows,
+  ignoreClasses,
+  windowIcons,
+  maxIcons,
+) {
   const requestedOutput = displayName(outputName, "");
   if (!requestedOutput) return [];
 
@@ -299,77 +380,170 @@ function normalizeNiri(outputName, workspaces, windows, ignoreClasses, windowIco
     return a.idx - b.idx;
   });
   const ignored = ignoreClasses || [];
-  const workspaceIds = {};
+  const windowsByWorkspace = groupBy(windows, function (window) {
+    return window.workspace_id;
+  });
   const result = [];
-
-  for (let i = 0; i < sortedWorkspaces.length; i++) {
-    workspaceIds[sortedWorkspaces[i].id] = true;
-  }
 
   for (let i = 0; i < sortedWorkspaces.length; i++) {
     const workspace = sortedWorkspaces[i];
     const display = displayName(workspace.name, workspace.idx.toString());
-    const icons = [];
-    const workspaceWindows = [];
-    let urgent = !!workspace.is_urgent;
-
-    for (let j = 0; j < (windows || []).length; j++) {
-      const window = windows[j];
-      const appId = window.app_id || window.appId || "";
-
-      if (!Object.prototype.hasOwnProperty.call(workspaceIds, window.workspace_id))
-        continue;
-
-      if (window.workspace_id !== workspace.id) continue;
-
-      if (window.is_urgent) urgent = true;
-
-      if (ignored.indexOf(appId) !== -1) continue;
-
-      workspaceWindows.push(window);
-    }
-
-    workspaceWindows.sort(function (a, b) {
-      const aPos =
-        a.layout && a.layout.pos_in_scrolling_layout
-          ? a.layout.pos_in_scrolling_layout
-          : [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
-      const bPos =
-        b.layout && b.layout.pos_in_scrolling_layout
-          ? b.layout.pos_in_scrolling_layout
-          : [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
-
-      if (aPos[0] !== bPos[0]) return aPos[0] - bPos[0];
-
-      return aPos[1] - bPos[1];
-    });
-
-    for (let j = 0; j < workspaceWindows.length; j++) {
-      const window = workspaceWindows[j];
-      const appId = window.app_id || window.appId || "";
-
-      icons.push({
-        id: window.id,
-        icon: getWindowIcon(windowIcons, appId),
-        focused:
-          (workspace.active_window_id !== null &&
-            workspace.active_window_id !== undefined &&
-            window.id === workspace.active_window_id) ||
-          !!window.is_focused,
-        urgent: !!window.is_urgent,
+    const allWindows = windowsByWorkspace[workspace.id] || [];
+    // An ignored window still makes its workspace urgent.
+    const urgent =
+      !!workspace.is_urgent ||
+      allWindows.some(function (window) {
+        return !!window.is_urgent;
       });
-    }
+    const icons = allWindows
+      .filter(function (window) {
+        return ignored.indexOf(appIdOf(window)) === -1;
+      })
+      .sort(compareScrollingPosition)
+      .map(function (window) {
+        return {
+          id: window.id,
+          icon: getWindowIcon(windowIcons, appIdOf(window)),
+          focused: isNiriWindowFocused(workspace, window),
+          urgent: !!window.is_urgent,
+        };
+      });
+    const capped = capIcons(icons, maxIcons);
 
     result.push({
       id: workspace.id,
+      idx: workspace.idx,
       name: display,
+      named: displayName(workspace.name, "") !== "",
+      reference: display,
       switchTarget: display,
       active: !!workspace.is_active,
       urgent: urgent,
-      windowIcons: icons,
+      empty: icons.length === 0,
+      windowCount: icons.length,
+      hiddenCount: capped.hiddenCount,
+      windowIcons: capped.icons,
     });
   }
 
+  return result;
+}
+
+// The windows of a niri workspace, laid out for the mini-map. Ignored app ids
+// are left out. Returns:
+//   columns: [{ column, width, tiles: [{ id, icon, title, focused, urgent,
+//            fraction }] }], ordered by column, the tiles ordered by row.
+//            `width` is the widest tile in logical pixels. `fraction` is the
+//            share of the column height that the tile takes.
+//   floating: [{ id, icon, title, focused, urgent }]: the floating windows,
+//            and the windows without a scrolling position.
+//   scale:   map pixels for each logical pixel. It keeps the real aspect
+//            ratio of a column that is `options.height` high, and gets smaller
+//            when the columns and the `options.spacing` between them do not
+//            fit `options.maxWidth`.
+//   windowCount, columnCount
+// The reference column height is the smallest column: a tabbed column stacks
+// full-height tiles, so its sum is too large.
+function niriWorkspaceMap(
+  workspaceId,
+  workspaces,
+  windows,
+  ignoreClasses,
+  windowIcons,
+  options,
+) {
+  const result = {
+    columns: [],
+    floating: [],
+    scale: 0,
+    windowCount: 0,
+    columnCount: 0,
+  };
+  const workspace = findById(workspaces || [], workspaceId);
+  if (!workspace) return result;
+
+  const opts = options || {};
+  const ignored = ignoreClasses || [];
+  const tiled = [];
+
+  for (let i = 0; i < (windows || []).length; i++) {
+    const window = windows[i];
+    if (!window || window.workspace_id !== workspaceId) continue;
+
+    const appId = appIdOf(window);
+    if (ignored.indexOf(appId) !== -1) continue;
+
+    const entry = {
+      id: window.id,
+      icon: getWindowIcon(windowIcons, appId),
+      title: displayName(window.title, appId),
+      focused: isNiriWindowFocused(workspace, window),
+      urgent: !!window.is_urgent,
+    };
+    const layout = window.layout || {};
+    const pos = layout.pos_in_scrolling_layout;
+    if (window.is_floating || !Array.isArray(pos)) {
+      result.floating.push(entry);
+      continue;
+    }
+
+    const size = Array.isArray(layout.tile_size) ? layout.tile_size : [];
+    tiled.push({
+      entry: entry,
+      column: pos[0],
+      row: pos[1],
+      width: size[0] > 0 ? size[0] : 0,
+      height: size[1] > 0 ? size[1] : 0,
+    });
+  }
+
+  tiled.sort(function (a, b) {
+    return a.column - b.column || a.row - b.row;
+  });
+
+  const groups = [];
+  for (let i = 0; i < tiled.length; i++) {
+    const tile = tiled[i];
+    let group = groups[groups.length - 1];
+    if (!group || group.column !== tile.column) {
+      group = { column: tile.column, width: 0, height: 0, tiles: [] };
+      groups.push(group);
+    }
+
+    group.width = Math.max(group.width, tile.width);
+    group.height += tile.height;
+    group.tiles.push(tile);
+  }
+
+  let totalWidth = 0;
+  let referenceHeight = 0;
+  for (let i = 0; i < groups.length; i++) {
+    const group = groups[i];
+    totalWidth += group.width;
+    if (group.height > 0 && (referenceHeight === 0 || group.height < referenceHeight))
+      referenceHeight = group.height;
+
+    result.columns.push({
+      column: group.column,
+      width: group.width,
+      tiles: group.tiles.map(function (tile) {
+        return Object.assign({}, tile.entry, {
+          fraction:
+            group.height > 0 ? tile.height / group.height : 1 / group.tiles.length,
+        });
+      }),
+    });
+  }
+
+  const spacing = opts.spacing > 0 ? opts.spacing : 0;
+  const available = (opts.maxWidth || 0) - spacing * Math.max(0, groups.length - 1);
+  let scale = referenceHeight > 0 && opts.height > 0 ? opts.height / referenceHeight : 0;
+  if (totalWidth > 0 && available > 0)
+    scale = scale > 0 ? Math.min(scale, available / totalWidth) : available / totalWidth;
+
+  result.scale = scale;
+  result.windowCount = tiled.length + result.floating.length;
+  result.columnCount = groups.length;
   return result;
 }
 

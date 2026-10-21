@@ -16,6 +16,7 @@ Singleton {
 
     property string compositorName: ""
     property var ignoreClasses: Config.workspaces.ignoreClasses
+    property int maxIcons: Config.workspaces.maxIcons
     property var windowIcons: Config.windowIcons
     // Niri polls only while its event stream is down.
     property int updateInterval: Config.workspaces.updateInterval
@@ -35,10 +36,10 @@ Singleton {
 
     function workspacesForOutput(outputName) {
         if (root.compositorName === "hyprland")
-            return WorkspaceHelpers.normalizeHyprland(outputName, root.cachedHyprlandWorkspaces, root.cachedHyprlandClients, root.cachedHyprlandMonitors, root.ignoreClasses, root.windowIcons || ({}));
+            return WorkspaceHelpers.normalizeHyprland(outputName, root.cachedHyprlandWorkspaces, root.cachedHyprlandClients, root.cachedHyprlandMonitors, root.ignoreClasses, root.windowIcons || ({}), root.maxIcons);
 
         if (root.compositorName === "niri")
-            return WorkspaceHelpers.normalizeNiri(outputName, root.cachedNiriWorkspaces, root.cachedNiriWindows, root.ignoreClasses, root.windowIcons || ({}));
+            return WorkspaceHelpers.normalizeNiri(outputName, root.cachedNiriWorkspaces, root.cachedNiriWindows, root.ignoreClasses, root.windowIcons || ({}), root.maxIcons);
 
         return [];
     }
@@ -85,6 +86,58 @@ Singleton {
             return;
 
         Quickshell.execDetached(["sh", "-c", "niri msg action focus-window --id \"$1\" && shift && niri msg action \"$@\"", "sh", String(windowId)].concat(action));
+    }
+
+    // Actions of the workspace pills, for niri only. A workspace reference is
+    // a name or an index, and an index resolves on the focused output. A press
+    // on the bar focuses its output, so the index of a pill points to the
+    // workspace of that pill. The `--opt=value` forms and "--" keep a name
+    // that starts with "-" from becoming an option.
+    function niriAction(args) {
+        if (root.compositorName === "niri")
+            Quickshell.execDetached(["niri", "msg", "action"].concat(args));
+    }
+
+    // Up (direction < 0) is the previous workspace on the focused output.
+    function focusWorkspaceRelative(direction) {
+        root.niriAction([direction < 0 ? "focus-workspace-up" : "focus-workspace-down"]);
+    }
+
+    function focusWindow(windowId) {
+        root.niriAction(["focus-window", "--id", String(windowId)]);
+    }
+
+    function closeWindows(windowIds) {
+        for (const windowId of windowIds)
+            root.niriAction(["close-window", "--id", String(windowId)]);
+    }
+
+    // `index` is 1-based. Niri clamps it to the workspaces of the output.
+    function moveWorkspaceToIndex(reference, index) {
+        root.niriAction(["move-workspace-to-index", "--reference=" + reference, "--", String(index)]);
+    }
+
+    function moveWorkspaceToMonitor(reference, output) {
+        root.niriAction(["move-workspace-to-monitor", "--reference=" + reference, "--", output]);
+    }
+
+    // Niri ignores a name that another workspace already has. A named
+    // workspace stays when it is empty, until its name is cleared.
+    function setWorkspaceName(reference, name) {
+        root.niriAction(["set-workspace-name", "--workspace=" + reference, "--", name]);
+    }
+
+    function unsetWorkspaceName(reference) {
+        root.niriAction(["unset-workspace-name", "--", reference]);
+    }
+
+    // The mini-map layout of a niri workspace (see niriWorkspaceMap() in
+    // workspaceHelpers.js), or null on other compositors.
+    function workspaceMap(workspaceId, options) {
+        if (root.compositorName !== "niri")
+            return null;
+
+        return WorkspaceHelpers.niriWorkspaceMap(workspaceId, root.cachedNiriWorkspaces, root.cachedNiriWindows, root.ignoreClasses, root.windowIcons || ({}), options);
     }
 
     function logUnsupportedCompositor() {

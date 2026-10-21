@@ -10,9 +10,13 @@ import Quickshell
 Scope {
     id: root
 
-    // The BaseModule that owns the popup.
+    // The module that owns the popup: a BaseModule, or an item with the same
+    // `popupKey`, `available`, `visible` and `barWindow` properties.
     required property var module
     property string popupKey: root.module ? root.module.popupKey : ""
+    // The item that the card centers under. A module with several targets
+    // (the workspace pills) sets the target of the open popup.
+    property Item anchorItem: root.module
     // 0 = content implicit width + 2 x padding.
     property real preferredWidth: 0
     default property Component content
@@ -47,7 +51,7 @@ Scope {
             id: host
 
             readonly property var bar: root.module.barWindow
-            readonly property Item anchorItem: !root.module.visible && host.bar && host.bar.overflowAnchor ? host.bar.overflowAnchor : root.module
+            readonly property Item anchorItem: !root.module.visible && host.bar && host.bar.overflowAnchor ? host.bar.overflowAnchor : root.anchorItem || root.module
             readonly property real anchorCenter: root.windowX(host.anchorItem) + host.anchorItem.width / 2
 
             screen: host.bar ? host.bar.screen : null
