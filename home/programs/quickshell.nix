@@ -6,10 +6,33 @@
 }:
 let
   colors = config.lib.stylix.colors.withHashtag;
+  quickshell = inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default;
+
+  # Quickshell picks its network backend only at start, so it waits up to 30 s
+  # for NetworkManager on the system bus. At boot the bus name is already there:
+  # NetworkManager is Type=dbus and orders before network.target, which orders
+  # before the login. `nixos-rebuild switch` can stop NetworkManager and start it
+  # again only after Home Manager has restarted this unit. So the wait is in
+  # ExecStart and not in ExecStartPre, so that the start job does not wait for it.
+  #
+  # After a timeout, Quickshell starts without the backend, so that the bar
+  # shows. A waiter stays in the background and restarts the unit when
+  # NetworkManager is back. It is in the cgroup of the unit, so it stops with it.
+  quickshellStart = pkgs.writeShellScript "quickshell-start" ''
+    wait_nm() {
+      ${pkgs.glib.bin}/bin/gdbus wait --system "$@" org.freedesktop.NetworkManager
+    }
+
+    if ! wait_nm --timeout 30; then
+      echo "NetworkManager is not on the system bus. Quickshell restarts when it is." >&2
+      (wait_nm && exec ${config.systemd.user.systemctlPath} --user --no-block restart quickshell.service) &
+    fi
+    exec ${quickshell}/bin/quickshell --no-detailed-logs
+  '';
 in
 {
   home.packages = [
-    inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default
+    quickshell
     pkgs.codexbar
   ];
 
@@ -78,12 +101,8 @@ in
     };
 
     Service = {
-      # Quickshell picks its network backend only at start. Wait up to 15 s for
-      # NetworkManager on the system bus. The "-" prefix lets a timeout not stop the start.
-      ExecStartPre = "-${pkgs.glib.bin}/bin/gdbus wait --system --timeout 15 org.freedesktop.NetworkManager";
-      ExecStart = "${
-        inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default
-      }/bin/quickshell --no-detailed-logs";
+      ExecStart = "${quickshellStart}";
+      SyslogIdentifier = "quickshell";
       Restart = "on-failure";
       RestartSec = 5;
       RestartSteps = 4;
