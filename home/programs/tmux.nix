@@ -14,15 +14,23 @@ in
       sesh
     ];
     file = {
+      # %hidden keeps the variables out of the global environment of panes.
       ".tmux/stylix.tmux".text = ''
-        stylix_none="NONE"
-        stylix_bg="${colors.base10}"
-        stylix_status_bg="${colors.base01}"
-        stylix_highlight_bg="${colors.base02}"
-        stylix_secondary_fg="${colors.base05}"
-        stylix_accent="${colors.base0D}"
-        stylix_mode="${colors.base0E}"
-        stylix_prefix="${colors.base0A}"
+        %hidden stylix_bg="${colors.base00}"
+        %hidden stylix_bg_alt="${colors.base01}"
+        %hidden stylix_bg_darker="${colors.base10}"
+        %hidden stylix_selection="${colors.base02}"
+        %hidden stylix_comment="${colors.base03}"
+        %hidden stylix_fg_alt="${colors.base04}"
+        %hidden stylix_fg="${colors.base05}"
+        %hidden stylix_fg_light="${colors.base06}"
+        %hidden stylix_red="${colors.base08}"
+        %hidden stylix_orange="${colors.base09}"
+        %hidden stylix_yellow="${colors.base0A}"
+        %hidden stylix_green="${colors.base0B}"
+        %hidden stylix_cyan="${colors.base0C}"
+        %hidden stylix_blue="${colors.base0D}"
+        %hidden stylix_magenta="${colors.base0E}"
 
         ${builtins.readFile ../../dotfiles/tmux/.tmux/stylix.tmux}
       '';
