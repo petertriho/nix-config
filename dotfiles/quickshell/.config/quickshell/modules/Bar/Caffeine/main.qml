@@ -9,10 +9,9 @@ BaseModule {
     id: root
 
     hoverHighlight: true
-    // Left click toggles caffeine; right click opens the duration picker.
+    // A left click opens the popup (on/off and durations), and a middle click
+    // turns caffeine on or off. Caffeine has no settings app.
     popupId: "caffeine"
-    popupOnClick: false
-    managesPopups: true
 
     text: {
         if (!CaffeineService.active)
@@ -34,21 +33,20 @@ BaseModule {
             Popups.close();
     }
 
+    function toggleIndefinite() {
+        CaffeineService.toggleIndefinite();
+        if (root.popupOpen)
+            Popups.close();
+    }
+
     BarPopup {
         module: root
+        preferredWidth: 180
 
         Local.Popup {
             module: root
         }
     }
 
-    onClicked: {
-        if (root.popupOpen) {
-            Popups.close();
-            return;
-        }
-        CaffeineService.toggleIndefinite();
-    }
-
-    onRightClicked: Popups.toggle(root.popupKey)
+    onMiddleClicked: CaffeineService.toggleIndefinite()
 }

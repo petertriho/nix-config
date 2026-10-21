@@ -3,14 +3,47 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../../Common"
 
-// Duration picker of the caffeine popup. It closes itself after
-// `popups.timeoutMs`.
+// Content of the caffeine popup: the on/off row, then the durations. It
+// closes itself after `popups.timeoutMs`.
 Column {
     id: root
 
     property var module
 
     spacing: Config.popups.itemSpacing
+
+    // On starts caffeine with no time limit.
+    Rectangle {
+        width: root.width
+        height: toggleText.height
+        color: toggleMouse.containsMouse ? Config.style.hoverColor : "transparent"
+        radius: Config.style.radiusSmall
+
+        Text {
+            id: toggleText
+            text: CaffeineService.active ? "󰾪 Off" : "󰅶 On (indefinite)"
+            color: Config.colors.base05
+            font.family: Config.fonts.defaultFamily
+            font.pixelSize: Config.fonts.defaultSize
+            leftPadding: 8
+            rightPadding: 8
+            topPadding: 2
+            bottomPadding: 2
+        }
+
+        MouseArea {
+            id: toggleMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: root.module.toggleIndefinite()
+        }
+    }
+
+    Rectangle {
+        width: root.width
+        height: 1
+        color: Config.style.borderColor
+    }
 
     Repeater {
         model: [
@@ -45,7 +78,7 @@ Column {
 
             required property var modelData
 
-            width: pickerRow.width
+            width: root.width
             height: pickerRow.height
             color: pickerMouse.containsMouse ? Config.style.hoverColor : "transparent"
             radius: Config.style.radiusSmall
