@@ -1,4 +1,4 @@
-Backlight 1.0 Backlight.qml
+Backlight 1.0 Backlight/main.qml
 Clock 1.0 Clock/main.qml
 Stats 1.0 Stats/main.qml
 Battery 1.0 Battery/main.qml
