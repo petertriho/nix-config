@@ -22,7 +22,7 @@ BaseModule {
     property real wheelRemainder: 0
 
     text: root.title
-    textColor: Config.colors.base04
+    textColor: Config.colors.base05
     visible: root.title.length > 0 && root.width > Config.module.widthPadding
     clip: true
     horizontalAlignment: Text.AlignLeft
