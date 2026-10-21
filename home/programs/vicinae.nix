@@ -25,13 +25,18 @@
       };
       pop_to_root_on_close = true;
       providers.applications.preferences.defaultAction = "launch";
+      providers.files = {
+        enabled = false;
+        # `enabled = false` only hides the entrypoints. The indexer process still starts unless this is off.
+        preferences.autoIndexing = false;
+      };
       providers.power.entrypoints = {
         "power-off".preferences.confirm = false;
         reboot.preferences.confirm = false;
         logout.preferences.confirm = false;
         logout.preferences.customProgram = "niri msg action quit";
       };
-      search_files_in_root = true;
+      search_files_in_root = false;
       telemetry.system_info = false;
     };
   };
