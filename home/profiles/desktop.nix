@@ -81,6 +81,11 @@
     "org/gnome/desktop/interface" = {
       color-scheme = if config.stylix.polarity == "dark" then "prefer-dark" else "default";
     };
+    # KillSwitch soft-blocks rfkill when the adapter is unpowered at login. On
+    # ThinkPads that removes hci0, so the Quickshell bar finds no adapter.
+    "org/blueman/general" = {
+      plugin-list = [ "!KillSwitch" ];
+    };
   };
 
   xdg.configFile."mimeapps.list".source =
