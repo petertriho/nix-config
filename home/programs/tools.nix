@@ -40,6 +40,7 @@ in
     nix-update # update Nix packages
     nurl # generate nix fetcher calls
     openssl # for generating certificates
+    poppler-utils # PDF utilities (pdftotext, pdfinfo, etc.)
     python3Packages.pipdeptree # view installed Python packages as a tree
     ripgrep # search tool
     television # fuzzy finder tui
