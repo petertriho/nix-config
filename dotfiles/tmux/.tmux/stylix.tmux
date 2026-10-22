@@ -28,12 +28,17 @@ set -g status-left "#[fg=${stylix_bg_darker},bg=${mode_colour},bold] ${mode_symb
 
 # The date hides below 140 columns and the time below 110. Styles stay outside
 # #{?} branches, because the commas in #[fg=...,bg=...] separate branches.
-%hidden status_datetime="#{?#{e|>=:#{client_width},140},󰃭 %Y-%m-%d  ,}#{?#{e|>=:#{client_width},110},󰥔 %I:%M %p ,}"
+%hidden datetime_visible="#{e|>=:#{client_width},110}"
+%hidden status_datetime="#[fg=${stylix_selection},bg=${stylix_bg_alt}]#{?${datetime_visible},,}"\
+"#[fg=${stylix_fg},bg=${stylix_selection}]"\
+"#{?#{e|>=:#{client_width},140}, 󰃭 %Y-%m-%d,}"\
+"#{?${datetime_visible}, 󰥔 %I:%M %p ,}"
+%hidden hostname_cap_bg="#{?${datetime_visible},${stylix_selection},${stylix_bg_alt}}"
 
 set -g status-right "#{agent_session_dots} #{agent_indicator} "\
 "#(gitmux -cfg $HOME/.gitmux.conf '#{pane_current_path}') "\
-"#[fg=${stylix_fg}]${status_datetime}"\
-"#[fg=${mode_colour},bg=${stylix_bg_alt}]#[fg=${stylix_bg_darker},bg=${mode_colour},bold] #h "
+"${status_datetime}"\
+"#[fg=${mode_colour},bg=${hostname_cap_bg}]#[fg=${stylix_bg_darker},bg=${mode_colour},bold] #h "
 
 # Window List
 # ----------------------------------------------------------------------------
