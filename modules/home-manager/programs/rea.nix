@@ -18,14 +18,29 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    programs.ai = {
-      mcp.rea = {
+    programs = {
+      opencode.settings.mcp.rea = {
+        type = "local";
+        command = [
+          (lib.getExe' cfg.package "rea")
+          "mcp"
+        ];
+        enabled = true;
+      };
+
+      pi-coding-agent.mcpServers.rea = {
         command = lib.getExe' cfg.package "rea";
         args = [ "mcp" ];
       };
 
-      skills = lib.mapAttrs (name: _: {
+      ai.skills = lib.mapAttrs (name: _: {
         source = "${skillsDir}/${name}";
+        clients = {
+          opencode.enable = true;
+          claude-code.enable = false;
+          codex.enable = false;
+          pi.enable = true;
+        };
       }) availableSkills;
     };
   };

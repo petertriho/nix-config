@@ -52,7 +52,7 @@ let
       // lib.optionalAttrs (server ? toolExposure) {
         inherit (server) toolExposure;
       }
-    ) config.programs.mcp.servers;
+    ) (config.programs.mcp.servers // cfg.mcpServers);
   };
 
   # Keep runtime edits writable. Nix values win, and jq replaces arrays.
@@ -249,7 +249,7 @@ let
 in
 {
   # Augments the upstream `programs.pi-coding-agent` module with local
-  # output-style options. It declares no default provider, model, or thinking level.
+  # output-style and MCP options. It declares no default provider, model, or thinking level.
   #
   # settings.json is declared here but kept a mutable file: the upstream
   # module's read-only store symlink is disabled and an activation script
@@ -291,6 +291,15 @@ in
       description = ''
         Settings written to the global pi-lens {file}`config.json`. Other local
         modules can add client-specific settings before the file is generated.
+      '';
+    };
+
+    mcpServers = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.attrsOf jsonFormat.type);
+      default = { };
+      description = ''
+        Pi-only MCP servers written to {file}`mcp.json` in the agent directory.
+        These definitions override shared MCP servers with matching names.
       '';
     };
   };
@@ -452,7 +461,7 @@ in
         '';
         piMutableSettings = mutableJsonActivation "${cfg.configDir}/settings.json" settingsJson;
         # Preserve CLI-added servers and runtime enablement changes.
-        piMutableMcp = lib.mkIf config.programs.mcp.enable (
+        piMutableMcp = lib.mkIf (config.programs.mcp.enable || cfg.mcpServers != { }) (
           mutableJsonActivation "${cfg.configDir}/mcp.json" mcpJson
         );
         # Keep unrelated runtime tuning writable, but replace complete worker
