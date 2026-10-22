@@ -112,11 +112,11 @@ set -g menu-border-lines "rounded"
 
 # agent-indicator
 # ----------------------------------------------------------------------------
-set -g @agent-indicator-needs-input-window-title-bg "${stylix_bg_alt}"
-set -g @agent-indicator-needs-input-window-title-fg "${stylix_yellow}"
+set -g @agent-indicator-needs-input-window-title-bg "${stylix_yellow}"
+set -g @agent-indicator-needs-input-window-title-fg "${stylix_bg_darker}"
 set -g @agent-indicator-needs-input-border "${stylix_yellow}"
-set -g @agent-indicator-done-window-title-bg "${stylix_bg_alt}"
-set -g @agent-indicator-done-window-title-fg "${stylix_green}"
+set -g @agent-indicator-done-window-title-bg "${stylix_green}"
+set -g @agent-indicator-done-window-title-fg "${stylix_bg_darker}"
 set -g @agent-indicator-done-border "${stylix_green}"
 set -g @agent-indicator-session-dots-color "${stylix_comment}"
 set -g @agent-indicator-session-dots-active-color "${stylix_blue}"
