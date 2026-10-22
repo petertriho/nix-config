@@ -24,7 +24,7 @@ set -g status-right-length "200"
 set -g status-left-style "default"
 set -g status-right-style "default"
 
-set -g status-left "#[fg=${stylix_bg_darker},bg=${mode_colour},bold] ${mode_symbol} #S #[fg=${mode_colour},bg=${stylix_bg_alt},nobold] "
+set -g status-left "#[fg=${stylix_bg_darker},bg=${mode_colour},bold] ${mode_symbol} #S #[fg=${mode_colour},bg=${stylix_bg_alt},nobold]"
 
 # The date hides below 140 columns and the time below 110. Styles stay outside
 # #{?} branches, because the commas in #[fg=...,bg=...] separate branches.
