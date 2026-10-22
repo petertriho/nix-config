@@ -11,13 +11,13 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-21";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-22";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "25bea07b42119f5bb2f17719ffcdea9e37aa40ce";
-    hash = "sha256-0JS+torH76gpznA7Y4ShkAGD1Uo1urT+iaT+q+UKSuQ=";
+    rev = "ce5bc8cb0149c230e571126e2e7d9f43c86a823d";
+    hash = "sha256-5UXh6EBop1MsZfez9LILVKmUecS08fwxLcJyV5bqk9E=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
@@ -33,7 +33,7 @@ buildNpmPackage (finalAttrs: {
   '';
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-D7IwYMjR9Rgi633T+R/f7sNwbm/4VYxIkWN2D+YMREA=";
+  npmDepsHash = "sha256-uU2oUfDVMKKLVfthbIH9y5ZoE8v9k88y2zbCslLzH60=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];
@@ -54,6 +54,7 @@ buildNpmPackage (finalAttrs: {
         node_modules/@typescript \
         node_modules/@turbo \
         node_modules/@rolldown/*-gnu \
+        node_modules/@tsrs/*-gnu \
         node_modules/@lydell
     ''
     + ''

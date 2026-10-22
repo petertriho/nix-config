@@ -41,6 +41,7 @@ in
       enable = true;
       # cliProxyApi.enable = true;
     };
+    rea.enable = true;
     niri.settings = {
       input.trackball = {
         accel-profile = "adaptive";
