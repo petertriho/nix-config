@@ -36,5 +36,10 @@
     };
   };
 
+  # openresolv sends SIGHUP to the PID in /run/avahi-daemon/pid. A SIGHUP during
+  # startup kills avahi and leaves the file, which the hardened unit cannot remove.
+  systemd.services.avahi-daemon.serviceConfig.ExecStartPre =
+    "+${pkgs.coreutils}/bin/rm -f /run/avahi-daemon/pid";
+
   programs.vicinae.input-server.package = pkgs.vicinae;
 }
