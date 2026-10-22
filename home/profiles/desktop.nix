@@ -44,7 +44,10 @@
     };
     firefox = {
       enable = true;
-      policies = config.programs.betterfox.policies // {
+      package = pkgs.firefox.override {
+        extraPrefsFiles = [ config.programs.betterfox.extraPrefsFile ];
+      };
+      policies = {
         DisableAppUpdate = true;
       };
     };

@@ -46,15 +46,7 @@ let
         else
           null;
     in
-    if match == null then
-      { }
-    else
-      {
-        ${match.name} = {
-          Value = match.value;
-          Status = cfg.status;
-        };
-      };
+    if match == null then { } else { ${match.name} = match.value; };
 
   parseConfig =
     configName:
@@ -68,20 +60,27 @@ let
     preferences: configName: preferences // parseConfig configName
   ) { } enabledConfigs;
 
-  extraPreferences = lib.mapAttrs (_: value: {
-    Value = value;
-    Status = cfg.status;
-  }) cfg.extraPreferences;
+  preferences = betterfoxPreferences // cfg.extraPreferences;
 
-  preferences = betterfoxPreferences // extraPreferences;
+  # The Preferences policy rejects prefs outside a fixed prefix allowlist, such
+  # as toolkit.telemetry.* and services.sync.*. Autoconfig accepts any pref.
+  prefFunction = if cfg.status == "locked" then "lockPref" else "defaultPref";
+
+  extraPrefsFile = pkgs.writeText "betterfox.cfg" (
+    lib.concatLines (
+      lib.mapAttrsToList (
+        name: value: "${prefFunction}(${builtins.toJSON name}, ${builtins.toJSON value});"
+      ) preferences
+    )
+  );
 
   wrappedPackage = pkgs.wrapFirefox cfg.browserPackage {
-    extraPolicies = cfg.policies;
+    extraPrefsFiles = [ extraPrefsFile ];
   };
 in
 {
   options.programs.betterfox = {
-    enable = lib.mkEnableOption "Betterfox Firefox-family browser policies";
+    enable = lib.mkEnableOption "Betterfox Firefox-family browser preferences";
 
     package = lib.mkPackageOption pkgs "betterfox" { };
 
@@ -89,7 +88,7 @@ in
       type = lib.types.nullOr lib.types.package;
       default = null;
       example = lib.literalExpression "pkgs.floorp-bin.unwrapped";
-      description = "Firefox-family unwrapped browser package to wrap with Betterfox policies.";
+      description = "Firefox-family unwrapped browser package to wrap with Betterfox preferences.";
     };
 
     configs = {
@@ -136,7 +135,7 @@ in
         "locked"
       ];
       default = "default";
-      description = "Mozilla policy preference status. Use default to keep user.js/user prefs overridable.";
+      description = "Autoconfig preference status. Use default to keep user.js/user prefs overridable.";
     };
 
     extraPreferences = lib.mkOption {
@@ -151,23 +150,21 @@ in
       example = {
         "media.ffmpeg.vaapi.enabled" = true;
       };
-      description = "Additional Mozilla preferences appended as policies after Betterfox configs.";
+      description = "Additional Mozilla preferences that override Betterfox configs.";
     };
 
-    policies = lib.mkOption {
-      type = (pkgs.formats.json { }).type;
+    extraPrefsFile = lib.mkOption {
+      type = lib.types.package;
       readOnly = true;
-      default = {
-        Preferences = preferences;
-      };
-      description = "Mozilla policies generated from the selected Betterfox configs and extra preferences.";
+      default = extraPrefsFile;
+      description = "Autoconfig file generated from the selected Betterfox configs and extra preferences. Pass it to the wrapFirefox extraPrefsFiles argument.";
     };
 
     wrappedPackage = lib.mkOption {
       type = lib.types.nullOr lib.types.package;
       readOnly = true;
       default = if cfg.browserPackage == null then null else wrappedPackage;
-      description = "Browser package wrapped with selected Betterfox policies.";
+      description = "Browser package wrapped with selected Betterfox preferences.";
     };
   };
 
