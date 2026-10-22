@@ -42,7 +42,7 @@
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
-      "rev": "e645f69b93eede43fb644bb1a0b1db3eef1108a3",
+      "rev": "229ec584561f31a6e306da45e145d9a52a5b36db",
       "src": "https://github.com/petertriho/cmp-git"
     },
     "code-bridge.nvim": {
@@ -122,7 +122,7 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini.nvim": {
-      "rev": "4d84086ab334a88201b803d11d1086406fe7e43d",
+      "rev": "a6e23131010b800ecbab85fa6adc0ff38eae2c2d",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
