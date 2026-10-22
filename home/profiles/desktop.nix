@@ -46,6 +46,11 @@
       enable = true;
       package = pkgs.firefox.override {
         extraPrefsFiles = [ config.programs.betterfox.extraPrefsFile ];
+        # Sync applies an incoming pref only if the local device has its
+        # control pref, so every synced device needs this.
+        extraPrefs = ''
+          defaultPref("services.sync.prefs.sync.browser.uiCustomization.state", true);
+        '';
       };
       policies = {
         DisableAppUpdate = true;
