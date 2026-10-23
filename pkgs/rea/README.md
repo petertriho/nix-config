@@ -3,7 +3,8 @@
 This package builds REA from a pinned `main` commit.
 It supplies `rea`, `rea-agents`, an MCP server, and upstream skills.
 
-The package includes Node.js 24, native PTY support, and Linux `ps`.
+The package includes Node.js 26 from the stable Nixpkgs input, native PTY support, and Linux `ps`.
+The build and smoke checks use the same Node.js runtime.
 It excludes Frida, external analysis engines, JDKs, and browsers.
 
 Run a static JavaScript analysis:
@@ -48,7 +49,7 @@ nix build --no-write-lock-file .#rea.tests.smoke
 
 The sandbox checks cover skills, CLI aliases, static analysis, and MCP startup and shutdown.
 
-Run the native PTY check on the host with Node.js 24:
+Run the native PTY check on the host with Node.js 26:
 
 ```bash
 package=$(nix build --no-write-lock-file --no-link --print-out-paths .#rea)

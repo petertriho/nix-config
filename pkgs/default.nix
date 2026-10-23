@@ -26,7 +26,10 @@ with pkgs;
   playwriter = callPackage ./playwriter { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   python-validity = callPackage ./python-validity { };
-  rea = callPackage ./rea { };
+  rea = callPackage ./rea {
+    # REA needs a newer Node.js patch release than the unstable pin supplies.
+    inherit (stablePkgs) nodejs_26;
+  };
   repowise = callPackage ./repowise {
     inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
   };

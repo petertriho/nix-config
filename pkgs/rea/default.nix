@@ -3,7 +3,7 @@
   stdenv,
   buildNpmPackage,
   fetchFromGitHub,
-  nodejs_24,
+  nodejs_26,
   jq,
   autoPatchelfHook,
   procps,
@@ -11,13 +11,13 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-22";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-23";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "ce5bc8cb0149c230e571126e2e7d9f43c86a823d";
-    hash = "sha256-5UXh6EBop1MsZfez9LILVKmUecS08fwxLcJyV5bqk9E=";
+    rev = "520f8e8042c39833fb1656d3e55fb2896bff43a5";
+    hash = "sha256-Zhzdu/2qy0oK10eatyRz/z+ubY6o5On5f/fNU8epdMk=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
@@ -32,8 +32,8 @@ buildNpmPackage (finalAttrs: {
     mv package-lock.json.tmp package-lock.json
   '';
 
-  nodejs = nodejs_24;
-  npmDepsHash = "sha256-uU2oUfDVMKKLVfthbIH9y5ZoE8v9k88y2zbCslLzH60=";
+  nodejs = nodejs_26;
+  npmDepsHash = "sha256-DffvEjUVfeuQA48aRItJDwY/GhElz7P9JXvw+n0U+n8=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];
@@ -89,7 +89,7 @@ buildNpmPackage (finalAttrs: {
   passthru.tests.smoke =
     runCommand "${finalAttrs.pname}-smoke-test"
       {
-        nativeBuildInputs = [ nodejs_24 ];
+        nativeBuildInputs = [ finalAttrs.nodejs ];
       }
       ''
         node ${./smoke-test.mjs} \
