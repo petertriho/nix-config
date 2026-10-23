@@ -101,6 +101,8 @@ Singleton {
     property string amdPciSlot: ""
     property bool amdgpuTopAvailable: false
     property int pageSize: 4096
+    // Clock ticks per second, the unit of the CPU times in /proc.
+    property int clockTicks: 100
     property var prevCpuTimes: ({})
     property bool hasPrevData: false
     // utime+stime per "pid:starttime" and the aggregate CPU time of the last
@@ -134,11 +136,12 @@ Singleton {
         running: root.detailed
         onTriggered: root.updateProcesses()
     }
-    // The CPU shares need two process polls. This one gives the first values
-    // soon after the popup opens.
+    // The first process poll shows the lifetime shares. This one replaces them
+    // with the shares of the last 250 ms soon after the popup opens. The short
+    // delta is less precise, and the next regular poll replaces it.
     Timer {
         id: processesFollowUp
-        interval: 1000
+        interval: 250
         onTriggered: root.updateProcesses()
     }
 
@@ -245,6 +248,7 @@ Singleton {
             "fi",
             "echo \"cputemp=$cpu\"; echo \"gputemp=$igpu\"",
             "echo \"pagesize=$(getconf PAGESIZE 2>/dev/null)\"",
+            "echo \"clktck=$(getconf CLK_TCK 2>/dev/null)\"",
             "for t in intel_gpu_top nvidia-smi; do",
             "  if command -v \"$t\" >/dev/null 2>&1; then echo \"gpu=$t\"; break; fi",
             "done"].join("\n")]
@@ -254,12 +258,12 @@ Singleton {
         }
     }
 
-    // /proc/stat for the aggregate CPU time, the stat line of each process,
-    // then the executable of each process. The target of an exe that is not
-    // readable (kernel threads, processes of other users) is empty.
+    // /proc/uptime, /proc/stat for the aggregate CPU time, the stat line of
+    // each process, then the executable of each process. The target of an exe
+    // that is not readable (kernel threads, processes of other users) is empty.
     Process {
         id: processesProcess
-        command: ["sh", "-c", "cat /proc/stat /proc/[0-9]*/stat 2>/dev/null; echo --exe--; find /proc/[0-9]*/exe -maxdepth 0 -printf '%h\\t%l\\n' 2>/dev/null"]
+        command: ["sh", "-c", "cat /proc/uptime /proc/stat /proc/[0-9]*/stat 2>/dev/null; echo --exe--; find /proc/[0-9]*/exe -maxdepth 0 -printf '%h\\t%l\\n' 2>/dev/null"]
         stdout: StdioCollector {
             id: processesOut
             onStreamFinished: root.parseProcesses(processesOut.text)
@@ -293,6 +297,7 @@ Singleton {
         }
         root.tempPath = values.cputemp || "";
         root.pageSize = parseInt(values.pagesize) || 4096;
+        root.clockTicks = parseInt(values.clktck) || 100;
         if (values.amd) {
             root.amdDevicePath = values.amd;
             root.amdPciSlot = values.amdpci || "";
@@ -516,7 +521,9 @@ Singleton {
 
     // Groups the processes by executable. The CPU share is the delta of
     // utime+stime over the delta of the aggregate CPU time, so the shares of
-    // all processes add up to the total CPU usage.
+    // all processes add up to the total CPU usage. The first poll has no
+    // previous times, so it shows the average over the lifetime of each
+    // process, as `ps` does.
     function parseProcesses(output: string): void {
         // A poll that finishes after the popup closed would set a stale base.
         if (!root.detailed)
@@ -535,11 +542,18 @@ Singleton {
                 names[line.substring(6, tab)] = root.displayName(target.substring(target.lastIndexOf("/") + 1));
         }
 
+        const lines = statText.split("\n");
+        // The first line is /proc/uptime: the seconds since boot, then the
+        // idle seconds. The loop below skips it, as it has no " (".
+        const uptimeTicks = parseFloat(lines[0]) * root.clockTicks;
+        const hasBase = root.prevProcessTotal > 0;
         let total = 0;
         const ticks = {};
+        // Per name: the ticks since the last poll, or without a base the sum
+        // of the lifetime shares of one core.
         const cpuTotals = {};
         const memoryTotals = {};
-        for (const line of statText.split("\n")) {
+        for (const line of lines) {
             if (line.startsWith("cpu ")) {
                 total = root.cpuLineTimes(line.trim().split(/\s+/)).total;
                 continue;
@@ -562,18 +576,28 @@ Singleton {
             ticks[key] = used;
             const name = names[pid] || root.displayName(line.substring(open + 2, close));
             memoryTotals[name] = (memoryTotals[name] || 0) + parseInt(fields[21]) * root.pageSize / 1048576;
-            const last = root.prevProcessTicks[key];
-            if (last !== undefined && used >= last)
-                cpuTotals[name] = (cpuTotals[name] || 0) + used - last;
+            if (hasBase) {
+                const last = root.prevProcessTicks[key];
+                if (last !== undefined && used >= last)
+                    cpuTotals[name] = (cpuTotals[name] || 0) + used - last;
+            } else {
+                // The lifetime share of a process younger than 1 s is noise.
+                // This also skips the shell of this poll.
+                const lifetime = uptimeTicks - parseInt(fields[19]);
+                if (lifetime >= root.clockTicks)
+                    cpuTotals[name] = (cpuTotals[name] || 0) + used / lifetime;
+            }
         }
 
-        const dTotal = root.prevProcessTotal > 0 ? total - root.prevProcessTotal : 0;
+        const dTotal = hasBase ? total - root.prevProcessTotal : 0;
         const cpuApps = [];
-        if (dTotal > 0) {
+        if (!hasBase || dTotal > 0) {
+            // Percent of all cores per unit of `cpuTotals`.
+            const scale = hasBase ? 100 / dTotal : 100 / Math.max(1, root.coreCount);
             for (const appName in cpuTotals)
                 cpuApps.push({
                     name: appName,
-                    usage: cpuTotals[appName] / dTotal * 100
+                    usage: cpuTotals[appName] * scale
                 });
         }
         const memoryApps = [];
