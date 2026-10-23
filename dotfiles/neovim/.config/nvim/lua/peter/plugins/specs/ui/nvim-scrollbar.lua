@@ -31,6 +31,15 @@ return {
                     MiniDiffChange = { text = "│" },
                     MiniDiffDelete = { text = "│" },
                 },
+                floats = {
+                    snacks = { preview = true },
+                },
+                profiles = {
+                    {
+                        match = { floats = true },
+                        placement = { anchor = "NE" },
+                    },
+                },
             },
             minimap = {
                 enabled = false,
