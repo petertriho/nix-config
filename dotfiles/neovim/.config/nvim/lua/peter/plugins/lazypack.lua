@@ -98,7 +98,7 @@ end
 -- regardless of which is seen first. Without this, the old
 -- `specs[name] = specs[name] or spec` kept whichever arrived first, silently
 -- dropping the real spec's `event`/`config` when a dependency stub won the race
--- (e.g. garbage-day depends on nvim-lspconfig, so its stub shadowed the real
+-- (e.g. on-idle depends on nvim-lspconfig, so its stub shadowed the real
 -- nvim-lspconfig spec and `require("peter.lsp").setup()` never ran).
 local function register_spec(spec, is_dependency)
 	local existing = specs[spec.name]

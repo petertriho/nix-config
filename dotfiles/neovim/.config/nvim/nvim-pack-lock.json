@@ -122,7 +122,7 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini.nvim": {
-      "rev": "a6e23131010b800ecbab85fa6adc0ff38eae2c2d",
+      "rev": "acfc3b2702126209201ca8b38a105294fa2c1ddd",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
@@ -203,6 +203,10 @@
     "nvim-web-devicons": {
       "rev": "ec309a0eaff6ea967e58c275996155ab5c16938d",
       "src": "https://github.com/nvim-tree/nvim-web-devicons"
+    },
+    "on-idle.nvim": {
+      "rev": "b824e1a0cbf7d4f6d0880b058614319190d1c188",
+      "src": "https://codeberg.org/dannyfritz/on-idle.nvim"
     },
     "plenary.nvim": {
       "rev": "74b06c6c75e4eeb3108ec01852001636d85a932b",
