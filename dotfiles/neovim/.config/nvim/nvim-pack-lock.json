@@ -42,7 +42,7 @@
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
-      "rev": "229ec584561f31a6e306da45e145d9a52a5b36db",
+      "rev": "227f430a3775abb42cffe9cd688794b67ec0c132",
       "src": "https://github.com/petertriho/cmp-git"
     },
     "code-bridge.nvim": {
