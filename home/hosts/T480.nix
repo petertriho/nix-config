@@ -1,5 +1,4 @@
-{ pkgs, ... }:
-{
+{ pkgs, ... }: {
   imports = [
     ../profiles/desktop.nix
     ../programs/easyeffects.nix
@@ -9,4 +8,7 @@
     cura-appimage
   ];
   # programs.niri.settings.outputs."eDP-1".scale = 1;
+  programs.claude-code = {
+    enable = true;
+  };
 }
