@@ -665,10 +665,15 @@ local function register_module_triggers(spec)
 	end
 end
 
+-- Delete the shim only while it is still mapped, for example not again after
+-- its own key ran. `:unmap` of a missing lhs removes a mapping whose rhs is
+-- that lhs instead, so `<leader>/` with the rhs `gcc` lost its mapping when
+-- the `gcc` shim was deleted twice.
 local function del_key_shim(key)
 	for _, mode in ipairs(list(key.modes)) do
-		-- The shim can already be gone, for example after its own key ran.
-		pcall(vim.keymap.del, mode, key.lhs, { buffer = key.opts.buffer })
+		if vim.fn.maparg(key.lhs, mode, false, true).callback == key.callback then
+			vim.keymap.del(mode, key.lhs, { buffer = key.opts.buffer })
+		end
 	end
 end
 
@@ -908,7 +913,7 @@ local function register_key(spec, key)
 	end
 
 	local shim = { lhs = lhs, rhs = rhs, modes = modes, opts = opts }
-	vim.keymap.set(modes, lhs, function()
+	shim.callback = function()
 		-- Delete the shim first, so that the replay cannot run it again.
 		del_key_shim(shim)
 		M.load(spec.name)
@@ -916,7 +921,8 @@ local function register_key(spec, key)
 			return rhs()
 		end
 		feed_lhs(lhs)
-	end, opts)
+	end
+	vim.keymap.set(modes, lhs, shim.callback, opts)
 	table.insert(spec._key_shims, shim)
 end
 
