@@ -1,10 +1,12 @@
 {
   config,
   inputs,
+  lib,
   pkgs,
   ...
 }:
 let
+  niriSettings = config.programs.niri.settings;
   colors = config.lib.stylix.colors.withHashtag;
   niriActions = config.lib.niri.actions;
   niriQuickshellOsd = command: niriActions.spawn "quickshell" "ipc" "call" "quickshell-osd" command;
@@ -38,6 +40,17 @@ let
       ) 10
     )
   );
+  # The which-key overlay shows these labels on the modifier rows, like which-key groups.
+  # A layer without a label shows its bind count.
+  whichKeyGroups = {
+    "Mod+Alt" = "monitor: focus";
+    "Mod+Alt+Ctrl" = "monitor: move column";
+    "Mod+Alt+Shift" = "monitor: move window";
+    "Mod+Alt+Ctrl+Shift" = "monitor: move workspace";
+    "Mod+Ctrl" = "column/workspace";
+    "Mod+Ctrl+Shift" = "move column/workspace";
+    "Mod+Shift" = "move";
+  };
 in
 {
   imports = [
@@ -45,6 +58,28 @@ in
   ];
 
   home.packages = [ pkgs.xwayland-satellite ];
+
+  # The keymods reader reports Super as Mod, so the which-key overlay supports only Super.
+  assertions = [
+    {
+      assertion = builtins.elem niriSettings.input.mod-key [
+        null
+        "Super"
+      ];
+      message = "The Quickshell which-key overlay supports only Super as the niri mod key.";
+    }
+  ];
+
+  # The Quickshell which-key overlay lists these binds. It makes the titles and merges
+  # the rows (modules/WhichKey/whichKeyHelpers.js), so this file keeps the raw actions.
+  xdg.configFile."niri/which-key-binds.json".text = builtins.toJSON {
+    binds = lib.mapAttrsToList (key: bind: {
+      inherit key;
+      inherit (bind) action;
+      title = bind.hotkey-overlay.title or null;
+    }) (lib.filterAttrs (_: bind: !(bind.hotkey-overlay.hidden or false)) niriSettings.binds);
+    groups = whichKeyGroups;
+  };
 
   programs.niri = {
     enable = true;
@@ -164,6 +199,7 @@ in
           "Mod+Escape" = {
             allow-inhibiting = false;
             repeat = false;
+            hotkey-overlay.title = "Lock Screen";
             action = spawn "loginctl" "lock-session";
           };
           "Mod+Ctrl+Escape" = {
