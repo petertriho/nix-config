@@ -19,7 +19,7 @@ return {
         cp -L "result/lib/libblink_pairs_parser.$lib_ext" "$target"
         chmod u+w "$target"
     ]],
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     opts = {
         mappings = {
             enabled = true,

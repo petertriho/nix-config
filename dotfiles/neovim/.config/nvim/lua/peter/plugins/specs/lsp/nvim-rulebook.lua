@@ -1,6 +1,6 @@
 return {
     "chrisgrieser/nvim-rulebook",
-    event = { "User LazyLoadFile", "VeryLazy" },
+    event = { "User LazyLoadFileDeferred", "VeryLazy" },
     keys = {
         {
             "<leader>Ri",

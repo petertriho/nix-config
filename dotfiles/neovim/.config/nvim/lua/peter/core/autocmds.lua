@@ -19,8 +19,14 @@ local filetypes = require("peter.core.filetypes")
 
 local did_load_nvim_treesitter = false
 
+-- LazyLoadFile runs during the first file read, before the first redraw.
+-- LazyLoadFileDeferred runs one tick later, after the first redraw, for
+-- plugins that the first frame does not need.
 local function exec_lazy_load_file()
     vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFile" })
+    vim.schedule(function()
+        vim.api.nvim_exec_autocmds("User", { pattern = "LazyLoadFileDeferred" })
+    end)
 end
 
 local function exec_loaded_nvim_treesitter()

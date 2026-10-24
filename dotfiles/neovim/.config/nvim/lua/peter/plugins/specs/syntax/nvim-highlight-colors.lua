@@ -1,6 +1,6 @@
 return {
     "brenoprata10/nvim-highlight-colors",
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     opts = {
         render = "background",
         virtual_symbol_prefix = " ",

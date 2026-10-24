@@ -1,6 +1,6 @@
 return {
     "niekdomi/conflict.nvim",
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     cmd = { "Conflict" },
     opts = {
         default_mappings = {

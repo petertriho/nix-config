@@ -151,6 +151,10 @@ return {
                 find_left = "",
                 highlight = "",
                 update_n_lines = "",
+                -- Each mapping makes mini.surround read every global mapping
+                -- (about 0.4 ms each with the lazypack key shims).
+                suffix_last = "",
+                suffix_next = "",
             },
         })
         pcall(vim.keymap.del, "x", "ys")

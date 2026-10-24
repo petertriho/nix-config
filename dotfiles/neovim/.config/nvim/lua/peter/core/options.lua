@@ -23,16 +23,19 @@ vim.filetype.add({
         [".*/*.test.hcl"] = "atlas-test",
     },
 })
-vim.treesitter.language.register("hcl", "atlas-config")
-vim.treesitter.language.register("hcl", "atlas-schema-mysql")
-vim.treesitter.language.register("hcl", "atlas-schema-postgresql")
-vim.treesitter.language.register("hcl", "atlas-schema-sqlite")
-vim.treesitter.language.register("hcl", "atlas-schema-clickhouse")
-vim.treesitter.language.register("hcl", "atlas-schema-mssql")
-vim.treesitter.language.register("hcl", "atlas-schema-redshift")
-vim.treesitter.language.register("hcl", "atlas-test")
-vim.treesitter.language.register("hcl", "atlas-plan")
-vim.treesitter.language.register("hcl", "atlas-rule")
+-- Indexing `vim.treesitter` loads all of it (about 0.6 ms). A start without a
+-- file only needs the language registry.
+local ts_language = require("vim.treesitter.language")
+ts_language.register("hcl", "atlas-config")
+ts_language.register("hcl", "atlas-schema-mysql")
+ts_language.register("hcl", "atlas-schema-postgresql")
+ts_language.register("hcl", "atlas-schema-sqlite")
+ts_language.register("hcl", "atlas-schema-clickhouse")
+ts_language.register("hcl", "atlas-schema-mssql")
+ts_language.register("hcl", "atlas-schema-redshift")
+ts_language.register("hcl", "atlas-test")
+ts_language.register("hcl", "atlas-plan")
+ts_language.register("hcl", "atlas-rule")
 
 -- Globals
 vim.g.has_deno = vim.fn.executable("deno") == 1

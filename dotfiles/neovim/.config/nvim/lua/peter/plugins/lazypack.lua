@@ -1,6 +1,8 @@
 local M = {}
 
 local config_dir = vim.fn.stdpath("config")
+-- vim.pack installs every plugin in this folder.
+local pack_dir = vim.fn.stdpath("data") .. "/site/pack/core/opt"
 local group = vim.api.nvim_create_augroup("LazyPack", { clear = true })
 
 local specs = {}
@@ -8,8 +10,11 @@ local loaded = {}
 local loading = {}
 local build_hooks = {}
 local module_loaders = {}
+local lazy_names = {}
+local missing_modules = {}
 local sourced_files = {}
 local lazy_module_searcher
+local lazy_module_fallback
 local base_paths = {}
 local rtp_seen = {}
 local rtp_insert_pos = 2
@@ -177,12 +182,33 @@ local function normalize(raw)
 	return spec
 end
 
+-- List the .lua files of an import folder. Spec modules can only come from the
+-- base rtp folders, because no plugin folder is on rtp yet. A direct scan is
+-- much faster than nvim_get_runtime_file().
+local function spec_files(dir)
+	local files = {}
+	for _, path in ipairs(base_paths) do
+		local root = path .. "/lua/" .. dir
+		local handle = vim.uv.fs_scandir(root)
+		while handle do
+			local name = vim.uv.fs_scandir_next(handle)
+			if not name then
+				break
+			end
+			if name:sub(-4) == ".lua" then
+				table.insert(files, root .. "/" .. name)
+			end
+		end
+	end
+	table.sort(files)
+	return files
+end
+
 local function import_specs(imports)
 	for _, import in ipairs(imports) do
 		local module = import.import or import
 		local dir = module:gsub("%.", "/")
-		local files = vim.api.nvim_get_runtime_file("lua/" .. dir .. "/*.lua", true)
-		table.sort(files)
+		local files = spec_files(dir)
 
 		local mod
 		if #files > 0 then
@@ -295,22 +321,8 @@ local function plugin_dir(spec)
 		return spec._dir
 	end
 
-	local dir
-	if spec.dir then
-		dir = expand_path(spec.dir)
-	else
-		local pack_root = vim.fn.stdpath("data") .. "/site/pack/core"
-		dir = pack_root .. "/opt/" .. spec.name
-		for _, kind in ipairs({ "opt", "start" }) do
-			local candidate = pack_root .. "/" .. kind .. "/" .. spec.name
-			if vim.fn.isdirectory(candidate) == 1 then
-				dir = candidate
-				break
-			end
-		end
-	end
-	spec._dir = dir
-	return dir
+	spec._dir = spec.dir and expand_path(spec.dir) or (pack_dir .. "/" .. spec.name)
+	return spec._dir
 end
 
 local function dir_exists(spec)
@@ -329,8 +341,12 @@ local function nvim_lib_dir()
 end
 
 local function reset_paths()
-	-- Do not clobber packpath: vim.pack.add uses it for install location.
-	-- Only reset rtp.
+	-- Like lazy.nvim's `reset_packpath`. After each rtp change, Neovim rebuilds
+	-- its runtime search path and scans `pack/*/start/*` in each packpath
+	-- entry, and $XDG_DATA_DIRS adds dozens of entries. Keep the vim.pack
+	-- folder (`:packadd` needs it) and the `pack/dist/opt` plugins of
+	-- $VIMRUNTIME.
+	vim.go.packpath = vim.fn.stdpath("data") .. "/site," .. vim.env.VIMRUNTIME
 	base_paths = {
 		config_dir,
 		vim.fn.stdpath("data") .. "/site",
@@ -564,7 +580,12 @@ local function module_candidates(spec)
 
 	if spec.module ~= false then
 		add(spec.main)
-		add(find_main(spec))
+		-- A remote plugin is off rtp until it loads, so `lazy_module_fallback`
+		-- finds its other modules. A `dir` plugin is on rtp from startup, and
+		-- vim.loader would find its modules first.
+		if spec.dir then
+			add(find_main(spec))
+		end
 		if spec.src then
 			add(source_to_main(spec.src))
 		end
@@ -591,9 +612,10 @@ lazy_module_searcher = function(module)
 		end
 	end
 
-	-- Search again without this searcher, now that the plugin is on rtp.
+	-- Search again without the lazypack searchers, now that the plugin is on
+	-- rtp.
 	for _, searcher in ipairs(package.searchers or package.loaders) do
-		if searcher ~= lazy_module_searcher then
+		if searcher ~= lazy_module_searcher and searcher ~= lazy_module_fallback then
 			local loader = searcher(module)
 			if type(loader) == "function" then
 				return loader
@@ -603,14 +625,38 @@ lazy_module_searcher = function(module)
 	return "\n\tlazy-loaded plugin for module '" .. module .. "', but the module was not found"
 end
 
+-- Like lazy.nvim, any module of a lazy plugin loads the plugin. The names in
+-- module_loaders cover most requires without disk access at startup. This
+-- searcher runs after all others and finds the other modules on disk, for
+-- example `lsp-endhints` in nvim-lsp-endhints. It remembers misses, because
+-- plugins often probe for optional modules with pcall(require, ...).
+lazy_module_fallback = function(module)
+	if missing_modules[module] then
+		return nil
+	end
+	local rel = "/lua/" .. module:gsub("%.", "/")
+	for _, name in ipairs(lazy_names) do
+		local spec = specs[name]
+		if not loaded[name] and spec.module ~= false then
+			local base = plugin_dir(spec) .. rel
+			if vim.uv.fs_stat(base .. ".lua") or vim.uv.fs_stat(base .. "/init.lua") then
+				module_loaders[module] = name
+				return lazy_module_searcher(module)
+			end
+		end
+	end
+	missing_modules[module] = true
+end
+
 local function register_module_searcher()
 	local searchers = package.searchers or package.loaders
 	for index = #searchers, 1, -1 do
-		if searchers[index] == lazy_module_searcher then
+		if searchers[index] == lazy_module_searcher or searchers[index] == lazy_module_fallback then
 			table.remove(searchers, index)
 		end
 	end
 	table.insert(searchers, 2, lazy_module_searcher)
+	table.insert(searchers, lazy_module_fallback)
 end
 
 local function register_module_triggers(spec)
@@ -960,6 +1006,11 @@ function M.build_hooks()
 	return vim.deepcopy(build_hooks)
 end
 
+-- Return true when an enabled spec has this name.
+function M.has(name)
+	return specs[name] ~= nil
+end
+
 local function run_shell_build(spec, command)
 	local result = vim.system({ vim.o.shell, vim.o.shellcmdflag, command }, {
 		cwd = plugin_dir(spec),
@@ -1034,12 +1085,56 @@ function M.run_build_hooks(names)
 	end
 end
 
+-- Return true for a session that can run commands before scheduled
+-- callbacks: a headless run, or a `+cmd` or `-c cmd` argument. For example,
+-- nixcfg runs `nvim --headless "+silent! packdel ++all"`.
+local function has_startup_commands()
+	if #vim.api.nvim_list_uis() == 0 then
+		return true
+	end
+	for _, arg in ipairs(vim.v.argv) do
+		if arg == "-c" or arg:sub(1, 1) == "+" then
+			return true
+		end
+	end
+	return false
+end
+
+-- vim.pack.add only installs missing plugins and registers the others. When
+-- every plugin is on disk, register them after startup. A startup command
+-- can need the registration: without it, `packdel ++all` deletes every
+-- plugin as inactive.
+local function add_packs(install)
+	if #install == 0 then
+		return
+	end
+	local function add()
+		vim.pack.add(install, { load = function() end })
+	end
+	local installed = {}
+	for name in vim.fs.dir(pack_dir) do
+		installed[name] = true
+	end
+	local missing = vim.tbl_contains(install, function(item)
+		return not installed[item.name]
+	end, { predicate = true })
+	if missing or has_startup_commands() then
+		add()
+	else
+		vim.schedule(function()
+			try(add, "vim.pack.add failed")
+		end)
+	end
+end
+
 function M.setup(imports)
 	specs = {}
 	loaded = {}
 	loading = {}
 	build_hooks = {}
 	module_loaders = {}
+	lazy_names = {}
+	missing_modules = {}
 	sourced_files = {}
 	reset_paths()
 	import_specs(imports)
@@ -1062,9 +1157,7 @@ function M.setup(imports)
 			table.insert(install, item)
 		end
 	end
-	if #install > 0 then
-		vim.pack.add(install, { load = function() end })
-	end
+	add_packs(install)
 
 	-- lazypack sources plugin/ files itself, here and in M.load. Vim's own
 	-- startup pass would source each plugin folder on rtp a second time.
@@ -1085,11 +1178,14 @@ function M.setup(imports)
 			-- `require`s one of its submodules -- e.g. neogit's
 			-- `diff_viewer = "codediff"` integration does
 			-- `require("codediff.core.git")` before any CodeDiff command or key
-			-- has run. Mapping each plugin's main module to its spec lets the
-			-- module searcher load it on demand, matching lazy.nvim where any
-			-- lazy plugin is loadable via require of one of its modules (the
-			-- searcher keys on the root module, so submodules resolve too).
+			-- has run. Mapping each plugin's likely module names to its spec
+			-- lets the module searcher load it on demand (the searcher keys on
+			-- the root module, so submodules resolve too). `lazy_names` lets
+			-- `lazy_module_fallback` find any other module of the plugin on
+			-- disk, matching lazy.nvim where any lazy plugin is loadable via
+			-- require of one of its modules.
 			register_module_triggers(spec)
+			table.insert(lazy_names, spec.name)
 			register_triggers(spec)
 		else
 			table.insert(eager, spec)

@@ -1,8 +1,8 @@
 return {
-    "petertriho/nvim-scrollbar",
-    -- dir = "~/Projects/nvim-scrollbar",
+    -- "petertriho/nvim-scrollbar",
+    dir = "~/Projects/nvim-scrollbar",
     branch = "refactor/v2",
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     init = function()
         vim.o.signcolumn = "no"
     end,

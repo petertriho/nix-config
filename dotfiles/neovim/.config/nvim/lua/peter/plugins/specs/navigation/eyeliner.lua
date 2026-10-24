@@ -1,6 +1,6 @@
 return {
     "jinh0/eyeliner.nvim",
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     opts = {
         highlight_on_key = false,
         match = "[a-z]",

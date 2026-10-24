@@ -1,5 +1,5 @@
 return {
     "folke/todo-comments.nvim",
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     config = true,
 }

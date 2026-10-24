@@ -1,6 +1,6 @@
 return {
     "kevinhwang91/nvim-fundo",
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     dependencies = { "kevinhwang91/promise-async" },
     build = function()
         require("fundo").install()

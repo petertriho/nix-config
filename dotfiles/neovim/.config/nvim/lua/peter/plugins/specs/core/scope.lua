@@ -1,5 +1,5 @@
 return {
     "tiagovla/scope.nvim",
-    event = "User LazyLoadFile",
+    event = "User LazyLoadFileDeferred",
     config = true,
 }

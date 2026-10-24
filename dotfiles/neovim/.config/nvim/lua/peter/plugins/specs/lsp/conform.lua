@@ -44,7 +44,10 @@ return {
         },
     },
     init = function()
-        local format = require("conform-spinner").format
+        -- Require conform-spinner on the first format, not at startup.
+        local format = function(opts)
+            return require("conform-spinner").format(opts)
+        end
         vim.api.nvim_create_user_command("Format", function(args)
             format(get_format_opts({
                 range = get_range(args),

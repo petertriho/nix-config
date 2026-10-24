@@ -94,6 +94,22 @@ local function build_highlights(colors)
     }
 end
 
+-- tokyonight finds the installed plugins only through lazy.nvim. Without it,
+-- `all` defaults to true and sets the groups of every supported plugin. Like
+-- its `auto` mode, enable the groups of the installed plugins, and every
+-- mini_* group for mini.nvim.
+local function tokyonight_plugins()
+    local lazypack = require("peter.plugins.lazypack")
+    local plugins = { all = false, markdown = true, rainbow = true }
+    local has_mini = lazypack.has("mini.nvim")
+    for plugin, group in pairs(require("tokyonight.groups").plugins) do
+        if lazypack.has(plugin) or (has_mini and group:find("^mini_")) then
+            plugins[group] = true
+        end
+    end
+    return plugins
+end
+
 local function catppuccin_palette(colors)
     local color_utils = require("catppuccin.utils.colors")
 
@@ -138,7 +154,7 @@ return {
                         highlights[group] = highlight
                     end
                 end,
-                plugins = { markdown = true, rainbow = true },
+                plugins = tokyonight_plugins(),
             })
             vim.cmd.colorscheme("tokyonight")
             vim.g.colors_name = "tokyonight"
