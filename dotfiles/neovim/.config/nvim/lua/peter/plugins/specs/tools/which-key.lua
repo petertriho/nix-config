@@ -40,33 +40,14 @@ return {
                 { "<leader>u", group = "ui" },
             },
             leader_nx,
+            -- coerce.nvim
+            {
+                { "cr", group = "coerce" },
+                { "co", group = "coerce (no lsp)" },
+                { "\\c", group = "coerce motion" },
+                { "\\c", group = "coerce selection", mode = "x" },
+            },
         }
-
-        -- coerce.nvim: mirrors require("coerce").default_cases
-        local coerce_cases = {
-            { "c", "camelCase" },
-            { "d", "dot.case" },
-            { "k", "kebab-case" },
-            { "n", "numeronym (n7m)" },
-            { "p", "PascalCase" },
-            { "s", "snake_case" },
-            { "u", "UPPER_CASE" },
-            { "/", "path/case" },
-            { " ", "space case" },
-        }
-        for _, prefix in ipairs({
-            { "cR", "n", "coerce" },
-            { "co", "n", "coerce (no lsp)" },
-            { "gcR", "n", "coerce motion" },
-            { "gcR", "x", "coerce selection" },
-        }) do
-            local lhs, mode, group = unpack(prefix)
-            local entries = { mode = mode, { lhs, group = group } }
-            for _, case in ipairs(coerce_cases) do
-                table.insert(entries, { lhs .. case[1], desc = case[2] })
-            end
-            table.insert(spec, entries)
-        end
 
         if os.getenv("OBSIDIAN_VAULTS") ~= nil then
             table.insert(leader_nx, { "<leader>o", group = "obsidian" })
