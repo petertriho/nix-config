@@ -2,6 +2,7 @@
   imports = [
     ./greetd.nix
     ./i18n.nix
+    ./keymods.nix
     ./niri.nix
   ];
   services = {

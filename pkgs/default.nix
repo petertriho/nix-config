@@ -16,6 +16,7 @@ with pkgs;
   effective-html = callPackage ./effective-html { };
   figlet-fonts = callPackage ./figlet-fonts { };
   hallmark = callPackage ./hallmark { };
+  keymods = callPackage ./keymods { };
   kubectl-prof = callPackage ./kubectl-prof {
     buildGoModule = stablePkgs.buildGo126Module;
   };
