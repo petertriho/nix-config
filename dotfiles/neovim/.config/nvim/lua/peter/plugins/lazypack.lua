@@ -66,7 +66,10 @@ local function source_to_url(src)
 end
 
 local function expand_path(path)
-	return vim.fn.fnamemodify(vim.fn.expand(path), ":p")
+	-- `nosuf`: without it, expand() applies 'wildignore' and returns "" for a
+	-- path below a folder such as `tmp` or `cache`, and ":p" then gives the
+	-- current folder.
+	return vim.fn.fnamemodify(vim.fn.expand(path, true), ":p")
 end
 
 local function is_spec(value)
