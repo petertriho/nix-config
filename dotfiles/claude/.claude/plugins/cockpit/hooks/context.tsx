@@ -1,10 +1,10 @@
 import type { ContextCategory, RenderElement, SessionContextBreakdown, ThemeKey } from 'claude-code'
 import type { CockpitCompaction, CockpitCostSample, CockpitViewProps } from '../types'
-import { actions, field, heading, line, muted, section, sparkline, viewWidth } from './layout'
+import { actions, field, heading, line, muted, section, viewWidth } from './layout'
 import type { Segment } from './summary'
 import { cacheHit, contextColor, contextFill, mainTurns, sessionStart, tokenTotals } from './summary'
 import type { CockpitElements } from './theme'
-import { ago, bar, brief, cleanText, clip, colors, compact, count, humanize, meter, padEnd, padStart, percent, shortModel, usd } from './theme'
+import { ago, bar, brief, cleanText, clip, colors, compact, count, humanize, meter, padEnd, padStart, percent, shortModel, sparkline, usd } from './theme'
 
 const palette: ThemeKey[] = [colors.accent, colors.cyan, colors.green, colors.magenta, colors.yellow, colors.red]
 

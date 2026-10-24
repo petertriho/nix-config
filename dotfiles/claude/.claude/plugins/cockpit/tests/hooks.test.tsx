@@ -100,6 +100,7 @@ const setup = (on: On): World => {
   world.seed('context', { ...initialContext(), sessionId: world.id, usage: world.usage })
   world.seed('preferences', { view: 'agents', band: true, animation: true, span: 'fit', paneOpen: false })
   world.seed('mascot', { frame: 0, phase: 'idle' })
+  world.seed('pulse', { frame: 0 })
 
   on('state.get', (_$, e) => {
     if (world.failStateReads) throw new Error('State observation refused.')
@@ -462,6 +463,28 @@ describe('cockpit commands and surfaces', () => {
     expect(await survey.find({ type: 'Text', text: 'Native content remains.' }), 'survey keeps downstream text').toBeDefined()
     expect(await survey.find({ key: 'cockpit-open' })).toBeUndefined()
     await survey.unmount()
+  })
+
+  test('the band draws one row per part of the work and follows the transcript in view', async ($, on) => {
+    const world = setup(on)
+    world.seed('activity', {
+      ...world.get('activity'), working: true,
+      tools: [{ id: 'grep', tool: 'Grep', target: 'band', agentId: 'worker', startedAt: 9000, outcome: 'running' }],
+      agents: [{ id: 'worker', name: 'worker', description: 'Look.', type: 'Explore', status: 'running', startedAt: 8000, lastSeenAt: 9000 }],
+      todos: [{ items: [{ content: 'Write', status: 'in_progress', activeForm: 'Writing tests' }], updatedAt: 1 }],
+    })
+    const main = await $.ui.mount({ plugin: 'cockpit', surface: 'terminal', component: 'AbovePrompt', requestId: 'band', props: bandProps() })
+    expect(await main.find({ key: 'cockpit-band:1' }), 'second row').toBeDefined()
+    expect(await main.find({ type: 'Text', text: '0/1 Writing tests' }), 'plan').toBeDefined()
+    expect(await main.find({ type: 'Text', text: 'worker 2s' }), 'chip').toBeDefined()
+    await main.unmount()
+    const viewed = await $.ui.mount({
+      plugin: 'cockpit', surface: 'terminal', component: 'AbovePrompt', requestId: 'band',
+      props: { ...bandProps(), view: { agentId: 'worker' } },
+    })
+    expect(await viewed.find({ type: 'Text', text: 'worker › ' }), 'viewed name').toBeDefined()
+    expect(await viewed.find({ type: 'Text', text: 'Grep band 1s' }), 'viewed tool').toBeDefined()
+    await viewed.unmount()
   })
 
   test('the cat animates only in the activity view and pauses on request', async ($, on) => {
@@ -840,6 +863,20 @@ describe('cockpit live data', () => {
     await world.clock.advance(3000)
     expect(world.invalidations - started).toBeGreaterThanOrEqual(2)
     expect(world.spawned).toBe(0)
+  })
+
+  test('the band spinner turns four times a second while work runs, unless animation is off', async ($, on) => {
+    const world = setup(on)
+    await $.session.start({ cwd: '/project', surface: 'terminal', isInteractive: true })
+    await world.clock.advance(1000)
+    expect(world.get('pulse').frame).toBe(0)
+    await $.turn.start({ text: 'Work.', turnId: 'busy' })
+    await world.clock.advance(1000)
+    const turned = world.get('pulse').frame
+    expect(turned).toBeGreaterThanOrEqual(3)
+    world.seed('preferences', { ...world.get('preferences'), animation: false })
+    await world.clock.advance(1000)
+    expect(world.get('pulse').frame).toBe(turned)
   })
 
   test('state saved by an earlier version is filled in instead of breaking hooks or the pane', async ($, on) => {

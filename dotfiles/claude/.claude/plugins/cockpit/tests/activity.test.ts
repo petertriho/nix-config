@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'claude-code/testing'
 import type { CockpitActivity } from '../types'
 import {
-  activityHistory, activityLoad, bongoCat, catColumns, catHead, catPose, catSays, LANE, timeBudget, timelineLanes, timelineScale,
+  activityLoad, bongoCat, catColumns, catHead, catPose, catSays, LANE, timeBudget, timelineLanes, timelineScale,
 } from '../hooks/activity'
-import { sparkline } from '../hooks/layout'
 import { initialActivity, initialContext } from '../hooks/state'
-import { colors } from '../hooks/theme'
+import { activityHistory } from '../hooks/summary'
+import { colors, sparkline } from '../hooks/theme'
 import { agent, themeKeys, tool } from './kit'
 
 describe('Bongo Cat', () => {

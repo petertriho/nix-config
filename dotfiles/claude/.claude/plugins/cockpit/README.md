@@ -1,8 +1,8 @@
 # Cockpit
 
-Cockpit adds five read-only views to Claude Code. It keeps the existing status line, prompts, tool results, and permission dialogs unchanged.
+Cockpit is a Claude Code plugin that adds five read-only views and a band above the prompt. It does not change the status line, prompts, tool results, or permission dialogs.
 
-The mod uses the early-access function-hook API from Claude Code 2.1.292. A later engine release can change this API.
+The plugin needs Claude Code 2.1.292 or later for the early-access function-hook API. A later engine release can change this API.
 
 ## Views
 
@@ -16,39 +16,62 @@ The mod uses the early-access function-hook API from Claude Code 2.1.292. A late
 
 ### Band
 
-A compact band appears above the prompt. It shows these parts, in priority order:
+The band shows up to two rows above the prompt. A `◉` button before the rows opens the pane. The pane opens only from this button or a `/cockpit` command.
 
-1. The status: the lead tool and its elapsed time, "thinking" with the turn time, or "idle".
-2. Plan progress, such as `1/3 Writing tests`.
-3. Running agents.
-4. The context fill, colored before auto-compact.
-5. The latest check result, such as `✗ npm test 2 failed`.
-6. Changed files with added and removed lines.
-7. The session cost.
-8. Running background tasks.
-9. The duration of the last main turn, only when idle.
+The first row shows what runs now. It shows only while work runs, while agents are live, or after a failure. It has these parts, in priority order:
 
-When the band is too narrow, each part changes to a short form first. Then the parts with the lowest priority drop out. After a turn stops on an error, the band shows the error in red until the next turn starts. The pane opens only after a command or button press.
+1. The status: a spinner, the lead tool, and its elapsed time, with `+N` for each other running call. While a turn runs with no running tool, the status is "thinking".
+2. A chip for each live agent, with its name and elapsed time.
+3. At the right end, a sparkline of the activity level over the last 5 minutes, in steps of 30 seconds.
+
+After a turn stops on an API error, the status shows the error in red until the next turn starts. After another failed turn, the status shows `✗ last turn failed`.
+
+The second row shows where the work stands. It has these parts, in priority order:
+
+1. Plan progress: a bar, the done and total counts, and the item in progress, such as `1/3 Writing tests`. A finished plan stays only while a turn runs.
+2. The latest check result, such as `✗ npm test 2/42 failed`. An edit after the check dims the result and adds `(stale)`.
+3. Changed files, added and removed lines, and a bar of five cells that splits the lines into additions and deletions.
+4. A compaction warning, such as `⟳ ~4 replies to compact`. It shows only near the auto-compact threshold: yellow from 10 points before the threshold, and red at the threshold.
+
+When a row is too narrow, the parts that have a short form use it. Then the parts with the lowest priority drop out. When the space above the prompt has fewer rows, the band keeps its first rows.
+
+The band does not show the model, the context fill, the cost, or the turn time. The `claude-statusline` script and the engine show them.
+
+When you open the transcript of a subagent, the band follows that agent. The first row starts with the name of the agent, then its lead tool or its status. The second row shows the plan of that agent.
+
+The spinner turns four times a second while work runs. When the animation setting is off, the status shows a static `▸`.
 
 ### Header
 
-The pane header shows the model, the session status, a context meter, the cost, the number of turns, and the session time. Below it, the view tabs show counts: agents and tool calls, with `▸` when some are running, changed files, and the context fill. The active tab has an accent mark under it. A narrow pane drops the counts first, and then puts the tabs on more than one row, in order.
+The pane header shows the model, the session status, a context meter, the cost, the number of turns, and the session time.
+
+Below the header, each view tab shows a count:
+
+- Agents: the number of agents, or the number of live agents with `▸` while agents run.
+- Tools: the number of tool calls, or the number of running calls with `▸` while calls run.
+- Changes: the number of changed files.
+- Context: the context fill.
+
+An accent mark under the active tab shows the selected view. In a narrow pane, the tabs drop their counts first. Then the tabs wrap onto more than one row, in order.
 
 ### Agents
 
-The session summary shows the current status, the turn count and average turn time, failed tool calls, token totals with the cache hit rate, and live agents.
+The session summary shows the current status, the turn count, and the average turn time. It also shows failed tool calls, token totals with the cache hit rate, and live agents.
 
-The plan comes from the last `TodoWrite` result of the main thread and from the task tools (`TaskCreate`, `TaskUpdate`, `TaskList`). The list shows the items near the one in progress. A subagent plan appears in the detail card of that agent.
+The plan comes from the last `TodoWrite` result of the main thread and from the task tools (`TaskCreate`, `TaskUpdate`, `TaskList`). The plan list shows the items near the item in progress. The plan of a subagent appears in the detail card of that agent.
 
-A completed `Agent` call reports run totals: tokens, tool uses, duration, changed lines, and models. The last answer of an agent appears as Markdown. Agents without totals show the usage of their last turn. "Show its tools" opens the Tools view, filtered to that agent.
+A completed `Agent` call reports run totals: tokens, tool uses, duration, changed lines, and models. The detail card shows the last answer of the agent as Markdown. An agent without run totals shows the usage of its last turn. "Show its tools" opens the Tools view, filtered to that agent.
 
 When the transcript in view changes to a subagent, the pane selects that agent. A selection that you make stays until the transcript in view changes again.
 
 ### Tools
 
-The summary shows the total tool time, the number of approval prompts, and the time spent waiting for an answer. "Running now" lists the running calls with the lead call first.
+The summary shows the total tool time, the number of approval prompts, and the time spent waiting for an answer. "Running now" lists the running calls, newest first. A call that waits for a permission answer shows a `?` mark.
 
-A finished tool shows two durations. "Ran" is the execution time that the engine reports. "Approval" is the remaining time of the call, which includes the permission dialog and hooks. A tool that waits for a permission answer shows a `?` mark.
+When the engine reports the execution time, a finished tool shows two durations:
+
+- "Ran" is the execution time that the engine reports.
+- "Approval" is the rest of the call time, which includes the permission dialog and hooks. A call without a permission dialog shows this time as "Hooks".
 
 "By tool" ranks the tools by total time, with call and failure counts. `Agent` calls are counted but get no bar, because their time is the time of the subagent.
 
@@ -56,28 +79,33 @@ Background tasks come from `Bash` calls with `run_in_background`, `Agent` calls 
 
 ### Changes
 
-Files are grouped as staged, changed, untracked, and edited but not yet read from Git. Each row shows the Git state, the path, the number of observed edits, the number of findings, a diffstat bar, and the line counts. The diff heading names the agent that made the last edit.
+The view groups files as staged, changed, untracked, and edited but not yet read from Git. Each row shows the Git state, the path, the number of observed edits, the number of findings, a diffstat bar, and the line counts. The diff heading names the agent that made the last edit.
 
 Git activity comes from shell results that the engine marks as commits, pushes, branch changes, or pull requests. A pull request with an `https` URL shows a link.
 
 ### Context
 
-The gauge scales the category estimates to the live fill and marks the auto-compact threshold. The headroom line shows the tokens left before auto-compact. The engine measures the fill after each model response. The trend line shows the average growth of the last five measurements that grew, and an estimate of the responses left before auto-compact.
+The gauge scales the category estimates to the live fill and marks the auto-compact threshold. The headroom line shows the tokens left before auto-compact.
 
-The context view lists the last 20 compactions with their trigger, token counts, and reduction. Cost per turn is the difference between consecutive cost measurements of the main thread.
+The engine measures the fill after each model response. The trend line shows the average growth of the last five measurements that grew. It also estimates the number of responses left before auto-compact.
+
+The Compactions section shows the number of recorded compactions. It lists the last five with their trigger, token counts, and reduction.
+
+Cost per turn is the difference between consecutive cost measurements of the main thread.
 
 ### Activity
 
-The Activity view replaces the reactor view of earlier versions. The reactor drew an animated orb with an activity history. The orb was decorative, and the other views already showed the counts. The Activity view keeps the phase, the counts, the history, and the pause control, and adds these parts:
+The Activity view shows the phase, the number of running tools and agents, the activity history, and a pause control. It also has these parts:
 
-- **Bongo Cat** acts out the session. It sleeps on the drums when idle, taps while the model thinks, and drums on the bongos while tools run, faster with more work at once. After an error, it holds its paws up. A speech bubble names the lead tool and its elapsed time.
-- **Timeline** shows one lane for the main thread and one for each recent agent. Each cell shows the model, a tool, a delegated agent, an approval wait, or an error. "Zoom" changes the span between the session and the last 5, 15, or 60 minutes.
+- **Bongo Cat** acts out the session. It sleeps on the drums when idle and taps while the model thinks. While tools run, it drums on the bongos, faster with more work at once. After an error, it holds its paws up. A speech bubble names the lead tool and its elapsed time.
+- **Timeline** shows one lane for the main thread and one for each recent agent. Each cell shows model time, a tool, a delegated agent, an approval wait, or an error. "Zoom" changes the span between the session and the last 5, 15, or 60 minutes.
 - **Where time went** shows the busy share of the session, tool time by tool, agent time, approval wait, parallel work, and the call rate.
 
-### Preferences
+The cat is braille line art based on the original Bongo Cat. The table edge falls to the right, the face tilts with it, and the two bongos stand in front. A raised paw shows its toe beans, and a hit shows impact lines. The cat is 40 columns wide, or 34 or fewer in a narrow pane. It uses theme colors.
+
 ### Preferences
 
-The selected view, the band setting, the animation setting, and the timeline zoom persist across sessions in plugin storage. A saved `reactor` view opens the Activity view. Storage errors go to the debug log and do not block the commands.
+The selected view, the band setting, the animation setting, and the timeline zoom persist across sessions in plugin storage. A saved `reactor` view opens the Activity view. `reactor` is the name of the view that Activity replaced. Storage errors go to the debug log and do not block the commands.
 
 ### Colors
 
@@ -85,11 +113,11 @@ The pane does not paint a background. In the terminal dock, the engine fills the
 
 All text and border colors are Claude Code theme keys, such as `suggestion`, `success`, and `inactive`. An ANSI theme, such as `dark-ansi`, draws these keys with the terminal palette.
 
-Hex values and color names are fixed RGB values. Claude Code limits output to 256 colors in tmux unless `CLAUDE_CODE_TMUX_TRUECOLOR` is set. In that mode, a hex value changes to the nearest xterm color.
+A hex value or a color name is a fixed RGB value. In tmux, Claude Code limits output to 256 colors unless `CLAUDE_CODE_TMUX_TRUECOLOR` is set. With 256 colors, a hex value changes to the nearest xterm color.
 
 This configuration makes the dock match the terminal background:
 
-- Home Manager writes the custom theme `~/.claude/themes/stylix.json`. The theme extends the ANSI theme for the Stylix polarity, and sets `composerSidebarBackground` to Stylix `base00`.
+- Home Manager writes the custom theme `~/.claude/themes/stylix.json`. The theme extends the ANSI theme for the Stylix polarity and sets `composerSidebarBackground` to Stylix `base00`.
 - `settings.json` selects `custom:stylix` and sets `CLAUDE_CODE_TMUX_TRUECOLOR` to `1`. Without truecolor, tmux sessions round `base00` to a gray xterm color.
 
 ## Commands
@@ -112,126 +140,128 @@ The command can run during a model turn. `/cockpit reactor` is an alias for `/co
 ### Terminal controls
 
 1. Run `/cockpit` to open the pane.
-2. Use `Ctrl+X Tab` to focus the pane.
+2. Press `Ctrl+X Tab` to focus the pane.
 3. While the pane has focus, press `1` through `5` to select a view.
 4. Press `Tab` to move between controls.
 5. To resize a docked pane, press `Ctrl+X ←` to widen it or `Ctrl+X →` to narrow it.
 6. To resize a pane above the prompt, press `Ctrl+X ↑` to make it taller or `Ctrl+X ↓` to make it shorter.
 7. Press `Esc` to close the pane.
 
-The views also have letter keys while the pane has focus:
+While the pane has focus, the views also have letter keys:
 
 | Key | Agents | Tools | Changes | Context | Activity |
 | --- | --- | --- | --- | --- | --- |
 | `r` | Refresh agents | | Read Git | Estimate categories | |
 | `j` / `k` | Next or previous agent | Older or newer call | Next or previous file | | |
 | `t` | Show its tools | | | | |
-| `p` | | | Copy the file path | | |
+| `p` | | | Copy the file path | | Pause or wake the cat |
 | `c` / `q` | | | Copy or quote the patch | | |
-| `z` / `p` | | | | | Zoom, pause or wake the cat |
+| `z` | | | | | Change the timeline zoom |
 
-The pane uses native scrolling and resizing. The cockpit asks for 58 columns in the dock and 24 rows above the prompt. A size that you set wins over that request. The footer shows the resize keys for the current placement, and every view fits its layout to the new size.
+The pane uses native scrolling and resizing. The pane asks for 58 columns in the dock and 24 rows above the prompt. A size that you set has priority over this request. The footer shows the resize keys for the current placement. Every view fits its layout to the new size.
 
 ## Data and limits
 
-History starts when the mod loads. Session memory holds the history. Hot reload keeps that memory, and `/clear` removes it.
+History starts when the plugin loads and stays in session memory. Hot reload keeps this memory, and `/clear` removes it.
 
-- The timeline holds at most 200 tool calls.
-- The agent view holds at most 100 agent records and 100 turns.
-- Each agent holds at most 4,000 characters of its last answer.
-- The plan holds at most 20 todo lists of 50 items each, and 100 tasks.
-- The background list holds at most 40 tasks.
-- The review view holds at most 100 files, 100 findings, 40 check summaries, and 30 Git operations.
-- Review patches hold at most 24,000 characters per file and 200,000 characters in total.
-- The context view holds at most 20 compactions, 100 cost measurements, and 100 fill measurements.
-- The activity history holds at most 240 samples.
+Session memory holds at most these items:
 
-Agent status comes from the engine roster. An external teammate can leave an old status after its terminal closes. Missing entries show an unknown status, not proof that an agent stopped.
+- 200 tool calls.
+- 100 agent records and 100 turns.
+- 4,000 characters of the last answer of each agent.
+- 20 todo lists of 50 items each, and 100 tasks.
+- 40 background tasks.
+- 100 changed files, 100 findings, 40 check summaries, and 30 Git operations.
+- 24,000 characters of patch per file, and 200,000 characters of patch in total.
+- 20 compactions, 100 cost measurements, and 100 fill measurements.
+- 240 samples of activity history.
 
-Tool durations measure the call, not the full life of a background process. Server-side tools appear retrospectively after the response. General live stdout is not available through passive tool hooks.
+Agent status comes from the engine roster. An external teammate can keep an old status after its terminal closes. An agent that is missing from the roster shows an unknown status. This status does not prove that the agent stopped.
 
-No event reports when the person answers a permission dialog. The approval mark therefore stays until the tool finishes, and the band does not show it. "Approval and hooks" is known only after the call ends.
+Tool durations measure the call, not the full life of a background process. Server-side tools appear only after the response that used them. Passive tool hooks do not give general live stdout.
 
-Background status updates only when a turn or subagent stops. A task that ends between stops keeps its last reported status until the next stop.
+No event reports when you answer a permission dialog. As a result, the approval mark stays until the tool finishes, and the band does not show it. The approval and hook time is known only after the call ends.
 
-Check summaries use known Jest, Vitest, pytest, cargo, and Go output formats. Unknown output shows a completed call without an invented pass count. A background check retains its last reported state.
+Background status changes only when a turn or a subagent stops. A task that ends between two stops keeps its last reported status until the next stop.
 
-The context summary estimates categories locally. It makes no token-count API request. Live input counts come from the last response and remain unknown before a response or after compaction.
+Check summaries read the known output formats of Jest, Vitest, pytest, cargo, and Go. For unknown output, the check shows a completed call and does not invent a pass count. A background check keeps its last reported state.
 
-The cost figure is the engine ledger, not a statement of account billing. Category estimates can differ from the live input count.
+The context summary estimates the categories locally. It makes no token-count API request. Live input counts come from the last response. They are unknown before the first response and after a compaction.
 
-The cat is braille line art after the original Bongo Cat: the table edge falls to the right, the face tilts with it, and the two bongos stand in front. A raised paw shows its toe beans, and a hit shows impact lines. The cat is 40 columns wide, or 34 or fewer in a narrow pane, and uses theme colors.
+The cost figure comes from the engine ledger. It is not a statement of account billing. Category estimates can differ from the live input count.
 
-The Activity view shows relative observed activity, not an exact running token rate. The activity history records each change in the number of running tools, running agents, and main turns, also while the pane is closed. The cat animates only in the visible Activity view. The pause control stops frame updates.
+The Activity view shows relative observed activity, not an exact running token rate. The activity history records each change in the number of running tools, running agents, and main turns, also while the pane is closed. The cat animates only while the Activity view is visible. The pause control changes the animation setting, so it stops the cat and the band spinner.
 
-The timeline knows the start and end of each tool call and main turn. Model time is the part of a turn without a running tool. An agent lane starts when the mod first observes the agent.
+The timeline knows the start and end of each tool call and main turn. Model time is the part of a turn without a running tool. An agent lane starts when the plugin first observes the agent.
 
-While work runs, elapsed times redraw once a second, also while the pane is closed, so the band stays current.
+While work runs, elapsed times redraw once a second, also while the pane is closed. A running tool, a main turn, and a running agent are work. The band spinner redraws only the band.
 
 ## Safety
 
-The mod observes existing work. It does not start builds, reviews, browser capture, model requests, or HTTP requests automatically.
+The plugin observes existing work. It does not automatically start builds, reviews, browser capture, model requests, or HTTP requests.
 
-Git reads happen only after the changes view or its refresh control is requested. The commands use argument vectors, disable external diff drivers and text conversion, and disable filesystem monitor commands.
+The plugin reads Git only when you select the Changes view or press its refresh control. The Git commands use argument vectors, disable external diff drivers and text conversion, and disable filesystem monitor commands.
 
-The mod does not retain raw prompts, shell command arguments, or shell output. A background shell task shows its description or its executable name, not its command. A cron shows its schedule, not its prompt.
+The plugin does not keep raw prompts, shell command arguments, or shell output, with one exception. A recognized check keeps a short label: the executable and its check subcommand or script, such as `cargo test` or `npm run test:unit`. Other `Bash` calls show only the executable name. A background shell task shows its description or its executable name, not its command. A cron shows its schedule, not its prompt.
 
-Review patches, finding summaries, todo text, and the last answer of each agent remain in bounded session memory. The mod does not write them to disk. Plugin storage holds only the view, band, animation, and zoom preferences.
+Patches, finding summaries, todo text, and the last answer of each agent stay in bounded session memory. The plugin does not write them to disk. Plugin storage holds only the view, band, animation, and zoom preferences.
 
-Copy path places the path of the selected file on the clipboard, relative to the repository root as the file list shows it. A file outside the repository gives its full path. Copy patch places a patch on the clipboard. Quote patch appends a patch to the draft. Quote patch does not submit the draft or replace existing text.
+"Copy path" puts the path of the selected file on the clipboard. The path is relative to the repository root, as the file list shows it. For a file outside the repository, the full path is copied. "Copy patch" puts the patch on the clipboard. "Quote patch" adds the patch to the end of the draft. It does not submit the draft or replace existing text.
 
-Observation errors go to the debug log. They do not change tool arguments, results, permission decisions, or streamed chunks. Existing shell hooks remain active.
+Observation errors go to the debug log. They do not change tool arguments, results, permission decisions, or streamed chunks. Existing shell hooks stay active.
 
 ## Nix integration
 
-The tracked source is `dotfiles/claude/.claude/plugins/cockpit/`. Home Manager links the complete root directly through `home.file.".claude/skills/cockpit".source`.
+The tracked source is `dotfiles/claude/.claude/plugins/cockpit/`. Home Manager links the complete plugin root directly through `home.file.".claude/skills/cockpit".source`, with an out-of-store symlink.
 
-The generic managed-plugin wrapper can cache a manifest-only entry for an out-of-store source. The direct link preserves the original manifest, type contract, and hook modules.
+Claude Code loads each folder in `~/.claude/skills/` that has a `.claude-plugin/plugin.json` file as a user plugin. No `--plugin-dir` flag or `enabledPlugins` entry is necessary. `claude plugin list` shows the plugin as `cockpit@skills-dir`. An interactive session watches the folder and reloads the hooks module after a file changes.
 
-The nono profile grants read access to the tracked target. Generated SDK declarations are optional for runtime use. A sandbox can refuse adjacent declaration writes without requiring source-wide write access.
+The generic managed-plugin wrapper can cache a manifest-only entry for an out-of-store source. The direct link keeps the original manifest, type contract, and hook modules.
 
-The implementation does not activate Home Manager or rebuild NixOS. The persistent link appears after the usual configuration activation.
+The nono profile grants read access to the tracked target. The generated SDK declarations are optional at runtime. A sandbox can refuse to write the declarations next to the source, and the plugin does not need write access to the whole source.
+
+Nothing in the plugin activates Home Manager or rebuilds NixOS. The link appears after the usual configuration activation.
 
 ### Development loading
 
-1. Run Claude Code with the tracked plugin path.
+The skills folder link already loads the tracked source in each session. Use `--plugin-dir` only where the link does not exist:
 
 ```sh
 claude --plugin-dir "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
 ```
 
-Interactive development paths support hot reload. Session development mods need the separate hot-reload approval from the person.
+An interactive session hot-reloads a development path. A session development mod needs a separate hot-reload approval from the person.
 
 ### Checks
 
-1. Run the native source check.
+1. Run the native source check:
 
-```sh
-claude plugin validate --strict "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
-```
+   ```sh
+   claude plugin validate --strict "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
+   ```
 
-2. Run the behavior tests.
+2. Run the behavior tests:
 
-```sh
-claude plugin test "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
-```
+   ```sh
+   claude plugin test "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
+   ```
 
-3. After the engine generates SDK declarations, run the TypeScript check.
+3. After the engine generates the SDK declarations, run the TypeScript check:
 
-```sh
-tsc -p "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
-```
+   ```sh
+   tsc -p "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
+   ```
 
-The engine generates `.claude-plugin/types/` after a normal mod load. The generated declarations describe the current engine and connected tools. Git ignores this directory.
+The engine generates `.claude-plugin/types/` after a normal plugin load. The generated declarations describe the current engine and the connected tools. Git ignores this directory.
 
-The tests use the native test engine, explicit surfaces, and mocked host operations. They cover descriptions and interactions, not the actual renderer paint.
+The tests use the native test engine, explicit surfaces, and mocked host operations. They cover descriptions and interactions, not the actual paint of the renderer.
 
 ## Source structure
 
 - `hooks/register.tsx` holds hooks, host operations, literal state references, the band, and the pane header.
-- `hooks/state.ts` holds initial state factories and fills missing fields in state from an earlier version.
+- `hooks/state.ts` holds initial state factories. It also fills the fields that state from an earlier version does not have.
 - `hooks/data.ts` holds bounded parsers and observation helpers.
-- `hooks/summary.ts` derives the status, totals, plan, context fill, and band parts from state.
+- `hooks/summary.ts` derives the status, totals, plan, context fill, activity history, and band rows from state.
 - `hooks/layout.tsx` holds shared drawing blocks: lines, headings, fields, cards, actions, and tabs.
 - `hooks/agents.tsx`, `hooks/tools.tsx`, `hooks/changes.tsx`, `hooks/context.tsx`, and `hooks/activity.tsx` draw one view each.
 - `hooks/theme.ts` holds shared theme-key colors and text formatting.

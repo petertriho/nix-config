@@ -291,6 +291,11 @@ export type CockpitMascot = {
   phase: CockpitActivity['phase']
 }
 
+/** The band spinner's frame. Only the band reads it, so a new frame redraws only the band. */
+export type CockpitPulse = {
+  frame: number
+}
+
 export type CockpitActions = {
   selectView: (view: CockpitView) => Promise<void>
   refreshAgents: () => Promise<void>
@@ -329,6 +334,7 @@ declare module 'claude-code' {
       context: CockpitContext
       preferences: CockpitPreferences
       mascot: CockpitMascot
+      pulse: CockpitPulse
     }
   }
 }

@@ -1,14 +1,14 @@
 import type { RenderElement, ThemeKey } from 'claude-code'
 import type { CockpitActivity, CockpitContext, CockpitMascot, CockpitSample, CockpitSpan, CockpitViewProps } from '../types'
 import { agentName } from './agents'
-import { actions, field, heading, line, muted, section, sparkline, viewWidth } from './layout'
+import { actions, field, heading, line, muted, section, viewWidth } from './layout'
 import type { Segment } from './summary'
 import {
-  agentElapsed, approvalWait, isLive, leadTool, mainTurns, runningTools, sessionStart, sessionStatus, toolDuration, toolLabel,
-  toolStats, waitDuration,
+  activityHistory, agentElapsed, approvalWait, HISTORY_BUCKET_MS, isLive, leadTool, mainTurns, runningTools, sessionStart,
+  sessionStatus, toolDuration, toolLabel, toolStats, waitDuration,
 } from './summary'
 import type { CockpitElements } from './theme'
-import { brief, clip, colors, duration, humanize, padEnd, percent, plural } from './theme'
+import { brief, clip, colors, duration, humanize, padEnd, percent, plural, sparkline } from './theme'
 
 const finite = (value: number | undefined | null): value is number =>
   typeof value === 'number' && Number.isFinite(value)
@@ -292,40 +292,6 @@ const catBlock = (ui: CockpitElements, props: CockpitViewProps, width: number): 
       {rows.map((segments, index) => line(ui, `activity:cat:${index}`, segments))}
     </Box>
   )
-}
-
-// ---------------------------------------------------------------- history
-
-export const HISTORY_BUCKET_MS = 5000
-
-// The level per bucket for the newest buckets up to `now`: the highest level
-// reached in the bucket, or the level carried from the sample before it.
-export const activityHistory = (
-  samples: readonly CockpitSample[], now: number, columns: number, bucketMs = HISTORY_BUCKET_MS,
-): number[] => {
-  const sorted = samples.filter(sample => finite(sample?.at) && finite(sample?.level)).slice().sort((left, right) => left.at - right.at)
-  const first = sorted[0]
-  if (first === undefined || !finite(now)) return []
-  const width = Math.max(1, Math.min(120, Math.floor(Number.isFinite(columns) ? columns : 40)))
-  const end = Math.floor(now / bucketMs)
-  const begin = Math.max(end - width + 1, Math.floor(first.at / bucketMs))
-  let carried = 0
-  let cursor = 0
-  while (cursor < sorted.length && Math.floor((sorted[cursor]?.at ?? 0) / bucketMs) < begin) {
-    carried = sorted[cursor]?.level ?? carried
-    cursor += 1
-  }
-  const levels: number[] = []
-  for (let bucket = begin; bucket <= end; bucket += 1) {
-    let peak = carried
-    while (cursor < sorted.length && Math.floor((sorted[cursor]?.at ?? 0) / bucketMs) === bucket) {
-      carried = sorted[cursor]?.level ?? carried
-      peak = Math.max(peak, carried)
-      cursor += 1
-    }
-    levels.push(peak)
-  }
-  return levels
 }
 
 // ---------------------------------------------------------------- timeline

@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface, Timer } from 'claude-code'
 import type {
   CockpitActions, CockpitActivity, CockpitAgent, CockpitChange, CockpitCompaction, CockpitContext, CockpitFinding,
-  CockpitMascot, CockpitPreferences, CockpitReview, CockpitSpan, CockpitTool, CockpitView, CockpitViewProps,
+  CockpitMascot, CockpitPreferences, CockpitPulse, CockpitReview, CockpitSpan, CockpitTool, CockpitView, CockpitViewProps,
 } from '../types'
 import { renderActivity, SPAN_ORDER } from './activity'
 import { renderAgents } from './agents'
@@ -17,7 +17,7 @@ import { line, paneFooter, tabMark, tabRows } from './layout'
 import { activityOf, contextOf, initialActivity, initialContext, initialReview, reviewOf } from './state'
 import type { Segment } from './summary'
 import {
-  bandSegments, changeTotals, contextColor, contextFill, isLive, mainTurns, runningTools, sessionStart, sessionStatus,
+  bandRows, changeTotals, contextColor, contextFill, isLive, mainTurns, runningTools, sessionStart, sessionStatus,
 } from './summary'
 import { brief, clip, colors, humanize, meter, percent, shortModel, usd } from './theme'
 import { renderTools } from './tools'
@@ -35,6 +35,7 @@ const preferences = atom({ plugin: 'cockpit', key: 'preferences' } as const, {
 const mascot = atom({ plugin: 'cockpit', key: 'mascot' } as const, {
   frame: 0, phase: 'idle',
 } satisfies CockpitMascot)
+const pulse = atom({ plugin: 'cockpit', key: 'pulse' } as const, { frame: 0 } satisfies CockpitPulse)
 
 // Session memory can hold an earlier version's shape. Every update reads it
 // filled in, and an updater that returns its input writes nothing.
@@ -369,8 +370,9 @@ const mascotPhase = (state: CockpitActivity): CockpitActivity['phase'] =>
     : state.working || state.agents.some(agent => agent.status === 'running') ? 'thinking'
     : state.phase
 
-// Four ticks a second: the cat's frames while the activity view shows. Elapsed
-// times redraw once a second while work runs, in the band as well as the pane.
+// Four ticks a second: the cat's frames while the activity view shows, and the
+// band spinner while work runs. Elapsed times redraw once a second while work
+// runs, in the band as well as the pane.
 const startTimer = ($: EngineInterface) => {
   if (timer !== undefined) return
   timer = $.clock.every(250, async () => {
@@ -381,9 +383,12 @@ const startTimer = ($: EngineInterface) => {
       const prefs = await read($, preferences)
       const pane = prefs.paneOpen ? (await $.ui.panes()).find(item => item.id === PANE) : undefined
       const shown = pane?.isPlaced === true && pane.isShown
-      if (!shown && tick % 4 !== 0) return
       const state = await read($, activity)
       const busy = state.working || state.tools.some(tool => tool.outcome === 'running')
+        || state.agents.some(agent => agent.status === 'running')
+      const spinning = busy && prefs.band && prefs.animation
+      if (!shown && !spinning && tick % 4 !== 0) return
+      if (spinning) await update($, pulse, (previous): CockpitPulse => ({ frame: ((previous?.frame ?? 0) + 1) % 1000000 }))
       if (shown) {
         await ensureSession($)
         const now = await $.clock.now()
@@ -822,19 +827,31 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const prefs = await read($, preferences)
     if (e.props.hasSurvey || !prefs.band || e.props.maxRows < 1) return next(e)
-    const [stored, r, c, now] = await Promise.all([read($, activity), read($, review), read($, context), $.clock.now()])
+    const [stored, r, c, beat, now] = await Promise.all([
+      read($, activity), read($, review), read($, context), read($, pulse), $.clock.now(),
+    ])
     const ui = $.ui.resolve(e)
     const { Box, Button } = ui
-    const segments = bandSegments(activityOf(stored), reviewOf(r), contextOf(c), {
-      isWorking: e.props.isWorking, columns: Math.max(8, e.props.bodyColumns - 13), now,
-    })
+    const frame = beat?.frame
+    // The plain one-glyph button and the gap after it take two columns.
+    const rows = bandRows(activityOf(stored), reviewOf(r), contextOf(c), {
+      isWorking: e.props.isWorking, columns: e.props.bodyColumns - 2, now, agentId: e.props.view.agentId,
+      frame: prefs.animation && typeof frame === 'number' && Number.isFinite(frame) ? frame : undefined,
+    }).slice(0, e.props.maxRows)
     const base = await next(e)
     return (
       <Box flexDirection="column">
         {base}
-        <Box gap={1}>
-          <Button key="cockpit-open" label="◉ cockpit" onPress={() => { void observe($, () => openCockpit($)) }} />
-          {line(ui, 'cockpit-band', segments)}
+        <Box flexDirection="row" columnGap={1}>
+          <Button key="cockpit-open" plain label="◉" onPress={() => { void observe($, () => openCockpit($)) }} />
+          <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
+            {rows.map((row, index) => (
+              <Box key={`cockpit-band:${index}`} flexDirection="row" justifyContent="space-between">
+                {line(ui, `cockpit-band:${index}:start`, row.start)}
+                {row.end.length > 0 ? line(ui, `cockpit-band:${index}:end`, row.end) : null}
+              </Box>
+            ))}
+          </Box>
         </Box>
       </Box>
     )

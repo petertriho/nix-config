@@ -17,7 +17,7 @@ export const line = (ui: CockpitElements, key: string, segments: readonly Segmen
   const { Text } = ui
   return (
     <Text key={key} wrap={wrap ? 'wrap' : 'truncate-end'}>
-      {segments.map(segment => <Text color={segment.color} bold={segment.bold}>{segment.text}</Text>)}
+      {segments.map(segment => <Text color={segment.color} backgroundColor={segment.backgroundColor} bold={segment.bold}>{segment.text}</Text>)}
     </Text>
   )
 }
@@ -107,14 +107,6 @@ export const visibleWindow = <T,>(items: readonly T[], selected: number, limit: 
 
 export const neighboringIndex = (length: number, selected: number, direction: number): number =>
   length > 0 ? (Math.max(0, selected) + direction + length) % length : 0
-
-export const sparkline = (values: readonly number[], columns: number): string => {
-  const shown = values.slice(-Math.max(1, Math.min(120, Math.floor(Number.isFinite(columns) ? columns : 40))))
-  if (shown.length === 0) return ''
-  const maximum = Math.max(1e-9, ...shown.filter(Number.isFinite))
-  const glyphs = '▁▂▃▄▅▆▇█'
-  return shown.map(value => glyphs[Math.max(0, Math.min(7, Math.round((Number.isFinite(value) ? Math.max(0, value) : 0) / maximum * 7)))] ?? '▁').join('')
-}
 
 export type Tab = { label: string; badge?: string }
 

@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'claude-code/testing'
 import type { CockpitActivity, CockpitContext, CockpitReview } from '../types'
 import { initialActivity, initialContext, initialReview } from '../hooks/state'
+import type { BandRow } from '../hooks/summary'
 import {
-  approvalWait, bandSegments, cacheHit, changeTotals, checkResult, contextColor, contextFill, latestCheck, leadTool,
+  approvalWait, bandRows, cacheHit, changeTotals, checkResult, contextColor, contextFill, isStale, latestCheck, leadTool,
   planProgress, planState, runningTools, sessionStatus, tokenTotals, toolDuration, toolStats, waitDuration,
 } from '../hooks/summary'
-import { bar, brief, clipStart, colors, compact, duration, shortModel, usd } from '../hooks/theme'
+import { bar, brief, cells, clipStart, colors, compact, duration, shortModel, stopwatch, usd } from '../hooks/theme'
 import { agent, breakdown, tool, USAGE } from './kit'
 
 const text = (segments: readonly { text: string }[]): string => segments.map(segment => segment.text).join('')
@@ -94,7 +95,7 @@ describe('the band', () => {
     ...initialActivity(),
     working: true, turnStartedAt: 1000,
     tools: [tool('own', { tool: 'Bash', target: 'npm', startedAt: 3000 })],
-    agents: [agent('worker')],
+    agents: [agent('worker', { startedAt: 5000 })],
     todos: [{ items: [
       { content: 'Read', status: 'completed', activeForm: 'Reading' },
       { content: 'Write', status: 'in_progress', activeForm: 'Writing tests' },
@@ -108,29 +109,103 @@ describe('the band', () => {
       { path: 'a.ts', patch: '', additions: 4, deletions: 1, source: 'git', updatedAt: 1 },
       { path: 'b.ts', patch: '', additions: 1, deletions: 0, source: 'observed', updatedAt: 1 },
     ],
-    checks: [{ id: 'c', label: 'npm test', status: 'failed', failed: 2, finishedAt: 4000 }],
+    checks: [{ id: 'c', label: 'npm test', status: 'failed', failed: 2, passed: 40, finishedAt: 4000 }],
   }
   const context: CockpitContext = {
     ...initialContext(),
     usage: { startedAt: 0, context: { window: 200000, tokens: 128000, percent: 64 }, rateLimits: [], cost: { usd: 1.5 } },
   }
+  const rows = (band: readonly BandRow[]): string[] =>
+    band.map(row => `${text(row.start)}${row.end.length > 0 ? ` | ${text(row.end)}` : ''}`)
+  const working = { isWorking: true, columns: 200, now: 15000 }
 
-  test('a wide band shows every part in priority order', () => {
-    expect(text(bandSegments(activity, review, context, { isWorking: true, columns: 200, now: 15000 })))
-      .toBe('▸ Bash npm 12s · 1/3 Writing tests · 1 agent · ctx 64% · ✗ npm test 2 failed · 2 files +5 −1 · $1.50 · 1 bg')
+  test('a wide band shows what runs now, then where the work stands', () => {
+    expect(rows(bandRows(activity, review, context, working))).toEqual([
+      '▸ Bash npm 12s  ◐ worker 10s',
+      '██     1/3 Writing tests  ✗ npm test 2/42 failed  2 files +5 −1 ▮▮▮▮▮',
+    ])
+  })
+
+  test('the band leaves out what the status line and the engine show', () => {
+    const band = rows(bandRows(activity, review, context, working)).join('\n')
+    for (const part of ['ctx', '64%', '$1.50', 'bg', 'thinking', 'last turn']) expect(band).not.toContain(part)
+  })
+
+  test('the plan bar draws its track in the muted color', () => {
+    const plan = bandRows(activity, review, context, working)[1]?.start ?? []
+    expect(plan.slice(0, 2)).toEqual([
+      { text: '██', color: colors.accent },
+      { text: '    ', backgroundColor: colors.muted },
+    ])
   })
 
   test('a narrow band shortens parts, drops the lowest, and restores what fits', () => {
-    expect(text(bandSegments(activity, review, context, { isWorking: true, columns: 40, now: 15000 })))
-      .toBe('▸ Bash npm 12s · 1/3 · 1 agent · ctx 64%')
-    expect(text(bandSegments(activity, review, context, { isWorking: true, columns: 8, now: 15000 }))).toBe('▸ Bash …')
+    expect(rows(bandRows(activity, review, context, { ...working, columns: 42 }))).toEqual([
+      '▸ Bash npm 12s  ◐ worker 10s',
+      '██     1/3  ✗ npm test 2/42 failed  +5 −1',
+    ])
+    expect(rows(bandRows(activity, review, context, { ...working, columns: 8 }))).toEqual(['▸ Bash …', '██     …'])
   })
 
-  test('an idle band names the last turn, and a stop failure leads in red', () => {
+  test('the status turns with the spinner frame', () => {
+    expect(text(bandRows(activity, review, context, { ...working, frame: 3 })[0]?.start ?? [])).toMatch(/^⠸ Bash npm 12s/)
+  })
+
+  test('an idle band drops the first row, and a stop failure leads in red', () => {
     const idle = { ...initialActivity(), turns: [{ id: 't', durationMs: 65000, reason: 'answer', finishedAt: 1 }] }
-    expect(text(bandSegments(idle, initialReview(), initialContext(), { isWorking: false, columns: 80, now: 2 }))).toBe('○ idle · last turn 1m')
-    const failed = bandSegments({ ...idle, stopFailure: { error: 'rate_limit', at: 1 } }, initialReview(), initialContext(), { isWorking: false, columns: 80, now: 2 })
-    expect(failed[0]).toEqual({ text: '✗ stopped: rate limit', color: colors.red })
+    const options = { isWorking: false, columns: 80, now: 2 }
+    expect(bandRows(idle, initialReview(), initialContext(), options)).toEqual([])
+    expect(rows(bandRows(idle, review, initialContext(), options))).toEqual(['✗ npm test 2/42 failed  2 files +5 −1 ▮▮▮▮▮'])
+    const failed = bandRows({ ...idle, stopFailure: { error: 'rate_limit', at: 1 } }, initialReview(), initialContext(), options)
+    expect(failed[0]?.start[0]).toEqual({ text: '✗ stopped: rate limit', color: colors.red })
+  })
+
+  test('a finished plan stays only while work runs', () => {
+    const done: CockpitActivity = { ...initialActivity(), todos: [{ items: [{ content: 'Read', status: 'completed', activeForm: 'Reading' }], updatedAt: 1 }] }
+    expect(bandRows(done, initialReview(), initialContext(), { ...working, isWorking: false })).toEqual([])
+    expect(rows(bandRows({ ...done, working: true }, initialReview(), initialContext(), working))).toEqual(['▸ thinking', '██████ 1/1 todos'])
+  })
+
+  test('an edit after a check marks the result stale', () => {
+    const edited = { ...activity, tools: [...activity.tools, tool('edit', { tool: 'Edit', outcome: 'success', finishedAt: 5000 })] }
+    expect(isStale(review.checks[0]!, edited.tools)).toBe(true)
+    expect(isStale(review.checks[0]!, activity.tools)).toBe(false)
+    const check = (bandRows(edited, review, context, working)[1]?.start ?? []).find(segment => segment.text.startsWith('✗'))
+    expect(check).toEqual({ text: '✗ npm test 2/42 failed (stale)', color: colors.muted })
+  })
+
+  test('the sparkline shows recent activity at the end of the first row', () => {
+    const busy = { ...activity, samples: [{ at: 0, level: 1 }, { at: 40000, level: 3 }] }
+    expect(rows(bandRows(busy, initialReview(), initialContext(), { ...working, now: 75000 }))[0])
+      .toBe('▸ Bash npm 1m12s  ◐ worker 1m | ▃██')
+  })
+
+  test('a compaction warning shows only near the auto-compact threshold', () => {
+    const near = (tokens: number, percent: number): CockpitContext => ({
+      ...initialContext(),
+      usage: {
+        startedAt: 0, rateLimits: [],
+        context: { window: 200000, tokens, percent, breakdown: breakdown({ isAutoCompactEnabled: true, autoCompactThreshold: 167000 }) },
+      },
+      fills: [100000, 104000, 108000].map((value, index) => ({ at: index, tokens: value })),
+    })
+    const idle = { isWorking: false, columns: 80, now: 2 }
+    expect(bandRows(initialActivity(), initialReview(), near(100000, 50), idle)).toEqual([])
+    expect(rows(bandRows(initialActivity(), initialReview(), near(150000, 75), idle))).toEqual(['⟳ ~4 replies to compact'])
+    expect(bandRows(initialActivity(), initialReview(), near(170000, 85), idle)[0]?.start[0]?.color).toBe(colors.red)
+  })
+
+  test('the band follows the agent whose transcript is in view', () => {
+    const viewed: CockpitActivity = {
+      ...activity,
+      tools: [...activity.tools, tool('grep', { tool: 'Grep', target: 'band', agentId: 'worker', startedAt: 11000 })],
+      agents: [...activity.agents, agent('done', { status: 'completed', startedAt: 1000, completedAt: 5000 })],
+      todos: [...activity.todos, { agentId: 'worker', items: [{ content: 'Look', status: 'in_progress', activeForm: 'Looking' }], updatedAt: 1 }],
+    }
+    expect(rows(bandRows(viewed, initialReview(), initialContext(), { ...working, agentId: 'worker' })))
+      .toEqual(['worker › ▸ Grep band 4s', '       0/1 Looking'])
+    expect(rows(bandRows(viewed, initialReview(), initialContext(), { ...working, agentId: 'done' }))[0])
+      .toBe('done › ✓ completed 4s  ◐ worker 10s')
   })
 })
 
@@ -206,5 +281,13 @@ describe('formatting', () => {
     expect(bar(0.5, 4)).toBe('██')
     expect(bar(1 / 16, 4)).toBe('▎')
     expect(bar(Number.NaN, 4)).toBe('')
+  })
+
+  test('live clocks count whole seconds and widths count terminal cells', () => {
+    expect([0, 9400, 59999, 65000, 7440000, Number.NaN].map(stopwatch)).toEqual(['0s', '9s', '59s', '1m05s', '2h04m', '0s'])
+    expect(cells('▸ Bash')).toBe(6)
+    expect(cells('测试')).toBe(4)
+    expect(cells('ok ✅')).toBe(5)
+    expect(cells('é')).toBe(1)
   })
 })

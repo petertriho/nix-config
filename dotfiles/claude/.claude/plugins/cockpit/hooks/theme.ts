@@ -20,6 +20,14 @@ export const cleanText = (text: string): string =>
 
 const length = (text: string): number => [...text].length
 
+// East Asian wide letters and emoji take two terminal cells, combining marks none.
+const WIDE = /[\u{1100}-\u{115f}\u{2e80}-\u{303e}\u{3041}-\u{33ff}\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{a000}-\u{a4cf}\u{ac00}-\u{d7a3}\u{f900}-\u{faff}\u{fe30}-\u{fe4f}\u{ff00}-\u{ff60}\u{ffe0}-\u{ffe6}\u{20000}-\u{3fffd}]|\p{Emoji_Presentation}/u
+const ZERO = /[\p{Mn}\p{Me}\u{200b}-\u{200f}\u{fe00}-\u{fe0f}]/u
+
+/** The terminal cells a text takes. */
+export const cells = (text: string): number =>
+  [...text].reduce((total, char) => total + (ZERO.test(char) ? 0 : WIDE.test(char) ? 2 : 1), 0)
+
 export const clip = (text: string, columns: number): string => {
   const value = cleanText(text)
   const limit = Math.max(1, Math.floor(columns))
@@ -55,6 +63,14 @@ export const brief = (ms: number): string => {
   if (safe < 3600000) return `${Math.floor(safe / 60000)}m`
   if (safe < 86400000) return `${Math.floor(safe / 3600000)}h`
   return `${Math.floor(safe / 86400000)}d`
+}
+
+/** Whole seconds, for a clock that redraws once a second: 9s, 1m05s, 2h04m. */
+export const stopwatch = (ms: number): string => {
+  const seconds = Math.floor(Math.max(0, Number.isFinite(ms) ? ms : 0) / 1000)
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m${String(seconds % 60).padStart(2, '0')}s`
+  return `${Math.floor(seconds / 3600)}h${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}m`
 }
 
 export const ago = (now: number, at: number | null | undefined): string =>
@@ -102,6 +118,14 @@ export const bar = (fraction: number, width: number): string => {
   const cells = Math.max(0, Math.floor(width))
   const eighths = Math.round(Math.max(0, Math.min(1, Number.isFinite(fraction) ? fraction : 0)) * cells * 8)
   return `${'█'.repeat(Math.floor(eighths / 8))}${EIGHTHS[eighths % 8] ?? ''}`
+}
+
+export const sparkline = (values: readonly number[], columns: number): string => {
+  const shown = values.slice(-Math.max(1, Math.min(120, Math.floor(Number.isFinite(columns) ? columns : 40))))
+  if (shown.length === 0) return ''
+  const maximum = Math.max(1e-9, ...shown.filter(Number.isFinite))
+  const glyphs = '▁▂▃▄▅▆▇█'
+  return shown.map(value => glyphs[Math.max(0, Math.min(7, Math.round((Number.isFinite(value) ? Math.max(0, value) : 0) / maximum * 7)))] ?? '▁').join('')
 }
 
 export const rule = (width: number): string => '─'.repeat(Math.max(0, Math.floor(width)))
