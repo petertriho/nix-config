@@ -5,11 +5,11 @@
   ...
 }:
 let
+  colors = config.lib.stylix.colors.withHashtag;
   niriActions = config.lib.niri.actions;
   niriQuickshellOsd = command: niriActions.spawn "quickshell" "ipc" "call" "quickshell-osd" command;
   niriQuickshellNotifications =
     command: niriActions.spawn "quickshell" "ipc" "call" "quickshell-notifications" command;
-  niriScreenshotArea = niriActions.spawn "sh" "-c" ''grim -g "$(slurp)" - | wl-copy'';
   niriWorkspaceBinds = builtins.listToAttrs (
     builtins.concatLists (
       builtins.genList (
@@ -57,6 +57,7 @@ in
         };
         touchpad = {
           tap = true;
+          dwt = true;
           natural-scroll = true;
           drag = true;
         };
@@ -64,20 +65,26 @@ in
       };
 
       layout = {
-        gaps = 0;
+        # The focus ring draws in the gap around the window. Keep gaps at least the ring
+        # width, or the ring draws over the neighbouring window.
+        gaps = 4;
         center-focused-column = "on-overflow";
-        background-color = config.lib.stylix.colors.withHashtag.base00;
+        background-color = colors.base00;
+        focus-ring = {
+          enable = true;
+          width = 2;
+          active.color = colors.base0D;
+          inactive.color = colors.base03;
+          urgent.color = colors.base08;
+        };
         preset-column-widths = [
           { proportion = 0.33333; }
           { proportion = 0.5; }
           { proportion = 0.66667; }
+          { proportion = 1.0; }
         ];
         default-column-width.proportion = 1.0;
       };
-
-      spawn-at-startup = [ ];
-
-      "xwayland-satellite".path = "xwayland-satellite";
 
       prefer-no-csd = true;
 
@@ -94,7 +101,6 @@ in
           "Print".action.screenshot = {
             show-pointer = false;
           };
-          "Shift+Print".action = niriScreenshotArea;
           "Ctrl+Print".action.screenshot-screen = {
             show-pointer = false;
           };
@@ -113,11 +119,30 @@ in
             allow-when-locked = true;
             action = niriQuickshellOsd "volumeUp";
           };
-          "XF86MonBrightnessDown".action = niriQuickshellOsd "brightnessDown";
-          "XF86MonBrightnessUp".action = niriQuickshellOsd "brightnessUp";
+          # quickshell-osd has no mic handler, so this mutes without an OSD.
+          "XF86AudioMicMute" = {
+            allow-when-locked = true;
+            action = spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle";
+          };
+          "XF86MonBrightnessDown" = {
+            allow-when-locked = true;
+            action = niriQuickshellOsd "brightnessDown";
+          };
+          "XF86MonBrightnessUp" = {
+            allow-when-locked = true;
+            action = niriQuickshellOsd "brightnessUp";
+          };
           "XF86AudioPlay" = {
             allow-when-locked = true;
             action = spawn "playerctl" "play-pause";
+          };
+          "XF86AudioPause" = {
+            allow-when-locked = true;
+            action = spawn "playerctl" "play-pause";
+          };
+          "XF86AudioStop" = {
+            allow-when-locked = true;
+            action = spawn "playerctl" "stop";
           };
           "XF86AudioPrev" = {
             allow-when-locked = true;
@@ -129,9 +154,11 @@ in
           };
 
           # System Actions
+          # Lock through logind so hypridle's lock_cmd guard stops a second hyprlock.
           "Mod+Escape" = {
             allow-inhibiting = false;
-            action = spawn "hyprlock";
+            repeat = false;
+            action = spawn "loginctl" "lock-session";
           };
           "Mod+Ctrl+Escape".action = toggle-keyboard-shortcuts-inhibit;
           "Mod+Shift+Escape".action = quit;
@@ -144,6 +171,11 @@ in
             repeat = false;
             hotkey-overlay.title = "Toggle Notification Center";
             action = niriQuickshellNotifications "toggle";
+          };
+          "Mod+I" = {
+            repeat = false;
+            hotkey-overlay.title = "Toggle Caffeine";
+            action = spawn "quickshell" "ipc" "call" "quickshell-caffeine" "toggle";
           };
 
           # Launch
@@ -174,9 +206,11 @@ in
           };
 
           # Window: Misc
-          "Mod+Tab".action = focus-column-right-or-first;
-          "Mod+Shift+Tab".action = focus-column-left-or-last;
-          "Mod+Q".action = close-window;
+          # Leave Mod+Tab and Alt+Tab unbound so niri's built-in recent-windows switcher handles them.
+          "Mod+Q" = {
+            repeat = false;
+            action = close-window;
+          };
           "Mod+M".action = maximize-column;
           "Mod+Z".action = fullscreen-window;
           "Mod+Ctrl+Shift+F".action = toggle-windowed-fullscreen;
@@ -201,7 +235,6 @@ in
           "Mod+Shift+R".action = switch-preset-column-width-back;
           "Mod+Ctrl+R".action = reset-window-height;
           "Mod+Ctrl+Shift+R".action = switch-preset-window-height;
-          "Mod+Ctrl+O".action = toggle-window-rule-opacity;
           "Mod+Minus".action = set-column-width "-10%";
           "Mod+Equal".action = set-column-width "+10%";
           "Mod+Shift+Minus".action = set-window-height "-10%";
@@ -220,6 +253,8 @@ in
           "Mod+Right".action = focus-column-right;
 
           # Window: Move
+          "Mod+Ctrl+Shift+H".action = move-column-to-first;
+          "Mod+Ctrl+Shift+L".action = move-column-to-last;
           "Mod+Shift+H".action = move-column-left;
           "Mod+Shift+J".action = move-window-down;
           "Mod+Shift+K".action = move-window-up;
@@ -240,6 +275,9 @@ in
           };
           "Mod+WheelScrollRight".action = focus-column-right;
           "Mod+WheelScrollLeft".action = focus-column-left;
+          # For wheels without horizontal scroll.
+          "Mod+Shift+WheelScrollDown".action = focus-column-right;
+          "Mod+Shift+WheelScrollUp".action = focus-column-left;
 
           # Workspace: Focus
           "Mod+N".action = focus-workspace-down;
@@ -258,54 +296,57 @@ in
           "Mod+Ctrl+Shift+N".action = move-workspace-down;
           "Mod+Ctrl+Shift+P".action = move-workspace-up;
 
+          # Monitor binds use Mod+Alt because bare Alt binds are global and take keys such as
+          # Alt+Left and Alt+H from apps.
+
           # Monitor: Focus
-          "Alt+H".action = focus-monitor-left;
-          "Alt+J".action = focus-monitor-down;
-          "Alt+K".action = focus-monitor-up;
-          "Alt+L".action = focus-monitor-right;
-          "Alt+Left".action = focus-monitor-left;
-          "Alt+Down".action = focus-monitor-down;
-          "Alt+Up".action = focus-monitor-up;
-          "Alt+Right".action = focus-monitor-right;
-          "Alt+N".action = focus-monitor-next;
-          "Alt+P".action = focus-monitor-previous;
+          "Mod+Alt+H".action = focus-monitor-left;
+          "Mod+Alt+J".action = focus-monitor-down;
+          "Mod+Alt+K".action = focus-monitor-up;
+          "Mod+Alt+L".action = focus-monitor-right;
+          "Mod+Alt+Left".action = focus-monitor-left;
+          "Mod+Alt+Down".action = focus-monitor-down;
+          "Mod+Alt+Up".action = focus-monitor-up;
+          "Mod+Alt+Right".action = focus-monitor-right;
+          "Mod+Alt+N".action = focus-monitor-next;
+          "Mod+Alt+P".action = focus-monitor-previous;
 
           # Monitor: Move Window
-          "Alt+Shift+H".action = move-window-to-monitor-left;
-          "Alt+Shift+J".action = move-window-to-monitor-down;
-          "Alt+Shift+K".action = move-window-to-monitor-up;
-          "Alt+Shift+L".action = move-window-to-monitor-right;
-          "Alt+Shift+Left".action = move-window-to-monitor-left;
-          "Alt+Shift+Down".action = move-window-to-monitor-down;
-          "Alt+Shift+Up".action = move-window-to-monitor-up;
-          "Alt+Shift+Right".action = move-window-to-monitor-right;
-          "Alt+Shift+N".action = move-window-to-monitor-next;
-          "Alt+Shift+P".action = move-window-to-monitor-previous;
+          "Mod+Alt+Shift+H".action = move-window-to-monitor-left;
+          "Mod+Alt+Shift+J".action = move-window-to-monitor-down;
+          "Mod+Alt+Shift+K".action = move-window-to-monitor-up;
+          "Mod+Alt+Shift+L".action = move-window-to-monitor-right;
+          "Mod+Alt+Shift+Left".action = move-window-to-monitor-left;
+          "Mod+Alt+Shift+Down".action = move-window-to-monitor-down;
+          "Mod+Alt+Shift+Up".action = move-window-to-monitor-up;
+          "Mod+Alt+Shift+Right".action = move-window-to-monitor-right;
+          "Mod+Alt+Shift+N".action = move-window-to-monitor-next;
+          "Mod+Alt+Shift+P".action = move-window-to-monitor-previous;
 
           # Monitor: Move Column
-          "Alt+Ctrl+H".action = move-column-to-monitor-left;
-          "Alt+Ctrl+J".action = move-column-to-monitor-down;
-          "Alt+Ctrl+K".action = move-column-to-monitor-up;
-          "Alt+Ctrl+L".action = move-column-to-monitor-right;
-          "Alt+Ctrl+Left".action = move-column-to-monitor-left;
-          "Alt+Ctrl+Down".action = move-column-to-monitor-down;
-          "Alt+Ctrl+Up".action = move-column-to-monitor-up;
-          "Alt+Ctrl+Right".action = move-column-to-monitor-right;
-          "Alt+Ctrl+N".action = move-column-to-monitor-next;
-          "Alt+Ctrl+P".action = move-column-to-monitor-previous;
+          "Mod+Alt+Ctrl+H".action = move-column-to-monitor-left;
+          "Mod+Alt+Ctrl+J".action = move-column-to-monitor-down;
+          "Mod+Alt+Ctrl+K".action = move-column-to-monitor-up;
+          "Mod+Alt+Ctrl+L".action = move-column-to-monitor-right;
+          "Mod+Alt+Ctrl+Left".action = move-column-to-monitor-left;
+          "Mod+Alt+Ctrl+Down".action = move-column-to-monitor-down;
+          "Mod+Alt+Ctrl+Up".action = move-column-to-monitor-up;
+          "Mod+Alt+Ctrl+Right".action = move-column-to-monitor-right;
+          "Mod+Alt+Ctrl+N".action = move-column-to-monitor-next;
+          "Mod+Alt+Ctrl+P".action = move-column-to-monitor-previous;
 
           # Monitor: Move Workspace
-          "Alt+Ctrl+Shift+H".action = move-workspace-to-monitor-left;
-          "Alt+Ctrl+Shift+J".action = move-workspace-to-monitor-down;
-          "Alt+Ctrl+Shift+K".action = move-workspace-to-monitor-up;
-          "Alt+Ctrl+Shift+L".action = move-workspace-to-monitor-right;
-          "Alt+Ctrl+Shift+Left".action = move-workspace-to-monitor-left;
-          "Alt+Ctrl+Shift+Down".action = move-workspace-to-monitor-down;
-          "Alt+Ctrl+Shift+Up".action = move-workspace-to-monitor-up;
-          "Alt+Ctrl+Shift+Right".action = move-workspace-to-monitor-right;
-          "Alt+Shift+M".action = move-workspace-to-monitor-next;
-          "Alt+Ctrl+Shift+N".action = move-workspace-to-monitor-next;
-          "Alt+Ctrl+Shift+P".action = move-workspace-to-monitor-previous;
+          "Mod+Alt+Ctrl+Shift+H".action = move-workspace-to-monitor-left;
+          "Mod+Alt+Ctrl+Shift+J".action = move-workspace-to-monitor-down;
+          "Mod+Alt+Ctrl+Shift+K".action = move-workspace-to-monitor-up;
+          "Mod+Alt+Ctrl+Shift+L".action = move-workspace-to-monitor-right;
+          "Mod+Alt+Ctrl+Shift+Left".action = move-workspace-to-monitor-left;
+          "Mod+Alt+Ctrl+Shift+Down".action = move-workspace-to-monitor-down;
+          "Mod+Alt+Ctrl+Shift+Up".action = move-workspace-to-monitor-up;
+          "Mod+Alt+Ctrl+Shift+Right".action = move-workspace-to-monitor-right;
+          "Mod+Alt+Shift+M".action = move-workspace-to-monitor-next;
+          "Mod+Alt+Ctrl+Shift+N".action = move-workspace-to-monitor-next;
+          "Mod+Alt+Ctrl+Shift+P".action = move-workspace-to-monitor-previous;
         }
         // niriWorkspaceBinds;
     };
