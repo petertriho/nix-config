@@ -1,0 +1,2 @@
+singleton WhichKeyService 1.0 Service.qml
+WhichKeyOverlay 1.0 Overlay.qml

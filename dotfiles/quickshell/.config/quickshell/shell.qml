@@ -8,6 +8,7 @@ import "modules/Bar/workspaces"
 import "modules/Common"
 import "modules/ControlOSD"
 import "modules/Notifications"
+import "modules/WhichKey"
 
 ShellRoot {
     id: root
@@ -121,6 +122,26 @@ ShellRoot {
         function reload(): void {
             // Later, so the IPC call returns before this generation is destroyed.
             Qt.callLater(() => Quickshell.reload(false));
+        }
+    }
+
+    // The which-key overlay lists niri binds, so it loads only on niri.
+    LazyLoader {
+        active: WorkspaceService.compositorName === "niri"
+
+        WhichKeyOverlay {}
+    }
+
+    // Shows a layer without held keys, to check the layout. Example:
+    // `quickshell ipc call quickshell-whichkey preview Mod+Shift`.
+    IpcHandler {
+        target: "quickshell-whichkey"
+
+        function preview(layer: string): string {
+            return WhichKeyService.preview(layer);
+        }
+        function hide(): void {
+            WhichKeyService.hide();
         }
     }
 

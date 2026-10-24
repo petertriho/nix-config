@@ -216,6 +216,28 @@ Singleton {
         readonly property int refreshIntervalSec: 900
     }
 
+    // Which-key overlay (modules/WhichKey): the niri binds for the held
+    // modifiers, in the bottom-right corner, while Mod is held.
+    component WhichKeyGroup: QtObject {
+        // The overlay shows when Mod was held this long with no key or
+        // mouse button press.
+        readonly property int delayMs: 500
+        // The keymods system service (systems/nixos/modules/desktop-environment/keymods.nix).
+        readonly property string socketPath: "/run/keymods.sock"
+        // The first retry after a failed connection. Each failure doubles
+        // the wait, up to reconnectMaxMs.
+        readonly property int reconnectMs: 2000
+        readonly property int reconnectMaxMs: 30000
+        readonly property int rowSpacing: 2
+        // Space between the title and the rows.
+        readonly property int titleSpacing: 6
+        // Space between two columns of rows.
+        readonly property int columnSpacing: 24
+        // Space between a key and its title.
+        readonly property int keySpacing: 12
+        required property int fontSize
+    }
+
     // Shared look of popups, drawers, toasts and bar modules.
     component StyleGroup: QtObject {
         // Popups, drawers and toasts.
@@ -343,6 +365,9 @@ Singleton {
         source: root.theme ? root.theme.notifications : null
     }
     readonly property CodexbarGroup codexbar: CodexbarGroup {}
+    readonly property WhichKeyGroup whichKey: WhichKeyGroup {
+        fontSize: root.fonts.defaultSize
+    }
     readonly property StyleGroup style: StyleGroup {
         borderColor: root.colors.base02
         // Opaque: with any transparency, bright windows show through the text.
