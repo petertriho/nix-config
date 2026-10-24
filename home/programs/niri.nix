@@ -160,7 +160,10 @@ in
             repeat = false;
             action = spawn "loginctl" "lock-session";
           };
-          "Mod+Ctrl+Escape".action = toggle-keyboard-shortcuts-inhibit;
+          "Mod+Ctrl+Escape" = {
+            hotkey-overlay.title = "Toggle Shortcuts Inhibit";
+            action = toggle-keyboard-shortcuts-inhibit;
+          };
           "Mod+Shift+Escape".action = quit;
           "Mod+Shift+Slash".action = show-hotkey-overlay;
           "Mod+O" = {
@@ -212,10 +215,19 @@ in
             action = close-window;
           };
           "Mod+M".action = maximize-column;
-          "Mod+Z".action = fullscreen-window;
-          "Mod+Ctrl+Shift+F".action = toggle-windowed-fullscreen;
+          "Mod+Z" = {
+            hotkey-overlay.title = "Fullscreen Window";
+            action = fullscreen-window;
+          };
+          "Mod+Ctrl+Shift+F" = {
+            hotkey-overlay.title = "Toggle Windowed Fullscreen";
+            action = toggle-windowed-fullscreen;
+          };
           "Mod+C".action = center-column;
-          "Mod+Ctrl+C".action = center-visible-columns;
+          "Mod+Ctrl+C" = {
+            hotkey-overlay.title = "Center Visible Columns";
+            action = center-visible-columns;
+          };
           "Mod+Shift+C".action = center-window;
 
           # Niri has no submaps. These keep the useful window-mode actions directly reachable.
@@ -230,11 +242,17 @@ in
           "Mod+BracketRight".action = consume-or-expel-window-right;
           "Mod+Comma".action = consume-window-into-column;
           "Mod+Period".action = expel-window-from-column;
-          "Mod+Y".action = toggle-column-tabbed-display;
+          "Mod+Y" = {
+            hotkey-overlay.title = "Toggle Tabbed Column";
+            action = toggle-column-tabbed-display;
+          };
           "Mod+R".action = switch-preset-column-width;
           "Mod+Shift+R".action = switch-preset-column-width-back;
           "Mod+Ctrl+R".action = reset-window-height;
-          "Mod+Ctrl+Shift+R".action = switch-preset-window-height;
+          "Mod+Ctrl+Shift+R" = {
+            hotkey-overlay.title = "Switch Preset Window Heights";
+            action = switch-preset-window-height;
+          };
           "Mod+Minus".action = set-column-width "-10%";
           "Mod+Equal".action = set-column-width "+10%";
           "Mod+Shift+Minus".action = set-window-height "-10%";
@@ -282,7 +300,10 @@ in
           # Workspace: Focus
           "Mod+N".action = focus-workspace-down;
           "Mod+P".action = focus-workspace-up;
-          "Mod+Grave".action = focus-workspace-previous;
+          "Mod+Grave" = {
+            hotkey-overlay.title = "Switch to Previous Workspace";
+            action = focus-workspace-previous;
+          };
 
           # Workspace: Move Window
           "Mod+Shift+N".action = move-window-to-workspace-down { focus = true; };
