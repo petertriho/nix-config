@@ -53,6 +53,10 @@
       "rev": "09d9ebef2cc5a5c04db7a349cd6c61bdf84ecc8e",
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
+    "coerce.nvim": {
+      "rev": "1d0b987b02280ec03dc82f7a94acad4361eb8163",
+      "src": "https://github.com/gregorias/coerce.nvim"
+    },
     "colorful-menu.nvim": {
       "rev": "196ddf16d5f8fec09ba7f20e6b153aa5188e907b",
       "src": "https://github.com/xzbdmw/colorful-menu.nvim"
@@ -64,6 +68,10 @@
     "conform.nvim": {
       "rev": "016802de402556da54c36bd7359b441266b01cdd",
       "src": "https://github.com/stevearc/conform.nvim"
+    },
+    "coop.nvim": {
+      "rev": "26df3be54846ed44b5a9d7749f7780049931b8a8",
+      "src": "https://github.com/gregorias/coop.nvim"
     },
     "dial.nvim": {
       "rev": "f2634758455cfa52a8acea6f142dcd6271a1bf57",
@@ -280,10 +288,6 @@
     "vim-abolish": {
       "rev": "84bdabebb479d7227a18e94c123cf2dbfbb105e4",
       "src": "https://github.com/petertriho/vim-abolish"
-    },
-    "vim-caser": {
-      "rev": "6bc9f41d170711c58e0157d882a5fe8c30f34bf6",
-      "src": "https://github.com/arthurxavierx/vim-caser"
     },
     "vim-easy-align": {
       "rev": "9815a55dbcd817784458df7a18acacc6f82b1241",
