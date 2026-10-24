@@ -1,4 +1,3 @@
-local navic = require("nvim-navic")
 local escape = require("heirline-components.utils.statusline").escape
 
 local config = {
@@ -169,11 +168,14 @@ for _, level in ipairs(config.flexible_levels) do
 end
 
 return {
+    -- nvim-navic loads when an LSP client attaches it (`peter.lsp`). Until then no
+    -- buffer has navic data, so the winbar does not load it.
     condition = function()
-        return navic.is_available()
+        local navic = package.loaded["nvim-navic"]
+        return navic ~= nil and navic.is_available()
     end,
     init = function(self)
-        self.navic_data = navic.get_data() or {}
+        self.navic_data = package.loaded["nvim-navic"].get_data() or {}
         self.icon_hl_cache = {}
 
         for winid in pairs(window_data) do

@@ -1,4 +1,3 @@
-local devicons = require("nvim-web-devicons")
 local escape = require("heirline-components.utils.statusline").escape
 
 local schema_companion_supported_filetypes = {
@@ -37,6 +36,9 @@ return {
         local filetype = vim.bo[bufnr].filetype
         local name = vim.fs.basename(vim.api.nvim_buf_get_name(bufnr))
 
+        -- Required at the first render, not when the module loads: loading
+        -- nvim-web-devicons takes about 3 ms.
+        local devicons = require("nvim-web-devicons")
         if name ~= "" then
             self.icon_str, self.icon_color = devicons.get_icon_color(name, nil, { default = true })
         else
