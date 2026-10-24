@@ -40,45 +40,33 @@ return {
                 { "<leader>u", group = "ui" },
             },
             leader_nx,
-            -- vim-abolish
-            {
-                mode = "n",
-                {
-                    { "\\c", group = "coerce" },
-                    { "\\c ", desc = "space case" },
-                    { "\\c-", desc = "dash-case" },
-                    { "\\c.", desc = "dot.case" },
-                    { "\\c_", desc = "snake_case" },
-                    { "\\cc", desc = "camelCase" },
-                    { "\\ck", desc = "kebab-case" },
-                    { "\\cm", desc = "MixedCase" },
-                    { "\\cs", desc = "snake_case" },
-                    { "\\ct", desc = "Title Case" },
-                    { "\\cu", desc = "SNAKE_UPPERCASE" },
-                    { "\\cU", desc = "SNAKE_UPPERCASE" },
-                },
-            },
-            -- vim-caser
-            {
-                mode = "n",
-                {
-                    { "\\C", group = "caser" },
-                    { "\\C ", desc = "space case" },
-                    { "\\C-", desc = "dash-case" },
-                    { "\\C.", desc = "dot.case" },
-                    { "\\C_", desc = "snake_case" },
-                    { "\\Cc", desc = "camelCase" },
-                    { "\\Ck", desc = "kebab-case" },
-                    { "\\CK", desc = "Title-Kebab-Case" },
-                    { "\\Cm", desc = "MixedCase" },
-                    { "\\Cp", desc = "PascalCase" },
-                    { "\\Cs", desc = "Sentence case" },
-                    { "\\Ct", desc = "Title Case" },
-                    { "\\Cu", desc = "SNAKE_UPPERCASE" },
-                    { "\\CU", desc = "SNAKE_UPPERCASE" },
-                },
-            },
         }
+
+        -- coerce.nvim: mirrors require("coerce").default_cases
+        local coerce_cases = {
+            { "c", "camelCase" },
+            { "d", "dot.case" },
+            { "k", "kebab-case" },
+            { "n", "numeronym (n7m)" },
+            { "p", "PascalCase" },
+            { "s", "snake_case" },
+            { "u", "UPPER_CASE" },
+            { "/", "path/case" },
+            { " ", "space case" },
+        }
+        for _, prefix in ipairs({
+            { "cR", "n", "coerce" },
+            { "co", "n", "coerce (no lsp)" },
+            { "gcR", "n", "coerce motion" },
+            { "gcR", "x", "coerce selection" },
+        }) do
+            local lhs, mode, group = unpack(prefix)
+            local entries = { mode = mode, { lhs, group = group } }
+            for _, case in ipairs(coerce_cases) do
+                table.insert(entries, { lhs .. case[1], desc = case[2] })
+            end
+            table.insert(spec, entries)
+        end
 
         if os.getenv("OBSIDIAN_VAULTS") ~= nil then
             table.insert(leader_nx, { "<leader>o", group = "obsidian" })
