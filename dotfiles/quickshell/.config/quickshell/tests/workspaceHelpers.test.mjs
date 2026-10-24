@@ -176,6 +176,77 @@ test("normalizeNiri gives nothing without an output name", () => {
   assert.deepEqual(plain(helpers.normalizeNiri("", workspaces, windows, [], icons, 5)), []);
 });
 
+const outputHeights = { "DP-2": 2160, "HDMI-A-1": 2160 };
+
+test("isTabbedColumn needs two or more tiles taller than half the output", () => {
+  assert.equal(helpers.isTabbedColumn([2000, 2000], 2160), true);
+  // Stacked tiles share the column height.
+  assert.equal(helpers.isTabbedColumn([1000, 1000], 2160), false);
+  assert.equal(helpers.isTabbedColumn([1500, 500], 2160), false);
+  assert.equal(helpers.isTabbedColumn([2000], 2160), false);
+  assert.equal(helpers.isTabbedColumn([2000, 2000], 0), false);
+  assert.equal(helpers.isTabbedColumn([2000, 2000], undefined), false);
+});
+
+test("normalizeNiri groups icons by column and keeps floating windows apart", () => {
+  const [first] = plain(
+    helpers.normalizeNiri("HDMI-A-1", workspaces, windows, ignoreClasses, icons, 5, outputHeights),
+  );
+  assert.deepEqual(
+    first.windowGroups.map((group) => ({
+      id: group.id,
+      size: group.size,
+      tabbed: group.tabbed,
+      ids: group.icons.map((icon) => icon.id),
+    })),
+    [
+      { id: "column 1", size: 2, tabbed: false, ids: [10, 11] },
+      { id: "column 2", size: 1, tabbed: false, ids: [3] },
+      { id: "window 12", size: 1, tabbed: false, ids: [12] },
+    ],
+  );
+});
+
+const tabbedWindows = [
+  window(400, "slack", 3, [1, 1], [1000.0, 2000.0]),
+  window(401, "firefox", 3, [2, 1], [1000.0, 2000.0]),
+  window(402, "com.mitchellh.ghostty", 3, [2, 2], [1000.0, 2000.0]),
+];
+
+test("normalizeNiri marks a tabbed column", () => {
+  const result = plain(
+    helpers.normalizeNiri("DP-2", workspaces, tabbedWindows, ignoreClasses, icons, 5, outputHeights),
+  );
+  assert.deepEqual(
+    result[1].windowGroups.map((group) => [group.id, group.tabbed]),
+    [
+      ["column 1", false],
+      ["column 2", true],
+    ],
+  );
+});
+
+test("normalizeNiri finds no tabs without the output height", () => {
+  const result = plain(
+    helpers.normalizeNiri("DP-2", workspaces, tabbedWindows, ignoreClasses, icons, 5),
+  );
+  assert.ok(result[1].windowGroups.every((group) => !group.tabbed));
+});
+
+test("normalizeNiri counts the capped icons in the size of a group", () => {
+  const many = [1, 2, 3, 4, 5, 6].map((n) =>
+    window(500 + n, "slack", 3, [1, n], [1000.0, 2000.0]),
+  );
+  const result = plain(
+    helpers.normalizeNiri("DP-2", workspaces, many, ignoreClasses, icons, 5, outputHeights),
+  );
+  const [group] = result[1].windowGroups;
+  assert.equal(result[1].windowGroups.length, 1);
+  assert.equal(group.size, 6);
+  assert.equal(group.tabbed, true);
+  assert.equal(group.icons.length, 5);
+});
+
 const mapOptions = { maxWidth: 360, height: 80, spacing: 3 };
 
 test("niriWorkspaceMap groups tiles by column and orders them by row", () => {
@@ -258,6 +329,43 @@ test("niriWorkspaceMap uses the smallest column as the reference height", () => 
   assert.deepEqual(map.columns[1].tiles.map((tile) => tile.fraction), [0.5, 0.5]);
 });
 
+test("niriWorkspaceMap marks a tabbed column and gives its tabs equal shares", () => {
+  const map = plain(
+    helpers.niriWorkspaceMap(
+      3,
+      workspaces,
+      tabbedWindows,
+      ignoreClasses,
+      icons,
+      mapOptions,
+      outputHeights,
+    ),
+  );
+  assert.deepEqual(
+    map.columns.map((column) => column.tabbed),
+    [false, true],
+  );
+  assert.deepEqual(map.columns[1].tiles.map((tile) => tile.fraction), [0.5, 0.5]);
+});
+
+test("niriWorkspaceMap gives a tabbed column the height of its tallest tab", () => {
+  const onlyTabs = tabbedWindows.slice(1);
+  const map = plain(
+    helpers.niriWorkspaceMap(3, workspaces, onlyTabs, ignoreClasses, icons, mapOptions, outputHeights),
+  );
+  assert.equal(map.scale, 80 / 2000);
+});
+
+test("niriWorkspaceMap keeps stacked columns without tabs", () => {
+  const map = plain(
+    helpers.niriWorkspaceMap(2, workspaces, windows, ignoreClasses, icons, mapOptions, outputHeights),
+  );
+  assert.deepEqual(
+    map.columns.map((column) => column.tabbed),
+    [false, false],
+  );
+});
+
 test("niriWorkspaceMap gives an empty map for an unknown workspace", () => {
   const map = plain(
     helpers.niriWorkspaceMap(99, workspaces, windows, ignoreClasses, icons, mapOptions),
@@ -299,6 +407,27 @@ test("normalizeHyprland sets the new fields", () => {
   assert.deepEqual(code.windowIcons.map((icon) => icon.id), ["0x1"]);
   assert.equal(empty.named, false);
   assert.equal(empty.empty, true);
+});
+
+test("normalizeHyprland gives each icon a group of its own", () => {
+  const [code] = plain(
+    helpers.normalizeHyprland(
+      "DP-1",
+      hyprWorkspaces,
+      hyprClients,
+      hyprMonitors,
+      ignoreClasses,
+      icons,
+      5,
+    ),
+  );
+  assert.deepEqual(
+    code.windowGroups.map((group) => [group.id, group.size, group.tabbed, group.icons.length]),
+    [
+      ["window 0x1", 1, false, 1],
+      ["window 0x2", 1, false, 1],
+    ],
+  );
 });
 
 test("applyNiriEvent activates a workspace on its output", () => {

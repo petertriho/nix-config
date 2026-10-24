@@ -252,26 +252,80 @@ Item {
                         }
                     }
 
+                    // One group for each column. A column with two or more
+                    // windows gets a frame. A tabbed column also gets a bar
+                    // on the left, like the niri tab indicator.
                     Repeater {
                         model: ScriptModel {
-                            values: pill.modelData.windowIcons || []
+                            values: pill.modelData.windowGroups || []
                             objectProp: "id"
                         }
 
-                        delegate: Text {
-                            id: windowIcon
+                        delegate: Rectangle {
+                            id: windowGroup
                             required property var modelData
 
-                            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                            visible: windowIcon.text.length > 0
-                            text: windowIcon.modelData.icon || ""
-                            color: windowIcon.modelData.urgent ? Config.colors.base08 : windowIcon.modelData.focused && root.outputFocused ? Config.style.accentColor : Config.colors.base05
-                            font.family: Config.fonts.defaultFamily
-                            font.pixelSize: Config.workspaces.iconFontSize
+                            readonly property bool framed: windowGroup.modelData.size > 1
+                            readonly property bool tabbed: !!windowGroup.modelData.tabbed
+                            readonly property bool focused: windowGroup.modelData.icons.some(icon => icon.focused)
+                            readonly property int padding: windowGroup.framed ? 3 : 0
+                            // The tab bar and the space after it.
+                            readonly property int tabBarSpace: windowGroup.tabbed ? 5 : 0
 
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: Config.workspaces.animationMs
+                            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+                            implicitWidth: groupRow.implicitWidth + windowGroup.padding * 2 + windowGroup.tabBarSpace
+                            // Clear of the underline at the bottom of the pill.
+                            implicitHeight: Config.workspaces.height - 4
+                            radius: Config.style.radiusSmall
+                            color: windowGroup.framed ? Config.style.cardColor : "transparent"
+                            border.width: windowGroup.framed ? 1 : 0
+                            border.color: Config.style.borderColor
+
+                            Rectangle {
+                                visible: windowGroup.tabbed
+                                x: windowGroup.padding
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 2
+                                height: parent.height - 6
+                                radius: 1
+                                color: windowGroup.focused && root.outputFocused ? Config.style.accentColor : Config.colors.base04
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Config.workspaces.animationMs
+                                    }
+                                }
+                            }
+
+                            Row {
+                                id: groupRow
+                                x: windowGroup.padding + windowGroup.tabBarSpace
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
+
+                                Repeater {
+                                    model: ScriptModel {
+                                        values: windowGroup.modelData.icons
+                                        objectProp: "id"
+                                    }
+
+                                    delegate: Text {
+                                        id: windowIcon
+                                        required property var modelData
+
+                                        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+                                        visible: windowIcon.text.length > 0
+                                        text: windowIcon.modelData.icon || ""
+                                        color: windowIcon.modelData.urgent ? Config.colors.base08 : windowIcon.modelData.focused && root.outputFocused ? Config.style.accentColor : Config.colors.base05
+                                        font.family: Config.fonts.defaultFamily
+                                        font.pixelSize: Config.workspaces.iconFontSize
+
+                                        Behavior on color {
+                                            ColorAnimation {
+                                                duration: Config.workspaces.animationMs
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

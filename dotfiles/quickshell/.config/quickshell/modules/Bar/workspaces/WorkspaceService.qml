@@ -33,13 +33,23 @@ Singleton {
     property int niriStreamFailures: 0
     readonly property bool niriPolling: root.compositorName === "niri" && !niriEventStream.running
     readonly property string focusedOutput: root.compositorName === "niri" ? WorkspaceHelpers.focusedNiriOutput(root.cachedNiriWorkspaces) : ""
+    // Logical screen heights by output name. Niri does not report tabbed
+    // columns, so the helpers find them from the tile heights (see
+    // isTabbedColumn() in workspaceHelpers.js).
+    readonly property var screenHeights: {
+        const heights = {};
+        const screens = Quickshell.screens;
+        for (let i = 0; i < screens.length; i++)
+            heights[screens[i].name] = screens[i].height;
+        return heights;
+    }
 
     function workspacesForOutput(outputName) {
         if (root.compositorName === "hyprland")
             return WorkspaceHelpers.normalizeHyprland(outputName, root.cachedHyprlandWorkspaces, root.cachedHyprlandClients, root.cachedHyprlandMonitors, root.ignoreClasses, root.windowIcons || ({}), root.maxIcons);
 
         if (root.compositorName === "niri")
-            return WorkspaceHelpers.normalizeNiri(outputName, root.cachedNiriWorkspaces, root.cachedNiriWindows, root.ignoreClasses, root.windowIcons || ({}), root.maxIcons);
+            return WorkspaceHelpers.normalizeNiri(outputName, root.cachedNiriWorkspaces, root.cachedNiriWindows, root.ignoreClasses, root.windowIcons || ({}), root.maxIcons, root.screenHeights);
 
         return [];
     }
@@ -137,7 +147,7 @@ Singleton {
         if (root.compositorName !== "niri")
             return null;
 
-        return WorkspaceHelpers.niriWorkspaceMap(workspaceId, root.cachedNiriWorkspaces, root.cachedNiriWindows, root.ignoreClasses, root.windowIcons || ({}), options);
+        return WorkspaceHelpers.niriWorkspaceMap(workspaceId, root.cachedNiriWorkspaces, root.cachedNiriWindows, root.ignoreClasses, root.windowIcons || ({}), options, root.screenHeights);
     }
 
     function logUnsupportedCompositor() {

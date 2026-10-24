@@ -5,8 +5,9 @@ import "../../Common"
 
 // Mini-map of a niri workspace for the hover card of a pill. It draws the
 // columns to scale, with the glyph and the title of each window, and the
-// floating windows as chips under the columns. A click on a tile or a chip
-// emits `windowClicked`.
+// floating windows as chips under the columns. A tabbed column is one frame
+// with a row for each tab. A click on a tile, a tab or a chip emits
+// `windowClicked`.
 Rectangle {
     id: root
 
@@ -37,23 +38,38 @@ Rectangle {
     border.color: Config.style.borderColor
     radius: Config.style.radius
 
-    // One window: a tile in a column or a floating chip.
+    // One window: a tile in a column, a tab in a tabbed column, or a
+    // floating chip. A tab has no frame of its own, and a bar on its left
+    // marks it.
     component WindowCell: Rectangle {
         id: cell
 
         required property var window
-        readonly property bool showTitle: cell.width >= Config.workspaces.mapTitleMinWidth
+        property bool tab: false
+        // The tab bar and the space after it.
+        readonly property int inset: cell.tab ? 6 : 0
+        readonly property bool showTitle: cell.width - cell.inset >= Config.workspaces.mapTitleMinWidth
 
         implicitWidth: cellIcon.implicitWidth + cellTitle.implicitWidth + 14
         radius: Config.style.radiusSmall
-        color: cellMouse.containsMouse ? Config.style.hoverColor : Config.style.cardColor
-        border.width: 1
+        color: cellMouse.containsMouse ? Config.style.hoverColor : cell.tab ? "transparent" : Config.style.cardColor
+        border.width: cell.tab ? 0 : 1
         border.color: cell.window.urgent ? Config.colors.base08 : cell.window.focused ? Config.style.accentColor : Config.style.borderColor
         clip: true
 
+        Rectangle {
+            visible: cell.tab
+            x: 2
+            anchors.verticalCenter: parent.verticalCenter
+            width: 2
+            height: Math.max(2, cell.height - 4)
+            radius: 1
+            color: cell.window.urgent ? Config.colors.base08 : cell.window.focused ? Config.style.accentColor : Config.colors.base03
+        }
+
         Row {
             anchors.verticalCenter: parent.verticalCenter
-            x: cell.showTitle ? 5 : Math.max(0, (cell.width - width) / 2)
+            x: cell.showTitle ? cell.inset + 5 : cell.inset + Math.max(0, (cell.width - cell.inset - width) / 2)
             spacing: 4
 
             Text {
@@ -69,7 +85,7 @@ Rectangle {
                 id: cellTitle
                 anchors.verticalCenter: parent.verticalCenter
                 visible: cell.showTitle
-                width: Math.max(0, cell.width - cellIcon.implicitWidth - 14)
+                width: Math.max(0, cell.width - cell.inset - cellIcon.implicitWidth - 14)
                 text: cell.window.title
                 color: Config.colors.base05
                 font.family: Config.fonts.defaultFamily
@@ -83,6 +99,43 @@ Rectangle {
             anchors.fill: parent
             hoverEnabled: true
             onClicked: root.windowClicked(cell.window.id)
+        }
+    }
+
+    // A tabbed column: one frame, with the tabs in equal rows.
+    component TabbedColumn: Rectangle {
+        id: tabs
+
+        required property var tiles
+        readonly property int inner: 2
+        readonly property real rowHeight: (tabs.height - tabs.inner * 2 - (tabs.tiles.length - 1)) / Math.max(1, tabs.tiles.length)
+
+        radius: Config.style.radiusSmall
+        color: Config.style.cardColor
+        border.width: 1
+        border.color: tabs.tiles.some(tile => tile.urgent) ? Config.colors.base08 : tabs.tiles.some(tile => tile.focused) ? Config.style.accentColor : Config.style.borderColor
+        clip: true
+
+        Column {
+            x: tabs.inner
+            y: tabs.inner
+            width: tabs.width - tabs.inner * 2
+            spacing: 1
+
+            Repeater {
+                model: tabs.tiles
+
+                delegate: WindowCell {
+                    id: tabCell
+
+                    required property var modelData
+
+                    window: tabCell.modelData
+                    tab: true
+                    width: tabs.width - tabs.inner * 2
+                    height: Math.max(4, tabs.rowHeight)
+                }
+            }
         }
     }
 
@@ -102,28 +155,39 @@ Rectangle {
             Repeater {
                 model: root.columns
 
-                delegate: Column {
+                delegate: Item {
                     id: column
 
                     required property var modelData
+                    readonly property bool tabbed: !!column.modelData.tabbed
                     readonly property real tilesHeight: Config.workspaces.mapHeight - root.spacing * (column.modelData.tiles.length - 1)
 
                     width: Math.max(root.minColumnWidth, column.modelData.width * root.map.scale)
                     height: Config.workspaces.mapHeight
-                    spacing: root.spacing
 
-                    Repeater {
-                        model: column.modelData.tiles
+                    Column {
+                        visible: !column.tabbed
+                        spacing: root.spacing
 
-                        delegate: WindowCell {
-                            id: tile
+                        Repeater {
+                            model: column.tabbed ? [] : column.modelData.tiles
 
-                            required property var modelData
+                            delegate: WindowCell {
+                                id: tile
 
-                            window: tile.modelData
-                            width: column.width
-                            height: Math.max(4, tile.modelData.fraction * column.tilesHeight)
+                                required property var modelData
+
+                                window: tile.modelData
+                                width: column.width
+                                height: Math.max(4, tile.modelData.fraction * column.tilesHeight)
+                            }
                         }
+                    }
+
+                    TabbedColumn {
+                        visible: column.tabbed
+                        anchors.fill: parent
+                        tiles: column.tabbed ? column.modelData.tiles : []
                     }
                 }
             }

@@ -293,6 +293,59 @@ function capIcons(icons, max) {
   return { icons: kept, hiddenCount: list.length - max };
 }
 
+// The column of a tiled niri window, or null for a floating window.
+function niriColumnOf(window) {
+  const pos = window.layout ? window.layout.pos_in_scrolling_layout : null;
+  return !window.is_floating && Array.isArray(pos) ? pos[0] : null;
+}
+
+function niriTileHeight(window) {
+  const size = window.layout ? window.layout.tile_size : null;
+  return Array.isArray(size) && size[1] > 0 ? size[1] : 0;
+}
+
+// Niri does not report the display mode of a column, so this finds tabs from
+// the tile heights. A tabbed column gives each tab the full column height. A
+// normal column shares its height among its tiles, so with two or more tiles
+// at least one of them is at most half the output height. Without a positive
+// `outputHeight`, no column is tabbed.
+function isTabbedColumn(heights, outputHeight) {
+  if (!(outputHeight > 0) || heights.length < 2) return false;
+
+  return heights.every(function (height) {
+    return height > outputHeight / 2;
+  });
+}
+
+// Puts consecutive icons of one column in a group. An icon without a column
+// (a floating or a Hyprland window) is a group of its own. `columns` maps a
+// column to `{ size, tabbed }`, where `size` counts all windows of the column,
+// also those that capIcons() left out. Returns `[{ id, size, tabbed, icons }]`.
+function groupIcons(icons, columns) {
+  const groups = [];
+  let lastColumn = null;
+  for (let i = 0; i < icons.length; i++) {
+    const icon = icons[i];
+    const column = icon.column === undefined ? null : icon.column;
+    if (column !== null && column === lastColumn) {
+      groups[groups.length - 1].icons.push(icon);
+      continue;
+    }
+
+    const info =
+      column !== null && columns[column] ? columns[column] : { size: 1, tabbed: false };
+    groups.push({
+      id: column !== null ? "column " + column : "window " + icon.id,
+      size: info.size,
+      tabbed: info.tabbed,
+      icons: [icon],
+    });
+    lastColumn = column;
+  }
+
+  return groups;
+}
+
 function normalizeHyprland(
   outputName,
   workspaces,
@@ -355,6 +408,7 @@ function normalizeHyprland(
       windowCount: icons.length,
       hiddenCount: capped.hiddenCount,
       windowIcons: capped.icons,
+      windowGroups: groupIcons(capped.icons, {}),
     });
   }
 
@@ -362,7 +416,8 @@ function normalizeHyprland(
 }
 
 // `reference` is the workspace argument of `niri msg action`: the name of a
-// named workspace, else its index on the output.
+// named workspace, else its index on the output. `outputHeights` maps an
+// output name to its logical height, for isTabbedColumn().
 function normalizeNiri(
   outputName,
   workspaces,
@@ -370,10 +425,12 @@ function normalizeNiri(
   ignoreClasses,
   windowIcons,
   maxIcons,
+  outputHeights,
 ) {
   const requestedOutput = displayName(outputName, "");
   if (!requestedOutput) return [];
 
+  const outputHeight = outputHeights ? outputHeights[requestedOutput] : 0;
   const sortedWorkspaces = (workspaces || []).filter(function (workspace) {
     return workspace.output === requestedOutput;
   }).sort(function (a, b) {
@@ -395,19 +452,28 @@ function normalizeNiri(
       allWindows.some(function (window) {
         return !!window.is_urgent;
       });
-    const icons = allWindows
+    const visible = allWindows
       .filter(function (window) {
         return ignored.indexOf(appIdOf(window)) === -1;
       })
-      .sort(compareScrollingPosition)
-      .map(function (window) {
-        return {
-          id: window.id,
-          icon: getWindowIcon(windowIcons, appIdOf(window)),
-          focused: isNiriWindowFocused(workspace, window),
-          urgent: !!window.is_urgent,
-        };
-      });
+      .sort(compareScrollingPosition);
+    const columnWindows = groupBy(visible, niriColumnOf);
+    const columns = {};
+    for (const column in columnWindows) {
+      columns[column] = {
+        size: columnWindows[column].length,
+        tabbed: isTabbedColumn(columnWindows[column].map(niriTileHeight), outputHeight),
+      };
+    }
+    const icons = visible.map(function (window) {
+      return {
+        id: window.id,
+        icon: getWindowIcon(windowIcons, appIdOf(window)),
+        focused: isNiriWindowFocused(workspace, window),
+        urgent: !!window.is_urgent,
+        column: niriColumnOf(window),
+      };
+    });
     const capped = capIcons(icons, maxIcons);
 
     result.push({
@@ -423,6 +489,7 @@ function normalizeNiri(
       windowCount: icons.length,
       hiddenCount: capped.hiddenCount,
       windowIcons: capped.icons,
+      windowGroups: groupIcons(capped.icons, columns),
     });
   }
 
@@ -430,11 +497,13 @@ function normalizeNiri(
 }
 
 // The windows of a niri workspace, laid out for the mini-map. Ignored app ids
-// are left out. Returns:
-//   columns: [{ column, width, tiles: [{ id, icon, title, focused, urgent,
-//            fraction }] }], ordered by column, the tiles ordered by row.
-//            `width` is the widest tile in logical pixels. `fraction` is the
-//            share of the column height that the tile takes.
+// are left out. `outputHeights` maps an output name to its logical height,
+// for isTabbedColumn(). Returns:
+//   columns: [{ column, width, tabbed, tiles: [{ id, icon, title, focused,
+//            urgent, fraction }] }], ordered by column, the tiles ordered by
+//            row. `width` is the widest tile in logical pixels. `fraction` is
+//            the share of the column height that the tile takes. The tabs of
+//            a tabbed column take equal shares.
 //   floating: [{ id, icon, title, focused, urgent }]: the floating windows,
 //            and the windows without a scrolling position.
 //   scale:   map pixels for each logical pixel. It keeps the real aspect
@@ -442,8 +511,9 @@ function normalizeNiri(
 //            when the columns and the `options.spacing` between them do not
 //            fit `options.maxWidth`.
 //   windowCount, columnCount
-// The reference column height is the smallest column: a tabbed column stacks
-// full-height tiles, so its sum is too large.
+// A tabbed column is as high as its tallest tab. The reference column height
+// is the smallest column, because a tabbed column that is not found (for
+// example without `outputHeights`) sums its full-height tabs.
 function niriWorkspaceMap(
   workspaceId,
   workspaces,
@@ -451,6 +521,7 @@ function niriWorkspaceMap(
   ignoreClasses,
   windowIcons,
   options,
+  outputHeights,
 ) {
   const result = {
     columns: [],
@@ -464,6 +535,7 @@ function niriWorkspaceMap(
 
   const opts = options || {};
   const ignored = ignoreClasses || [];
+  const outputHeight = outputHeights ? outputHeights[workspace.output] : 0;
   const tiled = [];
 
   for (let i = 0; i < (windows || []).length; i++) {
@@ -506,12 +578,11 @@ function niriWorkspaceMap(
     const tile = tiled[i];
     let group = groups[groups.length - 1];
     if (!group || group.column !== tile.column) {
-      group = { column: tile.column, width: 0, height: 0, tiles: [] };
+      group = { column: tile.column, width: 0, tiles: [] };
       groups.push(group);
     }
 
     group.width = Math.max(group.width, tile.width);
-    group.height += tile.height;
     group.tiles.push(tile);
   }
 
@@ -519,17 +590,27 @@ function niriWorkspaceMap(
   let referenceHeight = 0;
   for (let i = 0; i < groups.length; i++) {
     const group = groups[i];
+    const heights = group.tiles.map(function (tile) {
+      return tile.height;
+    });
+    const tabbed = isTabbedColumn(heights, outputHeight);
+    const height = tabbed
+      ? Math.max.apply(null, heights)
+      : heights.reduce(function (total, h) {
+          return total + h;
+        }, 0);
     totalWidth += group.width;
-    if (group.height > 0 && (referenceHeight === 0 || group.height < referenceHeight))
-      referenceHeight = group.height;
+    if (height > 0 && (referenceHeight === 0 || height < referenceHeight))
+      referenceHeight = height;
 
     result.columns.push({
       column: group.column,
       width: group.width,
+      tabbed: tabbed,
       tiles: group.tiles.map(function (tile) {
         return Object.assign({}, tile.entry, {
           fraction:
-            group.height > 0 ? tile.height / group.height : 1 / group.tiles.length,
+            !tabbed && height > 0 ? tile.height / height : 1 / group.tiles.length,
         });
       }),
     });
