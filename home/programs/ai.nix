@@ -26,7 +26,6 @@ in
         nodejs
         python3
         python3Packages.tiktoken
-        tmuxai
         # tokscale
       ]
       ++ mcpServerPackages
@@ -297,9 +296,7 @@ in
     workmux.enable = true;
     write-better.enable = true;
   };
-  xdg.configFile = {
-    "tmuxai/config.yaml".source = config.lib.meta.mkDotfilesSymlink "tmuxai/.config/tmuxai/config.yaml";
-  };
+  xdg.configFile = { };
   # // lib.mapAttrs' (
   #   name: _:
   #   lib.nameValuePair "opencode/agents/${name}" {
