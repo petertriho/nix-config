@@ -77,6 +77,12 @@ in
           inactive.color = colors.base03;
           urgent.color = colors.base08;
         };
+        # Full-width columns leave no room outside the window, so an outside indicator
+        # draws off-screen.
+        tab-indicator = {
+          place-within-column = true;
+          hide-when-single-tab = true;
+        };
         preset-column-widths = [
           { proportion = 0.33333; }
           { proportion = 0.5; }
