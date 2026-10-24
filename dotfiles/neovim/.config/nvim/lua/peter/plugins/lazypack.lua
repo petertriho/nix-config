@@ -807,9 +807,11 @@ local function register_cmd(spec, name)
 	})
 end
 
-local function feed_lhs(mode, lhs)
+-- Insert at the front of typeahead, like lazy.nvim: keys still queued behind
+-- the trigger (e.g. a which-key feed of `cRs`) must run after the replay.
+local function feed_lhs(lhs)
 	local keys = vim.api.nvim_replace_termcodes(lhs, true, false, true)
-	vim.api.nvim_feedkeys(keys, mode == "i" and "i" or "m", false)
+	vim.api.nvim_feedkeys(keys, "mi", false)
 end
 
 local function keymap_opts(key)
@@ -866,8 +868,7 @@ local function register_key(spec, key)
 		if type(rhs) == "function" then
 			return rhs()
 		end
-		local mode = type(modes) == "table" and modes[1] or modes
-		feed_lhs(mode, lhs)
+		feed_lhs(lhs)
 	end, opts)
 end
 
