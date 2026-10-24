@@ -21,7 +21,7 @@
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
-      "rev": "b72ed05dd452690181837d484984144a64709f17",
+      "rev": "f50d952de478b554d89bcca058691a69cb5681dd",
       "src": "https://github.com/saghen/blink.cmp",
       "version": "'main'"
     },
@@ -84,10 +84,6 @@
     "friendly-snippets": {
       "rev": "b4d01b0fdf3c9a549961c2f9ffe8dc09be166219",
       "src": "https://github.com/rafamadriz/friendly-snippets"
-    },
-    "garbage-day.nvim": {
-      "rev": "225b715cf7e502977e5e040219cf5009eed70ee1",
-      "src": "https://github.com/zeioth/garbage-day.nvim"
     },
     "glance.nvim": {
       "rev": "5a8eab1c1c48bfa19a33b556328a3c553138366e",
