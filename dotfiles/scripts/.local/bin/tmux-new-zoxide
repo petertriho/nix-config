@@ -4,10 +4,22 @@ set -euo pipefail
 
 if [ $# -eq 0 ]; then
     dir=$(zoxide query --interactive)
-    session_name=$(basename "$dir")
 else
-    dir=$(zoxide query "$1")
-    session_name="$1"
+    dir=$(zoxide query "$@")
 fi
 
-tmux new-session -s "$session_name" "cd '$dir'; exec $SHELL"
+# tmux replaces "." and ":" in session names with "_", so do the same here
+# for the has-session lookup to find sessions created by this script.
+session_name=$(basename "$dir")
+session_name=${session_name//[.:]/_}
+
+# "=" makes tmux match the name exactly instead of as a prefix.
+if ! tmux has-session -t "=$session_name" 2>/dev/null; then
+    tmux new-session -d -s "$session_name" -c "$dir"
+fi
+
+if [ -n "${TMUX:-}" ]; then
+    tmux switch-client -t "=$session_name"
+else
+    tmux attach-session -t "=$session_name"
+fi
