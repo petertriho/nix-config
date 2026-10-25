@@ -2,112 +2,30 @@
 
 set -euo pipefail
 
+TEMPLATES_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nix-direnv-helper/templates"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/direnv/layouts"
 
-function base_flake_nix {
-    local packages=$1
-    local extras=$2
-
-    printf '{
-  description = "Development Environment";
-
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-  outputs =
-    { self, nixpkgs }:
-    let
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
-      ];
-      forEachSupportedSystem =
-        f: nixpkgs.lib.genAttrs supportedSystems (system: f { pkgs = import nixpkgs { inherit system; }; });
-    in
-    {
-      devShells = forEachSupportedSystem (
-        { pkgs }:
-        {
-          default = pkgs.mkShell {
-            packages =
-              with pkgs;
-              %s%s
-          };
-        }
-      );
-    };
-}' "$packages" "$extras" > flake.nix
-
-    nixfmt flake.nix
+function templates {
+    nix eval --raw --file "${TEMPLATES_DIR}/default.nix" \
+        --apply 't: builtins.concatStringsSep "\n" (builtins.attrNames t) + "\n"'
 }
 
-function packages_empty {
-    echo '[];'
+function tools {
+    compgen -A function | sed -rn 's/tool:(.*)/\1/p'
 }
 
-function extras_empty {
-    echo ""
-}
-
-function packages_node {
-    echo '[
-                nodejs
-                yarn
-              ];'
-}
-
-function extras_node {
-    echo ""
-}
-
-function packages_python {
-    echo '[
-                python3
-                poetry
-                uv
-              ]
-              ++ (with pkgs.python3Packages; [
-                pip
-                venvShellHook
-              ]);'
-}
-
-function extras_python {
-    echo '
-            venvDir = ".venv";'
-}
-
-function mk_flake_envrc {
-    echo "use flake" > .envrc
-}
-
-function mk_flake_nix {
-    language=$1
-    packages=$(eval "packages_${language}")
-    extras=$(eval "extras_${language}")
-    base_flake_nix "$packages" "$extras"
-}
-
-function tool:main {
-    language="${1:-empty}"
-    mk_flake_envrc
-    mk_flake_nix "$language"
+function tool:init {
+    # TEMPLATES_DIR is a symlink, and a path: flake cannot have a symlinked root.
+    nix flake init --template "path:$(realpath "$TEMPLATES_DIR")#${1:-empty}"
     direnv allow
 }
 
-function tool:node {
-    tool:main node
-}
-
-function tool:python {
-    tool:main python
-}
-
 function tool:clean {
-    hash="$(sha1sum - <<< "$PWD" | head -c40)"
-    path="${PWD//[^a-zA-Z0-9]/-}"
-    rm -rf "${CACHE_DIR:?}/${hash}${path}"
+    # shellcheck source=/dev/null
+    source "${XDG_CONFIG_HOME:-$HOME/.config}/direnv/direnvrc"
+    local dir
+    dir="$(direnv_layout_dir)"
+    rm -rf "${dir:?}"
 }
 
 function tool:clean-all {
@@ -115,13 +33,23 @@ function tool:clean-all {
 }
 
 function tool:list {
-    compgen -A function | sed -rn 's/tool:(.*)/\1/p' | cat
+    tools
+    templates
 }
 
 function tool:help {
-    printf "Usage: %s [TOOL] [ARGS]\n\nTools:\n" "$0"
-
-    compgen -A function | sed -rn 's/tool:(.*)/\1/p' | cat -n
+    printf "Usage: %s [TOOL [ARGS] | TEMPLATE]\n\nTools:\n" "$0"
+    tools | cat -n
+    printf "\nTemplates (default: empty):\n"
+    templates | cat -n
 }
 
-"tool:${@:-main}"
+cmd="${1:-init}"
+if declare -F "tool:${cmd}" > /dev/null; then
+    "tool:${cmd}" "${@:2}"
+elif grep -qxF -- "$cmd" <<< "$(templates)"; then
+    tool:init "$cmd"
+else
+    tool:help >&2
+    exit 1
+fi

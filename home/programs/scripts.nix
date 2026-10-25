@@ -8,5 +8,7 @@
       config.lib.meta.mkDotfilesSymlink "scripts/.config/fish/completions/nixcfg.fish";
     "fish/completions/nix-direnv-helper.fish".source =
       config.lib.meta.mkDotfilesSymlink "scripts/.config/fish/completions/nix-direnv-helper.fish";
+    "nix-direnv-helper/templates".source =
+      config.lib.meta.mkDotfilesSymlink "scripts/.config/nix-direnv-helper/templates";
   };
 }
