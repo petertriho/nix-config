@@ -11,7 +11,7 @@
 }:
 rustPlatform.buildRustPackage {
   pname = "lg-buddy";
-  version = "1.10.2-unstable-2026-10-18";
+  version = "2.0.0-beta.5-unstable-2026-10-18";
 
   src = fetchFromGitHub {
     owner = "Staphylococcus";
