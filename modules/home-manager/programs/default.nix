@@ -23,6 +23,7 @@
     ./spawnpoint.nix
     ./superpowers.nix
     ./taste-skill.nix
+    ./terraform-skill.nix
     ./workmux.nix
     ./write-better.nix
   ];

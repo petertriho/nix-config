@@ -40,6 +40,7 @@ with pkgs;
   };
   superpowers = callPackage ./superpowers { };
   taste-skill = callPackage ./taste-skill { };
+  terraform-skill = callPackage ./terraform-skill { };
   # Return to the upstream cache once its runtime supports the system graphics libraries
   # and its Vicinae/Numen toolchains are compatible:
   # 1. Remove Vicinae's inputs.nixpkgs.follows in flake.nix.

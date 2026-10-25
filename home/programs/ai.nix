@@ -7,7 +7,6 @@
 let
   mcpServerPackages = [
     # pkgs.mcp-servers.context7-mcp
-    # pkgs.terraform-mcp-server
   ];
   llmAgents = with pkgs.llm-agents; [
     pi-acp
@@ -140,11 +139,6 @@ in
         # ck = {
         #   command = "ck";
         #   args = [ "--serve" ];
-        #   disabled = true;
-        # };
-        # terraform = {
-        #   command = "terraform-mcp-server";
-        #   args = [ ];
         #   disabled = true;
         # };
       };
@@ -293,6 +287,7 @@ in
         "brandkit"
       ];
     };
+    terraform-skill.enable = false;
     workmux.enable = true;
     write-better.enable = true;
   };
