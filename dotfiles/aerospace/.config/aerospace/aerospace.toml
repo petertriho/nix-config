@@ -98,7 +98,7 @@ outer.right = 0
 
 # Launch
 alt-enter = 'exec-and-forget open -n -a Ghostty'
-alt-f = 'exec-and-forget open -n finder'
+alt-e = 'exec-and-forget open -n finder'
 alt-t = 'exec-and-forget open -n -a "Firefox"'
 # Raycast disabled; use default macOS Spotlight (Cmd+Space) as launcher.
 # alt-v = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
@@ -106,7 +106,8 @@ alt-t = 'exec-and-forget open -n -a "Firefox"'
 # Layout
 # See: https://nikitabobko.github.io/AeroSpace/commands#layout
 alt-slash = 'layout tiles horizontal vertical'
-alt-comma = 'layout accordion horizontal vertical'
+alt-w = 'layout tiles accordion'
+alt-shift-space = 'layout floating tiling'
 
 # Window: Misc
 # TODO: combine focus-back-and-forth with workspace-back-and-forth
@@ -115,8 +116,9 @@ alt-tab = 'focus-back-and-forth'
 alt-shift-tab = 'focus-back-and-forth'
 alt-q = 'close --quit-if-last-window'
 alt-shift-q = "close-all-windows-but-current"
+alt-f = 'fullscreen'
 alt-m = 'fullscreen'
-alt-z = 'macos-native-fullscreen'
+alt-shift-f = 'macos-native-fullscreen'
 
 # Window: Focus
 # See: https://nikitabobko.github.io/AeroSpace/commands#focus
@@ -134,13 +136,17 @@ alt-shift-l = 'move right'
 
 # Window: Resize
 # See: https://nikitabobko.github.io/AeroSpace/commands#resize
-alt-shift-minus = 'resize smart -50'
-alt-shift-equal = 'resize smart +50'
-alt-equal = 'balance-sizes'
+alt-minus = 'resize smart -50'
+alt-equal = 'resize smart +50'
+alt-shift-minus = 'resize smart-opposite -50'
+alt-shift-equal = 'resize smart-opposite +50'
 
 # Workspace: Focus
-alt-n = 'focus-monitor --wrap-around next'
-alt-p = 'focus-monitor --wrap-around prev'
+# 'workspace next' also stops on empty workspaces, and most persistent workspaces are
+# empty. The list skips them, like niri. From an empty workspace, which is not in the
+# list, both keys go to the first workspace in the list.
+alt-n = 'exec-and-forget aerospace list-workspaces --monitor focused --empty no | aerospace workspace --stdin next'
+alt-p = 'exec-and-forget aerospace list-workspaces --monitor focused --empty no | aerospace workspace --stdin prev'
 alt-backtick = 'workspace-back-and-forth'
 alt-shift-m = 'move-workspace-to-monitor --wrap-around next'
 
@@ -160,8 +166,9 @@ alt-b = 'workspace B'
 alt-c = 'workspace C'
 
 # Workspace: Move
-alt-shift-n = 'move-node-to-monitor --focus-follows-window --wrap-around next'
-alt-shift-p = 'move-node-to-monitor --focus-follows-window --wrap-around prev'
+# Unlike alt-n/alt-p, these include empty workspaces, so a window can move to a new one.
+alt-shift-n = 'move-node-to-workspace --focus-follows-window next'
+alt-shift-p = 'move-node-to-workspace --focus-follows-window prev'
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-workspace
 alt-shift-1 = 'move-node-to-workspace --focus-follows-window 1'
@@ -178,11 +185,39 @@ alt-shift-a = 'move-node-to-workspace --focus-follows-window A'
 alt-shift-b = 'move-node-to-workspace --focus-follows-window B'
 alt-shift-c = 'move-node-to-workspace --focus-follows-window C'
 
+# Monitor binds use alt-ctrl where niri uses Mod+Alt, because alt is already the
+# modifier here. alt-cmd would take app shortcuts such as Cmd+Option+I and Cmd+Option+H.
+
+# Monitor: Focus
+# See: https://nikitabobko.github.io/AeroSpace/commands#focus-monitor
+alt-ctrl-h = 'focus-monitor left'
+alt-ctrl-j = 'focus-monitor down'
+alt-ctrl-k = 'focus-monitor up'
+alt-ctrl-l = 'focus-monitor right'
+alt-ctrl-left = 'focus-monitor left'
+alt-ctrl-down = 'focus-monitor down'
+alt-ctrl-up = 'focus-monitor up'
+alt-ctrl-right = 'focus-monitor right'
+alt-ctrl-n = 'focus-monitor --wrap-around next'
+alt-ctrl-p = 'focus-monitor --wrap-around prev'
+
+# Monitor: Move Window
+# See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-monitor
+alt-ctrl-shift-h = 'move-node-to-monitor --focus-follows-window left'
+alt-ctrl-shift-j = 'move-node-to-monitor --focus-follows-window down'
+alt-ctrl-shift-k = 'move-node-to-monitor --focus-follows-window up'
+alt-ctrl-shift-l = 'move-node-to-monitor --focus-follows-window right'
+alt-ctrl-shift-left = 'move-node-to-monitor --focus-follows-window left'
+alt-ctrl-shift-down = 'move-node-to-monitor --focus-follows-window down'
+alt-ctrl-shift-up = 'move-node-to-monitor --focus-follows-window up'
+alt-ctrl-shift-right = 'move-node-to-monitor --focus-follows-window right'
+alt-ctrl-shift-n = 'move-node-to-monitor --focus-follows-window --wrap-around next'
+alt-ctrl-shift-p = 'move-node-to-monitor --focus-follows-window --wrap-around prev'
+
 # Modes
 # See: https://nikitabobko.github.io/AeroSpace/commands#mode
 alt-semicolon = 'mode service'
 alt-r = 'mode resize'
-alt-w = 'mode window'
 
 # 'service' binding mode declaration.
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
@@ -195,6 +230,9 @@ h = ['join-with left', 'mode main']
 j = ['join-with down', 'mode main']
 k = ['join-with up', 'mode main']
 l = ['join-with right', 'mode main']
+
+x = ['swap dfs-next', 'mode main']
+shift-x = ['swap dfs-prev', 'mode main']
 
 # 'resize' binding mode
 [mode.resize.binding]
@@ -216,46 +254,6 @@ shift-l = 'resize width +10'
 
 # Balance sizes
 equal = ['balance-sizes', 'mode main']
-
-# 'window' binding mode
-[mode.window.binding]
-# Exit window mode
-esc = 'mode main'
-enter = 'mode main'
-
-f = ['layout floating tiling', 'mode main']
-alt-f = ['layout floating tiling', 'mode main']
-
-m = ['fullscreen', 'mode main']
-alt-m = ['fullscreen', 'mode main']
-
-q = ['close --quit-if-last-window', 'mode main']
-alt-q = ['close --quit-if-last-window', 'mode main']
-
-# Raycast disabled; switch-windows has no Spotlight equivalent.
-# w = [
-#     'exec-and-forget open raycast://extensions/raycast/navigation/switch-windows',
-#     'mode main',
-# ]
-# alt-w = [
-#     'exec-and-forget open raycast://extensions/raycast/navigation/switch-windows',
-#     'mode main',
-# ]
-
-x = ['swap dfs-next', 'mode main']
-alt-x = ['swap dfs-next', 'mode main']
-
-shift-x = ['swap dfs-prev', 'mode main']
-alt-shift-x = ['swap dfs-prev', 'mode main']
-
-y = ['layout accordion tiles', 'mode main']
-alt-y = ['layout accordion tiles', 'mode main']
-
-shift-y = ['layout horizontal vertical', 'mode main']
-alt-shift-y = ['layout horizontal vertical', 'mode main']
-
-z = ['fullscreen', 'mode main']
-alt-z = ['fullscreen', 'mode main']
 
 [workspace-to-monitor-force-assignment]
 1 = ['^built-in retina display$', 'built-in', 'main']
