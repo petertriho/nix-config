@@ -12,6 +12,8 @@
   # systemd user manager, so vicinae-launched apps see it too.
   environment.sessionVariables.MOZ_ENABLE_WAYLAND = "1";
 
+  # font = "iosevka";
+
   services.input-remapper.enable = true;
   services.openlinkhub.enable = true;
 

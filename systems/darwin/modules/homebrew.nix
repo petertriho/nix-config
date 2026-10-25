@@ -52,6 +52,8 @@ in
       "easy-move+resize"
       "firefox"
       "floorp"
+      "font-iosevka-nerd-font"
+      "font-iosevka-term-nerd-font"
       "font-jetbrains-mono-nerd-font"
       "ghostty"
       "glide"

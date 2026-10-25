@@ -59,6 +59,17 @@ local fallback_theme = {
             },
         },
         font = wezterm.font("JetBrainsMono Nerd Font Mono"),
+        harfbuzz_features = {
+            -- https://github.com/JetBrains/JetBrainsMono/wiki/OpenType-features#list-of-features
+            "calt=0", -- ligatures off
+            "clig=0",
+            "liga=0",
+            "zero=1", -- slashed zero
+            "cv06=1", -- 'm' smaller middle apex
+            "cv07=1", -- 'w' smaller middle apex
+            "cv12=1", -- 'u spur
+            "cv14=1", -- '¢$' broken strikes
+        },
         font_size = wezterm.target_triple == "x86_64-pc-windows-msvc" and 12 or 14,
         window_background_opacity = 1.0,
     },
@@ -75,17 +86,6 @@ for key, value in pairs(theme.config) do
 end
 
 config.bold_brightens_ansi_colors = true
-config.harfbuzz_features = {
-    -- https://github.com/JetBrains/JetBrainsMono/wiki/OpenType-features#list-of-features
-    "calt=0", -- ligatures off
-    "clig=0",
-    "liga=0",
-    "zero=1", -- slashed zero
-    "cv06=1", -- 'm' smaller middle apex
-    "cv07=1", -- 'w' smaller middle apex
-    "cv12=1", -- 'u spur
-    "cv14=1", -- '¢$' broken strikes
-}
 config.front_end = "WebGpu"
 config.window_close_confirmation = "NeverPrompt"
 config.hide_tab_bar_if_only_one_tab = true

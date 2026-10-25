@@ -3,16 +3,8 @@ confirm-close-surface = false
 copy-on-select = clipboard
 clipboard-read = allow
 clipboard-write = allow
-# Font features for JetBrainsMono
-# -calt: ligatures off
-# -clig: contextual ligatures off
-# -liga: standard ligatures off
-# +zero: slashed zero
-# +cv06: 'm' smaller middle apex
-# +cv07: 'w' smaller middle apex
-# +cv12: 'u' spur
-# +cv14: '¢$' broken strikes
-font-feature = -calt,-clig,-liga,+zero,+cv06,+cv07,+cv12,+cv14
+# font-family and font-feature come from the font profile in
+# ../stylix/ghostty.conf. font-feature values accumulate, so do not set it here.
 
 # Keybinds live in includes because Ghostty loads `config-file` after the file
 # that declares it, so `keybind = clear` has to sit in an earlier include than

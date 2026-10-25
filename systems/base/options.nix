@@ -28,5 +28,10 @@
       default = "tokyonight";
       description = "Theme alias or Base16 scheme slug";
     };
+    font = mkOption {
+      type = types.enum (builtins.attrNames (import ./font-profiles.nix { inherit pkgs; }));
+      default = "jetbrains-mono";
+      description = "Font profile name";
+    };
   };
 }

@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ lib, pkgs, ... }: {
   imports = [
     ./greetd.nix
     ./i18n.nix
@@ -25,9 +25,13 @@
 
   # security.pam.services.login.enableGnomeKeyring = true;
 
-  fonts.packages = with pkgs; [
-    nerd-fonts.jetbrains-mono
-  ];
+  # Every profile stays installed so apps outside Nix can use any of them.
+  fonts.packages = lib.unique (
+    lib.concatMap (profile: [
+      profile.monospace.package
+      profile.sansSerif.package
+    ]) (lib.attrValues (import ../../../base/font-profiles.nix { inherit pkgs; }))
+  );
 
   environment.systemPackages = with pkgs; [
     baobab # disk usage analyzer

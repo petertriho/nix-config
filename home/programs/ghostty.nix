@@ -2,6 +2,7 @@
   lib,
   config,
   pkgs,
+  fontProfile,
   ...
 }:
 let
@@ -46,6 +47,7 @@ in
       palette = 14=${colors.base15}
       palette = 15=${colors.base07}
       font-family = "${config.stylix.fonts.monospace.name}"
+      font-feature = ${lib.concatStringsSep "," fontProfile.features}
       font-size = ${toString fontSize}
       background-opacity = ${toString config.stylix.opacity.terminal}
     '';

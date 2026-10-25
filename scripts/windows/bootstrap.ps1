@@ -37,7 +37,7 @@ irm get.scoop.sh | iex
 scoop install 7zip aria2 curl dark git neovim sudo win32yank
 scoop bucket add nerd-fonts
 scoop bucket add extras
-sudo scoop install --global JetBrainsMono-NF JetBrainsMono-NF-Mono JetBrainsMono-NF-Propo
+sudo scoop install --global JetBrainsMono-NF JetBrainsMono-NF-Mono JetBrainsMono-NF-Propo IosevkaTerm-NF-Mono Iosevka-NF Iosevka-NF-Propo
 
 # UTC (dual boot with linux)
 reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\TimeZoneInformation" /v RealTimeIsUniversal /d 1 /t REG_DWORD /f

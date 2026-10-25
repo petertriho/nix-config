@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  fontProfile,
   ...
 }:
 let
@@ -74,6 +75,7 @@ in
                   },
               },
               font = wezterm.font(${luaString config.stylix.fonts.monospace.name}),
+              harfbuzz_features = { ${lib.concatMapStringsSep ", " luaString fontProfile.features} },
               font_size = wezterm.target_triple == "x86_64-pc-windows-msvc" and 12 or 14,
               window_background_opacity = ${toString config.stylix.opacity.terminal},
           },

@@ -69,6 +69,7 @@ let
     else
       candidate;
   variant = config.lib.stylix.colors.variant or null;
+  fontProfile = (import ./font-profiles.nix { inherit pkgs; }).${config.font};
 in
 {
   stylix = {
@@ -86,14 +87,7 @@ in
       else
         throw "theme `${config.theme}` has missing or unsupported variant metadata";
     fonts = {
-      monospace = {
-        package = pkgs.nerd-fonts.jetbrains-mono;
-        name = "JetBrainsMono Nerd Font Mono";
-      };
-      sansSerif = {
-        package = pkgs.nerd-fonts.jetbrains-mono;
-        name = "JetBrainsMono Nerd Font";
-      };
+      inherit (fontProfile) monospace sansSerif;
       sizes = {
         applications = 10;
         desktop = 10;

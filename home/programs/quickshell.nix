@@ -2,6 +2,7 @@
   config,
   pkgs,
   inputs,
+  fontProfile,
   ...
 }:
 let
@@ -70,7 +71,7 @@ in
           }
 
           readonly property QtObject fonts: QtObject {
-              readonly property string defaultFamily: "JetBrainsMono Nerd Font Propo"
+              readonly property string defaultFamily: "${fontProfile.propo}"
               readonly property int defaultSize: 14
               readonly property int workspaceSize: 12
               readonly property int workspaceIconSize: 12
