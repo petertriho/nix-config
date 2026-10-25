@@ -206,7 +206,7 @@ in
             hotkey-overlay.title = "Toggle Shortcuts Inhibit";
             action = toggle-keyboard-shortcuts-inhibit;
           };
-          "Mod+Shift+Escape".action = quit;
+          "Mod+Shift+E".action = quit;
           "Mod+Shift+Slash".action = show-hotkey-overlay;
           "Mod+O" = {
             repeat = false;
@@ -234,7 +234,7 @@ in
             hotkey-overlay.title = "Open Terminal";
             action = spawn "ghostty";
           };
-          "Mod+F" = {
+          "Mod+E" = {
             repeat = false;
             hotkey-overlay.title = "Open File Manager";
             action = spawn "nautilus";
@@ -256,8 +256,16 @@ in
             repeat = false;
             action = close-window;
           };
-          "Mod+M".action = maximize-column;
-          "Mod+Z" = {
+          "Mod+F".action = maximize-column;
+          "Mod+M" = {
+            hotkey-overlay.title = "Maximize Window to Edges";
+            action = maximize-window-to-edges;
+          };
+          "Mod+Ctrl+F" = {
+            hotkey-overlay.title = "Expand Column to Available Width";
+            action = expand-column-to-available-width;
+          };
+          "Mod+Shift+F" = {
             hotkey-overlay.title = "Fullscreen Window";
             action = fullscreen-window;
           };
@@ -273,18 +281,18 @@ in
           "Mod+Shift+C".action = center-window;
 
           # Niri has no submaps. These keep the useful window-mode actions directly reachable.
-          "Mod+W" = {
+          "Mod+Slash" = {
             repeat = false;
             hotkey-overlay.title = "Switch Windows";
             action = spawn "sh" "-c" "vicinae vicinae://launch/wm/switch-windows";
           };
-          "Mod+Shift+F".action = toggle-window-floating;
+          "Mod+Shift+Space".action = toggle-window-floating;
           "Mod+Shift+V".action = switch-focus-between-floating-and-tiling;
           "Mod+BracketLeft".action = consume-or-expel-window-left;
           "Mod+BracketRight".action = consume-or-expel-window-right;
           "Mod+Comma".action = consume-window-into-column;
           "Mod+Period".action = expel-window-from-column;
-          "Mod+Y" = {
+          "Mod+W" = {
             hotkey-overlay.title = "Toggle Tabbed Column";
             action = toggle-column-tabbed-display;
           };
@@ -303,6 +311,8 @@ in
           # Window: Focus
           "Mod+Ctrl+H".action = focus-column-first;
           "Mod+Ctrl+L".action = focus-column-last;
+          "Mod+Home".action = focus-column-first;
+          "Mod+End".action = focus-column-last;
           "Mod+H".action = focus-column-left;
           "Mod+J".action = focus-window-down;
           "Mod+K".action = focus-window-up;
@@ -315,6 +325,8 @@ in
           # Window: Move
           "Mod+Ctrl+Shift+H".action = move-column-to-first;
           "Mod+Ctrl+Shift+L".action = move-column-to-last;
+          "Mod+Ctrl+Shift+Home".action = move-column-to-first;
+          "Mod+Ctrl+Shift+End".action = move-column-to-last;
           "Mod+Shift+H".action = move-column-left;
           "Mod+Shift+J".action = move-window-down;
           "Mod+Shift+K".action = move-window-up;
@@ -342,6 +354,8 @@ in
           # Workspace: Focus
           "Mod+N".action = focus-workspace-down;
           "Mod+P".action = focus-workspace-up;
+          "Mod+Page_Down".action = focus-workspace-down;
+          "Mod+Page_Up".action = focus-workspace-up;
           "Mod+Grave" = {
             hotkey-overlay.title = "Switch to Previous Workspace";
             action = focus-workspace-previous;
@@ -350,14 +364,23 @@ in
           # Workspace: Move Window
           "Mod+Shift+N".action = move-window-to-workspace-down { focus = true; };
           "Mod+Shift+P".action = move-window-to-workspace-up { focus = true; };
+          "Mod+Shift+Page_Down".action = move-window-to-workspace-down { focus = true; };
+          "Mod+Shift+Page_Up".action = move-window-to-workspace-up { focus = true; };
 
           # Workspace: Move Column
           "Mod+Ctrl+N".action = move-column-to-workspace-down;
           "Mod+Ctrl+P".action = move-column-to-workspace-up;
+          "Mod+Ctrl+Page_Down".action = move-column-to-workspace-down;
+          "Mod+Ctrl+Page_Up".action = move-column-to-workspace-up;
 
           # Workspace: Reorder
           "Mod+Ctrl+Shift+N".action = move-workspace-down;
           "Mod+Ctrl+Shift+P".action = move-workspace-up;
+          "Mod+Ctrl+Shift+Page_Down".action = move-workspace-down;
+          "Mod+Ctrl+Shift+Page_Up".action = move-workspace-up;
+
+          # Matches AeroSpace alt-shift-m.
+          "Mod+Shift+M".action = move-workspace-to-monitor-next;
 
           # Monitor binds use Mod+Alt because bare Alt binds are global and take keys such as
           # Alt+Left and Alt+H from apps.
@@ -407,7 +430,6 @@ in
           "Mod+Alt+Ctrl+Shift+Down".action = move-workspace-to-monitor-down;
           "Mod+Alt+Ctrl+Shift+Up".action = move-workspace-to-monitor-up;
           "Mod+Alt+Ctrl+Shift+Right".action = move-workspace-to-monitor-right;
-          "Mod+Alt+Shift+M".action = move-workspace-to-monitor-next;
           "Mod+Alt+Ctrl+Shift+N".action = move-workspace-to-monitor-next;
           "Mod+Alt+Ctrl+Shift+P".action = move-workspace-to-monitor-previous;
         }
