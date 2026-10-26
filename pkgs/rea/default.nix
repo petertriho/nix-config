@@ -11,18 +11,38 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-25";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-26";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "42c16ba6315a7a6ba52a06e74a20eb1671eaab21";
-    hash = "sha256-9BmxKZDRLy8k9yl+f0JW1SYbeT0FQNgcIOHCAM/hLiE=";
+    rev = "eecadf35b20ac72d509513bef5949d36c887354d";
+    hash = "sha256-BqCSa06srCk3lnGIUKwNn8Lp3IO2EojTBiJ42mhpRPQ=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
   # Only Frida needs an unsupported native download during installation.
   postPatch = ''
+    # Node.js 26 removed transform mode. Keep enum and parameter-property
+    # support through the existing TypeScript 6 build dependency.
+    substituteInPlace scripts/lib/verifier-source-loader.mjs \
+      --replace-fail 'import { registerHooks, stripTypeScriptTypes } from "node:module";' \
+        'import { registerHooks } from "node:module";
+    import ts from "typescript6";' \
+      --replace-fail 'stripTypeScriptTypes(source, {
+          mode: "transform",
+          sourceMap: true,
+          sourceUrl: url,
+        })' 'ts.transpileModule(source, {
+          fileName: path,
+          compilerOptions: {
+            target: ts.ScriptTarget.ESNext,
+            module: format === "commonjs" ? ts.ModuleKind.CommonJS : ts.ModuleKind.ESNext,
+            inlineSourceMap: true,
+            inlineSources: true,
+          },
+        }).outputText'
+
     ${lib.getExe jq} 'del(.optionalDependencies.frida)' package.json > package.json.tmp
     mv package.json.tmp package.json
     ${lib.getExe jq} 'del(
@@ -33,7 +53,7 @@ buildNpmPackage (finalAttrs: {
   '';
 
   nodejs = nodejs_26;
-  npmDepsHash = "sha256-Do+EkI9z7QetNJ6/yo4EbNPP+begXZg9349uzyGvIJM=";
+  npmDepsHash = "sha256-NMcn/MPVG+plU0EaOeFwMZ9M05OWwPH7uZVHrJRu538=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];

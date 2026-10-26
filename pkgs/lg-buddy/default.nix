@@ -11,16 +11,16 @@
 }:
 rustPlatform.buildRustPackage {
   pname = "lg-buddy";
-  version = "2.0.0-beta.5-unstable-2026-10-18";
+  version = "2.0.0-unstable-2026-10-25";
 
   src = fetchFromGitHub {
     owner = "Staphylococcus";
     repo = "LG_Buddy";
-    rev = "35562fc48fc86f3f7facc5f697989ef7ceb01fc5";
-    hash = "sha256-ktVo5wss8aqPmdhqQjHumE6N44d4AfLWE3ldcc7vu3w=";
+    rev = "9eb9469f7feaf0f124aef7d6f259f30857c7109a";
+    hash = "sha256-pANuBC8ppBBReoZ431BEiiLU4oxpqL95q5PX+H1KUMk=";
   };
 
-  cargoHash = "sha256-YYMncHJxeak1ZWNoPrOZ1EQ94ZV4RD+TDqztQJZjirw=";
+  cargoHash = "sha256-ioNlpPYSousrtN4v1jLO9C5Osl3G5h6/5RDJtl8sp94=";
 
   nativeBuildInputs = [ makeWrapper ];
 
