@@ -18,7 +18,6 @@ export const initialActivity = (): CockpitActivity => ({
   tasks: [],
   background: [],
   crons: [],
-  backgroundAt: null,
   stopFailure: null,
   selectedAgent: null,
   selectedFor: null,

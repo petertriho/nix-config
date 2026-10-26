@@ -105,12 +105,12 @@ describe('timeline', () => {
     expect(timelineScale('60m', 0, 1000000, 40).cellMs).toBe(90000)
   })
 
-  test('lanes show the model, tools, approval, errors, and delegated agents, blank outside a lane', () => {
+  test('lanes show the model, tools, errors, and delegated agents, blank outside a lane', () => {
     const activity: CockpitActivity = {
       ...initialActivity(),
       turns: [{ id: 't', durationMs: 30000, reason: 'answer', finishedAt: 40000 }],
       tools: [
-        tool('asked', { tool: 'Bash', startedAt: 20000, finishedAt: 32000, runMs: 2000, outcome: 'success', approval: 'asked' }),
+        tool('asked', { tool: 'Bash', startedAt: 20000, finishedAt: 32000, outcome: 'success', approval: 'asked' }),
         tool('failed', { tool: 'Bash', startedAt: 50000, finishedAt: 55000, outcome: 'error' }),
         tool('spawn', { tool: 'Agent', startedAt: 60000, finishedAt: 80000, outcome: 'success' }),
         tool('read', { agentId: 'a1', startedAt: 65000, finishedAt: 66000, outcome: 'success' }),
@@ -119,17 +119,17 @@ describe('timeline', () => {
     }
     const lanes = timelineLanes(activity, 100000, 0, 10000, 10, 6, 15000)
     expect(lanes.map(lane => lane.label)).toEqual(['main', 'Worker'])
-    expect(lanes[0]?.cells).toEqual([LANE.absent, LANE.model, LANE.approval, LANE.tool, LANE.idle, LANE.error, LANE.agent, LANE.agent, LANE.idle, LANE.idle])
+    expect(lanes[0]?.cells).toEqual([LANE.absent, LANE.model, LANE.tool, LANE.tool, LANE.idle, LANE.error, LANE.agent, LANE.agent, LANE.idle, LANE.idle])
     expect(lanes[1]?.cells).toEqual([-1, -1, -1, -1, -1, -1, LANE.tool, LANE.model, -1, -1])
   })
 
-  test('the budget splits session time into busy, tools, agents, approval, and concurrency', () => {
+  test('the budget splits session time into busy, tools, agents, approval prompts, and concurrency', () => {
     const activity: CockpitActivity = {
       ...initialActivity(),
       working: true, turnStartedAt: 90000,
       turns: [{ id: 't', durationMs: 30000, reason: 'answer', finishedAt: 40000 }],
       tools: [
-        tool('asked', { tool: 'Bash', startedAt: 20000, finishedAt: 32000, runMs: 2000, outcome: 'success', approval: 'asked' }),
+        tool('asked', { tool: 'Bash', startedAt: 20000, finishedAt: 32000, outcome: 'success', approval: 'asked' }),
         tool('failed', { tool: 'Bash', startedAt: 50000, finishedAt: 55000, outcome: 'error' }),
         tool('spawn', { tool: 'Agent', startedAt: 60000, finishedAt: 80000, outcome: 'success' }),
         tool('read', { agentId: 'a1', startedAt: 65000, finishedAt: 66000, outcome: 'success' }),
@@ -139,9 +139,9 @@ describe('timeline', () => {
     }
     const context = { ...initialContext(), usage: { startedAt: 0, context: { window: 1 }, rateLimits: [] } }
     expect(timeBudget(activity, context, 100000)).toEqual({
-      sessionMs: 100000, busyMs: 40000, toolMs: 8000,
-      topTools: [{ tool: 'Bash', ms: 7000 }, { tool: 'Read', ms: 1000 }],
-      agentMs: 20000, agents: 1, approvals: 1, approvalMs: 10000,
+      sessionMs: 100000, busyMs: 40000, toolMs: 18000,
+      topTools: [{ tool: 'Bash', ms: 17000 }, { tool: 'Read', ms: 1000 }],
+      agentMs: 20000, agents: 1, approvals: 1,
       peak: 3, average: 2, calls: 4, failures: 1,
     })
   })

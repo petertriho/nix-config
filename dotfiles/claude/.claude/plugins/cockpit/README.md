@@ -9,7 +9,7 @@ The plugin needs Claude Code 2.1.292 or later for the early-access function-hook
 | View | Content | Data source |
 | --- | --- | --- |
 | Agents | Session summary, plan, agent tree, and a detail card for the selected agent with its status, tokens, models, tool mix, todos, recent tools, and last answer | Native agent, turn, and tool events |
-| Tools | Totals with approval wait, running calls, the call log with actor filters, a detail card, time per tool, background tasks, and crons | Native tool, permission, and stop events |
+| Tools | Totals with approval counts, running calls, the call log with actor filters, a detail card, time per tool, background tasks, and crons | Native tool, permission, task notification, and turn events |
 | Changes | Branch and totals, file groups by Git state with diffstat bars, the selected diff, checks, review findings, and Git activity | Native edit and shell results, and requested Git reads |
 | Context | Fill gauge with the auto-compact mark, headroom and trend, category estimates, a token table, cost and rate limits, largest consumers, and compactions | Local summary and native measurements |
 | Activity | Bongo Cat, activity counts and history, a timeline per actor, and a summary of where the time went | Observed tool, agent, and turn activity |
@@ -24,7 +24,7 @@ The first row shows what runs now. It shows only while work runs, while agents a
 2. A chip for each live agent, with its name and elapsed time.
 3. At the right end, a sparkline of the activity level over the last 5 minutes, in steps of 30 seconds.
 
-After a turn stops on an API error, the status shows the error in red until the next turn starts. After another failed turn, the status shows `✗ last turn failed`.
+After a turn stops on an API error, the status shows "stopped: API error" in red until the next turn starts. The pane header also shows the error message from the transcript. After another failed turn, the status shows `✗ last turn failed`.
 
 The second row shows where the work stands. It has these parts, in priority order:
 
@@ -66,16 +66,15 @@ When the transcript in view changes to a subagent, the pane selects that agent. 
 
 ### Tools
 
-The summary shows the total tool time, the number of approval prompts, and the time spent waiting for an answer. "Running now" lists the running calls, newest first. A call that waits for a permission answer shows a `?` mark.
+The summary shows the total tool time and the number of approval prompts. "Running now" lists the running calls, newest first. A call that waits for a permission answer shows a `?` mark.
 
-When the engine reports the execution time, a finished tool shows two durations:
-
-- "Ran" is the execution time that the engine reports.
-- "Approval" is the rest of the call time, which includes the permission dialog and hooks. A call without a permission dialog shows this time as "Hooks".
+The time of a call starts when the engine starts the call and stops when the call returns. This time includes the permission dialog and hooks. The detail card of a call that asked for permission shows "Approval asked".
 
 "By tool" ranks the tools by total time, with call and failure counts. `Agent` calls are counted but get no bar, because their time is the time of the subagent.
 
-Background tasks come from `Bash` calls with `run_in_background`, `Agent` calls with `run_in_background`, and `Monitor` calls. The engine snapshot at each stop updates their status. Scheduled crons appear below the background tasks.
+Background tasks come from `Bash` calls with `run_in_background`, `Agent` calls with `run_in_background`, and `Monitor` calls. The task notification in the transcript gives the end status, such as completed, failed, or killed. A `TaskStop` call marks a task as stopped. The end of the last turn of a background agent also marks the agent as ended.
+
+Crons appear below the background tasks. They come from `CronCreate`, `CronDelete`, and `ScheduleWakeup` calls. A one-shot cron leaves the list when its prompt fires. A `/loop` wakeup shows the time until it fires.
 
 ### Changes
 
@@ -98,8 +97,8 @@ Cost per turn is the difference between consecutive cost measurements of the mai
 The Activity view shows the phase, the number of running tools and agents, the activity history, and a pause control. It also has these parts:
 
 - **Bongo Cat** acts out the session. It sleeps on the drums when idle and taps while the model thinks. While tools run, it drums on the bongos, faster with more work at once. After an error, it holds its paws up. A speech bubble names the lead tool and its elapsed time.
-- **Timeline** shows one lane for the main thread and one for each recent agent. Each cell shows model time, a tool, a delegated agent, an approval wait, or an error. "Zoom" changes the span between the session and the last 5, 15, or 60 minutes.
-- **Where time went** shows the busy share of the session, tool time by tool, agent time, approval wait, parallel work, and the call rate.
+- **Timeline** shows one lane for the main thread and one for each recent agent. Each cell shows model time, a tool, a delegated agent, or an error. "Zoom" changes the span between the session and the last 5, 15, or 60 minutes.
+- **Where time went** shows the busy share of the session, tool time by tool, agent time, the number of approval prompts, parallel work, and the call rate.
 
 The cat is braille line art based on the original Bongo Cat. The table edge falls to the right, the face tilts with it, and the two bongos stand in front. A raised paw shows its toe beans, and a hit shows impact lines. The cat is 40 columns wide, or 34 or fewer in a narrow pane. It uses theme colors.
 
@@ -180,9 +179,17 @@ Agent status comes from the engine roster. An external teammate can keep an old 
 
 Tool durations measure the call, not the full life of a background process. Server-side tools appear only after the response that used them. Passive tool hooks do not give general live stdout.
 
-No event reports when you answer a permission dialog. As a result, the approval mark stays until the tool finishes, and the band does not show it. The approval and hook time is known only after the call ends.
+No event reports when you answer a permission dialog. As a result, the approval mark stays until the tool finishes, and the band does not show it. The time of a call that asked for permission includes the time that the dialog waited for you.
 
-Background status changes only when a turn or a subagent stops. A task that ends between two stops keeps its last reported status until the next stop.
+The plugin uses no classic hook events (`classic.*`). On a machine with managed settings, and for Team and Enterprise organizations, the built-in `cc-plugin-sec-default` plugin runs first and sends each classic event past installed plugins. As a result, the plugin cannot get these data:
+
+- The execution time of a tool without the permission dialog and hooks (`PostToolUse`).
+- The list of background tasks and crons at each stop (`Stop`).
+- The kind of an API error, such as `rate_limit` (`StopFailure`).
+
+A shell or monitor task ends in the view only when the transcript draws its notification. In a session without a surface that draws the transcript, the task stays running.
+
+Crons change only from tool calls. A recurring cron that expires after 7 days stays in the list. A one-shot cron stays in the list if its fired prompt differs from the prompt that scheduled it.
 
 Check summaries read the known output formats of Jest, Vitest, pytest, cargo, and Go. For unknown output, the check shows a completed call and does not invent a pass count. A background check keeps its last reported state.
 

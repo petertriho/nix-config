@@ -2,16 +2,17 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface, Timer } from 'claude-code'
 import type {
   CockpitActions, CockpitActivity, CockpitAgent, CockpitChange, CockpitCompaction, CockpitContext, CockpitFinding,
-  CockpitMascot, CockpitPreferences, CockpitPulse, CockpitReview, CockpitSpan, CockpitTool, CockpitView, CockpitViewProps,
+  CockpitMascot, CockpitPreferences, CockpitPulse, CockpitReview, CockpitSpan, CockpitStopFailure, CockpitTool, CockpitView,
+  CockpitViewProps,
 } from '../types'
 import { renderActivity, SPAN_ORDER } from './activity'
 import { renderAgents } from './agents'
 import { renderChanges } from './changes'
 import { renderContext } from './context'
 import {
-  agentResult, answerText, applyTaskResult, backgroundLaunch, backgroundSnapshot, changeState, cronSnapshot, detectCheck,
-  endBackground, gitOperationOf, mergeAgents, mergeBackground, normalizeObservedChanges, parseGitDiff,
-  parseGitStatus, summarizeCheck, todosOf, toolTarget, withSample,
+  agentResult, answerText, applyCronResult, applyTaskResult, backgroundLaunch, changeState, detectCheck, endBackground,
+  endedStatus, firedCrons, gitOperationOf, mergeAgents, normalizeObservedChanges, parseGitDiff, parseGitStatus,
+  summarizeCheck, todosOf, toolTarget, withSample,
 } from './data'
 import { line, paneFooter, tabMark, tabRows } from './layout'
 import { activityOf, contextOf, initialActivity, initialContext, initialReview, reviewOf } from './state'
@@ -254,29 +255,22 @@ const savePreferences = ($: EngineInterface): Promise<void> => observe($, async 
   await $.store.set(STORE_KEY, { view, band, animation, span })
 })
 
-const recordRunTime = async ($: EngineInterface, id: string, ms: number | undefined): Promise<void> => {
-  if (ms === undefined || !Number.isFinite(ms) || ms < 0) return
-  await updateActivity($, (previous): CockpitActivity => previous.tools.some(tool => tool.id === id)
-    ? { ...previous, tools: previous.tools.map(tool => tool.id === id ? { ...tool, runMs: Math.round(ms) } : tool) }
-    : previous)
+const recordTaskEnd = async ($: EngineInterface, id: string, status: string): Promise<void> => {
+  const [sessionId, now] = await Promise.all([$.session.id(), $.clock.now()])
+  await updateActivity($, (previous): CockpitActivity => {
+    if (previous.sessionId !== sessionId) return previous
+    const background = endBackground(previous.background, id, status, now)
+    return background === previous.background ? previous : { ...previous, background }
+  })
 }
 
-const recordBackground = async (
-  $: EngineInterface, tasks: unknown, crons: unknown, endedAgent?: string,
-): Promise<void> => {
-  const id = await ensureSession($)
-  const now = await $.clock.now()
-  await updateActivity($, (previous): CockpitActivity => {
-    if (previous.sessionId !== id) return previous
-    const snapshot = Array.isArray(tasks)
-    let background = snapshot ? mergeBackground(previous.background, backgroundSnapshot(tasks, now), now) : previous.background
-    if (endedAgent !== undefined) background = endBackground(background, endedAgent, 'completed', now)
-    return {
-      ...previous, background,
-      crons: Array.isArray(crons) ? cronSnapshot(crons) : previous.crons,
-      backgroundAt: snapshot ? now : previous.backgroundAt,
-    }
-  })
+// Only the classic StopFailure hook names the kind of API error, and a managed
+// security plugin keeps classic hooks from installed plugins. The transcript
+// ends with the engine's message for the error.
+const turnFailure = async ($: EngineInterface, now: number): Promise<CockpitStopFailure> => {
+  const last = (await $.session.messages().catch(() => [])).at(-1)
+  const details = last?.role === 'assistant' ? last.text.trim() : ''
+  return { error: 'API error', details: details === '' ? undefined : clip(details, 240), at: now }
 }
 
 const selectView = async ($: EngineInterface, view: CockpitView): Promise<void> => {
@@ -564,20 +558,6 @@ export const register: Register = on => {
     return result
   }).catch(($, e, next) => next(e))
 
-  // PostToolUse is the only source of execution time without the permission
-  // prompt. No event marks the moment a person answers the prompt.
-  on('classic.PostToolUse', async ($, e, next) => {
-    const result = await next(e)
-    await observe($, () => recordRunTime($, e.tool_use_id, e.duration_ms))
-    return result
-  }).catch(($, e, next) => next(e))
-
-  on('classic.PostToolUseFailure', async ($, e, next) => {
-    const result = await next(e)
-    await observe($, () => recordRunTime($, e.tool_use_id, e.duration_ms))
-    return result
-  }).catch(($, e, next) => next(e))
-
   on('tool.call', async ($, e, next) => {
     let sessionId: string | undefined
     let startedAt = 0
@@ -633,6 +613,7 @@ export const register: Register = on => {
           const tools = previous.tools.map(tool => tool.id === e.tool_use_id ? { ...tool, outcome, finishedAt: now } : tool)
           const phase = tools.some(tool => tool.outcome === 'running') ? 'tools' : previous.working ? 'thinking' : outcome === 'error' ? 'error' : 'idle'
           const tasks = succeeded ? applyTaskResult(previous.tasks, e.tool, e, result) : undefined
+          const crons = succeeded ? applyCronResult(previous.crons, e.tool, e, result) : undefined
           let background = launch ? [...previous.background.filter(task => task.id !== launch.id), launch].slice(-40) : previous.background
           if (stopped !== undefined) background = endBackground(background, stopped, 'stopped', now)
           // An agent can leave the roster before a refresh lists it. Keep its report anyway.
@@ -644,6 +625,7 @@ export const register: Register = on => {
           return {
             ...previous, tools, phase, agents, background,
             tasks: tasks ?? previous.tasks,
+            crons: crons ?? previous.crons,
             todos: todos === undefined ? previous.todos : [
               ...previous.todos.filter(list => list.agentId !== e.agentId),
               { agentId: e.agentId, items: todos, updatedAt: now },
@@ -652,9 +634,7 @@ export const register: Register = on => {
           }
         })
         if (checkLabel !== undefined) {
-          // Prefer the execution time, which leaves out a permission prompt.
-          const runMs = (await read($, activity)).tools.find(tool => tool.id === e.tool_use_id)?.runMs
-          const check = summarizeCheck(e.tool_use_id, checkLabel, result, { error: result.isError, denied: result.deny !== undefined }, runMs ?? Math.max(0, now - startedAt))
+          const check = summarizeCheck(e.tool_use_id, checkLabel, result, { error: result.isError, denied: result.deny !== undefined }, Math.max(0, now - startedAt))
           await updateReview($, (previous): CockpitReview => previous.sessionId === id ? {
             ...previous,
             checks: [...previous.checks.filter(item => item.id !== check.id), { ...check, finishedAt: now }].slice(-40),
@@ -715,6 +695,9 @@ export const register: Register = on => {
     await observe($, async () => {
       if (id === undefined || await $.session.id() !== id) return
       const now = await $.clock.now()
+      // A subagent's failure reaches its spawner as a tool error.
+      const failure = e.agentId === undefined && e.reason === 'error' ? await turnFailure($, now) : null
+      const ended = e.reason === 'answer' ? 'completed' : e.reason === 'aborted' ? 'killed' : 'failed'
       await changeActivity($, id, now, previous => ({
         ...previous,
         turns: [...previous.turns.filter(turn => turn.id !== e.turnId), {
@@ -728,6 +711,8 @@ export const register: Register = on => {
         working: e.agentId === undefined ? false : previous.working,
         turnStartedAt: e.agentId === undefined ? null : previous.turnStartedAt,
         phase: e.agentId === undefined ? e.reason === 'error' ? 'error' : 'idle' : previous.phase,
+        stopFailure: failure ?? previous.stopFailure,
+        background: e.agentId === undefined ? previous.background : endBackground(previous.background, e.agentId, ended, now),
         agents: previous.agents.map(agent => agent.id === e.agentId ? {
           ...agent,
           completedAt: now,
@@ -742,45 +727,30 @@ export const register: Register = on => {
     return result
   }).catch(($, e, next) => next(e))
 
-  on('classic.Stop', async ($, e, next) => {
-    const result = await next(e)
-    await observe($, () => recordBackground($, e.background_tasks, e.session_crons))
-    return result
-  }).catch(($, e, next) => next(e))
-
-  on('classic.SubagentStop', async ($, e, next) => {
-    const result = await next(e)
-    await observe($, async () => {
-      await recordBackground($, e.background_tasks, e.session_crons, e.agent_id)
-      const answer = answerText(e.last_assistant_message)
-      if (answer !== undefined) {
-        await updateActivity($, (previous): CockpitActivity => ({
-          ...previous,
-          agents: previous.agents.map(agent => agent.id === e.agent_id && agent.answer === undefined ? { ...agent, answer } : agent),
-        }))
-      }
-    })
-    return result
-  }).catch(($, e, next) => next(e))
-
-  on('classic.StopFailure', async ($, e, next) => {
-    const result = await next(e)
-    // A subagent's failure reaches its spawner as a tool error.
-    if (e.agent_id === undefined) {
+  // A firing does not name its cron. A one-shot cron is known by its prompt.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.origin.kind === 'scheduled-trigger') {
       await observe($, async () => {
         const id = await ensureSession($)
         const now = await $.clock.now()
-        await changeActivity($, id, now, previous => ({
-          ...previous,
-          stopFailure: { error: e.error, details: e.error_details ? clip(e.error_details, 240) : undefined, at: now },
-          working: false,
-          turnStartedAt: null,
-          phase: 'error',
-          updatedAt: now,
-        }))
+        await updateActivity($, (previous): CockpitActivity => {
+          if (previous.sessionId !== id) return previous
+          const crons = firedCrons(previous.crons, e.text, now)
+          return crons === previous.crons ? previous : { ...previous, crons }
+        })
       })
     }
-    return result
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // Outside the classic Stop hook, the notification row is the only report of
+  // how a background task ended. A drawing never writes, so a timer records it,
+  // and the hook reads no state, so later writes do not redraw the row.
+  on('ui.render', { component: 'UserMessage', props: { origin: { kind: 'task-notification' } } }, async ($, e, next) => {
+    const id = e.props.task?.id
+    const status = endedStatus(e.props.task?.status)
+    if (id !== undefined && status !== undefined) $.clock.after(0, () => { void observe($, () => recordTaskEnd($, id, status)) })
+    return next(e)
   }).catch(($, e, next) => next(e))
 
   on('session.compact', async ($, e, next) => {

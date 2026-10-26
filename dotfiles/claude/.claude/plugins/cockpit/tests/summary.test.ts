@@ -3,8 +3,8 @@ import type { CockpitActivity, CockpitContext, CockpitReview } from '../types'
 import { initialActivity, initialContext, initialReview } from '../hooks/state'
 import type { BandRow } from '../hooks/summary'
 import {
-  approvalWait, bandRows, cacheHit, changeTotals, checkResult, contextColor, contextFill, isStale, latestCheck, leadTool,
-  planProgress, planState, runningTools, sessionStatus, tokenTotals, toolDuration, toolStats, waitDuration,
+  approvalCount, bandRows, cacheHit, changeTotals, checkResult, contextColor, contextFill, isStale, latestCheck, leadTool,
+  planProgress, planState, runningTools, sessionStatus, tokenTotals, toolDuration, toolStats,
 } from '../hooks/summary'
 import { bar, brief, cells, clipStart, colors, compact, duration, shortModel, stopwatch, usd } from '../hooks/theme'
 import { agent, breakdown, tool, USAGE } from './kit'
@@ -20,34 +20,25 @@ describe('tool timing', () => {
     expect(toolDuration(tool('bad-time', { startedAt: NaN }), 3500)).toBeUndefined()
   })
 
-  test('a PostToolUse time replaces the wall time and leaves the wait apart', () => {
-    const asked = tool('asked', { outcome: 'success', finishedAt: 16000, runMs: 1200, approval: 'asked' })
-    expect(toolDuration(asked, 20000)).toBe(1200)
-    expect(waitDuration(asked)).toBe(13800)
-    // A running call has no execution time yet: its elapsed time includes the prompt.
-    expect(toolDuration(tool('live', { runMs: 50 }), 3500)).toBe(2500)
-    expect(waitDuration(tool('live'))).toBeUndefined()
-  })
-
   test('per-tool statistics rank by total time and count failures and denials', () => {
     const stats = toolStats([
       tool('r1', { outcome: 'success', finishedAt: 1100 }),
       tool('r2', { outcome: 'success', finishedAt: 1100 }),
-      tool('b1', { tool: 'Bash', outcome: 'error', finishedAt: 9000, runMs: 5000 }),
+      tool('b1', { tool: 'Bash', outcome: 'error', finishedAt: 9000 }),
       tool('b2', { tool: 'Bash', outcome: 'denied', finishedAt: 2000 }),
     ], 10000)
     expect(stats).toEqual([
-      { tool: 'Bash', calls: 2, failures: 2, totalMs: 6000, maxMs: 5000 },
+      { tool: 'Bash', calls: 2, failures: 2, totalMs: 9000, maxMs: 8000 },
       { tool: 'Read', calls: 2, failures: 0, totalMs: 200, maxMs: 100 },
     ])
   })
 
-  test('approval wait counts asked calls and sums only measured waits', () => {
-    expect(approvalWait([
-      tool('a', { outcome: 'success', finishedAt: 5000, runMs: 1000, approval: 'asked' }),
+  test('the approval count includes running and finished asked calls', () => {
+    expect(approvalCount([
+      tool('a', { outcome: 'success', finishedAt: 5000, approval: 'asked' }),
       tool('b', { approval: 'asked' }),
-      tool('c', { outcome: 'success', finishedAt: 2000, runMs: 500 }),
-    ])).toEqual({ asked: 2, totalMs: 3000, measured: 1 })
+      tool('c', { outcome: 'success', finishedAt: 2000 }),
+    ])).toBe(2)
   })
 })
 

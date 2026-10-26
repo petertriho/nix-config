@@ -4,8 +4,8 @@ import { agentName } from './agents'
 import { actions, field, heading, line, muted, section, viewWidth } from './layout'
 import type { Segment } from './summary'
 import {
-  activityHistory, agentElapsed, approvalWait, HISTORY_BUCKET_MS, isLive, leadTool, mainTurns, runningTools, sessionStart,
-  sessionStatus, toolDuration, toolLabel, toolStats, waitDuration,
+  activityHistory, agentElapsed, approvalCount, HISTORY_BUCKET_MS, isLive, leadTool, mainTurns, runningTools, sessionStart,
+  sessionStatus, toolDuration, toolLabel, toolStats,
 } from './summary'
 import type { CockpitElements } from './theme'
 import { brief, clip, colors, duration, humanize, padEnd, percent, plural, sparkline } from './theme'
@@ -297,7 +297,7 @@ const catBlock = (ui: CockpitElements, props: CockpitViewProps, width: number): 
 // ---------------------------------------------------------------- timeline
 
 /** Cell states, in the order one overrides another within a cell. */
-export const LANE = { absent: -1, idle: 0, model: 1, agent: 2, tool: 3, approval: 4, error: 5 } as const
+export const LANE = { absent: -1, idle: 0, model: 1, agent: 2, tool: 3, error: 4 } as const
 type LaneState = typeof LANE[keyof typeof LANE]
 
 const laneGlyph: Record<LaneState, Glyph> = {
@@ -306,8 +306,7 @@ const laneGlyph: Record<LaneState, Glyph> = {
   1: { char: '▒', color: colors.accent },
   2: { char: '▓', color: colors.magenta },
   3: { char: '█', color: colors.cyan },
-  4: { char: '█', color: colors.yellow },
-  5: { char: '█', color: colors.red },
+  4: { char: '█', color: colors.red },
 }
 
 const SPANS: Record<Exclude<CockpitSpan, 'fit'>, number> = { '5m': 300000, '15m': 900000, '60m': 3600000 }
@@ -346,8 +345,6 @@ const laneIntervals = (activity: CockpitActivity, id: string | undefined, now: n
   for (const tool of activity.tools.filter(item => item.agentId === id)) {
     const end = tool.finishedAt ?? (tool.outcome === 'running' ? now : tool.startedAt)
     intervals.push({ from: tool.startedAt, to: end, state: tool.tool === 'Agent' ? LANE.agent : LANE.tool })
-    const wait = tool.approval === 'asked' ? waitDuration(tool) : undefined
-    if (wait !== undefined && wait > 0) intervals.push({ from: tool.startedAt, to: tool.startedAt + wait, state: LANE.approval })
     if (tool.outcome === 'error' || tool.outcome === 'denied') intervals.push({ from: end, to: end, state: LANE.error })
     from = from === undefined ? tool.startedAt : Math.min(from, tool.startedAt)
     to = to === undefined ? end : Math.max(to, end)
@@ -397,7 +394,6 @@ export type TimeBudget = {
   agentMs: number
   agents: number
   approvals: number
-  approvalMs: number
   peak: number
   average?: number
   calls: number
@@ -411,7 +407,6 @@ export const timeBudget = (activity: CockpitActivity, context: CockpitContext, n
   const busy = turns.reduce((total, turn) => total + turn.durationMs, 0)
     + (activity.working && activity.turnStartedAt !== null ? Math.max(0, now - activity.turnStartedAt) : 0)
   const tools = activity.tools.filter(tool => tool.tool !== 'Agent')
-  const wait = approvalWait(activity.tools)
   const sorted = activity.samples.filter(sample => finite(sample.at) && finite(sample.level)).slice().sort((left, right) => left.at - right.at)
   let weighted = 0
   let active = 0
@@ -426,8 +421,7 @@ export const timeBudget = (activity: CockpitActivity, context: CockpitContext, n
     topTools: toolStats(tools, now).slice(0, 3).map(stat => ({ tool: stat.tool, ms: stat.totalMs })),
     agentMs: activity.agents.reduce((total, agent) => total + (agentElapsed(agent, now) ?? 0), 0),
     agents: activity.agents.length,
-    approvals: wait.asked,
-    approvalMs: wait.totalMs,
+    approvals: approvalCount(activity.tools),
     peak: Math.max(0, ...sorted.map(sample => sample.level)),
     average: active > 0 ? weighted / active : undefined,
     calls: activity.tools.length,
@@ -449,7 +443,6 @@ const timelineSection = (ui: CockpitElements, props: CockpitViewProps, width: nu
     { text: '█', color: colors.cyan }, { text: ' tool  ', color: colors.muted },
     { text: '▒', color: colors.accent }, { text: ' model  ', color: colors.muted },
     { text: '▓', color: colors.magenta }, { text: ' agent  ', color: colors.muted },
-    { text: '█', color: colors.yellow }, { text: ' approval  ', color: colors.muted },
     { text: '█', color: colors.red }, { text: ' error', color: colors.muted },
   ]
   return (
@@ -490,7 +483,6 @@ const budgetSection = (ui: CockpitElements, props: CockpitViewProps, width: numb
     ], 10) : null,
     field(ui, 'activity:budget:approval', 'Approval', budget.approvals === 0 ? [{ text: 'none asked', color: colors.muted }] : [
       { text: plural(budget.approvals, 'prompt'), color: colors.yellow },
-      { text: budget.approvalMs > 0 ? ` · ${duration(budget.approvalMs)} waiting on you` : '', color: colors.yellow },
     ], 10),
     field(ui, 'activity:budget:parallel', 'Parallel', [
       { text: `peak ${budget.peak}` },

@@ -10,19 +10,13 @@ export type Segment = { text: string; color?: ThemeKey; backgroundColor?: ThemeK
 const finite = (value: number | undefined | null): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
-// A finished call with a PostToolUse time reports execution alone. Otherwise
-// the time includes any permission prompt and hook time.
+// The time includes any permission prompt and hook time. Execution time alone
+// comes only from the classic PostToolUse hook, which a managed security plugin
+// keeps from installed plugins.
 export const toolDuration = (tool: CockpitTool, now: number): number | undefined => {
-  if (tool.outcome !== 'running' && tool.runMs !== undefined) return tool.runMs
   const end = tool.finishedAt ?? (tool.outcome === 'running' ? now : undefined)
   if (end === undefined || !Number.isFinite(end) || !Number.isFinite(tool.startedAt)) return undefined
   return Math.max(0, end - tool.startedAt)
-}
-
-// The time around the execution: the permission prompt when one was asked, and hooks.
-export const waitDuration = (tool: CockpitTool): number | undefined => {
-  if (tool.finishedAt === undefined || tool.runMs === undefined) return undefined
-  return Math.max(0, tool.finishedAt - tool.startedAt - tool.runMs)
 }
 
 export const runningTools = (activity: CockpitActivity): CockpitTool[] =>
@@ -160,11 +154,8 @@ export const toolStats = (tools: readonly CockpitTool[], now: number): ToolStat[
   return [...stats.values()].sort((left, right) => right.totalMs - left.totalMs || right.calls - left.calls)
 }
 
-export const approvalWait = (tools: readonly CockpitTool[]): { asked: number; totalMs: number; measured: number } => {
-  const asked = tools.filter(tool => tool.approval === 'asked')
-  const waits = asked.map(waitDuration).filter(finite)
-  return { asked: asked.length, totalMs: waits.reduce((total, wait) => total + wait, 0), measured: waits.length }
-}
+export const approvalCount = (tools: readonly CockpitTool[]): number =>
+  tools.filter(tool => tool.approval === 'asked').length
 
 export const sessionStart = (activity: CockpitActivity, context: CockpitContext): number | undefined => {
   const started = context.usage?.startedAt

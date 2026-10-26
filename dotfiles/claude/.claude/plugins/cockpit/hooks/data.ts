@@ -526,7 +526,6 @@ export const normalizeObservedChanges = (
 const MAX_SAMPLES = 240
 const MAX_TODOS = 50
 const MAX_TASKS = 100
-const MAX_BACKGROUND = 40
 const MAX_ANSWER = 4000
 
 const text = (value: unknown, limit = 240): string | undefined =>
@@ -658,8 +657,8 @@ export const gitOperationOf = (id: string, result: unknown, now: number): Cockpi
   return found.commit || found.push || found.branch || found.pr ? found : undefined
 }
 
-// A launch is known from the tool result. The Stop snapshots report later
-// states. A shell command line is never kept: only its description.
+// A launch is known from the tool result, and its end from the task
+// notification. A shell command line is never kept: only its description.
 export const backgroundLaunch = (
   tool: string, input: unknown, result: unknown, now: number,
 ): CockpitBackgroundTask | undefined => {
@@ -678,43 +677,67 @@ export const backgroundLaunch = (
   return undefined
 }
 
-export const backgroundSnapshot = (list: unknown, now: number): CockpitBackgroundTask[] =>
-  array(list, MAX_BACKGROUND).flatMap(item => {
-    const task = record(item)
-    const id = text(task?.id, 200)
-    if (!id) return []
-    const type = text(task?.type, 40) ?? 'task'
-    return [{
-      id, type, status: text(task?.status, 40) ?? 'unknown',
-      description: text(task?.description) ?? text(task?.name, 80) ?? type,
-      agentType: text(task?.agent_type, 80), updatedAt: now,
-    }]
-  })
-
-// The snapshot lists in-flight work only. A task that leaves it has ended,
-// without a reported outcome.
-export const mergeBackground = (
-  previous: CockpitBackgroundTask[], snapshot: CockpitBackgroundTask[], now: number,
-): CockpitBackgroundTask[] => {
-  const live = new Map(snapshot.map(task => [task.id, task]))
-  const kept = previous.map(task => {
-    const current = live.get(task.id)
-    if (current) return { ...task, ...current, startedAt: task.startedAt }
-    return task.endedAt === undefined ? { ...task, status: 'ended', endedAt: now, updatedAt: now } : task
-  })
-  const added = snapshot.filter(task => !previous.some(item => item.id === task.id))
-  return [...kept, ...added].slice(-MAX_BACKGROUND)
-}
-
+// A redrawn notification ends nothing new, so it returns the same list.
 export const endBackground = (
   previous: CockpitBackgroundTask[], id: string, status: string, now: number,
 ): CockpitBackgroundTask[] =>
-  previous.map(task => task.id === id && task.endedAt === undefined ? { ...task, status, endedAt: now, updatedAt: now } : task)
+  previous.some(task => task.id === id && task.endedAt === undefined)
+    ? previous.map(task => task.id === id && task.endedAt === undefined ? { ...task, status, endedAt: now, updatedAt: now } : task)
+    : previous
 
-export const cronSnapshot = (list: unknown): CockpitCron[] =>
-  array(list, 20).flatMap(item => {
-    const cron = record(item)
-    const id = text(cron?.id, 80)
-    const schedule = text(cron?.schedule, 80)
-    return id && schedule ? [{ id, schedule, recurring: cron?.recurring === true }] : []
-  })
+/** The status of a task notification that reports an end. A progress notification has no status, or a live one. */
+export const endedStatus = (status: unknown): string | undefined => {
+  const value = text(status, 40)
+  return value === undefined || value === 'running' || value === 'pending' ? undefined : value
+}
+
+const MAX_CRONS = 20
+const WAKEUP = 'wakeup'
+
+// FNV-1a. A firing names a one-shot cron only by its prompt, and session
+// memory keeps no prompt.
+const promptKey = (prompt: string): string => {
+  let hash = 0x811c9dc5
+  const value = prompt.trim()
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(hash ^ value.charCodeAt(index), 0x01000193) >>> 0
+  }
+  return hash.toString(16)
+}
+
+// No plugin event lists the session's crons. The tools that schedule and
+// cancel them report each change.
+export const applyCronResult = (
+  crons: CockpitCron[], tool: string, input: unknown, result: unknown,
+): CockpitCron[] | undefined => {
+  const value = resultOf(result)
+  const args = record(input)
+  if (!value) return undefined
+  if (tool === 'CronCreate') {
+    const id = text(value.id, 80)
+    const schedule = text(value.humanSchedule, 80) ?? text(args?.cron, 80)
+    if (!id || !schedule) return undefined
+    const recurring = typeof value.recurring === 'boolean' ? value.recurring : args?.recurring !== false
+    const prompt = typeof args?.prompt === 'string' && !recurring ? promptKey(args.prompt) : undefined
+    return [...crons.filter(cron => cron.id !== id), { id, schedule, recurring, ...(prompt === undefined ? {} : { promptKey: prompt }) }].slice(-MAX_CRONS)
+  }
+  if (tool === 'CronDelete') {
+    const id = text(value.id, 80) ?? text(args?.id, 80)
+    return id ? crons.filter(cron => cron.id !== id) : undefined
+  }
+  if (tool === 'ScheduleWakeup') {
+    // A dynamic /loop holds one pending wakeup. The next call replaces it.
+    const rest = crons.filter(cron => cron.id !== WAKEUP)
+    if (value.stopped === true) return rest
+    const dueAt = finite(value.scheduledFor, Number.MAX_SAFE_INTEGER)
+    return dueAt === undefined ? undefined : [...rest, { id: WAKEUP, schedule: '/loop wakeup', recurring: false, dueAt }].slice(-MAX_CRONS)
+  }
+  return undefined
+}
+
+/** A scheduled prompt fired: the one-shot cron with that prompt deletes itself, and a due wakeup has fired. */
+export const firedCrons = (crons: CockpitCron[], prompt: string, now: number): CockpitCron[] => {
+  const key = promptKey(prompt)
+  const left = crons.filter(cron => cron.promptKey !== key && (cron.dueAt === undefined || cron.dueAt > now))
+  return left.length === crons.length ? crons : left
+}

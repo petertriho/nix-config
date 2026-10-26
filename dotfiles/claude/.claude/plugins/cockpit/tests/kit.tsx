@@ -170,7 +170,7 @@ export const viewFixture = (view: CockpitView, columns = 80): { props: CockpitVi
         tool('server', { tool: 'mcp__example__search', agentId: 'child', outcome: 'error', startedAt: 40000, finishedAt: 41500, retrospective: true }),
         tool('denied', { agentId: 'parent', tool: 'WebFetch', outcome: 'denied', startedAt: 30000, finishedAt: 39000, approval: 'asked' }),
         tool('stopped', { agentId: 'parent', outcome: 'interrupted', startedAt: 25000, finishedAt: 26000 }),
-        tool('asked', { tool: 'Bash', outcome: 'success', startedAt: 14000, finishedAt: 18000, runMs: 1500, approval: 'asked', target: 'git' }),
+        tool('asked', { tool: 'Bash', outcome: 'success', startedAt: 14000, finishedAt: 18000, approval: 'asked', target: 'git' }),
       ],
       turns: [
         { id: 'turn-1', durationMs: 30000, reason: 'answer', finishedAt: 45000, usage: USAGE },
@@ -191,7 +191,6 @@ export const viewFixture = (view: CockpitView, columns = 80): { props: CockpitVi
         { id: 'agent-1', type: 'subagent', status: 'ended', description: 'Survey', startedAt: 20000, endedAt: 30000, updatedAt: 30000 },
       ],
       crons: [{ id: 'c1', schedule: '*/5 * * * *', recurring: true }],
-      backgroundAt: 55000,
       selectedAgent: view === 'agents' ? 'finished' : null,
       selectedTool: 'asked',
     },

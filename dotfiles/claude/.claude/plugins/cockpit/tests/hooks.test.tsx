@@ -7,6 +7,7 @@ import type {
   PluginState,
   RenderPropsOf,
   RenderSurface,
+  SessionMessage,
   SessionUsage,
   TurnCompleteInput,
   TurnStepChunk,
@@ -59,6 +60,7 @@ type World = {
   id: string
   usage: SessionUsage
   agents: AgentInfo[]
+  messages: SessionMessage[] | 'unreadable'
   clock: MockClock
   permission: 'allow' | 'deny'
   failStateReads: boolean
@@ -88,7 +90,7 @@ const setup = (on: On): World => {
   const world: World = {
     id: 'session-1',
     usage: { startedAt: 1000, context: { window: 200000, tokens: 20000, percent: 10 }, rateLimits: [], cost: { usd: 0.42 } },
-    agents: [], clock, permission: 'allow', failStateReads: false,
+    agents: [], messages: [], clock, permission: 'allow', failStateReads: false,
     commands: [], opened: [], closed: [], usageRequests: [], processes: [],
     fsStats: [], fsReads: [], copies: [], drafts: [], submitted: 0,
     network: 0, spawned: 0, logs: [], store: new Map(), failStore: false, invalidations: 0,
@@ -132,6 +134,10 @@ const setup = (on: On): World => {
     return { value: world.usage }
   })
   on('agent.list', () => ({ value: world.agents }))
+  on('session.messages', () => {
+    if (world.messages === 'unreadable') throw new Error('The transcript cannot be read.')
+    return { value: world.messages }
+  })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
   on('session.measure', (_$, e) => ({ changed: e.changed }))
@@ -160,10 +166,6 @@ const setup = (on: On): World => {
     return { isFilled: true, text: e.text, cursor: e.text.length }
   })
   on('prompt.submit', (_$, e) => { world.submitted += 1; return { text: e.text } })
-  // No settings hooks run beneath the classic events in a session without them.
-  for (const event of ['PostToolUse', 'PostToolUseFailure', 'Stop', 'SubagentStop', 'StopFailure'] as const) {
-    on(`classic.${event}`, () => ({}))
-  }
   on('classic.PreToolUse', () => world.permission === 'deny' ? { deny: 'Policy refused this call.' } : { allow: true })
   on('process.run', (_$, e) => {
     world.processes = [...world.processes, [...e.argv]]
@@ -598,7 +600,7 @@ describe('cockpit explicit read-only actions', () => {
 })
 
 describe('cockpit live data', () => {
-  test('an asked permission and the PostToolUse time separate the wait from the run', async ($, on) => {
+  test('an asked permission marks the call, and its time includes the prompt', async ($, on) => {
     const world = setup(on)
     let asking = false
     on('tool.check', () => ({ decision: asking ? 'ask' as const : 'allow' as const }))
@@ -607,14 +609,13 @@ describe('cockpit live data', () => {
       await $.tool.check({ tool: 'Bash', input: { command: e.command }, tool_use_id: e.tool_use_id })
       asking = false
       await world.clock.advance(3000)
-      await $.classic.PostToolUse({ tool_name: 'Bash', tool_input: {}, tool_response: {}, tool_use_id: e.tool_use_id, duration_ms: 1200 })
       return { result: { stdout: 'Tests: 2 passed', stderr: '', interrupted: false } }
     })
     await $.tool.call({ tool: 'Bash', tool_use_id: 'asked', command: 'npm test' })
     const tool = world.get('activity').tools.find(item => item.id === 'asked')
-    expect(tool).toMatchObject({ approval: 'asked', runMs: 1200, outcome: 'success' })
+    expect(tool).toMatchObject({ approval: 'asked', outcome: 'success' })
     expect((tool?.finishedAt ?? 0) - (tool?.startedAt ?? 0)).toBe(3000)
-    expect(world.get('review').checks.at(-1)).toMatchObject({ status: 'passed', durationMs: 1200 })
+    expect(world.get('review').checks.at(-1)).toMatchObject({ status: 'passed', durationMs: 3000 })
     // A query carries no call id, so it marks no tool.
     asking = true
     await $.tool.check({ tool: 'Bash', input: { command: 'ls' } })
@@ -665,13 +666,11 @@ describe('cockpit live data', () => {
       totals: { tokens: 12000, toolUses: 4, durationMs: 9000, linesAdded: 5, linesRemoved: 1, models: ['test-model'] },
       answer: 'Found **3** files.\nDone.',
     })
-    await $.classic.SubagentStop({ stop_hook_active: false, agent_id: 'agent-7', agent_type: 'Explore', agent_transcript_path: '', last_assistant_message: 'Ignored: an answer is known.' })
-    expect(world.get('activity').agents.find(agent => agent.id === 'agent-7')?.answer).toBe('Found **3** files.\nDone.')
     await $.turn.complete(completion({ turnId: 'agent-turn', agentId: 'agent-7', answer: 'Final report.' }))
     expect(world.get('activity').agents.find(agent => agent.id === 'agent-7')).toMatchObject({ answer: 'Final report.', totals: { tokens: 12000 } })
   })
 
-  test('background work and git operations are recorded without command lines or cron prompts', async ($, on) => {
+  test('background work and git operations are recorded without command lines', async ($, on) => {
     const world = setup(on)
     on('tool.call', { tool: 'Bash' }, (_$, e) => e.tool_use_id === 'bg'
       ? { result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'shell-1' } }
@@ -679,21 +678,35 @@ describe('cockpit live data', () => {
         commit: { sha: 'abc123def456', kind: 'committed', branch: 'main' },
         pr: { number: 9, action: 'created', url: 'https://example.test/pull/9' },
       } } })
+    on('tool.call', { tool: 'Monitor' }, () => ({ result: { taskId: 'mon-1', timeoutMs: 0, persistent: true } }))
+    on('tool.call', { tool: 'Agent' }, () => ({ result: {
+      status: 'async_launched', agentId: 'agent-9', description: 'Survey', prompt: 'Survey.', outputFile: '',
+    } }) as never)
     on('tool.call', { tool: 'TaskStop' }, () => ({ result: { message: 'Stopped.', task_id: 'mon-1', task_type: 'monitor' } }))
+    on('turn.complete', (_$, e) => ({ text: e.answer, usage: e.usage }))
+    const status = () => world.get('activity').background.map(task => [task.id, task.status, task.endedAt !== undefined])
     await $.tool.call({ tool: 'Bash', tool_use_id: 'bg', command: 'npm run watch --secret-flag', description: 'Watch the build', run_in_background: true })
-    expect(world.get('activity').background).toMatchObject([{ id: 'shell-1', type: 'shell', status: 'running', description: 'Watch the build' }])
-    await $.classic.Stop({ stop_hook_active: false, background_tasks: [
-      { id: 'shell-1', type: 'shell', status: 'running', description: 'Watch the build', command: 'npm run watch --secret-flag' },
-      { id: 'mon-1', type: 'monitor', status: 'running', description: 'Tail logs', server: 'logs', tool: 'tail' },
-    ], session_crons: [{ id: 'cron-1', schedule: '0 9 * * 1-5', recurring: true, prompt: 'private cron prompt' }] })
-    expect(world.get('activity').background.map(task => [task.id, task.status])).toEqual([['shell-1', 'running'], ['mon-1', 'running']])
-    expect(world.get('activity').crons).toEqual([{ id: 'cron-1', schedule: '0 9 * * 1-5', recurring: true }])
-    expect(world.get('activity').backgroundAt).not.toBeNull()
+    await $.tool.call({ tool: 'Monitor', tool_use_id: 'mon', description: 'Tail logs', timeout_ms: 0, command: 'tail -f log' })
+    await $.tool.call({ tool: 'Agent', tool_use_id: 'spawn-9', description: 'Survey', prompt: 'Survey.' })
+    expect(world.get('activity').background).toMatchObject([{ id: 'shell-1', type: 'shell', status: 'running', description: 'Watch the build' }, { id: 'mon-1' }, { id: 'agent-9' }])
+    // A notification row ends its task once the row is drawn: progress ends nothing.
+    const notify = async (task: RenderPropsOf['UserMessage']['task']) => {
+      const row = await $.ui.mount({ plugin: 'cockpit', surface: 'terminal', component: 'UserMessage', requestId: `row-${task?.id}-${task?.status}`, props: {
+        text: 'Background work.', origin: { kind: 'task-notification' }, isExpanded: false, task,
+      } })
+      expect(await row.find({ type: 'Text', text: 'Native content remains.' })).toBeDefined()
+      await row.unmount()
+      await world.clock.advance(1)
+    }
+    await notify({ id: 'shell-1' })
+    await notify({ id: 'shell-1', status: 'running' })
+    expect(status()).toEqual([['shell-1', 'running', false], ['mon-1', 'running', false], ['agent-9', 'running', false]])
+    await notify({ id: 'shell-1', status: 'failed', durationMs: 4000 })
+    await notify({ id: 'shell-1', status: 'completed' })
     await $.tool.call({ tool: 'TaskStop', tool_use_id: 'stop-1', task_id: 'mon-1' })
-    await $.classic.Stop({ stop_hook_active: false, background_tasks: [], session_crons: [] })
-    expect(world.get('activity').background.map(task => [task.id, task.status, task.endedAt !== undefined])).toEqual([['shell-1', 'ended', true], ['mon-1', 'stopped', true]])
+    await $.turn.complete(completion({ turnId: 'agent-turn', agentId: 'agent-9', answer: 'Surveyed.' }))
+    expect(status()).toEqual([['shell-1', 'failed', true], ['mon-1', 'stopped', true], ['agent-9', 'completed', true]])
     expect(JSON.stringify(world.get('activity'))).not.toContain('secret-flag')
-    expect(JSON.stringify(world.get('activity'))).not.toContain('private cron prompt')
     await $.tool.call({ tool: 'Bash', tool_use_id: 'commit', command: 'git commit -m "message"' })
     expect(world.get('review').gitOps).toMatchObject([{
       id: 'commit', commit: { sha: 'abc123def456', kind: 'committed', branch: 'main' },
@@ -701,20 +714,67 @@ describe('cockpit live data', () => {
     }])
   })
 
-  test('a stop failure shows in the band and the pane until the next turn', async ($, on) => {
+  test('crons follow the tools that schedule them and leave once fired, without their prompts', async ($, on) => {
     const world = setup(on)
-    await $.classic.StopFailure({ error: 'rate_limit', error_details: 'Retry in 30 seconds.' })
-    expect(world.get('activity').stopFailure).toMatchObject({ error: 'rate_limit', details: 'Retry in 30 seconds.' })
+    on('tool.call', { tool: 'CronCreate' }, (_$, e) => ({ result: e.recurring === false
+      ? { id: 'cron-2', humanSchedule: 'once at 09:00', recurring: false }
+      : { id: 'cron-1', humanSchedule: 'weekdays at 09:00', recurring: true } }))
+    on('tool.call', { tool: 'CronDelete' }, (_$, e) => ({ result: { id: e.id } }))
+    on('tool.call', { tool: 'ScheduleWakeup' }, (_$, e) => ({ result: e.stop === true
+      ? { scheduledFor: 0, clampedDelaySeconds: 0, wasClamped: false, stopped: true, cancelledWakeups: 1 }
+      : { scheduledFor: 70000, clampedDelaySeconds: 60, wasClamped: false } }))
+    const fire = (text: string) => $.prompt.submit({ text, wait: false, origin: { kind: 'scheduled-trigger' } })
+    await $.tool.call({ tool: 'CronCreate', tool_use_id: 'c1', cron: '0 9 * * 1-5', prompt: 'private cron prompt' })
+    await $.tool.call({ tool: 'CronCreate', tool_use_id: 'c2', cron: '0 9 27 10 *', prompt: 'private reminder', recurring: false })
+    await $.tool.call({ tool: 'ScheduleWakeup', tool_use_id: 'w1', delaySeconds: 60, reason: 'Wait for CI.', prompt: '/loop check CI' })
+    expect(world.get('activity').crons).toMatchObject([
+      { id: 'cron-1', schedule: 'weekdays at 09:00', recurring: true },
+      { id: 'cron-2', schedule: 'once at 09:00', recurring: false },
+      { id: 'wakeup', recurring: false, dueAt: 70000 },
+    ])
+    world.seed('preferences', { ...world.get('preferences'), view: 'tools' })
+    const pane = await mountPane($, 'terminal', 100)
+    expect(await pane.find({ type: 'Text', text: ' · in 1m' })).toBeDefined()
+    await pane.unmount()
+    // Another prompt fires: the one-shot cron with it leaves, and the wakeup is not due yet.
+    await fire('private reminder')
+    expect(world.get('activity').crons.map(cron => cron.id)).toEqual(['cron-1', 'wakeup'])
+    await world.clock.advance(60000)
+    await fire('/loop check CI')
+    expect(world.get('activity').crons.map(cron => cron.id)).toEqual(['cron-1'])
+    await $.tool.call({ tool: 'ScheduleWakeup', tool_use_id: 'w2', delaySeconds: 60, reason: 'Again.', prompt: '/loop check CI' })
+    await $.tool.call({ tool: 'ScheduleWakeup', tool_use_id: 'w3', stop: true })
+    await $.tool.call({ tool: 'CronDelete', tool_use_id: 'd1', id: 'cron-1' })
+    expect(world.get('activity').crons).toEqual([])
+    expect(world.submitted).toBe(2)
+    expect(JSON.stringify(world.get('activity'))).not.toContain('private')
+  })
+
+  test('an API error shows in the band and the pane until the next turn', async ($, on) => {
+    const world = setup(on)
+    on('turn.complete', (_$, e) => ({ text: e.answer, usage: e.usage }))
+    world.messages = [
+      { role: 'user', text: 'Go.', toolUses: [] },
+      { role: 'assistant', text: 'API Error: Rate limit reached.\nRetry in 30 seconds.', toolUses: [] },
+    ]
+    await $.turn.start({ text: 'Go.', turnId: 'main-turn' })
+    await $.turn.complete({ ...completion({ answer: '' }), reason: 'error' })
+    expect(world.get('activity').stopFailure).toMatchObject({ error: 'API error', details: 'API Error: Rate limit reached. Retry in 30 seconds.' })
     const band = await $.ui.mount({ plugin: 'cockpit', surface: 'terminal', component: 'AbovePrompt', requestId: 'band', props: bandProps() })
-    expect(await band.find({ type: 'Text', text: 'stopped: rate limit' })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: 'stopped: API error' })).toBeDefined()
     await band.unmount()
     const pane = await mountPane($, 'terminal')
-    expect(await pane.find({ type: 'Text', text: 'Last turn stopped: rate limit · Retry in 30 seconds.' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: 'Last turn stopped: API error · API Error: Rate limit reached. Retry in 30 seconds.' })).toBeDefined()
     await pane.unmount()
     await $.turn.start({ text: 'Again.', turnId: 'next-turn' })
     expect(world.get('activity').stopFailure).toBeNull()
-    await $.classic.StopFailure({ error: 'overloaded', agent_id: 'child' })
+    // A subagent's failure reaches its spawner as a tool error.
+    await $.turn.complete({ ...completion({ turnId: 'child-turn', agentId: 'child', answer: '' }), reason: 'error' })
     expect(world.get('activity').stopFailure).toBeNull()
+    // A transcript that cannot be read still marks the failure.
+    world.messages = 'unreadable'
+    await $.turn.complete({ ...completion({ turnId: 'next-turn', answer: '' }), reason: 'error' })
+    expect(world.get('activity').stopFailure).toEqual({ error: 'API error', at: 10000 })
   })
 
   test('compactions and cost growth are recorded, and a precompute is not', async ($, on) => {
@@ -805,7 +865,8 @@ describe('cockpit live data', () => {
     await $.turn.complete(completion())
     expect(world.get('activity').turnStartedAt).toBeNull()
     await $.turn.start({ text: 'Again.', turnId: 'failing' })
-    await $.classic.StopFailure({ error: 'overloaded' })
+    expect(world.get('activity').turnStartedAt).toBe(10000)
+    await $.turn.complete({ ...completion({ turnId: 'failing', answer: '' }), reason: 'error' })
     expect(world.get('activity').turnStartedAt).toBeNull()
   })
 
@@ -882,7 +943,7 @@ describe('cockpit live data', () => {
   test('state saved by an earlier version is filled in instead of breaking hooks or the pane', async ($, on) => {
     const world = setup(on)
     const legacy: Record<string, unknown> = { ...initialActivity(), sessionId: world.id, samples: [1, 2] }
-    for (const key of ['todos', 'tasks', 'background', 'crons', 'backgroundAt', 'stopFailure', 'selectedFor']) delete legacy[key]
+    for (const key of ['todos', 'tasks', 'background', 'crons', 'stopFailure', 'selectedFor']) delete legacy[key]
     world.seed('activity', legacy as unknown as State['activity'])
     world.seed('review', { ...initialReview(), sessionId: world.id, gitOps: undefined } as unknown as State['review'])
     world.seed('context', { sessionId: world.id, usage: null, refreshedAt: null, loading: false, error: null } as unknown as State['context'])

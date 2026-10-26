@@ -67,8 +67,6 @@ export type CockpitTool = {
   retrospective?: boolean
   /** The permission check put the call to the mode's decider (a dialog, a classifier). */
   approval?: 'asked'
-  /** Execution time from PostToolUse, without permission-prompt and hook time. */
-  runMs?: number
 }
 
 export type CockpitAgentTotals = {
@@ -124,7 +122,6 @@ export type CockpitBackgroundTask = {
   type: string
   status: string
   description: string
-  agentType?: string
   startedAt?: number
   endedAt?: number
   updatedAt: number
@@ -134,6 +131,10 @@ export type CockpitCron = {
   id: string
   schedule: string
   recurring: boolean
+  /** A hash of a one-shot cron's prompt. Its firing names the cron by this prompt alone. */
+  promptKey?: string
+  /** When a /loop wakeup fires. */
+  dueAt?: number
 }
 
 /** A change in the activity level: running tools + running agents + main turn. */
@@ -172,7 +173,6 @@ export type CockpitActivity = {
   tasks: CockpitTask[]
   background: CockpitBackgroundTask[]
   crons: CockpitCron[]
-  backgroundAt: number | null
   stopFailure: CockpitStopFailure | null
   selectedAgent: string | null
   /** The agent in view when the person last chose; a later view change is followed. */

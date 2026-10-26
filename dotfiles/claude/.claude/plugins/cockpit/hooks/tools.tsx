@@ -3,7 +3,7 @@ import type { CockpitBackgroundTask, CockpitTool, CockpitViewProps } from '../ty
 import { actorName, agentName } from './agents'
 import { actions, card, field, heading, line, listLimit, muted, neighboringIndex, section, spread, viewWidth, visibleWindow } from './layout'
 import type { Segment } from './summary'
-import { approvalWait, runningTools, toolDuration, toolLabel, toolStats, waitDuration } from './summary'
+import { approvalCount, runningTools, toolDuration, toolLabel, toolStats } from './summary'
 import type { CockpitElements } from './theme'
 import { ago, bar, brief, clip, colors, duration, padEnd, padStart, plural, statusColor, statusGlyph } from './theme'
 
@@ -16,7 +16,7 @@ const summary = (ui: CockpitElements, props: CockpitViewProps, tools: readonly C
   const running = tools.filter(tool => tool.outcome === 'running').length
   const failures = tools.filter(failed).length
   const ran = tools.filter(tool => tool.tool !== 'Agent').reduce((total, tool) => total + (toolDuration(tool, props.now) ?? 0), 0)
-  const wait = approvalWait(tools)
+  const asked = approvalCount(tools)
   return section(ui, 'tools:summary', [
     heading(ui, 'tools:title', 'Tools', [
       { text: plural(tools.length, 'call'), color: colors.muted },
@@ -25,10 +25,9 @@ const summary = (ui: CockpitElements, props: CockpitViewProps, tools: readonly C
     ], width),
     line(ui, 'tools:time', [
       { text: 'Tool time ', color: colors.muted }, { text: duration(ran) },
-      ...(wait.asked > 0 ? [
+      ...(asked > 0 ? [
         { text: ' · ', color: colors.muted },
-        { text: `${plural(wait.asked, 'approval')}`, color: colors.yellow },
-        { text: wait.measured > 0 ? ` · ${duration(wait.totalMs)} waiting on you` : '', color: colors.yellow },
+        { text: plural(asked, 'approval'), color: colors.yellow },
       ] : []),
     ], true),
   ])
@@ -148,7 +147,6 @@ const recentSection = (
 
 const toolDetail = (ui: CockpitElements, props: CockpitViewProps, tool: CockpitTool, width: number): RenderElement => {
   const elapsed = toolDuration(tool, props.now)
-  const wait = waitDuration(tool)
   const inner = width - 4
   return card(ui, `tools:detail:${tool.id}`, [
     spread(ui, 'tools:detail:title', line(ui, 'tools:detail:name', [
@@ -158,13 +156,12 @@ const toolDetail = (ui: CockpitElements, props: CockpitViewProps, tool: CockpitT
     field(ui, 'tools:detail:actor', 'Actor', [{ text: actorName(props, tool.agentId), color: tool.agentId ? colors.magenta : undefined }]),
     tool.target ? field(ui, 'tools:detail:target', 'Target', [{ text: clip(tool.target, 240) }]) : null,
     field(ui, 'tools:detail:started', 'Started', [{ text: ago(props.now, tool.startedAt) }]),
-    field(ui, 'tools:detail:time', tool.outcome === 'running' ? 'Elapsed' : tool.runMs !== undefined ? 'Ran' : 'Took', [
+    field(ui, 'tools:detail:time', tool.outcome === 'running' ? 'Elapsed' : 'Took', [
       { text: elapsed === undefined ? 'unknown' : duration(elapsed) },
     ]),
-    wait !== undefined ? field(ui, 'tools:detail:wait', tool.approval === 'asked' ? 'Approval' : 'Hooks', [
-      { text: duration(wait), color: tool.approval === 'asked' ? colors.yellow : colors.muted },
-      { text: tool.approval === 'asked' ? ' with hooks' : '', color: colors.muted },
-    ]) : tool.approval === 'asked' ? field(ui, 'tools:detail:asked', 'Approval', [{ text: 'asked', color: colors.yellow }]) : null,
+    tool.approval === 'asked' ? field(ui, 'tools:detail:asked', 'Approval', [
+      { text: 'asked', color: colors.yellow }, { text: ' · the time includes the prompt', color: colors.muted },
+    ]) : null,
     tool.retrospective ? muted(ui, 'tools:detail:server', 'Server tool, reported after the response.') : null,
   ])
 }
@@ -182,7 +179,6 @@ const backgroundSection = (ui: CockpitElements, props: CockpitViewProps, width: 
   return section(ui, 'tools:background', [
     heading(ui, 'tools:background:title', 'Background', [
       { text: `${live.length} running`, color: live.length > 0 ? colors.cyan : colors.muted },
-      { text: props.activity.backgroundAt === null ? '' : ` · ${ago(props.now, props.activity.backgroundAt)}`, color: colors.muted },
     ], width),
     ...shown.map(task => {
       const time = task.startedAt === undefined ? '' : brief((task.endedAt ?? props.now) - task.startedAt)
@@ -199,7 +195,7 @@ const backgroundSection = (ui: CockpitElements, props: CockpitViewProps, width: 
     tasks.length > shown.length ? muted(ui, 'tools:background:more', `${tasks.length - shown.length} more`) : null,
     ...crons.slice(0, 4).map(cron => line(ui, `tools:cron:${cron.id}`, [
       { text: '⏲ ', color: colors.accent }, { text: cron.schedule },
-      { text: cron.recurring ? ' · recurring' : ' · once', color: colors.muted },
+      { text: cron.dueAt !== undefined ? ` · ${cron.dueAt > props.now ? `in ${brief(cron.dueAt - props.now)}` : 'due'}` : cron.recurring ? ' · recurring' : ' · once', color: colors.muted },
     ])),
   ])
 }
