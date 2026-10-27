@@ -11,13 +11,13 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-26";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-27";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "eecadf35b20ac72d509513bef5949d36c887354d";
-    hash = "sha256-BqCSa06srCk3lnGIUKwNn8Lp3IO2EojTBiJ42mhpRPQ=";
+    rev = "b8cdbdf0ef2c479919cfed2c217b5710c2c294db";
+    hash = "sha256-m/GSwu0ngrNqVcYZQBmj9vzRohWTStMobUtlHmWDIRs=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
@@ -53,7 +53,7 @@ buildNpmPackage (finalAttrs: {
   '';
 
   nodejs = nodejs_26;
-  npmDepsHash = "sha256-NMcn/MPVG+plU0EaOeFwMZ9M05OWwPH7uZVHrJRu538=";
+  npmDepsHash = "sha256-AAGfmQ7hrKxLwBFZEX4DytAhCe9QFTh0Kehark+QJgM=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];
