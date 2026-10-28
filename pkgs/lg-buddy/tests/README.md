@@ -24,7 +24,8 @@ From the repository root:
 
 The package build also runs an installed-forwarder help check with an empty tools PATH.
 The forwarder tests use a fake runtime, except for real headless help.
-The module tests evaluate AMD-PC's scripts with fake TV, `ping`, and `ip` commands.
+The module tests evaluate AMD-PC's scripts with fake TV, `ping`, `ip`, `nm-online`, `wakeonlan`, and `setpriv` commands.
+They also check the NetworkManager hook list and the owner of `/run/lg_buddy`.
 They do not change live configuration or start services.
 
 ## Optional upstream integration tests

@@ -18,7 +18,6 @@ in
   home = {
     packages = with pkgs; [
       amdgpu_top
-      lg-buddy
     ];
   };
   xdg.configFile."input-remapper-2/config.json".source =
