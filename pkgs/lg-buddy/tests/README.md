@@ -22,7 +22,8 @@ From the repository root:
    python3 pkgs/lg-buddy/tests/test_module.py
    ```
 
-The package build also runs an installed-forwarder help check with an empty tools PATH.
+The package build runs the upstream Rust unit tests for the `lg-buddy` crate, except one timing-dependent pairing test.
+It also runs an installed-forwarder help check with an empty tools PATH.
 The forwarder tests use a fake runtime, except for real headless help.
 The module tests evaluate AMD-PC's scripts with fake TV, `ping`, `ip`, `nm-online`, `wakeonlan`, and `setpriv` commands.
 They also check the NetworkManager hook list and the owner of `/run/lg_buddy`.

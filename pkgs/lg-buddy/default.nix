@@ -5,11 +5,13 @@
   makeWrapper,
   runtimeShell,
   coreutils,
+  dbus,
   gnugrep,
   networkmanager,
+  python3,
   systemd,
 }:
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "lg-buddy";
   version = "2.0.0-unstable-2026-10-25";
 
@@ -22,14 +24,34 @@ rustPlatform.buildRustPackage {
 
   cargoHash = "sha256-ioNlpPYSousrtN4v1jLO9C5Osl3G5h6/5RDJtl8sp94=";
 
+  # Shown by `lg-buddy --version`. LG_BUDDY_RELEASE_VERSION stays unset: this
+  # tracks main, so the upstream `dev` channel is correct, and an unstable
+  # version string would make `lg-buddy updates check` report a false update.
+  env.LG_BUDDY_BUILD_COMMIT = finalAttrs.src.rev;
+
   nativeBuildInputs = [ makeWrapper ];
 
+  # The lg-buddy-gui workspace crate (GTK4/libadwaita) is not built, so the
+  # Overview window and upstream desktop entry are not installed.
   cargoBuildFlags = [
     "-p"
     "lg-buddy"
   ];
+  # Unit tests only. The integration tests under tests/ need bubblewrap, a
+  # working system dbus-daemon and systemctl, which the build sandbox lacks.
+  cargoTestFlags = finalAttrs.cargoBuildFlags ++ [ "--lib" ];
 
-  doCheck = false;
+  # The session bus tests start a private dbus-daemon, and one GUI launcher
+  # test uses python3 as a stand-in executable.
+  nativeCheckInputs = [
+    dbus
+    python3
+  ];
+  # Timing-dependent in the sandbox (failed in 2 of 3 builds): authentication
+  # sometimes reports Failed instead of Timeout against the silent test server.
+  checkFlags = [
+    "--skip=pairing::tests::prepare_in_memory_registration_timeout_is_distinct_without_fallback"
+  ];
 
   postInstall = ''
     # Forward pairing to upstream setup, retaining its argument/env interface.
@@ -71,11 +93,7 @@ rustPlatform.buildRustPackage {
       exit "$code"
     fi
     platform="$("$RUNTIME_BINARY" settings get tv.platform 2>/dev/null)" || platform=
-    if [ "$platform" = "bscpylgtv" ]; then
-      echo "This configuration selects the legacy bscpylgtv backend, which is not included in this package." >&2
-      echo "Turn on the TV and run 'lg-buddy settings set tv.platform lg_webos' as the desktop user in the same configuration environment." >&2
-      echo "Approve any on-TV pairing request, then rerun lg-buddy-configure. Keep the old key file for rollback." >&2
-    elif [ "$platform" = "lg_webos" ] \
+    if [ "$platform" = "lg_webos" ] \
       && ${gnugrep}/bin/grep -Fxq 'LG Buddy: Service setup incomplete: This installation does not support automatic service setup.' "$out" \
       && ${gnugrep}/bin/grep -Fxq 'Details: declaratively managed or immutable system' "$out"; then
       echo "TV pairing is configured and the native credential passed local validation."
@@ -91,21 +109,6 @@ rustPlatform.buildRustPackage {
     FORWARDER
     chmod 755 $out/bin/lg-buddy-configure
     patchShebangs $out/bin/lg-buddy-configure
-
-    # Upstream renamed LG_Buddy_Brightness.desktop to io.github.staphylococcus.LGBuddy.desktop in 1.5.x.
-    if [ -f io.github.staphylococcus.LGBuddy.desktop ]; then
-      install -Dm644 io.github.staphylococcus.LGBuddy.desktop $out/share/applications/io.github.staphylococcus.LGBuddy.desktop
-      substituteInPlace $out/share/applications/io.github.staphylococcus.LGBuddy.desktop \
-        --replace-fail /usr/bin/lg-buddy $out/bin/lg-buddy
-    else
-      install -Dm644 LG_Buddy_Brightness.desktop $out/share/applications/LG_Buddy_Brightness.desktop
-      substituteInPlace $out/share/applications/LG_Buddy_Brightness.desktop \
-        --replace-fail /usr/bin/lg-buddy $out/bin/lg-buddy
-    fi
-
-    if [ -f data/icons/hicolor/scalable/apps/io.github.staphylococcus.LGBuddy.svg ]; then
-      install -Dm644 data/icons/hicolor/scalable/apps/io.github.staphylococcus.LGBuddy.svg $out/share/icons/hicolor/scalable/apps/io.github.staphylococcus.LGBuddy.svg
-    fi
 
     wrapProgram $out/bin/lg-buddy \
       --set-default LG_BUDDY_SYSTEMCTL ${systemd}/bin/systemctl \
@@ -133,4 +136,4 @@ rustPlatform.buildRustPackage {
     mainProgram = "lg-buddy";
     platforms = platforms.linux;
   };
-}
+})

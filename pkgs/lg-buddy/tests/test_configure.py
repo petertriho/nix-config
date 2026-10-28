@@ -21,7 +21,6 @@ SERVICES = (
     "LG Buddy: Service setup incomplete: This installation does not support automatic service setup.\n"
     "Details: declaratively managed or immutable system\n"
 )
-MIGRATE = "settings set tv.platform lg_webos"
 START = "sudo systemctl start lg-buddy.service lg-buddy-lifecycle.service"
 TOKEN = '{"access_token":"synthetic-test-token"}'
 PACKAGE = None
@@ -61,7 +60,7 @@ class Fixture(unittest.TestCase):
         self.shim.chmod(0o755)
         commands = self.root / "commands"
         commands.mkdir()
-        for name in ("systemctl", "journalctl", "nm-online", "sudo", "reboot", "bscpylgtvcommand"):
+        for name in ("systemctl", "journalctl", "nm-online", "sudo", "reboot"):
             (commands / name).symlink_to(self.shim)
         # Deliberately do not inherit LG_BUDDY_*, SUDO_*, display or bus variables.
         self.env = {
@@ -74,7 +73,7 @@ class Fixture(unittest.TestCase):
         }
         for variable, command in (
             ("SYSTEMCTL", "systemctl"), ("JOURNALCTL", "journalctl"),
-            ("NM_ONLINE", "nm-online"), ("BSCPYLGTV_COMMAND", "bscpylgtvcommand"),
+            ("NM_ONLINE", "nm-online"),
         ):
             self.env["LG_BUDDY_" + variable] = str(commands / command)
         self.wrapper = PACKAGE / "bin/lg-buddy-configure"
@@ -134,9 +133,8 @@ class Fixture(unittest.TestCase):
         return {str(p.relative_to(self.home)): p.read_bytes()
                 for p in self.home.rglob("*") if p.is_file()}
 
-    def status(self, result, code, hint=False):
+    def status(self, result, code):
         self.assertEqual(result.returncode, code, result.stdout)
-        self.assertEqual(MIGRATE in result.stdout, hint, result.stdout)
 
     def activation_guidance(self, result):
         self.status(result, 0)
@@ -211,7 +209,7 @@ class ForwarderTests(Fixture):
                     with self.subTest(platform=platform, code=code, diagnostic=diagnostic):
                         self.state(code, platform, stdout="stdout-marker\n", stderr=diagnostic)
                         result = self.invoke()
-                        self.status(result, code, hint=code == 1 and platform == "bscpylgtv")
+                        self.status(result, code)
                         self.assertIn("stdout-marker", result.stdout)
                         self.assertIn(diagnostic, result.stdout)
 
@@ -238,19 +236,6 @@ class ForwarderTests(Fixture):
         self.config()
         self.state(1, stderr=SERVICES, settings_code=1)
         self.status(self.invoke(), 1)
-
-    def test_legacy_hint_with_or_without_old_key_and_without_mutation(self):
-        config = self.config(platform="bscpylgtv", token=None)
-        key = config.parent / ".aiopylgtv.sqlite"
-        for present in (False, True):
-            if present:
-                key.write_bytes(b"synthetic legacy credential")
-            for diagnostic in ("LG Buddy: TV setup incomplete: credential missing\n", SERVICES):
-                with self.subTest(key_present=present, diagnostic=diagnostic):
-                    self.state(1, "bscpylgtv", stderr=diagnostic)
-                    before = self.snapshot()
-                    self.status(self.invoke(), 1, hint=True)
-                    self.assertEqual(self.snapshot(), before)
 
 
 class IntegrationTests(Fixture):
@@ -299,15 +284,6 @@ class IntegrationTests(Fixture):
                 result = self.real_setup("--non-interactive")
                 self.status(result, 3)
                 self.assertIn("Use --yes to approve pairing", result.stdout)
-
-    def test_legacy_states_offer_migration_without_mutation(self):
-        config = self.config(platform="bscpylgtv", token=None)
-        self.env["LG_BUDDY_CONFIG"] = str(config)
-        for present in (False, True):
-            with self.subTest(key_present=present):
-                if present:
-                    (config.parent / ".aiopylgtv.sqlite").write_bytes(b"synthetic legacy credential")
-                self.status(self.real_setup("--non-interactive"), 1, hint=True)
 
     def test_empty_config_invalid_flag_and_tty_cancellation(self):
         config = self.config(token=None)
