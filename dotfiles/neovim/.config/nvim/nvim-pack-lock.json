@@ -17,11 +17,11 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "bb0f3061e50270434a4e2664cb79ca1d6c26b9c3",
+      "rev": "be33179c6ec37fa483929f11060a6be03328ecea",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
-      "rev": "1e4cb39b9200950dca1cbc4d630c60c16eb8e7e4",
+      "rev": "c4e7117a1b3d07656e949114f832a7efd677ec3e",
       "src": "https://github.com/saghen/blink.cmp",
       "version": "'main'"
     },
@@ -90,7 +90,7 @@
       "src": "https://github.com/folke/flash.nvim"
     },
     "friendly-snippets": {
-      "rev": "b4d01b0fdf3c9a549961c2f9ffe8dc09be166219",
+      "rev": "b2ea5c41a150ba72fb656eedb4ed0a86d138d945",
       "src": "https://github.com/rafamadriz/friendly-snippets"
     },
     "glance.nvim": {
@@ -126,7 +126,7 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini.nvim": {
-      "rev": "ed8683521996657ce774e5eec9d2f9b1b5ecef82",
+      "rev": "a03ad899bda446b5a81cfa99d8aeeb92241522f3",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
@@ -134,7 +134,7 @@
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
-      "rev": "832a2db084ac25c2801fd73a3fab58f3c82ed2ec",
+      "rev": "697ad3ee86a73cf6b6758b838d7a7d76cf3b9f86",
       "src": "https://github.com/NeogitOrg/neogit"
     },
     "nui.nvim": {
@@ -158,7 +158,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "77b7432d4770d23b277d37923e5a08a442d8bb07",
+      "rev": "4feaba4d3980032b3f62f3ba5df4de27fdf59cfd",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -237,7 +237,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "fa093b1323f7cb379f47fc6704b38864f1cb97bf",
+      "rev": "a59b43cffa5a11d80b4ca4fd6a52350ac7bd6104",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
