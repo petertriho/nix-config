@@ -7,14 +7,14 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "pi-goal-x";
-  version = "0.34.0-unstable-2026-10-24";
+  version = "0.34.1-unstable-2026-10-27";
 
   # Pinned snapshot of upstream main.
   src = fetchFromGitHub {
     owner = "tmonk";
     repo = "pi-goal-x";
-    rev = "fe0e38f8cd03bfacc9baca730e9a902d3cff116e";
-    hash = "sha256-ln4Pt3bxJF2/sw2rqDy2mmQWBvptzt7F1nrsUUl3tss=";
+    rev = "b0fc15ebb658a1e9ea60ae65496717a780080f37";
+    hash = "sha256-dU4Dk/Q+FroU9WDQbhqRv7qw+pwQRouZX6XM6efxT9o=";
   };
 
   nativeBuildInputs = [
