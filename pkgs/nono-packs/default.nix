@@ -99,6 +99,8 @@ stdenvNoCC.mkDerivation {
       .hooks.PostToolUse
       | any(.hooks | any(.command == "''${CLAUDE_PLUGIN_ROOT}/bin/nono-hook-bash.sh"))
     ' "$src/claude/hooks/hooks.json"
+    expect jq -e '.session_hooks.before.script == "$PACK_DIR/bin/ensure-dirs.sh"' "$src/claude/policy.json"
+    expect test -f "$src/claude/bin/ensure-dirs.sh"
 
     # ----- pi: package loaded straight from the store --------------------
     pm="$src/pi/package.json"
@@ -149,24 +151,32 @@ stdenvNoCC.mkDerivation {
 
     # Ensure hook scripts remain executable through the copy.
     chmod +x "$packsDir/claude/bin/nono-hook.sh" "$packsDir/claude/bin/nono-hook-bash.sh"
-    chmod +x "$packsDir/opencode/bin/ensure-dirs.sh"
+    chmod +x "$packsDir/claude/bin/ensure-dirs.sh" "$packsDir/opencode/bin/ensure-dirs.sh"
 
     # ----- generate ordinary local base profiles -------------------------
     # Each profile renames itself, appends its immutable pack directory to
     # filesystem.read (nono does not follow symlinks below a granted path),
-    # and — for OpenCode only — rewrites the before-hook to the store path.
+    # and rewrites a `$PACK_DIR` before-hook to the store path: nono does not
+    # expand `$PACK_DIR` in a local profile, and rejects the relative path.
     gen_profile() {
       local pack="$1" base="$2"
       jq --arg name "$base" --arg dir "$packsDir/$pack" '
         .meta.name = $name
         | .filesystem.read = ((.filesystem.read // []) + [$dir])
+        | if .session_hooks.before.script? then
+            .session_hooks.before.script |= (
+              if startswith("$PACK_DIR/") then $dir + ltrimstr("$PACK_DIR") else . end
+            )
+          else . end
       ' "$src/$pack/policy.json" > "$profilesDir/$base.json"
       expect jq -e . "$profilesDir/$base.json"
       expect jq -e --arg name "$base" '.meta.name == $name' "$profilesDir/$base.json"
+      expect jq -e '[.. | strings | select(contains("$PACK_DIR"))] | length == 0' "$profilesDir/$base.json"
     }
 
     gen_profile claude nono-claude-base
     gen_profile pi nono-pi-base
+    gen_profile opencode nono-opencode-base
 
     # Pi extensions create jiti caches and other temporary files. Keep them in
     # one private /tmp root instead of granting read access to all of /tmp. The
@@ -188,21 +198,12 @@ stdenvNoCC.mkDerivation {
       and (.session_hooks.before.script == $hook)
     ' "$piProfile"
 
-    jq \
-      --arg name "nono-opencode-base" \
-      --arg dir "$packsDir/opencode" \
-      --arg hook "$packsDir/opencode/bin/ensure-dirs.sh" '
-        .meta.name = $name
-        | .filesystem.read = ((.filesystem.read // []) + [$dir])
-        | .session_hooks.before.script = $hook
-      ' "$src/opencode/policy.json" > "$profilesDir/nono-opencode-base.json"
-    expect jq -e . "$profilesDir/nono-opencode-base.json"
-    expect jq -e '.meta.name == "nono-opencode-base"' "$profilesDir/nono-opencode-base.json"
-    expect jq -e --arg hook "$packsDir/opencode/bin/ensure-dirs.sh" \
-      '.session_hooks.before.script == $hook' "$profilesDir/nono-opencode-base.json"
-
-    # Confirm the OpenCode hook inside the output is executable.
-    expect test -x "$packsDir/opencode/bin/ensure-dirs.sh"
+    # Confirm each ensure-dirs hook points into the output and is executable.
+    for pack in claude opencode; do
+      expect jq -e --arg hook "$packsDir/$pack/bin/ensure-dirs.sh" \
+        '.session_hooks.before.script == $hook' "$profilesDir/nono-$pack-base.json"
+      expect test -x "$packsDir/$pack/bin/ensure-dirs.sh"
+    done
 
     runHook postInstall
   '';
