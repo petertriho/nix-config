@@ -159,7 +159,8 @@ async function checkAssets(manifest) {
   }
   const skillRoot = join(root, "skills", "reverse-engineer-anything");
   const skill = await readFile(join(skillRoot, "SKILL.md"), "utf8");
-  assert(skill.includes("`rea doctor --client codex --json`"), "Skill does not use the plain rea command");
+  const recovery = await readFile(join(skillRoot, "references", "connection-and-recovery.md"), "utf8");
+  assert(recovery.includes("`rea doctor --client codex --json`"), "Recovery guide does not use the plain rea command");
   assert.match(skill, /^name: reverse-engineer-anything$/mu);
   assert.match(skill, /^  version: "[^"]+"$/mu);
   const count = /^  tool_count: ([1-9][0-9]*)$/mu.exec(skill);

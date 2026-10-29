@@ -48,7 +48,6 @@ in
         scroll-button = 274;
       };
       spawn-at-startup = [
-        { command = [ "discord" ]; }
         { command = [ "${inputRemapperAutoload}" ]; }
       ];
       outputs = {

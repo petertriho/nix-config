@@ -11,13 +11,13 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-28";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-10-29";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "6a226bd09263776b080e7e25c218ed738b2fd068";
-    hash = "sha256-OCiS6APOhdT7RYXzqZ8WwG4o8o/cyGKcWWdnioTlPq4=";
+    rev = "131fbe0754332cdcf6f2ce951dad3b026f982e8d";
+    hash = "sha256-PYxr/9FmJEWYscX8LjFzOW9RAU7gmjzMTQyazdBK87M=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
@@ -26,10 +26,10 @@ buildNpmPackage (finalAttrs: {
     # Node.js 26 removed transform mode. Keep enum and parameter-property
     # support through the existing TypeScript 6 build dependency.
     substituteInPlace scripts/lib/verifier-source-loader.mjs \
-      --replace-fail 'import { registerHooks, stripTypeScriptTypes } from "node:module";' \
-        'import { registerHooks } from "node:module";
+      --replace-fail 'import * as nodeModule from "node:module";' \
+        'import * as nodeModule from "node:module";
     import ts from "typescript6";' \
-      --replace-fail 'stripTypeScriptTypes(source, {
+      --replace-fail 'nodeModule.stripTypeScriptTypes(source, {
           mode: "transform",
           sourceMap: true,
           sourceUrl: url,
@@ -41,7 +41,8 @@ buildNpmPackage (finalAttrs: {
             inlineSourceMap: true,
             inlineSources: true,
           },
-        }).outputText'
+        }).outputText' \
+      --replace-fail 'typeof nodeModule.stripTypeScriptTypes' 'typeof ts.transpileModule'
 
     ${lib.getExe jq} 'del(.optionalDependencies.frida)' package.json > package.json.tmp
     mv package.json.tmp package.json
@@ -53,7 +54,7 @@ buildNpmPackage (finalAttrs: {
   '';
 
   nodejs = nodejs_26;
-  npmDepsHash = "sha256-R3yi5/6yp9w9jN3Tp48mSPqoUmb+nFaEIvcOeAgS5+o=";
+  npmDepsHash = "sha256-p2uoscYEZKKNEHKQJs8ilMg6vpMJtDal/KjGOMXUjAg=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];
