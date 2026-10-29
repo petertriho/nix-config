@@ -268,6 +268,10 @@
       "rev": "4fbc894fa11b282a0dd5d5a670922abd185ae527",
       "src": "https://github.com/tenxsoydev/tabs-vs-spaces.nvim"
     },
+    "tmux-oil.nvim": {
+      "rev": "eb18a5cdd2b8919c00144818ce6c65428b8b0313",
+      "src": "https://github.com/minhyeoky/tmux-oil.nvim"
+    },
     "todo-comments.nvim": {
       "rev": "31e3c38ce9b29781e4422fc0322eb0a21f4e8668",
       "src": "https://github.com/folke/todo-comments.nvim"

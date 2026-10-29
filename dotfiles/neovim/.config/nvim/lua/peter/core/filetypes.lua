@@ -67,6 +67,7 @@ local M = {
         "qf",
         "snacks_dashboard",
         "snacks_picker_input",
+        "tmux-oil",
         -- "snacks_picker_list",
         -- "snacks_picker_preview",
         unpack(sidebars),
