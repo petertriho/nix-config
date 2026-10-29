@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+
+# Repoint gh-stack stacks at the remote's default branch.
+#
+# gh-stack takes the trunk of a new stack from the local
+# refs/remotes/<remote>/HEAD. If that ref is stale (for example it still points
+# at a deleted `dev`), the stack records the wrong trunk, and gh-stack has no
+# command to change the trunk of an existing stack. This script:
+#
+#   1. resets <remote>/HEAD to the remote's default branch,
+#   2. rewrites the trunk of each mismatched stack in <git-common-dir>/gh-stack
+#      (after a backup), with the bottom branch's base set to its merge base
+#      with the new trunk, and
+#   3. deletes the old trunk's local branch when it is safe: its remote branch
+#      is gone, it holds no commits outside the new trunk, no worktree has it
+#      checked out, and no other stack still uses it.
+#
+# It does not fetch-rebase-push. Run `gh-stack sync` afterwards.
+
+set -euo pipefail
+
+die() {
+    printf 'gh-stack-fix-trunk: %s\n' "$*" >&2
+    exit 1
+}
+
+usage() {
+    cat << EOF
+Usage: gh-stack-fix-trunk [-r REMOTE] [-t TRUNK] [-s STACK] [-n] [-y]
+
+Repoint gh-stack stacks whose trunk is not the remote's default branch.
+
+Options:
+  -r, --remote REMOTE  remote to read the default branch from (default: origin)
+  -t, --trunk TRUNK    trunk to set (default: the remote's default branch)
+  -s, --stack NUMBER   only fix the stack with this number
+  -n, --dry-run        show the changes and stop
+  -y, --yes            apply without asking
+  -h, --help           show this help
+EOF
+}
+
+remote=origin
+trunk=
+only_stack=
+dry_run=false
+assume_yes=false
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -r | --remote) remote="${2:?missing value for $1}" && shift ;;
+        -t | --trunk) trunk="${2:?missing value for $1}" && shift ;;
+        -s | --stack) only_stack="${2:?missing value for $1}" && shift ;;
+        -n | --dry-run) dry_run=true ;;
+        -y | --yes) assume_yes=true ;;
+        -h | --help) usage && exit 0 ;;
+        *) usage >&2 && exit 1 ;;
+    esac
+    shift
+done
+
+command -v gh-stack > /dev/null || die "gh-stack is not on PATH"
+command -v jq > /dev/null || die "jq is not on PATH"
+git rev-parse --git-dir > /dev/null 2>&1 || die "not inside a git repository"
+if pgrep -x gh-stack > /dev/null; then
+    die "gh-stack is running; wait for it to finish"
+fi
+
+common_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
+state="${common_dir}/gh-stack"
+
+default_branch="$(
+    git ls-remote --symref "$remote" HEAD \
+        | awk '$1 == "ref:" { sub("^refs/heads/", "", $2); print $2; exit }'
+)"
+[ -n "$default_branch" ] || die "cannot read the default branch of '${remote}'"
+trunk="${trunk:-$default_branch}"
+trunk_ref="refs/remotes/${remote}/${trunk}"
+
+if ! $dry_run; then
+    git fetch --quiet "$remote" "$trunk" || die "cannot fetch '${remote}/${trunk}'"
+fi
+
+remote_has_branch() {
+    git ls-remote --exit-code --heads "$remote" "$1" > /dev/null 2>&1
+}
+
+is_checked_out() {
+    git worktree list --porcelain | grep -Fxq "branch refs/heads/$1"
+}
+
+# --- Plan -------------------------------------------------------------------
+
+fix_head=false
+current_head="$(git symbolic-ref --quiet "refs/remotes/${remote}/HEAD" || true)"
+if [ "$current_head" != "refs/remotes/${remote}/${default_branch}" ]; then
+    fix_head=true
+fi
+
+# Each entry: index<TAB>label<TAB>old trunk<TAB>bottom branch<TAB>new base.
+stack_fixes=()
+fixed_indexes=()
+old_trunks=()
+if [ -f "$state" ]; then
+    while IFS=$'\t' read -r index number old bottom; do
+        label="#${number}"
+        if [ -z "$bottom" ]; then
+            printf 'Skipping stack %s: it has no branches.\n' "$label" >&2
+            continue
+        fi
+        if ! git rev-parse --verify --quiet "refs/heads/${bottom}" > /dev/null; then
+            printf "Skipping stack %s: branch '%s' is not local.\n" "$label" "$bottom" >&2
+            continue
+        fi
+        if git rev-parse --verify --quiet "$trunk_ref" > /dev/null; then
+            base="$(git merge-base "refs/heads/${bottom}" "$trunk_ref")" \
+                || die "stack ${label}: '${bottom}' shares no history with ${remote}/${trunk}"
+        else
+            base="(fetched on apply)"
+        fi
+        stack_fixes+=("${index}"$'\t'"${label}"$'\t'"${old}"$'\t'"${bottom}"$'\t'"${base}")
+        fixed_indexes+=("$index")
+        old_trunks+=("$old")
+    done < <(
+        jq -r --arg trunk "$trunk" --arg only "$only_stack" '
+            .stacks
+            | to_entries[]
+            | select(.value.trunk.branch != $trunk)
+            | select($only == "" or ((.value.number // "") | tostring) == $only)
+            | [.key, (.value.number // "local"), .value.trunk.branch,
+               (.value.branches[0].branch // "")]
+            | @tsv
+        ' "$state"
+    )
+fi
+
+# Old trunk branches that are safe to delete.
+stale_branches=()
+fixed_json="$(printf '%s\n' "${fixed_indexes[@]+"${fixed_indexes[@]}"}" | jq -s 'map(select(. != null))')"
+while IFS= read -r old; do
+    [ -n "$old" ] && [ "$old" != "$trunk" ] || continue
+    git rev-parse --verify --quiet "refs/heads/${old}" > /dev/null || continue
+    reason=
+    if remote_has_branch "$old"; then
+        reason="it still exists on ${remote}"
+    elif is_checked_out "$old"; then
+        reason="a worktree has it checked out"
+    elif ! git rev-parse --verify --quiet "$trunk_ref" > /dev/null \
+        || ! git merge-base --is-ancestor "refs/heads/${old}" "$trunk_ref"; then
+        reason="it has commits that are not in ${remote}/${trunk}"
+    elif [ "$(jq --arg old "$old" --argjson fixed "$fixed_json" '
+            [.stacks
+             | to_entries[]
+             | select(.value.trunk.branch == $old)
+             | select(.key as $k | any($fixed[]; . == $k) | not)]
+            | length' "$state")" != 0 ]; then
+        reason="another stack still uses it as its trunk"
+    fi
+    if [ -n "$reason" ]; then
+        printf "Keeping local branch '%s': %s.\n" "$old" "$reason" >&2
+    else
+        stale_branches+=("$old")
+    fi
+done < <(printf '%s\n' "${old_trunks[@]+"${old_trunks[@]}"}" | sort -u)
+
+if ! $fix_head && [ ${#stack_fixes[@]} -eq 0 ] && [ ${#stale_branches[@]} -eq 0 ]; then
+    printf "Nothing to fix: %s/HEAD is %s and every stack uses '%s'.\n" \
+        "$remote" "$default_branch" "$trunk"
+    exit 0
+fi
+
+printf 'Changes:\n'
+if $fix_head; then
+    printf '  - Set %s/HEAD: %s -> refs/remotes/%s/%s\n' \
+        "$remote" "${current_head:-(unset)}" "$remote" "$default_branch"
+fi
+for fix in "${stack_fixes[@]+"${stack_fixes[@]}"}"; do
+    IFS=$'\t' read -r _ label old bottom base <<< "$fix"
+    printf "  - Stack %s: trunk '%s' -> '%s'; base of '%s' -> %s\n" \
+        "$label" "$old" "$trunk" "$bottom" "$base"
+done
+for old in "${stale_branches[@]+"${stale_branches[@]}"}"; do
+    printf "  - Delete local branch '%s' (%s)\n" "$old" \
+        "$(git rev-parse --short "refs/heads/${old}")"
+done
+
+if $dry_run; then
+    exit 0
+fi
+
+if ! $assume_yes; then
+    [ -t 0 ] || die "not a terminal; pass --yes to apply"
+    read -r -p "Apply these changes? [y/N] " answer
+    [[ "$answer" =~ ^[Yy]$ ]] || die "cancelled"
+fi
+
+# --- Apply ------------------------------------------------------------------
+
+if $fix_head; then
+    git remote set-head "$remote" --auto
+fi
+
+if [ ${#stack_fixes[@]} -gt 0 ]; then
+    backup="${state}.bak-$(date +%Y%m%d%H%M%S)"
+    cp -p "$state" "$backup"
+    printf 'Backed up %s to %s\n' "$state" "$backup"
+
+    updated="$(cat "$state")"
+    for fix in "${stack_fixes[@]}"; do
+        IFS=$'\t' read -r index _ _ bottom _ <<< "$fix"
+        base="$(git merge-base "refs/heads/${bottom}" "$trunk_ref")"
+        updated="$(
+            jq --argjson i "$index" --arg trunk "$trunk" --arg base "$base" '
+                .stacks[$i].trunk = {branch: $trunk, head: $base}
+                | .stacks[$i].branches[0].base = $base
+            ' <<< "$updated"
+        )"
+    done
+    # Write in place, so the file keeps its owner and mode.
+    printf '%s\n' "$updated" > "$state"
+fi
+
+for old in "${stale_branches[@]+"${stale_branches[@]}"}"; do
+    sha="$(git rev-parse "refs/heads/${old}")"
+    git branch -D "$old" > /dev/null
+    printf "Deleted local branch '%s'. Restore with: git branch %s %s\n" \
+        "$old" "$old" "$sha"
+done
+
+if [ -f "$state" ]; then
+    printf '\nStacks:\n'
+    jq -r '.stacks[]
+        | "  #\(.number // "local"): trunk \(.trunk.branch), bottom \(.branches[0].branch // "-")"' \
+        "$state"
+fi
+printf "\nNext: run 'gh-stack sync' to rebase the stacks onto %s/%s and push.\n" \
+    "$remote" "$trunk"
