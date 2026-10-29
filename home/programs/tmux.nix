@@ -146,7 +146,7 @@ in
         extraConfig =
           # tmux
           ''
-            set -g @fuzzback-bind "/"
+            set -g @fuzzback-bind "b"
             set -g @fuzzback-popup 1
             set -g @fuzzback-popup-size "80%"
           '';
