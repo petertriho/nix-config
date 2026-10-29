@@ -36,6 +36,7 @@ set -g status-left "#[fg=${stylix_bg_darker},bg=${mode_colour},bold] ${mode_symb
 %hidden hostname_cap_bg="#{?${datetime_visible},${stylix_selection},${stylix_bg_alt}}"
 
 set -g status-right "#{agent_session_dots} #{agent_indicator} "\
+"#{?@agent_wizard_status,#{@agent_wizard_status} ,}"\
 "#(gitmux -cfg $HOME/.gitmux.conf '#{pane_current_path}') "\
 "${status_datetime}"\
 "#[fg=${mode_colour},bg=${hostname_cap_bg}]#[fg=${stylix_bg_darker},bg=${mode_colour},bold] #h "

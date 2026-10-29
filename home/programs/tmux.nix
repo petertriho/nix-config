@@ -38,7 +38,7 @@ in
       ".gitmux.conf".source = config.lib.meta.mkDotfilesSymlink "tmux/.gitmux.conf";
     };
   };
-  programs.agent-indicator.enable = true;
+  programs.agent-indicator.enable = false;
   programs.agent-wizard.enable = true;
 
   xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";
@@ -161,15 +161,15 @@ in
           '';
       }
       # TODO: investigate why this needs to be put after sensible (cannot put in the hm module)
-      {
-        plugin = agent-indicator;
-        extraConfig =
-          # tmux
-          ''
-            set -g @agent-indicator-icons 'claude=✻,codex=,opencode=󰚩,pi=󰏿,default=󰆍'
-            set -g @agent-indicator-notification-enabled 'off'
-          '';
-      }
+      # {
+      #   plugin = agent-indicator;
+      #   extraConfig =
+      #     # tmux
+      #     ''
+      #       set -g @agent-indicator-icons 'claude=✻,codex=,opencode=󰚩,pi=󰏿,default=󰆍'
+      #       set -g @agent-indicator-notification-enabled 'off'
+      #     '';
+      # }
       {
         plugin = agent-wizard;
         extraConfig =
