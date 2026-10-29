@@ -10,6 +10,7 @@ let
 in
 {
   agent-indicator = callPackage ./agent-indicator { };
+  agent-wizard = callPackage ./agent-wizard { };
   easy-motion = callPackage ./easy-motion { inherit pkgs pythonInputs; };
   flash-tmux = callPackage ./flash-tmux { };
   sessionist-fork = callPackage ./sessionist-fork { };

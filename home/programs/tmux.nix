@@ -39,6 +39,7 @@ in
     };
   };
   programs.agent-indicator.enable = true;
+  programs.agent-wizard.enable = true;
 
   xdg.configFile."sesh".source = config.lib.meta.mkDotfilesSymlink "sesh/.config/sesh";
 
@@ -167,6 +168,17 @@ in
           ''
             set -g @agent-indicator-icons 'claude=✻,codex=,opencode=󰚩,pi=󰏿,default=󰆍'
             set -g @agent-indicator-notification-enabled 'off'
+          '';
+      }
+      {
+        plugin = agent-wizard;
+        extraConfig =
+          # tmux
+          ''
+            set -g @agent-wizard "i"
+            set -g @agent-wizard-auto-install "off"
+            # taw comes from home.packages, so the plugin leaves PATH alone.
+            set -g @agent-wizard-path "off"
           '';
       }
     ];

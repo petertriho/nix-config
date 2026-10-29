@@ -1,6 +1,7 @@
 {
   imports = [
     ./agent-indicator.nix
+    ./agent-wizard.nix
     ./agents.nix
     ./ai.nix
     ./anthropic-skills.nix
