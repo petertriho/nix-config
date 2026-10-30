@@ -13,16 +13,16 @@
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "lg-buddy";
-  version = "2.0.0-unstable-2026-10-25";
+  version = "2.1.0-unstable-2026-10-30";
 
   src = fetchFromGitHub {
     owner = "Staphylococcus";
     repo = "LG_Buddy";
-    rev = "9eb9469f7feaf0f124aef7d6f259f30857c7109a";
-    hash = "sha256-pANuBC8ppBBReoZ431BEiiLU4oxpqL95q5PX+H1KUMk=";
+    rev = "08e47642cd67ee3e85314b871ed8794f7fddde2f";
+    hash = "sha256-wGPrlk/bOY6r/vDgL4WNaTUums08CGrO4xPQkBmWS18=";
   };
 
-  cargoHash = "sha256-ioNlpPYSousrtN4v1jLO9C5Osl3G5h6/5RDJtl8sp94=";
+  cargoHash = "sha256-FHYyfU7PqGuIuCrzZx1QADhA7BEBGANtnIJslaB95/c=";
 
   # Shown by `lg-buddy --version`. LG_BUDDY_RELEASE_VERSION stays unset: this
   # tracks main, so the upstream `dev` channel is correct, and an unstable

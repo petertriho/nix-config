@@ -16,8 +16,8 @@ buildNpmPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "131fbe0754332cdcf6f2ce951dad3b026f982e8d";
-    hash = "sha256-PYxr/9FmJEWYscX8LjFzOW9RAU7gmjzMTQyazdBK87M=";
+    rev = "317bf3fe235e655b2d752d3be261cc0da7d00f2b";
+    hash = "sha256-oE+tNqdmSoG1FxkWQUqxDTikvY2SVKql8OYX9kHzx6c=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.

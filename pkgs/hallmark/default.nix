@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "hallmark";
-  version = "0-unstable-2026-10-28";
+  version = "0-unstable-2026-10-29";
 
   src = fetchFromGitHub {
     owner = "Nutlope";
     repo = "hallmark";
-    rev = "8f6969f8922caabde9de1784959eae11ddf68073";
-    hash = "sha256-xD+vXYxKZUk0Ry98LXu3/ryy5k8ZNPrTGuP04IzLQf0=";
+    rev = "4f6a46c6dc325d40ab268c93e25c7b96676ebccd";
+    hash = "sha256-1pxBDUAPc9oVDdkv+i0hNGeBz5CpzuH1gtljPpkFMJU=";
   };
 
   dontBuild = true;

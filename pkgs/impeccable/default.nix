@@ -7,13 +7,13 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "impeccable";
-  version = "skill-v4.8.0-unstable-2026-10-28";
+  version = "skill-v4.8.0-unstable-2026-10-29";
 
   src = fetchFromGitHub {
     owner = "pbakaus";
     repo = "impeccable";
-    rev = "5e745ace7e151feb2a93d360d0281fe39448b857";
-    hash = "sha256-EYjn4W8k6qouIDqtzuZ9Eht0oGd0CLAC+cNfgQWpIXg=";
+    rev = "02523aec3e4c4580102d996d1b6a71fbe062e03f";
+    hash = "sha256-Yu02irBHcflxV+btYAeqSQYbPhvZlHbrNVO6lsiM584=";
   };
 
   nativeBuildInputs = [
