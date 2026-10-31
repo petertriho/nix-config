@@ -38,6 +38,7 @@ with pkgs;
   spawnpoint = callPackage ./spawnpoint {
     inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
   };
+  strix = callPackage ./strix { };
   superpowers = callPackage ./superpowers { };
   taste-skill = callPackage ./taste-skill { };
   terraform-skill = callPackage ./terraform-skill { };

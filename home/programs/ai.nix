@@ -25,6 +25,7 @@ in
         nodejs
         python3
         python3Packages.tiktoken
+        strix
         # tokscale
       ]
       ++ mcpServerPackages

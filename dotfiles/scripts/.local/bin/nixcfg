@@ -39,6 +39,7 @@ STABLE_PACKAGES=(
     "donsetch"
     "playwriter"
     "pybetter"
+    "strix"
 )
 
 # Helper functions for colored output
