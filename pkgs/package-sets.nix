@@ -60,12 +60,6 @@ let
       };
 
     modifications = final: prev: {
-      # Mockery's x/tools cannot read Go 1.27 export data.
-      # Keep sesh and its mock generator on Go 1.26 until x/tools supports it.
-      sesh = prev.sesh.override {
-        buildGo127Module = final.buildGo126Module;
-      };
-
       pythonPackagesExtensions = prev.pythonPackagesExtensions or [ ] ++ [
         (_final: prev': {
           autoflake = prev'.autoflake.overridePythonAttrs (

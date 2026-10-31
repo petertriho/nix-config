@@ -9,16 +9,16 @@
 let
   taw = rustPlatform.buildRustPackage (finalAttrs: {
     pname = "taw";
-    version = "0.1.3-unstable-2026-10-29";
+    version = "0.1.4-unstable-2026-10-30";
 
     src = fetchFromGitHub {
       owner = "27medkamal";
       repo = "tmux-agent-wizard";
-      rev = "1337ff37e8a129682b70bb1c57d3b4b181a1c184";
-      hash = "sha256-Eet2v305vdeF7gu4J6JZauYtnq3nM2gIZ5BjGpC/0t8=";
+      rev = "68918f8c9980b109bce4a43bcd147060ad840a85";
+      hash = "sha256-wtChs/tzqe+SO77Fvmc9QgdaQExDkSxtQfrmlRzRn70=";
     };
 
-    cargoHash = "sha256-jpOzKekEh6amubUW2U9eMIyNXeiZemKIkpoRSpZ/nVo=";
+    cargoHash = "sha256-2bGcyg8IwcGBUyAmDVtg6/n+hBIN8Q4buaJv2h0UM6A=";
 
     doCheck = false;
 
