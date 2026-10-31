@@ -7,6 +7,10 @@ local disabled_lsp_formatters = {
     vtsls = true,
 }
 
+local slow_formatters_by_ft = {
+    python = { "pybetter" },
+}
+
 local get_format_opts = function(opts)
     opts = opts or {}
 
@@ -49,10 +53,16 @@ return {
         end, { range = true })
 
         vim.api.nvim_create_user_command("SlowFormat", function(args)
+            local formatters = slow_formatters_by_ft[vim.bo.filetype]
+            if not formatters then
+                vim.notify("No slow formatters for filetype: " .. vim.bo.filetype, vim.log.levels.WARN)
+                return
+            end
+
             format(get_format_opts({
-                formatters = {
-                    python = { "pybetter" },
-                },
+                formatters = formatters,
+                -- If a slow formatter is missing, fail instead of running LSP formatting.
+                lsp_format = "never",
                 range = get_range(args),
             }))
         end, { range = true })
