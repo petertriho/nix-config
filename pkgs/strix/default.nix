@@ -55,6 +55,12 @@ stdenv.mkDerivation (finalAttrs: {
   dontConfigure = true;
   dontBuild = true;
 
+  # A PyInstaller onefile binary keeps its PKG archive appended after the
+  # executable payload. The fixup strip hook rewrites only the payload, so
+  # strip -S drops the archive (93 MB -> 88 KB) and the runtime exits with
+  # "Could not load PyInstaller's embedded PKG archive".
+  dontStrip = true;
+
   installPhase = ''
     runHook preInstall
     install -Dm555 "${extractedBinary}" $out/bin/strix
