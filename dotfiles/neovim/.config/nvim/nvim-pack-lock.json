@@ -17,11 +17,11 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "adec23112e4616e8fc3cfe3dd2b00fea298d6591",
+      "rev": "10fa6be1774923c980e0b3fa7cc1356e796dc5da",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
-      "rev": "74ebcf9a2daffd3d2eaaf13fa384c5caf337056e",
+      "rev": "d4318ec75309a37e09757de0f16faa67bf22b890",
       "src": "https://github.com/saghen/blink.cmp",
       "version": "'main'"
     },
@@ -126,7 +126,7 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini.nvim": {
-      "rev": "a03ad899bda446b5a81cfa99d8aeeb92241522f3",
+      "rev": "6d5a29e86a7352739506c28e0bc50fe214b5216f",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "namu.nvim": {
@@ -158,7 +158,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "4b2b045b8ceb035f5c8bc9cab19b95706bfa6a19",
+      "rev": "460bb34e7be114f1fda7815781696bc701e60f83",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -237,7 +237,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "246ca2fa1323ee1312b84352ab09b8c2fa292888",
+      "rev": "cc6302a0957806dfc0f2687f1f35ee9652686101",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
