@@ -173,11 +173,4 @@ M.generate_uuid = function()
     end)
 end
 
-M.spinner = {
-    frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
-    get_frame = function(self)
-        return self.frames[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #self.frames + 1]
-    end,
-}
-
 return M

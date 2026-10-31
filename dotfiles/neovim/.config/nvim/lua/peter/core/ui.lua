@@ -5,6 +5,17 @@ vim.o.messagesopt = "hit-enter,history:500,progress:c,timeout:4000,maxheight:30"
 
 local ui2 = require("vim._core.ui2")
 
+-- ui2 creates the msg window later, and again if it is closed, so set the border on FileType.
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = "msg",
+    group = vim.api.nvim_create_augroup("Ui2MsgWindow", { clear = true }),
+    callback = function(args)
+        if args.buf == ui2.bufs.msg then
+            vim.api.nvim_win_set_config(ui2.wins.msg, { border = "rounded" })
+        end
+    end,
+})
+
 ui2.enable({
     enable = true,
     msg = {

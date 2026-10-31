@@ -39,6 +39,11 @@ keymap("n", "<ESC>", function()
     vim.cmd.diffupdate()
     vim.api.nvim_buf_clear_namespace(0, multicursor_ns, 0, -1)
     pcall(require("snacks").notifier.hide)
+    -- If the plugin is not loaded, no rows exist, so this does not load it.
+    local progress = package.loaded["progress"]
+    if progress then
+        progress.hide()
+    end
 end, {
     desc = "Clear",
 })

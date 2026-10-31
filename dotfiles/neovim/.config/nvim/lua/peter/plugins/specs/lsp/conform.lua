@@ -38,15 +38,9 @@ return {
         { "<leader>F", "<CMD>SlowFormat<CR>", mode = { "n", "v" }, desc = "Slow Format" },
         { "<leader>gF", "<CMD>DiffFormat<CR>", mode = { "n", "v" }, desc = "Diff Format" },
     },
-    dependencies = {
-        {
-            dir = "~/.config/nvim/plugins/conform-spinner",
-        },
-    },
     init = function()
-        -- Require conform-spinner on the first format, not at startup.
         local format = function(opts)
-            return require("conform-spinner").format(opts)
+            return require("progress.conform").format(opts)
         end
         vim.api.nvim_create_user_command("Format", function(args)
             format(get_format_opts({
@@ -65,8 +59,8 @@ return {
 
         vim.api.nvim_create_user_command("DiffFormat", function()
             local bufnr = vim.api.nvim_get_current_buf()
-            local conform_spinner = require("conform-spinner")
-            local token = conform_spinner.start(bufnr)
+            local conform_progress = require("progress.conform")
+            local token = conform_progress.start(bufnr)
 
             if not token then
                 return
@@ -77,7 +71,7 @@ return {
             local hunks = data and data.hunks and vim.list_extend({}, data.hunks)
 
             if hunks == nil or #hunks == 0 then
-                conform_spinner.finish(bufnr, token, nil)
+                conform_progress.finish(bufnr, token, nil)
                 return
             end
 
@@ -97,7 +91,7 @@ return {
                             local format_opts = get_format_opts({ bufnr = bufnr, range = range })
                             require("conform").format(format_opts, function(err)
                                 if err then
-                                    conform_spinner.finish(bufnr, token, err)
+                                    conform_progress.finish(bufnr, token, err)
                                     return
                                 end
 
@@ -110,15 +104,13 @@ return {
                     end
                 end
 
-                conform_spinner.finish(bufnr, token, nil)
+                conform_progress.finish(bufnr, token, nil)
             end
 
             format_range()
         end, {})
     end,
     config = function()
-        require("conform-spinner").setup()
-
         local conform = require("conform")
 
         local function first(bufnr, ...)
@@ -233,6 +225,8 @@ return {
         end
 
         conform.setup({
+            -- The failure row of the progress plugin shows the error.
+            notify_on_error = false,
             formatters_by_ft = formatters_by_ft,
             default_format_opts = get_format_opts({
                 lsp_format = "fallback",
