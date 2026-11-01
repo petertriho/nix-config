@@ -437,38 +437,33 @@ local function lsp_setup_handlers()
         return register_capability_handler(err, result, ctx)
     end
 
-    -- require("ts-error-translator.diagnostic").setup({
-    --     servers = {
-    --         "astro",
-    --         "svelte",
-    --         "ts_ls",
-    --         "tsserver",
-    --         "typescript-tools",
-    --         "volar",
-    --         "vtsls",
-    --     },
-    -- })
+    local translate_servers = { "tsc", "vtsls" }
 
-    local publish_diagnostics_handler = vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
+    local function wrap_diagnostic_handler(method, get_diagnostics)
+        local handler = vim.lsp.handlers[method]
 
-    local translate_servers = { "vtsls" }
-
-    vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics] = function(err, result, ctx, config)
-        if result and result.diagnostics then
+        vim.lsp.handlers[method] = function(err, result, ctx, config)
             local client = vim.lsp.get_client_by_id(ctx.client_id)
-            local client_name = client and client.name or "unknown"
 
-            if vim.tbl_contains(translate_servers, client_name) then
-                for _, diag in ipairs(result.diagnostics) do
+            if result and client and vim.tbl_contains(translate_servers, client.name) then
+                for _, diag in ipairs(get_diagnostics(result) or {}) do
                     if diag.message then
                         diag.message = translate_diagnostic_message(diag.message, diag.code)
                     end
                 end
             end
-        end
 
-        return publish_diagnostics_handler(err, result, ctx, config)
+            return handler(err, result, ctx, config)
+        end
     end
+
+    -- vtsls pushes its diagnostics, and tsc only answers pull requests.
+    wrap_diagnostic_handler(methods.textDocument_publishDiagnostics, function(result)
+        return result.diagnostics
+    end)
+    wrap_diagnostic_handler(methods.textDocument_diagnostic, function(result)
+        return result.items
+    end)
 end
 
 local function lsp_attach_callback(args)
