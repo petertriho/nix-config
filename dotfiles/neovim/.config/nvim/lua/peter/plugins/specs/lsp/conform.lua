@@ -3,6 +3,7 @@ local disabled_lsp_formatters = {
     basedpyright = true,
     pyright = true,
     ruff = true,
+    tsc = true,
     ts_ls = true,
     vtsls = true,
 }
