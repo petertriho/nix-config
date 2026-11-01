@@ -286,6 +286,63 @@ local function make_unique_file_watcher_handlers()
     }
 end
 
+local TAILWIND_STYLESHEET_PATTERN = "@tailwind[[:space:]]"
+    .. "|@theme([[:space:]]+[a-z]+)*[[:space:]]*\\{"
+    .. "|@config[[:space:]]*['\"]"
+    .. "|@import[[:space:]]*(url\\()?['\"][^'\"]*tailwind"
+
+-- nvim-lspconfig falls back to `.git` because Tailwind v4 needs no config file, and that starts the
+-- server in every repository. This follows the checks in the Tailwind VS Code extension, but an
+-- `@import` must name Tailwind. The extension accepts any `@import`, which also starts it elsewhere.
+local function tailwind_root_dir(bufnr, on_dir)
+    local util = require("lspconfig.util")
+    local fname = vim.api.nvim_buf_get_name(bufnr)
+    local markers = {
+        "tailwind.config.js",
+        "tailwind.config.cjs",
+        "tailwind.config.mjs",
+        "tailwind.config.ts",
+        "tailwind.config.mts",
+        "tailwind.config.cts",
+    }
+    markers = util.insert_package_json(markers, "tailwindcss", fname)
+    markers = util.root_markers_with_field(markers, { "mix.lock", "Gemfile.lock" }, "tailwind", fname)
+
+    -- This runs on the main thread for each buffer, so it uses names. A predicate would list every
+    -- parent directory, which blocked for 81 ms in a directory with 100,000 files.
+    local match = vim.fs.find(markers, { path = vim.fs.dirname(fname), upward = true })[1]
+    if match then
+        on_dir(vim.fs.dirname(match))
+        return
+    end
+
+    local repository = vim.fs.root(bufnr, ".git")
+    if not repository then
+        return
+    end
+
+    -- Only tracked files count, so dependencies and build output cannot start the server. A new
+    -- stylesheet counts after `git add`, because `--untracked` took 25 times longer in nixpkgs.
+    vim.system({
+        "git",
+        "grep",
+        "--quiet",
+        "-E",
+        "-e",
+        TAILWIND_STYLESHEET_PATTERN,
+        "--",
+        "*.css",
+        "*.scss",
+        "*.sass",
+        "*.less",
+        "*.pcss",
+    }, { cwd = repository }, function(result)
+        if result.code == 0 then
+            on_dir(repository)
+        end
+    end)
+end
+
 return {
     -- basedpyright = {
     --     -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
@@ -552,6 +609,7 @@ return {
     superhtml = {},
     -- https://svelte.dev/docs/language-tools/svelte-for-vs-code#settings
     tailwindcss = {
+        root_dir = tailwind_root_dir,
         settings = {
             tailwindCSS = {
                 includeLanguages = {

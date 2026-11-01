@@ -230,51 +230,6 @@ set_augroups({
         {
             "FileType",
             {
-                pattern = { "html", "css", "javascript", "javascriptreact", "typescript", "typescriptreact" },
-                callback = function(args)
-                    if not vim.g.lsp_configured then
-                        require("peter.lsp").setup()
-                    end
-
-                    local clients = vim.lsp.get_clients({ bufnr = args.buf, name = "tailwindcss" })
-                    if #clients > 0 then
-                        -- Already attached
-                        return
-                    end
-
-                    -- Find tailwind config in parent directories
-                    local bufname = vim.api.nvim_buf_get_name(args.buf)
-                    local root_files = {
-                        "tailwind.config.js",
-                        "tailwind.config.cjs",
-                        "tailwind.config.mjs",
-                        "tailwind.config.ts",
-                    }
-
-                    local root_dir = vim.fs.root(bufname, root_files)
-                    if not root_dir then
-                        return
-                    end
-
-                    local config = vim.lsp.config["tailwindcss"]
-                    if not config then
-                        vim.notify("Tailwind CSS LSP config not found", vim.log.levels.WARN)
-                        return
-                    end
-
-                    local start_config = vim.tbl_deep_extend("force", config, {
-                        root_dir = root_dir,
-                    })
-                    vim.lsp.start(start_config, {
-                        bufnr = args.buf,
-                    })
-                end,
-                desc = "Start Tailwind CSS LSP",
-            },
-        },
-        {
-            "FileType",
-            {
                 pattern = "nvim-undotree",
                 callback = function()
                     vim.keymap.set("n", "q", function()
