@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "autoresearch";
-  version = "2.2.2-unstable-2026-08-12";
+  version = "2.3.0-unstable-2026-10-31";
 
   src = fetchFromGitHub {
     owner = "uditgoenka";
     repo = "autoresearch";
-    rev = "050e30dc4ba0974b03f2873111b9901ec3211390";
-    hash = "sha256-Hwxlit87HPoHLLDiX/Tz4L5ONvmDf5B71KhTePNLyhU=";
+    rev = "7bddd056dfd0b0ded8360588d8101b1ecb5c0baa";
+    hash = "sha256-DapoBvuMAVHm7M/6NT/J6zdWNKno55Ans9+cxFWeHj8=";
   };
 
   dontBuild = true;
