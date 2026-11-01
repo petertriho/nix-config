@@ -512,6 +512,8 @@ return {
         init_options = {
             settings = {
                 configuration = vim.fn.expand("$HOME/.config/nvim/code/ruff.toml"),
+                -- A project's own Ruff config wins. The file above applies only when a project has none.
+                configurationPreference = "filesystemFirst",
                 organizeImports = true,
                 showSyntaxErrors = true,
                 codeAction = {
