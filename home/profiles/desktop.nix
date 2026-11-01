@@ -29,7 +29,6 @@
   programs = {
     betterfox = {
       enable = true;
-      browserPackage = pkgs.floorp-bin.unwrapped;
       configs = {
         userjs = true;
         securefox = true;

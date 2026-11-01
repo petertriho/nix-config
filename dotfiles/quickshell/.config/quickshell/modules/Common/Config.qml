@@ -275,7 +275,7 @@ Singleton {
             // nf-md-cat
             "\u{f011b}": ["kitty"],
             // nf-md-firefox
-            "\u{f0239}": ["firefox", "floorp"],
+            "\u{f0239}": ["firefox"],
             // nf-md-google_chrome
             "\u{f02af}": ["chromium-browser"],
             // nf-md-discord

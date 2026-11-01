@@ -27,6 +27,5 @@
     wezterm.enable = false;
     vim.enable = false;
     firefox.enable = false;
-    floorp.enable = false;
   };
 }

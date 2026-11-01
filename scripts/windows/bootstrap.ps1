@@ -9,7 +9,6 @@
 # - nix-config
 
 # Winget
-winget install --source winget --id Ablaze.Floorp
 winget install --source winget --id AltSnap.AltSnap
 winget install --source winget --id Discord.Discord
 winget install --source winget --id Giorgiotani.Peazip

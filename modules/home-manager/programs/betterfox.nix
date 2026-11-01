@@ -87,7 +87,7 @@ in
     browserPackage = lib.mkOption {
       type = lib.types.nullOr lib.types.package;
       default = null;
-      example = lib.literalExpression "pkgs.floorp-bin.unwrapped";
+      example = lib.literalExpression "pkgs.firefox-unwrapped";
       description = "Firefox-family unwrapped browser package to wrap with Betterfox preferences.";
     };
 
