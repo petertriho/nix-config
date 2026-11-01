@@ -287,12 +287,6 @@ local function make_unique_file_watcher_handlers()
 end
 
 return {
-    atlas = {
-        lazy = true,
-        filetypes = {
-            "atlas-*",
-        },
-    },
     -- basedpyright = {
     --     -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
     --     settings = {

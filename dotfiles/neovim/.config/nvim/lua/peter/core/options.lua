@@ -6,7 +6,6 @@ vim.filetype.add({
     },
     filename = {
         [".prettierrc"] = "jsonc",
-        ["atlas.hcl"] = "atlas-config",
         ["todo.txt"] = "todotxt",
         ["yarn.lock"] = "txt",
     },
@@ -16,30 +15,8 @@ vim.filetype.add({
         ["compose%..+%.ya?ml"] = "yaml.docker-compose",
         ["docker%-compose%.ya?ml"] = "yaml.docker-compose",
         ["docker%-compose%..+%.ya?ml"] = "yaml.docker-compose",
-        [".*/*.ch.hcl"] = "atlas-schema-clickhouse",
-        [".*/*.lt.hcl"] = "atlas-schema-sqlite",
-        [".*/*.ms.hcl"] = "atlas-schema-mssql",
-        [".*/*.my.hcl"] = "atlas-schema-mysql",
-        [".*/*.pg.hcl"] = "atlas-schema-postgresql",
-        [".*/*.plan.hcl"] = "atlas-plan",
-        [".*/*.rs.hcl"] = "atlas-schema-redshift",
-        [".*/*.rule.hcl"] = "atlas-rule",
-        [".*/*.test.hcl"] = "atlas-test",
     },
 })
--- Indexing `vim.treesitter` loads all of it (about 0.6 ms). A start without a
--- file only needs the language registry.
-local ts_language = require("vim.treesitter.language")
-ts_language.register("hcl", "atlas-config")
-ts_language.register("hcl", "atlas-schema-mysql")
-ts_language.register("hcl", "atlas-schema-postgresql")
-ts_language.register("hcl", "atlas-schema-sqlite")
-ts_language.register("hcl", "atlas-schema-clickhouse")
-ts_language.register("hcl", "atlas-schema-mssql")
-ts_language.register("hcl", "atlas-schema-redshift")
-ts_language.register("hcl", "atlas-test")
-ts_language.register("hcl", "atlas-plan")
-ts_language.register("hcl", "atlas-rule")
 
 -- Globals
 vim.g.has_deno = vim.fn.executable("deno") == 1
