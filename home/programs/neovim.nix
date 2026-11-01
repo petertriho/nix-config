@@ -77,11 +77,11 @@ in
       # rust-analyzer
       superhtml
       tailwindcss-language-server
-      taplo
       terraform-ls
       tinymist
       templ
       tflint
+      tombi
       unstable.ty
       typescript
       typos-lsp

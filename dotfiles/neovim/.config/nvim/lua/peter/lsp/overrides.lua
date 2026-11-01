@@ -566,19 +566,6 @@ return {
             },
         },
     },
-    taplo = {
-        lazy = true,
-        filetypes = { "toml" },
-        config = function()
-            local sc = require("schema-companion")
-            return sc.setup_client(sc.adapters.taplo.setup({
-                sources = {
-                    sc.sources.lsp.setup(),
-                    sc.sources.none.setup(),
-                },
-            }))
-        end,
-    },
     templ = {},
     terraformls = {},
     -- https://myriad-dreamin.github.io/tinymist/configurations.html
@@ -590,6 +577,19 @@ return {
         },
     },
     tflint = {},
+    tombi = {
+        lazy = true,
+        filetypes = { "toml" },
+        config = function()
+            local sc = require("schema-companion")
+            return sc.setup_client(sc.adapters.tombi.setup({
+                sources = {
+                    sc.sources.lsp.setup(),
+                    sc.sources.none.setup(),
+                },
+            }))
+        end,
+    },
     -- https://github.com/microsoft/TypeScript/blob/main/src/server/protocol.ts (search for InlayHintsOptions)
     -- ts_ls = {
     --     settings = {
