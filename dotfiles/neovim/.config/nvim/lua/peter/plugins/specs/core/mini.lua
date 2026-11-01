@@ -1,32 +1,10 @@
 return {
-    "nvim-mini/mini.nvim",
-    event = { "User LazyLoadFile", "VeryLazy" },
-    keys = {
-        {
-            "-",
-            function()
-                local files = require("mini.files")
-                if not files.close() then
-                    local current_file = vim.api.nvim_buf_get_name(0)
-                    local parent_dir = vim.fn.fnamemodify(current_file, ":h")
-                    files.open(parent_dir)
-                end
-            end,
-            desc = "Open parent directory",
-        },
-        {
-            "<leader>E",
-            function()
-                local files = require("mini.files")
-                if not files.close() then
-                    files.open()
-                end
-            end,
-            desc = "Explorer",
-        },
-    },
-    config = function()
-        require("mini.ai").setup({
+    {
+        "nvim-mini/mini.ai",
+        -- The `a` and `i` mappings run in operator-pending mode, where a key shim
+        -- cannot replay the textobject.
+        event = "VeryLazy",
+        opts = {
             custom_textobjects = {
                 -- Entire buffer
                 E = function()
@@ -113,8 +91,12 @@ return {
                 around_last = "aL",
                 inside_last = "iL",
             },
-        })
-        require("mini.diff").setup({
+        },
+    },
+    {
+        "nvim-mini/mini.diff",
+        event = "User LazyLoadFileDeferred",
+        opts = {
             view = {
                 style = "sign",
                 signs = {
@@ -123,8 +105,36 @@ return {
                     delete = "│",
                 },
             },
-        })
-        require("mini.files").setup({
+        },
+    },
+    {
+        "nvim-mini/mini.files",
+        dependencies = { "nvim-mini/mini.icons" },
+        keys = {
+            {
+                "-",
+                function()
+                    local files = require("mini.files")
+                    if not files.close() then
+                        local current_file = vim.api.nvim_buf_get_name(0)
+                        local parent_dir = vim.fn.fnamemodify(current_file, ":h")
+                        files.open(parent_dir)
+                    end
+                end,
+                desc = "Open parent directory",
+            },
+            {
+                "<leader>E",
+                function()
+                    local files = require("mini.files")
+                    if not files.close() then
+                        files.open()
+                    end
+                end,
+                desc = "Explorer",
+            },
+        },
+        opts = {
             mappings = {
                 go_in = "<CR>",
                 go_out = "<BS>",
@@ -133,36 +143,68 @@ return {
             options = {
                 use_as_default_explorer = false,
             },
-        })
-        require("mini.git").setup()
-        vim.cmd([[cabbrev <expr> G getcmdtype() == ':' && getcmdline() ==# 'G' ? 'Git' : 'G']])
-        require("mini.icons").setup()
-        require("mini.splitjoin").setup({
+        },
+    },
+    {
+        -- The module is `mini.git`, but the repository is `mini-git`.
+        "nvim-mini/mini-git",
+        main = "mini.git",
+        event = "User LazyLoadFileDeferred",
+        cmd = "Git",
+        init = function()
+            vim.cmd([[cabbrev <expr> G getcmdtype() == ':' && getcmdline() ==# 'G' ? 'Git' : 'G']])
+        end,
+        opts = {},
+    },
+    {
+        "nvim-mini/mini.icons",
+        -- Snacks reads the `MiniIcons` global without a require, so a module
+        -- trigger does not load this plugin.
+        event = "VeryLazy",
+        opts = {},
+    },
+    {
+        "nvim-mini/mini.splitjoin",
+        keys = {
+            { "<leader>ij", mode = { "n", "x" }, desc = "Toggle arguments" },
+        },
+        opts = {
             mappings = {
                 toggle = "<leader>ij",
             },
-        })
-        require("mini.surround").setup({
-            mappings = {
-                add = "ys",
-                delete = "ds",
-                replace = "cs",
-                find = "",
-                find_left = "",
-                highlight = "",
-                update_n_lines = "",
-                -- Each mapping makes mini.surround read every global mapping
-                -- (about 0.4 ms each with the lazypack key shims).
-                suffix_last = "",
-                suffix_next = "",
+        },
+    },
+    {
+        "nvim-mini/mini.surround",
+        keys = {
+            { "ys", desc = "Add surrounding" },
+            { "ds", desc = "Delete surrounding" },
+            { "cs", desc = "Replace surrounding" },
+            {
+                "gs",
+                ":<C-u>lua require('mini.surround').add('visual')<CR>",
+                mode = "x",
+                desc = "Add surrounding to selection",
+                noremap = true,
             },
-        })
-        pcall(vim.keymap.del, "x", "ys")
-        vim.keymap.set(
-            "x",
-            "gs",
-            ":<C-u>lua require('mini.surround').add('visual')<CR>",
-            { desc = "Add surrounding to selection", noremap = true }
-        )
-    end,
+        },
+        config = function()
+            require("mini.surround").setup({
+                mappings = {
+                    add = "ys",
+                    delete = "ds",
+                    replace = "cs",
+                    find = "",
+                    find_left = "",
+                    highlight = "",
+                    update_n_lines = "",
+                    -- Each mapping makes mini.surround read every global mapping
+                    -- (about 0.4 ms each with the lazypack key shims).
+                    suffix_last = "",
+                    suffix_next = "",
+                },
+            })
+            pcall(vim.keymap.del, "x", "ys")
+        end,
+    },
 }

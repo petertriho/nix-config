@@ -96,14 +96,12 @@ end
 
 -- tokyonight finds the installed plugins only through lazy.nvim. Without it,
 -- `all` defaults to true and sets the groups of every supported plugin. Like
--- its `auto` mode, enable the groups of the installed plugins, and every
--- mini_* group for mini.nvim.
+-- its `auto` mode, enable the groups of the installed plugins.
 local function tokyonight_plugins()
     local lazypack = require("peter.plugins.lazypack")
     local plugins = { all = false, markdown = true, rainbow = true }
-    local has_mini = lazypack.has("mini.nvim")
     for plugin, group in pairs(require("tokyonight.groups").plugins) do
-        if lazypack.has(plugin) or (has_mini and group:find("^mini_")) then
+        if lazypack.has(plugin) then
             plugins[group] = true
         end
     end
@@ -182,7 +180,7 @@ return {
         dir = vim.fn.stdpath("config"),
         name = "stylix-colorscheme",
         enabled = theme.alias ~= "tokyonight" and theme.alias ~= "catppuccin",
-        dependencies = { "nvim-mini/mini.nvim" },
+        dependencies = { "nvim-mini/mini.base16" },
         lazy = false,
         priority = 1000,
         config = function()
