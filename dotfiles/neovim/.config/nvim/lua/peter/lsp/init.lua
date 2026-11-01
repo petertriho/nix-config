@@ -20,8 +20,61 @@ local function result_has_items(result)
     return true
 end
 
+local function read_line(filename, lnum)
+    if vim.fn.bufloaded(filename) == 1 then
+        return vim.api.nvim_buf_get_lines(vim.fn.bufadd(filename), lnum - 1, lnum, false)[1]
+    end
+    -- Some targets, such as namespace packages, are directories and cannot be read.
+    local ok, lines = pcall(vim.fn.readfile, filename, "", lnum)
+    return ok and lines[lnum] or nil
+end
+
+local PYREFLY_CALL_DUNDERS = { __init__ = true, __new__ = true, __call__ = true }
+
+local function is_call_dunder(item)
+    local line = read_line(item.filename, item.lnum)
+    return line ~= nil and PYREFLY_CALL_DUNDERS[line:match("def%s+([%w_]+)")] == true
+end
+
+-- pyrefly resolves a call through `__init__`, `__new__`, or `__call__`, and no setting turns this
+-- off. `typeDefinition` also reports the class, so `gd` and `grd` can still reach it.
+-- The position is captured here because the cursor can move before the results arrive.
+local function make_pyrefly_constructor_resolver()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local client = vim.lsp.get_clients({ bufnr = bufnr, name = "pyrefly" })[1]
+    if not client then
+        return nil
+    end
+
+    local name = vim.fn.expand("<cword>")
+    local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+
+    return function(items, show_items)
+        if not vim.iter(items):any(is_call_dunder) then
+            show_items(items)
+            return
+        end
+
+        client:request(vim.lsp.protocol.Methods.textDocument_typeDefinition, params, function(err, result)
+            -- A constructor also reports its parameter types, so match the class by name.
+            local locations = not err and result and (vim.islist(result) and result or { result }) or {}
+            for _, location in ipairs(locations) do
+                local filename = vim.uri_to_fname(location.uri or location.targetUri)
+                local range = location.range or location.targetRange
+                local lnum = range.start.line + 1
+                local line = read_line(filename, lnum)
+                if line and line:match("^%s*class%s+" .. vim.pesc(name) .. "%f[^%w_]") then
+                    show_items({ { filename = filename, lnum = lnum, col = range.start.character + 1, text = "" } })
+                    return
+                end
+            end
+            show_items(items)
+        end, bufnr)
+    end
+end
+
 -- Helper function to make LSP requests with client tracking
-local function make_lsp_request(method, make_params_fn)
+local function make_lsp_request(method, make_params_fn, resolve_items)
     local bufnr = vim.api.nvim_get_current_buf()
     local filter_ctags = should_filter_ctags(bufnr)
 
@@ -111,11 +164,19 @@ local function make_lsp_request(method, make_params_fn)
             final_items = regular
         end
 
-        vim.fn.setqflist({}, " ", { items = final_items, title = method })
-        if #final_items > 1 then
-            vim.cmd("botright copen")
-        elseif #final_items == 1 then
-            vim.cmd.cfirst()
+        local function show_items(items)
+            vim.fn.setqflist({}, " ", { items = items, title = method })
+            if #items > 1 then
+                vim.cmd("botright copen")
+            elseif #items == 1 then
+                vim.cmd.cfirst()
+            end
+        end
+
+        if resolve_items then
+            resolve_items(final_items, show_items)
+        else
+            show_items(final_items)
         end
     end
 
@@ -204,7 +265,7 @@ local LSP_METHODS = {
                 "n",
                 "grd",
                 function()
-                    make_lsp_request(methods.textDocument_declaration)
+                    make_lsp_request(methods.textDocument_declaration, nil, make_pyrefly_constructor_resolver())
                 end,
                 { desc = "Declaration" },
             },
@@ -216,7 +277,7 @@ local LSP_METHODS = {
                 "n",
                 "gd",
                 function()
-                    make_lsp_request(methods.textDocument_definition)
+                    make_lsp_request(methods.textDocument_definition, nil, make_pyrefly_constructor_resolver())
                 end,
                 { desc = "Definition" },
             },

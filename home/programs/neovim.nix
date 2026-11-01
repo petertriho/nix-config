@@ -104,6 +104,8 @@ in
     ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
       # qmlls (linux only, requires wayland)
       qt6.qtdeclarative
+      # neovim lsp file watching backend (linux only)
+      inotify-tools
     ];
 
   programs.neovim = {

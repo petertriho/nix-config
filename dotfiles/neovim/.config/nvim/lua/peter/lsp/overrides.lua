@@ -10,10 +10,11 @@
 --     ty = true/false,            -- Does ty support this?
 --   }
 
--- NOTE: reverted back to basedpyright because pyrefly go to definition is not working correctly
+-- NOTE: pyrefly only sees edits to another file after that file is saved, so go to definition can
+-- land on an old line until then. This is intended upstream: https://github.com/meta/pyrefly/issues/5005
 local python_lsp_capabilities = {
     callHierarchyProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
@@ -34,112 +35,112 @@ local python_lsp_capabilities = {
         ty = true,
     },
     declarationProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     definitionProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     documentHighlightProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     documentSymbolProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     foldingRangeProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = false,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     hoverProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = true, -- rule documentation
         ty = true,
     },
     implementationProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = false,
     },
     inlayHintProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     referencesProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     renameProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     semanticTokensProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     signatureHelpProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     typeDefinitionProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     workspaceSymbolProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = true,
         pyrefly = true,
         ruff = false,
         ty = true,
     },
     documentFormattingProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = false,
         pyrefly = false,
         ruff = false,
         ty = false,
     },
     documentRangeFormattingProvider = {
-        active = "basedpyright",
+        active = "pyrefly",
         basedpyright = false,
         pyrefly = false,
         ruff = false,
@@ -238,6 +239,53 @@ local function check_basedpyright_deprecation()
     end
 end
 
+-- pyrefly registers each batch of file watchers under one ID, and Neovim cancels the earlier
+-- registration when an ID repeats. That drops the `**/*.py` watcher, so each batch gets its own ID.
+local function make_unique_file_watcher_handlers()
+    local watched_files_method = "workspace/didChangeWatchedFiles"
+    local issued_ids = {} -- [client_id][server_id] = IDs given to Neovim
+    local next_suffix = 0
+
+    return {
+        ["client/registerCapability"] = function(err, result, ctx, config)
+            issued_ids[ctx.client_id] = issued_ids[ctx.client_id] or {}
+            local client_ids = issued_ids[ctx.client_id]
+
+            for _, registration in ipairs(result.registrations) do
+                if registration.method == watched_files_method then
+                    next_suffix = next_suffix + 1
+                    local unique_id = registration.id .. "#" .. next_suffix
+                    client_ids[registration.id] = client_ids[registration.id] or {}
+                    table.insert(client_ids[registration.id], unique_id)
+                    registration.id = unique_id
+                end
+            end
+
+            return vim.lsp.handlers["client/registerCapability"](err, result, ctx, config)
+        end,
+        ["client/unregisterCapability"] = function(err, result, ctx, config)
+            local client_ids = issued_ids[ctx.client_id] or {}
+            local unregistrations = {}
+
+            -- The LSP specification spells this field "unregisterations".
+            for _, unregistration in ipairs(result.unregisterations) do
+                local unique_ids = client_ids[unregistration.id]
+                if unregistration.method == watched_files_method and unique_ids then
+                    for _, unique_id in ipairs(unique_ids) do
+                        table.insert(unregistrations, { id = unique_id, method = unregistration.method })
+                    end
+                    client_ids[unregistration.id] = nil
+                else
+                    table.insert(unregistrations, unregistration)
+                end
+            end
+            result.unregisterations = unregistrations
+
+            return vim.lsp.handlers["client/unregisterCapability"](err, result, ctx, config)
+        end,
+    }
+end
+
 return {
     atlas = {
         lazy = true,
@@ -245,35 +293,35 @@ return {
             "atlas-*",
         },
     },
-    basedpyright = {
-        -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
-        settings = {
-            basedpyright = {
-                analysis = {
-                    autoImportCompletions = true,
-                    autoSearchPaths = true,
-                    diagnosticMode = "workspace",
-                    useLibraryCodeForTypes = true,
-                    typeCheckingMode = "off",
-                    ignore = { "*" },
-                    diagnosticSeverityOverrides = {
-                        reportGeneralTypeIssues = "information",
-                    },
-                    inlayHints = {
-                        variableTypes = true,
-                        callArgumentNames = true,
-                        functionReturnTypes = true,
-                        genericTypes = true,
-                    },
-                },
-            },
-        },
-        on_attach = function(client, bufnr)
-            vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
-            disable_capabilities_for_server(client)
-            -- check_basedpyright_deprecation()
-        end,
-    },
+    -- basedpyright = {
+    --     -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
+    --     settings = {
+    --         basedpyright = {
+    --             analysis = {
+    --                 autoImportCompletions = true,
+    --                 autoSearchPaths = true,
+    --                 diagnosticMode = "workspace",
+    --                 useLibraryCodeForTypes = true,
+    --                 typeCheckingMode = "off",
+    --                 ignore = { "*" },
+    --                 diagnosticSeverityOverrides = {
+    --                     reportGeneralTypeIssues = "information",
+    --                 },
+    --                 inlayHints = {
+    --                     variableTypes = true,
+    --                     callArgumentNames = true,
+    --                     functionReturnTypes = true,
+    --                     genericTypes = true,
+    --                 },
+    --             },
+    --         },
+    --     },
+    --     on_attach = function(client, bufnr)
+    --         vim.keymap.set("n", "gro", "<CMD>PyrightOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
+    --         disable_capabilities_for_server(client)
+    --         -- check_basedpyright_deprecation()
+    --     end,
+    -- },
     bashls = {},
     cssls = {},
     -- ctags_lsp = {
@@ -410,9 +458,19 @@ return {
     },
     -- https://pyrefly.org/en/docs/editors/
     pyrefly = {
+        capabilities = {
+            workspace = {
+                didChangeWatchedFiles = {
+                    -- Neovim leaves this off on Linux, and pyrefly cannot see edits made outside
+                    -- the editor without it.
+                    dynamicRegistration = true,
+                },
+            },
+        },
+        handlers = make_unique_file_watcher_handlers(),
         init_options = {
             pyrefly = {
-                displayTypeErrors = "force-on",
+                typeCheckingMode = "default",
             },
         },
         settings = {
@@ -421,7 +479,7 @@ return {
                     inlayHints = {
                         variableTypes = true,
                         functionReturnTypes = true,
-                        callArgumentNames = true,
+                        callArgumentNames = "all",
                         pytestParameters = true,
                     },
                 },
