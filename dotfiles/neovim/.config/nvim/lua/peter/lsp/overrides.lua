@@ -529,25 +529,24 @@ return {
             },
         },
         on_attach = function(client, bufnr)
-            vim.api.nvim_buf_create_user_command(bufnr, "RuffAutoFix", function()
-                client:exec_cmd({
-                    command = "ruff.applyAutofix",
-                    arguments = {
-                        { uri = vim.uri_from_bufnr(0) },
-                    },
-                })
-            end, { desc = "Auto-fix" })
-
-            vim.api.nvim_buf_create_user_command(bufnr, "RuffOrganizeImports", function()
+            local function exec_document_cmd(command)
                 -- The server rejects a stale `version`, so send the real buffer version.
                 local version = vim.lsp.util.buf_versions[bufnr]
                 if version == nil then
                     version = vim.api.nvim_buf_get_changedtick(bufnr)
                 end
                 client:exec_cmd({
-                    command = "ruff.applyOrganizeImports",
+                    command = command,
                     arguments = { { uri = vim.uri_from_bufnr(bufnr), version = version } },
                 })
+            end
+
+            vim.api.nvim_buf_create_user_command(bufnr, "RuffAutoFix", function()
+                exec_document_cmd("ruff.applyAutofix")
+            end, { desc = "Auto-fix" })
+
+            vim.api.nvim_buf_create_user_command(bufnr, "RuffOrganizeImports", function()
+                exec_document_cmd("ruff.applyOrganizeImports")
             end, { desc = "Organize Imports" })
 
             vim.keymap.set("n", "gro", "<CMD>RuffOrganizeImports<CR>", { buffer = bufnr, desc = "Organize Imports" })
