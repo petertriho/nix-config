@@ -73,7 +73,6 @@ in
       nil
       # nodePackages.typescript-language-server
       unstable.pyrefly
-      # quick-lint-js
       # rust-analyzer
       superhtml
       tailwindcss-language-server

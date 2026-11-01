@@ -416,7 +416,7 @@ return {
     },
     dockerls = {},
     docker_language_server = {},
-    -- https://hexdocs.pm/elixir-ls/settings.html
+    -- https://github.com/elixir-lsp/elixir-ls#elixirls-configuration-settings
     -- elixirls = {
     --     cmd = { "elixir-ls" },
     --     settings = {
@@ -517,7 +517,7 @@ return {
             },
         },
     },
-    -- https://pyrefly.org/en/docs/editors/
+    -- https://pyrefly.org/en/docs/IDE/
     pyrefly = {
         capabilities = {
             workspace = {
@@ -541,7 +541,6 @@ return {
                         variableTypes = true,
                         functionReturnTypes = true,
                         callArgumentNames = "all",
-                        pytestParameters = true,
                     },
                 },
             },
@@ -550,19 +549,9 @@ return {
             disable_capabilities_for_server(client)
         end,
     },
-    -- quick_lint_js = {
-    --     filetypes = {
-    --         "javascript",
-    --         "javascriptreact",
-    --         "javascript.jsx",
-    --         "typescript",
-    --         "typescriptreact",
-    --         "typescript.tsx",
-    --     },
-    -- },
     qmlls = {
         lazy = true,
-        filetypes = { "qml", "qtquick" },
+        filetypes = { "qml", "qmljs" },
     },
     ruff = {
         -- capabilities = {
@@ -617,7 +606,6 @@ return {
     },
     -- rust_analyzer = {},
     superhtml = {},
-    -- https://svelte.dev/docs/language-tools/svelte-for-vs-code#settings
     tailwindcss = {
         root_dir = tailwind_root_dir,
         settings = {
@@ -630,14 +618,8 @@ return {
     },
     templ = {},
     terraformls = {},
-    -- https://myriad-dreamin.github.io/tinymist/configurations.html
-    tinymist = {
-        settings = {
-            inlayHints = {
-                enable = true,
-            },
-        },
-    },
+    -- https://myriad-dreamin.github.io/tinymist/config/neovim.html
+    tinymist = {},
     tflint = {},
     tombi = {
         lazy = true,
@@ -652,7 +634,7 @@ return {
             }))
         end,
     },
-    -- https://github.com/microsoft/TypeScript/blob/main/src/server/protocol.ts (search for InlayHintsOptions)
+    -- https://github.com/microsoft/TypeScript/blob/release-6.0/src/server/protocol.ts (search for InlayHintsOptions)
     -- ts_ls = {
     --     settings = {
     --         typescript = {
@@ -692,7 +674,7 @@ return {
     --         )
     --     end,
     -- },
-    -- https://ty.dev/editors/settings
+    -- https://docs.astral.sh/ty/reference/editor-settings/
     -- ty = {
     --     settings = {
     --         ty = {
