@@ -12,6 +12,10 @@ vim.filetype.add({
     },
     pattern = {
         [".*%.env.*"] = "conf",
+        ["compose%.ya?ml"] = "yaml.docker-compose",
+        ["compose%..+%.ya?ml"] = "yaml.docker-compose",
+        ["docker%-compose%.ya?ml"] = "yaml.docker-compose",
+        ["docker%-compose%..+%.ya?ml"] = "yaml.docker-compose",
         [".*/*.ch.hcl"] = "atlas-schema-clickhouse",
         [".*/*.lt.hcl"] = "atlas-schema-sqlite",
         [".*/*.ms.hcl"] = "atlas-schema-mssql",

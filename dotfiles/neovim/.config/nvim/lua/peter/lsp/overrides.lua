@@ -354,7 +354,7 @@ return {
         end,
     },
     dockerls = {},
-    docker_compose_language_service = {},
+    docker_language_server = {},
     -- https://hexdocs.pm/elixir-ls/settings.html
     -- elixirls = {
     --     cmd = { "elixir-ls" },
@@ -723,7 +723,7 @@ return {
     -- },
     yamlls = {
         lazy = true,
-        filetypes = { "yaml", "yml" },
+        filetypes = { "yaml", "yaml.docker-compose" },
         config = function()
             local sc = require("schema-companion")
             return sc.setup_client(

@@ -59,7 +59,7 @@ in
       # lsp
       basedpyright
       bash-language-server
-      docker-compose-language-service
+      docker-language-server
       dockerfile-language-server
       # elixir-ls
       # expert
