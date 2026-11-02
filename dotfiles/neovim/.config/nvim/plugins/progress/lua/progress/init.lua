@@ -50,13 +50,14 @@ local FOREIGN_IDLE_MS = 60000
 -- Core operations run synchronously, so a core row with no recent update has ended.
 local CORE_IDLE_MS = 5000
 
--- ui2 sizes the msg window to its longest line, so these values set the window width.
+-- ui2 sizes the msg window to its longest line, so WIDTH sets the window width.
 -- The first line of a row is the icon (3), the title, a space, the bar, and the percent (6).
--- The second line is the indent (3), the text, and a space. Both lines are 30 cells.
-local TITLE_WIDTH = 12
-local BAR_WIDTH = 8
-local BAR_BLOCK = 3
-local TEXT_WIDTH = 26
+-- The second line is the indent (3), the text, and a space.
+local WIDTH = 50
+local BAR_WIDTH = 16
+local BAR_BLOCK = 4
+local TITLE_WIDTH = WIDTH - 3 - 1 - BAR_WIDTH - 6
+local TEXT_WIDTH = WIDTH - 3 - 1
 local INDENT = "   "
 -- The window shows its last line, so a taller failure row would lose its first line.
 local DETAIL_LINES = 6
@@ -218,7 +219,7 @@ end
 
 --- Build the ui2 content of a row. Only the frame and the msg_show hook call this.
 ---
----   ⠹ lua_ls       ▰▰▰▱▱▱▱▱  42%
+---   ⠹ lua_ls                   ▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱  42%
 ---     Indexing 12/40
 ---@param task progress.Task
 ---@return table
