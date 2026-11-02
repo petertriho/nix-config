@@ -17,11 +17,11 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "b839eb4704ccf9cdfdad64b97e878d7c0256d517",
+      "rev": "34765e8fa7aad6f6683e147c6cb20ef8ace2e4c2",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
-      "rev": "d4318ec75309a37e09757de0f16faa67bf22b890",
+      "rev": "eece1c590dc575d489589c95499ec3acbf004e42",
       "src": "https://github.com/saghen/blink.cmp",
       "version": "'main'"
     },
@@ -42,7 +42,7 @@
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
-      "rev": "fe2c6e5c2df760c7ba1b3e2332c090c7f6ba8ee7",
+      "rev": "1b8c0ac9bea1eaeae9ac2570397843789d89c5c4",
       "src": "https://github.com/petertriho/cmp-git"
     },
     "code-bridge.nvim": {
@@ -102,7 +102,7 @@
       "src": "https://github.com/nmac427/guess-indent.nvim"
     },
     "guh.nvim": {
-      "rev": "88933bcb2ec0b9dc472957665bc8455863449b93",
+      "rev": "bc1acccc79de2602d5643ec46c58115b2b4212f7",
       "src": "https://github.com/justinmk/guh.nvim"
     },
     "heirline.nvim": {
@@ -194,7 +194,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "d6d5031e92b26d3a5b1343a3bcddee4e26612abc",
+      "rev": "b39443d8fcae3e326ff965dea3fe7df266c8ccac",
       "src": "https://github.com/petertriho/nvim-scrollbar",
       "version": "'refactor/v2'"
     },
@@ -207,7 +207,7 @@
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
-      "rev": "45f82f7b2c68c3e2bedbf6ad1d8d687a78e6faf4",
+      "rev": "f632f208c52e942af1db6d3793ccdd4752dd28ac",
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
@@ -293,7 +293,7 @@
       "src": "https://github.com/tenxsoydev/tabs-vs-spaces.nvim"
     },
     "tmux-oil.nvim": {
-      "rev": "eb18a5cdd2b8919c00144818ce6c65428b8b0313",
+      "rev": "795ec91ee1efae00654a564a957ea0014089910c",
       "src": "https://github.com/minhyeoky/tmux-oil.nvim"
     },
     "todo-comments.nvim": {
