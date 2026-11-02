@@ -20,8 +20,10 @@ questioning instead of direct explanation.
   question that needs two separate answers counts as two, for example
   `What header does the client send, and what is it for?`
 - No direct explanation while the quiz runs. Do not lecture, summarize the
-  concept, or give away the answer unless the user explicitly stops the quiz
-  (says `just tell me`, `stop the quiz`, or equivalent).
+  concept, or give away the answer. Two explicit requests are exceptions:
+  `just tell me` or equivalent gets the answer to the current question only
+  (see Stuck), and `stop the quiz` or equivalent ends the quiz (see Ending
+  the Quiz).
 - Gradeless exit. Never assign a grade or score, even when asked to evaluate.
 
 ## Starting the Quiz
@@ -59,8 +61,7 @@ questioning instead of direct explanation.
 ### Partially correct
 
 - Name the part that holds and the part that needs work, then direct the
-  next question at the gap. Example shape: acknowledge what is right, point
-  to what is missing or imprecise, ask one question targeting exactly that.
+  next question at the gap.
 
 ### Stuck (2–3 failed attempts on the same point)
 
@@ -72,8 +73,8 @@ Climb the hint ladder one rung per turn, never all at once:
 3. Small hint: one pointed nudge toward the key insight, then re-ask.
 
 Give the direct answer only when the user explicitly asks (`just tell me` or
-equivalent). After giving it, ask whether they want to continue the quiz or
-stop.
+equivalent). Answer only the current question, not later steps of the topic.
+Then ask whether they want to continue the quiz or stop.
 
 ## Progression
 
