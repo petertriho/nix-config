@@ -41,6 +41,9 @@ If the host denies a permission or blocks a write:
      - Use broad search or an exploration subagent to find related code and
        established patterns. For example, use opencode's `explore` or Claude
        Code's `Agent` with `subagent_type=Explore`.
+     - Wait for each exploration result before you ask a question or save a
+       plan that depends on it. If an exploration stops without a result,
+       read the files yourself.
      - Verify the plan's claims with direct file evidence.
    - For a revision (the user asks you to change an identified plan):
      - Read the plan and any sibling `TASKS.md` before the interview.
@@ -136,7 +139,8 @@ irrelevant.
      requirements.
    - For `Draft`, give the known steps. Do not invent requirements for
      unresolved decisions.
-   - Beside each blocked step, name the blocker that blocks it.
+   - Beside each blocked step, name the blocker that blocks it. A step that
+     depends on a blocked step is also blocked.
 7. Validation: the tests, reviews, acceptance checks, or success metrics.
 8. Risks and Mitigations: the main risks of failure, and how to reduce them.
 9. Handoff Notes: context for the next agent, developer, or spec writer.
