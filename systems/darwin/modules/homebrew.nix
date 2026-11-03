@@ -33,12 +33,18 @@ in
         HOMEBREW_NO_ASK = "1";
       };
     };
-    taps = map (name: { inherit name; trusted = true; }) [
-      # "gromgit/brewtils"
-      "nikitabobko/tap"
-      "steipete/tap"
-      # "TabularisDB/tabularis"
-    ];
+    taps =
+      map
+        (name: {
+          inherit name;
+          trusted = true;
+        })
+        [
+          # "gromgit/brewtils"
+          "nikitabobko/tap"
+          "steipete/tap"
+          # "TabularisDB/tabularis"
+        ];
     brews = [
       # "gromgit/brewtils/taproom"
       # "mas"
@@ -49,7 +55,6 @@ in
       "codex-app"
       "cyberduck"
       "displaylink"
-      "easy-move+resize"
       "firefox"
       "font-iosevka-nerd-font"
       "font-iosevka-term-nerd-font"
@@ -72,12 +77,14 @@ in
       # "aionui"
       # "airbuddy"
       # "alacritty"
+      # "anydrag"
       # "appcleaner"
       # "badgeify"
       # "bartender"
       # "betterdisplay"
       # "cursorsense"
       # "doll"
+      # "easy-move+resize"
       # "istat-menus"
       # "itsycal"
       # "jordanbaird-ice"
@@ -99,7 +106,7 @@ in
     ++ (
       if pkgs.stdenv.hostPlatform.isAarch64 then
         [
-        #   "battery"
+          #   "battery"
           "vorssaint"
         ]
       else
