@@ -34,9 +34,11 @@ in
       includeCoAuthoredBy = false;
       permissions.defaultMode = "bypassPermissions";
       disableClaudeAiConnectors = true;
-      disableBundledSkills = true;
+      # The Artifact tool needs the bundled `artifact-design` skill.
+      disableBundledSkills = false;
       disableRemoteControl = true;
-      disableArtifact = true;
+      # `disableArtifact` is deprecated, and Claude Code ignores `false` there.
+      enableArtifact = true;
       enableWorkflows = false;
       workflowKeywordTriggerEnabled = false;
       statusLine = {
@@ -110,7 +112,10 @@ in
           CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
           CLAUDE_CODE_DISABLE_AUTO_MEMORY = 1;
           CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = 1;
-          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = 1;
+          # Do not set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC, even to 0. Any
+          # value withholds the Artifact tool. DISABLE_ERROR_REPORTING,
+          # DISABLE_FEEDBACK_COMMAND, DISABLE_TELEMETRY, and DISABLE_AUTOUPDATER
+          # keep its other opt-outs.
           CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
           CLAUDE_CODE_NO_FLICKER = 1;
           CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION = 1;
@@ -118,6 +123,8 @@ in
           # vars are the only reliable lever, and teammate child processes that
           # bypass the Nix wrapper only see them via settings `env` / this block.
           DISABLE_AUTOUPDATER = 1;
+          DISABLE_ERROR_REPORTING = 1;
+          DISABLE_FEEDBACK_COMMAND = 1;
           DISABLE_TELEMETRY = 1;
           DISABLE_UPDATES = 1;
           ENABLE_CLAUDEAI_MCP_SERVERS = "false";
