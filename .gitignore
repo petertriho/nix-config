@@ -5,4 +5,5 @@
 /dotfiles/agents/.agents/skills/plan-to-tasks-workspace/
 /dotfiles/agents/.agents/skills/execute-workspace/
 /dotfiles/agents/.agents/skills/planner-workspace/
+/dotfiles/agents/.agents/skills/handoff-workspace/
 __pycache__/
