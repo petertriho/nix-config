@@ -37,6 +37,7 @@
         "https://nix-community.cachix.org"
         "https://vicinae.cachix.org"
         "https://cache.numtide.com"
+        "https://nixpkgs-python.cachix.org"
       ];
       extra-trusted-public-keys = [
         "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
@@ -45,6 +46,7 @@
         # cache.numtide.com signs as niks3.numtide.com-1 (verified against the
         # Sig field on a narinfo it serves) — the names intentionally differ.
         "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+        "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
       ];
     };
   };
