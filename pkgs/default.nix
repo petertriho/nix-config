@@ -14,6 +14,7 @@ with pkgs;
   cups-brother-mfc9335cdw = callPackage ./cups-brother-mfc9335cdw { };
   donsetch = callPackage ./donsetch { };
   effective-html = callPackage ./effective-html { };
+  elephant-goldfish-model = callPackage ./elephant-goldfish-model { };
   figlet-fonts = callPackage ./figlet-fonts { };
   hallmark = callPackage ./hallmark { };
   keymods = callPackage ./keymods { };

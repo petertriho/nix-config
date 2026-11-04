@@ -262,6 +262,7 @@ in
     bladebro.enable = true;
     donsetch.enable = true;
     effective-html.enable = true;
+    elephant-goldfish-model.enable = true;
     hallmark.enable = true;
     impeccable.enable = true;
     jscpd.enable = true;

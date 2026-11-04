@@ -12,6 +12,7 @@
     ./codex.nix
     ./donsetch.nix
     ./effective-html.nix
+    ./elephant-goldfish-model.nix
     ./hallmark.nix
     ./impeccable.nix
     ./jscpd.nix
