@@ -78,7 +78,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffbandit.nvim": {
-      "rev": "0b9e514f566a2404c639ee5f8f367d3e72441362",
+      "rev": "f190e33d807c07a97259472e13a3bba3299f0f80",
       "src": "https://github.com/CoreyKaylor/diffbandit.nvim"
     },
     "eyeliner.nvim": {
@@ -134,7 +134,7 @@
       "src": "https://github.com/nvim-mini/mini.ai"
     },
     "mini.diff": {
-      "rev": "47ab8cf21c62cfd952008f2b9e79417c98173ec1",
+      "rev": "2890bd1edc42b57af769774e53c2bfbbe3f45d4d",
       "src": "https://github.com/nvim-mini/mini.diff"
     },
     "mini.files": {
@@ -211,7 +211,7 @@
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
-      "rev": "0195cd62fa89950f34c0e0d648ea7897ab85d4d3",
+      "rev": "610734c5d3e59761d5f79318d120633374537fa5",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
       "version": "'main'"
     },
@@ -261,7 +261,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "073910e2521e23681c44a8b1355e91765a60cbaa",
+      "rev": "a7a40007c34b784585811dace3b7e1cc16669228",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
@@ -293,7 +293,7 @@
       "src": "https://github.com/tenxsoydev/tabs-vs-spaces.nvim"
     },
     "tmux-oil.nvim": {
-      "rev": "12aeb0e88f68c674880164f8c44463eaa777c951",
+      "rev": "06c3c9d0835382e08acac73b260af85b0335a3ae",
       "src": "https://github.com/minhyeoky/tmux-oil.nvim"
     },
     "todo-comments.nvim": {
