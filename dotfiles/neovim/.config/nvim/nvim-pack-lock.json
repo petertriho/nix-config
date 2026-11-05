@@ -21,7 +21,7 @@
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
-      "rev": "06097529cf6d3618546436f9a6bd5beaed979aef",
+      "rev": "7b31e1b6497be70f620bbad83a789929248697ac",
       "src": "https://github.com/saghen/blink.cmp",
       "version": "'main'"
     },
@@ -38,7 +38,7 @@
       "src": "https://github.com/kwkarlwang/bufjump.nvim"
     },
     "celeste_comment.nvim": {
-      "rev": "6baee90546feead9301ab088c83a98891415293f",
+      "rev": "62b9f60819261c84f71ee7626f8c767b50779f7c",
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
@@ -78,7 +78,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffbandit.nvim": {
-      "rev": "f190e33d807c07a97259472e13a3bba3299f0f80",
+      "rev": "1acb4a55457535be9ab79ab1e90197366e38f2a2",
       "src": "https://github.com/CoreyKaylor/diffbandit.nvim"
     },
     "eyeliner.nvim": {
@@ -102,7 +102,7 @@
       "src": "https://github.com/nmac427/guess-indent.nvim"
     },
     "guh.nvim": {
-      "rev": "b65ce60033b286a5d637a3448279632af2bf4866",
+      "rev": "4dacfa42795870b17f64b6c5a542beb28efcfd5f",
       "src": "https://github.com/justinmk/guh.nvim"
     },
     "heirline.nvim": {
@@ -154,7 +154,7 @@
       "src": "https://github.com/nvim-mini/mini.surround"
     },
     "namu.nvim": {
-      "rev": "69106f89d0d3f8c013a0185ec64ff734ae223410",
+      "rev": "041e205395026ce212a2bb029fcca064a3343aa0",
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
@@ -182,7 +182,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "adfbb74472f6c231b651b650a89f414c2680fb31",
+      "rev": "cc404d425c7752f56b8eaa269107be44d888ea51",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -261,7 +261,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "a7a40007c34b784585811dace3b7e1cc16669228",
+      "rev": "4794bb7a4cf66b894f0029c3094b7936a8c0e8fe",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
