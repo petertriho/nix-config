@@ -41,8 +41,8 @@ buildNpmPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "apmantza";
     repo = "pi-lens";
-    rev = "e85e52c6a88a1bc3ebbcd023c133b2d7cd84c77e";
-    hash = "sha256-Ni2gM1nYNnTDWFw8RsuYdVy1u9jshcCEEq11d7BL+tY=";
+    rev = "4ec90ef1095a511b6e6d876906ee1ca2b6ae5529";
+    hash = "sha256-6IZqtnodUnooNsFc3Y7HS32vdiZ0hkIAiJ8atHtkTPY=";
   };
 
   nodejs = nodejs_24;
