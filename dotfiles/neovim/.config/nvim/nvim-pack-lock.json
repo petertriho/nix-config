@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "47c9795bf1be9f4b6466d19a2bf0dca42bd65bf7",
+      "rev": "2af170c9821406d71b8ee67c1dbfef407b3db791",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -78,7 +78,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffbandit.nvim": {
-      "rev": "1acb4a55457535be9ab79ab1e90197366e38f2a2",
+      "rev": "21bd31b2a778b8fe43c66d85b8fb67b53c85f05f",
       "src": "https://github.com/CoreyKaylor/diffbandit.nvim"
     },
     "eyeliner.nvim": {
@@ -158,7 +158,7 @@
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
-      "rev": "697ad3ee86a73cf6b6758b838d7a7d76cf3b9f86",
+      "rev": "ba2f33b64b996ff5530c4c45a3c432fb63aaa95b",
       "src": "https://github.com/NeogitOrg/neogit"
     },
     "nui.nvim": {
@@ -207,7 +207,7 @@
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
-      "rev": "69eb0c34ed3d836d5a0d92d913b77dd73b054f2f",
+      "rev": "4cb123287efe9a7191cce287a005d4a9c8bed4a0",
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
@@ -229,7 +229,7 @@
       "src": "https://github.com/chrisgrieser/nvim-various-textobjs"
     },
     "nvim-web-devicons": {
-      "rev": "ec309a0eaff6ea967e58c275996155ab5c16938d",
+      "rev": "0dc0cfb0c6858041174a53c7aa4adaf65e994b3c",
       "src": "https://github.com/nvim-tree/nvim-web-devicons"
     },
     "on-idle.nvim": {
@@ -261,11 +261,11 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "4794bb7a4cf66b894f0029c3094b7936a8c0e8fe",
+      "rev": "06012297e4d5d089ce5ac4cc8011a8f3c0148190",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
-      "rev": "01cc3d5bb794e6d7afbb1b02a7e941ddf736d9ea",
+      "rev": "4d5e2f42067b5865458146a517cb3e63201bc45f",
       "src": "https://github.com/tiagovla/scope.nvim"
     },
     "select-undo.nvim": {
@@ -293,7 +293,7 @@
       "src": "https://github.com/tenxsoydev/tabs-vs-spaces.nvim"
     },
     "tmux-oil.nvim": {
-      "rev": "06c3c9d0835382e08acac73b260af85b0335a3ae",
+      "rev": "3f29e5d7d1abd8a959a1dc49d58799700374aa1d",
       "src": "https://github.com/minhyeoky/tmux-oil.nvim"
     },
     "todo-comments.nvim": {
