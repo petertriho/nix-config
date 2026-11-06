@@ -244,8 +244,11 @@ next questions about scope or additional factors. If a rival could invalidate
 an asserted finding, downgrade that finding rather than hiding the rival.
 
 Only confirmed findings justify a corrective handoff: smallest supported
-direction, regression target, validation, non-goals, and an instruction to a
-separately invoked implementation workflow to read this exact notebook.
+direction, regression target, validation, non-goals, the start directory, and
+an instruction to a separately invoked implementation workflow to read this
+exact notebook. The start directory is the absolute directory where that
+workflow starts. It defaults to the investigation root. If the user names a
+repo with more than one worktree but not which one, ask which worktree.
 Keep probable/unresolved factors in diagnostic next actions, not patch advice.
 If uncertainty could change a direction, withhold that direction pending evidence.
 Containment is a separate advisory exception for incidents at any confidence.

@@ -28,8 +28,19 @@ everything that they need.
 
 ## Workflow
 
-1. Find the root. Run `git rev-parse --show-toplevel`. If it fails, use the
-   working directory and write "Not a git repository" in Working tree.
+1. Find the root and the start directory.
+   - Root: run `git rev-parse --show-toplevel`. If it fails, use the working
+     directory and write "Not a git repository" in Working tree.
+   - Start directory: the absolute directory where the receiver starts. It is
+     the root, unless the conversation names another repo or worktree for the
+     remaining work.
+   - Resolve a named repo or worktree to an absolute path that exists. For a
+     worktree, use the output of `git -C <path> rev-parse --show-toplevel`.
+   - A named repo can have more than one worktree. If the conversation does
+     not say which one, list them with `git -C <path> worktree list`. If
+     `<path>` is not inside a git worktree, run that command in a
+     subdirectory of `<path>` that contains `.git`. Do not pick a worktree
+     yourself. The start directory is then missing (see step 3).
 2. Collect the state:
    - From the conversation: the goal, the work done, decisions and their
      reasons, approaches that failed, open questions, and the next actions.
@@ -40,12 +51,15 @@ everything that they need.
      `TASKS.md`, `DEBUG.md`, or an earlier handoff: copy in the parts that the
      receiver needs (goal, settled decisions, open tasks). List each path in
      Sources.
-3. Check the goal and the next step. A handoff cannot work without them. If
-   the conversation and the files do not show one of them, ask the user one
-   question that covers what is missing, and wait for the answer. If no
-   answer can come, for example in an unattended run, write "Unknown" and add
-   a blocker entry. Do not guess a goal.
+3. Check the goal, the next step, and the start directory. A handoff cannot
+   work without them. If one of them is missing, ask the user one question
+   that covers everything that is missing, and wait for the answer. For a
+   missing start directory, give the worktrees from step 1 as the choices.
+   If no answer can come, for example in an unattended run, write "Unknown"
+   for each missing item and add a blocker entry. Do not guess a goal or a
+   worktree.
 4. Build the path: `<root>/.artifacts/handoffs/<name>-<YYYYMMDD-HHMMSS>.md`.
+   - Use the root, also when the start directory is in another repo.
    - `<name>` is short kebab-case from the goal, for example
      `cursor-pagination`.
    - Get the timestamp from `date +%Y%m%d-%H%M%S`.
@@ -55,6 +69,8 @@ everything that they need.
 5. Write the file from the template below.
 6. Read the saved file again and check:
    - Every template section is present. An empty section says "None".
+   - Start in is an absolute directory that exists, or "Unknown" with a
+     blocker entry.
    - Each claim in Current state has an evidence label.
    - No secret value appears. Search the file for each secret value that
      you saw in the session.
@@ -101,6 +117,7 @@ Put assumptions in Assumptions, not in Current state.
 Created: <output of `date +%Y-%m-%dT%H:%M:%S%z`>
 Receiver: <who it is for, if known>
 Root: <absolute path>
+Start in: <absolute directory where the receiver starts>
 Branch: <branch>  HEAD: <short sha> <subject>
 
 ## How to use this handoff
@@ -113,6 +130,8 @@ Branch: <branch>  HEAD: <short sha> <subject>
 - Check claims labeled `reported` or `unverified` before you rely on them.
 - If a file in Sources changed after the Created time, trust that file over
   this handoff.
+- If your working directory is not Start in, tell the user and wait before
+  you change files.
 - Start at Next steps. Tick each item when you finish it.
 
 ## Blockers and pending decisions
@@ -176,8 +195,11 @@ After the check in step 6, reply with this shape:
 
 ```text
 HANDOFF: <absolute path>
+Start in: <absolute directory>
 <Two or three lines: the goal, the state, and the first blocker if any.>
-To continue, give the receiver: "Read <absolute path> and continue from Next steps."
+To continue, start a session in <Start in> and give it: "Read <absolute path> and continue from Next steps."
 ```
 
-If a blocker exists, put it first in the summary lines.
+If a blocker exists, put it first in the summary lines. If Start in is
+"Unknown", the first summary line says that the user must choose the
+directory before starting the session.

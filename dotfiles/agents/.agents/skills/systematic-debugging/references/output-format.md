@@ -125,7 +125,7 @@ Diagnosis is not fix validation.>
    access/bounds; blocker/owner.>
 
 <For confirmed findings only: direction, regression target, validation,
-non-goals, and the separate implementation prompt.>
+non-goals, start directory, and the separate implementation prompt.>
 
 ## Changes and cleanup
 
@@ -171,7 +171,17 @@ introduction from cleanup. Preserve them on resumption.
 
 ## Corrective handoff format
 
-For confirmed findings only, adapt this tool-independent prompt:
+For confirmed findings only, put the start directory on its own line above
+the prompt:
+
+```text
+Start in: <absolute directory where the implementation workflow starts>
+```
+
+It defaults to the investigation root. If the user names a repo with more
+than one worktree but not which one, ask which worktree before the report.
+
+Then adapt this tool-independent prompt:
 
 > Read `<absolute DEBUG.md path>`. Implement only the direction justified by
 > the named confirmed findings, preserving non-goals and pre-existing work.
@@ -199,8 +209,8 @@ notebook and cite its IDs.
 3. Findings: one bullet per material `H#` or `CF#` with its exact state value,
    `E#` citations, and the strongest rival or counter-evidence.
 4. Limits and unknowns that affect the diagnosis or next action.
-5. Next action as a numbered list with owner and blocker, or the complete
-   corrective handoff prompt.
+5. Next action as a numbered list with owner and blocker, or the `Start in`
+   line and the complete corrective handoff prompt.
 6. Cleanup disposition and the exact absolute notebook path. Flag the notebook
    as retained, and as untracked when Git does not track it, so the user can
    ignore or commit it.

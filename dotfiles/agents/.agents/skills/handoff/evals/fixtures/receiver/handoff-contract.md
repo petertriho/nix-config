@@ -3,6 +3,7 @@
 Created: 2026-11-02T17:15:00+1100
 Receiver: next session
 Root: __ROOT__
+Start in: __ROOT__
 Branch: feature/page-size  HEAD: __HEAD__
 
 ## How to use this handoff
@@ -15,6 +16,8 @@ Branch: feature/page-size  HEAD: __HEAD__
 - Check claims labeled `reported` or `unverified` before you rely on them.
 - If a file in Sources changed after the Created time, trust that file over
   this handoff.
+- If your working directory is not Start in, tell the user and wait before
+  you change files.
 - Start at Next steps. Tick each item when you finish it.
 
 ## Blockers and pending decisions

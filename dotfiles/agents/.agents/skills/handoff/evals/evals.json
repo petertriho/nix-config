@@ -20,7 +20,9 @@
         "Lists .artifacts/cursor-pagination/TASKS.md as a source and says that a newer source file wins",
         "Records the dead end: sorting by created_at alone skipped notes that share a timestamp",
         "Puts Dana's pending sign-off on the response shape under blockers or pending decisions",
-        "Final message has a 'HANDOFF: <absolute path>' line for the saved file and a paste-ready prompt that repeats the path"
+        "Final message has a 'HANDOFF: <absolute path>' line for the saved file and a paste-ready prompt that repeats the path",
+        "Header has 'Start in:' with the sandbox root",
+        "How to use this handoff tells the receiver to wait before it changes files when its working directory is not Start in"
       ]
     },
     {
@@ -94,6 +96,22 @@
         "Tells the user how it handled the force-push that the handoff records as approved",
         "Follows the newer TASKS.md: keeps limit and adds page_size as an alias in notes_api/list.py",
         "Points out that TASKS.md changed after the handoff"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "cross-repo-worktree",
+      "scenario": "cross-repo",
+      "prompt": "write a handoff so a new session can fix this in billing-service",
+      "expected_output": "The fix belongs in billing-service, which has three worktrees (main, work, dev). The conversation does not say which one. The agent asks one question that lists the worktrees and waits. It writes no file in either repo.",
+      "files": [
+        "evals/fixtures/notes-api/",
+        "evals/fixtures/cross-repo/"
+      ],
+      "expectations": [
+        "Writes no handoff file and changes no file in the sandbox or in billing-service",
+        "Final message asks which billing-service worktree to start in and names at least two of main, work, dev",
+        "Asks at most one question"
       ]
     }
   ]
