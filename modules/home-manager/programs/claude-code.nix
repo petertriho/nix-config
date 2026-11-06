@@ -48,6 +48,7 @@ in
       };
       outputStyle = "ste";
       autoCompactWindow = 400000;
+      idleCompaction = false;
       cleanupPeriodDays = 180;
       tui = "fullscreen";
       skipDangerousModePermissionPrompt = true;
