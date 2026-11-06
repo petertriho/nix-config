@@ -4,6 +4,12 @@
   fetchFromGitHub,
   python3,
 }:
+let
+  # Agents that EGM skills define at runtime. Claude Code cannot do that, so
+  # claude-agents.py generates them and stops the build when this list no
+  # longer matches upstream.
+  claudeRuntimeAgents = [ "goldfish-explorer" ];
+in
 stdenvNoCC.mkDerivation {
   pname = "elephant-goldfish-model";
   version = "0.1.0-unstable-2026-11-05";
@@ -35,9 +41,13 @@ stdenvNoCC.mkDerivation {
 
     install -d $out/share
     cp -r "$TMPDIR/egm-runtime/egm-claude" $out/share/elephant-goldfish-model
+    python3 ${./claude-agents.py} $out/share/elephant-goldfish-model \
+      $out/share/claude-agents ${lib.escapeShellArgs claudeRuntimeAgents}
 
     runHook postInstall
   '';
+
+  passthru = { inherit claudeRuntimeAgents; };
 
   meta = with lib; {
     description = "Open-source skills for designing and reviewing software with AI agents";
