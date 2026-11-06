@@ -6,13 +6,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "elephant-goldfish-model";
-  version = "0.1.0-unstable-2026-11-04";
+  version = "0.1.0-unstable-2026-11-05";
 
   src = fetchFromGitHub {
     owner = "google";
     repo = "elephant-goldfish-model";
-    rev = "0dfb5bf3eebd551d1e805c3ab16cbaa9b1c2c42a";
-    hash = "sha256-TBZkHJqnoyIZkFYIHUJgD3CM1jekb4rxHZ2HdbaHvyQ=";
+    rev = "6a8001ea31ccf72430ba0603a467ec6df9f69dd7";
+    hash = "sha256-rmpr2rNXCxUouzc2/r9e7F/KVnm2Kbda8JSvfYKxgfM=";
   };
 
   nativeBuildInputs = [ python3 ];

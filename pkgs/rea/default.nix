@@ -11,13 +11,13 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-11-05";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-11-06";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "92f332652d352e60b550567adf2399d83d8ebe78";
-    hash = "sha256-0zHOcEu1BzGNwOOgXiKwCeEiIbINxTVZvkyXomgLVqk=";
+    rev = "39827ec7171a311cd5258ffb1ef953068aa84051";
+    hash = "sha256-OOdKh4c5vcMIq4C2zYlAxt9jZ18LmVEAlUY10Rb+pUM=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
