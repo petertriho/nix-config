@@ -4,14 +4,29 @@ return {
     init = function()
         local utils = require("peter.core.utils")
 
-        local function run_linters(filter)
-            return function(bufnr)
-                local filetype = vim.bo[bufnr].filetype
+        local function should_run(ctx, linter, deferred)
+            if type(linter) == "function" then
+                linter = linter()
+            end
+            if type(linter) ~= "table" then
+                return false
+            end
+            if linter.condition and not linter.condition(ctx) then
+                return false
+            end
+            -- Linters without stdin read the file on disk. Their results match
+            -- the buffer only after a read or write, so they run as deferred.
+            local is_deferred = linter.defer == true or not linter.stdin
+            return is_deferred == deferred
+        end
 
-                if utils.is_ft("excludes", filetype) then
+        local function run_linters(deferred)
+            return function(bufnr)
+                if utils.is_excludes_buf(bufnr) then
                     return
                 end
 
+                local filetype = vim.bo[bufnr].filetype
                 local lint = require("lint")
                 -- https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/plugins/linting.lua
                 local linters = lint._resolve_linter_by_ft(filetype)
@@ -32,9 +47,10 @@ return {
                 linters = vim.tbl_filter(function(name)
                     local linter = lint.linters[name]
                     if not linter then
-                        vim.notify(string.format("ERROR: Linter %s not found", name), vim.log.levels.ERROR)
+                        vim.notify_once(string.format("ERROR: Linter %s not found", name), vim.log.levels.ERROR)
+                        return false
                     end
-                    return filter(ctx, linter)
+                    return should_run(ctx, linter, deferred)
                 end, linters)
 
                 if #linters > 0 then
@@ -45,24 +61,41 @@ return {
 
         local augroup = vim.api.nvim_create_augroup("Lint", {})
 
-        -- Debounce that carries args.buf through to fire time, so fast buffer
-        -- switches lint the buffer that triggered the event, not whatever is
-        -- current when the timer fires. This version also buf_calls the target
-        -- so lint.try_lint (which uses the current buffer) hits the right one.
-        local function debounced_lint(filter, ms)
-            local run = run_linters(filter)
-            local timer = utils.new_timer()
-            local pending_bufnr = nil
+        -- Each buffer has its own timer, so an event in one buffer does not
+        -- cancel a pending lint in another (for example `:wa` or a session
+        -- restore). The timer lints args.buf, not the buffer that is current
+        -- when it fires. lint.try_lint lints the current buffer, so it runs
+        -- inside nvim_buf_call.
+        local function debounced_lint(deferred, ms)
+            local run = run_linters(deferred)
+            local timers = {}
+
+            vim.api.nvim_create_autocmd("BufWipeout", {
+                group = augroup,
+                callback = function(args)
+                    local timer = timers[args.buf]
+                    if timer then
+                        timers[args.buf] = nil
+                        timer:stop()
+                        timer:close()
+                    end
+                end,
+                desc = "Close lint debounce timer",
+            })
+
             return function(args)
-                pending_bufnr = args and args.buf or vim.api.nvim_get_current_buf()
+                local bufnr = args.buf
+                local timer = timers[bufnr]
+                if not timer then
+                    timer = utils.new_timer()
+                    timers[bufnr] = timer
+                end
                 timer:stop()
                 timer:start(
                     ms,
                     0,
                     vim.schedule_wrap(function()
-                        local bufnr = pending_bufnr
-                        pending_bufnr = nil
-                        if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+                        if vim.api.nvim_buf_is_valid(bufnr) then
                             vim.api.nvim_buf_call(bufnr, function()
                                 run(bufnr)
                             end)
@@ -74,22 +107,14 @@ return {
 
         vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost", "TextChanged", "InsertLeave" }, {
             group = augroup,
-            callback = debounced_lint(function(ctx, linter)
-                return linter
-                    and not (type(linter) == "table" and linter.condition and not linter.condition(ctx))
-                    and not linter.defer
-            end, 300),
+            callback = debounced_lint(false, 300),
             desc = "Run linters",
         })
 
         vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
             group = augroup,
-            callback = debounced_lint(function(ctx, linter)
-                return linter
-                    and not (type(linter) == "table" and linter.condition and not linter.condition(ctx))
-                    and linter.defer
-            end, 1000),
-            desc = "Run deferred linters (on read/write only)",
+            callback = debounced_lint(true, 1000),
+            desc = "Run deferred and file-based linters (on read/write only)",
         })
     end,
     config = function()
@@ -99,11 +124,12 @@ return {
         lint.linters.jq = {
             cmd = "jq",
             stdin = true,
-            args = { "." },
-            stream = "both",
+            -- `empty` validates without echoing the document to stdout.
+            args = { "empty" },
+            stream = "stderr",
             ignore_exitcode = true,
             parser = require("lint.parser").from_pattern(
-                [[parse (%w+):(%w+) at line (%d+), column (%d+)]],
+                [[parse (%w+): (.+) at line (%d+), column (%d+)]],
                 { "severity", "message", "lnum", "col" },
                 {
                     error = vim.diagnostic.severity.ERROR,
@@ -154,7 +180,8 @@ return {
             "--follow-untyped-imports",
             "--python-executable",
             function()
-                return vim.fn.exepath("python3") or vim.fn.exepath("python")
+                local python = vim.fn.exepath("python3")
+                return python ~= "" and python or vim.fn.exepath("python")
             end,
         }
         lint.linters.dmypy.defer = true
@@ -184,22 +211,27 @@ return {
             "--ranges",
             "-",
         }
-        lint.linters.stylelint.args = {
+        -- Keep the upstream args: the parser needs `-f json` and the buffer
+        -- content goes in with `--stdin`.
+        lint.linters.stylelint.args = vim.list_extend({
             "--config",
             vim.fn.expand("$HOME/.config/nvim/code/.stylelintrc.json"),
-        }
+        }, lint.linters.stylelint.args)
         lint.linters.sqlfluff.args = {
             "lint",
             "--format=json",
             "--dialect=postgres",
+            "-",
         }
 
         lint.linters_by_ft = {
             -- ["*"] = { "codespell" },
-            conf = { "dotenv_linter" },
             css = { "stylelint" },
             dockerfile = { "hadolint" },
             elixir = { "credo" },
+            env = { "dotenv_linter" },
+            -- jq rejects comments, so jsonc is not linted.
+            json = { "jq" },
             lua = { "luacheck", "selene" },
             markdown = { "markdownlint" },
             nix = { "statix" },
@@ -226,10 +258,6 @@ return {
             --     },
             --     { vim.g.has_deno and "deno" or "eslint_d" },
             -- },
-            {
-                { "json", "jsonc" },
-                { "jq" },
-            },
         }
 
         for _, config in ipairs(filetypes_to_linters) do
