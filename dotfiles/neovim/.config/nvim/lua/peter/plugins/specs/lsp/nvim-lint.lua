@@ -138,67 +138,32 @@ return {
                 {}
             ),
         }
-        lint.linters.refurb = {
-            cmd = "refurb",
+        lint.linters.xmllint = {
+            cmd = "xmllint",
             stdin = true,
-            args = {
-                "--disable",
-                -- FURB109: Replace [] with ()
-                "FURB109",
-            },
-            stream = "both",
+            args = { "--noout", "-" },
+            stream = "stderr",
             ignore_exitcode = true,
-            parser = require("lint.parser").from_pattern([[:(%d+):(%d+) (.+)]], { "lnum", "col", "message" }, {
-                error = vim.diagnostic.severity.ERROR,
-            }, { source = "refurb" }, {}),
-            defer = true,
+            -- -:2: parser error : Opening and ending tag mismatch: b line 2 and c
+            parser = require("lint.parser").from_pattern(
+                [[^%-:(%d+): %a+ (%a+) : (.+)$]],
+                { "lnum", "severity", "message" },
+                {
+                    error = vim.diagnostic.severity.ERROR,
+                    warning = vim.diagnostic.severity.WARN,
+                },
+                { source = "xmllint" }
+            ),
         }
 
         -- Overrides
-        lint.linters.codespell.defer = true
-        lint.linters.bandit.args = {
-            "--skip",
-            -- B101: assert_used
-            "B101",
-            "-f",
-            "custom",
-            "--msg-template",
-            "{line}:{col}:{severity}:{test_id} {msg}",
-        }
-        lint.linters.bandit.defer = true
-        lint.linters.dmypy.args = {
-            "run",
-            "--timeout",
-            "50000",
-            "--",
-            "--show-column-numbers",
-            "--show-error-end",
-            "--hide-error-context",
-            "--no-color-output",
-            "--no-error-summary",
-            "--no-pretty",
-            "--follow-untyped-imports",
-            "--python-executable",
-            function()
-                local python = vim.fn.exepath("python3")
-                return python ~= "" and python or vim.fn.exepath("python")
-            end,
-        }
-        lint.linters.dmypy.defer = true
-        lint.linters.markdownlint.args = {
-            "--config",
-            vim.fn.expand("$HOME/.config/nvim/code/.markdownlint.jsonc"),
-            "--stdin",
-        }
-        lint.linters.pylint.args = {
-            "-f",
-            "json",
-            "--from-stdin",
-            "--init-hook=import pylint_venv; pylint_venv.inithook(quiet=True)",
-            function()
-                return vim.api.nvim_buf_get_name(0)
-            end,
-        }
+        local function is_github_workflow(ctx)
+            return ctx.filename:find("/%.github/workflows/[^/]+%.ya?ml$") ~= nil
+        end
+        lint.linters.actionlint.condition = is_github_workflow
+        lint.linters.zizmor.condition = is_github_workflow
+        -- rumdl writes its JSON report to stdout. The upstream definition reads stderr.
+        lint.linters.rumdl.stream = "stdout"
         lint.linters.selene.condition = function(ctx)
             return vim.fs.find({ "selene.toml" }, { path = ctx.filename, upward = true })[1]
         end
@@ -225,28 +190,30 @@ return {
         }
 
         lint.linters_by_ft = {
-            -- ["*"] = { "codespell" },
+            bash = { "shellcheck" },
             css = { "stylelint" },
             dockerfile = { "hadolint" },
             elixir = { "credo" },
             env = { "dotenv_linter" },
+            go = { "golangcilint" },
+            -- htmlhint reports template syntax (`*ngIf`, `{% %}`) as errors,
+            -- so templates use only djlint.
+            html = { "htmlhint", "djlint" },
+            htmlangular = { "djlint" },
+            htmldjango = { "djlint" },
             -- jq rejects comments, so jsonc is not linted.
             json = { "jq" },
             lua = { "luacheck", "selene" },
-            markdown = { "markdownlint" },
-            nix = { "statix" },
-            -- python = { "pylint", "dmypy", "vulture" },
-            -- sh = { "shellcheck" },
+            markdown = { "rumdl" },
+            nix = { "statix", "deadnix" },
+            -- python = { "vulture" },
+            sh = { "shellcheck" },
             -- sql = { "sqlfluff" },
-            xml = { "tidy" },
-            yaml = { "yamllint" },
+            xml = { "xmllint" },
+            yaml = { "yamllint", "actionlint", "zizmor" },
         }
 
         local filetypes_to_linters = {
-            {
-                { "html", "htmlangular", "htmldjango" },
-                { "tidy", "djlint" },
-            },
             -- {
             --     {
             --         "javascript",

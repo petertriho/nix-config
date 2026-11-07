@@ -15,23 +15,16 @@ in
     with pkgs;
     [
       # formatters
-      alejandra
-      autoflake
-      black
       commitmsgfmt
       # eslint_d
       hclfmt
-      isort
       json-repair
+      libxml2 # xmllint (also lints)
       mbake
       nixfmt
       # nodePackages.prettier
       svgo
       prettierd
-      pybetter
-      python312Packages.docformatter
-      python3Packages.reorder-python-imports
-      python312Packages.ssort
       shfmt
       sort-package-json
       stylua
@@ -41,20 +34,22 @@ in
       yamlfmt
 
       # linters
-      # codespell
+      actionlint
+      deadnix
       dotenv-linter
+      golangci-lint
       google-java-format
       hadolint
+      htmlhint
       luaPackages.luacheck
-      markdownlint-cli
-      # mypy
-      # pylint
       # python3Packages.vulture
+      rumdl
       shellcheck
       selene
       statix
       # sqlfluff
       yamllint
+      zizmor
 
       # lsp
       basedpyright
@@ -91,7 +86,6 @@ in
       # everything everywhere all at once
       eslint
       djlint
-      html-tidy
       ruff
       stylelint
       # typescript
@@ -139,6 +133,8 @@ in
 
   xdg.configFile = {
     "nvim".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim";
+    # User-level fallback: a project's own rumdl or markdownlint config wins.
+    "rumdl/rumdl.toml".source = config.lib.meta.mkDotfilesSymlink "neovim/.config/nvim/code/rumdl.toml";
     "stylix/neovim.lua".text = ''
       return {
           alias = ${luaString theme},

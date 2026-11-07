@@ -9,7 +9,7 @@ local disabled_lsp_formatters = {
 }
 
 local slow_formatters_by_ft = {
-    python = { "pybetter" },
+    python = { "ruff_unsafe_fix" },
 }
 
 local get_format_opts = function(opts)
@@ -136,7 +136,7 @@ return {
 
         local with_prettier_formatter = function(before, after)
             return function(bufnr)
-                local formatters = before or {}
+                local formatters = vim.list_extend({}, before or {})
                 table.insert(formatters, first(bufnr, "prettierd", "prettier"))
                 vim.list_extend(formatters, after or {})
                 return formatters
@@ -167,23 +167,16 @@ return {
             fish = { "fish_indent" },
             gitcommit = { "commitmsgfmt" },
             graphql = prettier,
-            go = { "goimports", "gofmt" },
+            go = { "goimports" },
+            hcl = { "hcl" },
             java = { "google_java_format", lsp_format = "prefer" },
-            json = with_prettier_formatter({ "json_repair", "jq", "sort_package_json" }),
+            json = with_prettier_formatter({ "json_repair", "sort_package_json" }),
             jsonc = with_prettier_formatter({ "json_repair" }),
             lua = { "stylua" },
             make = { "mbake" },
             markdown = with_prettier_formatter({}, { "injected" }),
-            nix = { "alejandra", "nixfmt", "injected" },
-            python = function(bufnr)
-                local formatters = { "autoflake", "docformatter", "ssort", "reorder-python-imports" }
-                if conform.get_formatter_info("ruff_format", bufnr).available then
-                    vim.list_extend(formatters, { "ruff_fix", "ruff_organize_imports", "ruff_format" })
-                else
-                    vim.list_extend(formatters, { "isort", "black" })
-                end
-                return formatters
-            end,
+            nix = { "nixfmt", "injected" },
+            python = { "ruff_fix", "ruff_organize_imports", "ruff_format" },
             sh = { "shfmt" },
             sql = {
                 -- "sqlfluff",
@@ -193,9 +186,15 @@ return {
             },
             svg = { "svgo" },
             typst = { "typstyle" },
-            xml = { "tidy" },
-            -- yaml = with_prettier_formatter({ "yamlfix", "yq", "yamlfmt" }),
-            yaml = with_prettier_formatter({ "yq", "yamlfmt" }),
+            xml = { "xmllint" },
+            yaml = function(bufnr)
+                -- A project with a yamlfmt config checks its YAML with yamlfmt in CI.
+                local yamlfmt_configs = { ".yamlfmt", ".yamlfmt.yaml", ".yamlfmt.yml", "yamlfmt.yaml", "yamlfmt.yml" }
+                if vim.fs.root(bufnr, yamlfmt_configs) then
+                    return { "yamlfmt" }
+                end
+                return prettier
+            end,
         }
 
         local filetypes_to_formatters = {
@@ -205,7 +204,7 @@ return {
                     "htmlangular",
                     "htmldjango",
                 },
-                with_prettier_formatter({ "tidy", "djlint" }),
+                with_prettier_formatter({ "djlint" }),
             },
             {
                 {
@@ -218,11 +217,11 @@ return {
             },
             {
                 {
-                    "hcl",
                     "terraform",
                     "tf",
                 },
-                { "hcl" },
+                -- Use the CLI that CI runs. hclfmt is the fallback when neither is installed.
+                { "terraform_fmt", "tofu_fmt", "hcl", stop_after_first = true },
             },
         }
 
@@ -243,10 +242,6 @@ return {
                 lsp_format = "fallback",
             }),
             formatters = {
-                docformatter = {
-                    args = { "--black", "--pre-summary-newline", "-" },
-                    stdin = true,
-                },
                 -- eslint_d = {
                 --     condition = function(ctx)
                 --         -- TODO: parse package.json to check if eslint config/package exists
@@ -270,12 +265,6 @@ return {
                         }
                     end,
                 },
-                isort = {
-                    prepend_args = { "--profile", "black" },
-                },
-                jq = {
-                    command = "jq",
-                },
                 mbake = {
                     command = "mbake",
                     args = { "format", "$FILENAME" },
@@ -291,16 +280,9 @@ return {
                     args = { "--language", "postgresql" },
                     -- exit_codes = { 0, 1 },
                 },
-                pybetter = {
-                    command = "pybetter",
-                    args = {
-                        "--exclude",
-                        -- B002: Default values for kwargs are mutable.
-                        -- B004: __all__ attribute is missing.
-                        "B002,B004",
-                        "$FILENAME",
-                    },
-                    stdin = false,
+                ruff_unsafe_fix = {
+                    inherit = "ruff_fix",
+                    append_args = { "--unsafe-fixes" },
                 },
                 shfmt = {
                     args = function(_, ctx)
@@ -334,11 +316,6 @@ return {
                     command = "sqlfluff",
                     append_args = { "--dialect", "postgres" },
                 },
-                ssort = {
-                    command = "ssort",
-                    args = { "$FILENAME" },
-                    stdin = false,
-                },
                 stylelint = {
                     prepend_args = {
                         "--config",
@@ -364,17 +341,6 @@ return {
                         "-i",
                         "$FILENAME",
                         "-o",
-                        "-",
-                    },
-                },
-                tidy = {
-                    command = "tidy",
-                    args = {
-                        "--tidy-mark",
-                        "no",
-                        "-quiet",
-                        "-indent",
-                        "-wrap",
                         "-",
                     },
                 },

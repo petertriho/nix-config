@@ -1,0 +1,6 @@
+[global]
+disable = [
+  "MD024", # Multiple headings with the same content
+  "MD030", # Spaces after list markers
+  "MD034", # Bare URL used
+]

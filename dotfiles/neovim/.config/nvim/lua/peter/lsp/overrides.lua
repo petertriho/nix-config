@@ -373,7 +373,14 @@ return {
     --         -- check_basedpyright_deprecation()
     --     end,
     -- },
-    bashls = {},
+    bashls = {
+        settings = {
+            bashIde = {
+                -- nvim-lint runs shellcheck. An empty path stops the server from running it again.
+                shellcheckPath = "",
+            },
+        },
+    },
     cssls = {},
     -- ctags_lsp = {
     --     cmd = { "ctags-lsp", "--languages", table.concat(require("peter.core.filetypes").ctags, ",") },

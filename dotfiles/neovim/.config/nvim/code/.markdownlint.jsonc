@@ -1,6 +1,0 @@
-{
-    "default": true,
-    "MD024": false, // Multiple headings with the same content
-    "MD030": false, // Spaces after list markers
-    "MD034": false // Bare URL used
-}
