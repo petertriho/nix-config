@@ -79,8 +79,10 @@ in
         args = [ ];
         filetypes = [ "lua" ];
       };
-      nil_ls = {
-        command = "nil";
+      # Plain nixd: agents start servers with a static command, and nixd reads per-repo
+      # settings only through `workspace/configuration`. Neovim adds those settings itself.
+      nixd = {
+        command = "nixd";
         args = [ ];
         filetypes = [ "nix" ];
       };

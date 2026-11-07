@@ -65,7 +65,7 @@ in
       lua-language-server
       # marksman # NOTE: disabled because it depends on dotnet which requires swift 5.10.1 (broken on darwin)
       # mpls
-      nil
+      nixd
       # nodePackages.typescript-language-server
       unstable.pyrefly
       # rust-analyzer

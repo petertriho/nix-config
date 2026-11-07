@@ -119,7 +119,7 @@ let
 
   # pi-lens CustomServerConfig (clients/lsp/config.ts). `args` is always
   # emitted: pi-lens defaults a missing `args` to ["--stdio"], which would
-  # break servers that take no arguments (nil, lua-language-server).
+  # break servers that take no arguments (nixd, lua-language-server).
   toPiLensServer =
     name: server:
     {

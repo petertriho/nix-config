@@ -343,6 +343,141 @@ local function tailwind_root_dir(bufnr, on_dir)
     end)
 end
 
+local function nix_string(value)
+    local escaped = value:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("%${", "\\${")
+    return '"' .. escaped .. '"'
+end
+
+local function read_file(path)
+    local file = io.open(path, "r")
+    if not file then
+        return nil
+    end
+    local content = file:read("*a")
+    file:close()
+    return content
+end
+
+-- nixd settings for any repository root. nixpkgs comes from `flake.lock` through `fetchTree`, so
+-- no repository is copied to the store for it. An option set needs `builtins.getFlake`, which
+-- copies the repository, so a set is added only when `flake.nix` mentions its output.
+local function nixd_flake_settings(root)
+    local settings = {}
+    local lock = root .. "/flake.lock"
+    if vim.uv.fs_stat(lock) then
+        settings.nixpkgs = {
+            expr = string.format(
+                [[
+let
+  lock = builtins.fromJSON (builtins.readFile %s);
+  input = lock.nodes.${lock.root}.inputs.nixpkgs or null;
+in
+if builtins.isString input then import (builtins.fetchTree lock.nodes.${input}.locked) { }
+else import <nixpkgs> { }]],
+                nix_string(lock)
+            ),
+        }
+    end
+
+    local flake = read_file(root .. "/flake.nix")
+    if not flake then
+        return settings
+    end
+
+    local user = vim.uv.os_get_passwd().username
+    -- `pick` prefers this machine's host or user, then the first entry, so it works in any flake.
+    local prelude = string.format(
+        [[
+let
+  flake = builtins.getFlake %s;
+  pick = set: names:
+    let found = builtins.filter (name: set ? ${name}) names;
+    in
+    if found != [ ] then set.${builtins.head found}
+    else if set != { } then set.${builtins.head (builtins.attrNames set)}
+    else null;
+  host = %s;
+  user = %s;
+  nixos = pick (flake.nixosConfigurations or { }) [ host ];
+  darwin = pick (flake.darwinConfigurations or { }) [ host ];
+  system = pick ((flake.nixosConfigurations or { }) // (flake.darwinConfigurations or { })) [ host ];
+  home = pick (flake.homeConfigurations or { }) [ "${user}@${host}" user ];
+in
+]],
+        nix_string(root),
+        nix_string(vim.uv.os_gethostname()),
+        nix_string(user)
+    )
+
+    local option_sets = {
+        {
+            name = "nixos",
+            patterns = { "nixosConfigurations" },
+            expr = "if nixos == null then { } else nixos.options",
+        },
+        {
+            name = "nix-darwin",
+            patterns = { "darwinConfigurations" },
+            expr = "if darwin == null then { } else darwin.options",
+        },
+        {
+            name = "home-manager",
+            patterns = { "homeConfigurations", "home%-manager" },
+            expr = [[
+if system != null && system.options ? home-manager then system.options.home-manager.users.type.getSubOptions [ ]
+else if home != null then home.options
+else { }]],
+        },
+        -- These exist only when the flake sets `debug = true`: https://flake.parts/debug
+        { name = "flake-parts", patterns = { "flake%-parts" }, expr = "flake.debug.options or { }" },
+        {
+            name = "flake-parts-per-system",
+            patterns = { "flake%-parts" },
+            expr = "flake.currentSystem.options or { }",
+        },
+    }
+
+    for _, option_set in ipairs(option_sets) do
+        for _, pattern in ipairs(option_set.patterns) do
+            if flake:find(pattern) then
+                settings.options = settings.options or {}
+                settings.options[option_set.name] = { expr = prelude .. option_set.expr }
+                break
+            end
+        end
+    end
+
+    return settings
+end
+
+-- `devenv lsp --print-config` prints nixd settings with devenv's nixpkgs and options. It can take a
+-- few seconds (it writes `devenv.lock` if the project has none), so it runs after the server starts
+-- and the server then reads its settings again.
+local function load_devenv_settings(client)
+    local root = client.root_dir
+    if not root or not vim.uv.fs_stat(root .. "/devenv.nix") or vim.fn.executable("devenv") ~= 1 then
+        return
+    end
+
+    vim.system({ "devenv", "lsp", "--print-config" }, { cwd = root, text = true }, function(result)
+        vim.schedule(function()
+            if client:is_stopped() then
+                return
+            end
+            local ok, config = pcall(vim.json.decode, result.stdout or "")
+            if result.code ~= 0 or not ok or type(config) ~= "table" or not config.nixd then
+                vim.notify(
+                    "nixd: `devenv lsp --print-config` failed in " .. root .. "\n" .. (result.stderr or ""),
+                    vim.log.levels.WARN
+                )
+                return
+            end
+            client.settings.nixd = vim.tbl_deep_extend("force", client.settings.nixd or {}, config.nixd)
+            client:notify("workspace/didChangeConfiguration", { settings = client.settings })
+        end)
+    end)
+end
+
 return {
     -- basedpyright = {
     --     -- https://docs.basedpyright.com/latest/configuration/language-server-settings/
@@ -422,7 +557,13 @@ return {
         },
     },
     dockerls = {},
-    docker_language_server = {},
+    docker_language_server = {
+        init_options = {
+            -- Telemetry is on by default. It sends hashed Git remotes and file paths, and crash
+            -- reports to BugSnag: https://github.com/docker/docker-language-server/blob/main/TELEMETRY.md
+            telemetry = "off",
+        },
+    },
     -- https://github.com/elixir-lsp/elixir-ls#elixirls-configuration-settings
     -- elixirls = {
     --     cmd = { "elixir-ls" },
@@ -513,16 +654,23 @@ return {
     --         "--tabs",
     --     },
     -- },
-    nil_ls = {
+    -- https://github.com/nix-community/nixd/blob/main/nixd/docs/configuration.md
+    nixd = {
+        -- A flake or devenv project root wins over the enclosing Git root.
+        root_markers = { { "flake.nix", "devenv.nix" }, ".git" },
         settings = {
-            ["nil"] = {
-                nix = {
-                    flake = {
-                        autoArchive = false,
-                    },
-                },
-            },
+            nixd = {},
         },
+        before_init = function(_, config)
+            -- The client serves this same table to the server, so the change must be in place.
+            if config.root_dir then
+                local nixd = config.settings.nixd
+                for key, value in pairs(nixd_flake_settings(config.root_dir)) do
+                    nixd[key] = value
+                end
+            end
+        end,
+        on_init = load_devenv_settings,
     },
     -- https://pyrefly.org/en/docs/IDE/
     pyrefly = {
