@@ -16,8 +16,8 @@ buildNpmPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "39827ec7171a311cd5258ffb1ef953068aa84051";
-    hash = "sha256-OOdKh4c5vcMIq4C2zYlAxt9jZ18LmVEAlUY10Rb+pUM=";
+    rev = "abfccc0683e73ee396087309ab98c78c9f6dde4b";
+    hash = "sha256-41pW9f99XpIzweMT1uDxfImSBd1aF6VSjsrqHgWN90c=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
@@ -54,7 +54,7 @@ buildNpmPackage (finalAttrs: {
   '';
 
   nodejs = nodejs_26;
-  npmDepsHash = "sha256-p2uoscYEZKKNEHKQJs8ilMg6vpMJtDal/KjGOMXUjAg=";
+  npmDepsHash = "sha256-ASOy60xl1oQg1yk02qsCnCUlY0eabLbP32f0/5aT1so=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];
