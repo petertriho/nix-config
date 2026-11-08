@@ -440,6 +440,23 @@ return {
     },
     config = function(_, opts)
         require("blink.cmp").setup(opts)
+
+        -- blink.cmp 0609752 changed highlight_with_treesitter to (parser, text, bufnr, start_line, end_line),
+        -- but blink-ripgrep still calls the old (bufnr, lang, start_line, end_line) form.
+        local docs = require("blink.cmp.lib.window.docs")
+        local highlight_with_treesitter = docs.highlight_with_treesitter
+        docs.highlight_with_treesitter = function(parser, ...)
+            if type(parser) ~= "number" then
+                return highlight_with_treesitter(parser, ...)
+            end
+
+            local bufnr, lang, start_line, end_line = parser, ...
+            local text = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n") .. "\n"
+            local ok, string_parser = pcall(vim.treesitter.get_string_parser, text, lang)
+            if ok and string_parser then
+                highlight_with_treesitter(string_parser, text, bufnr, start_line, end_line)
+            end
+        end
     end,
     opts_extend = { "sources.default" },
 }
