@@ -36,13 +36,13 @@ let
 in
 buildNpmPackage (finalAttrs: {
   pname = "pi-lens";
-  version = "4.4.10-unstable-2026-11-07";
+  version = "4.4.10-unstable-2026-11-08";
 
   src = fetchFromGitHub {
     owner = "apmantza";
     repo = "pi-lens";
-    rev = "c48b4747caf96c7811ae632ef81564c71944a98e";
-    hash = "sha256-KDtz89HaiSkjYTGro/xTUSLoL/1K38uiWJBJGg5n634=";
+    rev = "f2ab15172367a3ddabc63d540879136bc6dbfe9f";
+    hash = "sha256-DnO36p1WkVGdzBjFqfR4nVRe1Vfa+dSeGLl/dzUI2n4=";
   };
 
   nodejs = nodejs_24;
