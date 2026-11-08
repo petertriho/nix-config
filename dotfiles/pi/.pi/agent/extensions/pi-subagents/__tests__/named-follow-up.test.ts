@@ -318,7 +318,7 @@ for (const backend of ["claude", "pi"] as const) {
 					const script = scripts[round];
 					assert.ok(script.includes(`cd '${f.cwd}' &&`), "resume must use the original cwd");
 					if (backend === "claude") {
-						assert.match(script, /claude --dangerously-skip-permissions/);
+						assert.match(script, /claude --permission-mode auto/);
 						assert.ok(script.includes(`--resume '${reference}'`));
 						assert.ok(script.includes(`'${content}'`));
 						assert.doesNotMatch(script, /PI_SUBAGENT_SESSION=|--session /);

@@ -250,7 +250,7 @@ export function createLaunchService(
 				cmdParts.push(`PI_CLAUDE_SENTINEL=${shellEscape(sentinelFile)}`);
 				cmdParts.push(`PI_CLAUDE_PROMPT_HASH=${shellEscape(createHash("sha256").update(params.task).digest("hex"))}`);
 				cmdParts.push("claude");
-				cmdParts.push("--dangerously-skip-permissions");
+				cmdParts.push("--permission-mode", "auto");
 
 				if (existsSync(pluginDir)) {
 					cmdParts.push("--plugin-dir", shellEscape(pluginDir));

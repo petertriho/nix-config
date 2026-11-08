@@ -33,7 +33,7 @@
       # b = "bd";
       # bi = "bd init --stealth";
       c = "claude";
-      ca = "claude --allow-dangerously-skip-permissions";
+      ca = "claude --permission-mode auto";
       d = "docker";
       dc = "docker compose";
       dcd = "docker compose down --remove-orphans";

@@ -32,7 +32,7 @@ in
         sessionUrl = false;
       };
       includeCoAuthoredBy = false;
-      permissions.defaultMode = "bypassPermissions";
+      permissions.defaultMode = "auto";
       disableClaudeAiConnectors = true;
       # The Artifact tool needs the bundled `artifact-design` skill.
       disableBundledSkills = false;
@@ -51,7 +51,7 @@ in
       idleCompaction = false;
       cleanupPeriodDays = 180;
       tui = "fullscreen";
-      skipDangerousModePermissionPrompt = true;
+      skipAutoPermissionPrompt = true;
       theme = "custom:stylix";
       editorMode = "vim";
       teammateMode = "auto";

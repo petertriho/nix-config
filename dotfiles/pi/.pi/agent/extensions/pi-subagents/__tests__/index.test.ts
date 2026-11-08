@@ -2095,7 +2095,7 @@ test("mocked ordinary Claude CLI launch and resume use the Stop-hook sentinel wi
 			const scripts = readFileSync(scriptLog, "utf8").split("---launch---").filter((entry) => entry.trim());
 			assert.equal(scripts.length, 2);
 			assert.doesNotMatch(scripts[0], /--resume/);
-			assert.match(scripts[1], /claude --dangerously-skip-permissions/);
+			assert.match(scripts[1], /claude --permission-mode auto/);
 			assert.match(scripts[1], /--resume 'claude-session-123'/);
 			assert.match(scripts[1], /PI_CLAUDE_SENTINEL=/);
 			assert.match(scripts[1], /PI_CLAUDE_PROMPT_HASH='[0-9a-f]{64}'/);
