@@ -42,7 +42,7 @@
       "src": "https://github.com/celeste3z/celeste_comment.nvim"
     },
     "cmp-git": {
-      "rev": "8f0b51d394cbf057d2e091b7d36b8ed3056aa3ae",
+      "rev": "3560afaa037ccca9fb7c5806c198e9525498c9bc",
       "src": "https://github.com/petertriho/cmp-git"
     },
     "code-bridge.nvim": {
@@ -194,7 +194,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "6caaef9bb1b07f7f5f0a314da0478c676b55cf9e",
+      "rev": "577c488dc6f30cd0e2faa5eebe6e19f7d343181e",
       "src": "https://github.com/petertriho/nvim-scrollbar",
       "version": "'refactor/v2'"
     },
