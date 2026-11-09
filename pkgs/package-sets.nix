@@ -60,6 +60,19 @@ let
       };
 
     modifications = final: prev: {
+      # cargoSetupHook forces system libraries (NixOS/nixpkgs#537108), for example
+      # LIBGIT2_NO_VENDOR=1, LIBSQLITE3_SYS_USE_PKG_CONFIG=1, and
+      # AWS_LC_SYS_USE_SYSTEM=1. These nixpkgs packages do not provide the library.
+      lstr = prev.lstr.overrideAttrs (old: {
+        buildInputs = (old.buildInputs or [ ]) ++ [ final.libgit2 ];
+      });
+
+      # Fixed upstream in NixOS/nixpkgs@eeae8a6c12.
+      zizmor = prev.zizmor.overrideAttrs (old: {
+        buildInputs = (old.buildInputs or [ ]) ++ [ final.aws-lc ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ final.pkg-config ];
+      });
+
       pythonPackagesExtensions = prev.pythonPackagesExtensions or [ ] ++ [
         (_final: prev': {
           autoflake = prev'.autoflake.overridePythonAttrs (

@@ -22,7 +22,7 @@
     jellyfin-mpv-shim
     libreoffice
     nextcloud-client
-    tabularis
+    # tabularis
     thunderbird
   ];
 
