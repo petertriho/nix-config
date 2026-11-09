@@ -63,7 +63,7 @@ setw -g window-status-last-style "default"
 setw -g window-status-activity-style "fg=${stylix_fg_light}"
 setw -g window-status-bell-style "fg=${stylix_red}"
 
-setw -g window-status-format "#[default]  #I #W${window_flags}  "
+setw -g window-status-format "#[default] #I #W${window_flags} "
 setw -g window-status-current-format "#[fg=${stylix_selection},bg=${stylix_bg_alt}]"\
 "#[fg=${mode_colour},bg=${stylix_selection},bold] #I #W${window_flags} "\
 "#[fg=${stylix_selection},bg=${stylix_bg_alt},nobold]"
