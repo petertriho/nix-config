@@ -198,12 +198,15 @@ local function add(chunks, text, hl)
     chunks[#chunks + 1] = { 0, text, hl and hl_ids[hl] or 0 }
 end
 
+--- Fill the bar in half cells. `╸` draws the last half when the count is odd.
 ---@param chunks table
----@param filled integer
+---@param percent integer
 ---@param filled_hl string
-local function add_bar(chunks, filled, filled_hl)
-    add(chunks, ("▰"):rep(filled), filled_hl)
-    add(chunks, ("▱"):rep(BAR_WIDTH - filled), "ProgressBarTodo")
+local function add_bar(chunks, percent, filled_hl)
+    local halves = math.floor(percent / 100 * BAR_WIDTH * 2 + 0.5)
+    local full, half = math.floor(halves / 2), halves % 2
+    add(chunks, ("━"):rep(full) .. ("╸"):rep(half), filled_hl)
+    add(chunks, ("─"):rep(BAR_WIDTH - full - half), "ProgressBarTodo")
 end
 
 ---@param chunks table
@@ -212,14 +215,14 @@ local function add_moving_bar(chunks, tick)
     local span = BAR_WIDTH - BAR_BLOCK
     local step = tick % (2 * span)
     local offset = step <= span and step or 2 * span - step
-    add(chunks, ("▱"):rep(offset), "ProgressBarTodo")
-    add(chunks, ("▰"):rep(BAR_BLOCK), "ProgressBarDone")
-    add(chunks, ("▱"):rep(span - offset), "ProgressBarTodo")
+    add(chunks, ("─"):rep(offset), "ProgressBarTodo")
+    add(chunks, ("━"):rep(BAR_BLOCK), "ProgressBarDone")
+    add(chunks, ("─"):rep(span - offset), "ProgressBarTodo")
 end
 
 --- Build the ui2 content of a row. Only the frame and the msg_show hook call this.
 ---
----   ⠹ lua_ls                   ▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱  42%
+---   ⠹ lua_ls                   ━━━━━━╸─────────  42%
 ---     Indexing 12/40
 ---@param task progress.Task
 ---@return table
@@ -246,10 +249,9 @@ local function render(task)
     if task.status == "running" and not task.percent then
         add_moving_bar(chunks, tick)
     else
-        local filled = math.floor((task.percent or 0) / 100 * BAR_WIDTH + 0.5)
         add_bar(
             chunks,
-            filled,
+            task.percent or 0,
             task.status == "success" and "ProgressOk" or failed and "ProgressFail" or "ProgressBarDone"
         )
     end
