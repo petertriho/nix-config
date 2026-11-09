@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "3383ac3c2fe39fdefd0ad5296f22dfc3fffd2978",
+      "rev": "c2e6dffbab87688dbca05e464edb6eee749a847f",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -78,7 +78,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffbandit.nvim": {
-      "rev": "71da5d459c90d2c5f7ff3fcc768ee8f01d1569e4",
+      "rev": "1897aea7a970b49f0687617a16bcea1f53290fbc",
       "src": "https://github.com/CoreyKaylor/diffbandit.nvim"
     },
     "eyeliner.nvim": {
@@ -90,7 +90,7 @@
       "src": "https://github.com/folke/flash.nvim"
     },
     "friendly-snippets": {
-      "rev": "b2ea5c41a150ba72fb656eedb4ed0a86d138d945",
+      "rev": "7a1c9f7897a4eb078b157a04c7af81e5869215b1",
       "src": "https://github.com/rafamadriz/friendly-snippets"
     },
     "glance.nvim": {
@@ -130,7 +130,7 @@
       "src": "https://github.com/nvim-mini/mini-git"
     },
     "mini.ai": {
-      "rev": "a4f5648dedf435e6306205135d1babb563b55d28",
+      "rev": "98a5d73937930a2bb08129020601ab8d5016d706",
       "src": "https://github.com/nvim-mini/mini.ai"
     },
     "mini.diff": {
@@ -138,7 +138,7 @@
       "src": "https://github.com/nvim-mini/mini.diff"
     },
     "mini.files": {
-      "rev": "3e53099b9af114fa79130a88c4804718b0fd82af",
+      "rev": "f031f95dcaa5efd30f12983d5e40020c4d75f694",
       "src": "https://github.com/nvim-mini/mini.files"
     },
     "mini.icons": {
@@ -194,7 +194,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "4805fc7c81c9f5a9498c0d2dd78c1f4407bb26e4",
+      "rev": "6caaef9bb1b07f7f5f0a314da0478c676b55cf9e",
       "src": "https://github.com/petertriho/nvim-scrollbar",
       "version": "'refactor/v2'"
     },
@@ -253,7 +253,7 @@
       "src": "https://github.com/stevearc/quicker.nvim"
     },
     "render-markdown.nvim": {
-      "rev": "8e8795368391036643b622875a6da6a51bcd33f4",
+      "rev": "9c235bedc4f96145e63fcad5b78cd78bce8822c4",
       "src": "https://github.com/MeanderingProgrammer/render-markdown.nvim"
     },
     "schema-companion.nvim": {
@@ -265,7 +265,7 @@
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
-      "rev": "d9ff1926b54c41ae2acf0bdb68119df8c6c4d676",
+      "rev": "d7b7e315975dee119248b818ed6785180b27c1f0",
       "src": "https://github.com/tiagovla/scope.nvim"
     },
     "select-undo.nvim": {
