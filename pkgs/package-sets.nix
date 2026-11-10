@@ -67,6 +67,11 @@ let
         buildInputs = (old.buildInputs or [ ]) ++ [ final.libgit2 ];
       });
 
+      # Without subPackages, buildGoModule also installs the CI runner in
+      # scripts/test as bin/test, which shadows coreutils test on PATH.
+      # nixos-rebuild then fails its `test -f .../nixos-version` check.
+      gh-stack = prev.gh-stack.overrideAttrs { subPackages = [ "." ]; };
+
       # Fixed upstream in NixOS/nixpkgs@eeae8a6c12.
       zizmor = prev.zizmor.overrideAttrs (old: {
         buildInputs = (old.buildInputs or [ ]) ++ [ final.aws-lc ];

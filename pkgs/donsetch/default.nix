@@ -12,22 +12,22 @@ let
   assets = {
     x86_64-linux = {
       url = "https://github.com/dondai44423/donsetch/releases/download/v${version}/donsetch-linux-x64.tar.gz";
-      hash = "sha256-gFWabVrG0T6YrY6ycrHvY2q6Xhx2Wd2ugovtRgq7vuQ=";
+      hash = "sha256-XlyPKY+UOKGLeHoBd+uu2v5mCZKjye+9Itwv1+kLThk=";
     };
     aarch64-linux = {
       url = "https://github.com/dondai44423/donsetch/releases/download/v${version}/donsetch-linux-arm64.tar.gz";
-      hash = "sha256-lwgzWRsC+y0rsXSdTfJmqMM/EkSy8chEyVTH4ZtBNWc=";
+      hash = "sha256-mTvmiDbHmOkLHGpNplm06WL9YCt7T6gbblusbPz/FpQ=";
     };
     aarch64-darwin = {
       url = "https://github.com/dondai44423/donsetch/releases/download/v${version}/donsetch-darwin-arm64.tar.gz";
-      hash = "sha256-F5kKxSVQnODEvmCKU3seotaN9OvmSrAySY9wB/v2+lw=";
+      hash = "sha256-bs27jVwkxqZ+2zF7KnkEEIgh2bW0XWdzT+LEQ40SzAw=";
     };
     x86_64-darwin = {
       url = "https://github.com/dondai44423/donsetch/releases/download/v${version}/donsetch-darwin-x64.tar.gz";
-      hash = "sha256-Aey9UsXY7r6qHtzelf6d8NBRjfalmD/mxj8PSdCDrss=";
+      hash = "sha256-mVSbWwZVBgrmlWGW4BLLvVVlecHyd84B4xbOOCyevns=";
     };
   };
-  version = "5.1.2";
+  version = "5.2.1";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "donsetch";
