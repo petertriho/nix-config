@@ -109,7 +109,7 @@
 
 # "tree" groups rows under session headers; "flat" lists the current depth's
 # rows as a single ordered list, agents first. `f` toggles this at runtime.
-# layout = "tree"
+layout = "flat"
 
 # Show the preview pane alongside the sidebar. Automatically off below 100
 # columns regardless of this setting.
