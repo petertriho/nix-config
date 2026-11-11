@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "567ee0d5648696614f2b83b0fef0343e7cd1465a",
+      "rev": "ff598f51332f67b79f2ebf3d1a2ce75f3588a679",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -54,7 +54,7 @@
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "coerce.nvim": {
-      "rev": "1d0b987b02280ec03dc82f7a94acad4361eb8163",
+      "rev": "8789988bdcdd6e675be320088b5e5e83b92ef819",
       "src": "https://github.com/gregorias/coerce.nvim"
     },
     "colorful-menu.nvim": {
@@ -70,7 +70,7 @@
       "src": "https://github.com/stevearc/conform.nvim"
     },
     "coop.nvim": {
-      "rev": "26df3be54846ed44b5a9d7749f7780049931b8a8",
+      "rev": "ce1b286857412dc15cdac8e7e1637375fd5adddd",
       "src": "https://github.com/gregorias/coop.nvim"
     },
     "dial.nvim": {
@@ -102,7 +102,7 @@
       "src": "https://github.com/nmac427/guess-indent.nvim"
     },
     "guh.nvim": {
-      "rev": "4dacfa42795870b17f64b6c5a542beb28efcfd5f",
+      "rev": "39df7dc86785539231a04dd61e2b79f280a08ba4",
       "src": "https://github.com/justinmk/guh.nvim"
     },
     "heirline.nvim": {
@@ -207,7 +207,7 @@
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
-      "rev": "7e1da84aaffb413e1fa47b3895e5caa12501142d",
+      "rev": "5cc8d425c2bf3c09041a2db3cfff6197e2dce34d",
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
@@ -261,7 +261,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "cb6074339e4a7057140912e308d93155e55d1410",
+      "rev": "92e7b3b2dbd1505fcbcb20f1fdd987b35e9cd34b",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
