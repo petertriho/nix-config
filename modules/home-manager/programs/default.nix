@@ -16,6 +16,7 @@
     ./hallmark.nix
     ./impeccable.nix
     ./jscpd.nix
+    ./modern-web-guidance.nix
     ./nono.nix
     ./pi.nix
     ./plannotator.nix

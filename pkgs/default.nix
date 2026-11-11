@@ -24,6 +24,7 @@ with pkgs;
   lg-buddy = callPackage ./lg-buddy { };
   impeccable = callPackage ./impeccable { };
   mermaid-ascii = callPackage ./mermaid-ascii { };
+  modern-web-guidance = callPackage ./modern-web-guidance { };
   nono-packs = callPackage ./nono-packs { };
   playwriter = callPackage ./playwriter { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
