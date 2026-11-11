@@ -13,22 +13,22 @@ let
   assets = {
     x86_64-linux = {
       url = "https://github.com/usestrix/strix/releases/download/v${version}/strix-${version}-linux-x86_64.tar.gz";
-      hash = "sha256-uM1+hNY8vv9nJjAangj93t9A/GpO3NtO3aioU7MxLeY=";
+      hash = "sha256-yOg2JRV4uqIor+nmX0qQHvauERbERPjwpn9654mMSA8=";
     };
     aarch64-linux = {
       url = "https://github.com/usestrix/strix/releases/download/v${version}/strix-${version}-linux-arm64.tar.gz";
-      hash = "sha256-n0qCbF0edrXFA+MpmAevhUmsyi4Dc0tmA2Eb4nWRft4=";
+      hash = "sha256-4iBt6BGSCn4PB5M6/ZMccSBCEuCl9zbwFkkRNluqb9I=";
     };
     x86_64-darwin = {
       url = "https://github.com/usestrix/strix/releases/download/v${version}/strix-${version}-macos-x86_64.tar.gz";
-      hash = "sha256-5CXwAARHQam+u+2yZe9m7+q7pI5FrBU3Sx35wJK13z4=";
+      hash = "sha256-sYlEXnd+sgZpbFAlGGbaDNVkIRF8M72Gk/b71hqeB8E=";
     };
     aarch64-darwin = {
       url = "https://github.com/usestrix/strix/releases/download/v${version}/strix-${version}-macos-arm64.tar.gz";
-      hash = "sha256-JmBwELGCKnp7A1PTcswAvhSfkdE4LoqZ35arQzWvxqA=";
+      hash = "sha256-FHgUkFxBp9X1EfqjJkcr3cMfIWAkhhkKW/t257IKppI=";
     };
   };
-  version = "1.7.0";
+  version = "1.7.1";
 
   # Name of the bare executable inside the unpacked tarball (= URL basename).
   extractedBinary = lib.removeSuffix ".tar.gz" (lib.baseNameOf assets.${stdenv.hostPlatform.system}.url);

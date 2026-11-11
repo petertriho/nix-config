@@ -12,13 +12,13 @@ let
 in
 stdenvNoCC.mkDerivation {
   pname = "elephant-goldfish-model";
-  version = "0.1.1-unstable-2026-11-10";
+  version = "0.1.1-unstable-2026-11-11";
 
   src = fetchFromGitHub {
     owner = "google";
     repo = "elephant-goldfish-model";
-    rev = "6d2af49f635515a472ce0dbba375c62b73dace26";
-    hash = "sha256-GbMHjtEb3530tkXNLrCbl7f2lmTbZswCezFI5U+OfnE=";
+    rev = "8c29f560e300471d458b71d1131834e097b18d4f";
+    hash = "sha256-PA2J1pi57uGCdsZ3bYp6RHQiwJTGU1uqtc+JqaE3qI4=";
   };
 
   nativeBuildInputs = [ python3 ];
