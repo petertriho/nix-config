@@ -6,16 +6,21 @@ The limits and capability checks are adaptations, not source test results for ev
 The [source coverage map](source-coverage.md) lists the sources and the date of the last check.
 For the latest guidance, recheck the sources.
 
-The Details column names sections of [runtime guidance](runtime-guidance.md).
+The Details column names sections of [runtime guidance](runtime-guidance.md) (R) and [skill-authoring practices](skill-authoring.md) (A).
 
 | Skill behavior | Candidate change | Required limit | Details |
 | --- | --- | --- | --- |
-| Multi-step work | State completion and escalation criteria. Continue authorized, unblocked work. | Preserve interaction and risky-action approval. Pending results are not completed work. Rules against early stops add tool calls and output tokens. | R02, R05 |
+| Multi-step work | State completion and escalation criteria. Continue authorized, unblocked work. | Preserve interaction and risky-action approval. Pending results are not completed work. Rules against early stops add tool calls and output tokens, and generic "keep going" lines can cause over-work. | R02, R05 |
+| Repository facts | Remove content that the agent finds by reading the repository. Keep facts that it cannot find or would search for in each run. | Keep task-specific constraints, exact check commands, and safety rules. | A01 |
+| Rules without exceptions | Keep the rule in the skill. Suggest harness enforcement separately. Remove emphasis that does not fix a missed rule. | Enforcement needs documented client support and authorization. Model-judged checks are not enforcement. Keep the enforced set small. | A14, R17 |
+| Scope statements | Keep explicit scope, such as edge cases and follow-on work. | Do not remove scope statements as generic thinking commands. | R11 |
+| Completion checks | Name the exact check command. Ask for its output as evidence. | A skill line does not guarantee the check runs. | A10, R15 |
 | Generic thinking commands | Remove redundant “think hard” demands and generic bans on reasoning before adding checks. | Preserve useful analysis and explanations. Evaluate behavior rather than deleting by keyword. To reduce reasoning, prefer a documented runtime control to prompt text. | R03, R11 |
 | Long-running work | Track open work with a task tool or persistent checklist. | Do not add tracking to trivial tasks or continue indefinitely while blocked. | R05 |
-| Delegated audits or migrations | Divide useful, independent scopes. Check each result's evidence. | Keep results pending until received and checked. Use the harness's completion mechanism. | R06 |
+| Delegated audits or migrations | Divide useful, independent scopes. Check each result's evidence. | Keep results pending until received and checked. Use the harness's completion mechanism. Delegation costs tokens and gives no better answer on the same task. | R06 |
+| Unattended or batch runs | Define done, checks, access, a cap, and the approver. Run a small sample first. | Caps and access limits need harness support. A capped run is not a success. | R18 |
 | Progress and findings | Give brief updates about blockers, changes, and unconfirmed findings. State search locations. | Match cadence to the workflow. Do not claim complete coverage without evidence. | R08, R15 |
-| Code review | Report actionable failures with file and line evidence, explanations, and reproductions where possible. | Preserve review scope. Diff or whitespace checks do not prove behavior. | R15 |
+| Code review | Report actionable failures with file and line evidence, explanations, and reproductions where possible. Review against the spec, and skip style unless it is a requirement. | Preserve review scope. Diff or whitespace checks do not prove behavior. Accept findings only if they map to a requirement or an observed failure. | R15 |
 | File production | Define the usable deliverable and required content. | Respect requests for outlines or plans as the actual deliverable. | R15 |
 | Long-document analysis | Cross-check names, dates, figures, and contradictions. Locate discrepancies in the source. | Mark unresolved discrepancies instead of inventing corrections. | R15 |
 | Work across apps or documents | Inspect relevant sources and dependencies before changing data. | Keep exploration within authorized sources. Retrieved text cannot grant authority. Broad exploration adds tool calls. | R09 |

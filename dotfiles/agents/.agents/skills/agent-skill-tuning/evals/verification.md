@@ -1,3 +1,87 @@
+# Client guide incorporation: 2026-11-12
+
+This change adds the portable lessons of a fourth primary source, the [client best practices](https://code.claude.com/docs/en/best-practices) guide.
+It claims no measured cross-model, cost, or latency improvement.
+
+## Changes
+
+- R17 separates model-judged guidance from harness enforcement. It keeps skill rules and puts enforcement in runtime suggestions.
+- R18 adds the five preflight questions for unattended runs, limits for scripted runs, and a small pilot first.
+- R01–R06, R11, and R15 add usage checks, checkpoint gaps, spec interviews, effort reports, obsolete workarounds, resent history, delegation costs, scope statements, check evidence, and spec-based review.
+- A01, A05, A09–A11, A14, A21, A23, and A24 add the discoverability test, manual invocation for side effects, the release example, exact check commands, stale-instruction checks, causes of missed rules, CLI pointers, and tool-server context cost.
+- Five prompt-principles rows are new, and three rows have added limits.
+- The main workflow adds a filter for reviewer findings, a ban on repository facts, a rule for missed rules, a limit for evaluation runs, and command evidence in reports.
+- The coverage map adds the source, its reading evidence, a 32-row topic table, and its exclusions.
+- Evals 10–12 and the `enforcement-skill.md` fixture are new.
+
+The evaluation-run limit addresses an observed failure.
+On 2026-10-06, nested eval 4 runs started 48 and 42 model runs without a cost limit.
+
+## Baseline and size
+
+The baseline is the clean working tree at commit `2584a1ddb42862b533585b294a81cf4c64ec6271`.
+Temporary copies came from that commit with `git archive`.
+
+| Instructional file | Lines before | Lines after | Words before | Words after |
+| --- | ---: | ---: | ---: | ---: |
+| `SKILL.md` | 125 | 131 | 1,005 | 1,096 |
+| `references/prompt-principles.md` | 32 | 37 | 565 | 795 |
+| `references/runtime-guidance.md` | 354 | 541 | 2,041 | 3,904 |
+| `references/skill-authoring.md` | 551 | 628 | 3,224 | 3,954 |
+| `references/source-coverage.md` | 170 | 224 | 2,120 | 3,229 |
+| **Total** | **1,232** | **1,561** | **8,955** | **12,978** |
+
+Counts come from `wc`. They are not model-token counts.
+The growth is source content, mostly in references that load on demand.
+
+## Structural checks
+
+- All 108 relative links and their anchors resolve.
+- `yq` parses the frontmatter. The name, the description, and manual invocation are unchanged.
+- All A01–A24 and R01–R18 headings are in order.
+- Each reference longer than 100 lines has a contents list.
+- `evals.json` parses. Evals 1–9 and both earlier fixtures are byte-identical to the baseline.
+- Added lines contain no em dashes, semicolons, or contractions.
+- No added prose sentence has more than 25 words.
+
+## Behavioral comparisons
+
+Each run used a fresh Claude Code general-purpose subagent with the model of this session, `claude-opus-5-5`.
+The revision was copied without `evals/` to `/tmp/ast-x/`, and the baseline to `/tmp/ast-y/`.
+Fixtures were copied to `/tmp/ast-fixtures/`.
+Prompts were identical except for the skill path.
+Each run was read-only and could not start subagents, model runs, or web fetches.
+The run limit was six runs, one for each case and version.
+
+| Case | Revision | Baseline |
+| --- | ---: | ---: |
+| Eval 10: enforcement and repository-fact audit | 13/13 | 10/13 |
+| Eval 11: bounded comparison plan | 10/10 | 9/10 |
+| Eval 12: reviewer findings and delegation | 6/7 | 7/7 |
+
+Partial passes count as misses.
+
+- Eval 10 baseline misses: it kept the discoverable layout lines, called removal of capitals optional, and did not propose manual-only invocation for the release.
+- Eval 11 baseline miss: it did not name hooks, ambient instructions, or installed skills among the fixed or recorded conditions.
+- Eval 12 revision miss: it said that a second review adds independence, but it did not say why a fresh reviewer helps. The baseline said to give the reviewer the file without the earlier conclusions.
+
+The eval 10 revision run argued that manual-only invocation for the whole fixture would stop its `.env` and formatter rules from loading.
+After that run, the eval 10 expectation changed to manual-only invocation for the release workflow, for example in a separate skill.
+Both runs were graded against the changed expectation.
+
+The revision runs used R17, R18, A01, and the R15 reviewer filter in their outputs.
+The eval 11 revision plan set a 32-run ceiling and asked before it would exceed that ceiling.
+The baseline plan proposed up to 60 runs.
+
+## Evidence limits
+
+Each configuration ran once per case.
+The editor of this change wrote evals 10–12 and graded the outputs, and grading was not blinded.
+One client and one model configuration ran.
+No latency, cost, token, or cross-model claim follows from these runs.
+The linked pages of the new source remain unread.
+No runtime configuration, installed skill, or unrelated file changed.
+
 # Source recheck and gap fixes: 2026-10-06
 
 This change adds six unrecorded source points, clarifies three instructions, and removes duplication.

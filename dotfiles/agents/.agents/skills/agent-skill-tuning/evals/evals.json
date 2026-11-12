@@ -66,6 +66,30 @@
       "prompt": "I tuned a skill on one model, and the new text is shorter. Can I claim improvements for other models or clients? Describe the required evaluations. Explain how to check resource navigation. Explain how feedback from real users changes the next iteration. Do not launch paid model runs. Do not edit files.",
       "expected_output": "Reject unmeasured claims about cross-model gains or token savings. Require at least three representative scenarios that target observed gaps. Require the old skill as the baseline. Require actual tests for each intended model and client. Check for unexpected read order, missed links, repeated reads, and ignored resources. Separate structural checks, manual reviews, actual runs, and feedback from the team. Do not launch the proposed runs.",
       "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "Audit the supplied enforcement-skill.md fixture for a client that supports hooks and permission rules. Suggest changes only. Do not edit the fixture, any settings file, or any installed skill. Do not run its commands.",
+      "expected_output": "Keep the rules about .env and the formatter in the skill text. In a separate runtime section, suggest a deny rule or hook for them, with known gaps such as scripts that open the file. Treat named exports as a preference, not a hook. Recommend removal of the capitalized emphasis without stronger wording. Recommend removal of the file-layout lines that the agent can find in the repository. Keep the meeting decision and the DATABASE_URL fact. Keep the scope statement about empty and error states. Recommend removal of the generic thinking and keep-going lines without filler. Replace the bare 'all tests pass' claim with an exact check command and its output. Ask for the command if the fixture does not name it. Propose a specific third-person description. Propose a precondition stop and approval before the push for the release. Propose manual-only invocation for the release workflow, for example in a separate skill, as a change that needs authorization. Do not make the whole skill manual-only, because its general rules would stop loading. Change no settings.",
+      "files": [
+        "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/enforcement-skill.md"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Plan a behavioral comparison of the saved baseline and a revised copy of the supplied report-skill.md fixture on two models. Do not start model runs yet. Explain how you will keep the comparison fair and limit its cost.",
+      "expected_output": "Plan at least a normal task and a required stop or refusal, plus scenarios for observed gaps. Run each case in a fresh context. Keep the task, model, client, and tools identical within each comparison. Isolate or record ambient instructions, hooks, and installed skills. Use disposable copies. Set a limit for runs, turns, or spend, and ask before you exceed it. Pilot a small sample before the full set. Grade each expectation as pass or fail with evidence. Make no cross-model claim until each model ran. Start no model runs.",
+      "files": [
+        "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Audit the supplied report-skill.md fixture without edits. A reviewer returned four findings: (1) rename the headings for style, (2) the outline-only stop prevents delivery of REPORT.md, (3) move the citation rule into a shared helper file, (4) add tests for a 10,000-document input. Which findings justify edits? Should I delegate a second review of the same task to get a better answer?",
+      "expected_output": "Accept finding 2 because it blocks the required deliverable. Reject finding 1 as style-only. Reject finding 3 as unneeded abstraction. Reject finding 4 unless a requirement or observed failure supports it. Explain that delegation of the same task gives parallelism or independence, not a better answer, and that it costs tokens. Explain that a fresh reviewer can help because it did not see the original reasoning. Keep the audit read-only.",
+      "files": [
+        "dotfiles/agents/.agents/skills/agent-skill-tuning/evals/fixtures/report-skill.md"
+      ]
     }
   ]
 }

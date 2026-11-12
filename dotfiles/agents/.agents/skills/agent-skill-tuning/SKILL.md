@@ -59,6 +59,7 @@ A no-skill baseline applies to new-skill evaluation, not permission to create sk
 
 A checklist difference alone does not justify an edit.
 Each check needs a task requirement.
+Reviewer findings need the same justification, because a reviewer asked for problems always finds some.
 For source-coverage requests, inventory substantive recommendations, examples, and caveats.
 Record retained, generalized, and excluded advice in the coverage map.
 Source links alone do not establish coverage.
@@ -68,16 +69,19 @@ Nontransferable claims are not universal instructions.
 
 1. For authorized edits, change only the selected maintained files.
 2. Before you add instructions, remove redundancy.
-3. Preserve frontmatter, names, manual invocation, required formats, resource links, approvals, and deliberate checkpoints.
-4. Preserve task-specific analysis, worked explanations, procedures, and checks.
-5. For protected inputs, require a final preservation check in the target skill.
-6. Prefer observable decisions, concise rationale, and evidence over private reasoning requests.
-7. Keep useful conditional runtime guidance in references, with its capability and safety limits.
-8. Keep the main body under 500 lines through directly linked detail, without omitting requirements.
-9. For references longer than 100 lines, add a contents list.
+3. Do not add content that the agent can find by reading the repository or task files.
+4. Preserve frontmatter, names, manual invocation, required formats, resource links, approvals, and deliberate checkpoints.
+5. Preserve task-specific analysis, worked explanations, procedures, and checks.
+6. For protected inputs, require a final preservation check in the target skill.
+7. Prefer observable decisions, concise rationale, and evidence over private reasoning requests.
+8. Keep useful conditional runtime guidance in references, with its capability and safety limits.
+9. Keep the main body under 500 lines through directly linked detail, without omitting requirements.
+10. For references longer than 100 lines, add a contents list.
 
 Deletion of a generic command to think more or less needs no filler replacement.
 Do not add generic “keep going” or “think less” instructions to specialized skills.
+Do not fix a missed rule with emphasis alone.
+For a rule with zero exceptions, keep the rule and suggest harness enforcement as a runtime suggestion.
 
 Follow these rules in your own run.
 If a target's work needs one of them and the target lacks it, add it to the target.
@@ -98,14 +102,15 @@ If a target's work needs one of them and the target lacks it, add it to the targ
 5. Where practical, run representative scenarios on the saved baseline and the revision, each in a fresh context.
 6. Use at least two scenarios: a normal task and a required stop, question, or refusal of unauthorized action.
 7. For substantial changes, also run the gap-based evaluations from step 1.
-8. Keep the task, model, client, and tool configuration identical within each comparison.
+8. Keep the task, model, client, tools, hooks, and ambient instructions identical within each comparison.
 9. For tests that write files, use disposable copies.
-10. For script changes, check expected errors, dependencies, and intermediate outputs.
-11. Where available, inspect real workflows, resource access, and user or team feedback.
-12. Check behavior and output quality before speed or token savings.
-13. Fix regressions.
-14. After fixes, repeat required checks.
-15. Make sure that unrelated user changes remain intact.
+10. Before model runs, set a limit for runs, turns, or spend. Ask before you exceed it.
+11. For script changes, check expected errors, dependencies, and intermediate outputs.
+12. Where available, inspect real workflows, resource access, and user or team feedback.
+13. Check behavior and output quality before speed or token savings.
+14. Fix regressions.
+15. After fixes, repeat required checks.
+16. Make sure that unrelated user changes remain intact.
 
 The agent that wrote an edit knows its intent, so it cannot test the skill as a fresh user.
 Do not run untrusted scripts or external side effects to satisfy a checklist.
@@ -118,8 +123,9 @@ Shorter text, checklist conformity, and one configuration do not establish broad
 2. Name changed files and intended effects.
 3. State unconfirmed findings, search locations, missing runs, and capability limits.
 4. Separate structural checks, manual scenario reviews, and actual model runs.
-5. For behavioral claims, identify the tested model and client.
-6. Put runtime suggestions in a separate section.
-7. For exhaustive source work, report the coverage map and preservation checks.
+5. For each check, give the command and its output, or the reviewed file.
+6. For behavioral claims, identify the tested model and client.
+7. Put runtime suggestions in a separate section.
+8. For exhaustive source work, report the coverage map and preservation checks.
 
 For audit-only work, put findings, evidence, and proposed changes in the final response.

@@ -1,8 +1,10 @@
 # Skill-authoring practices
 
-The [source coverage map](source-coverage.md) lists the source and the date of the last check.
+The [source coverage map](source-coverage.md) lists the sources and the date of the last check.
 
 This reference preserves source guidance and examples.
+Text that names “the client guide” comes from a best-practices guide for one coding-agent client.
+Its lessons need capability checks in other clients.
 Sections A01–A24 support the coverage map.
 Apply sections only to concrete needs.
 Not every target needs changes.
@@ -64,6 +66,27 @@ with pdfplumber.open("file.pdf") as pdf:
 
 This concise excerpt does not satisfy an all-pages extraction contract.
 Before you adopt example code, check its dependencies against the task.
+
+The client guide applies the same economy to repository facts.
+Write down only what the agent cannot find, or would find again at a cost in each run.
+Before you keep a statement, ask:
+
+1. Could the agent find this by reading the repository or task files?
+2. Would the agent actually look?
+
+If both answers are yes, propose removal of the statement.
+Descriptions of architecture and file layout usually fail this test.
+
+Content that usually passes this test:
+
+- Exact commands that confirm work, such as test, type-check, and lint commands, and how to run one test file
+- Misleading code, such as an old pattern that new code must not copy, or a directory that looks unused but is live
+- Decisions outside the repository, such as the chosen error helper, the deploy steps, or required reviews
+- Facts that needed correction twice
+- Facts in the repository that take a long search to find
+
+Instructions that load in every session cost attention in every task.
+If the client loads only skill metadata until use, a long procedure costs less in a skill body than in always-loaded instructions.
 
 ## A02: Degrees of freedom
 
@@ -135,6 +158,11 @@ Avoid descriptions such as “Helps with documents,” “Processes data,” or
 “Does stuff with files.”
 Preserve deliberate manual invocation.
 Better metadata does not authorize automatic use.
+
+For a workflow with side effects, such as a release, manual-only invocation can prevent automatic starts.
+The client guide uses a frontmatter field for this, so check the client's schema.
+That change alters triggers.
+Propose it as a separate change and get authorization ([A04](#a04-names-and-frontmatter)).
 
 ## A06: Progressive disclosure
 
@@ -222,6 +250,16 @@ The PDF example uses this sequence:
 
 If output checks fail, return to the mapping step.
 
+The client guide's release example uses this sequence:
+
+1. Confirm a clean tree on the main branch. If either condition fails, stop and ask.
+2. Run the version command and commit the result.
+3. Summarize the changes merged since the last tag into the changelog, one user-facing line each.
+4. Tag the new version and push the tag.
+
+The final step also states a boundary: CI publishes, never the local machine.
+The precondition stop and the publication boundary are explicit.
+
 If workflows differ, use explicit decision points.
 The document example uses docx-js for creation and unpacked XML for edits.
 The editing branch checks each change before it repacks the files.
@@ -262,6 +300,16 @@ If no script exists, use manual reference checks.
 Label manual checks explicitly.
 A structural check does not establish behavioral correctness.
 
+Without a check, an agent stops when the work looks done.
+A useful check gives a pass or fail result that the agent can read.
+Examples are a test file, a build exit code, a linter, a script that compares output with a fixture, and a screenshot beside a mockup.
+In the skill, name the exact command that runs the check.
+Ask for the command and its output as evidence ([R15](runtime-guidance.md#r15-results-and-review)).
+After the checks pass, a target workflow can also run the built app and inspect the result.
+That step finds problems that tests and type checks miss.
+A line such as "always run the type check before you finish" works most of the time, not every time.
+For a check that must pass every time, suggest harness enforcement ([R17](runtime-guidance.md#r17-guidance-versus-enforcement)).
+
 Local evaluation follow-up:
 For target skills with protected inputs, require a final check that those inputs remain unchanged.
 
@@ -275,6 +323,11 @@ Use one term per meaning.
 The examples use “API endpoint,” “field,” and “extract,” not route, box, or pull.
 Do not merge distinct technical concepts to simplify vocabulary.
 Dates for source checks or deprecation evidence remain useful.
+
+Instructions also become stale.
+Check for workarounds written for older models ([R04](runtime-guidance.md#r04-integration-assumptions)).
+Check for references to files that no longer exist.
+Check for instructions that contradict each other.
 
 ## A12: Templates and examples
 
@@ -361,6 +414,18 @@ For existing skills, repeat this cycle:
 
 A missed rule can need prominence, structure, or clearer requirements.
 Stronger wording can help, but “MUST” everywhere is not an automatic solution.
+Before you add emphasis to a missed rule, find the cause:
+
+- If the file is long, the rule can get lost. Shorten the file.
+- If the rule has zero exceptions, suggest harness enforcement ([R17](runtime-guidance.md#r17-guidance-versus-enforcement)).
+
+The client guide reports that heavy emphasis makes current models over-apply rules.
+Evaluate that claim on each intended model.
+
+If two corrections in one context fail, start a fresh context.
+Put the lesson into the prompt or the skill, not into a third correction.
+Failed attempts stay in the old context, and the agent keeps reading them.
+
 If team feedback is applicable, share the skill with teammates.
 Ask about activation, clarity, and missing guidance.
 Incorporate observed feedback.
@@ -481,6 +546,11 @@ Before you install a package, get any required approval.
 Check client documentation for supported execution behavior.
 Do not install a package merely because a source example does.
 
+If an external system has an installed and authenticated CLI, a skill can name that CLI.
+For an unfamiliar CLI, a pointer to its `--help` output can replace restated documentation.
+A fresh checkout lacks ignored files and installed dependencies.
+For workflows that start in new checkouts, name the setup command.
+
 ## A22: File access and execution
 
 Before use, check client support for file access, shell tools, code execution, metadata-first discovery, and on-demand resource reads.
@@ -520,6 +590,9 @@ Clients can encode qualification differently.
 Do not replace working tool identifiers with unsupported syntax.
 Qualification does not authorize external side effects.
 
+Connected tool servers can add tool names and instructions to context in every session, even when unused.
+Suggest disabling unused servers only in the separate runtime section.
+
 ## A24: Final checklist
 
 Complete every applicable check in the linked sections.
@@ -527,7 +600,10 @@ Complete every applicable check in the linked sections.
 Core quality:
 
 - [ ] Check task-specific context and instruction freedom ([A01](#a01-context-economy), [A02](#a02-degrees-of-freedom)).
-- [ ] Check frontmatter, third-person descriptions, and triggers ([A04](#a04-names-and-frontmatter), [A05](#a05-discovery-descriptions)).
+- [ ] Check for content that the agent can find in the repository ([A01](#a01-context-economy)).
+- [ ] Check frontmatter, third-person descriptions, triggers, and manual invocation for side effects ([A04](#a04-names-and-frontmatter), [A05](#a05-discovery-descriptions)).
+- [ ] Check for stale workarounds, references to missing files, and contradictions ([A11](#a11-stable-information-and-terminology)).
+- [ ] Check missed rules, emphasis, and rules with zero exceptions ([A14](#a14-iterative-development-and-feedback), [R17](runtime-guidance.md#r17-guidance-versus-enforcement)).
 - [ ] Check descriptive filenames, domain organization, paths, and defaults with conditional fallbacks ([A07](#a07-resource-organization), [A16](#a16-paths-and-defaults)).
 - [ ] Check length, disclosure, links, contents, and loading behavior ([A06](#a06-progressive-disclosure), [A08](#a08-reference-depth-and-contents), [A22](#a22-file-access-and-execution)).
 - [ ] Check workflows, terminology, historical patterns, and examples ([A09](#a09-sequential-and-conditional-workflows), [A11](#a11-stable-information-and-terminology), [A12](#a12-templates-and-examples)).
@@ -538,6 +614,7 @@ For skills with code or scripts:
 - [ ] Check packages, availability, policy, and approvals ([A21](#a21-dependencies-and-client-capabilities)).
 - [ ] Check script documentation and paths ([A18](#a18-utility-scripts), [A16](#a16-paths-and-defaults)).
 - [ ] Check critical-operation feedback loops and intermediate plans with required approval ([A10](#a10-feedback-loops), [A20](#a20-checked-intermediate-outputs)).
+- [ ] Check that each check names its exact command and asks for its output ([A10](#a10-feedback-loops)).
 
 Evaluation:
 

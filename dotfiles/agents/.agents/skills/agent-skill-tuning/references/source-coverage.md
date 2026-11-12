@@ -10,6 +10,7 @@ Source topics use neutral labels rather than model or vendor names.
 - [Skill-authoring source](#skill-authoring-source)
 - [Workflow source](#workflow-source)
 - [Prompting source](#prompting-source)
+- [Client practice source](#client-practice-source)
 - [Adaptations and exclusions](#adaptations-and-exclusions)
 - [Maintenance rule](#maintenance-rule)
 
@@ -36,11 +37,21 @@ The read found six unrecorded source points:
 - The claim that models know the skill format natively is excluded.
 
 An earlier complete read on 2026-10-04 reported no hidden tab or expandable-section advice.
-Coverage concerns these three primary sources, not every page they link.
+
+The first complete read of a fourth primary source was on 2026-11-12:
+
+- [Client best practices](https://code.claude.com/docs/en/best-practices)
+
+That read used the page's Markdown version.
+It included all notes, warnings, tips, tables, and code blocks.
+The page has no hidden tabs or expandable sections.
+Its linked pages remain unread.
+
+Coverage concerns these four primary sources, not every page they link.
 
 All operational references link directly from `SKILL.md`.
 Sections **A01–A24** identify [skill-authoring practices](skill-authoring.md).
-Sections **R01–R16** identify [runtime guidance](runtime-guidance.md).
+Sections **R01–R18** identify [runtime guidance](runtime-guidance.md).
 [Prompt principles](prompt-principles.md) contains transferable hypotheses and their limits.
 
 Local evaluation follow-ups in A10, A12, and the final-response rule come from tuning trials, not the primary sources.
@@ -142,6 +153,47 @@ Status meanings:
 | Visual tools | Retained: original images, resolution, crops, dimensions, coordinates, costs, and tool checks. Excluded: model-specific effort comparisons and vendor recipe link. | R13 |
 | Frontend defaults | Retained: specific exclusions and iterative inspection. Implementation examples are not required defaults. | R14 |
 
+## Client practice source
+
+This guide addresses one coding-agent client.
+Its commands, settings files, flags, constants, and model defaults are excluded.
+Its portable lessons keep capability checks.
+
+| Source topic | Treatment | Destination |
+| --- | --- | --- |
+| Introduction and client defaults | Retained: leave defaults until a task costs more than it should. Excluded: the default permission mode, delegation, and context summarization of one client. | R01 |
+| Knowledge that defaults cannot see | Retained: undocumented procedures, files that must never be read, required checks, and budgets. | A01, A10, R17, R18 |
+| Symptom routing | Retained: missing information, absent checks, rules that need enforcement, and excess cost each need a different fix. | A01, A10, R01, R17 |
+| Team setup note | Excluded: the linked organization page is outside this read. | None |
+| Guidance versus enforcement | Retained: the five-row table, model judgment of guidelines, zero-exception examples, emphasis as a signal, and removal of hooks for preferences. Generalized: client control names. | R17, A14 |
+| Information the agent cannot see | Retained: the two-question test, examples of facts outside the repository, and costly rediscovery. | A01 |
+| Specific prompts | Retained: file, symptom, definition of fixed, and stated preferences, with both table examples as patterns. Generalized: supply the artifact instead of a description. Excluded: file-mention syntax and the pipe command. | R02, R13 |
+| Thinking phrases and scope | Retained: phrases nudge within the effort setting, "be ambitious" states scope, and open exploratory prompts trade more corrections. | R03, R11 |
+| Interviews and specs | Retained: multiple-choice interview, spec file, fresh build context, and spec as the review target. | R02, R15 |
+| Short instruction files | Retained: attention cost per line, the four content categories, command-only check lines, and the stale, missing-file, and contradiction audit. Excluded: the example file, load-check, generation, and doctor commands, the 200-line memory recommendation, and the personal-preference file. | A01, A10, A11, A14 |
+| Path-scoped rules | Excluded: client instruction files and their path filter are outside this skill's edit scope. Generalized: conditional loading remains in A06 and A22. | A06, A22 |
+| Team procedures in skills | Retained: team knowledge belongs in skills, metadata-first loading, the same discoverability rule, manual invocation for side effects, and the release example. Generalized: the frontmatter field name. | A01, A05, A09 |
+| External tools | Retained: installed CLIs, `--help` for unfamiliar CLIs, and context cost of connected tool servers. Excluded: the server-add command, the server menu, and code-intelligence plugins. | A21, A23 |
+| Checks to run | Retained: "looks done" stops, pass or fail checks, the five check types, the check command, the four strictness levels, evidence requests, and app runs that catch what tests miss. Excluded: goal, verify, and review commands. | A10, R05, R15, R17 |
+| Review against a spec | Retained: the review prompt pattern, correctness-only scope, skip style, and the cost of fixes for every finding. | R15, main justified-edit step |
+| Stop-check enforcement | Generalized: a harness stop check with a block limit. Excluded: the settings JSON, exit code, stderr routing, eight-block constant, and environment variable. | R05, R17 |
+| Rules without exceptions | Retained: the three example rules and the move from guidance to harness configuration. Generalized: keep the skill rule, because tuning cannot change configuration. | R17 |
+| Hooks | Retained: model-judged hooks are not enforcement, block on failure for security checks, and zero-exception scope. Excluded: hook types, event names, JSON, and the formatter command. | R17 |
+| Permission rules and sandbox | Retained: deny rules across modes, the read-rule and fetch-rule gaps, sandbox confinement, and classifier limits. Excluded: rule syntax, mode names, supported platforms, and the strict-mode menu. | R17 |
+| Rule scope | Retained: user, repository, and organization scopes, managed policy precedence, and a small enforced set. Excluded: file paths and trust dialogs. | R17 |
+| Default changes and usage | Retained: inspect usage before changes. Excluded: the usage command, the default model, and plan names. | R01 |
+| Permission modes | Retained: approval fatigue, deterministic rules before the classifier, actions driven by retrieved content, and conversational approvals lost in summaries. Excluded: mode names, block thresholds, configuration keys, the defaults warning, and commands. | R05, R09, R12, R17 |
+| Model and effort | Retained as hypotheses: raise, lower, and maximum effort cases, per-message deeper reasoning, and smaller models for simple delegated jobs. Excluded: model names, defaults, commands, and the keyword. | R03, R06 |
+| Delegation costs | Retained: four payoff situations, token and time costs, no better answer, smaller models, short summaries, usage checks, and enforced tool limits. Excluded: built-in agent names, fork mode, and definition syntax. | R06, R15 |
+| Cost and context | Retained: resent history, fresh contexts between tasks, focused summaries, and background requests. Excluded: window size, cache durations, plan names, and the 10% usage flag. | R05 |
+| Session steering | Retained: a fresh context after two failed corrections, and checkpoints that miss shell changes. Excluded: keys, rewind and side-question commands, and session naming. | A14, R01 |
+| Unattended runs | Retained: the five preflight questions and human sign-off. | R18 |
+| Scripted runs | Retained: tool pre-approval, refusal of other prompts, caps, parsable results, ambient-configuration isolation, and a three-file pilot. Excluded: flags, authentication sources, and output formats. | R18 |
+| Scheduled and event runs | Retained: something must start a run, loop cost in long conversations, branch protection, and watching the first runs. Excluded: commands, login requirements, and trigger setup. | R18 |
+| Parallel sessions | Retained: separate checkouts, missing ignored files and dependencies, setup commands, cleanup, plan approval for batch changes, and a second session as reviewer. Excluded: commands, the include file, settings, cleanup periods, and the 5-to-30-unit split. | A20, A21, R15, R18 |
+| Advice to stop | Retained: emphasis, delegation for context or quality, thinking phrases, keep-going lines, and layout descriptions. Generalized: busywork can signal an obsolete workaround. Excluded: the 1M-token window. | A01, A14, R03–R06, R11, main editing step |
+| Related resources | Excluded: linked pages are outside this read. | None |
+
 ## Adaptations and exclusions
 
 - Existing-skill tuning uses the saved old skill.
@@ -154,9 +206,11 @@ Status meanings:
 - Unattended continuation cannot replace teaching pauses, protected access, or approval.
   The harness supplies bounds and completion events.
 - Model-specific behavior and performance claims are excluded rather than renamed as universal facts.
-  The three original source URLs remain for attribution.
+  The four source URLs remain for attribution.
 - Generic safeguards replace vendor-specific refusal and fallback instructions.
   No source advice authorizes safeguard bypass.
+- Client-guide enforcement advice becomes runtime suggestions.
+  Tuning keeps the skill's own rules and changes no configuration.
 - Historical verification remains distinct from checks of the current rewrite.
   Revised prompts and prose do not establish behavioral improvement.
 
