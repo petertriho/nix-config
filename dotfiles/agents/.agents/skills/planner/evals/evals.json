@@ -88,6 +88,23 @@
         "No EnterPlanMode or ExitPlanMode call is recorded.",
         "No plan file exists, and the repo source files are unchanged."
       ]
+    },
+    {
+      "id": 7,
+      "prompt": "User: This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.\n\nSummary:\n1. Primary Request and Intent:\n   The user invoked the planner skill with this request: \"I want to add an export command to this notes CLI so I can get my notes into a spreadsheet. Help me plan it before anyone writes code.\" The assistant is running the planner interview, one question at a time with AskUserQuestion, and must save the plan to a file when the interview ends.\n\n2. Key Technical Concepts:\n   - Node ESM CLI that parses arguments with `parseArgs` from `node:util`. Commands: `add`, `list`, `delete`.\n   - Notes are flat JSON records: id, title, body, tags (an array), createdAt.\n   - Tests run with `node --test`.\n\n3. Files and Code Sections:\n   - src/store.mjs: `loadNotes`, `saveNotes`, `addNote`, `searchNotes(notes, query)`, `deleteNote`.\n   - src/cli.mjs: one `parseArgs` options object for all commands. `list` supports `--query`.\n   - src/format.mjs: `formatTable(notes)` formats `list` output.\n   - README.md: usage section.\n\n4. Errors and fixes:\n   None.\n\n5. Problem Solving:\n   - Asked which export format the first version should support. The user chose \"CSV only (Recommended)\".\n   - Asked where `notes export` should write its output. The user chose \"stdout, with --out <file> (Recommended)\".\n   - Asked whether export should accept the same --query filter as `list`, and recommended reusing searchNotes so that export results match list results.\n   - Asked which columns the CSV should have. The user chose \"id,title,body,tags,createdAt with tags joined by ; (Recommended)\".\n\n6. All user messages:\n   - \"I want to add an export command to this notes CLI so I can get my notes into a spreadsheet. Help me plan it before anyone writes code.\"\n\n7. Pending Tasks:\n   - Finish the planner interview, then save the plan to .artifacts/<plan-name>/PLAN.md.\n\n8. Current Work:\n   Format, output, filter, and columns are covered. The assistant was about to ask how export should handle cells that a spreadsheet can run as formulas.\n\n9. Optional Next Step:\n   Ask the next interview question, or save the plan if the user ends the interview.\n\nUser: Let's skip the rest. That covers what I care about, so write it up.",
+      "expected_output": "Saves a plan from the summarized interview. The --query recommendation, which the summary does not show as answered, stays out of Settled Decisions.",
+      "files": [],
+      "assertions": [
+        "A plan is saved at <repo>/.artifacts/<kebab-case-name>/PLAN.md.",
+        "Settled Decisions records the format decision (CSV only), the output decision (stdout with --out), and the columns decision, each with the user's answer from the summary.",
+        "The --query filter recommendation (reuse searchNotes) is not recorded as a settled decision. It appears as a proposed default that is labeled as not approved, or as an open question.",
+        "Neither the plan nor the final response states that the user chose, approved, or accepted the --query filter.",
+        "The formula-cell handling, which was never asked, is not recorded as a settled decision.",
+        "The status matches the blockers: `Status: Ready` only if Open Questions lists no blocker, and `Status: Draft` if it lists one.",
+        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions (a clearly irrelevant section can be missing).",
+        "The final response has a `PLAN: <absolute path>` line and a `Status:` line, and it asks no further interview question.",
+        "The repo source files are unchanged, and there is no new commit."
+      ]
     }
   ]
 }

@@ -339,6 +339,7 @@ CASES = {
                    ".artifacts/csv-export/TASKS.md": CSV_TASKS}},
     6: {"slug": "plan-mode-preflight",
         "host": CLAUDE_HOST + " Simulated host state: Claude Code native plan mode is active in this session."},
+    7: {"slug": "summarized-interview", "host": CLAUDE_HOST},
 }
 
 FIRST_MESSAGE = "(none; this is the first message)"

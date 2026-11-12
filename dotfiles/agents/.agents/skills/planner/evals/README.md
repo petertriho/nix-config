@@ -18,7 +18,7 @@ From this directory:
 
 ```sh
 python prepare.py --workspace /absolute/path/to/fresh-workspace \
-  --cases 1 2 3 4 5 6
+  --cases 1 2 3 4 5 6 7
 ```
 
 Select any nonempty subset of IDs. The workspace must be an **absolute,
@@ -80,6 +80,7 @@ controls what each subject can access.
 | 4 | Five answers; an unrelated `notes-export` plan exists | `Ready` plan in a new directory. The existing plan is untouched. `Blockers: None`. |
 | 5 | Explicit revision from CSV to JSON Lines; `TASKS.md` has checked tasks | Edit in place. Keep user context and unaffected decisions. Name invalidated tasks. `TASKS.md` unchanged. |
 | 6 | Native plan mode is active | Asks the user to switch to normal mode. No planning question and no plan-mode tool calls. |
+| 7 | Earlier turns survive only as a context summary that does not show the `--query` answer | Saves a plan. The `--query` recommendation stays out of Settled Decisions. |
 
 ## Integrity and grading
 

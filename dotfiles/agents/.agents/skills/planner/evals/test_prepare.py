@@ -30,7 +30,7 @@ class PrepareTests(unittest.TestCase):
 
     def test_eval_schema(self):
         evals = prepare.load_evals()
-        self.assertEqual(set(evals), set(range(1, 7)))
+        self.assertEqual(set(evals), set(range(1, 8)))
         self.assertEqual(set(prepare.CASES), set(evals))
         raw = json.loads((HERE / "evals.json").read_text(encoding="utf-8"))
         self.assertEqual(raw["skill_name"], "planner")
@@ -49,8 +49,8 @@ class PrepareTests(unittest.TestCase):
                 self.assertRegex(prepare.CASES[case_id]["slug"], r"^[a-z]+(?:-[a-z]+)*$")
 
     def test_all_pairs_paths_bytes_hashes_and_metadata(self):
-        prepare.prepare(self.workspace, range(1, 7))
-        self.assertEqual(len(list(self.workspace.iterdir())), 6)
+        prepare.prepare(self.workspace, range(1, 8))
+        self.assertEqual(len(list(self.workspace.iterdir())), 7)
         for case_id, case in prepare.load_evals().items():
             with self.subTest(case=case_id):
                 slug = prepare.CASES[case_id]["slug"]
@@ -106,7 +106,7 @@ class PrepareTests(unittest.TestCase):
                 self.assertEqual(heads[0], heads[1])
 
     def test_case_shapes(self):
-        prepare.prepare(self.workspace, range(1, 7))
+        prepare.prepare(self.workspace, range(1, 8))
         runs = {case_id: self.run_data(case_id) for case_id in prepare.CASES}
         repo = {case_id: Path(run["cwd"]) for case_id, run in runs.items()}
         for case_id in (1, 2, 6):
@@ -116,6 +116,12 @@ class PrepareTests(unittest.TestCase):
         history, latest = prepare.split_conversation(prepare.load_evals()[3]["prompt"])
         self.assertNotIn("User answer:", history.rsplit("AskUserQuestion", 1)[1])
         self.assertIn("write up", latest)
+        history, latest = prepare.split_conversation(prepare.load_evals()[7]["prompt"])
+        self.assertIn("continued from a previous conversation", history)
+        self.assertNotIn("AskUserQuestion:", history)
+        filter_line = next(line for line in history.splitlines() if "--query filter" in line)
+        self.assertNotIn("The user chose", filter_line)
+        self.assertIn("write it up", latest)
         self.assertIn("Status: Draft", (repo[4] / ".artifacts/notes-export/PLAN.md").read_text())
         tasks = (repo[5] / ".artifacts/csv-export/TASKS.md").read_text()
         self.assertIn("- [x] T1", tasks)
@@ -131,7 +137,7 @@ class PrepareTests(unittest.TestCase):
                 expected = {4: [".artifacts/notes-export/PLAN.md"],
                             5: [".artifacts/csv-export/PLAN.md"]}.get(case_id, [])
                 self.assertEqual(plans, expected)
-        base_heads = {runs[case_id]["fixture_head"] for case_id in (1, 2, 3, 4, 6)}
+        base_heads = {runs[case_id]["fixture_head"] for case_id in (1, 2, 3, 4, 6, 7)}
         self.assertEqual(len(base_heads), 1)
         self.assertNotIn(runs[5]["fixture_head"], base_heads)
 
@@ -193,7 +199,7 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(len(list(self.workspace.iterdir())), 1)
 
     def test_invalid_ids_do_not_create_workspace(self):
-        for ids in ([], [0], [7], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
+        for ids in ([], [0], [8], [1, 1], [1, 999], ["../escape"], [True], [1.0]):
             with self.subTest(ids=ids), self.assertRaises(ValueError):
                 prepare.prepare(self.workspace, ids)
             self.assertFalse(self.workspace.exists())
