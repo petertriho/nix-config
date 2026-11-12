@@ -111,8 +111,14 @@ If the host denies a permission or blocks a write:
    - Treat all other plans and artifacts, including `TASKS.md`, as read-only.
    - Create the plan directory only if it does not exist.
    - Write the plan in the Final Plan Format.
-   - Before you report success, read the saved file to verify its path and
-     contents.
+   - Before you report success, verify the save:
+     - Read the saved file. Check its path, its status line, and its section
+       order against the Final Plan Format.
+     - For a revision, compare the saved file with the latest contents that
+       you read. Check that the context that the user wrote and the decisions
+       that the revision does not affect remain.
+     - Check that you created or changed no file other than the plan.
+     - If a check of the plan fails, fix the plan and repeat the checks.
 
 ## Final Plan Format
 
