@@ -17,7 +17,7 @@
       "src": "https://github.com/vidocqh/auto-indent.nvim"
     },
     "blink-ripgrep.nvim": {
-      "rev": "ff598f51332f67b79f2ebf3d1a2ce75f3588a679",
+      "rev": "209bd9d2c17b0d5aa03820e3a616722cbbc3fbdf",
       "src": "https://github.com/mikavilpas/blink-ripgrep.nvim"
     },
     "blink.cmp": {
@@ -158,7 +158,7 @@
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
-      "rev": "ba2f33b64b996ff5530c4c45a3c432fb63aaa95b",
+      "rev": "aa99b440b266bcf7e03399f149ed46f981555fa3",
       "src": "https://github.com/NeogitOrg/neogit"
     },
     "nui.nvim": {
@@ -261,7 +261,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "92e7b3b2dbd1505fcbcb20f1fdd987b35e9cd34b",
+      "rev": "13a365fa7a893891fe8724390ad7e608d1c1c59b",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
