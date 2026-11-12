@@ -10,13 +10,13 @@ let
   src = fetchFromGitHub {
     owner = "jvm";
     repo = "pi-mono";
-    rev = "f4a9c887d49369fcc0dc2b8a6a11d054646ac8a0";
-    hash = "sha256-YgVnSsf528PBOGZuyk16ROOpGa1p9CcF0odRt/12CyQ=";
+    rev = "a916305a98d6ad5c54b3f43f34d9793f9960d931";
+    hash = "sha256-dxWo30k5tdaP13awT7JmXrfXGyTSAymECJJvu2C/13M=";
   };
 in
 buildNpmPackage (finalAttrs: {
   pname = "pi-codex-tools";
-  version = "pi-skillful@0.5.1-unstable-2026-11-05";
+  version = "pi-skillful@0.5.2-unstable-2026-11-12";
   inherit src;
 
   sourceRoot = "${src.name}/packages/pi-codex-tools";
@@ -32,7 +32,7 @@ buildNpmPackage (finalAttrs: {
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-X3l0lTG8skBWxmD8NRxpyXr3xXqZUSnmH93iacK0r4w=";
+  npmDepsHash = "sha256-WoG/XpCx62Oz/RH9W7UfYfNnJXPlBr3u/jYBNbzFjpg=";
   npmDepsFetcherVersion = 2;
 
   # Ignore lifecycle scripts so npm never attempts a native build. Disable npm

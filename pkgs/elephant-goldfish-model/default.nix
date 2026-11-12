@@ -17,8 +17,8 @@ stdenvNoCC.mkDerivation {
   src = fetchFromGitHub {
     owner = "google";
     repo = "elephant-goldfish-model";
-    rev = "8c29f560e300471d458b71d1131834e097b18d4f";
-    hash = "sha256-PA2J1pi57uGCdsZ3bYp6RHQiwJTGU1uqtc+JqaE3qI4=";
+    rev = "84145300b9e0e3fadd21617da345c19445c74219";
+    hash = "sha256-PCn3+oWSS3seypbOl9tOjdkIbBA8Cg/7puy1yEDpVNk=";
   };
 
   nativeBuildInputs = [ python3 ];
