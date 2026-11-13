@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "pi-context-view";
-  version = "0.8.4-unstable-2026-11-10";
+  version = "0.8.4-unstable-2026-11-12";
 
   src = fetchFromGitHub {
     owner = "dimk90";
     repo = "pi-context-view";
-    rev = "f9aba2352ea3a5dcfbf97f259cf2d5d7dbc10f3a";
-    hash = "sha256-yHPAK9eWrOGQn55r47RqE67Ef6bYJ8ZBCb6eQj1gR0Q=";
+    rev = "bb3ab6730972a4a1a6476cdcb456bf1cb78430e9";
+    hash = "sha256-ovYZjSRH5DvOCJxEEeisihUgy4sKVBpVpdwmE1UUL2c=";
   };
 
   dontBuild = true;
