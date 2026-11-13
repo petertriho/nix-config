@@ -18,6 +18,7 @@
     ./jscpd.nix
     ./modern-web-guidance.nix
     ./nono.nix
+    ./paseo.nix
     ./pi.nix
     ./plannotator.nix
     ./playwriter.nix

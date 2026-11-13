@@ -269,6 +269,7 @@ in
     impeccable.enable = true;
     jscpd.enable = true;
     modern-web-guidance.enable = true;
+    paseo.enable = true;
     plannotator.enable = true;
     playwriter.enable = false;
     rea.enable = lib.mkDefault false;
