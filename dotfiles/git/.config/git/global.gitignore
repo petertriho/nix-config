@@ -15,3 +15,5 @@ autoresearch
 bench
 docs/superpowers
 openspec
+
+**/.claude/settings.local.json
