@@ -289,6 +289,7 @@ in
     };
     plannotator.enable = true;
     playwriter.enable = false;
+    portless.enable = true;
     rea.enable = lib.mkDefault false;
     repowise.enable = false;
     spawnpoint.enable = false;
