@@ -37,6 +37,7 @@ STABLE_PACKAGES=(
     "chrome-extensions.chromium-web-store"
     "codexbar"
     "donsetch"
+    "modern-web-guidance"
     "playwriter"
     "pybetter"
     "strix"

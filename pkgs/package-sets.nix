@@ -78,6 +78,18 @@ let
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ final.pkg-config ];
       });
 
+      # Nix 2.35 `nix flake metadata` reports the flake's store path but does not
+      # copy the source there. nix-update then fails on `getFlake <path>` with
+      # "opening file ... No such file or directory". `nix flake prefetch` copies
+      # the source and reports the same path and `dir` fields.
+      nix-update = prev.nix-update.overridePythonAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace nix_update/options.py \
+            --replace-fail '["nix", "flake", "metadata", "--json"]' '["nix", "flake", "prefetch", "--json", "."]' \
+            --replace-fail 'path = metadata.get("path")' 'path = metadata.get("storePath")'
+        '';
+      });
+
       pythonPackagesExtensions = prev.pythonPackagesExtensions or [ ] ++ [
         (_final: prev': {
           autoflake = prev'.autoflake.overridePythonAttrs (
