@@ -1026,11 +1026,76 @@ function tool:brew {
         echo_info "Updating brew formulae..."
         brew update
         echo_info "Upgrading packages..."
-        brew upgrade --greedy --yes
+        # Without --greedy, brew upgrades an auto_updates cask only when its
+        # app bundle is older than the tap, so it never downgrades an app
+        # that updated itself.
+        brew upgrade --yes
         echo_success "Homebrew packages updated"
     else
         echo_warning "Homebrew not found, skipping"
     fi
+}
+
+# Bump Casks/kiri.rb in this repo. Brew sees the bump only after a push.
+# Feed and checksum problems leave the cask as it is, so a full update goes on.
+function tool:brew:casks {
+    local cask_file="$NIX_CONFIG_PATH/Casks/kiri.rb"
+    local feed="https://download.runkiri.com/latest-mac"
+    local releases="https://github.com/libracoder/kiri/releases/download"
+    local version intel_version current sums arm_sha intel_sha tmp
+
+    echo_header "Updating Homebrew casks"
+
+    if ! version=$(curl -fsSL "$feed-arm64.json" | jq_query -er .version) \
+        || ! intel_version=$(curl -fsSL "$feed-x86_64.json" | jq_query -er .version); then
+        echo_warning "kiri: could not read the update feeds, skipping"
+        return 0
+    fi
+    if [[ ! $version =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+        echo_warning "kiri: unexpected feed version '$version', skipping"
+        return 0
+    fi
+    # Both architectures share one version line in the cask.
+    if [[ $version != "$intel_version" ]]; then
+        echo_warning "kiri: arm64 feed has $version but x86_64 feed has $intel_version, skipping"
+        return 0
+    fi
+
+    current=$(sed -nE 's/^  version "([^"]+)"$/\1/p' "$cask_file")
+    if [[ $version == "$current" ]]; then
+        echo_success "kiri $current is up to date"
+        return 0
+    fi
+
+    if ! sums=$(curl -fsSL "$releases/v$version/SHA256SUMS"); then
+        echo_warning "kiri: could not download SHA256SUMS for $version, skipping"
+        return 0
+    fi
+    arm_sha=$(awk -v file="Kiri-$version-arm64.dmg" '$2 == file { print $1 }' <<< "$sums")
+    intel_sha=$(awk -v file="Kiri-$version-x86_64.dmg" '$2 == file { print $1 }' <<< "$sums")
+    if [[ ! $arm_sha =~ ^[0-9a-f]{64}$ || ! $intel_sha =~ ^[0-9a-f]{64}$ ]]; then
+        echo_warning "kiri: SHA256SUMS for $version has no hash for one or both DMGs, skipping"
+        return 0
+    fi
+
+    # sed -i takes different arguments on macOS and Linux, so write a copy.
+    tmp=$(mktemp)
+    sed -E \
+        -e "s/^(  version )\"[^\"]+\"$/\1\"$version\"/" \
+        -e "s/^(  sha256 arm: +)\"[0-9a-f]{64}\",$/\1\"$arm_sha\",/" \
+        -e "s/^( +intel: )\"[0-9a-f]{64}\"$/\1\"$intel_sha\"/" \
+        "$cask_file" > "$tmp"
+    if ! grep -qxF "  version \"$version\"" "$tmp" \
+        || ! grep -qE "^  sha256 arm: +\"$arm_sha\",$" "$tmp" \
+        || ! grep -qF "intel: \"$intel_sha\"" "$tmp"; then
+        rm -f "$tmp"
+        echo_warning "kiri: version or sha256 lines in $cask_file have an unexpected layout, skipping"
+        return 0
+    fi
+    # cat keeps the mode of the cask file. mktemp makes 0600 files.
+    cat "$tmp" > "$cask_file"
+    rm -f "$tmp"
+    echo_success "kiri: $current -> $version (commit and push Casks/kiri.rb for brew to see it)"
 }
 
 function tool:brew:clean {
@@ -1098,6 +1163,7 @@ function tool:all {
     # shellcheck disable=SC2119
     tool:nix
     if [[ $OS == "darwin" ]]; then
+        tool:brew:casks
         tool:brew
     fi
     tool:clean
