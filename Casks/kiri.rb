@@ -34,13 +34,13 @@ cask "kiri" do
       ],
       trash:     [
         "~/.config/fish/conf.d/kiri.fish",
+        "~/.docker/buildx/activity/kiri-build",
+        "~/.docker/buildx/instances/kiri",
+        "~/.docker/buildx/instances/kiri-build",
         "~/.docker/contexts/meta/80d7688032dda428a5d1e0eea7ad434d219b770b7d3a0646fd58695e40107755",
         "~/.kiri",
         "~/Library/Application Support/Kiri",
         "~/Library/Caches/dev.kiri.app",
-        "~/Library/HTTPStorages/dev.kiri.app",
-        "~/Library/Preferences/dev.kiri.app.plist",
-        "~/Library/Saved Application State/dev.kiri.app.savedState",
         "~/Library/WebKit/dev.kiri.app",
       ],
       rmdir:     "~/Kiri"
