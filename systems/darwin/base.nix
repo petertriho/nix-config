@@ -56,6 +56,8 @@
     enable = true;
   };
 
+  services.portless.enable = true;
+
   system = {
     primaryUser = config.user;
     configurationRevision = outputs.rev or outputs.dirtyRev or null;
