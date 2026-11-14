@@ -44,7 +44,15 @@ in
           "nikitabobko/tap"
           "steipete/tap"
           # "TabularisDB/tabularis"
-        ];
+        ]
+      ++ [
+        # Casks/ in this repo. Brew reads the pushed state, not the working tree.
+        {
+          name = "petertriho/nix-config";
+          clone_target = "https://github.com/petertriho/nix-config.git";
+          trusted = true;
+        }
+      ];
     brews = [
       # "gromgit/brewtils/taproom"
       # "mas"
@@ -70,6 +78,7 @@ in
       "nikitabobko/tap/aerospace"
       "obsidian"
       "orbstack"
+      "petertriho/nix-config/kiri"
       "reminders-menubar"
       "steipete/tap/codexbar"
       "thaw@beta"
