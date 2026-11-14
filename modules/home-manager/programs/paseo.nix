@@ -118,7 +118,12 @@ in
 
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
-    programs.ai.skills = lib.mapAttrs (_: source: { inherit source; }) selectedSkills;
+    # Pi also loads ~/.agents/skills, where the daemon installs its bundled copy of each skill at
+    # startup. A second copy in the pi skills directory makes pi report a name collision.
+    programs.ai.skills = lib.mapAttrs (_: source: {
+      inherit source;
+      clients.pi.enable = false;
+    }) selectedSkills;
 
     # Paseo stores its font settings in each browser's local storage, not in config.json. Paste
     # these into Settings > Appearance. A value replaces Paseo's default stack, so each one ends
