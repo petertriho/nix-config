@@ -32,9 +32,9 @@ let
   };
   defaultsFile = jsonFormat.generate "paseo-default-config.json" paseoDefaults;
 
-  # The upstream Claude Code merge. The check and the merger share it, so the check validates
-  # the same result that the merger writes.
-  jqOperation = ''if ($dynamic | type) == "object" and ($static | type) == "object" then $dynamic * $static else error("expected JSON objects") end'';
+  # The check and the merger share this operation, so the check validates the same result that
+  # the merger writes.
+  jqOperation = config.lib.meta.jqMergeObjects;
   mergeFilter = ''
     if ($dynamic | length) != 1 or ($static | length) != 1 then
       error("expected exactly one JSON value")
@@ -136,13 +136,11 @@ in
     home.activation.paseoMutableSettings = lib.mkIf (cfg.settings != { }) (
       lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         ${checkMergedConfig}
-        ${lib.hm.generators.mkImpureConfigMerger {
-          inherit pkgs jqOperation;
+        ${config.lib.meta.mkMutableJsonConfig {
+          inherit jqOperation;
           path = configPath;
           staticSettings = settingsFile;
-          format = "json";
           empty = builtins.toJSON paseoDefaults;
-          mode = "600";
         }}
       ''
     );

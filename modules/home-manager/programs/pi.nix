@@ -55,50 +55,6 @@ let
     ) (config.programs.mcp.servers // cfg.mcpServers);
   };
 
-  # Keep runtime edits writable. Nix values win, and jq replaces arrays.
-  mutableJsonActivation =
-    target: source:
-    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      piConfigFile=${lib.escapeShellArg target}
-      piConfigNix=${source}
-      piJq=${pkgs.jq}/bin/jq
-
-      # Replace the target atomically and remove a failed temporary file.
-      function piWriteConfig {
-        local target="$1"
-        local tmp
-        tmp=$(mktemp "$target.tmp.XXXXXX") || return 1
-
-        if ! cat > "$tmp" || ! mv "$tmp" "$target"; then
-          rm -f "$tmp"
-          return 1
-        fi
-      }
-
-      # Remove a stale symlink if linkGeneration did not remove it.
-      if [[ -L "$piConfigFile" ]]; then
-        run rm $VERBOSE_ARG "$piConfigFile"
-      fi
-
-      run mkdir -p $VERBOSE_ARG "$(dirname "$piConfigFile")"
-
-      if [[ -f "$piConfigFile" && ! -L "$piConfigFile" ]]; then
-        if "$piJq" -e . "$piConfigFile" > /dev/null 2>&1; then
-          piConfigMerged=$("$piJq" -s '.[0] * .[1]' "$piConfigFile" "$piConfigNix")
-        else
-          warnEcho "$piConfigFile is not valid JSON; backing it up to $piConfigFile.bak"
-          run mv $VERBOSE_ARG "$piConfigFile" "$piConfigFile.bak"
-          piConfigMerged=$(cat "$piConfigNix")
-        fi
-      else
-        piConfigMerged=$(cat "$piConfigNix")
-      fi
-
-      run piWriteConfig "$piConfigFile" <<< "$piConfigMerged"
-      unset piConfigFile piConfigNix piJq piConfigMerged
-      unset -f piWriteConfig
-    '';
-
   blackholePrimaryModel = {
     provider = "cliproxyapi";
     id = "gpt-6-luna";
@@ -110,7 +66,6 @@ let
     thinking = "low";
   };
   blackholeOwnedSettings = {
-    model = blackholePrimaryModel;
     observerModel = blackholePrimaryModel;
     reflectorModel = blackholePrimaryModel;
     dropperModel = blackholePrimaryModel;
@@ -120,14 +75,11 @@ let
     sessionFallback = true;
   };
   blackholeOwnedJson = jsonFormat.generate "pi-blackhole-owned.json" blackholeOwnedSettings;
-  blackholeBaselineJson = jsonFormat.generate "pi-blackhole-baseline.json" (
-    blackholeOwnedSettings
-    // {
-      compaction = "auto";
-      compactionEngine = "blackhole";
-      memory = true;
-    }
-  );
+  blackholeBaselineSettings = blackholeOwnedSettings // {
+    compaction = "auto";
+    compactionEngine = "blackhole";
+    memory = true;
+  };
 
   outputStyleIsValid = cfg.outputStyle == null || builtins.hasAttr cfg.outputStyle cfg.outputStyles;
   selectedOutputStyle =
@@ -252,10 +204,16 @@ in
   # output-style and MCP options. It declares no default provider, model, or thinking level.
   #
   # settings.json is declared here but kept a mutable file: the upstream
-  # module's read-only store symlink is disabled and an activation script
+  # module's read-only store symlink is disabled and `mkMutableJsonConfig`
   # deep-merges the nix keys into the real file on every switch (nix wins on
   # declared keys). This lets pi persist model/thinking/other runtime settings
-  # itself, which would otherwise fail against a store symlink.
+  # itself, which would otherwise fail against a store symlink. An unparseable
+  # file fails the switch and stays unchanged.
+  #
+  # Do not use the upstream `mutableSettings` option. Its filter matches local
+  # packages by full path, so it keeps the old store path of a rebuilt package
+  # beside the new one, and pi then loads both. The merge here replaces the
+  # whole `packages` array.
   options.programs.pi-coding-agent = {
     outputStyles = lib.mkOption {
       type = with lib.types; attrsOf (either lines path);
@@ -459,49 +417,33 @@ in
         piHistoryState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piHistoryStateDir}
         '';
-        piMutableSettings = mutableJsonActivation "${cfg.configDir}/settings.json" settingsJson;
+        piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] (
+          config.lib.meta.mkMutableJsonConfig {
+            path = "${cfg.configDir}/settings.json";
+            staticSettings = settingsJson;
+          }
+        );
         # Preserve CLI-added servers and runtime enablement changes.
         piMutableMcp = lib.mkIf (config.programs.mcp.enable || cfg.mcpServers != { }) (
-          mutableJsonActivation "${cfg.configDir}/mcp.json" mcpJson
+          lib.hm.dag.entryAfter [ "linkGeneration" ] (
+            config.lib.meta.mkMutableJsonConfig {
+              path = "${cfg.configDir}/mcp.json";
+              staticSettings = mcpJson;
+            }
+          )
         );
         # Keep unrelated runtime tuning writable, but replace complete worker
-        # model objects so stale per-model tuning cannot survive activation.
-        piBlackholeConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-          blackholeFile=${lib.escapeShellArg "${cfg.configDir}/pi-blackhole/pi-blackhole-config.json"}
-          blackholeJq=${pkgs.jq}/bin/jq
-          blackholeOwned=${blackholeOwnedJson}
-          blackholeBaseline=${blackholeBaselineJson}
-
-          function writeBlackholeConfig {
-            local target="$1"
-            local tmp
-            tmp=$(mktemp "$target.tmp.XXXXXX") || return 1
-            if ! cat > "$tmp" || ! mv "$tmp" "$target"; then
-              rm -f "$tmp"
-              return 1
-            fi
+        # model objects (a shallow `+`, not `*`) so stale per-model tuning
+        # cannot survive activation. A missing or empty file starts from the
+        # baseline.
+        piBlackholeConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] (
+          config.lib.meta.mkMutableJsonConfig {
+            path = "${cfg.configDir}/pi-blackhole/pi-blackhole-config.json";
+            staticSettings = blackholeOwnedJson;
+            empty = builtins.toJSON blackholeBaselineSettings;
+            jqOperation = ''if ($dynamic | type) == "object" and ($static | type) == "object" then $dynamic + $static else error("expected JSON objects") end'';
           }
-
-          if [[ -L "$blackholeFile" || ( -e "$blackholeFile" && ! -f "$blackholeFile" ) ]]; then
-            echo "pi-blackhole: $blackholeFile must be a regular file, not a link or special file; repair it before activating" >&2
-            exit 1
-          fi
-          if [[ -f "$blackholeFile" ]] &&
-            ! "$blackholeJq" -e -s 'length == 1 and (.[0] | type == "object")' "$blackholeFile" > /dev/null 2>&1; then
-            echo "pi-blackhole: $blackholeFile must contain one valid JSON object; repair it before activating" >&2
-            exit 1
-          fi
-
-          run mkdir -p $VERBOSE_ARG "$(dirname "$blackholeFile")"
-          if [[ -f "$blackholeFile" ]]; then
-            blackholeMerged=$("$blackholeJq" -s '.[0] + .[1] | del(.model)' "$blackholeFile" "$blackholeOwned")
-          else
-            blackholeMerged=$(cat "$blackholeBaseline")
-          fi
-          run writeBlackholeConfig "$blackholeFile" <<< "$blackholeMerged"
-          unset blackholeFile blackholeJq blackholeOwned blackholeBaseline blackholeMerged
-          unset -f writeBlackholeConfig
-        '';
+        );
       };
     };
   };

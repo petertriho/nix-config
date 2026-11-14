@@ -24,20 +24,9 @@ in
 
   # Keep account and server settings writable and out of the Nix store.
   home.activation.rbwMutableConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] (
-    lib.hm.generators.mkImpureConfigMerger {
-      inherit pkgs;
+    config.lib.meta.mkMutableJsonConfig {
       path = "${configDir}/rbw/config.json";
       staticSettings = jsonFormat.generate "rbw-config.json" settings;
-      format = "json";
-      empty = "{}";
-      mode = "600";
-      jqOperation = ''
-        if ($dynamic | type) == "object" and ($static | type) == "object" then
-          $dynamic * $static
-        else
-          error("expected JSON objects")
-        end
-      '';
     }
   );
 }
