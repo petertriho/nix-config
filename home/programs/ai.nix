@@ -269,7 +269,24 @@ in
     impeccable.enable = true;
     jscpd.enable = true;
     modern-web-guidance.enable = true;
-    paseo.enable = true;
+    paseo = {
+      enable = true;
+      settings = {
+        daemon = {
+          autoArchiveAfterMerge = true;
+          browserTools.enabled = true;
+          mcp.injectIntoAgents = true;
+        };
+        agents.providers = {
+          antigravity.enabled = false;
+          codex.enabled = false;
+          copilot.enabled = false;
+          muse.enabled = false;
+          opencode.enabled = false;
+        };
+        features.webUi.enabled = true;
+      };
+    };
     plannotator.enable = true;
     playwriter.enable = false;
     rea.enable = lib.mkDefault false;
