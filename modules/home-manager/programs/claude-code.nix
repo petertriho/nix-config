@@ -16,7 +16,8 @@ in
 
     # Activation merges these keys into a writable settings.json, so Claude
     # Code can still save runtime changes. Declared keys win on every switch.
-    # `model` and `effortLevel` stay undeclared so `/model` changes persist.
+    # `model`, `effortLevel`, and `modelSettings` stay undeclared so `/model`
+    # changes persist.
     programs.claude-code.mutableSettings = true;
     programs.claude-code.settings = {
       # Teammate child processes that bypass the Nix wrapper only see these.
@@ -37,8 +38,6 @@ in
       # The Artifact tool needs the bundled `artifact-design` skill.
       disableBundledSkills = false;
       disableRemoteControl = true;
-      # `disableArtifact` is deprecated, and Claude Code ignores `false` there.
-      enableArtifact = true;
       enableWorkflows = false;
       workflowKeywordTriggerEnabled = false;
       statusLine = {
@@ -49,8 +48,10 @@ in
       outputStyle = "ste";
       autoCompactWindow = 400000;
       idleCompaction = false;
+      awaySummaryEnabled = false;
       cleanupPeriodDays = 180;
       tui = "fullscreen";
+      verbose = false;
       skipAutoPermissionPrompt = true;
       theme = "custom:stylix";
       editorMode = "vim";
