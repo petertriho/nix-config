@@ -67,6 +67,7 @@
         { inherit (chromium-web-store) id version crxPath; }
       ];
     };
+    orca.enable = true;
   };
 
   gtk = {
