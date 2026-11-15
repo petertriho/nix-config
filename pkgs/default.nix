@@ -26,6 +26,7 @@ with pkgs;
   mermaid-ascii = callPackage ./mermaid-ascii { };
   modern-web-guidance = callPackage ./modern-web-guidance { };
   nono-packs = callPackage ./nono-packs { };
+  orca-skills = callPackage ./orca-skills { };
   playwriter = callPackage ./playwriter { };
   portless = callPackage ./portless { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
