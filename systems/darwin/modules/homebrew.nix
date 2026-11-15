@@ -42,6 +42,7 @@ in
         [
           # "gromgit/brewtils"
           "nikitabobko/tap"
+          "stablyai/orca"
           "steipete/tap"
           # "TabularisDB/tabularis"
         ]
@@ -80,6 +81,7 @@ in
       "orbstack"
       "petertriho/nix-config/kiri"
       "reminders-menubar"
+      "stablyai/orca/orca"
       "steipete/tap/codexbar"
       "thaw@beta"
       # "TabularisDB/tabularis/tabularis"
