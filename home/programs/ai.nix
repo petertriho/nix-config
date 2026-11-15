@@ -269,8 +269,21 @@ in
     impeccable.enable = true;
     jscpd.enable = true;
     modern-web-guidance.enable = true;
+    # Orca and Paseo skills both claim handoff and delegation requests. Each of
+    # these skills runs only when the user names its tool, so a plain
+    # "handoff" goes to the `handoff` skill. The Orca app and module are
+    # enabled per profile.
+    orca.skillDescriptions = {
+      orca-cli = ''Operate Orca-managed worktrees, folder contexts, terminals, repos, automations, worktree comments, and Orca's embedded browser through the `orca` CLI. Use only when the user names Orca or the task involves Orca state, such as "$orca-cli", "Orca worktree", "Orca child worktree", "spawn codex/claude in an Orca worktree", "read/wait/send Orca terminal", "Orca handoff", "hand this to an Orca agent", or "Orca browser". Also use for opening, testing, screenshotting, or checking how a local or external web page renders while working in Orca, unless the user or project names another browser tool; plain HTTP or API calls (curl, fetch) do not need it. Prefer it over raw git worktree, ad hoc PTYs, or Computer Use when Orca state is involved. Do not use it for a handoff request that does not name Orca.'';
+      orchestration = ''Run work in separate Orca worker agents and get their results back. Use only when the user names Orca, such as "Orca worker" or "have an Orca Codex worker review this and report back", or asks for Orca supervision (monitor, task DAGs, ask/reply, decision gates). Also use when you are a dispatched Orca worker (a prompt with Task and Dispatch IDs: ask, worker_done). Otherwise prefer your own subagents, including for long or parallel work. Use `orca-cli` for an Orca handoff with nothing expected back, and for Orca terminal control, worktree management, and reading or waiting on Orca terminals.'';
+    };
     paseo = {
       enable = true;
+      skillDescriptions = {
+        paseo-advisor = ''Spin up a single Paseo agent as an advisor for a second opinion on the current task. Use only when the user names Paseo, such as "Paseo advisor" or "ask a Paseo agent what it thinks", and wants an outside take without delegating the work itself.'';
+        paseo-committee = ''Form a committee of two high-reasoning Paseo agents to step back, do root cause analysis, and produce a plan. Use only when the user names Paseo, such as "Paseo committee", for example when stuck, looping, tunnel-visioning, or facing a hard planning problem.'';
+        paseo-handoff = ''Hand off the current task to a Paseo agent with full context. Use only when the user names Paseo, such as "Paseo handoff" or "hand this to a Paseo agent". Do not use it for a handoff request that does not name Paseo.'';
+      };
       settings = {
         daemon = {
           autoArchiveAfterMerge = true;

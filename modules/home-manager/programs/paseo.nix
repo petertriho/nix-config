@@ -12,9 +12,17 @@ let
   availableSkills = builtins.attrNames (
     lib.filterAttrs (_: type: type == "directory") (builtins.readDir skillsDir)
   );
-  selectedSkills = builtins.listToAttrs (
-    map (name: lib.nameValuePair name "${skillsDir}/${name}") cfg.skills
-  );
+  skillSource =
+    name:
+    if cfg.skillDescriptions ? ${name} then
+      config.lib.meta.mkSkillWithDescription {
+        name = "paseo-${name}";
+        source = "${skillsDir}/${name}";
+        description = cfg.skillDescriptions.${name};
+      }
+    else
+      "${skillsDir}/${name}";
+  selectedSkills = lib.genAttrs cfg.skills skillSource;
 
   configPath = "${config.home.homeDirectory}/.paseo/config.json";
   settingsFile = jsonFormat.generate "paseo-config.json" cfg.settings;
@@ -96,6 +104,19 @@ in
       description = "Paseo upstream skill folder names to expose to supported LLM clients.";
     };
 
+    skillDescriptions = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = {
+        paseo-handoff = "Hand off the current task to a Paseo agent. Use only when the user names Paseo.";
+      };
+      description = ''
+        Replacement `description` values for selected skills, keyed by skill
+        folder name. Use them when another tool's skills claim the same
+        requests.
+      '';
+    };
+
     settings = lib.mkOption {
       inherit (jsonFormat) type;
       default = { };
@@ -117,6 +138,13 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = lib.all (name: lib.elem name cfg.skills) (lib.attrNames cfg.skillDescriptions);
+        message = "programs.paseo.skillDescriptions names a skill that is not in programs.paseo.skills.";
+      }
+    ];
+
     home.packages = [ cfg.package ];
     # Pi also loads ~/.agents/skills, where the daemon installs its bundled copy of each skill at
     # startup. A second copy in the pi skills directory makes pi report a name collision.
