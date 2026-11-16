@@ -40,6 +40,17 @@ let
   };
   defaultsFile = jsonFormat.generate "paseo-default-config.json" paseoDefaults;
 
+  # Electron keeps the user data of the packaged app, named "Paseo", in the application data folder
+  # of the platform. The settings are the `settings` object of a versioned document.
+  desktopSettingsPath =
+    if pkgs.stdenv.hostPlatform.isDarwin then
+      "${config.home.homeDirectory}/Library/Application Support/Paseo/desktop-settings.json"
+    else
+      "${config.xdg.configHome}/Paseo/desktop-settings.json";
+  desktopSettingsFile = jsonFormat.generate "paseo-desktop-settings.json" {
+    settings = cfg.desktopSettings;
+  };
+
   # The check and the merger share this operation, so the check validates the same result that
   # the merger writes.
   jqOperation = config.lib.meta.jqMergeObjects;
@@ -135,6 +146,27 @@ in
         or voice keys.
       '';
     };
+
+    desktopSettings = lib.mkOption {
+      inherit (jsonFormat) type;
+      default = { };
+      example = lib.literalExpression ''
+        {
+          daemon.manageBuiltInDaemon = false;
+        }
+      '';
+      description = ''
+        Settings that activation merges into the `settings` object of the
+        writable {file}`desktop-settings.json` of Paseo Desktop. Declared values
+        win, and undeclared keys stay. Paseo Desktop 0.15.4 knows
+        `releaseChannel`, `notifications.playSound`,
+        `daemon.manageBuiltInDaemon`, and `daemon.keepRunningAfterQuit`. It
+        ignores other keys and uses the default for a value of the wrong type,
+        and it reports neither. The app reads the file once when it starts, and
+        it writes its own copy back when a setting changes in the app. Quit the
+        app before a switch, or start it again after the switch.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -176,6 +208,18 @@ in
           empty = builtins.toJSON paseoDefaults;
         }}
       ''
+    );
+
+    # A new file holds only the declared settings. When Paseo Desktop reads it, it fills the
+    # other keys with their defaults.
+    home.activation.paseoDesktopSettings = lib.mkIf (cfg.desktopSettings != { }) (
+      lib.hm.dag.entryAfter [ "linkGeneration" ] (
+        config.lib.meta.mkMutableJsonConfig {
+          path = desktopSettingsPath;
+          staticSettings = desktopSettingsFile;
+          empty = builtins.toJSON { version = 1; };
+        }
+      )
     );
   };
 }
