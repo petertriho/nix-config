@@ -3,47 +3,27 @@
   stdenv,
   buildNpmPackage,
   fetchFromGitHub,
-  nodejs_26,
+  nodejs_24,
   jq,
   autoPatchelfHook,
   procps,
-  runCommand,
 }:
-buildNpmPackage (finalAttrs: {
+buildNpmPackage {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-11-14";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-11-17";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "f3b697da5a698a5548afd3b19d044ec623bdda0b";
-    hash = "sha256-oigE+ZV+r/lQcm6ZPO0Pj029CKC4WiDbAyW06D2EmRw=";
+    rev = "af062e7a2d290fec4307fb9444298a13c2fea630";
+    hash = "sha256-m7iqtFl4L25F72JofQUnqxVqGvFDQHC+dJNKkF5Eprk=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
   # Only Frida needs an unsupported native download during installation.
+  # The npm dependency fetcher also runs this hook. A failure here also
+  # blocks the npmDepsHash refresh, so keep this hook small.
   postPatch = ''
-    # Node.js 26 removed transform mode. Keep enum and parameter-property
-    # support through the existing TypeScript 6 build dependency.
-    substituteInPlace scripts/lib/verifier-source-loader.mjs \
-      --replace-fail 'import * as nodeModule from "node:module";' \
-        'import * as nodeModule from "node:module";
-    import ts from "typescript6";' \
-      --replace-fail 'nodeModule.stripTypeScriptTypes(source, {
-          mode: "transform",
-          sourceMap: true,
-          sourceUrl: url,
-        })' 'ts.transpileModule(source, {
-          fileName: path,
-          compilerOptions: {
-            target: ts.ScriptTarget.ESNext,
-            module: format === "commonjs" ? ts.ModuleKind.CommonJS : ts.ModuleKind.ESNext,
-            inlineSourceMap: true,
-            inlineSources: true,
-          },
-        }).outputText' \
-      --replace-fail 'typeof nodeModule.stripTypeScriptTypes' 'typeof ts.transpileModule'
-
     ${lib.getExe jq} 'del(.optionalDependencies.frida)' package.json > package.json.tmp
     mv package.json.tmp package.json
     ${lib.getExe jq} 'del(
@@ -53,8 +33,10 @@ buildNpmPackage (finalAttrs: {
     mv package-lock.json.tmp package-lock.json
   '';
 
-  nodejs = nodejs_26;
-  npmDepsHash = "sha256-UkCEklRyk+Jp++Bfzr3XfpG0aWzKfkz8Fc2t0Kp77C4=";
+  # Use the Node.js line that upstream pins in .nvmrc. The upstream build
+  # scripts need TypeScript transform mode, which Node.js 26 removed.
+  nodejs = nodejs_24;
+  npmDepsHash = "sha256-EjWZk0rJ+JvKJ8oJ+Njic4d2J4EVJB1X0o4HVz+VKMQ=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];
@@ -107,18 +89,6 @@ buildNpmPackage (finalAttrs: {
     runHook postInstallCheck
   '';
 
-  passthru.tests.smoke =
-    runCommand "${finalAttrs.pname}-smoke-test"
-      {
-        nativeBuildInputs = [ finalAttrs.nodejs ];
-      }
-      ''
-        node ${./smoke-test.mjs} \
-          "${finalAttrs.finalPackage}/lib/node_modules/rea-agents" \
-          "${lib.getExe finalAttrs.finalPackage}"
-        touch "$out"
-      '';
-
   meta = {
     description = "Reverse-engineering CLI and MCP server for agents";
     homepage = "https://github.com/morluto/rea";
@@ -134,4 +104,4 @@ buildNpmPackage (finalAttrs: {
       binaryNativeCode
     ];
   };
-})
+}

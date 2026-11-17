@@ -51,7 +51,7 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "modern-web-guidance";
-  version = "1.0.0";
+  version = "1.0.1";
 
   # Upstream builds the npm package from this repository. Every release tag
   # carries the vector cache for all guide chunks. Commits between releases
@@ -60,7 +60,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     owner = "GoogleChrome";
     repo = "modern-web-guidance-src";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-K/rf6aArR2Lv4tBR6bez4UJVcIEyp0sJaJeK2Nu4fhE=";
+    hash = "sha256-1DzRpac6sJYrjxPAk/ESNx1p4UK5Ma7dx9kGsm+F8xA=";
   };
 
   pnpmDeps = fetchPnpmDeps {
@@ -68,7 +68,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     postPatch = pruneDependencies;
     pnpm = pnpm_10;
     fetcherVersion = 5;
-    hash = "sha256-RrGnfcYlVewb+nFTmgs4uXfS3zErMYW+ugFHcjXYIVg=";
+    hash = "sha256-4NiNPoVA6oEqsSU/CIZU/kiERD9QqLbqZHIcCAGudEY=";
   };
 
   nativeBuildInputs = [

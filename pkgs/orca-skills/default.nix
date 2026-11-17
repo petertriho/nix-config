@@ -9,14 +9,14 @@
 # the app still works.
 stdenvNoCC.mkDerivation {
   pname = "orca-skills";
-  version = "1.4.259-unstable-2026-11-15";
+  version = "1.4.261-unstable-2026-11-17";
 
   src = fetchFromGitHub {
     owner = "stablyai";
     repo = "orca";
-    rev = "360233857aaa1525d25bc66c91f87415a35a009c";
+    rev = "8abbc914ef5f7a4d06d014d9c05ad3db6fc54fd7";
     sparseCheckout = [ "skills" ];
-    hash = "sha256-3d2Yc3NT/5RxXFjPfG4DvCPXIv/J4OpcebzdQOHVLDg=";
+    hash = "sha256-lGrzd0CEZ0zbGUgvQCmxqCWbefa5ZNG+89JsPPF31ho=";
   };
 
   dontBuild = true;

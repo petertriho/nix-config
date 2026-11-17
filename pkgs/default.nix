@@ -32,8 +32,8 @@ with pkgs;
   pybetter = callPackage ./pybetter { inherit pkgs; };
   python-validity = callPackage ./python-validity { };
   rea = callPackage ./rea {
-    # REA needs a newer Node.js patch release than the unstable pin supplies.
-    inherit (stablePkgs) nodejs_26;
+    # REA engines need a recent Node.js 24 patch release.
+    inherit (stablePkgs) nodejs_24;
   };
   repowise = callPackage ./repowise {
     inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;

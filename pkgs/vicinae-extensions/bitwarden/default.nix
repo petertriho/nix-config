@@ -7,7 +7,7 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "vicinae-bitwarden";
-  version = "0-unstable-2026-11-04";
+  version = "0-unstable-2026-11-17";
 
   # Keep the store provider ID stable so preferences and shortcuts survive updates.
   name = "store.vicinae.bitwarden";
@@ -15,8 +15,8 @@ buildNpmPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "vicinaehq";
     repo = "extensions";
-    rev = "181904331f5289b53ee3443f98cfa5441d399f35";
-    hash = "sha256-UR269g8GwB5jywGcxqViVscjl8gtvRO9XjtCoGnUbSs=";
+    rev = "f54444d5b6a665befc7b666e68f8f2bbafd1cb9f";
+    hash = "sha256-OyV4OU4tZ+igY05TnjL6hzZ7RZwhtvXqJpXk1Rwvyn0=";
   };
 
   sourceRoot = "${finalAttrs.src.name}/extensions/bitwarden";
