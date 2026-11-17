@@ -170,7 +170,7 @@ in
           pyright.disabled = true;
           typescript.disabled = true;
         };
-        small_model = "openai/gpt-5.6-luna";
+        small_model = "openai/gpt-6-luna";
         plugin = [
           # "@bastiangx/opencode-unmoji"
           "@franlol/opencode-md-table-formatter"
