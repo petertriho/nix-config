@@ -102,8 +102,8 @@ in
       };
       # The managed-plugin wrapper snapshots top-level entries and can cache
       # a manifest-only plugin. Link the complete plugin root directly instead.
-      file.".claude/skills/cockpit".source =
-        config.lib.meta.mkDotfilesSymlink "claude/.claude/plugins/cockpit";
+      # file.".claude/skills/cockpit".source =
+      #   config.lib.meta.mkDotfilesSymlink "claude/.claude/plugins/cockpit";
       file.".claude/skills/peter".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter";
       file.".claude/skills/peter-exp".source =
@@ -120,6 +120,13 @@ in
           # DISABLE_FEEDBACK_COMMAND, DISABLE_TELEMETRY, and DISABLE_AUTOUPDATER
           # keep its other opt-outs.
           CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
+          # Code mode also needs the remote gate `tengu_rustling_blossom`.
+          # DISABLE_TELEMETRY turns off flag fetches, so the gate reads as
+          # unknown and code mode refuses with `no_flags`. The disk-cache
+          # opt-in lets every cached flag apply while telemetry stays off.
+          # Code mode refuses through CLIProxyAPI (non-first-party provider).
+          CLAUDE_CODE_EXPERIMENTAL_CODE_MODE = 1;
+          CLAUDE_CODE_GB_DISK_CACHE_WHEN_TELEMETRY_OFF = 1;
           CLAUDE_CODE_NO_FLICKER = 1;
           CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION = 1;
           # Native install self-updates ignore `autoUpdates: false`. These env
@@ -128,7 +135,7 @@ in
           DISABLE_AUTOUPDATER = 1;
           DISABLE_ERROR_REPORTING = 1;
           DISABLE_FEEDBACK_COMMAND = 1;
-          DISABLE_TELEMETRY = 1;
+        #   DISABLE_TELEMETRY = 1;
           DISABLE_UPDATES = 1;
           ENABLE_CLAUDEAI_MCP_SERVERS = "false";
         }
@@ -153,7 +160,7 @@ in
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter"
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter-exp"
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/pi-subagent"
-        "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
+        # "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
       ];
       read_file = [
         "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
