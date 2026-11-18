@@ -15,8 +15,8 @@ buildNpmPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "vicinaehq";
     repo = "extensions";
-    rev = "f54444d5b6a665befc7b666e68f8f2bbafd1cb9f";
-    hash = "sha256-OyV4OU4tZ+igY05TnjL6hzZ7RZwhtvXqJpXk1Rwvyn0=";
+    rev = "7f5e77930ba3a5c35bc2f21d41e539a430429de6";
+    hash = "sha256-JPXVn5d45Vmog/QElkKrGnNiCfavLY63x+rac8FWc+I=";
   };
 
   sourceRoot = "${finalAttrs.src.name}/extensions/bitwarden";

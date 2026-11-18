@@ -5,12 +5,12 @@
 }:
 fishPlugins.buildFishPlugin {
   pname = "upto";
-  version = "0-unstable-2026-10-20";
+  version = "0-unstable-2026-11-17";
 
   src = fetchFromGitHub {
     owner = "Markcial";
     repo = "upto";
-    rev = "7c870c66001a13ddea072dccdd16510d59439fe4";
-    sha256 = "sha256-FVjSu7wh09pBeFO3YlJ+wKl/IRzklDt95YAT04rwJJc=";
+    rev = "631138eb3655d52f4cb8cfbc1a19b2d71dc70d7f";
+    sha256 = "sha256-LuPY/q5d1kuEfFVqNrWCRIPvEsHhpravZ6BNN3SKo0c=";
   };
 }
