@@ -94,6 +94,13 @@ unknown worker, or a call from inside a worker.
 5. When a wait ends, relay the reply to the user. When the exit code is not
    0, also give the exit code and the trailer. Review the work in the folder
    of the worker. Do not trust the report alone.
+   - A turn end is not completion. A reply can end with an error, ask a
+     question, report a blocker, or leave the task unfinished. When the
+     instructions of the user cover the next step, continue the worker with
+     `send`. Otherwise, ask the user.
+   - When your review finds a problem, send the problem and its evidence to
+     the worker. When the same problem remains after two follow-ups, report
+     it to the user. Do not send a third follow-up for it.
 6. Continue a worker with `send`, in the background in the same way. A
    message to a worker that is still working joins its current turn, and the
    reply is the end of that turn.
@@ -104,6 +111,10 @@ unknown worker, or a call from inside a worker.
    the user asks.
 9. When tasks are independent, start several workers, and run one background
    wait for each.
+10. Your task is done when each worker finished its task and you reviewed its
+    work. A worker that the user stopped or took over also counts as done.
+    Until then, do not report the whole task as done. When the user asked
+    only to start workers, the task is done when they run.
 
 ## Worker prompt template
 
