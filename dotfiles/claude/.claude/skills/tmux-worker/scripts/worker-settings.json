@@ -1,0 +1,60 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"${TMUX_WORKER_HOOK:-}\" ] && bash \"$TMUX_WORKER_HOOK\" working; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"${TMUX_WORKER_HOOK:-}\" ] && bash \"$TMUX_WORKER_HOOK\" tool; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"${TMUX_WORKER_HOOK:-}\" ] && bash \"$TMUX_WORKER_HOOK\" waiting; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"${TMUX_WORKER_HOOK:-}\" ] && bash \"$TMUX_WORKER_HOOK\" stop; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"${TMUX_WORKER_HOOK:-}\" ] && bash \"$TMUX_WORKER_HOOK\" error; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

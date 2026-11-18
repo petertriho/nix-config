@@ -110,6 +110,11 @@ in
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/peter-exp";
       file.".claude/skills/pi-subagent".source =
         config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/pi-subagent";
+      file.".claude/skills/tmux-worker".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/skills/tmux-worker";
+      # A plugin root, linked whole for the reason in the cockpit note above.
+      file.".claude/skills/tmux-workers".source =
+        config.lib.meta.mkDotfilesSymlink "claude/.claude/plugins/tmux-workers";
       sessionVariables = lib.mkMerge [
         {
           CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
@@ -160,11 +165,17 @@ in
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter"
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/peter-exp"
         "$HOME/.nix-config/dotfiles/claude/.claude/skills/pi-subagent"
+        "$HOME/.nix-config/dotfiles/claude/.claude/skills/tmux-worker"
+        "$HOME/.nix-config/dotfiles/claude/.claude/plugins/tmux-workers"
         # "$HOME/.nix-config/dotfiles/claude/.claude/plugins/cockpit"
       ];
       read_file = [
         "$HOME/.nix-config/dotfiles/agents/.agents/output-styles/ste.md"
       ];
     };
+
+    # tmux-worker keeps the state of each worker there. The lead writes it, and
+    # the hooks of each worker append the turn events.
+    programs.nono.sharedFilesystem.allow = [ "$HOME/.local/state/tmux-worker" ];
   };
 }

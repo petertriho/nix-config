@@ -1,0 +1,9 @@
+{
+  "name": "tmux-workers",
+  "version": "0.1.0",
+  "description": "A band and a pane that show the tmux workers of this session and switch to their windows.",
+  "author": {
+    "name": "Peter Tri Ho"
+  },
+  "types": "./types/index.d.ts"
+}
