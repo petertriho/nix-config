@@ -158,7 +158,7 @@
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
-      "rev": "0288a0fe32bce35f4ea1195f9b546a71c5977a82",
+      "rev": "17929b7b0b9c05fe3dfc788fbba9881eb9c1cbec",
       "src": "https://github.com/NeogitOrg/neogit"
     },
     "nui.nvim": {
@@ -182,7 +182,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "6a3ddecf60e19f164390308f502e67f3199f58e8",
+      "rev": "e1c6a5a45d95ad22cf55c874db2ff8ab969556f0",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -261,7 +261,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "24123ae1335691e120f8bcd921902d5b3a98d06c",
+      "rev": "62be7a3daa56bb0031803435cc9302dab36467a7",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
