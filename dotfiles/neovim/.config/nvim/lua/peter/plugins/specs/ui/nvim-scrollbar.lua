@@ -6,6 +6,16 @@ return {
         vim.o.signcolumn = "no"
     end,
     config = function()
+        -- Same visibility rule as the search provider, plus an open `/` or `?`
+        -- command line so that incremental previews also count.
+        local function searching()
+            local cmdtype = vim.fn.getcmdtype()
+            if cmdtype == "/" or cmdtype == "?" then
+                return true
+            end
+            return vim.o.hlsearch and vim.v.hlsearch == 1 and vim.fn.getreg("/") ~= ""
+        end
+
         require("scrollbar").setup({
             exclude = {
                 filetypes = require("peter.core.filetypes").excludes,
@@ -34,6 +44,14 @@ return {
                     snacks = { preview = true },
                 },
                 profiles = {
+                    {
+                        match = { when = searching },
+                        layout = {
+                            columns = {
+                                { "track", "thumb", { types = { "Search" } } },
+                            },
+                        },
+                    },
                     {
                         match = { floats = true },
                         placement = { anchor = "NE" },
