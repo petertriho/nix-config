@@ -130,7 +130,7 @@ in
           # unknown and code mode refuses with `no_flags`. The disk-cache
           # opt-in lets every cached flag apply while telemetry stays off.
           # Code mode refuses through CLIProxyAPI (non-first-party provider).
-          CLAUDE_CODE_EXPERIMENTAL_CODE_MODE = 1;
+        #   CLAUDE_CODE_EXPERIMENTAL_CODE_MODE = 1;
           CLAUDE_CODE_GB_DISK_CACHE_WHEN_TELEMETRY_OFF = 1;
           CLAUDE_CODE_NO_FLICKER = 1;
           CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION = 1;
