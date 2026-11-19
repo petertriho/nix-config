@@ -17,6 +17,7 @@
     ../programs/direnv.nix
     ../programs/fish.nix
     ../programs/git.nix
+    ../programs/leaf.nix
     ../programs/neovim.nix
     ../programs/rbw.nix
     ../programs/scripts.nix
