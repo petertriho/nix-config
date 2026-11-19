@@ -339,3 +339,13 @@ keymap("n", "<leader>tu", function()
     end
     require("undotree").open()
 end, { desc = "Undotree" })
+
+-- Leaf reads the saved file, and `-w` reloads it after each write.
+keymap("n", "<leader>tm", function()
+    local path = vim.api.nvim_buf_get_name(0)
+    if vim.bo.buftype ~= "" or path == "" or not vim.uv.fs_stat(path) then
+        vim.notify("Leaf: buffer has no file on disk", vim.log.levels.WARN)
+        return
+    end
+    require("snacks").terminal.toggle({ "leaf", "-w", path }, { win = { position = "right" } })
+end, { desc = "Leaf Preview" })
