@@ -106,15 +106,31 @@ unknown worker, or a call from inside a worker.
    reply is the end of that turn.
 7. To check progress, run `tmux-worker read <id>`. To stop a turn, run
    `tmux-worker interrupt <id>`. A wait that runs then ends with exit 1.
-8. Leave windows open unless the user asks. `stop` closes a window, and a
-   later `send` reopens it. Never remove a worktree or delete a branch unless
-   the user asks.
+8. Stop a worker that will be idle for a long time. An open worker keeps
+   claude and its MCP servers in memory, several hundred MB for each worker.
+   `stop` closes the window. The folder, the branch, and the conversation
+   stay. Decide by yourself, and tell the user each worker that you stop.
+   - Stop a worker when you reviewed its work and it has no next step, or
+     when it will wait for more than about one hour, for example on a PR
+     review or on another worker.
+   - Keep a worker open while you send it follow-ups. A resume can miss the
+     prompt cache, so a stop between quick turns costs more than it saves.
+   - Keep a worker open while it runs a server, a background shell, or a
+     monitor. `stop` ends these processes.
+   - Keep a worker open while it waits on a dialog, while the user types
+     into its window, or when the user asked to keep it open.
+   - When a worker that you stopped has a next step, continue it with
+     `send`. `send` reopens it with `claude --resume` on the same
+     conversation. `wait` on a stopped worker exits 2.
+   - Before you resume a worker that the user stopped, ask the user.
+   - Never remove a worktree or delete a branch unless the user asks.
 9. When tasks are independent, start several workers, and run one background
    wait for each.
 10. Your task is done when each worker finished its task and you reviewed its
     work. A worker that the user stopped or took over also counts as done.
     Until then, do not report the whole task as done. When the user asked
-    only to start workers, the task is done when they run.
+    only to start workers, the task is done when they run. Before you
+    report, stop each worker that has no next step (step 8).
 
 ## Worker prompt template
 
@@ -156,9 +172,9 @@ do, such as push or open a PR, when the user did not allow it.
 - **Waiting (exit 3).** Only the user can answer the dialog. Tell the user the
   target and the question from stdout. When the user says that they answered,
   run `wait` again. To cancel the dialog instead, run `interrupt`.
-- **Gone (exit 2).** Relay the screen lines. Do not resume by yourself. Ask
-  the user first. The next `send` reopens the worker on the same
-  conversation.
+- **Gone (exit 2).** When you did not stop the worker yourself, relay the
+  screen lines. Do not resume it by yourself. Ask the user first. The next
+  `send` reopens the worker on the same conversation.
 - **The user typed into the window.** The next `wait` can return a turn that
   the user started. When the reply does not answer your request, say so.
 - **Session name clash.** When a session with the name exists with another
