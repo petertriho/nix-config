@@ -77,14 +77,20 @@ self-contained. Put any artifact reference in the completion report.
   scope, risks, or acceptance criteria. Do not edit files until the user
   explicitly asks for edits.
 - **Approved implementation plan:** Read the plan and the files that it
-  refers to. If the scope and the acceptance criteria are clear, implement
-  the plan directly. If the plan is too broad or ambiguous for one safe pass,
-  ask the user whether to split it.
+  refers to. If the plan has a Task Tracking section, follow it before you
+  edit other files. If the scope and the acceptance criteria are
+  clear, implement the plan directly. If the plan is too broad or ambiguous
+  for one safe pass, ask the user whether to split it.
 
 ### TASKS.md
 
+If the task file has a Tracking section, follow it for every claim and
+checkbox change. Other agents can work on the same file at the same time.
+
 To check a task, set its checkbox to `[x]`. To uncheck a task, set it to
-`[ ]`. Baseline tasks are the tasks that were checked before this run.
+`[ ]`, or to `[~]` with your claim note while you repair it. Baseline tasks
+are the tasks that were checked before this run. Treat tasks that other
+agents check during this run as baseline tasks.
 
 1. Read the full task file, and the sibling `PLAN.md` if it exists.
 2. Record the IDs of the baseline tasks, and keep this record across
@@ -92,8 +98,9 @@ To check a task, set its checkbox to `[x]`. To uncheck a task, set it to
    tasks belong to this run.
 3. Identify the pending tasks, dependencies, sequence, acceptance criteria,
    `Validation note` entries, open questions, and non-goals.
-4. Implement the unblocked pending tasks in the suggested order. If the user
-   selected some tasks, implement only those.
+4. Implement the unblocked pending tasks in the suggested order. Claim each
+   task before you start it, and skip tasks that other agents claimed. If the
+   user selected some tasks, implement only those.
 5. Check each task after its acceptance criteria and relevant validation
    pass, and before you start the next task. Never batch checkbox updates. A
    test-only handoff task also needs its `Handoff evidence` before you check

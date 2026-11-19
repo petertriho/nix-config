@@ -76,11 +76,11 @@ controls what each subject can access.
 |---|---|---|
 | 1 | First message, Claude Code host | Reads code, then records one `AskUserQuestion` with the recommended option first. No plan. |
 | 2 | First message, host with no question tool | One plain-text question with a recommendation, then the turn ends. |
-| 3 | User stops after two answers; the third question is unanswered | `Draft` plan. The unanswered recommendation is a proposed default, not a settled decision. |
-| 4 | Five answers; an unrelated `notes-export` plan exists | `Ready` plan in a new directory. The existing plan is untouched. `Blockers: None`. |
-| 5 | Explicit revision from CSV to JSON Lines; `TASKS.md` has checked tasks | Edit in place. Keep user context and unaffected decisions. Name invalidated tasks. `TASKS.md` unchanged. |
+| 3 | User stops after two answers; the third question is unanswered | `Draft` plan with the Tasks note, and no `TASKS.md`. The unanswered recommendation is a proposed default, not a settled decision. |
+| 4 | Five answers; an unrelated `notes-export` plan exists | `Ready` plan with the Tasks note in a new directory, and no `TASKS.md`. The existing plan is untouched. `Blockers: None`. |
+| 5 | Explicit revision from CSV to JSON Lines; `TASKS.md` has checked tasks | Edit in place. Keep user context and unaffected decisions. Name invalidated tasks. Keep every `TASKS.md` line, and append tasks that supersede T1 and T2. |
 | 6 | Native plan mode is active | Asks the user to switch to normal mode. No planning question and no plan-mode tool calls. |
-| 7 | Earlier turns survive only as a context summary that does not show the `--query` answer | Saves a plan. The `--query` recommendation stays out of Settled Decisions. |
+| 7 | Earlier turns survive only as a context summary that does not show the `--query` answer | Saves a plan with the Tasks note, and no `TASKS.md`. The `--query` recommendation stays out of Settled Decisions. |
 
 ## Integrity and grading
 
@@ -98,14 +98,21 @@ For each run with `outputs/response.md`, `facts.py` compares the repo with
   inventories, so added and deleted files count.
 - `head_unchanged`: HEAD still equals `fixture_head`. A subject commit fails.
 - `plans`: each added or changed `PLAN.md`, with its status line, the lines
-  after it, the section order, and missing sections.
-- `response`: `PLAN:` lines, `Status:` values, `Blockers: None`, and regex
+  after it, the section order, missing sections, the line offset of the
+  Tasks note from the status line, whether the plan has the Tracking
+  template, and any skill paths in the plan (a portable plan has none).
+- `tasks`: each added or changed `TASKS.md`, with its task IDs and states,
+  whether it has a Tracking section, its `Blocked by` count, and its
+  `Supersedes` values. For a fixture `TASKS.md`,
+  `original_lines_kept_in_order` shows whether every fixture line is still
+  in the file, in the same order.
+- `response`: `PLAN:` and `TASKS:` lines, `Status:` values, `Blockers: None`, and regex
   hits for tool names. A regex hit is a lead, not a verdict. "I did not call
   `ExitPlanMode`" also matches.
 
-`facts.py` also copies each saved plan into `outputs/` so that the review
-viewer shows it. Grade the assertions in `eval_metadata.json` against
-`response.md`, `actions.md`, the saved plan, and `facts.json`.
+`facts.py` also copies each saved plan and task file into `outputs/` so that
+the review viewer shows them. Grade the assertions in `eval_metadata.json` against
+`response.md`, `actions.md`, the saved plan and task file, and `facts.json`.
 `actions.md` is self-reported. It does not prove the order of reads.
 
 ## Offline infrastructure tests

@@ -57,13 +57,14 @@ To stop with Nothing Reviewed:
 
 ## Workflow
 
-In this workflow, a checked task has `[x]` and an unchecked task has `[ ]`.
+In this workflow, a checked task has `[x]`. An unchecked task has `[ ]`, or
+`[~]` when an agent claimed it and did not finish it.
 
 1. **Read `PLAN.md`.** Note the goal, non-goals, assumptions, settled
    decisions, and validation.
 2. **Read every task in `TASKS.md`.** Note the checkbox, scope, out-of-scope
-   notes, acceptance, supersession links in `Why`, each `Validation note`, and
-   the `Handoff evidence`.
+   notes, acceptance, supersession links in `Why` or `Supersedes`, each
+   `Validation note`, and the `Handoff evidence`.
 3. **Resolve the scope from the repository root.**
    - If you have a base ref, run
      `git-diff-scope --ref "$base" --include-untracked --pretty`.

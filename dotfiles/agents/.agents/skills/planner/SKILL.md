@@ -108,25 +108,66 @@ If the host denies a permission or blocks a write:
      - If that directory exists, add an unused suffix such as `-2`, `-3`, or a
        timestamp.
      - Do not infer a revision from a matching goal or directory name.
-   - Treat all other plans and artifacts, including `TASKS.md`, as read-only.
+   - Treat all other plans and artifacts as read-only. In a revision, you can
+     also change the existing sibling `TASKS.md` of this plan (step 8).
    - Create the plan directory only if it does not exist.
    - Write the plan in the Final Plan Format.
+
+8. Update existing tasks.
+   - Do not create `TASKS.md`. The first agent that implements the plan
+     creates it, as the Task Tracking section of the plan says, so that its
+     tasks match the final plan.
+   - In a revision, if a sibling `TASKS.md` exists, update it in one of these
+     ways. Use the format in `../plan-to-tasks/references/tasks-format.md`.
+     Resolve this path from the directory of this skill.
+     - **Replaced tasks.** Use this way if every task is open (`- [ ]`). No
+       agent has started work. Write one open task for each step of the
+       revised Implementation Plan. Keep the context that the user wrote.
+       Read the file again immediately before you replace it. If a task is
+       now claimed or done, append tasks instead.
+     - **Appended tasks.** Use this way if a task is claimed (`- [~]`) or
+       done (`- [x]`). Other agents can be working on the file at the same
+       time:
+       - Do not change or remove any existing task line or task block.
+       - Read the file again immediately before each edit. Use exact-match
+         edits, and never rewrite the whole file.
+       - If the file has no Tracking section, add the template above the
+         first task.
+       - For each new step, and for each step that changes the work of an
+         existing task, insert an open task after the last task. Use the next
+         unused ID. List the existing tasks that it replaces in its
+         `Supersedes` field, and name them in its `Why`.
+       - Update Suggested Sequence with an edit to that section only.
    - Before you report success, verify the save:
-     - Read the saved file. Check its path, its status line, and its section
-       order against the Final Plan Format.
-     - For a revision, compare the saved file with the latest contents that
+     - Read the saved plan. Check its path, its status line, its Tasks note,
+       its section order, and its Task Tracking section against the Final
+       Plan Format.
+     - For a revision, compare the saved plan with the latest contents that
        you read. Check that the context that the user wrote and the decisions
        that the revision does not affect remain.
-     - Check that you created or changed no file other than the plan.
-     - If a check of the plan fails, fix the plan and repeat the checks.
+     - If you changed `TASKS.md`, check that it has the Tracking section, and
+       that each Implementation Plan step has a task. For appended tasks, also
+       check that every line of the `TASKS.md` that you read before your edits
+       is still in the file, in the same order.
+     - Check that you created or changed no file other than the plan and, in
+       a revision, its existing `TASKS.md`.
+     - If a check fails, fix the plan or the task file and repeat the checks.
 
 ## Final Plan Format
 
 Start the file with a title and `Status: Ready` or `Status: Draft`. For a
 draft, state why the plan is not ready immediately below the status.
 
+Below the status, and below the reason for a draft, add this Tasks note
+without changes:
+
+```markdown
+> **Tasks:** Before you implement this plan, follow the Task Tracking
+> section at the end of this plan.
+```
+
 Use these sections in this order. Omit a section only if it is clearly
-irrelevant.
+irrelevant. Always include Task Tracking.
 
 1. Goal: a concise statement of the desired outcome.
 2. Non-goals: the scope that the plan intentionally excludes.
@@ -141,6 +182,7 @@ irrelevant.
 5. Proposed Approach: the recommended design or product approach, and why it
    fits.
 6. Implementation Plan:
+   - Number the steps.
    - For `Ready`, give ordered, executable steps. Do not invent major
      requirements.
    - For `Draft`, give the known steps. Do not invent requirements for
@@ -156,18 +198,42 @@ irrelevant.
     - Separate blockers from nonblockers.
     - For each blocker, name the affected steps and the decision that
       unblocks them.
+11. Task Tracking: write the text below without changes. Then add the
+    Tracking template from `../plan-to-tasks/references/tasks-format.md` as a
+    fenced `markdown` block. With this section, the plan refers to no skill
+    file, so it works on any machine.
+
+    ```markdown
+    ## Task Tracking
+
+    Track the implementation of this plan in `TASKS.md` beside this file.
+    More than one agent can implement the plan at the same time.
+
+    1. If `TASKS.md` exists, use it, and follow its Tracking section.
+    2. Otherwise, write a task list that fits the Implementation Plan. Give
+       each task a checkbox line `- [ ] T<n>: <title>`, a `Depends on` field,
+       and its acceptance checks. If the user has not answered the blocker
+       of a step, add a `Blocked by` field to its task. Put the Tracking
+       section below at the top of the file.
+    3. Create the file with a command that fails if the file exists, for
+       example with `set -o noclobber`. Another agent can create it at the
+       same time. If the command fails, use the existing file.
+    4. Claim your first task, as the Tracking section says.
+    ```
 
 ## Final Response
 
-After you verify the saved file, report:
+After you verify the save, report:
 
 - `PLAN: <absolute path>` on its own line.
+- If you changed `TASKS.md`, `TASKS: <absolute path>` on its own line.
 - `Status: Ready` or `Status: Draft`.
 - A short summary of the settled decisions.
 - The remaining blockers, or `Blockers: None` if there are none.
-- After a revision, each `TASKS.md` that needs review.
+- After a revision with appended tasks, the IDs of the tasks that you added
+  and the IDs that they supersede.
 
 If the save or the verification fails, report the failure and the intended
-path. Do not include the `PLAN:` line.
+paths. Do not include the `PLAN:` or `TASKS:` line.
 
 End the planning request after this response.

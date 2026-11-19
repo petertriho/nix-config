@@ -148,19 +148,26 @@ class PrepareTests(unittest.TestCase):
         (repo / "src/cli.mjs").write_text("// changed\n")
         plan = repo / ".artifacts/new-plan/PLAN.md"
         plan.parent.mkdir()
-        plan.write_text("# New\n\nStatus: Draft\nWhy: stopped early.\n\n## Goal\nx\n\n"
-                        "## Settled Decisions\nx\n\n## Assumptions\nx\n")
+        plan.write_text("# New\n\nStatus: Draft\nWhy: stopped early.\n> **Tasks:** Before you implement this plan, follow\n"
+                        "> the Task Tracking section at the end of this plan.\n\n## Goal\nx\n\n"
+                        "## Settled Decisions\nx\n\n## Assumptions\nx\n\n## Task Tracking\nSteps.\n\n"
+                        "```markdown\n## Tracking\nRules from ~/.agents/skills/plan-to-tasks.\n```\n")
         (outputs / "response.md").write_text(f"PLAN: {plan}\nStatus: Draft\nBlockers: Q1\n")
         result = facts.run_facts(run_dir)
         self.assertFalse(result["source_unchanged"])
         self.assertEqual(result["non_artifact_changes"], ["src/cli.mjs"])
         self.assertEqual(result["artifact_added"], [".artifacts/new-plan/PLAN.md"])
         self.assertEqual(result["artifact_changed"], [])
+        self.assertEqual(result["tasks"], [])
+        self.assertEqual(result["response"]["tasks_lines"], [])
         self.assertTrue(result["head_unchanged"])
         [plan_result] = result["plans"]
         self.assertEqual(plan_result["status_line"], "Status: Draft")
         self.assertEqual(plan_result["lines_after_status"][0], "Why: stopped early.")
-        self.assertEqual(plan_result["sections"], ["Goal", "Settled Decisions", "Assumptions"])
+        self.assertEqual(plan_result["tasks_note_offset"], 2)
+        self.assertTrue(plan_result["has_tracking_template"])
+        self.assertEqual(plan_result["skill_paths"], ["~/.agents/skills/plan-to-tasks."])
+        self.assertEqual(plan_result["sections"], ["Goal", "Settled Decisions", "Assumptions", "Task Tracking"])
         self.assertFalse(plan_result["sections_in_order"])
         self.assertEqual(result["response"]["plan_lines"], [str(plan)])
         self.assertEqual(result["response"]["status_values"], ["Draft"])
@@ -175,6 +182,29 @@ class PrepareTests(unittest.TestCase):
         self.assertTrue(untouched["head_unchanged"])
         self.assertEqual(untouched["plans"], [])
         self.assertFalse(untouched["response"]["exists"])
+
+    def test_facts_reports_appended_tasks(self):
+        prepare.prepare(self.workspace, [5])
+        run_dir = self.workspace / "eval-5-explicit-revision-tasks" / "with_skill"
+        repo, outputs = run_dir / "repo", run_dir / "outputs"
+        tasks = repo / ".artifacts/csv-export/TASKS.md"
+        original = tasks.read_text()
+        title, rest = original.split("\n", 1)
+        tasks.write_text(f"{title}\n\n## Tracking\nrules\n{rest}"
+                         "- [ ] T5: Add `toJsonl(notes)`.\n  - Supersedes: T1, T2\n")
+        (outputs / "response.md").write_text(f"TASKS: {tasks}\n")
+        result = facts.run_facts(run_dir)
+        self.assertEqual(result["artifact_changed"], [".artifacts/csv-export/TASKS.md"])
+        [tasks_result] = result["tasks"]
+        self.assertTrue(tasks_result["has_tracking"])
+        self.assertTrue(tasks_result["original_lines_kept_in_order"])
+        self.assertEqual([(t["id"], t["state"]) for t in tasks_result["tasks"]],
+                         [("T1", "x"), ("T2", "x"), ("T3", " "), ("T4", " "), ("T5", " ")])
+        self.assertEqual(tasks_result["supersedes"], ["T1, T2"])
+        self.assertEqual(result["response"]["tasks_lines"], [str(tasks)])
+        self.assertEqual((outputs / "TASKS.md").read_bytes(), tasks.read_bytes())
+        tasks.write_text(original.replace("- [x] T2", "- [ ] T2"))
+        self.assertFalse(facts.run_facts(run_dir)["tasks"][0]["original_lines_kept_in_order"])
 
     def test_manifest_detects_mutations_and_added_files(self):
         prepare.prepare(self.workspace, [1])

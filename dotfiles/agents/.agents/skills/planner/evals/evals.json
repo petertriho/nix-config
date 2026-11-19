@@ -40,8 +40,11 @@
         "Settled Decisions records the format decision (CSV only) and the output decision (stdout with --out), each with question, recommendation, user answer, and tradeoff.",
         "The unanswered filter recommendation (reuse searchNotes / --query) is not recorded as a settled decision. It appears as a proposed default that is labeled as not approved, or as an open question.",
         "Open Questions separates blockers from nonblockers, and each blocker names the affected steps and the decision needed.",
-        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions (a clearly irrelevant section can be missing).",
-        "The final response has a `PLAN: <absolute path>` line, `Status: Draft`, and lists the remaining blockers.",
+        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions, Task Tracking (a clearly irrelevant section can be missing, but Task Tracking cannot).",
+        "Below the status and the reason for the draft, the plan has the Tasks note that points to the Task Tracking section.",
+        "The plan ends with a Task Tracking section that has the steps to create TASKS.md and the Tracking template in a fenced block. The plan refers to no skill file, such as tasks-format.md or a path under ~/.agents/skills.",
+        "No TASKS.md exists.",
+        "The final response has a `PLAN: <absolute path>` line, `Status: Draft`, and lists the remaining blockers. It has no `TASKS:` line.",
         "The response asks no further interview question.",
         "The repo source files are unchanged, and there is no new commit."
       ]
@@ -55,16 +58,19 @@
         "A new plan is saved at <repo>/.artifacts/<name>/PLAN.md, and it is not .artifacts/notes-export/PLAN.md.",
         "The existing .artifacts/notes-export/PLAN.md is byte-identical to the fixture.",
         "The plan has `Status: Ready`.",
-        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions (a clearly irrelevant section can be missing).",
+        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions, Task Tracking (a clearly irrelevant section can be missing, but Task Tracking cannot).",
         "Settled Decisions records all five answered decisions (format, output, filter, columns, formula guard), each with question, recommendation, user answer, and tradeoff.",
-        "The final response has a `PLAN: <absolute path>` line, `Status: Ready`, and `Blockers: None`.",
+        "Below the status, the plan has the Tasks note that points to the Task Tracking section.",
+        "The plan ends with a Task Tracking section that has the steps to create TASKS.md and the Tracking template in a fenced block. The plan refers to no skill file, such as tasks-format.md or a path under ~/.agents/skills.",
+        "No TASKS.md exists.",
+        "The final response has a `PLAN: <absolute path>` line, `Status: Ready`, and `Blockers: None`. It has no `TASKS:` line.",
         "The repo source files are unchanged, and there is no new commit."
       ]
     },
     {
       "id": 5,
       "prompt": "User: Revise the plan at .artifacts/csv-export/PLAN.md. The ops team is moving from Google Sheets to BigQuery, so the export needs to be JSON Lines instead of CSV.\n\nAssistant (after reading .artifacts/csv-export/PLAN.md, .artifacts/csv-export/TASKS.md, src/csv.mjs, and src/cli.mjs) called AskUserQuestion:\n{\"question\": \"Should JSON Lines replace CSV, or should export support both formats?\", \"options\": [\n  {\"label\": \"Replace CSV with JSON Lines (Recommended)\", \"description\": \"The only consumer is moving to BigQuery. One format keeps the command and tests small.\"},\n  {\"label\": \"Support both with --format csv|jsonl\", \"description\": \"Keeps Sheets users working, but adds a flag and a second formatter to maintain.\"}]}\nUser answer: \"Replace CSV with JSON Lines (Recommended)\"\n\nUser: Everything else stays the same. That's the only change, so go ahead and update the plan.",
-      "expected_output": "Edits the plan in place, keeps unaffected decisions and user context, lists invalidated tasks, and leaves TASKS.md unchanged.",
+      "expected_output": "Edits the plan in place, keeps unaffected decisions and user context, lists invalidated tasks, and appends superseding tasks to TASKS.md without changing its existing lines.",
       "files": [],
       "assertions": [
         "The revised plan is at .artifacts/csv-export/PLAN.md, and no other plan directory was created.",
@@ -72,8 +78,11 @@
         "The output decision (stdout with --out) and the filter decision (reuse searchNotes) are still settled decisions.",
         "Settled Decisions records the JSON Lines decision with question, recommendation, user answer, and tradeoff.",
         "Handoff Notes names the completed tasks that the revision invalidates (at least T1 and T2).",
-        ".artifacts/csv-export/TASKS.md is byte-identical to the fixture.",
-        "The final response has a `PLAN: <absolute path>` line and says that TASKS.md needs review.",
+        "Below the status, the revised plan has the Tasks note that points to the Task Tracking section.",
+        "The plan ends with a Task Tracking section that has the steps to create TASKS.md and the Tracking template in a fenced block. The plan refers to no skill file, such as tasks-format.md or a path under ~/.agents/skills.",
+        "Every line of the fixture .artifacts/csv-export/TASKS.md is still in the file, in the same order. T1 and T2 are still `[x]`, and T3 and T4 are still `[ ]`.",
+        ".artifacts/csv-export/TASKS.md now has the Tracking section, and it has new open tasks with IDs of T5 or higher. Together, their `Supersedes` fields list T1 and T2.",
+        "The final response has a `PLAN: <absolute path>` line and a `TASKS: <absolute path>` line, and it names the added task IDs and the IDs that they supersede.",
         "The repo source files are unchanged, and there is no new commit."
       ]
     },
@@ -101,8 +110,11 @@
         "Neither the plan nor the final response states that the user chose, approved, or accepted the --query filter.",
         "The formula-cell handling, which was never asked, is not recorded as a settled decision.",
         "The status matches the blockers: `Status: Ready` only if Open Questions lists no blocker, and `Status: Draft` if it lists one.",
-        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions (a clearly irrelevant section can be missing).",
-        "The final response has a `PLAN: <absolute path>` line and a `Status:` line, and it asks no further interview question.",
+        "The plan sections appear in the order Goal, Non-goals, Assumptions, Settled Decisions, Proposed Approach, Implementation Plan, Validation, Risks and Mitigations, Handoff Notes, Open Questions, Task Tracking (a clearly irrelevant section can be missing, but Task Tracking cannot).",
+        "Below the status (and below the reason, for a draft), the plan has the Tasks note that points to the Task Tracking section.",
+        "The plan ends with a Task Tracking section that has the steps to create TASKS.md and the Tracking template in a fenced block. The plan refers to no skill file, such as tasks-format.md or a path under ~/.agents/skills.",
+        "No TASKS.md exists.",
+        "The final response has a `PLAN: <absolute path>` line and a `Status:` line, and it asks no further interview question. It has no `TASKS:` line.",
         "The repo source files are unchanged, and there is no new commit."
       ]
     }

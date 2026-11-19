@@ -16,6 +16,8 @@ execute. They must not need to reopen planning or reread the conversation.
      latest complete plan or planner output in the conversation.
    - Ignore requirements from earlier brainstorms that are not in the final
      plan.
+   - Do not make tasks from the Task Tracking section of a plan. It describes
+     how agents track the tasks, not work to do.
    - Identify the goals, non-goals, assumptions, decisions, approach,
      validation, risks, open questions, and Handoff Notes.
 
@@ -91,10 +93,22 @@ Choose the path of the task file in this order:
 Do not infer a revision from a matching goal or directory name.
 
 If the selected task file exists, read its latest contents before you edit
-it. When you update an existing task file:
+it.
+
+If every task in the existing file is open (`- [ ]`), no agent has started
+work. This is the usual state of a new file. Replace its tasks with the
+tasks of this conversion, and keep the context that the user wrote. Read the
+file again immediately before you replace it. If a task is now claimed or
+done, use the rules below instead.
+
+Otherwise, other agents can be working on the file at the same time. Read it
+again immediately before each edit. Change only the task blocks and sections
+that you must change, and never rewrite the whole file. When you update the
+file:
 
 - Keep the existing task IDs stable.
 - Append new task IDs. Do not renumber completed tasks.
+- Do not change a claimed task (`- [~]`). Treat it like a completed task.
 
 A completed task has a checked box (`- [x]`). Unless the user explicitly asks
 for a replacement, also obey these rules:
@@ -110,61 +124,23 @@ for a replacement, also obey these rules:
   - Otherwise, append an unchecked corrective task with a new ID.
 - Do not rewrite a completed task to describe the changed work.
 - In the `Why` of each corrective task, name the historical task IDs and
-  acceptance criteria that it supersedes.
-- Update the dependencies of affected pending tasks, and the Suggested
+  acceptance criteria that it supersedes. List the same IDs in its
+  `Supersedes` field.
+- Update the dependencies of affected open tasks, and the Suggested
   Sequence, so that they wait for the corrective tasks.
 - If the change also invalidates the guarantees of a completed dependent
   task, add a corrective task for that task too.
 
-In a replacement, every redefined task must start unchecked.
+In a replacement, every redefined task must start open (`- [ ]`).
 
 Create the selected directory only if it does not exist. Write the task file
 in the Task Output Format.
 
 ## Task Output Format
 
-Use these sections in the selected `TASKS.md`, in this order:
-
-1. Task Summary
-   - One paragraph that describes the execution path, the important
-     sequencing logic, and the assumptions that you used.
-
-2. Tasks
-   - Give each task a Markdown checkbox with a stable ID:
-     `- [ ] T1: <title>`.
-   - Use the checkbox line as the canonical completion marker of the task,
-     so that implementation can change it to `- [x]`.
-   - Under each checkbox task, include these fields:
-      - `Why`: the decision or goal in the plan that this task serves.
-      - `Depends on`: task IDs, or `None`.
-      - `Scope`: the exact work that the task includes.
-      - `Out of scope`: nearby work that the task intentionally excludes.
-      - `Acceptance`: concrete checks that prove the task is complete.
-
-   Example:
-
-   ```markdown
-   - [ ] T1: Add schema validation for imported records
-     - Why: The plan requires rejecting malformed imports before persistence.
-     - Depends on: None
-     - Scope: Add validation at the import boundary and return actionable
-       errors for missing required fields.
-     - Out of scope: UI copy changes and bulk import performance tuning.
-     - Acceptance: Unit tests cover valid records, missing required fields, and
-       invalid field types; malformed records are not persisted.
-   ```
-
-3. Suggested Sequence
-   - The recommended order. Group tasks as parallel only when their
-     dependencies and touched areas make parallel work safe.
-
-4. Validation Plan
-   - The final test, review, rollout, or acceptance pass across the whole task
-     set.
-
-5. Remaining Open Questions
-   - Only the questions that still affect sequencing, ownership, risk, or
-     cost.
+Use the format in [references/tasks-format.md](references/tasks-format.md).
+Copy its Tracking template without changes. If an existing task file has no
+Tracking section, add the template above the first task.
 
 After you write or update `TASKS.md`, report its file path in the final
 response. Also report any blocking assumptions or open questions.
