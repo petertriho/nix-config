@@ -5,13 +5,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "terraform-skill";
-  version = "1.18.0-unstable-2026-11-16";
+  version = "1.18.2-unstable-2026-11-19";
 
   src = fetchFromGitHub {
     owner = "antonbabenko";
     repo = "terraform-skill";
-    rev = "a04a4c4acaa02a04d42e604beaf875ab263417de";
-    hash = "sha256-/mon5QT6nB8AzFhyE/DQnUSTGbUd3lHlQasz6dTOUR4=";
+    rev = "f5a195992d84c8fb075b0176d666967cd07d2081";
+    hash = "sha256-Y3IvVKo9aVxKyFyZHif+Z96dOgGIXQ8YJIjkUTuTxgM=";
   };
 
   dontBuild = true;

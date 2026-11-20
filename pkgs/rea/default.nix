@@ -10,13 +10,13 @@
 }:
 buildNpmPackage {
   pname = "rea";
-  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-11-19";
+  version = "experiment/atomic-codemode-wait-runtime-20261016-unstable-2026-11-20";
 
   src = fetchFromGitHub {
     owner = "morluto";
     repo = "rea";
-    rev = "93c8e0c0c8e80e3c2379a1c7d2c2a956331cc8e8";
-    hash = "sha256-w+fbCOUodtdfEQZmUyWv5N94bgbZfcbA4C8vBG9+Vfw=";
+    rev = "8bb01b514ac766c0c3ecc8f362bd38186eaec9c2";
+    hash = "sha256-2ulhZ2GXe1xOHKLNuJo9mTivy4OTiWP9VLHEXnpn5YI=";
   };
 
   # Keep platform-specific optional packages for PTYs and build tools.
@@ -36,7 +36,7 @@ buildNpmPackage {
   # Use the Node.js line that upstream pins in .nvmrc. The upstream build
   # scripts need TypeScript transform mode, which Node.js 26 removed.
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-EjWZk0rJ+JvKJ8oJ+Njic4d2J4EVJB1X0o4HVz+VKMQ=";
+  npmDepsHash = "sha256-w3YZ+KnfRdiOq8nsNgz9APD/3aXDGvvn1S38r/M0vuQ=";
   npmDepsFetcherVersion = 2;
   npmFlags = [ "--ignore-scripts" ];
   npmPackFlags = [ "--ignore-scripts" ];
