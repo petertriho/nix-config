@@ -6,15 +6,7 @@ return {
         vim.o.signcolumn = "no"
     end,
     config = function()
-        -- Same visibility rule as the search provider, plus an open `/` or `?`
-        -- command line so that incremental previews also count.
-        local function searching()
-            local cmdtype = vim.fn.getcmdtype()
-            if cmdtype == "/" or cmdtype == "?" then
-                return true
-            end
-            return vim.o.hlsearch and vim.v.hlsearch == 1 and vim.fn.getreg("/") ~= ""
-        end
+        local when = require("scrollbar.recipes").when
 
         require("scrollbar").setup({
             exclude = {
@@ -45,7 +37,7 @@ return {
                 },
                 profiles = {
                     {
-                        match = { when = searching },
+                        match = { when = when.searching() },
                         layout = {
                             columns = {
                                 { "track", "thumb", { types = { "Search" } } },
