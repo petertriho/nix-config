@@ -6,9 +6,9 @@ return {
         {
             "<leader>m",
             function()
-                require("scrollbar").jump()
+                require("scrollbar").peek()
             end,
-            desc = "Scrollbar Jump",
+            desc = "Scrollbar Peek",
         },
         {
             "<leader>M",
