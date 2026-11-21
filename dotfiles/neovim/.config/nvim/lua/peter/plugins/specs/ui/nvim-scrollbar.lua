@@ -54,7 +54,7 @@ return {
                     MiniDiffDelete = { text = "│" },
                 },
                 floats = {
-                    snacks = { preview = true },
+                    snacks = { preview = true, zen = true },
                 },
                 profiles = {
                     {
@@ -66,7 +66,7 @@ return {
                         },
                     },
                     {
-                        match = { floats = true },
+                        match = { floats = { "snacks_preview" } },
                         placement = { anchor = "NE" },
                     },
                 },
