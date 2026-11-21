@@ -45,6 +45,7 @@ return {
                     },
                 },
                 marks = {
+                    Cursor = { highlight_from = "covered" },
                     GitAdd = { text = "│" },
                     GitChange = { text = "│" },
                     GitDelete = { text = "│" },
