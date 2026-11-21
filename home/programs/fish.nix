@@ -89,6 +89,7 @@
       gl = "begin; set -lx GIT_EXTERNAL_DIFF difft; git log -p --ext-diff; end";
       gm = "git merge";
       gma = "git merge --abort";
+      gmf = "git merge --ff-only";
       gmt = "git mergetool";
       gpl = "git pull";
       gplo = "git pull origin";
