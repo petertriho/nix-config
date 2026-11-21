@@ -31,10 +31,6 @@ with pkgs;
   portless = callPackage ./portless { };
   pybetter = callPackage ./pybetter { inherit pkgs; };
   python-validity = callPackage ./python-validity { };
-  rea = callPackage ./rea {
-    # REA engines need a recent Node.js 24 patch release.
-    inherit (stablePkgs) nodejs_24;
-  };
   repowise = callPackage ./repowise {
     inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
   };

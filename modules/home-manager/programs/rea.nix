@@ -6,13 +6,13 @@
 }:
 let
   cfg = config.programs.rea;
-  skillsDir = "${cfg.package}/share/rea/skills";
+  skillsDir = "${cfg.package}/lib/node_modules/rea-agents/skills";
   availableSkills = lib.filterAttrs (_: type: type == "directory") (builtins.readDir skillsDir);
 in
 {
   options.programs.rea = {
     enable = lib.mkEnableOption "REA reverse-engineering CLI, MCP server, and skills";
-    package = lib.mkPackageOption pkgs "rea" { };
+    package = lib.mkPackageOption pkgs [ "llm-agents" "rea" ] { };
   };
 
   config = lib.mkIf cfg.enable {
