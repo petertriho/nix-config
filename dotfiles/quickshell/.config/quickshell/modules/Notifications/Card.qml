@@ -139,12 +139,18 @@ Rectangle {
         }
 
         Flow {
-            visible: root.entry.actions.length > 0
+            id: actionRow
+
+            // "default" is the click action for the card body (GLib sends it
+            // with an empty label), so it gets no button.
+            readonly property var buttons: root.entry.actions.filter(action => action.identifier !== "default")
+
+            visible: actionRow.buttons.length > 0
             Layout.fillWidth: true
             spacing: 6
 
             Repeater {
-                model: root.entry.actions
+                model: actionRow.buttons
 
                 delegate: Rectangle {
                     id: actionButton
