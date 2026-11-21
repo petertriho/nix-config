@@ -78,7 +78,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffbandit.nvim": {
-      "rev": "7349b1cf9408ace0d5236f131745b81623e5b2b6",
+      "rev": "fca57ce5dc6f6ba31c312c2ec9228eb9f92fd266",
       "src": "https://github.com/CoreyKaylor/diffbandit.nvim"
     },
     "eyeliner.nvim": {
@@ -126,31 +126,31 @@
       "src": "https://github.com/chentoast/marks.nvim"
     },
     "mini-git": {
-      "rev": "35d9a918721c533490f1ae9268a4f0b7c840e1f4",
+      "rev": "894d6cdf6c3a5d4c41e0983a7aa3918664be2665",
       "src": "https://github.com/nvim-mini/mini-git"
     },
     "mini.ai": {
-      "rev": "f40e4fe729a568357218d599edb5ca107cf94af4",
+      "rev": "813d10a43d5d4eda4816e6a27eb6bf6250f75ea8",
       "src": "https://github.com/nvim-mini/mini.ai"
     },
     "mini.diff": {
-      "rev": "2890bd1edc42b57af769774e53c2bfbbe3f45d4d",
+      "rev": "f527407247245d121ca65d539d7a8a3686938915",
       "src": "https://github.com/nvim-mini/mini.diff"
     },
     "mini.files": {
-      "rev": "f031f95dcaa5efd30f12983d5e40020c4d75f694",
+      "rev": "9898bee3b9004a3adf1b0c1b6ba984eae87082c2",
       "src": "https://github.com/nvim-mini/mini.files"
     },
     "mini.icons": {
-      "rev": "eab3e692d796d78ea6ffc978d8a380ff26fcf4e3",
+      "rev": "5d58117d176c133f4cb5585ec8cb3450881c89a0",
       "src": "https://github.com/nvim-mini/mini.icons"
     },
     "mini.splitjoin": {
-      "rev": "de43d1ace70185b2d1da97781586ffba9fbb0338",
+      "rev": "f40a3f239ced93213d7dd5ef9a4aee6f5df7f83d",
       "src": "https://github.com/nvim-mini/mini.splitjoin"
     },
     "mini.surround": {
-      "rev": "f993f66edfc2741cc515aa1f782816fd5c17bc14",
+      "rev": "77f376bdebb3440ad13bc40b48062b29bccb7577",
       "src": "https://github.com/nvim-mini/mini.surround"
     },
     "namu.nvim": {
@@ -194,7 +194,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "bbee38d037df1251ffa94d20f5255368f6c6ae1f",
+      "rev": "78709eea6c485618a11eabcf4ea6250f6f78f878",
       "src": "https://github.com/petertriho/nvim-scrollbar"
     },
     "nvim-spider": {
