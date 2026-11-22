@@ -36,6 +36,7 @@ return {
             scrollbar = {
                 -- The labels go beside the west scrollbar, so they do not cover the marks.
                 jump = { offset = 1 },
+                peek = { offset = 1 },
                 hover = { delay_ms = 100 },
                 placement = { anchor = "NW", gutter = "outer" },
                 layout = {
