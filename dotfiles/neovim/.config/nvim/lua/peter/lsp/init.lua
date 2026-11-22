@@ -59,7 +59,7 @@ local function make_pyrefly_constructor_resolver()
             -- A constructor also reports its parameter types, so match the class by name.
             local locations = not err and result and (vim.islist(result) and result or { result }) or {}
             for _, location in ipairs(locations) do
-                local filename = vim.uri_to_fname(location.uri or location.targetUri)
+                local filename = vim.uri.to_fname(location.uri or location.targetUri)
                 local range = location.range or location.targetRange
                 local lnum = range.start.line + 1
                 local line = read_line(filename, lnum)
@@ -129,7 +129,7 @@ local function make_lsp_request(method, make_params_fn, resolve_items)
                 local range = location.range or location.targetRange
 
                 if uri and range then
-                    local filename = vim.uri_to_fname(uri)
+                    local filename = vim.uri.to_fname(uri)
                     local lnum = range.start.line + 1
                     local key = string.format("%s:%d", filename, lnum)
 

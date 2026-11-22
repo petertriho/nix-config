@@ -742,7 +742,7 @@ return {
                 end
                 client:exec_cmd({
                     command = command,
-                    arguments = { { uri = vim.uri_from_bufnr(bufnr), version = version } },
+                    arguments = { { uri = vim.uri.from_buf(bufnr), version = version } },
                 })
             end
 
