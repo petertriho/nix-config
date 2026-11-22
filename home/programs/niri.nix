@@ -279,6 +279,14 @@ in
             action = center-visible-columns;
           };
           "Mod+Shift+C".action = center-window;
+          # A bind takes one action, so niri msg runs the two actions in order.
+          "Mod+A" = {
+            repeat = false;
+            hotkey-overlay.title = "Set Column Width to 2/3 and Center";
+            action =
+              spawn "sh" "-c"
+                "niri msg action set-column-width 66.667% && niri msg action center-column";
+          };
 
           # Niri has no submaps. These keep the useful window-mode actions directly reachable.
           "Mod+Slash" = {
