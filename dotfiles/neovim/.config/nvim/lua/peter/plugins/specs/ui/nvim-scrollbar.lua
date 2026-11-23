@@ -30,8 +30,10 @@ return {
                 filetypes = require("peter.core.filetypes").excludes,
             },
             providers = {
-                mini_diff = true,
                 -- cursor = { minimap = false },
+                changelist = true,
+                jumplist = true,
+                mini_diff = true,
             },
             scrollbar = {
                 -- The labels go beside the west scrollbar, so they do not cover the marks.
