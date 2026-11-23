@@ -17,3 +17,5 @@ codex:
   identity-confuse: true
 redis-usage-queue-retention-seconds: 60
 ws-auth: true
+server:
+  server-id: ef5a1c14-2a0f-4de0-8735-a1ba5fff6341

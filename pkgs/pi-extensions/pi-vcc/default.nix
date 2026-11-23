@@ -5,13 +5,13 @@
 }:
 stdenv.mkDerivation {
   pname = "pi-vcc";
-  version = "0.11.2-unstable-2026-10-29";
+  version = "0.12.0-unstable-2026-11-22";
 
   src = fetchFromGitHub {
     owner = "sting8k";
     repo = "pi-vcc";
-    rev = "2da84918b90100c4cda0a1d468e42375c7253d61";
-    hash = "sha256-arstid7oofJ4oeK5SCvIZeuu9wemFlbtVDDtAUAPJ0Q=";
+    rev = "e9d5c153fea951cb31a3acab7a121fffc3bf2830";
+    hash = "sha256-SA8YmE/vX1NQ4oA1eUFRSIMgMUC02e/qpBL+SawQXDw=";
   };
 
   dontBuild = true;
