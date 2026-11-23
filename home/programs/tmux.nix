@@ -96,51 +96,52 @@ in
             set -g @fingers-pattern-0 '(sha256|sha384|sha512)-[A-Za-z0-9\+/]+={0,2}( +[!-~]*)?'
           '';
       }
-      {
-        plugin = window-name;
-        extraConfig =
-          let
-            surround = srd: str: srd + str + srd;
-            mkStringList = srd: lst: "[" + (lib.concatMapStringsSep ", " (surround srd) lst) + "]";
-            name_shells = mkStringList "'" [
-              "bash"
-              "fish"
-              "sh"
-              "zsh"
-            ];
-            wrapper_programs = mkStringList "'" [
-              "nono"
-            ];
-            substitute_sets = mkStringList "" [
-              "(r'^/etc/profiles/per-user/(.+)/bin/(.+)', r'\\\\g<2>')"
-              "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
-              "(r'/nix/store/\\\\S+/bin/(n?vim?).*', r'\\\\g<1>')"
-              "(r'/nix/store/\\\\S+/bin/(.+)', r'\\\\g<1>')"
-              "(r'/nix/store/\\\\S+/libexec/\\\\S+/(.+)', r'\\\\g<1>')"
-            ];
-            dir_programs = mkStringList "'" [
-              "git"
-              "nvim"
-              "vi"
-              "vim"
-            ];
-            ignored_programs = mkStringList "'" [
-              "kubie"
-              "log"
-            ];
-          in
-          # tmux
-          ''
-            set -g @tmux_window_name_dir_programs "${dir_programs}"
-            set -g @tmux_window_name_icon_style "'name_and_icon'"
-            set -g @tmux_window_name_ignored_programs "${ignored_programs}"
-            set -g @tmux_window_name_shells "${name_shells}"
-            set -g @tmux_window_name_substitute_sets "${substitute_sets}"
-            set -g @tmux_window_name_wrapper_programs "${wrapper_programs}"
-            set -g @tmux_window_name_custom_icons '{"claude":"✻","codex":"","opencode":"󰚩","pi":"󰏿"}'
-            set -g @tmux_window_name_show_program_args "False"
-          '';
-      }
+      # Replaced by native automatic-rename in extraConfig below.
+      # {
+      #   plugin = window-name;
+      #   extraConfig =
+      #     let
+      #       surround = srd: str: srd + str + srd;
+      #       mkStringList = srd: lst: "[" + (lib.concatMapStringsSep ", " (surround srd) lst) + "]";
+      #       name_shells = mkStringList "'" [
+      #         "bash"
+      #         "fish"
+      #         "sh"
+      #         "zsh"
+      #       ];
+      #       wrapper_programs = mkStringList "'" [
+      #         "nono"
+      #       ];
+      #       substitute_sets = mkStringList "" [
+      #         "(r'^/etc/profiles/per-user/(.+)/bin/(.+)', r'\\\\g<2>')"
+      #         "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
+      #         "(r'/nix/store/\\\\S+/bin/(n?vim?).*', r'\\\\g<1>')"
+      #         "(r'/nix/store/\\\\S+/bin/(.+)', r'\\\\g<1>')"
+      #         "(r'/nix/store/\\\\S+/libexec/\\\\S+/(.+)', r'\\\\g<1>')"
+      #       ];
+      #       dir_programs = mkStringList "'" [
+      #         "git"
+      #         "nvim"
+      #         "vi"
+      #         "vim"
+      #       ];
+      #       ignored_programs = mkStringList "'" [
+      #         "kubie"
+      #         "log"
+      #       ];
+      #     in
+      #     # tmux
+      #     ''
+      #       set -g @tmux_window_name_dir_programs "${dir_programs}"
+      #       set -g @tmux_window_name_icon_style "'name_and_icon'"
+      #       set -g @tmux_window_name_ignored_programs "${ignored_programs}"
+      #       set -g @tmux_window_name_shells "${name_shells}"
+      #       set -g @tmux_window_name_substitute_sets "${substitute_sets}"
+      #       set -g @tmux_window_name_wrapper_programs "${wrapper_programs}"
+      #       set -g @tmux_window_name_custom_icons '{"claude":"✻","codex":"","opencode":"󰚩","pi":"󰏿"}'
+      #       set -g @tmux_window_name_show_program_args "False"
+      #     '';
+      # }
       {
         plugin = fuzzback;
         extraConfig =
@@ -182,6 +183,32 @@ in
           '';
       }
     ];
-    extraConfig = builtins.readFile ../../dotfiles/tmux/.tmux.conf;
+    extraConfig =
+      let
+        icons = {
+          claude = "✻";
+          codex = "";
+          opencode = "󰚩";
+          pi = "󰏿";
+          git = "";
+          nvim = "";
+          vi = "";
+          vim = "";
+        };
+        iconChain = lib.concatStringsSep "," (
+          lib.mapAttrsToList (cmd: icon: "#{==:#{E:@auto_name_cmd},${cmd}},${icon} ") icons
+        );
+      in
+      builtins.readFile ../../dotfiles/tmux/.tmux.conf
+      # tmux
+      + ''
+        setw -g automatic-rename on
+        # Nix wrappers run as ".foo-wrapped". "nono run" stays in the foreground,
+        # so nono-agent-run stores the agent name in @nono_program.
+        set -g @auto_name_cmd '#{?#{&&:#{==:#{pane_current_command},nono},#{@nono_program}},#{@nono_program},#{s/^\.(.+)-wrapped$/\1/:pane_current_command}}'
+        set -g @auto_name_icon '#{?${iconChain},}'
+        setw -g automatic-rename-format '#{=20:#{?#{m/r:^(bash|fish|sh|zsh)$,#{E:@auto_name_cmd}},#{b:pane_current_path},#{m/r:^(n?vim?|git)$,#{E:@auto_name_cmd}},#{E:@auto_name_icon}#{E:@auto_name_cmd} #{b:pane_current_path},#{E:@auto_name_icon}#{E:@auto_name_cmd}}}'
+        bind-key -N "Auto-rename window" A setw -u automatic-rename
+      '';
   };
 }

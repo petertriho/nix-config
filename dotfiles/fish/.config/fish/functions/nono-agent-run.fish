@@ -22,6 +22,12 @@ function nono-agent-run --description "Run an agent with a guarded nono profile"
         return 1
     end
 
+    # "nono run" stays in the foreground, so tmux sees only "nono". The tmux
+    # automatic-rename-format reads this pane option to name the window.
+    if set -q TMUX_PANE
+        tmux set-option -p -t $TMUX_PANE @nono_program (path basename -- $agent)
+    end
+
     # Profiles are Home Manager symlinks into the store; answering nono's save
     # prompt would replace one with a mutable copy carrying the widened grant.
     command nono run --profile "$profile" --allow-cwd \
