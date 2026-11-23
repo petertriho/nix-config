@@ -9,24 +9,28 @@ let
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
   piHistoryStateDir = "${config.xdg.stateHome}/pi";
-  piExtensions = with pkgs.piExtensions; [
-    # omp-undo-redo
-    rpiv-args
-    rpiv-ask-user-question
-    # rpiv-todo
-    pi-blackhole
-    pi-cache-optimizer
-    pi-codex-tools
-    pi-context-view
-    pi-fzfp
-    pi-goal-x
-    pi-vim
-    pi-lens
-    # pi-subagents
-    pi-tasks
-    # pi-vcc
-    (pine-of-glass.override { enableContextimate = false; })
-  ];
+  piExtensions =
+    with pkgs.piExtensions;
+    [
+      # omp-undo-redo
+      rpiv-args
+      rpiv-ask-user-question
+      # rpiv-todo
+      pi-blackhole
+      pi-cache-optimizer
+      pi-codex-tools
+      pi-context-view
+      pi-fzfp
+      pi-goal-x
+      pi-vim
+    ]
+    ++ lib.optional cfg.enablePiLens pi-lens
+    ++ [
+      # pi-subagents
+      pi-tasks
+      # pi-vcc
+      (pine-of-glass.override { enableContextimate = false; })
+    ];
   piPackageRoot = package: "${package}/lib/node_modules/${package.pname}";
 
   # Rendered nix-declared settings, merged into the mutable settings.json by
@@ -242,6 +246,12 @@ in
       '';
     };
 
+    enablePiLens = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether to load the pi-lens extension and manage its configuration.";
+    };
+
     piLensSettings = lib.mkOption {
       type = jsonFormat.type;
       default = { };
@@ -289,10 +299,7 @@ in
     # `$HOME/.pi-lens` to reach the symlink. Grant the directory read-write so
     # both the traversal and the runtime writes succeed.
     programs.nono.agentFilesystem.pi = {
-      allow = [
-        "$HOME/.pi-lens"
-        piHistoryStateDir
-      ];
+      allow = lib.optional cfg.enablePiLens "$HOME/.pi-lens" ++ [ piHistoryStateDir ];
       read = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions" ];
       read_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/pi-meantime.json" ];
       allow_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/models.json" ];
@@ -407,7 +414,9 @@ in
         "${cfg.configDir}/models.json".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/models.json";
 
-        ".pi-lens/config.json".source = jsonFormat.generate "pi-lens-config.json" cfg.piLensSettings;
+        ".pi-lens/config.json" = lib.mkIf cfg.enablePiLens {
+          source = jsonFormat.generate "pi-lens-config.json" cfg.piLensSettings;
+        };
 
         # The activation entry owns this mutable file.
         "${cfg.configDir}/settings.json".enable = false;
