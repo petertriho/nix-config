@@ -14,7 +14,6 @@ let
     rpiv-args
     rpiv-ask-user-question
     # rpiv-todo
-    pi-autoresearch
     pi-blackhole
     pi-cache-optimizer
     pi-codex-tools

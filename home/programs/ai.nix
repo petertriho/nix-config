@@ -260,7 +260,6 @@ in
         "skill-creator"
       ];
     };
-    autoresearch.enable = true;
     bladebro.enable = true;
     donsetch.enable = true;
     effective-html.enable = true;

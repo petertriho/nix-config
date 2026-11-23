@@ -5,7 +5,6 @@
     ./agents.nix
     ./ai.nix
     ./anthropic-skills.nix
-    ./autoresearch.nix
     ./betterfox.nix
     ./bladebro.nix
     ./claude-code.nix

@@ -10,7 +10,6 @@ let
 in
 {
   omp-undo-redo = callPackage ./omp-undo-redo { };
-  pi-autoresearch = callPackage ./pi-autoresearch { };
   pi-blackhole = callPackage ./pi-blackhole {
     inherit stripNpmManifest updateNpmLock;
   };

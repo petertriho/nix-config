@@ -7,7 +7,6 @@
 with pkgs;
 {
   anthropic-skills = callPackage ./anthropic-skills { };
-  autoresearch = callPackage ./autoresearch { };
   betterfox = callPackage ./betterfox { };
   bladebro = callPackage ./bladebro { };
   codexbar = callPackage ./codexbar { };
