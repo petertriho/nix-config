@@ -194,7 +194,7 @@
       "src": "https://github.com/chrisgrieser/nvim-rulebook"
     },
     "nvim-scrollbar": {
-      "rev": "57fc5fec3287b1f84f73a174f5b559d0711a1081",
+      "rev": "83b7e469ecc8275ab702d4bc5b85c40dab80c2e6",
       "src": "https://github.com/petertriho/nvim-scrollbar"
     },
     "nvim-spider": {
