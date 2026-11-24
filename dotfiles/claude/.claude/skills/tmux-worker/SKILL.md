@@ -54,9 +54,9 @@ unknown worker, or a call from inside a worker.
 
 1. Prepare a folder for each worker with the rules of the project. Do not let
    two workers edit one folder at the same time.
-   - In `~/Work`, follow `~/Work/CLAUDE.md`: create the worktree in
-     `~/Work/<repo>/worktrees/<dir>`, then pass
-     `--cwd <worktree> --session <repo> --session-dir ~/Work/<repo>`.
+   - Follow the rules of the project or the host for worktree paths and
+     branch names. Pass `--session` and `--session-dir` when those rules set
+     them.
 2. Write a self-contained prompt for each worker with the template below. The
    worker cannot see this conversation.
 3. Start each worker. Store each id, and tell the user each target
@@ -152,8 +152,6 @@ You do <task> in <repository>.
 <approach, test command, conventions>
 
 ## Rules
-- Do not add Jira work log entries, comment on Jira, or change a ticket. The
-  lead does that.
 - Do not refer to .artifacts, PLAN.md, TASKS.md, or task IDs in code,
   comments, commit messages, or PR descriptions.
 - <commit, push, and PR rules: what the worker may do itself>
