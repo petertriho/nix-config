@@ -1,0 +1,855 @@
+#!/usr/bin/env bash
+#
+# pi-tmux-agents: run pi agents in tmux windows for a pi lead session, and
+# return the result of each agent turn to the lead.
+#
+# An agent runs in a window of a tmux session, in a folder that the caller
+# prepared (usually a git worktree). The window starts the user's interactive
+# shell, and spawn types "pi-tmux-agents launch <id>" into it, so the shell
+# hooks (direnv) run before pi starts. In that pi, the global pi extension
+# pi-tmux-agents runs in agent mode: it appends one JSON line for each event
+# to <state>/<id>/turns.jsonl, and it delivers the requests that this script
+# writes to <state>/<id>/inbox/. pull, wait, and list read turns.jsonl.
+#
+# SC2016: single-quoted $ is intended in jq filters.
+# shellcheck disable=SC2016
+
+set -euo pipefail
+
+prog=pi-tmux-agents
+# The agent windows get PI_TMUX_AGENTS_STATE_DIR from open_window, because a
+# tmux window does not inherit the environment of spawn.
+state_root="${PI_TMUX_AGENTS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/pi-tmux-agents}"
+self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+# Set by resolve and spawn.
+id=""
+dir=""
+# Set by lock_meta while this process holds the lock of an agent.
+held_lock=""
+# Set by load_panes. One "<pane id> <agent id>" line for each tmux pane.
+panes=""
+panes_loaded=false
+# Set by claim_event.
+claimed=""
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  pi-tmux-agents spawn [--name <label>] [--cwd <dir>] [--session <name>]
+                       [--session-dir <dir>] [--window <name>] [--model <model>]
+                       [--thinking <level>] [--lead <session-id>]
+                       [--pi-arg <arg>]... [--] <prompt|->
+  pi-tmux-agents send <agent> [--] <message|->
+  pi-tmux-agents pull [--lead <session-id>] [--json]
+  pi-tmux-agents wait <agent> [--timeout <seconds>]
+  pi-tmux-agents read <agent> [--lines <n>]
+  pi-tmux-agents interrupt <agent>
+  pi-tmux-agents stop <agent>
+  pi-tmux-agents list [--json] [--lead <session-id>]
+  pi-tmux-agents launch <agent>
+
+<agent> is an agent id, or a name that only one agent has. A prompt or a
+message of - is read from stdin. After --, the next argument is the text,
+also when it starts with - or is -.
+
+spawn      Start pi in a new detached tmux window in --cwd (default: the
+           current folder), and print the agent id. The prompt goes to the
+           inbox of the agent, and pi gets it when it is ready. spawn returns
+           at once. Without --session, the window opens in the session of the
+           calling pane. A missing session is created detached, rooted at
+           --session-dir, which defaults to --cwd. --lead records the pi
+           session of the lead (default: $PI_SESSION_ID). Each --pi-arg passes
+           one more argument to pi, at the first launch and at each resume.
+           spawn refuses to run inside an agent: when PI_TMUX_AGENT_ID,
+           TMUX_WORKER_ID, PI_SUBAGENT_ID, or PI_SUBAGENT_SESSION is set.
+send       Put a message in the inbox of the agent, and return at once. A busy
+           agent gets it when its run ends. An agent that waits on a dialog
+           gets it after the dialog closes. When pi does not run, because the
+           agent is stopped, pi exited, or the pane is gone, send reopens the
+           window and resumes the same pi session.
+pull       Print the new event of each agent of the lead that is not stopped,
+           and mark it as read. The events are stop, error, waiting,
+           interrupted, and gone. gone comes once for each launch, when pi
+           exits or the pane is gone without a newer event. --json prints one
+           JSON object for each event, with id, name, event, turn, text,
+           message, target, pane, cwd, session_file, ts, screen, and
+           exit_status. A waiting event has the last 40 lines of the pane in
+           screen. The pi-tmux-agents pi extension calls pull in a lead
+           session. A shell pull or wait takes the events away from the lead.
+wait       Block until the agent ends or pauses a turn, print the reply on
+           stdout, and print a trailer on stderr:
+             pi-tmux-agents: id=<id> target=<target> pane=<pane> turn=<n> event=<event>
+read       Print the last lines of the pane (default 60).
+interrupt  Ask pi to stop the current turn. When the agent waits on a dialog,
+           also send Escape to the pane. When no turn runs, do nothing.
+stop       Close the window and mark the agent stopped. The folder, the state,
+           and the pi session stay. send resumes the agent.
+list       Print the agents: id, name, status, target, and cwd. The status is
+           starting, working, waiting, idle, error, dead, or stopped. --json
+           prints an array with more fields. --lead keeps only the agents of
+           one lead session.
+launch     Run pi for the agent. spawn and send type this command into the
+           agent window. Do not run it yourself.
+
+Exit codes of wait:
+  0    the turn ended (stop)
+  1    the turn ended with an error, or it was interrupted
+  2    pi or its pane is gone, or the agent is stopped
+  3    the agent waits on a dialog
+  124  --timeout expired
+Other exit codes:
+  0    spawn, send, interrupt, and stop succeeded
+  2    no tmux server answers, or pi, tmux, or jq is missing
+  64   a usage error, or an unknown agent
+
+Environment:
+  XDG_STATE_HOME             the state is in
+                             ${XDG_STATE_HOME:-~/.local/state}/pi-tmux-agents/<id>/
+  PI_TMUX_AGENTS_STATE_DIR   overrides the state folder
+USAGE
+}
+
+fail() {
+    local code=$1
+    shift
+    printf '%s: %s\n' "$prog" "$*" >&2
+    exit "$code"
+}
+
+note() {
+    printf '%s: %s\n' "$prog" "$*" >&2
+}
+
+need_cmd() {
+    command -v "$1" >/dev/null 2>&1 || fail 2 "$1 is not on PATH"
+}
+
+need_tmux() {
+    tmux info >/dev/null 2>&1 || fail 2 "no tmux server answers; start tmux first"
+}
+
+# need_value <argc> <option>: the option needs a value.
+need_value() {
+    [ "$1" -ge 2 ] || fail 64 "$2 needs a value"
+}
+
+# A pi agent, a tmux worker, or a pi subagent that starts agents would hide
+# work from the lead and the user.
+refuse_nested() {
+    local v
+    for v in PI_TMUX_AGENT_ID TMUX_WORKER_ID PI_SUBAGENT_ID PI_SUBAGENT_SESSION; do
+        [ -z "${!v:-}" ] || fail 64 "$v is set: an agent cannot start pi tmux agents"
+    done
+}
+
+meta_get() {
+    jq -r "($1) // empty" "$dir/meta.json"
+}
+
+meta_true() {
+    [ "$(jq -r "($1) == true" "$dir/meta.json")" = true ]
+}
+
+# mkdir is atomic, so the lock serializes the writers of meta.json, also a
+# shell wait and the pull of the lead extension.
+lock_meta() {
+    local tries=0
+    until mkdir "$dir/.meta.lock" 2>/dev/null; do
+        tries=$((tries + 1))
+        # A stale lock from a killed command: take it over after about 5 seconds.
+        [ "$tries" -lt 50 ] || break
+        sleep 0.1
+    done
+    held_lock="$dir/.meta.lock"
+}
+
+unlock_meta() {
+    [ -z "$held_lock" ] || rmdir "$held_lock" 2>/dev/null || true
+    held_lock=""
+}
+
+trap unlock_meta EXIT
+
+# meta_write [jq options] <filter>: the caller holds the lock.
+meta_write() {
+    local tmp
+    tmp=$(mktemp "$dir/.meta.XXXXXX")
+    jq "$@" "$dir/meta.json" >"$tmp"
+    mv "$tmp" "$dir/meta.json"
+}
+
+# meta_update [jq options] <filter>
+meta_update() {
+    if [ -n "$held_lock" ]; then
+        meta_write "$@"
+        return
+    fi
+    lock_meta
+    meta_write "$@"
+    unlock_meta
+}
+
+# resolve <id|name>: sets id and dir.
+resolve() {
+    local arg=${1:-} m matches=() n
+    [ -n "$arg" ] || fail 64 "missing agent id"
+    if [[ $arg =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] && [ -f "$state_root/$arg/meta.json" ]; then
+        id=$arg
+        dir="$state_root/$id"
+        return
+    fi
+    for m in "$state_root"/*/meta.json; do
+        [ -f "$m" ] || continue
+        n=$(jq -r --arg name "$arg" 'select(.name == $name) | .id' "$m")
+        [ -z "$n" ] || matches+=("$n")
+    done
+    case ${#matches[@]} in
+    0) fail 64 "unknown agent: $arg" ;;
+    1)
+        id=${matches[0]}
+        dir="$state_root/$id"
+        ;;
+    *) fail 64 "several agents have the name $arg: ${matches[*]}; pass an id" ;;
+    esac
+}
+
+load_panes() {
+    panes=$(tmux list-panes -a -F '#{pane_id} #{@pi_tmux_agent_id}' 2>/dev/null || true)
+    panes_loaded=true
+}
+
+# The pane option guards against a pane id that tmux reused after a restart.
+pane_alive() {
+    local pane
+    pane=$(meta_get .pane)
+    [ -n "$pane" ] || return 1
+    if $panes_loaded; then
+        grep -Fxq -- "$pane $id" <<<"$panes"
+        return
+    fi
+    [ "$(tmux display-message -p -t "$pane" '#{@pi_tmux_agent_id}' 2>/dev/null)" = "$id" ]
+}
+
+# pi runs, or is about to start, in the agent pane.
+pi_running() {
+    ! meta_true .stopped && [ ! -f "$dir/pi.exit" ] && pane_alive
+}
+
+latest_seq() {
+    if [ -s "$dir/turns.jsonl" ]; then
+        wc -l <"$dir/turns.jsonl" | tr -d ' '
+    else
+        echo 0
+    fi
+}
+
+last_event() {
+    [ -s "$dir/turns.jsonl" ] || return 0
+    tail -n 1 "$dir/turns.jsonl" | jq -r '.event // empty' 2>/dev/null || true
+}
+
+# The newest event after seq $1 that ends or pauses a turn. A waiting event
+# that a later event follows is stale: the dialog was answered or cancelled.
+# A line that the agent writes at this moment can make jq fail; the next poll
+# reads it.
+pending_event() {
+    [ -s "$dir/turns.jsonl" ] || return 0
+    jq -sc --argjson after "$1" '
+        [ .[] | select(.seq > $after) ] as $new
+        | ($new | map(select(.event == "stop" or .event == "error" or .event == "waiting" or .event == "interrupted")) | last) as $c
+        | if $c == null then empty
+          elif $c.event == "waiting" and ($new | any(.seq > $c.seq)) then empty
+          else $c end' "$dir/turns.jsonl" 2>/dev/null || true
+}
+
+# claim_event: sets claimed to the pending event and marks it as read. Two
+# readers (a shell wait and the lead) never get the same event.
+claim_event() {
+    lock_meta
+    claimed=$(pending_event "$(meta_get .consumed)")
+    if [ -n "$claimed" ]; then
+        meta_write --argjson seq "$(jq -r '.seq' <<<"$claimed")" '.consumed = $seq'
+    fi
+    unlock_meta
+}
+
+target() {
+    printf '%s:%s' "$(meta_get .session)" "$(meta_get .window_name)"
+}
+
+exit_status() {
+    cat "$dir/pi.exit" 2>/dev/null || echo '?'
+}
+
+# The agent extension writes session.json when its pi session starts.
+session_file() {
+    jq -r '.session_file // empty' "$dir/session.json" 2>/dev/null || true
+}
+
+# Up to $1 lines of the pane, ending at the last line that is not blank.
+# Trailing spaces go, and a run of blank lines becomes one blank line.
+screen() {
+    tmux capture-pane -p -J -t "$(meta_get .pane)" -S "-$1" 2>/dev/null |
+        awk '{ sub(/[ \t]+$/, "") } NF || !blank { l[++n] = $0 } { blank = !NF } NF { last = n }
+            END { for (i = 1; i <= last; i++) print l[i] }' |
+        tail -n "$1"
+}
+
+gone_text() {
+    if [ -f "$dir/pi.exit" ]; then
+        printf 'pi exited with status %s without a new turn.' "$(exit_status)"
+    else
+        printf 'The pane is gone without a new turn.'
+    fi
+}
+
+report() {
+    local line=$1 seq event text message trailer
+    seq=$(jq -r '.seq' <<<"$line")
+    event=$(jq -r '.event' <<<"$line")
+    text=$(jq -r '.text // ""' <<<"$line")
+    message=$(jq -r '.message // "" | gsub("\n"; " ")' <<<"$line")
+    trailer="$prog: id=$id target=$(target) pane=$(meta_get .pane) turn=$seq event=$event"
+    case $event in
+    stop)
+        printf '%s\n' "$text"
+        printf '%s\n' "$trailer" >&2
+        exit 0
+        ;;
+    error)
+        [ -z "$text" ] || printf '%s\n' "$text"
+        printf '%s error=%s\n' "$trailer" "$message" >&2
+        exit 1
+        ;;
+    waiting)
+        printf '%s\n\n' "${message:-The agent waits on a dialog.}"
+        ! pane_alive || screen 40
+        printf '%s\n' "$trailer" >&2
+        exit 3
+        ;;
+    interrupted)
+        printf '%s\n' "The turn was interrupted."
+        printf '%s\n' "$trailer" >&2
+        exit 1
+        ;;
+    esac
+}
+
+report_gone() {
+    if meta_true .stopped; then
+        fail 2 "id=$id the agent is stopped; send a message to resume it"
+    fi
+    meta_update '.gone_reported = .launch_count'
+    ! pane_alive || screen 40
+    fail 2 "id=$id target=$(target) $(gone_text)"
+}
+
+# wait_event [timeout-seconds]
+wait_event() {
+    local timeout=${1:-} start=$SECONDS
+    while :; do
+        claim_event
+        [ -z "$claimed" ] || report "$claimed"
+        if ! pi_running; then
+            # pi can write its last event just before it exits.
+            claim_event
+            [ -z "$claimed" ] || report "$claimed"
+            report_gone
+        fi
+        if [ -n "$timeout" ] && [ $((SECONDS - start)) -ge "$timeout" ]; then
+            fail 124 "id=$id target=$(target) timed out after ${timeout}s without a new turn"
+        fi
+        sleep 1
+    done
+}
+
+# tmux reads "." and ":" in a session name as target syntax and replaces them.
+session_name() {
+    printf '%s' "$1" | tr '.:' '__'
+}
+
+real_dir() {
+    (cd "$1" 2>/dev/null && pwd -P) || fail 64 "no such folder: $1"
+}
+
+ensure_session() {
+    local session=$1 root=$2 path
+    if ! tmux has-session -t "=$session" 2>/dev/null; then
+        tmux new-session -d -s "$session" -c "$root"
+        return
+    fi
+    path=$(tmux display-message -p -t "=$session:" '#{session_path}')
+    if [ "$(real_dir "$path" 2>/dev/null || echo "$path")" != "$root" ]; then
+        note "session $session exists with the root $path, not $root; the window goes there"
+    fi
+}
+
+# A window name that the session does not use yet: name, name-2, name-3, ...
+free_window_name() {
+    local session=$1 base=$2 name=$2 n=2
+    while tmux list-windows -t "=$session" -F '#{window_name}' 2>/dev/null | grep -Fxq -- "$name"; do
+        name="$base-$n"
+        n=$((n + 1))
+    done
+    printf '%s' "$name"
+}
+
+open_window() {
+    local session root cwd win out wid pane
+    session=$(meta_get .session)
+    root=$(meta_get .session_dir)
+    cwd=$(meta_get .cwd)
+    ensure_session "$session" "$root"
+    win=$(free_window_name "$session" "$(meta_get .window_base)")
+    out=$(tmux new-window -d -t "=$session:" -n "$win" -c "$cwd" \
+        -e "PI_TMUX_AGENTS_STATE_DIR=$state_root" -P -F '#{window_id} #{pane_id}')
+    wid=${out% *}
+    pane=${out#* }
+    # The tmux-window-name plugin renames every window whose
+    # @tmux_window_name_enabled is not 0. Set the name again in case it ran.
+    tmux set-option -w -t "$wid" automatic-rename off
+    tmux set-option -w -t "$wid" @tmux_window_name_enabled 0
+    tmux rename-window -t "$wid" "$win"
+    tmux set-option -p -t "$pane" @pi_tmux_agent_id "$id"
+    meta_update --arg win "$win" --arg wid "$wid" --arg pane "$pane" \
+        '.window_name = $win | .window_id = $wid | .pane = $pane | .stopped = false'
+}
+
+# Types the launch command into the shell of the agent pane.
+type_launch() {
+    local pane
+    pane=$(meta_get .pane)
+    rm -f "$dir/pi.exit"
+    # An abort request from before this launch would stop its first turn.
+    rm -f "$dir"/inbox/*-abort
+    meta_update --argjson seq "$(latest_seq)" --argjson now "$(date +%s)" \
+        '.launch_count += 1 | .launch_seq = $seq | .launched_at = $now'
+    tmux send-keys -t "$pane" -l "$(printf '%q launch %q' "$self" "$id")"
+    tmux send-keys -t "$pane" Enter
+}
+
+# write_inbox <message|abort> [text]: the file name starts with the time in
+# nanoseconds, so the agent handles the requests in order. The agent skips
+# names that start with a dot, so the rename makes each request whole.
+write_inbox() {
+    local kind=$1 stamp name tmp suffix=""
+    [ "$kind" != message ] || suffix=.txt
+    mkdir -p "$dir/inbox"
+    if [ -n "${EPOCHREALTIME:-}" ]; then
+        stamp="${EPOCHREALTIME/[.,]/}000"
+    else
+        stamp="$(date +%s)000000000"
+    fi
+    name=$(printf '%020d-%s%s' "$stamp" "$kind" "$suffix")
+    while [ -e "$dir/inbox/$name" ]; do
+        stamp=$((stamp + 1))
+        name=$(printf '%020d-%s%s' "$stamp" "$kind" "$suffix")
+    done
+    tmp=$(mktemp "$dir/inbox/.tmp.XXXXXX")
+    printf '%s' "${2:-}" >"$tmp"
+    mv "$tmp" "$dir/inbox/$name"
+}
+
+new_id() {
+    local candidate
+    while :; do
+        candidate=$(od -An -N3 -tx1 /dev/urandom | tr -d ' \n')
+        [ -e "$state_root/$candidate" ] || break
+    done
+    printf '%s' "$candidate"
+}
+
+# read_text <text|-> <literal>: - reads stdin, unless the text came after --.
+read_text() {
+    if [ "$1" = - ] && [ "$2" = false ]; then
+        cat
+    else
+        printf '%s' "$1"
+    fi
+}
+
+# pi-tmux-agents sets these pi options itself, at each launch and resume, or
+# they stop pi from running as an interactive agent.
+check_pi_arg() {
+    case ${1%%=*} in
+    --session-id | --session | -c | --continue | -r | --resume | --fork | --no-session | \
+        -n | --name | --model | --thinking | -p | --print | --mode | -ne | --no-extensions | \
+        --export | --list-models | -h | --help | -v | --version | --)
+        fail 64 "--pi-arg $1: pi-tmux-agents sets this option or needs pi without it" ;;
+    esac
+    case $1 in
+    *$'\n'*) fail 64 "--pi-arg: a value cannot hold a line break" ;;
+    esac
+}
+
+cmd_spawn() {
+    local name="" cwd=$PWD session="" session_dir="" window="" model="" thinking=""
+    local lead=${PI_SESSION_ID:-} text_arg="" have_text=false literal=false prompt uuid
+    local pi_args=()
+    while [ $# -gt 0 ]; do
+        case $1 in
+        --name | --cwd | --session | --session-dir | --window | --model | --thinking | --lead)
+            need_value $# "$1"
+            case $1 in
+            --name) name=$2 ;;
+            --cwd) cwd=$2 ;;
+            --session) session=$2 ;;
+            --session-dir) session_dir=$2 ;;
+            --window) window=$2 ;;
+            --model) model=$2 ;;
+            --thinking) thinking=$2 ;;
+            --lead) lead=$2 ;;
+            esac
+            shift 2
+            ;;
+        --pi-arg)
+            need_value $# "$1"
+            check_pi_arg "$2"
+            pi_args+=("$2")
+            shift 2
+            ;;
+        -h | --help) usage; exit 0 ;;
+        --)
+            [ $# -eq 2 ] || fail 64 "give one prompt after --"
+            ! $have_text || fail 64 "give one prompt"
+            text_arg=$2
+            have_text=true
+            literal=true
+            shift 2
+            ;;
+        -) ! $have_text || fail 64 "give one prompt"; text_arg=-; have_text=true; shift ;;
+        -*) fail 64 "unknown option: $1 (put -- before a prompt that starts with -)" ;;
+        *)
+            ! $have_text || fail 64 "give one prompt"
+            text_arg=$1
+            have_text=true
+            shift
+            ;;
+        esac
+    done
+    $have_text || fail 64 "missing prompt (pass - to read it from stdin)"
+    refuse_nested
+    need_tmux
+    need_cmd pi
+
+    cwd=$(real_dir "$cwd")
+    if [ -n "$session" ]; then
+        session=$(session_name "$session")
+        session_dir=$(real_dir "${session_dir:-$cwd}")
+    else
+        [ -n "${TMUX_PANE:-}" ] || fail 64 "outside a tmux pane; pass --session"
+        session=$(tmux display-message -p -t "$TMUX_PANE" '#{session_name}')
+        session_dir=$(tmux display-message -p -t "$TMUX_PANE" '#{session_path}')
+    fi
+    [ -n "$name" ] || name=$(basename "$cwd")
+    [ -n "$window" ] || window=$(basename "$cwd")
+    prompt=$(read_text "$text_arg" "$literal")
+    [[ $prompt =~ [^[:space:]] ]] || fail 64 "the prompt is empty"
+
+    mkdir -p "$state_root"
+    id=$(new_id)
+    dir="$state_root/$id"
+    mkdir -p "$dir/inbox"
+    uuid=$({ uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid; } | tr '[:upper:]' '[:lower:]')
+    jq -n --arg id "$id" --arg name "$name" --arg cwd "$cwd" \
+        --arg session "$session" --arg session_dir "$session_dir" \
+        --arg window "$window" --arg pi_session "$uuid" \
+        --arg lead "$lead" --arg lead_pane "${TMUX_PANE:-}" \
+        --arg model "$model" --arg thinking "$thinking" \
+        --argjson now "$(date +%s)" \
+        '{id: $id, name: $name, cwd: $cwd, session: $session, session_dir: $session_dir,
+          window_base: $window, window_name: $window, window_id: "", pane: "",
+          pi_session: $pi_session, lead_session: $lead, lead_pane: $lead_pane,
+          model: $model, thinking: $thinking, pi_args: $ARGS.positional,
+          consumed: 0, launch_count: 0, launch_seq: 0, launched_at: $now,
+          gone_reported: 0, stopped: false, created: $now}' \
+        --args -- "${pi_args[@]}" >"$dir/meta.json"
+    write_inbox message "$prompt"
+    open_window
+    type_launch
+    printf '%s\n' "$id"
+    note "id=$id target=$(target) pane=$(meta_get .pane) cwd=$cwd"
+}
+
+cmd_launch() {
+    resolve "${1:-}"
+    local args=() extra=() arg status session model thinking
+    # The variables of an outer pi session would describe the wrong session,
+    # and the subagent markers would turn off agent mode.
+    unset PI_SESSION_ID PI_SESSION_FILE PI_PROVIDER PI_MODEL PI_REASONING_LEVEL \
+        PI_SUBAGENT_ID PI_SUBAGENT_SESSION
+    export PI_TMUX_AGENT_ID="$id" PI_TMUX_AGENT_DIR="$dir"
+    # The agent extension records the session id that pi really uses, also
+    # after /new in the agent window.
+    session=$(jq -rs 'map(.session_id // empty | select(length > 0)) | last // empty' \
+        "$dir/turns.jsonl" 2>/dev/null || true)
+    session=${session:-$(meta_get .pi_session)}
+    args=(--session-id "$session" -n "$(meta_get .name)")
+    model=$(meta_get .model)
+    [ -z "$model" ] || args+=(--model "$model")
+    thinking=$(meta_get .thinking)
+    [ -z "$thinking" ] || args+=(--thinking "$thinking")
+    while IFS= read -r -d '' arg; do
+        extra+=("$arg")
+    done < <(jq -j '.pi_args // [] | .[] | . + "\u0000"' "$dir/meta.json")
+    args+=("${extra[@]}")
+    rm -f "$dir/pi.exit"
+    cd "$(meta_get .cwd)"
+    set +e
+    pi "${args[@]}"
+    status=$?
+    set -e
+    printf '%s\n' "$status" >"$dir/pi.exit"
+}
+
+cmd_wait() {
+    resolve "${1:-}"
+    shift || true
+    local timeout=""
+    while [ $# -gt 0 ]; do
+        case $1 in
+        --timeout) need_value $# "$1"; timeout=$2; shift 2 ;;
+        *) fail 64 "unknown argument: $1" ;;
+        esac
+    done
+    [[ -z $timeout || $timeout =~ ^[0-9]+$ ]] || fail 64 "--timeout needs whole seconds"
+    need_tmux
+    wait_event "$timeout"
+}
+
+cmd_send() {
+    resolve "${1:-}"
+    shift || true
+    local text_arg="" literal=false message
+    case ${1:-} in
+    --)
+        [ $# -eq 2 ] || fail 64 "give one message after --"
+        text_arg=$2
+        literal=true
+        ;;
+    *)
+        [ $# -eq 1 ] || fail 64 "send needs one message (pass - to read it from stdin)"
+        text_arg=$1
+        ;;
+    esac
+    message=$(read_text "$text_arg" "$literal")
+    [[ $message =~ [^[:space:]] ]] || fail 64 "the message is empty"
+    need_tmux
+    write_inbox message "$message"
+    if pi_running; then
+        note "id=$id target=$(target) the message is in the inbox"
+        return 0
+    fi
+    if meta_true .stopped || ! pane_alive; then
+        open_window
+    fi
+    type_launch
+    note "id=$id target=$(target) pane=$(meta_get .pane) reopened the agent on its pi session"
+}
+
+cmd_read() {
+    resolve "${1:-}"
+    shift || true
+    local lines=60
+    while [ $# -gt 0 ]; do
+        case $1 in
+        --lines) need_value $# "$1"; lines=$2; shift 2 ;;
+        *) fail 64 "unknown argument: $1" ;;
+        esac
+    done
+    [[ $lines =~ ^[1-9][0-9]*$ ]] || fail 64 "--lines needs a whole number"
+    pane_alive || fail 2 "id=$id the pane is gone"
+    screen "$lines"
+}
+
+cmd_interrupt() {
+    resolve "${1:-}"
+    need_tmux
+    pi_running || fail 2 "id=$id pi does not run in the agent pane"
+    case $(last_event) in
+    stop | error | interrupted)
+        note "id=$id no turn runs; nothing to interrupt"
+        return 0
+        ;;
+    waiting)
+        write_inbox abort
+        # The abort stops the run, but it may not close the dialog of another
+        # extension. Escape cancels a dialog. A dialog is not the editor, so
+        # the vim editor mode does not catch it. Escape goes after the agent
+        # took the abort: an earlier Escape lets the run go on with a
+        # cancelled answer.
+        local tries=0
+        while [ -n "$(find "$dir/inbox" -name '*-abort' 2>/dev/null)" ] && [ "$tries" -lt 20 ]; do
+            sleep 0.1
+            tries=$((tries + 1))
+        done
+        sleep 0.3
+        [ "$(last_event)" != waiting ] || tmux send-keys -t "$(meta_get .pane)" Escape
+        ;;
+    *)
+        write_inbox abort
+        ;;
+    esac
+    note "id=$id target=$(target) asked pi to stop the turn"
+}
+
+cmd_stop() {
+    resolve "${1:-}"
+    local wid
+    wid=$(meta_get .window_id)
+    # The folder, the branch, the session, and the state stay.
+    [ -z "$wid" ] || tmux kill-window -t "$wid" 2>/dev/null || true
+    rm -f "$dir"/inbox/*-abort
+    meta_update '.stopped = true'
+    note "id=$id stopped; send a message to resume it"
+}
+
+# pull_record <event-json> [screen] [exit-status]: one JSON line for pull.
+pull_record() {
+    jq -c --arg id "$id" --arg name "$(meta_get .name)" --arg target "$(target)" \
+        --arg pane "$(meta_get .pane)" --arg cwd "$(meta_get .cwd)" \
+        --arg session_file "$(session_file)" --arg screen "${2:-}" --arg exit_status "${3:-}" \
+        '{id: $id, name: $name, event: .event, turn: .seq, text: (.text // ""),
+          message: (.message // ""), target: $target, pane: $pane, cwd: $cwd,
+          session_file: $session_file, ts: .ts, screen: $screen, exit_status: $exit_status}' <<<"$1"
+}
+
+# pull_agent: prints the new event of the agent in dir, if any.
+pull_agent() {
+    local record="" scr="" status=""
+    claim_event
+    if [ -n "$claimed" ]; then
+        if [ "$(jq -r '.event' <<<"$claimed")" = waiting ] && pane_alive; then
+            scr=$(screen 40)
+        fi
+        record=$(pull_record "$claimed" "$scr")
+    elif ! pi_running; then
+        lock_meta
+        if [ "$(jq -r '.gone_reported < .launch_count' "$dir/meta.json")" = true ]; then
+            meta_write '.gone_reported = .launch_count'
+            ! pane_alive || scr=$(screen 40)
+            [ ! -f "$dir/pi.exit" ] || status=$(exit_status)
+            record=$(jq -cn --argjson seq "$(latest_seq)" --arg text "$(gone_text)" \
+                --argjson ts "$(date +%s)" '{seq: $seq, event: "gone", text: $text, message: "", ts: $ts}')
+            record=$(pull_record "$record" "$scr" "$status")
+        fi
+        unlock_meta
+    fi
+    [ -n "$record" ] || return 0
+    if $json; then
+        printf '%s\n' "$record"
+    else
+        jq -r '[.id, .name, .event, (.turn | tostring), (.text | split("\n") | first // "")] | @tsv' <<<"$record"
+    fi
+}
+
+cmd_pull() {
+    local lead=${PI_SESSION_ID:-} m metas
+    json=false
+    while [ $# -gt 0 ]; do
+        case $1 in
+        --json) json=true; shift ;;
+        --lead) need_value $# "$1"; lead=$2; shift 2 ;;
+        *) fail 64 "unknown argument: $1" ;;
+        esac
+    done
+    [ -n "$lead" ] || fail 64 "pull needs --lead <session-id> or PI_SESSION_ID"
+    # One grep skips the agents of other leads before jq runs for each agent.
+    metas=$(grep -lF -- "$lead" "$state_root"/*/meta.json 2>/dev/null || true)
+    [ -n "$metas" ] || return 0
+    load_panes
+    while IFS= read -r m; do
+        [ -f "$m" ] || continue
+        [ "$(jq -r --arg lead "$lead" '.lead_session == $lead and .stopped != true' "$m")" = true ] || continue
+        dir=$(dirname "$m")
+        id=$(basename "$dir")
+        pull_agent
+    done <<<"$metas"
+}
+
+cmd_list() {
+    local json=false lead="" m d alive exited turns records metas
+    while [ $# -gt 0 ]; do
+        case $1 in
+        --json) json=true; shift ;;
+        --lead) need_value $# "$1"; lead=$2; shift 2 ;;
+        *) fail 64 "unknown argument: $1" ;;
+        esac
+    done
+    # One grep skips the agents of other leads before jq runs for each agent.
+    # The lead extension runs this list every second while it has an agent.
+    if [ -n "$lead" ]; then
+        metas=$(grep -lF -- "$lead" "$state_root"/*/meta.json 2>/dev/null || true)
+    else
+        metas=$(printf '%s\n' "$state_root"/*/meta.json)
+    fi
+    load_panes
+    records=$(
+        while IFS= read -r m; do
+            [ -f "$m" ] || continue
+            d=$(dirname "$m")
+            alive=false
+            if grep -Fxq -- "$(jq -r '.pane + " " + .id' "$m")" <<<"$panes"; then
+                alive=true
+            fi
+            exited=false
+            [ ! -f "$d/pi.exit" ] || exited=true
+            turns="$d/turns.jsonl"
+            [ -s "$turns" ] || turns=/dev/null
+            jq -n --slurpfile m "$m" --slurpfile t "$turns" --arg dir "$d" \
+                --argjson alive "$alive" --argjson exited "$exited" '
+                $m[0] as $m
+                | ($t | last) as $last
+                | ($t | map(select(.seq > ($m.launch_seq // 0))) | length == 0) as $starting
+                | ($t | map(select(.event == "stop")) | last) as $stop
+                | {
+                    id: $m.id, name: $m.name, lead_session: $m.lead_session,
+                    session: $m.session, window: $m.window_name, window_id: $m.window_id,
+                    pane: $m.pane, target: ($m.session + ":" + $m.window_name), cwd: $m.cwd,
+                    dir: $dir,
+                    status: (if $m.stopped then "stopped"
+                             elif ($alive | not) or $exited then "dead"
+                             elif $starting then "starting"
+                             else ({stop: "idle", interrupted: "idle", error: "error", waiting: "waiting"}[$last.event // ""] // "working")
+                             end),
+                    since: (if $starting and ($m.stopped | not) then ($m.launched_at // $m.created)
+                            else ($last.ts // $m.created) end),
+                    turn: ($t | map(select(.event != "working")) | last | .seq // 0),
+                    message: (if $last.event == "waiting" then $last.message // "" else "" end),
+                    last_text: (($stop.text // "") | split("\n") | map(select(test("\\S"))) | first // "" | .[0:200]),
+                    created: $m.created
+                  }'
+        done <<<"$metas"
+    )
+    if $json; then
+        jq -s --arg lead "$lead" 'map(select($lead == "" or .lead_session == $lead)) | sort_by(.created)' <<<"$records"
+    else
+        jq -rs --arg lead "$lead" 'map(select($lead == "" or .lead_session == $lead)) | sort_by(.created)[] | [.id, .name, .status, .target, .cwd] | @tsv' <<<"$records" |
+            column -t -s "$(printf '\t')"
+    fi
+}
+
+main() {
+    local command=${1:-}
+    [ $# -eq 0 ] || shift
+    case $command in
+    -h | --help | help) usage; exit 0 ;;
+    "") usage >&2; exit 64 ;;
+    esac
+    need_cmd jq
+    case $command in
+    spawn) cmd_spawn "$@" ;;
+    launch) cmd_launch "$@" ;;
+    wait) cmd_wait "$@" ;;
+    send) cmd_send "$@" ;;
+    pull) cmd_pull "$@" ;;
+    read) cmd_read "$@" ;;
+    interrupt) cmd_interrupt "$@" ;;
+    stop) cmd_stop "$@" ;;
+    list) cmd_list "$@" ;;
+    *) fail 64 "unknown command: $command" ;;
+    esac
+}
+
+main "$@"

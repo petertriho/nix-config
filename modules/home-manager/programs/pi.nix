@@ -9,6 +9,9 @@ let
   colors = config.lib.stylix.colors.withHashtag;
   jsonFormat = pkgs.formats.json { };
   piHistoryStateDir = "${config.xdg.stateHome}/pi";
+  # pi-tmux-agents keeps the state of each agent there. The lead and the CLI
+  # write it, and the extension in each agent appends the turn events.
+  piTmuxAgentsStateDir = "${config.xdg.stateHome}/pi-tmux-agents";
   piExtensions =
     with pkgs.piExtensions;
     [
@@ -299,7 +302,10 @@ in
     # `$HOME/.pi-lens` to reach the symlink. Grant the directory read-write so
     # both the traversal and the runtime writes succeed.
     programs.nono.agentFilesystem.pi = {
-      allow = lib.optional cfg.enablePiLens "$HOME/.pi-lens" ++ [ piHistoryStateDir ];
+      allow = lib.optional cfg.enablePiLens "$HOME/.pi-lens" ++ [
+        piHistoryStateDir
+        piTmuxAgentsStateDir
+      ];
       read = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/extensions" ];
       read_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/pi-meantime.json" ];
       allow_file = [ "$HOME/.nix-config/dotfiles/pi/.pi/agent/models.json" ];
@@ -404,6 +410,8 @@ in
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-subagents";
         "${cfg.configDir}/extensions/pi-history".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-history";
+        "${cfg.configDir}/extensions/pi-tmux-agents".source =
+          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tmux-agents";
 
         ".pi/web-search.json".source = config.lib.meta.mkDotfilesSymlink "pi/.pi/web-search.json";
 
@@ -424,6 +432,9 @@ in
       activation = {
         piHistoryState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piHistoryStateDir}
+        '';
+        piTmuxAgentsState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg piTmuxAgentsStateDir}
         '';
         piMutableSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] (
           config.lib.meta.mkMutableJsonConfig {

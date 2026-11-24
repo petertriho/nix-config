@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["*.ts", "__tests__/*.ts", "pi-cliproxyapi-provider/**/*.ts", "pi-history/**/*.ts", "pi-subagents/**/*.ts"]
+  "include": ["*.ts", "__tests__/*.ts", "pi-cliproxyapi-provider/**/*.ts", "pi-history/**/*.ts", "pi-subagents/**/*.ts", "pi-tmux-agents/**/*.ts"]
 }
