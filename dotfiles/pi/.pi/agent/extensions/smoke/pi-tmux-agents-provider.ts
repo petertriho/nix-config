@@ -8,6 +8,8 @@ import { Type } from "typebox";
  * The reply depends on the last user message:
  * - "SLOW <n>": wait n seconds, then reply "slow done". An abort ends it.
  * - "ASK": call SmokeAsk, which opens a confirm dialog, then reply "asked: <answer>".
+ * - "PROBE": reply "probe: marker=<yes|no> tools=<sorted tool names>". The
+ *   marker is SMOKE-MARKER in the system prompt, from --append-system-prompt.
  * - anything else: reply "echo: <message>".
  */
 export default function piTmuxAgentsSmokeProvider(pi: ExtensionAPI): void {
@@ -68,7 +70,21 @@ export default function piTmuxAgentsSmokeProvider(pi: ExtensionAPI): void {
                 .map((block: { text?: string }) => block.text ?? "")
                 .join("\n")
               : "";
-          if (last?.role === "toolResult") {
+          if (/\bPROBE\b/.test(userText) && last?.role !== "toolResult") {
+            // pi 1.6 sends the system prompt as a leading system message: the
+            // appended prompt is in its sections, and its toolsAdded names the
+            // tools. Older pi uses context.systemPrompt and context.tools.
+            const system = context.messages.filter((entry) => (entry.role as string) === "system") as Array<{
+              toolsAdded?: Array<string | { name?: string }>;
+            }>;
+            const systemText = [context.systemPrompt ?? "", ...system.map((entry) => JSON.stringify(entry))].join("\n");
+            const names = new Set((context.tools ?? []).map((tool) => tool.name));
+            for (const entry of system) {
+              for (const tool of entry.toolsAdded ?? []) names.add(typeof tool === "string" ? tool : tool.name ?? "");
+            }
+            const tools = [...names].filter(Boolean).sort().join(",");
+            reply(`probe: marker=${systemText.includes("SMOKE-MARKER") ? "yes" : "no"} tools=${tools}`);
+          } else if (last?.role === "toolResult") {
             const result = Array.isArray(last.content)
               ? last.content.map((block: { text?: string }) => block.text ?? "").join("")
               : "";

@@ -5,8 +5,10 @@ import { visibleWidth } from "@earendil-works/pi-tui";
 import {
   formatTrailer, parseList, parsePull, stateRoot, type ListedAgent, type PulledEvent, type PullRecord,
 } from "../cli.ts";
+import { Text } from "@earendil-works/pi-tui";
 import {
-  buildResultContent, EVENT_PRESENTATIONS, registerResultRenderer, renderResultLines, RESULT_TYPE,
+  agentToolRenderers, buildResultContent, EVENT_PRESENTATIONS, registerResultRenderer, renderResultLines,
+  RESULT_TYPE, sendToolRenderers,
 } from "../presentation/renderers.ts";
 import type { UiTheme } from "../presentation/ui.ts";
 import {
@@ -26,7 +28,8 @@ function agent(overrides: Partial<ListedAgent> = {}): ListedAgent {
   return {
     id: "a1b2c3", name: "api", lead_session: "lead", session: "repo", window: "api", pane: "%5",
     target: "repo:api", cwd: "/work/api", dir: "/state/a1b2c3", status: "working",
-    since: NOW / 1000 - 75, turn: 2, message: "", last_text: "", created: 1, ...overrides,
+    since: NOW / 1000 - 75, turn: 2, message: "", last_text: "", agent_type: "", description: "",
+    auto_stop: false, worktree: "", branch: "", created: 1, ...overrides,
   };
 }
 
@@ -34,7 +37,7 @@ function record(event: PulledEvent, overrides: Partial<PullRecord> = {}): PullRe
   return {
     id: "a1b2c3", name: "api", event, turn: 4, text: "", message: "", target: "repo:api",
     pane: "%5", cwd: "/work/api", session_file: "/sessions/s.jsonl", ts: 1, screen: "",
-    exit_status: "", ...overrides,
+    exit_status: "", agent_type: "", auto_stopped: false, ...overrides,
   };
 }
 
@@ -99,6 +102,28 @@ test("panel rows fit the widths 120, 60, 20, and 3", () => {
   assert.match(panel[2], /^╰─+╯$/);
 });
 
+test("panel rows show the agent type, and drop it before the name", () => {
+  const row = agent({ agent_type: "Explore" }) as ListedAgent & { status: PanelStatus };
+  assert.equal(renderAgentRow(theme, row, 120, NOW), "01:15 · api (Explore · repo:api) · ◌ working");
+  assert.equal(renderAgentRow(theme, row, 30, NOW), "api (Explore) · ◌ working");
+  assert.equal(renderAgentRow(theme, row, 20, NOW), "api · ◌ working");
+});
+
+test("parsePull and parseList read the type fields", () => {
+  const [pulledRecord] = parsePull(JSON.stringify({ ...record("stop"), agent_type: "Plan", auto_stopped: true }));
+  assert.equal(pulledRecord.agent_type, "Plan");
+  assert.equal(pulledRecord.auto_stopped, true);
+  assert.equal(parsePull(JSON.stringify({ id: "x", event: "stop", auto_stopped: "true" }))[0].auto_stopped, false);
+  const [listedAgent] = parseList(JSON.stringify([{
+    ...agent(), agent_type: "Explore", description: "find x", auto_stop: true, worktree: "/r/.worktrees/x",
+    branch: "agent/x",
+  }]));
+  assert.deepEqual(
+    [listedAgent.agent_type, listedAgent.description, listedAgent.auto_stop, listedAgent.worktree, listedAgent.branch],
+    ["Explore", "find x", true, "/r/.worktrees/x", "agent/x"],
+  );
+});
+
 test("the panel shows nothing when every agent is stopped", () => {
   assert.deepEqual(renderWidgetLines(theme, [agent({ status: "stopped" })], 80, NOW), []);
   assert.deepEqual(renderWidgetLines(theme, [], 80, NOW), []);
@@ -107,7 +132,7 @@ test("the panel shows nothing when every agent is stopped", () => {
 test("the result content has a headline, the body, and the trailer", () => {
   const content = buildResultContent(record("stop", { text: "All done.\nSHA abc" }));
   assert.equal(content, [
-    'pi tmux agent "api" (repo:api) ended turn 4.',
+    'Agent "api" (repo:api) ended turn 4.',
     "",
     "All done.\nSHA abc",
     "",
@@ -118,11 +143,20 @@ test("the result content has a headline, the body, and the trailer", () => {
   assert.match(error, /event=error error=error: rate limited$/);
   const waiting = buildResultContent(record("waiting", { message: "confirm dialog: Go?", screen: "Go?\n→ Yes" }));
   assert.match(waiting, /needs input/);
-  assert.match(waiting, /confirm dialog: Go\?.*repo:api.*TmuxAgentInterrupt/s);
+  assert.match(waiting, /confirm dialog: Go\?.*repo:api.*AgentInterrupt/s);
   assert.match(waiting, /→ Yes/);
   assert.match(buildResultContent(record("gone", { text: "pi exited with status 1 without a new turn." })), /is gone/);
   assert.match(buildResultContent(record("interrupted")), /The turn was interrupted\./);
   assert.equal(formatTrailer(record("gone")), "pi-tmux-agents: id=a1b2c3 target=repo:api pane=%5 turn=4 event=gone");
+});
+
+test("a result of a typed agent names the type, and an auto-stop says that the window closed", () => {
+  const typed = record("stop", { agent_type: "Explore", text: "Found it.", auto_stopped: true });
+  const content = buildResultContent(typed);
+  assert.match(content, /^Agent "api" \(Explore · repo:api\) ended turn 4\./);
+  assert.match(content, /Found it\.\n\nThe window closed \(auto-stop\)\. SendMessage resumes the agent\./);
+  assert.equal(renderResultLines(typed, false, theme, 100, "ctrl+o")[0], "✓ api (Explore · repo:api) — turn ended (turn 4)");
+  assert.doesNotMatch(buildResultContent(record("stop", { text: "x" })), /auto-stop/);
 });
 
 test("collapsed and expanded result cards for each event", () => {
@@ -177,4 +211,40 @@ test("the message renderer draws a box with the event background, and strips ter
   assert.ok(lines.every((line) => !line.includes("\x1b]52")), "the OSC 52 sequence must not reach the terminal");
   assert.equal(renderer({ role: "custom", customType: RESULT_TYPE, display: true, timestamp: 1, content: "x" },
     { expanded: false, outputPad: 1 }, boxTheme as never), undefined);
+});
+
+function textOf(component: unknown): string {
+  assert.ok(component instanceof Text);
+  return (component as unknown as { text: string }).text;
+}
+
+test("the Agent tool rows show the type, the mode, and the result state", () => {
+  assert.match(textOf(agentToolRenderers.renderCall({
+    description: "find the parser", prompt: "Find it.\nThen report.", subagent_type: "Explore",
+  }, theme)), /^find the parser \(Explore\) · ○ pending\nFind it\. \(2 lines\)$/);
+  assert.match(textOf(agentToolRenderers.renderCall({
+    description: "fix", prompt: "x", run_in_background: true, isolation: "worktree",
+  }, theme)), /^fix \(general-purpose\) · new worktree · ○ background/);
+
+  const details = { action: "agent", id: "a1b2c3", name: "api", agentType: "Explore", target: "repo:api" };
+  assert.equal(
+    textOf(agentToolRenderers.renderResult({ details: { ...details, status: "started" } }, {}, theme)),
+    "api (Explore · repo:api) · a1b2c3 · ○ started in background",
+  );
+  const done = textOf(agentToolRenderers.renderResult({
+    content: [{ type: "text", text: "Found it.\nmore" }],
+    details: { ...details, status: "completed", autoStopped: true },
+  }, {}, theme));
+  assert.equal(done, "api (Explore · repo:api) · a1b2c3 · ✓ turn ended, window closed\nFound it. (2 lines)");
+  const expanded = textOf(agentToolRenderers.renderResult({
+    content: [{ type: "text", text: "Found it.\nmore" }], details: { ...details, status: "completed" },
+  }, { expanded: true }, theme));
+  assert.equal(expanded.split("\n").slice(1).join("\n"), "Found it.\nmore");
+  assert.match(textOf(agentToolRenderers.renderResult({
+    content: [{ type: "text", text: "needs input" }], details: { ...details, status: "waiting" },
+  }, {}, theme)), /\? needs input/);
+  assert.match(textOf(agentToolRenderers.renderResult({
+    content: [{ type: "text", text: "Unknown subagent_type" }], details: { action: "agent", status: "failed", error: "x" },
+  }, {}, theme)), /Unknown subagent_type/, "a failed spawn has no id and shows the error text");
+  assert.match(textOf(sendToolRenderers.renderCall({ to: "api", message: "go" }, theme)), /^api · /);
 });

@@ -4,7 +4,7 @@
  * Every pi session loads this extension, and the environment picks its mode:
  * - Agent mode, in a pi that `pi-tmux-agents launch` started: record the turn
  *   events and deliver the inbox requests of the CLI.
- * - Lead mode, in a pi that no agent tool started: the TmuxAgent* tools, the
+ * - Lead mode, in a pi that no agent tool started: the Agent tools, the
  *   panel, and one follow-up message for each turn end of an agent.
  * - No mode, in a pi tmux agent without its folder, a tmux worker, or a pi
  *   subagent. These sessions cannot start agents.

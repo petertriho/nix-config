@@ -7,9 +7,10 @@ import {
   createCliRunner, parseList, parsePull, stateRoot, type CliRunner, type ListedAgent,
   type PullRecord,
 } from "./cli.ts";
+import { discoverAgentTypes, type AgentType, type DiscoverOptions } from "./agent-types.ts";
 import { buildResultContent, registerResultRenderer, RESULT_TYPE } from "./presentation/renderers.ts";
 import { panelAgents, renderWidgetLines, WIDGET_KEY } from "./presentation/widget.ts";
-import { listArgs, registerTools } from "./tools.ts";
+import { listArgs, pullArgs, registerAgentTool, registerTools, type ToolRuntime } from "./tools.ts";
 
 const SKILLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "skills");
 
@@ -27,12 +28,17 @@ export interface LeadOptions {
   now?: () => number;
   /** A change key for a path, such as "mtime:size". */
   statKey?: (path: string) => string;
+  /** Finds the agent types. Tests replace it. */
+  discoverTypes?: (options: DiscoverOptions) => AgentType[];
 }
 
 export interface LeadMode {
   /** Runs one poll. A forced poll ignores the change check. */
   poll(force?: boolean): Promise<void>;
   agents(): readonly ListedAgent[];
+  agentTypes(): readonly AgentType[];
+  /** The ids that a foreground Agent call waits for. */
+  foreground: ReadonlySet<string>;
 }
 
 function defaultStatKey(path: string): string {
@@ -42,6 +48,10 @@ function defaultStatKey(path: string): string {
   } catch {
     return "-";
   }
+}
+
+function typesKeyOf(types: readonly AgentType[]): string {
+  return types.map((type) => `${type.source}:${type.path}`).join("|");
 }
 
 /** A live agent can end a turn. A stopped or dead agent cannot. */
@@ -64,6 +74,8 @@ export function registerLeadMode(pi: ExtensionAPI, options: LeadOptions = {}): L
   const stopTimer = options.clearTimeout ?? clearTimeout;
   const now = options.now ?? Date.now;
   const statKey = options.statKey ?? defaultStatKey;
+  const discoverTypes = options.discoverTypes ?? discoverAgentTypes;
+  const foreground = new Set<string>();
 
   let ctx: ExtensionContext | undefined;
   let leadSession: string | undefined;
@@ -76,6 +88,9 @@ export function registerLeadMode(pi: ExtensionAPI, options: LeadOptions = {}): L
   let generation = 0;
   let widgetShown = false;
   let tui: TUI | undefined;
+  // Before session_start, no project is known: only the bundled types.
+  let agentTypes: AgentType[] = discoverTypes({});
+  let typesKey = "";
 
   /**
    * Changes on disk. A pane that dies changes no file, so a full poll also
@@ -158,8 +173,9 @@ export function registerLeadMode(pi: ExtensionAPI, options: LeadOptions = {}): L
       lastKey = key;
       lastFullPoll = now();
       // pull marks the events as read, so the results go out at once. Only a
-      // session switch while pull runs can lose them.
-      const pulled = await run(["pull", "--lead", lead, "--json"]);
+      // session switch while pull runs can lose them. A foreground Agent call
+      // takes the events of its agent with wait.
+      const pulled = await run(pullArgs(lead, foreground));
       if (started !== generation) return;
       if (pulled.code === 0) {
         for (const record of parsePull(pulled.stdout)) deliver(record);
@@ -195,14 +211,35 @@ export function registerLeadMode(pi: ExtensionAPI, options: LeadOptions = {}): L
     lastFullPoll = 0;
   }
 
-  registerResultRenderer(pi);
-  registerTools(pi, {
+  const runtime: ToolRuntime = {
     run,
     refresh() {
       if (polling) pollAgain = true;
       else schedule(0);
     },
-  });
+    agents: () => agents,
+    agentTypes: () => agentTypes,
+    foreground,
+  };
+
+  /** The Agent description lists the types, so a change of types registers Agent again. */
+  function loadAgentTypes(startCtx: ExtensionContext): void {
+    let trusted = false;
+    try {
+      trusted = startCtx.isProjectTrusted();
+    } catch {
+      // An older pi has no trust check: load no project types.
+    }
+    agentTypes = discoverTypes({ cwd: startCtx.cwd, trusted });
+    const key = typesKeyOf(agentTypes);
+    if (key === typesKey) return;
+    typesKey = key;
+    registerAgentTool(pi, runtime, agentTypes);
+  }
+
+  registerResultRenderer(pi);
+  registerTools(pi, runtime);
+  typesKey = typesKeyOf(agentTypes);
 
   pi.on("session_start", (_event, startCtx) => {
     reset();
@@ -210,6 +247,7 @@ export function registerLeadMode(pi: ExtensionAPI, options: LeadOptions = {}): L
     leadSession = startCtx.sessionManager.getSessionId();
     widgetShown = false;
     tui = undefined;
+    loadAgentTypes(startCtx);
     // Without a UI (print and JSON mode), no result could start a turn.
     if (!startCtx.hasUI) return;
     void poll(true);
@@ -229,5 +267,7 @@ export function registerLeadMode(pi: ExtensionAPI, options: LeadOptions = {}): L
   return {
     poll,
     agents: () => agents,
+    agentTypes: () => agentTypes,
+    foreground,
   };
 }

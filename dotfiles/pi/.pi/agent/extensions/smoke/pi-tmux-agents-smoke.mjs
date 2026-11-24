@@ -203,6 +203,101 @@ try {
   const nested = run(["spawn", "--session", session, "--cwd", work, "--", "nested"], { PI_TMUX_AGENT_ID: id });
   assert.equal(nested.status, 64, nested.stderr);
   console.log("8 spawn refusal inside an agent passed");
+
+  // 9. An agent type: the appended system prompt and the tool allowlist reach
+  // the model, and meta.json records the type fields. Auto-stop closes the
+  // window after the stop result, and a send reopens the agent with the same
+  // prompt and tools.
+  const promptFile = join(root, "explore-prompt.md");
+  writeFileSync(promptFile, "You are a smoke agent. SMOKE-MARKER\n");
+  const typed = ok([
+    "spawn", "--session", session, "--cwd", work, "--name", "typed", "--model", "pta-smoke/mock",
+    "--lead", lead, "--agent-type", "Explore", "--description", "probe the prompt",
+    "--system-prompt-file", promptFile, "--tools", "read,grep,find,ls", "--auto-stop", "--", "PROBE",
+  ]).stdout.trim();
+  const typedMeta = meta(typed);
+  assert.deepEqual(
+    [typedMeta.agent_type, typedMeta.description, typedMeta.tools, typedMeta.auto_stop],
+    ["Explore", "probe the prompt", "read,grep,find,ls", true],
+  );
+  assert.equal(readFileSync(join(state, typed, "system-prompt.md"), "utf8"), "You are a smoke agent. SMOKE-MARKER\n");
+  const probed = await expectOne("stop", "probe: marker=yes tools=find,grep,ls,read", 60_000);
+  assert.equal(probed.agent_type, "Explore");
+  assert.equal(probed.auto_stopped, true);
+  assert.equal(agent(typed).status, "stopped");
+  assert.equal(agent(typed).agent_type, "Explore");
+  const typedWindows = spawnSync("tmux", ["list-windows", "-t", `=${session}`, "-F", "#{window_id}"], { encoding: "utf8" });
+  assert.ok(!typedWindows.stdout.split("\n").includes(meta(typed).window_id), "auto-stop must close the window");
+  assert.match(ok(["send", typed, "--", "PROBE again"]).stderr, /reopened/);
+  await expectOne("stop", "probe: marker=yes tools=find,grep,ls,read", 60_000);
+  console.log("9 agent type prompt, tools, auto-stop, and reopen passed");
+
+  // 10. pull --skip leaves the event for wait, and wait also auto-stops.
+  ok(["send", typed, "--", "SLOW 3"]);
+  await waitStatus(typed, "working", 60_000);
+  const skipped = [];
+  for (let tries = 0; tries < 10; tries++) {
+    skipped.push(...ok(["pull", "--lead", lead, "--json", "--skip", typed]).stdout.split("\n").filter(Boolean));
+    await sleep(500);
+  }
+  assert.deepEqual(skipped, [], "pull --skip must not take the event");
+  const waited = run(["wait", typed, "--timeout", "30"]);
+  assert.equal(waited.status, 0, waited.stderr);
+  assert.equal(waited.stdout.trim(), "slow done");
+  assert.match(waited.stderr, /auto-stopped/);
+  assert.equal(agent(typed).status, "stopped");
+  assert.deepEqual(pull(), [], "wait took the event");
+  console.log("10 pull --skip and wait with auto-stop passed");
+
+  // 11. Isolation: a new worktree and branch in a git repository.
+  const repo = join(root, "repo");
+  mkdirSync(repo);
+  const git = (...args) => {
+    const result = spawnSync("git", ["-C", repo, ...args], { encoding: "utf8" });
+    assert.equal(result.status, 0, `git ${args.join(" ")}: ${result.stderr}`);
+    return result.stdout.trim();
+  };
+  git("init", "-q", "-b", "main");
+  git("-c", "user.name=smoke", "-c", "user.email=smoke@example.invalid", "commit", "-q", "--allow-empty", "-m", "init");
+  const isolated = ok([
+    "spawn", "--session", session, "--cwd", repo, "--name", "Iso Agent", "--model", "pta-smoke/mock",
+    "--lead", lead, "--isolation", "worktree", "--", "in the worktree",
+  ]);
+  const iso = isolated.stdout.trim();
+  const isoPath = join(repo, ".worktrees", "iso-agent");
+  assert.match(isolated.stderr, new RegExp(`worktree=${isoPath} branch=agent/iso-agent`));
+  assert.equal(meta(iso).cwd, isoPath);
+  assert.deepEqual([agent(iso).worktree, agent(iso).branch], [isoPath, "agent/iso-agent"]);
+  assert.equal(spawnSync("git", ["-C", isoPath, "symbolic-ref", "--short", "HEAD"], { encoding: "utf8" }).stdout.trim(),
+    "agent/iso-agent");
+  assert.match(readFileSync(join(repo, ".git", "info", "exclude"), "utf8"), /^\/\.worktrees\/$/m);
+  assert.equal(git("status", "--porcelain"), "", "the exclude entry hides .worktrees");
+  await expectOne("stop", "echo: in the worktree", 60_000);
+  ok(["stop", iso]);
+  console.log("11 isolation in a new worktree passed");
+
+  // 12. Reuse of the worktree on its branch, and the refusals.
+  const reused = ok([
+    "spawn", "--session", session, "--cwd", repo, "--name", "Iso Agent", "--model", "pta-smoke/mock",
+    "--lead", lead, "--isolation", "worktree", "--", "again",
+  ]);
+  assert.match(reused.stderr, /exists on agent\/iso-agent; the agent uses it/);
+  await expectOne("stop", "echo: again", 60_000);
+  ok(["stop", reused.stdout.trim()]);
+  const otherBranch = run([
+    "spawn", "--session", session, "--cwd", repo, "--lead", lead, "--isolation", "worktree",
+    "--worktree-path", isoPath, "--branch", "other", "--", "x",
+  ]);
+  assert.equal(otherBranch.status, 64, otherBranch.stderr);
+  const badBase = run([
+    "spawn", "--session", session, "--cwd", repo, "--lead", lead, "--isolation", "worktree",
+    "--name", "bad-base", "--base", "no-such-ref", "--", "x",
+  ]);
+  assert.equal(badBase.status, 1, badBase.stderr);
+  assert.match(badBase.stderr, /git worktree add failed/);
+  assert.equal(run(["spawn", "--session", session, "--cwd", work, "--lead", lead, "--branch", "b", "--", "x"]).status, 64,
+    "--branch needs --isolation");
+  console.log("12 worktree reuse and refusals passed");
   console.log("pi-tmux-agents smoke passed");
 } catch (error) {
   // Show what the agents did, for a failure that the assertion does not explain.

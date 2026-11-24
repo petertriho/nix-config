@@ -28,6 +28,10 @@ export interface PullRecord {
   ts: number;
   screen: string;
   exit_status: string;
+  /** The `subagent_type` of the agent, or empty for an agent without a type. */
+  agent_type: string;
+  /** The CLI closed the window after this stop result. */
+  auto_stopped: boolean;
 }
 
 export interface ListedAgent {
@@ -45,6 +49,11 @@ export interface ListedAgent {
   turn: number;
   message: string;
   last_text: string;
+  agent_type: string;
+  description: string;
+  auto_stop: boolean;
+  worktree: string;
+  branch: string;
   created: number;
 }
 
@@ -94,6 +103,10 @@ function count(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function flag(value: unknown): boolean {
+  return value === true;
+}
+
 /** One record for each JSON line of `pull --json`. A bad line is skipped. */
 export function parsePull(stdout: string): PullRecord[] {
   const records: PullRecord[] = [];
@@ -121,6 +134,8 @@ export function parsePull(stdout: string): PullRecord[] {
       ts: count(raw.ts),
       screen: text(raw.screen),
       exit_status: text(raw.exit_status),
+      agent_type: text(raw.agent_type),
+      auto_stopped: flag(raw.auto_stopped),
     });
   }
   return records;
@@ -156,6 +171,11 @@ export function parseList(stdout: string): ListedAgent[] {
       turn: count(entry.turn),
       message: text(entry.message),
       last_text: text(entry.last_text),
+      agent_type: text(entry.agent_type),
+      description: text(entry.description),
+      auto_stop: flag(entry.auto_stop),
+      worktree: text(entry.worktree),
+      branch: text(entry.branch),
       created: count(entry.created),
     });
   }

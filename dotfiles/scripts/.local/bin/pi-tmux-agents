@@ -32,6 +32,7 @@ panes=""
 panes_loaded=false
 # Set by claim_event.
 claimed=""
+auto_stopped=false
 
 usage() {
     cat <<'USAGE'
@@ -39,9 +40,13 @@ Usage:
   pi-tmux-agents spawn [--name <label>] [--cwd <dir>] [--session <name>]
                        [--session-dir <dir>] [--window <name>] [--model <model>]
                        [--thinking <level>] [--lead <session-id>]
+                       [--agent-type <name>] [--description <text>]
+                       [--system-prompt-file <file>] [--tools <list>]
+                       [--auto-stop] [--isolation worktree]
+                       [--worktree-path <dir>] [--branch <name>] [--base <ref>]
                        [--pi-arg <arg>]... [--] <prompt|->
   pi-tmux-agents send <agent> [--] <message|->
-  pi-tmux-agents pull [--lead <session-id>] [--json]
+  pi-tmux-agents pull [--lead <session-id>] [--json] [--skip <agent-id>]...
   pi-tmux-agents wait <agent> [--timeout <seconds>]
   pi-tmux-agents read <agent> [--lines <n>]
   pi-tmux-agents interrupt <agent>
@@ -63,6 +68,20 @@ spawn      Start pi in a new detached tmux window in --cwd (default: the
            one more argument to pi, at the first launch and at each resume.
            spawn refuses to run inside an agent: when PI_TMUX_AGENT_ID,
            TMUX_WORKER_ID, PI_SUBAGENT_ID, or PI_SUBAGENT_SESSION is set.
+           Agent type: --agent-type and --description are labels.
+           --system-prompt-file is copied to the state folder and appended
+           to the system prompt of pi (--append-system-prompt). --tools is
+           the tool allowlist of pi (--tools). Each launch passes both
+           again. --auto-stop closes the window after each stop event that
+           pull or wait reports.
+           Isolation: --isolation worktree runs the agent in a new git
+           worktree of the repository of --cwd, at --worktree-path (default:
+           <repository root>/.worktrees/<slug of the name>, which goes into
+           .git/info/exclude), on the new branch --branch (default:
+           agent/<slug>), from --base (default: HEAD). A base such as
+           origin/main is fetched first. An existing worktree path is used
+           only when it is a worktree of the same repository on --branch.
+           pi-tmux-agents never removes a worktree or a branch.
 send       Put a message in the inbox of the agent, and return at once. A busy
            agent gets it when its run ends. An agent that waits on a dialog
            gets it after the dialog closes. When pi does not run, because the
@@ -74,9 +93,11 @@ pull       Print the new event of each agent of the lead that is not stopped,
            exits or the pane is gone without a newer event. --json prints one
            JSON object for each event, with id, name, event, turn, text,
            message, target, pane, cwd, session_file, ts, screen, and
-           exit_status. A waiting event has the last 40 lines of the pane in
-           screen. The pi-tmux-agents pi extension calls pull in a lead
-           session. A shell pull or wait takes the events away from the lead.
+           exit_status, agent_type, and auto_stopped. A waiting event has the
+           last 40 lines of the pane in screen. Each --skip leaves out one
+           agent, so that a wait on it gets its event. The pi-tmux-agents pi
+           extension calls pull in a lead session. A shell pull or wait takes
+           the events away from the lead.
 wait       Block until the agent ends or pauses a turn, print the reply on
            stdout, and print a trailer on stderr:
              pi-tmux-agents: id=<id> target=<target> pane=<pane> turn=<n> event=<event>
@@ -100,8 +121,11 @@ Exit codes of wait:
   124  --timeout expired
 Other exit codes:
   0    spawn, send, interrupt, and stop succeeded
-  2    no tmux server answers, or pi, tmux, or jq is missing
+  1    spawn: a git command for --isolation failed
+  2    no tmux server answers, or pi, tmux, jq, or git is missing
   64   a usage error, or an unknown agent
+
+A path option that starts with ~/ is relative to $HOME.
 
 Environment:
   XDG_STATE_HOME             the state is in
@@ -132,6 +156,17 @@ need_tmux() {
 # need_value <argc> <option>: the option needs a value.
 need_value() {
     [ "$1" -ge 2 ] || fail 64 "$2 needs a value"
+}
+
+# A tool call passes ~/ literally, because no shell expands it.
+# SC2088: the patterns match a literal tilde.
+# shellcheck disable=SC2088
+expand_home() {
+    case $1 in
+    "~") printf '%s' "$HOME" ;;
+    "~/"*) printf '%s/%s' "$HOME" "${1#"~/"}" ;;
+    *) printf '%s' "$1" ;;
+    esac
 }
 
 # A pi agent, a tmux worker, or a pi subagent that starts agents would hide
@@ -264,12 +299,23 @@ pending_event() {
 }
 
 # claim_event: sets claimed to the pending event and marks it as read. Two
-# readers (a shell wait and the lead) never get the same event.
+# readers (a shell wait and the lead) never get the same event. A stop event
+# of an --auto-stop agent also closes its window, as stop does, and sets
+# auto_stopped.
 claim_event() {
+    local wid
+    auto_stopped=false
     lock_meta
     claimed=$(pending_event "$(meta_get .consumed)")
     if [ -n "$claimed" ]; then
         meta_write --argjson seq "$(jq -r '.seq' <<<"$claimed")" '.consumed = $seq'
+        if [ "$(jq -r '.event' <<<"$claimed")" = stop ] && meta_true .auto_stop && ! meta_true .stopped; then
+            wid=$(meta_get .window_id)
+            [ -z "$wid" ] || tmux kill-window -t "$wid" 2>/dev/null || true
+            rm -f "$dir"/inbox/*-abort
+            meta_write '.stopped = true'
+            auto_stopped=true
+        fi
     fi
     unlock_meta
 }
@@ -315,6 +361,7 @@ report() {
     stop)
         printf '%s\n' "$text"
         printf '%s\n' "$trailer" >&2
+        ! $auto_stopped || note "id=$id auto-stopped; send a message to resume it"
         exit 0
         ;;
     error)
@@ -475,6 +522,7 @@ check_pi_arg() {
     case ${1%%=*} in
     --session-id | --session | -c | --continue | -r | --resume | --fork | --no-session | \
         -n | --name | --model | --thinking | -p | --print | --mode | -ne | --no-extensions | \
+        -t | --tools | -nt | --no-tools | --system-prompt | --append-system-prompt | \
         --export | --list-models | -h | --help | -v | --version | --)
         fail 64 "--pi-arg $1: pi-tmux-agents sets this option or needs pi without it" ;;
     esac
@@ -483,26 +531,87 @@ check_pi_arg() {
     esac
 }
 
+# slug <text>: a lower-case name for a folder and a branch.
+slug() {
+    local s
+    s=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | tr -s '.-')
+    s=${s#[.-]}
+    s=${s%-}
+    printf '%s' "${s:-agent}"
+}
+
+# make_worktree <repository folder> <path> <branch> <base> <slug>: sets
+# worktree, branch, and base in the caller. Empty values take the defaults.
+# pi-tmux-agents never removes a worktree or a branch.
+make_worktree() {
+    local from=$1 root common remote out
+    need_cmd git
+    root=$(git -C "$from" rev-parse --show-toplevel 2>/dev/null) ||
+        fail 64 "--isolation worktree: $from is not in a git repository"
+    common=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)
+    worktree=$2
+    branch=${3:-agent/$5}
+    base=${4:-HEAD}
+    if [ -z "$worktree" ]; then
+        worktree="$root/.worktrees/$5"
+        mkdir -p "$common/info"
+        grep -Fxs -- /.worktrees/ "$common/info/exclude" >/dev/null ||
+            printf '/.worktrees/\n' >>"$common/info/exclude"
+    fi
+    case $worktree in /*) ;; *) worktree="$PWD/$worktree" ;; esac
+    if [ -e "$worktree" ]; then
+        # A plain folder inside the repository would also report its common
+        # dir and branch, so the top level must be the path itself.
+        if [ "$(git -C "$worktree" rev-parse --show-toplevel 2>/dev/null)" = "$(real_dir "$worktree")" ] &&
+            [ "$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" = "$common" ] &&
+            [ "$(git -C "$worktree" symbolic-ref --short -q HEAD 2>/dev/null)" = "$branch" ]; then
+            note "the worktree $worktree exists on $branch; the agent uses it"
+            return
+        fi
+        fail 64 "--worktree-path $worktree exists, and it is not a worktree of $root on $branch"
+    fi
+    remote=${base%%/*}
+    if [ "$remote" != "$base" ] && git -C "$root" remote | grep -Fx -- "$remote" >/dev/null; then
+        out=$(git -C "$root" fetch "$remote" 2>&1) || fail 1 "git fetch $remote failed: $out"
+    fi
+    mkdir -p "$(dirname "$worktree")"
+    out=$(git -C "$root" worktree add --no-track -b "$branch" "$worktree" "$base" 2>&1) ||
+        fail 1 "git worktree add failed: $out"
+}
+
 cmd_spawn() {
     local name="" cwd=$PWD session="" session_dir="" window="" model="" thinking=""
     local lead=${PI_SESSION_ID:-} text_arg="" have_text=false literal=false prompt uuid
+    local agent_type="" description="" prompt_file="" tools="" auto_stop=false
+    local isolation="" worktree="" branch="" base="" where=""
     local pi_args=()
     while [ $# -gt 0 ]; do
         case $1 in
-        --name | --cwd | --session | --session-dir | --window | --model | --thinking | --lead)
+        --name | --cwd | --session | --session-dir | --window | --model | --thinking | --lead | \
+            --agent-type | --description | --system-prompt-file | --tools | --isolation | \
+            --worktree-path | --branch | --base)
             need_value $# "$1"
             case $1 in
             --name) name=$2 ;;
-            --cwd) cwd=$2 ;;
+            --cwd) cwd=$(expand_home "$2") ;;
             --session) session=$2 ;;
-            --session-dir) session_dir=$2 ;;
+            --session-dir) session_dir=$(expand_home "$2") ;;
             --window) window=$2 ;;
             --model) model=$2 ;;
             --thinking) thinking=$2 ;;
             --lead) lead=$2 ;;
+            --agent-type) agent_type=$2 ;;
+            --description) description=$2 ;;
+            --system-prompt-file) prompt_file=$(expand_home "$2") ;;
+            --tools) tools=$2 ;;
+            --isolation) isolation=$2 ;;
+            --worktree-path) worktree=$(expand_home "$2") ;;
+            --branch) branch=$2 ;;
+            --base) base=$2 ;;
             esac
             shift 2
             ;;
+        --auto-stop) auto_stop=true; shift ;;
         --pi-arg)
             need_value $# "$1"
             check_pi_arg "$2"
@@ -529,11 +638,31 @@ cmd_spawn() {
         esac
     done
     $have_text || fail 64 "missing prompt (pass - to read it from stdin)"
+    case $isolation in
+    "" | worktree) ;;
+    *) fail 64 "--isolation supports only worktree" ;;
+    esac
+    if [ -z "$isolation" ] && [ -n "$worktree$branch$base" ]; then
+        fail 64 "--worktree-path, --branch, and --base need --isolation worktree"
+    fi
+    [ -z "$prompt_file" ] || [ -r "$prompt_file" ] || fail 64 "cannot read --system-prompt-file $prompt_file"
+    case $tools$description$agent_type in
+    *$'\n'*) fail 64 "--tools, --description, and --agent-type cannot hold a line break" ;;
+    esac
     refuse_nested
     need_tmux
     need_cmd pi
 
     cwd=$(real_dir "$cwd")
+    [ -n "$name" ] || name=$(basename "$cwd")
+    prompt=$(read_text "$text_arg" "$literal")
+    [[ $prompt =~ [^[:space:]] ]] || fail 64 "the prompt is empty"
+    if [ -n "$isolation" ]; then
+        make_worktree "$cwd" "$worktree" "$branch" "$base" "$(slug "$name")"
+        worktree=$(real_dir "$worktree")
+        cwd=$worktree
+        where=" worktree=$worktree branch=$branch"
+    fi
     if [ -n "$session" ]; then
         session=$(session_name "$session")
         session_dir=$(real_dir "${session_dir:-$cwd}")
@@ -542,26 +671,28 @@ cmd_spawn() {
         session=$(tmux display-message -p -t "$TMUX_PANE" '#{session_name}')
         session_dir=$(tmux display-message -p -t "$TMUX_PANE" '#{session_path}')
     fi
-    [ -n "$name" ] || name=$(basename "$cwd")
     [ -n "$window" ] || window=$(basename "$cwd")
-    prompt=$(read_text "$text_arg" "$literal")
-    [[ $prompt =~ [^[:space:]] ]] || fail 64 "the prompt is empty"
 
     mkdir -p "$state_root"
     id=$(new_id)
     dir="$state_root/$id"
     mkdir -p "$dir/inbox"
+    [ -z "$prompt_file" ] || cp "$prompt_file" "$dir/system-prompt.md"
     uuid=$({ uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid; } | tr '[:upper:]' '[:lower:]')
     jq -n --arg id "$id" --arg name "$name" --arg cwd "$cwd" \
         --arg session "$session" --arg session_dir "$session_dir" \
         --arg window "$window" --arg pi_session "$uuid" \
         --arg lead "$lead" --arg lead_pane "${TMUX_PANE:-}" \
         --arg model "$model" --arg thinking "$thinking" \
-        --argjson now "$(date +%s)" \
+        --arg agent_type "$agent_type" --arg description "$description" --arg tools "$tools" \
+        --argjson auto_stop "$auto_stop" --arg worktree "$worktree" --arg branch "$branch" \
+        --arg base "$base" --argjson now "$(date +%s)" \
         '{id: $id, name: $name, cwd: $cwd, session: $session, session_dir: $session_dir,
           window_base: $window, window_name: $window, window_id: "", pane: "",
           pi_session: $pi_session, lead_session: $lead, lead_pane: $lead_pane,
           model: $model, thinking: $thinking, pi_args: $ARGS.positional,
+          agent_type: $agent_type, description: $description, tools: $tools,
+          auto_stop: $auto_stop, worktree: $worktree, branch: $branch, base: $base,
           consumed: 0, launch_count: 0, launch_seq: 0, launched_at: $now,
           gone_reported: 0, stopped: false, created: $now}' \
         --args -- "${pi_args[@]}" >"$dir/meta.json"
@@ -569,12 +700,12 @@ cmd_spawn() {
     open_window
     type_launch
     printf '%s\n' "$id"
-    note "id=$id target=$(target) pane=$(meta_get .pane) cwd=$cwd"
+    note "id=$id target=$(target) pane=$(meta_get .pane) cwd=$cwd$where"
 }
 
 cmd_launch() {
     resolve "${1:-}"
-    local args=() extra=() arg status session model thinking
+    local args=() extra=() arg status session model thinking tools
     # The variables of an outer pi session would describe the wrong session,
     # and the subagent markers would turn off agent mode.
     unset PI_SESSION_ID PI_SESSION_FILE PI_PROVIDER PI_MODEL PI_REASONING_LEVEL \
@@ -590,6 +721,11 @@ cmd_launch() {
     [ -z "$model" ] || args+=(--model "$model")
     thinking=$(meta_get .thinking)
     [ -z "$thinking" ] || args+=(--thinking "$thinking")
+    # A resumed pi session forgets the appended prompt and the tool allowlist,
+    # so each launch passes them again.
+    [ ! -f "$dir/system-prompt.md" ] || args+=(--append-system-prompt "$dir/system-prompt.md")
+    tools=$(meta_get .tools)
+    [ -z "$tools" ] || args+=(--tools "$tools")
     while IFS= read -r -d '' arg; do
         extra+=("$arg")
     done < <(jq -j '.pi_args // [] | .[] | . + "\u0000"' "$dir/meta.json")
@@ -710,9 +846,11 @@ pull_record() {
     jq -c --arg id "$id" --arg name "$(meta_get .name)" --arg target "$(target)" \
         --arg pane "$(meta_get .pane)" --arg cwd "$(meta_get .cwd)" \
         --arg session_file "$(session_file)" --arg screen "${2:-}" --arg exit_status "${3:-}" \
+        --arg agent_type "$(meta_get .agent_type)" --argjson auto_stopped "$auto_stopped" \
         '{id: $id, name: $name, event: .event, turn: .seq, text: (.text // ""),
           message: (.message // ""), target: $target, pane: $pane, cwd: $cwd,
-          session_file: $session_file, ts: .ts, screen: $screen, exit_status: $exit_status}' <<<"$1"
+          session_file: $session_file, ts: .ts, screen: $screen, exit_status: $exit_status,
+          agent_type: $agent_type, auto_stopped: $auto_stopped}' <<<"$1"
 }
 
 # pull_agent: prints the new event of the agent in dir, if any.
@@ -725,6 +863,7 @@ pull_agent() {
         fi
         record=$(pull_record "$claimed" "$scr")
     elif ! pi_running; then
+        auto_stopped=false
         lock_meta
         if [ "$(jq -r '.gone_reported < .launch_count' "$dir/meta.json")" = true ]; then
             meta_write '.gone_reported = .launch_count'
@@ -745,12 +884,13 @@ pull_agent() {
 }
 
 cmd_pull() {
-    local lead=${PI_SESSION_ID:-} m metas
+    local lead=${PI_SESSION_ID:-} m metas skip=" "
     json=false
     while [ $# -gt 0 ]; do
         case $1 in
         --json) json=true; shift ;;
         --lead) need_value $# "$1"; lead=$2; shift 2 ;;
+        --skip) need_value $# "$1"; skip+="$2 "; shift 2 ;;
         *) fail 64 "unknown argument: $1" ;;
         esac
     done
@@ -764,6 +904,7 @@ cmd_pull() {
         [ "$(jq -r --arg lead "$lead" '.lead_session == $lead and .stopped != true' "$m")" = true ] || continue
         dir=$(dirname "$m")
         id=$(basename "$dir")
+        [[ $skip != *" $id "* ]] || continue
         pull_agent
     done <<<"$metas"
 }
@@ -818,6 +959,9 @@ cmd_list() {
                     turn: ($t | map(select(.event != "working")) | last | .seq // 0),
                     message: (if $last.event == "waiting" then $last.message // "" else "" end),
                     last_text: (($stop.text // "") | split("\n") | map(select(test("\\S"))) | first // "" | .[0:200]),
+                    agent_type: ($m.agent_type // ""), description: ($m.description // ""),
+                    auto_stop: ($m.auto_stop // false), worktree: ($m.worktree // ""),
+                    branch: ($m.branch // ""),
                     created: $m.created
                   }'
         done <<<"$metas"

@@ -46,7 +46,7 @@ export function summarizeStatuses(agents: readonly ListedAgent[]): string {
     .join(" · ");
 }
 
-/** One row, with the richest of three layouts that fits the width. */
+/** One row, with the richest layout that fits the width. */
 export function renderAgentRow(
   theme: UiTheme,
   agent: ListedAgent & { status: PanelStatus },
@@ -57,9 +57,13 @@ export function renderAgentRow(
   const state = formatState(theme, presentation.state, { label: presentation.label });
   const glyph = formatState(theme, presentation.state, { glyphOnly: true });
   const elapsed = formatMetadata(theme, formatSince(agent.since, now));
+  const role = [agent.agent_type, agent.target].filter(Boolean).join(" · ");
   return chooseWidthCandidate(
     [
-      `${elapsed}${formatSeparator(theme)}${formatIdentity(theme, agent.name, agent.target)}${formatSeparator(theme)}${state}`,
+      `${elapsed}${formatSeparator(theme)}${formatIdentity(theme, agent.name, role)}${formatSeparator(theme)}${state}`,
+      ...(agent.agent_type
+        ? [`${formatIdentity(theme, agent.name, agent.agent_type)}${formatSeparator(theme)}${state}`]
+        : []),
       `${formatIdentity(theme, agent.name)}${formatSeparator(theme)}${state}`,
       glyph,
     ],

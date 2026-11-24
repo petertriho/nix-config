@@ -30,6 +30,7 @@ export function resultBody(record: PullRecord): string {
   switch (record.event) {
     case "stop":
       parts.push(record.text || "(The reply has no text.)");
+      if (record.auto_stopped) parts.push("The window closed (auto-stop). SendMessage resumes the agent.");
       break;
     case "error":
       parts.push(`Error: ${record.message || "unknown"}`);
@@ -40,7 +41,7 @@ export function resultBody(record: PullRecord): string {
       if (record.text) parts.push(record.text);
       break;
     case "waiting":
-      parts.push(`The agent waits on a ${record.message || "dialog"}. Only the user can answer it in the window ${record.target}. TmuxAgentInterrupt cancels it.`);
+      parts.push(`The agent waits on a ${record.message || "dialog"}. Only the user can answer it in the window ${record.target}. AgentInterrupt cancels it.`);
       if (record.screen) parts.push(record.screen);
       break;
     case "gone":
@@ -51,8 +52,13 @@ export function resultBody(record: PullRecord): string {
   return parts.join("\n\n");
 }
 
+/** The type and the window of an agent, for example "Explore · repo:api". */
+export function agentRole(agentType: string, target: string): string {
+  return [agentType, target].filter(Boolean).join(" · ");
+}
+
 function headline(record: PullRecord): string {
-  const who = `pi tmux agent "${record.name}" (${record.target})`;
+  const who = `Agent "${record.name}" (${agentRole(record.agent_type, record.target)})`;
   switch (record.event) {
     case "stop": return `${who} ended turn ${record.turn}.`;
     case "error": return `${who} ended turn ${record.turn} with an error.`;
@@ -91,7 +97,7 @@ export function renderResultLines(
   const presentation = EVENT_PRESENTATIONS[record.event];
   const header =
     `${formatState(theme, presentation.state, { glyphOnly: true })} ` +
-    `${formatIdentity(theme, record.name, record.target)}` +
+    `${formatIdentity(theme, record.name, agentRole(record.agent_type, record.target))}` +
     `${formatSeparator(theme, "—")}` +
     `${formatStateLabel(theme, presentation.state, presentation.label)} ` +
     `${formatMetadata(theme, `(turn ${record.turn})`)}`;
@@ -143,7 +149,7 @@ export function registerResultRenderer(pi: Pick<ExtensionAPI, "registerMessageRe
 // Tool rows follow pi-subagents/presentation/tool-renderers.ts:
 // identity · metadata · state.
 
-export type ToolAction = "spawn" | "send" | "read" | "interrupt" | "stop" | "list";
+export type ToolAction = "agent" | "send" | "read" | "interrupt" | "stop" | "list";
 
 export interface ToolDetails {
   action: ToolAction;
@@ -151,7 +157,17 @@ export interface ToolDetails {
   id?: string;
   name?: string;
   target?: string;
-  status?: "started" | "queued" | "reopened" | "interrupt_requested" | "no_turn" | "stopped" | "read" | "listed";
+  agentType?: string;
+  description?: string;
+  worktree?: string;
+  branch?: string;
+  background?: boolean;
+  /** The event that ended a foreground Agent call. */
+  event?: string;
+  autoStopped?: boolean;
+  status?:
+    | "started" | "completed" | "waiting" | "interrupted" | "failed"
+    | "queued" | "reopened" | "interrupt_requested" | "no_turn" | "stopped" | "read" | "listed";
   error?: string;
   agents?: ListedAgent[];
   screen?: string;
@@ -204,34 +220,54 @@ function agentLabel(details: ToolDetails | undefined, fallback: string): string 
   return details?.name ?? details?.id ?? details?.agent ?? fallback;
 }
 
-export const spawnToolRenderers = {
+const AGENT_RESULT_PRESENTATIONS: Readonly<Record<string, { state: SemanticState; label: string }>> = {
+  started: { state: "starting", label: "started in background" },
+  completed: { state: "completed", label: "turn ended" },
+  waiting: { state: "help", label: "needs input" },
+  interrupted: { state: "failed", label: "interrupted" },
+  failed: { state: "failed", label: "failed" },
+};
+
+export const agentToolRenderers = {
   renderCall(args: unknown, theme: UiTheme) {
     const cwd = argText(args, "cwd");
+    const isolated = argText(args, "isolation") === "worktree";
+    const where = [isolated ? "new worktree" : "", cwd ? `in ${cwd}` : ""].filter(Boolean).join(" ");
     const text = renderToolStateRow(theme, {
-      name: argText(args, "name") || "(unnamed)",
+      name: argText(args, "name") || argText(args, "description") || "(unnamed)",
+      role: argText(args, "subagent_type") || "general-purpose",
       state: "starting",
-      label: "pending",
-      metadata: cwd ? `in ${cwd}` : undefined,
+      label: (args as { run_in_background?: unknown } | undefined)?.run_in_background === true ? "background" : "pending",
+      metadata: where || undefined,
     }) + textPreview(theme, argText(args, "prompt"));
     return new Text(text, 0, 0);
   },
-  renderResult(result: ToolRenderResult, _options: unknown, theme: UiTheme) {
+  renderResult(result: ToolRenderResult, options: { expanded?: boolean }, theme: UiTheme) {
     const details = result.details as ToolDetails | undefined;
-    if (details?.status !== "started") return renderToolFallback(result, theme);
-    return new Text(renderToolStateRow(theme, {
+    const presentation = details?.status ? AGENT_RESULT_PRESENTATIONS[details.status] : undefined;
+    if (!details || !presentation || (details.status === "failed" && !details.id)) {
+      return renderToolFallback(result, theme);
+    }
+    const row = renderToolStateRow(theme, {
       name: agentLabel(details, "agent"),
-      role: details.target,
-      state: "starting",
-      label: "started",
-      metadata: details.id,
-    }), 0, 0);
+      role: agentRole(details.agentType ?? "", details.target ?? ""),
+      state: presentation.state,
+      label: details.autoStopped ? `${presentation.label}, window closed` : presentation.label,
+      metadata: details.worktree ? `${details.id} · ${details.branch ?? details.worktree}` : details.id,
+    });
+    if (details.status === "started") return new Text(row, 0, 0);
+    const reply = firstText(result);
+    const body = options.expanded
+      ? `\n${sanitizeDisplayText(reply).split("\n").map((line) => span(theme, "toolOutput", line)).join("\n")}`
+      : textPreview(theme, reply);
+    return new Text(row + body, 0, 0);
   },
 };
 
 export const sendToolRenderers = {
   renderCall(args: unknown, theme: UiTheme) {
     const text = renderToolStateRow(theme, {
-      name: argText(args, "agent") || "(unknown)",
+      name: argText(args, "to") || "(unknown)",
       state: "running",
       label: "send",
     }) + textPreview(theme, argText(args, "message"));
@@ -323,7 +359,7 @@ export const listToolRenderers = {
     const agents = details.agents ?? [];
     if (agents.length === 0) {
       return new Text(
-        `${formatState(theme, "completed", { glyphOnly: true })}${formatSeparator(theme)}${formatMetadata(theme, "No tmux agents.")}`,
+        `${formatState(theme, "completed", { glyphOnly: true })}${formatSeparator(theme)}${formatMetadata(theme, "No agents.")}`,
         0,
         0,
       );
@@ -332,13 +368,14 @@ export const listToolRenderers = {
     const rows = agents.map((agent) => {
       if (!shown.has(agent.id)) {
         return renderToolStateRow(theme, {
-          name: agent.name, role: agent.target, state: "waiting", label: "stopped", metadata: agent.id,
+          name: agent.name, role: agentRole(agent.agent_type, agent.target), state: "waiting", label: "stopped",
+          metadata: agent.id,
         });
       }
       const presentation = STATUS_PRESENTATIONS[agent.status as Exclude<typeof agent.status, "stopped">];
       return renderToolStateRow(theme, {
         name: agent.name,
-        role: agent.target,
+        role: agentRole(agent.agent_type, agent.target),
         state: presentation.state,
         label: presentation.label,
         metadata: agent.id,
