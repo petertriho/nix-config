@@ -24,13 +24,13 @@ let
       pi-codex-tools
       pi-context-view
       pi-fzfp
-      pi-goal-x
+      # pi-goal-x
       pi-vim
     ]
     ++ lib.optional cfg.enablePiLens pi-lens
     ++ [
       # pi-subagents
-      pi-tasks
+      # pi-tasks
       # pi-vcc
       (pine-of-glass.override { enableContextimate = false; })
     ];
@@ -406,8 +406,8 @@ in
         "${cfg.configDir}/extensions/pi-tui-shell.ts".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-tui-shell.ts";
         # One loadable extension includes the workflow coordinator and provider modules.
-        "${cfg.configDir}/extensions/pi-subagents".source =
-          config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-subagents";
+        # "${cfg.configDir}/extensions/pi-subagents".source =
+        #   config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-subagents";
         "${cfg.configDir}/extensions/pi-history".source =
           config.lib.meta.mkDotfilesSymlink "pi/.pi/agent/extensions/pi-history";
         "${cfg.configDir}/extensions/pi-tmux-agents".source =
