@@ -46,7 +46,7 @@
       "src": "https://github.com/petertriho/cmp-git"
     },
     "code-bridge.nvim": {
-      "rev": "6a0b06a941564839b765fa8115d82775ccad8492",
+      "rev": "24bca92250414cf5accfec194d306d90e3ac7537",
       "src": "https://github.com/samir-roy/code-bridge.nvim"
     },
     "codediff.nvim": {
@@ -182,7 +182,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "4648fd8ba5c678d7e2db75ae44ffac269bb589d8",
+      "rev": "7d22e678970d95d8d18494ec389c52b07111c53a",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -260,7 +260,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "ffbe34a31de0cf696f688e7d9e226dc5b86b4323",
+      "rev": "6ea42941864e28f59368480e071a84b16ae95bb4",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
