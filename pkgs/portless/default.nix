@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "portless";
-  version = "0.18.1-unstable-2026-11-19";
+  version = "0.18.1-unstable-2026-11-23";
 
   src = fetchFromGitHub {
     owner = "vercel-labs";
     repo = "portless";
-    rev = "6784e585a786a23b557d1291dfc86647587c4ea6";
-    hash = "sha256-EiS9PoDwiIkL5AnDTUzvijVyT58oUvk93++x92FnIvI=";
+    rev = "c209074805e68abdbc5967a6afae50afcc5cde6d";
+    hash = "sha256-wc+qU0k9+naNTwLV0Sr4HUyD8VwB0SfcsaGkeaAyvqM=";
   };
 
   # The workspace also holds the Next.js docs site, tests, and examples.

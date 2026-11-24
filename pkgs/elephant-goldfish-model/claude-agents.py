@@ -14,12 +14,15 @@ import sys
 import textwrap
 
 NIX_FILE = "pkgs/elephant-goldfish-model/default.nix"
-BULLET = re.compile(r"^(?P<indent>\s*)\*\s+`(?P<key>\w+)`:\s*(?P<value>.*)$")
+REGISTRATION = re.compile(
+    r"^\s*(?:\d+\.|\*)\s+\*\*[^*]*\(`(?P<name>[\w-]+)`\)\*\*:\s*Register\b(?P<rest>.*)$"
+)
+FLAG = re.compile(r"`(?P<key>\w+):\s*(?P<value>[^`]*?)\s*`")
+ROLE = re.compile(r"You are an? (?P<role>[^.]+)\.")
 FRONTMATTER_NAME = re.compile(r"^name:\s*(\S+)\s*$", re.M)
 EGM_NAME = re.compile(r"(?<![\w/.-])egm-[a-z0-9-]*[a-z0-9]")
 REGISTRATION_KEYS = {
     "name",
-    "description",
     "system_prompt",
     "enable_write_tools",
     "enable_subagent_tools",
@@ -31,46 +34,34 @@ def fail(message):
     sys.exit(f"elephant-goldfish-model: {message}")
 
 
-def clean(value):
-    value = value.strip()
-    if value.startswith(">-"):
-        value = value[2:].strip()
-    if len(value) > 1 and value[0] == value[-1] == "`" and "`" not in value[1:-1]:
-        value = value[1:-1]
-    return value
-
-
 def parse_registrations(skill_file):
-    """Return each bullet list that starts with `name` in one SKILL.md file.
+    """Return each runtime agent registration in one SKILL.md file.
 
-    A registration is a run of "*   `key`: value" bullets at one indent.
-    Deeper lines continue the value of the bullet above them.
+    A registration is a list item whose bold label names the agent in a code
+    span, such as **Scout Setup (`goldfish-explorer`)**, and whose text
+    starts with "Register". Code spans of the form `key: value` in that item
+    are flags. The blockquote on the lines after it is the system prompt.
     """
     lines = skill_file.read_text().splitlines()
     registrations = []
-    i = 0
-    while i < len(lines):
-        start = BULLET.match(lines[i])
-        if not start or start["key"] != "name":
-            i += 1
+    for i, line in enumerate(lines):
+        match = REGISTRATION.match(line)
+        if not match:
             continue
-        indent = len(start["indent"])
-        fields = {}
-        key = None
-        while i < len(lines):
-            line = lines[i]
-            bullet = BULLET.match(line)
-            if bullet and len(bullet["indent"]) == indent:
-                key = bullet["key"]
-                if key in fields:
-                    fail(f"{skill_file}: a registration repeats `{key}`")
-                fields[key] = [bullet["value"]]
-            elif line.strip() and len(line) - len(line.lstrip()) > indent:
-                fields[key].append(line.strip())
-            else:
+        fields = {"name": match["name"]}
+        for flag in FLAG.finditer(match["rest"]):
+            if flag["key"] in fields:
+                fail(f"{skill_file}: a registration repeats `{flag['key']}`")
+            fields[flag["key"]] = flag["value"]
+        prompt = []
+        for quoted in lines[i + 1 :]:
+            quoted = quoted.strip()
+            if not quoted.startswith(">"):
                 break
-            i += 1
-        registrations.append({k: clean(" ".join(v)) for k, v in fields.items()})
+            prompt.append(quoted[1:].strip())
+        if any(prompt):
+            fields["system_prompt"] = " ".join(p for p in prompt if p)
+        registrations.append(fields)
     return registrations
 
 
@@ -142,8 +133,16 @@ def render_agent(name, skill, registration):
             f"{skill} no longer registers {name} as read-only. Update the "
             "tool list in render_agent in this script."
         )
+    # Registrations have no description, so take it from the role that the
+    # prompt gives in its first sentence.
+    role = ROLE.match(registration["system_prompt"])
+    if not role:
+        fail(
+            f"{skill} no longer starts the {name} prompt with 'You are a ...'. "
+            "Update the description in render_agent in this script."
+        )
     description = (
-        f"{registration['description'].rstrip('.')}. "
+        f"{role['role'][0].upper()}{role['role'][1:]}. "
         f"Spawned by the EGM {skill} skill."
     )
     # JSON strings and arrays are valid YAML, so the values need no escaping.
