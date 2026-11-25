@@ -10,13 +10,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "portless";
-  version = "0.18.1-unstable-2026-11-23";
+  version = "0.18.1-unstable-2026-11-25";
 
   src = fetchFromGitHub {
     owner = "vercel-labs";
     repo = "portless";
-    rev = "c209074805e68abdbc5967a6afae50afcc5cde6d";
-    hash = "sha256-wc+qU0k9+naNTwLV0Sr4HUyD8VwB0SfcsaGkeaAyvqM=";
+    rev = "9dd01a5ed346d88c2e7829168d6541ad42d1420f";
+    hash = "sha256-GMUmOTBihOS0GgG2LtlWNUI+U4ovMYDpmsf5qcNZdVc=";
   };
 
   # The workspace also holds the Next.js docs site, tests, and examples.
@@ -32,7 +32,7 @@ stdenv.mkDerivation (finalAttrs: {
       ;
     pnpm = pnpm_11;
     fetcherVersion = 5;
-    hash = "sha256-8Vcbu4KKeDJpu1HvyZz/WBRhDKMVJHTcXgueyLqDEMc=";
+    hash = "sha256-hirSn/Wx6GiqyolK7bVHoDpqys4XNDspTKqSc9mVxGQ=";
   };
 
   nativeBuildInputs = [
