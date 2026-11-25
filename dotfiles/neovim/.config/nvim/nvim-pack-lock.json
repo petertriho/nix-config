@@ -78,7 +78,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffbandit.nvim": {
-      "rev": "fca57ce5dc6f6ba31c312c2ec9228eb9f92fd266",
+      "rev": "6023a6bce0d977a9b60266c61aeee6d66df3db90",
       "src": "https://github.com/CoreyKaylor/diffbandit.nvim"
     },
     "eyeliner.nvim": {
@@ -158,7 +158,7 @@
       "src": "https://github.com/bassamsdata/namu.nvim"
     },
     "neogit": {
-      "rev": "17929b7b0b9c05fe3dfc788fbba9881eb9c1cbec",
+      "rev": "0468adaa4af22ede35c0df6bdd81e93a9c217733",
       "src": "https://github.com/NeogitOrg/neogit"
     },
     "nui.nvim": {
@@ -206,7 +206,7 @@
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
-      "rev": "6e539e91302d2e201b078a45d214177140134523",
+      "rev": "ba85443ca5fe92290dcc073e0100c1908ddde634",
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
@@ -260,7 +260,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "6ea42941864e28f59368480e071a84b16ae95bb4",
+      "rev": "5926c7899b2e36cd0f944ef3a933abd68c0fcdb8",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
