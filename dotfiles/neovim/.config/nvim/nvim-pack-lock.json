@@ -182,7 +182,7 @@
       "src": "https://github.com/chrisgrieser/nvim-lsp-endhints"
     },
     "nvim-lspconfig": {
-      "rev": "7d22e678970d95d8d18494ec389c52b07111c53a",
+      "rev": "76f4cafc49677a34dc8ad8142b773d78ab4a041e",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
     "nvim-navic": {
@@ -260,7 +260,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "5926c7899b2e36cd0f944ef3a933abd68c0fcdb8",
+      "rev": "c01d3d7026af6347b03b05dc5972c072a7ed37af",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
