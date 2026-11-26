@@ -210,7 +210,7 @@
           "g++"
           "ls"
           "ifconfig"
-          "make"
+        #   "make"
           "mount"
           "mtr"
           "netstat"
