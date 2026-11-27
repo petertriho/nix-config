@@ -206,7 +206,7 @@
       "src": "https://github.com/chrisgrieser/nvim-tinygit"
     },
     "nvim-tree.lua": {
-      "rev": "ba85443ca5fe92290dcc073e0100c1908ddde634",
+      "rev": "d0b8d652d3a776a29b09f9c14f87717e455c52f6",
       "src": "https://github.com/nvim-tree/nvim-tree.lua"
     },
     "nvim-treesitter": {
@@ -260,7 +260,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "c01d3d7026af6347b03b05dc5972c072a7ed37af",
+      "rev": "56b010e943cce0ddd13fa062f447e66e072a6b16",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
