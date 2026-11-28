@@ -96,52 +96,6 @@ in
             set -g @fingers-pattern-0 '(sha256|sha384|sha512)-[A-Za-z0-9\+/]+={0,2}( +[!-~]*)?'
           '';
       }
-      # Replaced by native automatic-rename in extraConfig below.
-      # {
-      #   plugin = window-name;
-      #   extraConfig =
-      #     let
-      #       surround = srd: str: srd + str + srd;
-      #       mkStringList = srd: lst: "[" + (lib.concatMapStringsSep ", " (surround srd) lst) + "]";
-      #       name_shells = mkStringList "'" [
-      #         "bash"
-      #         "fish"
-      #         "sh"
-      #         "zsh"
-      #       ];
-      #       wrapper_programs = mkStringList "'" [
-      #         "nono"
-      #       ];
-      #       substitute_sets = mkStringList "" [
-      #         "(r'^/etc/profiles/per-user/(.+)/bin/(.+)', r'\\\\g<2>')"
-      #         "(r'^(/usr)?/bin/(.+)', r'\\\\g<2>')"
-      #         "(r'/nix/store/\\\\S+/bin/(n?vim?).*', r'\\\\g<1>')"
-      #         "(r'/nix/store/\\\\S+/bin/(.+)', r'\\\\g<1>')"
-      #         "(r'/nix/store/\\\\S+/libexec/\\\\S+/(.+)', r'\\\\g<1>')"
-      #       ];
-      #       dir_programs = mkStringList "'" [
-      #         "git"
-      #         "nvim"
-      #         "vi"
-      #         "vim"
-      #       ];
-      #       ignored_programs = mkStringList "'" [
-      #         "kubie"
-      #         "log"
-      #       ];
-      #     in
-      #     # tmux
-      #     ''
-      #       set -g @tmux_window_name_dir_programs "${dir_programs}"
-      #       set -g @tmux_window_name_icon_style "'name_and_icon'"
-      #       set -g @tmux_window_name_ignored_programs "${ignored_programs}"
-      #       set -g @tmux_window_name_shells "${name_shells}"
-      #       set -g @tmux_window_name_substitute_sets "${substitute_sets}"
-      #       set -g @tmux_window_name_wrapper_programs "${wrapper_programs}"
-      #       set -g @tmux_window_name_custom_icons '{"claude":"✻","codex":"","opencode":"󰚩","pi":"󰏿"}'
-      #       set -g @tmux_window_name_show_program_args "False"
-      #     '';
-      # }
       {
         plugin = fuzzback;
         extraConfig =
