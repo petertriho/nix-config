@@ -138,7 +138,7 @@
       "src": "https://github.com/nvim-mini/mini.diff"
     },
     "mini.files": {
-      "rev": "9898bee3b9004a3adf1b0c1b6ba984eae87082c2",
+      "rev": "bf671396edd8b462c98044376582bb3a2ce79a80",
       "src": "https://github.com/nvim-mini/mini.files"
     },
     "mini.icons": {
@@ -260,7 +260,7 @@
       "src": "https://github.com/cenk1cenk2/schema-companion.nvim"
     },
     "schemastore.nvim": {
-      "rev": "56b010e943cce0ddd13fa062f447e66e072a6b16",
+      "rev": "6ad680dc81c58ae141c4e7533164ca54d65db2a0",
       "src": "https://github.com/b0o/schemastore.nvim"
     },
     "scope.nvim": {
