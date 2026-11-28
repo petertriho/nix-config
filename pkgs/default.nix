@@ -43,6 +43,5 @@ with pkgs;
   terraform-skill = callPackage ./terraform-skill { };
   vicinae = inputs.vicinae.packages.${stdenv.hostPlatform.system}.default;
   vim-custom = callPackage ./vim-custom { };
-  vscode-langservers-extracted = callPackage ./vscode-langservers-extracted { };
   write-better = callPackage ./write-better { };
 }
